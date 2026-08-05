@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowDown,
+  ArrowUp,
   Briefcase,
   ChevronDown,
   ChevronUp,
+  ClipboardPaste,
   Download,
   FileText,
   GraduationCap,
@@ -13,6 +16,7 @@ import {
   Sparkles,
   Target,
   Trash2,
+  Undo2,
   Unlock,
   Wand2,
 } from 'lucide-react'
@@ -46,6 +50,7 @@ import {
 } from '@/lib/api'
 import { scoreResume } from '@/lib/ats'
 import { checkBullets } from '@/lib/guidance'
+import { parseResumeText } from '@/lib/importText'
 import { downloadResumeDocx, downloadTextDocx } from '@/lib/docx'
 import { downloadResumePdf, downloadTextPdf } from '@/lib/pdf'
 import {
@@ -60,7 +65,7 @@ import {
   sampleResume,
   saveResume,
 } from '@/lib/resume'
-import { TEMPLATES } from '@/lib/templates'
+import { ACCENT_CHOICES, TEMPLATES, getTemplate } from '@/lib/templates'
 
 function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
   const t = useRef<number | undefined>(undefined)
@@ -80,6 +85,65 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     return () => window.clearTimeout(t.current)
   }, [resume])
   return state
+}
+
+/** Global undo: snapshots resume state (throttled) and restores on Ctrl/Cmd+Z */
+function useUndo(
+  resume: Resume,
+  setResume: React.Dispatch<React.SetStateAction<Resume>>
+) {
+  const history = useRef<Resume[]>([])
+  const last = useRef(resume)
+  const lastPush = useRef(0)
+  const restoring = useRef(false)
+  const [canUndo, setCanUndo] = useState(false)
+
+  useEffect(() => {
+    if (restoring.current) {
+      restoring.current = false
+      last.current = resume
+      return
+    }
+    if (resume === last.current) return
+    const now = Date.now()
+    if (now - lastPush.current > 700) {
+      history.current.push(last.current)
+      if (history.current.length > 50) history.current.shift()
+      lastPush.current = now
+      setCanUndo(true)
+    }
+    last.current = resume
+  }, [resume])
+
+  const undo = useCallback(() => {
+    const prev = history.current.pop()
+    if (!prev) return
+    restoring.current = true
+    setCanUndo(history.current.length > 0)
+    setResume(prev)
+  }, [setResume])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return
+      const el = document.activeElement
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return
+      e.preventDefault()
+      undo()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [undo])
+
+  return { undo, canUndo }
+}
+
+function moveItem<T>(arr: T[], index: number, delta: number): T[] {
+  const next = index + delta
+  if (next < 0 || next >= arr.length) return arr
+  const copy = [...arr]
+  ;[copy[index], copy[next]] = [copy[next], copy[index]]
+  return copy
 }
 
 function Section({
@@ -130,9 +194,14 @@ export default function Builder() {
     candidates: string[]
     apply: (text: string) => void
   } | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [importText, setImportText] = useState('')
+  const [finalCheckOpen, setFinalCheckOpen] = useState(false)
+  const finalCheckFmt = useRef<'pdf' | 'docx' | null>(null)
   const freeMode = useFreeMode()
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
+  const { undo, canUndo } = useUndo(resume, setResume)
 
   const unlocked = Boolean(license)
   const hasBundlePlan = license?.plan === 'bundle'
@@ -195,7 +264,21 @@ export default function Builder() {
     }
   }
 
-  const download = async (fmt: 'pdf' | 'docx') => {
+  const finalCheckIssues = useMemo(() => {
+    const issues: string[] = []
+    for (const c of ats.checks) if (!c.pass) issues.push(`${c.label} — ${c.hint}`)
+    const bulletIssueCount = resume.experience.reduce(
+      (n, e) => n + checkBullets(e.bullets).reduce((m, r) => m + r.issues.length, 0),
+      0
+    )
+    if (bulletIssueCount > 0)
+      issues.push(
+        `${bulletIssueCount} bullet-quality warning${bulletIssueCount === 1 ? '' : 's'} in Experience (weak openers, missing numbers…)`
+      )
+    return issues
+  }, [ats, resume.experience])
+
+  const download = async (fmt: 'pdf' | 'docx', skipFinalCheck = false) => {
     if (!unlocked) {
       if (!freeMode) {
         requireUnlock(
@@ -208,6 +291,11 @@ export default function Builder() {
         setFreeDlOpen(true)
         return
       }
+    }
+    if (!skipFinalCheck && finalCheckIssues.length > 0) {
+      finalCheckFmt.current = fmt
+      setFinalCheckOpen(true)
+      return
     }
     setDownloading(fmt)
     try {
@@ -264,6 +352,15 @@ export default function Builder() {
             <span className="text-muted-foreground hidden text-xs sm:inline">
               {saveState === 'saving' ? 'Saving…' : 'Saved'}
             </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={undo}
+              disabled={!canUndo}
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo2 className="size-3.5" />
+            </Button>
             <Button size="sm" onClick={() => void download('pdf')} disabled={Boolean(downloading)}>
               {downloading ? <Loader2 className="animate-spin" /> : <Download />}
               PDF
@@ -294,9 +391,29 @@ export default function Builder() {
                 >
                   Load an example resume
                 </button>{' '}
-                to see how it works.
+                to see how it works, or{' '}
+                <button
+                  type="button"
+                  className="text-primary underline"
+                  onClick={() => setImportOpen(true)}
+                >
+                  import from pasted text
+                </button>
+                .
               </div>
             ))}
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              onClick={() => setImportOpen(true)}
+            >
+              <ClipboardPaste className="size-3" /> Import from text
+            </Button>
+          </div>
 
           <Section title="Target job (powers AI + ATS score)" icon={<Target className="size-4" />}>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -371,20 +488,54 @@ export default function Builder() {
                   <p className="text-muted-foreground text-xs font-medium">
                     Role {idx + 1}
                   </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive h-7"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        experience: r.experience.filter((x) => x.id !== e.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <div className="flex items-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7"
+                      disabled={idx === 0}
+                      title="Move up"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          experience: moveItem(r.experience, idx, -1),
+                        }))
+                      }
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7"
+                      disabled={idx === resume.experience.length - 1}
+                      title="Move down"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          experience: moveItem(r.experience, idx, 1),
+                        }))
+                      }
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive h-7"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          experience: r.experience.filter((x) => x.id !== e.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
@@ -451,7 +602,7 @@ export default function Builder() {
           </Section>
 
           <Section title="Education" icon={<GraduationCap className="size-4" />}>
-            {resume.education.map((e) => (
+            {resume.education.map((e, idx) => (
               <div key={e.id} className="space-y-2 rounded-lg border p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
@@ -530,6 +681,32 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 shrink-0"
+                    disabled={idx === 0}
+                    title="Move up"
+                    onClick={() =>
+                      setResume((r) => ({ ...r, education: moveItem(r.education, idx, -1) }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 shrink-0"
+                    disabled={idx === resume.education.length - 1}
+                    title="Move down"
+                    onClick={() =>
+                      setResume((r) => ({ ...r, education: moveItem(r.education, idx, 1) }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -689,6 +866,26 @@ export default function Builder() {
                 {t.name}
               </button>
             ))}
+            <span className="mx-1 h-5 border-l" aria-hidden />
+            {ACCENT_CHOICES.map((color) => {
+              const active =
+                (resume.accentColor || getTemplate(resume.templateId).accent) === color
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  title={`Accent ${color}`}
+                  aria-label={`Accent color ${color}`}
+                  onClick={() =>
+                    set('accentColor', color === getTemplate(resume.templateId).accent ? '' : color)
+                  }
+                  className={`size-5 rounded-full border-2 transition ${
+                    active ? 'border-primary scale-110' : 'border-transparent hover:scale-110'
+                  }`}
+                  style={{ background: color }}
+                />
+              )
+            })}
           </div>
 
           <Card className="py-0">
@@ -882,6 +1079,69 @@ export default function Builder() {
           if (fmt) void download(fmt)
         }}
       />
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Import from pasted text</DialogTitle>
+            <DialogDescription>
+              Paste your existing resume (copy it from a PDF, Word doc or LinkedIn). We'll
+              pre-fill the sections — in your browser, nothing is uploaded. Review the
+              result; imports are a starting point, not perfect.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            rows={12}
+            placeholder={'Jordan Reyes\nSoftware Engineer\njordan@email.com | (555) 210-4432\n\nEXPERIENCE\nSoftware Engineer at Brightlane (Jun 2023 – Present)\n- Led migration of the checkout flow…'}
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            className="font-mono text-xs"
+          />
+          <Button
+            onClick={() => {
+              if (!importText.trim()) return
+              setResume(parseResumeText(importText))
+              setImportOpen(false)
+              setImportText('')
+            }}
+            disabled={!importText.trim()}
+          >
+            <ClipboardPaste /> Import — replaces current content (Ctrl+Z to undo)
+          </Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={finalCheckOpen} onOpenChange={setFinalCheckOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Final check before download</DialogTitle>
+            <DialogDescription>
+              A few things could still be improved — fix them now or download anyway.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="space-y-1.5 text-sm">
+            {finalCheckIssues.map((issue) => (
+              <li key={issue} className="flex gap-1.5">
+                <span className="text-amber-600">⚠</span>
+                <span>{issue}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setFinalCheckOpen(false)}>
+              Keep editing
+            </Button>
+            <Button
+              onClick={() => {
+                const fmt = finalCheckFmt.current
+                finalCheckFmt.current = null
+                setFinalCheckOpen(false)
+                if (fmt) void download(fmt, true)
+              }}
+            >
+              <Download /> Download anyway
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

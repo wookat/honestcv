@@ -13,13 +13,13 @@ import {
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
 import type { Resume } from '@/lib/resume'
-import { getTemplate } from '@/lib/templates'
+import { resolveTemplate } from '@/lib/templates'
 
 const FONT_SERIF = 'Georgia'
 const FONT_SANS = 'Calibri'
 
 export async function downloadResumeDocx(resume: Resume, filename: string) {
-  const tpl = getTemplate(resume.templateId)
+  const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const font = tpl.serif ? FONT_SERIF : FONT_SANS
   const accent = tpl.accent.replace('#', '')
   const heading = (text: string) =>
