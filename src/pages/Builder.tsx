@@ -1,0 +1,883 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Briefcase,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  FileText,
+  GraduationCap,
+  Loader2,
+  Lock,
+  MessagesSquare,
+  Plus,
+  Sparkles,
+  Target,
+  Trash2,
+  Unlock,
+  Wand2,
+} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { SiteFooter, SiteHeader } from '@/components/Layout'
+import { UpgradeDialog, useLicense } from '@/components/Paywall'
+import { ResumePreview } from '@/components/ResumePreview'
+import {
+  PaymentRequiredError,
+  aiCoverLetter,
+  aiInterviewBrief,
+  aiRewrite,
+} from '@/lib/api'
+import { scoreResume } from '@/lib/ats'
+import { downloadResumeDocx, downloadTextDocx } from '@/lib/docx'
+import { downloadResumePdf, downloadTextPdf } from '@/lib/pdf'
+import {
+  type ExperienceItem,
+  type Resume,
+  emptyEducation,
+  emptyExperience,
+  emptyProject,
+  emptyResume,
+  loadResume,
+  resumeToPlainText,
+  sampleResume,
+  saveResume,
+} from '@/lib/resume'
+import { TEMPLATES } from '@/lib/templates'
+
+function useDebouncedSave(resume: Resume) {
+  const t = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    window.clearTimeout(t.current)
+    t.current = window.setTimeout(() => saveResume(resume), 400)
+    return () => window.clearTimeout(t.current)
+  }, [resume])
+}
+
+function Section({
+  title,
+  icon,
+  children,
+  defaultOpen = true,
+}: {
+  title: string
+  icon: React.ReactNode
+  children: React.ReactNode
+  defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <Card className="py-0">
+      <CardContent className="p-4">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between text-left font-medium"
+          onClick={() => setOpen((o) => !o)}
+        >
+          <span className="flex items-center gap-2">
+            {icon}
+            {title}
+          </span>
+          {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </button>
+        {open && <div className="mt-3 space-y-3">{children}</div>}
+      </CardContent>
+    </Card>
+  )
+}
+
+export default function Builder() {
+  const [resume, setResume] = useState<Resume>(() => loadResume() ?? emptyResume())
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
+  const [upgradeReason, setUpgradeReason] = useState('')
+  const [aiBusy, setAiBusy] = useState<string | null>(null)
+  const [aiError, setAiError] = useState('')
+  const [freeLeft, setFreeLeft] = useState<number | null>(null)
+  const [downloading, setDownloading] = useState<string | null>(null)
+  const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
+  const { license, refresh } = useLicense()
+  useDebouncedSave(resume)
+
+  const unlocked = Boolean(license)
+  const hasBundlePlan = license?.plan === 'bundle'
+  const ats = useMemo(
+    () => scoreResume(resume, resume.jobDescription),
+    [resume]
+  )
+
+  const set = useCallback(<K extends keyof Resume>(key: K, value: Resume[K]) => {
+    setResume((r) => ({ ...r, [key]: value }))
+  }, [])
+  const setContact = (key: keyof Resume['contact'], value: string) =>
+    setResume((r) => ({ ...r, contact: { ...r.contact, [key]: value } }))
+  const setExp = (id: string, patch: Partial<ExperienceItem>) =>
+    setResume((r) => ({
+      ...r,
+      experience: r.experience.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+    }))
+
+  const requireUnlock = (reason: string) => {
+    setUpgradeReason(reason)
+    setUpgradeOpen(true)
+  }
+
+  const runRewrite = async (
+    tag: string,
+    kind: 'bullets' | 'summary' | 'skills',
+    text: string,
+    apply: (out: string) => void
+  ) => {
+    if (!text.trim()) return
+    setAiBusy(tag)
+    setAiError('')
+    try {
+      const { text: out, freeRemaining } = await aiRewrite(kind, text, {
+        role: resume.targetRole,
+        jobDescription: resume.jobDescription,
+      })
+      if (freeRemaining !== null) setFreeLeft(freeRemaining)
+      apply(out)
+    } catch (e) {
+      if (e instanceof PaymentRequiredError) requireUnlock(e.message)
+      else setAiError((e as Error).message)
+    } finally {
+      setAiBusy(null)
+    }
+  }
+
+  const download = async (fmt: 'pdf' | 'docx') => {
+    if (!unlocked) {
+      requireUnlock(
+        'Downloading your resume as PDF or DOCX is the one thing we charge for — once, not monthly.'
+      )
+      return
+    }
+    setDownloading(fmt)
+    try {
+      const name = (resume.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
+      if (fmt === 'pdf') await downloadResumePdf(resume, `${name}-resume.pdf`)
+      else await downloadResumeDocx(resume, `${name}-resume.docx`)
+    } finally {
+      setDownloading(null)
+    }
+  }
+
+  const aiButton = (
+    tag: string,
+    label: string,
+    onClick: () => void,
+    disabled?: boolean
+  ) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      disabled={Boolean(aiBusy) || disabled}
+      className="h-7 gap-1 text-xs"
+    >
+      {aiBusy === tag ? (
+        <Loader2 className="size-3 animate-spin" />
+      ) : (
+        <Wand2 className="size-3" />
+      )}
+      {label}
+    </Button>
+  )
+
+  return (
+    <div className="bg-muted/30 flex min-h-screen flex-col">
+      <SiteHeader
+        action={
+          <div className="flex items-center gap-2">
+            {unlocked ? (
+              <Badge variant="secondary" className="gap-1">
+                <Unlock className="size-3" />
+                {hasBundlePlan ? 'Career Bundle' : 'Unlocked'}
+              </Badge>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => setUpgradeOpen(true)}>
+                <Lock className="size-3.5" /> Unlock — $9.99 once
+              </Button>
+            )}
+            <Button size="sm" onClick={() => void download('pdf')} disabled={Boolean(downloading)}>
+              {downloading ? <Loader2 className="animate-spin" /> : <Download />}
+              PDF
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void download('docx')}
+              disabled={Boolean(downloading)}
+            >
+              <Download /> DOCX
+            </Button>
+          </div>
+        }
+      />
+
+      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        {/* ---- Left: editor ---- */}
+        <div className="space-y-4">
+          {resume === null ||
+            (!resume.contact.fullName && !resume.summary && (
+              <div className="rounded-lg border border-dashed p-3 text-sm">
+                Starting fresh?{' '}
+                <button
+                  type="button"
+                  className="text-primary underline"
+                  onClick={() => setResume(sampleResume())}
+                >
+                  Load an example resume
+                </button>{' '}
+                to see how it works.
+              </div>
+            ))}
+
+          <Section title="Target job (powers AI + ATS score)" icon={<Target className="size-4" />}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="targetRole">Target role</Label>
+                <Input
+                  id="targetRole"
+                  placeholder="e.g. Frontend Engineer"
+                  value={resume.targetRole}
+                  onChange={(e) => set('targetRole', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="jd">Job description (paste to get your match score)</Label>
+              <Textarea
+                id="jd"
+                rows={4}
+                placeholder="Paste the job posting here — the ATS score below updates live, and AI rewrites will mirror its keywords."
+                value={resume.jobDescription}
+                onChange={(e) => set('jobDescription', e.target.value)}
+              />
+            </div>
+          </Section>
+
+          <Section title="Contact" icon={<FileText className="size-4" />}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(
+                [
+                  ['fullName', 'Full name', 'Jordan Reyes'],
+                  ['title', 'Professional title', 'Software Engineer'],
+                  ['email', 'Email', 'you@email.com'],
+                  ['phone', 'Phone', '(555) 210-4432'],
+                  ['location', 'Location', 'Austin, TX'],
+                  ['website', 'Website (optional)', 'yoursite.com'],
+                  ['linkedin', 'LinkedIn (optional)', 'linkedin.com/in/you'],
+                ] as const
+              ).map(([key, label, ph]) => (
+                <div key={key} className="space-y-1.5">
+                  <Label htmlFor={`c-${key}`}>{label}</Label>
+                  <Input
+                    id={`c-${key}`}
+                    placeholder={ph}
+                    value={resume.contact[key]}
+                    onChange={(e) => setContact(key, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Summary" icon={<FileText className="size-4" />}>
+            <Textarea
+              rows={3}
+              placeholder="2-3 sentences: who you are, years of experience, biggest strengths and wins."
+              value={resume.summary}
+              onChange={(e) => set('summary', e.target.value)}
+            />
+            <div className="flex items-center gap-2">
+              {aiButton('summary', 'AI polish summary', () =>
+                void runRewrite('summary', 'summary', resume.summary, (out) =>
+                  set('summary', out)
+                )
+              )}
+            </div>
+          </Section>
+
+          <Section title="Experience" icon={<Briefcase className="size-4" />}>
+            {resume.experience.map((e, idx) => (
+              <div key={e.id} className="space-y-2 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-muted-foreground text-xs font-medium">
+                    Role {idx + 1}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive h-7"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        experience: r.experience.filter((x) => x.id !== e.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Job title"
+                    value={e.role}
+                    onChange={(ev) => setExp(e.id, { role: ev.target.value })}
+                  />
+                  <Input
+                    placeholder="Company"
+                    value={e.company}
+                    onChange={(ev) => setExp(e.id, { company: ev.target.value })}
+                  />
+                  <Input
+                    placeholder="Location"
+                    value={e.location}
+                    onChange={(ev) => setExp(e.id, { location: ev.target.value })}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Start (Jun 2023)"
+                      value={e.startDate}
+                      onChange={(ev) => setExp(e.id, { startDate: ev.target.value })}
+                    />
+                    <Input
+                      placeholder="End (Present)"
+                      value={e.endDate}
+                      onChange={(ev) => setExp(e.id, { endDate: ev.target.value })}
+                    />
+                  </div>
+                </div>
+                <Textarea
+                  rows={4}
+                  placeholder={'One achievement per line, e.g.\nCut deploy time by 60% by introducing CI caching\nLed a team of 3 engineers on the checkout redesign'}
+                  value={e.bullets.join('\n')}
+                  onChange={(ev) => setExp(e.id, { bullets: ev.target.value.split('\n') })}
+                />
+                {aiButton(`exp-${e.id}`, 'AI rewrite bullets', () =>
+                  void runRewrite(
+                    `exp-${e.id}`,
+                    'bullets',
+                    e.bullets.filter((b) => b.trim()).join('\n'),
+                    (out) =>
+                      setExp(e.id, {
+                        bullets: out
+                          .split('\n')
+                          .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                          .filter(Boolean),
+                      })
+                  )
+                )}
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setResume((r) => ({ ...r, experience: [...r.experience, emptyExperience()] }))
+              }
+            >
+              <Plus className="size-4" /> Add role
+            </Button>
+          </Section>
+
+          <Section title="Education" icon={<GraduationCap className="size-4" />}>
+            {resume.education.map((e) => (
+              <div key={e.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Degree (B.S. Computer Science)"
+                    value={e.degree}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        education: r.education.map((x) =>
+                          x.id === e.id ? { ...x, degree: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="School"
+                    value={e.school}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        education: r.education.map((x) =>
+                          x.id === e.id ? { ...x, school: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Location"
+                    value={e.location}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        education: r.education.map((x) =>
+                          x.id === e.id ? { ...x, location: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Start (2017)"
+                      value={e.startDate}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.map((x) =>
+                            x.id === e.id ? { ...x, startDate: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="End (2021)"
+                      value={e.endDate}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.map((x) =>
+                            x.id === e.id ? { ...x, endDate: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <Input
+                    placeholder="Details (GPA, honors — optional)"
+                    value={e.details}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        education: r.education.map((x) =>
+                          x.id === e.id ? { ...x, details: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive h-9 shrink-0"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        education: r.education.filter((x) => x.id !== e.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setResume((r) => ({ ...r, education: [...r.education, emptyEducation()] }))
+              }
+            >
+              <Plus className="size-4" /> Add education
+            </Button>
+          </Section>
+
+          <Section title="Projects (optional)" icon={<FileText className="size-4" />} defaultOpen={false}>
+            {resume.projects.map((p) => (
+              <div key={p.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Project name"
+                    value={p.name}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        projects: r.projects.map((x) =>
+                          x.id === p.id ? { ...x, name: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Link (optional)"
+                    value={p.link}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        projects: r.projects.map((x) =>
+                          x.id === p.id ? { ...x, link: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="What it does and your impact"
+                    value={p.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        projects: r.projects.map((x) =>
+                          x.id === p.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive h-9 shrink-0"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        projects: r.projects.filter((x) => x.id !== p.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setResume((r) => ({ ...r, projects: [...r.projects, emptyProject()] }))
+              }
+            >
+              <Plus className="size-4" /> Add project
+            </Button>
+          </Section>
+
+          <Section title="Skills & certifications" icon={<Sparkles className="size-4" />}>
+            <div className="space-y-1.5">
+              <Label htmlFor="skills">Skills (comma-separated)</Label>
+              <Textarea
+                id="skills"
+                rows={2}
+                placeholder="React, TypeScript, Node.js, PostgreSQL, AWS…"
+                value={resume.skills}
+                onChange={(e) => set('skills', e.target.value)}
+              />
+              {aiButton('skills', 'AI clean up skills', () =>
+                void runRewrite('skills', 'skills', resume.skills, (out) =>
+                  set('skills', out)
+                )
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="certs">Certifications (optional)</Label>
+              <Input
+                id="certs"
+                placeholder="AWS Solutions Architect (2024), PMP…"
+                value={resume.certifications}
+                onChange={(e) => set('certifications', e.target.value)}
+              />
+            </div>
+          </Section>
+
+          {aiError && <p className="text-destructive text-sm">{aiError}</p>}
+          {freeLeft !== null && !unlocked && (
+            <p className="text-muted-foreground text-xs">
+              {freeLeft} free AI rewrite{freeLeft === 1 ? '' : 's'} left — unlock once for
+              unlimited.
+            </p>
+          )}
+        </div>
+
+        {/* ---- Right: preview + ATS ---- */}
+        <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+          <div className="flex flex-wrap items-center gap-2">
+            {TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                title={t.description}
+                onClick={() => set('templateId', t.id)}
+                className={`rounded-md border px-3 py-1.5 text-sm transition ${
+                  resume.templateId === t.id
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'bg-background hover:bg-muted'
+                }`}
+              >
+                <span
+                  className="mr-1.5 inline-block size-2 rounded-full"
+                  style={{ background: t.accent }}
+                />
+                {t.name}
+              </button>
+            ))}
+          </div>
+
+          <Card className="py-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="font-medium">
+                  ATS match score{' '}
+                  <span className="text-muted-foreground text-xs font-normal">
+                    — free, computed in your browser
+                  </span>
+                </p>
+                <span
+                  className={`text-2xl font-bold ${
+                    ats.score >= 75
+                      ? 'text-green-600'
+                      : ats.score >= 50
+                        ? 'text-amber-600'
+                        : 'text-red-600'
+                  }`}
+                >
+                  {ats.score}
+                </span>
+              </div>
+              <div className="bg-muted mt-2 h-2 overflow-hidden rounded-full">
+                <div
+                  className={`h-full transition-all ${
+                    ats.score >= 75
+                      ? 'bg-green-600'
+                      : ats.score >= 50
+                        ? 'bg-amber-500'
+                        : 'bg-red-500'
+                  }`}
+                  style={{ width: `${ats.score}%` }}
+                />
+              </div>
+              {resume.jobDescription.trim() ? (
+                <div className="mt-3 space-y-2 text-xs">
+                  {ats.matched.length > 0 && (
+                    <p>
+                      <span className="font-medium text-green-700">
+                        Matched ({ats.matched.length}):
+                      </span>{' '}
+                      {ats.matched.join(', ')}
+                    </p>
+                  )}
+                  {ats.missing.length > 0 && (
+                    <p>
+                      <span className="font-medium text-red-700">
+                        Missing ({ats.missing.length}):
+                      </span>{' '}
+                      {ats.missing.join(', ')}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-muted-foreground mt-2 text-xs">
+                  Paste a job description in "Target job" to see keyword matches.
+                </p>
+              )}
+              <ul className="mt-3 space-y-1 text-xs">
+                {ats.checks.map((c) => (
+                  <li key={c.label} className="flex items-start gap-1.5">
+                    <span className={c.pass ? 'text-green-600' : 'text-red-500'}>
+                      {c.pass ? '✓' : '✗'}
+                    </span>
+                    <span>
+                      <span className="font-medium">{c.label}</span>
+                      {!c.pass && <span className="text-muted-foreground"> — {c.hint}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          <ResumePreview resume={resume} />
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button
+              variant="outline"
+              onClick={() =>
+                hasBundlePlan
+                  ? setToolOpen('cover')
+                  : requireUnlock(
+                      'The AI cover letter writer is part of the Career Bundle ($19.99, one-time).'
+                    )
+              }
+            >
+              <FileText /> Cover letter {!hasBundlePlan && <Lock className="size-3 opacity-60" />}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                hasBundlePlan
+                  ? setToolOpen('interview')
+                  : requireUnlock(
+                      'Interview prep is part of the Career Bundle ($19.99, one-time).'
+                    )
+              }
+            >
+              <MessagesSquare /> Interview prep{' '}
+              {!hasBundlePlan && <Lock className="size-3 opacity-60" />}
+            </Button>
+          </div>
+        </div>
+      </main>
+
+      <SiteFooter />
+
+      <UpgradeDialog
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        reason={upgradeReason}
+        onActivated={() => {
+          refresh()
+          setUpgradeOpen(false)
+        }}
+      />
+      <BundleToolDialog
+        kind={toolOpen}
+        onClose={() => setToolOpen(null)}
+        resume={resume}
+      />
+    </div>
+  )
+}
+
+function BundleToolDialog({
+  kind,
+  onClose,
+  resume,
+}: {
+  kind: 'cover' | 'interview' | null
+  onClose: () => void
+  resume: Resume
+}) {
+  const [company, setCompany] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState('')
+  const [lastKind, setLastKind] = useState(kind)
+
+  if (kind !== lastKind) {
+    setLastKind(kind)
+    setResult('')
+    setError('')
+  }
+
+  const generate = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      const resumeText = resumeToPlainText(resume)
+      const jd = resume.jobDescription
+      if (!jd.trim()) {
+        setError('Paste the job description in "Target job" first — both tools tailor to it.')
+        return
+      }
+      const text =
+        kind === 'cover'
+          ? await aiCoverLetter({
+              resumeText,
+              jobDescription: jd,
+              company,
+              role: resume.targetRole,
+            })
+          : await aiInterviewBrief({
+              resumeText,
+              jobDescription: jd,
+              role: resume.targetRole,
+            })
+      setResult(text)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const title = kind === 'cover' ? 'AI Cover Letter' : 'Interview Prep Brief'
+  return (
+    <Dialog open={kind !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            Tailored to your resume and the job description you pasted in "Target job".
+          </DialogDescription>
+        </DialogHeader>
+        {kind === 'cover' && (
+          <div className="space-y-1.5">
+            <Label htmlFor="company">Company name</Label>
+            <Input
+              id="company"
+              placeholder="e.g. Stripe"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+            />
+          </div>
+        )}
+        <Button onClick={() => void generate()} disabled={busy}>
+          {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+          {busy ? 'Writing…' : result ? 'Regenerate' : 'Generate'}
+        </Button>
+        {error && <p className="text-destructive text-sm">{error}</p>}
+        {result && (
+          <>
+            <Textarea
+              rows={14}
+              value={result}
+              onChange={(e) => setResult(e.target.value)}
+              className="font-mono text-xs"
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  void downloadTextPdf(
+                    title,
+                    result,
+                    kind === 'cover' ? 'cover-letter.pdf' : 'interview-prep.pdf'
+                  )
+                }
+              >
+                <Download /> PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  void downloadTextDocx(
+                    title,
+                    result,
+                    kind === 'cover' ? 'cover-letter.docx' : 'interview-prep.docx'
+                  )
+                }
+              >
+                <Download /> DOCX
+              </Button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}

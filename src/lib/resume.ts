@@ -1,0 +1,230 @@
+/**
+ * Resume data model + localStorage persistence. All resume content lives in
+ * the browser — nothing is stored on our servers.
+ */
+
+export interface ContactInfo {
+  fullName: string
+  title: string
+  email: string
+  phone: string
+  location: string
+  website: string
+  linkedin: string
+}
+
+export interface ExperienceItem {
+  id: string
+  company: string
+  role: string
+  location: string
+  startDate: string
+  endDate: string
+  bullets: string[]
+}
+
+export interface EducationItem {
+  id: string
+  school: string
+  degree: string
+  location: string
+  startDate: string
+  endDate: string
+  details: string
+}
+
+export interface ProjectItem {
+  id: string
+  name: string
+  link: string
+  description: string
+}
+
+export interface Resume {
+  contact: ContactInfo
+  summary: string
+  experience: ExperienceItem[]
+  education: EducationItem[]
+  projects: ProjectItem[]
+  skills: string
+  certifications: string
+  templateId: string
+  /** Target role + JD used for tailoring and the ATS score */
+  targetRole: string
+  jobDescription: string
+}
+
+export const newId = () => Math.random().toString(36).slice(2, 10)
+
+export function emptyResume(): Resume {
+  return {
+    contact: {
+      fullName: '',
+      title: '',
+      email: '',
+      phone: '',
+      location: '',
+      website: '',
+      linkedin: '',
+    },
+    summary: '',
+    experience: [emptyExperience()],
+    education: [emptyEducation()],
+    projects: [],
+    skills: '',
+    certifications: '',
+    templateId: 'classic',
+    targetRole: '',
+    jobDescription: '',
+  }
+}
+
+export const emptyExperience = (): ExperienceItem => ({
+  id: newId(),
+  company: '',
+  role: '',
+  location: '',
+  startDate: '',
+  endDate: '',
+  bullets: [''],
+})
+
+export const emptyEducation = (): EducationItem => ({
+  id: newId(),
+  school: '',
+  degree: '',
+  location: '',
+  startDate: '',
+  endDate: '',
+  details: '',
+})
+
+export const emptyProject = (): ProjectItem => ({
+  id: newId(),
+  name: '',
+  link: '',
+  description: '',
+})
+
+export function sampleResume(): Resume {
+  return {
+    ...emptyResume(),
+    contact: {
+      fullName: 'Jordan Reyes',
+      title: 'Software Engineer',
+      email: 'jordan.reyes@email.com',
+      phone: '(555) 210-4432',
+      location: 'Austin, TX',
+      website: '',
+      linkedin: 'linkedin.com/in/jordanreyes',
+    },
+    summary:
+      'Software engineer with 4 years of experience building customer-facing web applications. Shipped features used by 2M+ monthly users and cut page load times by 45%. Strong in React, TypeScript and cloud infrastructure.',
+    experience: [
+      {
+        id: newId(),
+        company: 'Brightlane',
+        role: 'Software Engineer',
+        location: 'Austin, TX',
+        startDate: 'Jun 2023',
+        endDate: 'Present',
+        bullets: [
+          'Led migration of the checkout flow to React + TypeScript, reducing cart abandonment by 12%',
+          'Built internal design-system components adopted by 5 product teams',
+          'Cut p95 page load time from 3.2s to 1.7s via code splitting and CDN caching',
+        ],
+      },
+      {
+        id: newId(),
+        company: 'Nova Retail',
+        role: 'Junior Developer',
+        location: 'Remote',
+        startDate: 'Jul 2021',
+        endDate: 'May 2023',
+        bullets: [
+          'Developed REST APIs in Node.js powering order tracking for 300k customers',
+          'Automated regression test suite, cutting release QA time from 2 days to 4 hours',
+        ],
+      },
+    ],
+    education: [
+      {
+        id: newId(),
+        school: 'University of Texas at Austin',
+        degree: 'B.S. Computer Science',
+        location: 'Austin, TX',
+        startDate: '2017',
+        endDate: '2021',
+        details: '',
+      },
+    ],
+    projects: [],
+    skills:
+      'React, TypeScript, Node.js, Python, PostgreSQL, AWS, Docker, CI/CD, GraphQL, Jest',
+    certifications: '',
+  }
+}
+
+const STORAGE_KEY = 'honestcv.resume'
+
+export function loadResume(): Resume | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Resume
+    if (!parsed.contact || !Array.isArray(parsed.experience)) return null
+    return { ...emptyResume(), ...parsed }
+  } catch {
+    return null
+  }
+}
+
+export function saveResume(resume: Resume) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(resume))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+/** Flatten to plain text (for AI context + ATS scoring) */
+export function resumeToPlainText(r: Resume): string {
+  const lines: string[] = []
+  const c = r.contact
+  lines.push([c.fullName, c.title].filter(Boolean).join(' — '))
+  lines.push([c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean).join(' | '))
+  if (r.summary) lines.push('', 'SUMMARY', r.summary)
+  if (r.experience.some((e) => e.company || e.role)) {
+    lines.push('', 'EXPERIENCE')
+    for (const e of r.experience) {
+      if (!e.company && !e.role) continue
+      lines.push(
+        [e.role, e.company].filter(Boolean).join(' at ') +
+          (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
+      )
+      for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+    }
+  }
+  if (r.projects.some((p) => p.name)) {
+    lines.push('', 'PROJECTS')
+    for (const p of r.projects) {
+      if (!p.name) continue
+      lines.push(p.name + (p.link ? ` (${p.link})` : ''))
+      if (p.description) lines.push(p.description)
+    }
+  }
+  if (r.education.some((e) => e.school)) {
+    lines.push('', 'EDUCATION')
+    for (const e of r.education) {
+      if (!e.school) continue
+      lines.push(
+        [e.degree, e.school].filter(Boolean).join(', ') +
+          (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
+      )
+      if (e.details) lines.push(e.details)
+    }
+  }
+  if (r.skills) lines.push('', 'SKILLS', r.skills)
+  if (r.certifications) lines.push('', 'CERTIFICATIONS', r.certifications)
+  return lines.join('\n')
+}

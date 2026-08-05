@@ -1,0 +1,276 @@
+/**
+ * Text-based PDF export via pdf-lib: real selectable/parseable text
+ * (never an image), single-column US Letter layout, template-aware styling.
+ */
+
+import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib'
+import { downloadBlob } from '@/lib/download'
+import type { Resume } from '@/lib/resume'
+import { getTemplate, type TemplateMeta } from '@/lib/templates'
+
+const PAGE_W = 612 // US Letter
+const PAGE_H = 792
+const MARGIN = 54
+const CONTENT_W = PAGE_W - MARGIN * 2
+
+function hexToRgb(hex: string) {
+  const n = parseInt(hex.replace('#', ''), 16)
+  return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255)
+}
+
+interface Fonts {
+  regular: PDFFont
+  bold: PDFFont
+  italic: PDFFont
+}
+
+function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let line = ''
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      line = candidate
+    } else {
+      if (line) lines.push(line)
+      line = word
+    }
+  }
+  if (line) lines.push(line)
+  return lines.length ? lines : ['']
+}
+
+class PdfWriter {
+  doc: PDFDocument
+  page: PDFPage
+  y: number
+  fonts: Fonts
+  tpl: TemplateMeta
+  accent: ReturnType<typeof rgb>
+  ink = rgb(0.12, 0.12, 0.12)
+  soft = rgb(0.35, 0.35, 0.35)
+
+  constructor(doc: PDFDocument, fonts: Fonts, tpl: TemplateMeta) {
+    this.doc = doc
+    this.fonts = fonts
+    this.tpl = tpl
+    this.accent = hexToRgb(tpl.accent)
+    this.page = doc.addPage([PAGE_W, PAGE_H])
+    this.y = PAGE_H - MARGIN
+  }
+
+  ensure(height: number) {
+    if (this.y - height < MARGIN) {
+      this.page = this.doc.addPage([PAGE_W, PAGE_H])
+      this.y = PAGE_H - MARGIN
+    }
+  }
+
+  text(
+    text: string,
+    opts: {
+      font?: PDFFont
+      size?: number
+      color?: ReturnType<typeof rgb>
+      indent?: number
+      lineGap?: number
+      center?: boolean
+      maxWidth?: number
+    } = {}
+  ) {
+    const font = opts.font ?? this.fonts.regular
+    const size = opts.size ?? 10
+    const indent = opts.indent ?? 0
+    const maxWidth = opts.maxWidth ?? CONTENT_W - indent
+    const lineHeight = size * 1.35 + (opts.lineGap ?? 0)
+    for (const line of wrapText(text, font, size, maxWidth)) {
+      this.ensure(lineHeight)
+      const width = font.widthOfTextAtSize(line, size)
+      const x = opts.center ? (PAGE_W - width) / 2 : MARGIN + indent
+      this.y -= lineHeight
+      this.page.drawText(line, {
+        x,
+        y: this.y,
+        size,
+        font,
+        color: opts.color ?? this.ink,
+      })
+    }
+  }
+
+  gap(h: number) {
+    this.y -= h
+  }
+
+  heading(label: string) {
+    const text = this.tpl.headingCase === 'upper' ? label.toUpperCase() : label
+    this.ensure(30)
+    this.gap(10)
+    this.text(text, { font: this.fonts.bold, size: 11, color: this.accent })
+    if (this.tpl.divider !== 'none') {
+      const thickness = this.tpl.divider === 'thick' ? 2 : 0.75
+      this.gap(3)
+      this.page.drawLine({
+        start: { x: MARGIN, y: this.y },
+        end: { x: PAGE_W - MARGIN, y: this.y },
+        thickness,
+        color: this.accent,
+      })
+      this.gap(6)
+    } else {
+      this.gap(4)
+    }
+  }
+
+  bullet(text: string) {
+    const size = 10
+    const font = this.fonts.regular
+    const indent = 14
+    const lines = wrapText(text, font, size, CONTENT_W - indent)
+    const lineHeight = size * 1.35
+    lines.forEach((line, i) => {
+      this.ensure(lineHeight)
+      this.y -= lineHeight
+      if (i === 0) {
+        this.page.drawText('•', {
+          x: MARGIN + 2,
+          y: this.y,
+          size,
+          font,
+          color: this.accent,
+        })
+      }
+      this.page.drawText(line, { x: MARGIN + indent, y: this.y, size, font, color: this.ink })
+    })
+    this.gap(2)
+  }
+}
+
+export async function buildResumePdf(resume: Resume): Promise<Uint8Array> {
+  const tpl = getTemplate(resume.templateId)
+  const doc = await PDFDocument.create()
+  const fonts: Fonts = tpl.serif
+    ? {
+        regular: await doc.embedFont(StandardFonts.TimesRoman),
+        bold: await doc.embedFont(StandardFonts.TimesRomanBold),
+        italic: await doc.embedFont(StandardFonts.TimesRomanItalic),
+      }
+    : {
+        regular: await doc.embedFont(StandardFonts.Helvetica),
+        bold: await doc.embedFont(StandardFonts.HelveticaBold),
+        italic: await doc.embedFont(StandardFonts.HelveticaOblique),
+      }
+  const w = new PdfWriter(doc, fonts, tpl)
+  const c = resume.contact
+
+  w.text(c.fullName || 'Your Name', { font: fonts.bold, size: 22, center: true })
+  if (c.title) {
+    w.gap(2)
+    w.text(c.title, { size: 12, color: w.accent, center: true })
+  }
+  const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]
+    .filter(Boolean)
+    .join('  |  ')
+  if (contactLine) {
+    w.gap(2)
+    w.text(contactLine, { size: 9, color: w.soft, center: true })
+  }
+  w.gap(6)
+
+  if (resume.summary.trim()) {
+    w.heading('Summary')
+    w.text(resume.summary.trim(), { size: 10 })
+  }
+
+  if (resume.experience.some((e) => e.company || e.role)) {
+    w.heading('Experience')
+    for (const e of resume.experience) {
+      if (!e.company && !e.role) continue
+      w.gap(4)
+      const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+      const left = `${e.role || 'Role'}  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`
+      w.text(left, { font: fonts.bold, size: 10.5 })
+      if (dates) {
+        w.gap(1)
+        w.text(dates, { font: fonts.italic, size: 9, color: w.soft })
+      }
+      w.gap(2)
+      for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
+    }
+  }
+
+  if (resume.projects.some((p) => p.name)) {
+    w.heading('Projects')
+    for (const p of resume.projects) {
+      if (!p.name) continue
+      w.gap(2)
+      w.text(`${p.name}${p.link ? ` — ${p.link}` : ''}`, { font: fonts.bold, size: 10 })
+      if (p.description.trim()) {
+        w.gap(1)
+        w.text(p.description.trim(), { size: 10 })
+      }
+    }
+  }
+
+  if (resume.education.some((e) => e.school)) {
+    w.heading('Education')
+    for (const e of resume.education) {
+      if (!e.school) continue
+      w.gap(2)
+      const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+      w.text(
+        `${e.degree || 'Degree'}  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,
+        { font: fonts.bold, size: 10 }
+      )
+      if (dates) {
+        w.gap(1)
+        w.text(dates, { font: fonts.italic, size: 9, color: w.soft })
+      }
+      if (e.details.trim()) {
+        w.gap(1)
+        w.text(e.details.trim(), { size: 10 })
+      }
+    }
+  }
+
+  if (resume.skills.trim()) {
+    w.heading('Skills')
+    w.text(resume.skills.trim(), { size: 10 })
+  }
+  if (resume.certifications.trim()) {
+    w.heading('Certifications')
+    w.text(resume.certifications.trim(), { size: 10 })
+  }
+
+  return doc.save()
+}
+
+export async function downloadResumePdf(resume: Resume, filename: string) {
+  const bytes = await buildResumePdf(resume)
+  downloadBlob(new Blob([bytes as BlobPart], { type: 'application/pdf' }), filename)
+}
+
+/** Generic text PDF (cover letter / interview brief) */
+export async function downloadTextPdf(title: string, text: string, filename: string) {
+  const doc = await PDFDocument.create()
+  const fonts: Fonts = {
+    regular: await doc.embedFont(StandardFonts.Helvetica),
+    bold: await doc.embedFont(StandardFonts.HelveticaBold),
+    italic: await doc.embedFont(StandardFonts.HelveticaOblique),
+  }
+  const tpl = getTemplate('modern')
+  const w = new PdfWriter(doc, fonts, tpl)
+  w.text(title, { font: fonts.bold, size: 16 })
+  w.gap(10)
+  for (const block of text.split(/\n{2,}/)) {
+    const t = block.trim()
+    if (!t) continue
+    for (const line of t.split('\n')) {
+      w.text(line, { size: 10.5, lineGap: 1 })
+    }
+    w.gap(8)
+  }
+  const bytes = await doc.save()
+  downloadBlob(new Blob([bytes as BlobPart], { type: 'application/pdf' }), filename)
+}
