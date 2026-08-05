@@ -33,12 +33,14 @@ export type RewriteKind = 'bullets' | 'summary' | 'skills'
 export async function aiRewrite(
   kind: RewriteKind,
   text: string,
-  context: { role?: string; jobDescription?: string }
-): Promise<{ text: string; freeRemaining: number | null }> {
-  const data = await post<{ text: string; freeRemaining: number | null }>(
-    '/api/ai/rewrite',
-    { kind, text, ...context }
-  )
+  context: { role?: string; jobDescription?: string },
+  variants = false
+): Promise<{ text: string; texts?: string[]; freeRemaining: number | null }> {
+  const data = await post<{
+    text: string
+    texts?: string[]
+    freeRemaining: number | null
+  }>('/api/ai/rewrite', { kind, text, variants, ...context })
   return data
 }
 

@@ -40,6 +40,10 @@ export interface AtsResult {
   score: number
   matched: string[]
   missing: string[]
+  /** Keyword coverage 0-100, or null when no JD was provided */
+  keywordScore: number | null
+  /** Structure/best-practices sub-score 0-100 */
+  structureScore: number
   /** Structural checks independent of the JD */
   checks: { label: string; pass: boolean; hint: string }[]
 }
@@ -125,15 +129,24 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     },
   ]
 
-  const structureScore = checks.filter((c) => c.pass).length / checks.length
-  let score: number
-  if (keywords.length > 0) {
-    const kwScore = matched.length / keywords.length
-    score = Math.round(kwScore * 70 + structureScore * 30)
-  } else {
-    score = Math.round(structureScore * 100)
-  }
-  return { score, matched, missing, checks }
+  return finalize(keywords, matched, missing, checks)
+}
+
+function finalize(
+  keywords: string[],
+  matched: string[],
+  missing: string[],
+  checks: AtsResult['checks']
+): AtsResult {
+  const structureRatio = checks.filter((c) => c.pass).length / checks.length
+  const structureScore = Math.round(structureRatio * 100)
+  const keywordScore =
+    keywords.length > 0 ? Math.round((matched.length / keywords.length) * 100) : null
+  const score =
+    keywordScore !== null
+      ? Math.round((keywordScore * 70 + structureScore * 30) / 100)
+      : structureScore
+  return { score, matched, missing, keywordScore, structureScore, checks }
 }
 
 import type { Resume } from './resume'
@@ -194,13 +207,5 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
     },
   ]
 
-  const structureScore = checks.filter((c) => c.pass).length / checks.length
-  let score: number
-  if (keywords.length > 0) {
-    const kwScore = matched.length / keywords.length
-    score = Math.round(kwScore * 70 + structureScore * 30)
-  } else {
-    score = Math.round(structureScore * 100)
-  }
-  return { score, matched, missing, checks }
+  return finalize(keywords, matched, missing, checks)
 }
