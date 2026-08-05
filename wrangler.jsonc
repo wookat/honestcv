@@ -20,7 +20,11 @@
     "LLM_MODEL": "grok-composer-2.5-fast",
     // Checkout switch: flip to "true" once the Paddle account/product is approved.
     // While "false" the buy button degrades to an email waitlist (POST /api/leads).
-    "CHECKOUT_ENABLED": "true"
+    "CHECKOUT_ENABLED": "true",
+    // Launch/traffic mode: downloads free behind an email subscribe, bundle AI
+    // tools share the free quota, checkout hidden. Flip to "false" to re-enable
+    // the paywall once the payment channel is live.
+    "FREE_MODE": "true"
   },
   "observability": {
     "enabled": true

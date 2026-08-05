@@ -78,6 +78,64 @@ export function extractKeywords(jd: string, limit = 30): string[] {
     .map(([k]) => k)
 }
 
+/** Score pasted resume text (standalone ATS checker page) */
+export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
+  const resumeText = resumeTextRaw.toLowerCase()
+  const resumeTokens = new Set(tokenize(resumeText))
+
+  const keywords = jd.trim() ? extractKeywords(jd) : []
+  const matched: string[] = []
+  const missing: string[] = []
+  for (const kw of keywords) {
+    const hit = kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)
+    if (hit) matched.push(kw)
+    else missing.push(kw)
+  }
+
+  const checks: AtsResult['checks'] = [
+    {
+      label: 'Email address found',
+      pass: /[^\s@]+@[^\s@]+\.[^\s@]{2,}/.test(resumeText),
+      hint: 'ATS parsers look for an email in the header.',
+    },
+    {
+      label: 'Phone number found',
+      pass: /(\+?\d[\d\s().-]{7,})/.test(resumeText),
+      hint: 'Include a phone number recruiters can call.',
+    },
+    {
+      label: 'Standard section headings',
+      pass: /experience/.test(resumeText) && /education/.test(resumeText),
+      hint: 'Use standard headings like "Experience" and "Education" so parsers find them.',
+    },
+    {
+      label: 'Skills section present',
+      pass: /skills/.test(resumeText),
+      hint: 'A dedicated skills list is the easiest keyword match for ATS.',
+    },
+    {
+      label: 'Quantified achievements',
+      pass: /\d+(%|\+| percent|k\b|x\b)|\$\d/.test(resumeText),
+      hint: 'Numbers (%, $, counts) make bullets stand out to recruiters.',
+    },
+    {
+      label: 'Enough content to parse',
+      pass: resumeTextRaw.trim().length >= 400,
+      hint: 'Very short resumes give ATS systems too little to match on.',
+    },
+  ]
+
+  const structureScore = checks.filter((c) => c.pass).length / checks.length
+  let score: number
+  if (keywords.length > 0) {
+    const kwScore = matched.length / keywords.length
+    score = Math.round(kwScore * 70 + structureScore * 30)
+  } else {
+    score = Math.round(structureScore * 100)
+  }
+  return { score, matched, missing, checks }
+}
+
 import type { Resume } from './resume'
 import { resumeToPlainText } from './resume'
 

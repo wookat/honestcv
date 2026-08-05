@@ -45,11 +45,17 @@ interface Env extends BillingEnv, PaddleEnv, LsEnv {
   LLM_MODEL?: string
   /** Checkout switch: frontend opens Paddle checkout only when "true" */
   CHECKOUT_ENABLED?: string
+  /** Launch/traffic mode: downloads free, bundle AI tools share the free quota */
+  FREE_MODE?: string
   ASSETS: Fetcher
 }
 
+const freeMode = (env: Env) => env.FREE_MODE === 'true'
+
 /** Free users: AI rewrites per client per 30 days (paid = unlimited) */
 const FREE_AI_REWRITES = 5
+/** Launch mode is more generous while we optimize for traffic */
+const FREE_MODE_AI_CALLS = 12
 
 async function entitlementFromRequest(c: {
   req: { header: (name: string) => string | undefined }
@@ -109,11 +115,12 @@ async function consumeFreeQuota(c: {
 }): Promise<number> {
   const fp = c.req.header('x-client-id')?.trim()
   if (!fp || fp.length < 8 || fp.length > 128) return -1
+  const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
   const kvKey = quotaKvKey(fp, 'ai')
   const used = Number((await c.env.KV.get(kvKey)) ?? '0')
-  if (used >= FREE_AI_REWRITES) return -1
+  if (used >= limit) return -1
   await c.env.KV.put(kvKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 30 })
-  return FREE_AI_REWRITES - used - 1
+  return limit - used - 1
 }
 
 const app = new Hono<{ Bindings: Env }>()
@@ -152,8 +159,9 @@ app.post('/api/ai/rewrite', async (c) => {
     if (remaining < 0) {
       return c.json(
         {
-          error:
-            'Free AI rewrites are used up. Unlock HonestCV once ($9.99) for unlimited AI rewrites plus PDF/DOCX downloads.',
+          error: freeMode(c.env)
+            ? 'You have used all free AI calls for now — they reset within 30 days. Downloads stay free.'
+            : 'Free AI rewrites are used up. Unlock HonestCV once ($9.99) for unlimited AI rewrites plus PDF/DOCX downloads.',
           code: 'payment_required',
         },
         402
@@ -173,17 +181,30 @@ app.post('/api/ai/rewrite', async (c) => {
   return c.json({ text: result.text, freeRemaining })
 })
 
-// Cover letter — Career Bundle only
+// Cover letter — Career Bundle (free mode: shares the free AI quota)
 app.post('/api/ai/cover-letter', async (c) => {
   const ent = await entitlementFromRequest(c)
   if (!ent || ent.plan !== 'bundle') {
-    return c.json(
-      {
-        error: 'The cover letter writer is part of the Career Bundle ($19.99, one-time).',
-        code: 'payment_required',
-      },
-      402
-    )
+    if (!freeMode(c.env)) {
+      return c.json(
+        {
+          error: 'The cover letter writer is part of the Career Bundle ($19.99, one-time).',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    const remaining = await consumeFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error:
+            'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
   }
   const body = await c.req
     .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string }>()
@@ -201,17 +222,30 @@ app.post('/api/ai/cover-letter', async (c) => {
   return c.json({ text: result.text })
 })
 
-// Interview brief — Career Bundle only
+// Interview brief — Career Bundle (free mode: shares the free AI quota)
 app.post('/api/ai/interview-brief', async (c) => {
   const ent = await entitlementFromRequest(c)
   if (!ent || ent.plan !== 'bundle') {
-    return c.json(
-      {
-        error: 'Interview prep is part of the Career Bundle ($19.99, one-time).',
-        code: 'payment_required',
-      },
-      402
-    )
+    if (!freeMode(c.env)) {
+      return c.json(
+        {
+          error: 'Interview prep is part of the Career Bundle ($19.99, one-time).',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    const remaining = await consumeFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error:
+            'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
   }
   const body = await c.req
     .json<{ resumeText?: string; jobDescription?: string; role?: string }>()
@@ -232,9 +266,9 @@ app.post('/api/ai/interview-brief', async (c) => {
 // Checkout availability: frontend checks before opening Paddle; when disabled
 // the buy button degrades to an email waitlist.
 app.get('/api/billing/status', (c) => {
-  const enabled = c.env.CHECKOUT_ENABLED === 'true'
+  const enabled = c.env.CHECKOUT_ENABLED === 'true' && !freeMode(c.env)
   const provider = lsConfigured(c.env) ? 'lemonsqueezy' : 'paddle'
-  return c.json({ checkoutEnabled: enabled, provider })
+  return c.json({ checkoutEnabled: enabled, provider, freeMode: freeMode(c.env) })
 })
 
 // Create a Lemon Squeezy hosted checkout for a plan (opened as an overlay)

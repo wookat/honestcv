@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { KeyRound, Loader2, Lock, Mail, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -181,6 +181,100 @@ export function LeadDialog({
             </p>
           </div>
         )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Launch/traffic mode: server flag making downloads free */
+export function useFreeMode() {
+  const [freeMode, setFreeMode] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/billing/status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { freeMode?: boolean } | null) => {
+        if (!cancelled && d?.freeMode === true) setFreeMode(true)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  return freeMode
+}
+
+const SUBSCRIBED_KEY = 'honestcv.subscribed'
+export const hasSubscribed = () => Boolean(localStorage.getItem(SUBSCRIBED_KEY))
+
+/** Free-launch download gate: subscribe once with an email, download forever */
+export function FreeDownloadDialog({
+  open,
+  onOpenChange,
+  onUnlocked,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onUnlocked: () => void
+}) {
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async () => {
+    const addr = email.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(addr)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await submitLead(addr, 'free-download')
+      localStorage.setItem(SUBSCRIBED_KEY, addr)
+      onOpenChange(false)
+      onUnlocked()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Mail className="size-5" /> Downloads are free during launch
+          </DialogTitle>
+          <DialogDescription>
+            No payment, no subscription — just leave an email once and download
+            PDF/DOCX free while we're in launch mode. We'll only email you about
+            HonestCV updates.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="free-email">Email address</Label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              id="free-email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={busy}
+            />
+            <Button onClick={() => void submit()} disabled={busy} className="shrink-0">
+              {busy ? <Loader2 className="animate-spin" /> : <Mail />}
+              {busy ? 'Unlocking…' : 'Unlock free downloads'}
+            </Button>
+          </div>
+          {error && <p className="text-destructive text-sm">{error}</p>}
+          <p className="text-muted-foreground text-xs">
+            One email, all downloads — no card, nothing to cancel, unsubscribe anytime.
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   )
