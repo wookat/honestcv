@@ -184,7 +184,7 @@ export default function Landing() {
                 <ul className="text-muted-foreground mt-3 space-y-1.5 text-sm">
                   <li>· Unlimited PDF + DOCX downloads, no watermark</li>
                   <li>· Unlimited AI rewrites &amp; job-targeted tailoring</li>
-                  <li>· All 4 ATS-friendly templates</li>
+                  <li>· All 12 ATS-friendly templates</li>
                   <li>· Edit and re-download forever</li>
                 </ul>
                 <Button asChild className="mt-4 w-full" variant="outline">

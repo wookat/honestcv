@@ -17,6 +17,39 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - Standalone `/ats-checker`: check button disabled until resume text ≥30 chars; scoring is client-side.
 - SEO set expanded: /vs/resume-io, /vs/resume-genius, /guides/{ats-friendly-resume,resume-summary-examples,resume-keywords}, /templates/{classic,modern,compact,executive}; sitemap.xml has 18 URLs; IndexNow key at /88d13cb021bb7d759cc09d7b95af03fc.txt.
 
+## PR #5 features (AI variants, guidance, sub-scores, autosave)
+
+- **AI multi-variant rewrite**: "AI polish summary" / "AI rewrite bullets" send `variants:true` to `/api/ai/rewrite`; a "Pick a summary/rewrite" dialog shows 3 options labeled Concise / Impact-focused / Keyword-focused. Clicking one applies it. "AI clean up skills" stays single-output. One variants call = one quota unit; failed calls do NOT decrement quota.
+- **AI relay 403s**: the upstream relay may start returning fast (<1s) 403 errors ("The AI service returned an error (403). Please retry.") after a successful call — this reproduced for ~25 min in one run and is relay-side rate limiting/auth, not a payload issue. Diagnose by counting `/api/ai/rewrite` entries with `performance.getEntriesByType('resource')` (successes take 40–90s; 403s ~0.6–1.2s).
+- **Bullet guidance** is local/rule-based (`src/lib/guidance.ts`): a bullet starting with "responsible for" and containing no digit shows two amber "⚠ Line N:" warnings under the Experience textarea (max 2 issues per line, max 4 lines shown).
+- **ATS card** shows Keywords/Structure sub-scores and clickable `+ keyword` chips that append to Skills and live-update the score. The standalone /ats-checker page does NOT show sub-scores (builder only).
+- **Autosave**: header "Saved" flips to "Saving…" while typing (400ms debounce); hidden below the `sm` breakpoint.
+
+## PR #6 features (undo, reorder, import, accent, final check)
+
+- **Deployment cache**: the live page may serve a stale JS bundle after a new deploy — hard refresh (Ctrl+Shift+R) and grep the bundle for a new-feature string (e.g. `curl -s https://cv.zalize.com/assets/index-*.js | grep -c 'Final check before download'`) before testing.
+- **Global undo**: header Undo2 button (title "Undo (Ctrl+Z)"), disabled until an edit; snapshots are throttled (~700ms). Ctrl+Z triggers resume-undo only when focus is NOT in an input/textarea (inside a field it does native text undo) — blur by clicking page background first.
+- **Reorder**: ArrowUp/ArrowDown per Experience role header and Education row; disabled at list ends; verify order change in the live PREVIEW, not just the editor.
+- **Import from text**: "Import from text" button top-right of editor column; import replaces the whole resume and is undoable. Parenthesis-mangling parser bugs (phone losing leading `(`, `Company (` residue from date ranges) were fixed in worker version 6be274e2 — but still check imported field contents character-for-character, not just non-emptiness (`src/lib/importText.ts`).
+- **Accent swatches**: 8 dots after the template buttons (aria-label `Accent color #hex`). Verify PDF carry-over objectively: decompress the PDF content stream and look for the accent's normalized RGB (e.g. #1d4ed8 ≈ 0.114 0.306 0.847 rg), or render the page to PNG.
+- **Final check dialog**: appears on PDF/DOCX click only when ATS structural checks fail or bullet-quality warnings exist (keyword score does NOT count). "Keep editing" closes without downloading; "Download anyway" downloads; a clean resume downloads immediately with no dialog.
+
+## PR #8 / Round 3 features (8 templates, checker sub-scores, template pSEO)
+
+- **Templates 4→8**: Minimal / Bold / Elegant / Engineer added in `src/lib/templates.ts` with two new axes: `headerAlign` ('left' on all 4 new ones vs 'center' on the original 4) and `nameCase` ('upper' only on Bold). Verify per-template from preview pixels: left vs centered header, Bold uppercase name + thick #1d4ed8 rules. A user-chosen accent swatch overrides the template accent (so Elegant/Engineer may not show purple/green) — assert alignment/case/divider, not hue, unless localStorage accentColor is cleared.
+- **Download carry-over**: check header alignment in exports — PDF via `pdftoppm` render (uppercase name at left margin) and DOCX via `word/document.xml` (`w:jc w:val="left"`, no `center` near the name).
+- **/ats-checker sub-scores**: with resume only → "Structure N/100" + hint "Add a job description to get a keyword match score." (no Keyword span); with a JD → both "Keyword match X/100" and "Structure Y/100".
+- **pSEO**: /templates/{minimal,bold,elegant,engineer} return 200 after trailing-slash redirect with distinct titles; each cross-links the other 7 templates and CTA-links /builder.
+- **Mobile (~420px)**: template row wraps to 2 chip rows + swatch row with no horizontal overflow; note the first (black) swatch wraps up next to the "Engineer" chip and can read as a 9th template dot. Reorder/undo/delete icons are ~28–32px tap targets.
+
+## PR #9 / Round 4 features (drag reorder, custom sections, section order, 12 templates)
+
+- **Drag reorder (Experience/Education)**: GripVertical handle at the card's upper-left is the ONLY drag source (`draggable` on the handle); the whole card is the drop target and highlights `border-primary bg-primary/5` while hovered mid-drag. Arrows remain. To test a real HTML5 drag with computer-use: `mouse_move` onto the handle first, then `left_mouse_down` (no coordinate arg — it errors), several `mouse_move` steps over the target, `zoom` mid-drag to capture the highlight, then `left_mouse_up`. Negative-test by dragging from the card body (should do nothing).
+- **Custom sections**: "Custom sections (optional)" panel → title + one bullet per line textarea; renders as a template-styled heading + bullets in preview/PDF/DOCX. Delete (trash) removes it from editor, Section order list and preview. Verify exports via `pdftotext` and `word/document.xml`.
+- **Section order panel**: collapsed by default; lists the 6 built-ins (Summary, Experience, Projects, Education, Skills, Certifications) + one row per custom section. Supports both arrows and the same grip-handle drag. Order syncs to preview/PDF/DOCX (check heading byte offsets in document.xml). Empty sections (e.g. Certifications with no content) are omitted from outputs — not a bug.
+- **Templates 8→12**: Ivy (serif, center, title-case, green), Slate (sans, left, thick rules, gray), Corporate (serif, center, UPPERCASE name, thick rules, dark red), Startup (sans, left, no divider rules, orange). Accent-swatch override still applies — assert case/align/divider axes, not hue.
+- **pSEO**: /templates/{ivy,slate,corporate,startup} → 200, distinct titles, /builder CTAs, beacon script. Landing/paywall copy says "All 12" (grep bundle for absence of "All 4").
+
 ## Key flows and how to test them (paid mode)
 
 - **Locked vs unlocked**: header shows "Unlock — $9.99 once" when locked; after activation it shows a "Career Bundle" (or plan) badge and PDF/DOCX buttons work.

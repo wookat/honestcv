@@ -40,6 +40,14 @@ export interface ProjectItem {
   description: string
 }
 
+/** User-defined section (e.g. Volunteering, Publications, Awards) */
+export interface CustomSection {
+  id: string
+  title: string
+  /** One entry per line; rendered as bullets */
+  bullets: string[]
+}
+
 export interface Resume {
   contact: ContactInfo
   summary: string
@@ -48,6 +56,9 @@ export interface Resume {
   projects: ProjectItem[]
   skills: string
   certifications: string
+  customSections: CustomSection[]
+  /** Section keys in render order (see SECTION_KEYS + custom:<id>) */
+  sectionOrder: string[]
   templateId: string
   /** Custom accent color (hex); empty = template default */
   accentColor: string
@@ -75,6 +86,8 @@ export function emptyResume(): Resume {
     projects: [],
     skills: '',
     certifications: '',
+    customSections: [],
+    sectionOrder: [...SECTION_KEYS],
     templateId: 'classic',
     accentColor: '',
     targetRole: '',
@@ -108,6 +121,60 @@ export const emptyProject = (): ProjectItem => ({
   link: '',
   description: '',
 })
+
+export const emptyCustomSection = (): CustomSection => ({
+  id: newId(),
+  title: '',
+  bullets: [''],
+})
+
+/** Built-in section keys in default order */
+export const SECTION_KEYS = [
+  'summary',
+  'experience',
+  'projects',
+  'education',
+  'skills',
+  'certifications',
+] as const
+
+export const SECTION_LABELS: Record<string, string> = {
+  summary: 'Summary',
+  experience: 'Experience',
+  projects: 'Projects',
+  education: 'Education',
+  skills: 'Skills',
+  certifications: 'Certifications',
+}
+
+/**
+ * The resume's section keys in render order: stored order, minus stale keys,
+ * plus any keys not yet present (new built-ins or newly added custom sections).
+ */
+export function orderedSectionKeys(r: Resume): string[] {
+  const valid = new Set<string>([
+    ...SECTION_KEYS,
+    ...r.customSections.map((s) => `custom:${s.id}`),
+  ])
+  const seen = new Set<string>()
+  const order: string[] = []
+  for (const key of r.sectionOrder) {
+    if (valid.has(key) && !seen.has(key)) {
+      order.push(key)
+      seen.add(key)
+    }
+  }
+  for (const key of valid) if (!seen.has(key)) order.push(key)
+  return order
+}
+
+export function sectionLabel(r: Resume, key: string): string {
+  if (key.startsWith('custom:')) {
+    const s = r.customSections.find((x) => `custom:${x.id}` === key)
+    return s?.title.trim() || 'Custom section'
+  }
+  return SECTION_LABELS[key] ?? key
+}
 
 export function sampleResume(): Resume {
   return {
@@ -176,7 +243,9 @@ export function loadResume(): Resume | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as Resume
     if (!parsed.contact || !Array.isArray(parsed.experience)) return null
-    return { ...emptyResume(), ...parsed }
+    const merged = { ...emptyResume(), ...parsed }
+    merged.sectionOrder = orderedSectionKeys(merged)
+    return merged
   } catch {
     return null
   }
@@ -196,38 +265,46 @@ export function resumeToPlainText(r: Resume): string {
   const c = r.contact
   lines.push([c.fullName, c.title].filter(Boolean).join(' — '))
   lines.push([c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean).join(' | '))
-  if (r.summary) lines.push('', 'SUMMARY', r.summary)
-  if (r.experience.some((e) => e.company || e.role)) {
-    lines.push('', 'EXPERIENCE')
-    for (const e of r.experience) {
-      if (!e.company && !e.role) continue
-      lines.push(
-        [e.role, e.company].filter(Boolean).join(' at ') +
-          (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
-      )
-      for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+  for (const key of orderedSectionKeys(r)) {
+    if (key === 'summary' && r.summary) {
+      lines.push('', 'SUMMARY', r.summary)
+    } else if (key === 'experience' && r.experience.some((e) => e.company || e.role)) {
+      lines.push('', 'EXPERIENCE')
+      for (const e of r.experience) {
+        if (!e.company && !e.role) continue
+        lines.push(
+          [e.role, e.company].filter(Boolean).join(' at ') +
+            (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
+        )
+        for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+      }
+    } else if (key === 'projects' && r.projects.some((p) => p.name)) {
+      lines.push('', 'PROJECTS')
+      for (const p of r.projects) {
+        if (!p.name) continue
+        lines.push(p.name + (p.link ? ` (${p.link})` : ''))
+        if (p.description) lines.push(p.description)
+      }
+    } else if (key === 'education' && r.education.some((e) => e.school)) {
+      lines.push('', 'EDUCATION')
+      for (const e of r.education) {
+        if (!e.school) continue
+        lines.push(
+          [e.degree, e.school].filter(Boolean).join(', ') +
+            (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
+        )
+        if (e.details) lines.push(e.details)
+      }
+    } else if (key === 'skills' && r.skills) {
+      lines.push('', 'SKILLS', r.skills)
+    } else if (key === 'certifications' && r.certifications) {
+      lines.push('', 'CERTIFICATIONS', r.certifications)
+    } else if (key.startsWith('custom:')) {
+      const s = r.customSections.find((x) => `custom:${x.id}` === key)
+      if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue
+      lines.push('', (s.title.trim() || 'ADDITIONAL').toUpperCase())
+      for (const b of s.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
     }
   }
-  if (r.projects.some((p) => p.name)) {
-    lines.push('', 'PROJECTS')
-    for (const p of r.projects) {
-      if (!p.name) continue
-      lines.push(p.name + (p.link ? ` (${p.link})` : ''))
-      if (p.description) lines.push(p.description)
-    }
-  }
-  if (r.education.some((e) => e.school)) {
-    lines.push('', 'EDUCATION')
-    for (const e of r.education) {
-      if (!e.school) continue
-      lines.push(
-        [e.degree, e.school].filter(Boolean).join(', ') +
-          (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
-      )
-      if (e.details) lines.push(e.details)
-    }
-  }
-  if (r.skills) lines.push('', 'SKILLS', r.skills)
-  if (r.certifications) lines.push('', 'CERTIFICATIONS', r.certifications)
   return lines.join('\n')
 }

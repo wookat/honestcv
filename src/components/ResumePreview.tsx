@@ -3,7 +3,7 @@
  * PDF/DOCX output. Rendered inside a fixed-aspect "page".
  */
 
-import type { Resume } from '@/lib/resume'
+import { type Resume, orderedSectionKeys } from '@/lib/resume'
 import { resolveTemplate } from '@/lib/templates'
 
 export function ResumePreview({ resume }: { resume: Resume }) {
@@ -52,16 +52,34 @@ export function ResumePreview({ resume }: { resume: Resume }) {
         )}
       </div>
 
-      {resume.summary.trim() && (
-        <>
-          {heading('Summary')}
-          <p className="text-[11px] leading-relaxed">{resume.summary.trim()}</p>
-        </>
-      )}
+      {orderedSectionKeys(resume).map((key) => (
+        <SectionBlock key={key} sectionKey={key} resume={resume} heading={heading} />
+      ))}
+    </div>
+  )
+}
 
-      {resume.experience.some((e) => e.company || e.role) && (
-        <>
-          {heading('Experience')}
+function SectionBlock({
+  sectionKey,
+  resume,
+  heading,
+}: {
+  sectionKey: string
+  resume: Resume
+  heading: (label: string) => React.ReactNode
+}) {
+  const tpl = resolveTemplate(resume.templateId, resume.accentColor)
+  if (sectionKey === 'summary')
+    return resume.summary.trim() ? (
+      <>
+        {heading('Summary')}
+        <p className="text-[11px] leading-relaxed">{resume.summary.trim()}</p>
+      </>
+    ) : null
+  if (sectionKey === 'experience')
+    return resume.experience.some((e) => e.company || e.role) ? (
+      <>
+        {heading('Experience')}
           {resume.experience.map((e) =>
             !e.company && !e.role ? null : (
               <div key={e.id} className="mb-2">
@@ -92,14 +110,14 @@ export function ResumePreview({ resume }: { resume: Resume }) {
                   )}
                 </ul>
               </div>
-            )
-          )}
-        </>
-      )}
-
-      {resume.projects.some((p) => p.name) && (
-        <>
-          {heading('Projects')}
+          )
+        )}
+      </>
+    ) : null
+  if (sectionKey === 'projects')
+    return resume.projects.some((p) => p.name) ? (
+      <>
+        {heading('Projects')}
           {resume.projects.map((p) =>
             !p.name ? null : (
               <div key={p.id} className="mb-1.5">
@@ -111,14 +129,14 @@ export function ResumePreview({ resume }: { resume: Resume }) {
                   <p className="text-[11px] leading-snug">{p.description.trim()}</p>
                 )}
               </div>
-            )
-          )}
-        </>
-      )}
-
-      {resume.education.some((e) => e.school) && (
-        <>
-          {heading('Education')}
+          )
+        )}
+      </>
+    ) : null
+  if (sectionKey === 'education')
+    return resume.education.some((e) => e.school) ? (
+      <>
+        {heading('Education')}
           {resume.education.map((e) =>
             !e.school ? null : (
               <div key={e.id} className="mb-1.5">
@@ -141,24 +159,43 @@ export function ResumePreview({ resume }: { resume: Resume }) {
                   <p className="text-[11px] leading-snug">{e.details.trim()}</p>
                 )}
               </div>
-            )
+          )
+        )}
+      </>
+    ) : null
+  if (sectionKey === 'skills')
+    return resume.skills.trim() ? (
+      <>
+        {heading('Skills')}
+        <p className="text-[11px] leading-relaxed">{resume.skills.trim()}</p>
+      </>
+    ) : null
+  if (sectionKey === 'certifications')
+    return resume.certifications.trim() ? (
+      <>
+        {heading('Certifications')}
+        <p className="text-[11px] leading-relaxed">{resume.certifications.trim()}</p>
+      </>
+    ) : null
+  if (sectionKey.startsWith('custom:')) {
+    const s = resume.customSections.find((x) => `custom:${x.id}` === sectionKey)
+    if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) return null
+    return (
+      <>
+        {heading(s.title.trim() || 'Additional')}
+        <ul className="mt-0.5 space-y-0.5">
+          {s.bullets.map(
+            (b, i) =>
+              b.trim() && (
+                <li key={i} className="flex gap-1.5 text-[11px] leading-snug">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b.trim()}</span>
+                </li>
+              )
           )}
-        </>
-      )}
-
-      {resume.skills.trim() && (
-        <>
-          {heading('Skills')}
-          <p className="text-[11px] leading-relaxed">{resume.skills.trim()}</p>
-        </>
-      )}
-
-      {resume.certifications.trim() && (
-        <>
-          {heading('Certifications')}
-          <p className="text-[11px] leading-relaxed">{resume.certifications.trim()}</p>
-        </>
-      )}
-    </div>
-  )
+        </ul>
+      </>
+    )
+  }
+  return null
 }

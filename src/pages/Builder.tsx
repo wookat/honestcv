@@ -9,6 +9,8 @@ import {
   Download,
   FileText,
   GraduationCap,
+  GripVertical,
+  ListOrdered,
   Loader2,
   Lock,
   MessagesSquare,
@@ -56,14 +58,17 @@ import { downloadResumePdf, downloadTextPdf } from '@/lib/pdf'
 import {
   type ExperienceItem,
   type Resume,
+  emptyCustomSection,
   emptyEducation,
   emptyExperience,
   emptyProject,
   emptyResume,
   loadResume,
+  orderedSectionKeys,
   resumeToPlainText,
   sampleResume,
   saveResume,
+  sectionLabel,
 } from '@/lib/resume'
 import { ACCENT_CHOICES, TEMPLATES, getTemplate } from '@/lib/templates'
 
@@ -146,6 +151,55 @@ function moveItem<T>(arr: T[], index: number, delta: number): T[] {
   return copy
 }
 
+function reorder<T>(arr: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || to < 0 || from >= arr.length || to >= arr.length) return arr
+  const copy = [...arr]
+  const [item] = copy.splice(from, 1)
+  copy.splice(to, 0, item)
+  return copy
+}
+
+/**
+ * HTML5 drag-and-drop list reorder. The grip handle is draggable
+ * (so inputs inside the card keep normal text selection); the whole
+ * card is a drop target.
+ */
+function useDragReorder(onReorder: (from: number, to: number) => void) {
+  const dragFrom = useRef<number | null>(null)
+  const [overIndex, setOverIndex] = useState<number | null>(null)
+  const handleProps = (index: number) => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => {
+      dragFrom.current = index
+      e.dataTransfer.effectAllowed = 'move'
+      const card = (e.target as HTMLElement).closest('[data-drag-card]')
+      if (card) e.dataTransfer.setDragImage(card, 20, 20)
+    },
+    onDragEnd: () => {
+      dragFrom.current = null
+      setOverIndex(null)
+    },
+  })
+  const dropProps = (index: number) => ({
+    'data-drag-card': true,
+    onDragOver: (e: React.DragEvent) => {
+      if (dragFrom.current === null) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      setOverIndex(index)
+    },
+    onDragLeave: () => setOverIndex((i) => (i === index ? null : i)),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault()
+      if (dragFrom.current !== null && dragFrom.current !== index)
+        onReorder(dragFrom.current, index)
+      dragFrom.current = null
+      setOverIndex(null)
+    },
+  })
+  return { handleProps, dropProps, overIndex }
+}
+
 function Section({
   title,
   icon,
@@ -202,6 +256,15 @@ export default function Builder() {
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
   const { undo, canUndo } = useUndo(resume, setResume)
+  const expDrag = useDragReorder((from, to) =>
+    setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
+  )
+  const eduDrag = useDragReorder((from, to) =>
+    setResume((r) => ({ ...r, education: reorder(r.education, from, to) }))
+  )
+  const secDrag = useDragReorder((from, to) =>
+    setResume((r) => ({ ...r, sectionOrder: reorder(orderedSectionKeys(r), from, to) }))
+  )
 
   const unlocked = Boolean(license)
   const hasBundlePlan = license?.plan === 'bundle'
@@ -483,9 +546,23 @@ export default function Builder() {
 
           <Section title="Experience" icon={<Briefcase className="size-4" />}>
             {resume.experience.map((e, idx) => (
-              <div key={e.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={e.id}
+                {...expDrag.dropProps(idx)}
+                className={`space-y-2 rounded-lg border p-3 transition ${
+                  expDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
-                  <p className="text-muted-foreground text-xs font-medium">
+                  <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
+                    <span
+                      {...expDrag.handleProps(idx)}
+                      className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1 active:cursor-grabbing"
+                      title="Drag to reorder"
+                      aria-label={`Drag role ${idx + 1} to reorder`}
+                    >
+                      <GripVertical className="size-3.5" />
+                    </span>
                     Role {idx + 1}
                   </p>
                   <div className="flex items-center">
@@ -603,7 +680,24 @@ export default function Builder() {
 
           <Section title="Education" icon={<GraduationCap className="size-4" />}>
             {resume.education.map((e, idx) => (
-              <div key={e.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={e.id}
+                {...eduDrag.dropProps(idx)}
+                className={`space-y-2 rounded-lg border p-3 transition ${
+                  eduDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
+                }`}
+              >
+                <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
+                  <span
+                    {...eduDrag.handleProps(idx)}
+                    className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1 active:cursor-grabbing"
+                    title="Drag to reorder"
+                    aria-label={`Drag education ${idx + 1} to reorder`}
+                  >
+                    <GripVertical className="size-3.5" />
+                  </span>
+                  Education {idx + 1}
+                </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Degree (B.S. Computer Science)"
@@ -833,6 +927,148 @@ export default function Builder() {
                 onChange={(e) => set('certifications', e.target.value)}
               />
             </div>
+          </Section>
+
+          <Section
+            title="Custom sections (optional)"
+            icon={<Plus className="size-4" />}
+            defaultOpen={resume.customSections.length > 0}
+          >
+            <p className="text-muted-foreground text-xs">
+              Add anything else — Volunteering, Publications, Awards, Languages… One entry
+              per line, shown as bullets.
+            </p>
+            {resume.customSections.map((s) => (
+              <div key={s.id} className="space-y-2 rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <Input
+                    placeholder="Section title (e.g. Volunteering)"
+                    value={s.title}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        customSections: r.customSections.map((x) =>
+                          x.id === s.id ? { ...x, title: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive h-9 shrink-0"
+                    title="Delete section"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        customSections: r.customSections.filter((x) => x.id !== s.id),
+                        sectionOrder: r.sectionOrder.filter((k) => k !== `custom:${s.id}`),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+                <Textarea
+                  rows={3}
+                  placeholder={'One entry per line, e.g.\nVolunteer mentor, Code for Austin (2023 – Present)\nSpeaker, ReactATX meetup'}
+                  value={s.bullets.join('\n')}
+                  onChange={(ev) =>
+                    setResume((r) => ({
+                      ...r,
+                      customSections: r.customSections.map((x) =>
+                        x.id === s.id ? { ...x, bullets: ev.target.value.split('\n') } : x
+                      ),
+                    }))
+                  }
+                />
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setResume((r) => {
+                  const s = emptyCustomSection()
+                  return {
+                    ...r,
+                    customSections: [...r.customSections, s],
+                    sectionOrder: [...orderedSectionKeys(r), `custom:${s.id}`],
+                  }
+                })
+              }
+            >
+              <Plus className="size-4" /> Add custom section
+            </Button>
+          </Section>
+
+          <Section
+            title="Section order"
+            icon={<ListOrdered className="size-4" />}
+            defaultOpen={false}
+          >
+            <p className="text-muted-foreground text-xs">
+              Drag (or use the arrows) to change the order sections appear on your resume.
+            </p>
+            <ul className="space-y-1.5">
+              {orderedSectionKeys(resume).map((key, idx, keys) => (
+                <li
+                  key={key}
+                  {...secDrag.dropProps(idx)}
+                  className={`flex items-center justify-between rounded-md border px-2 py-1 text-sm transition ${
+                    secDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      {...secDrag.handleProps(idx)}
+                      className="text-muted-foreground/60 hover:text-foreground cursor-grab touch-none p-1 active:cursor-grabbing"
+                      title="Drag to reorder"
+                      aria-label={`Drag ${sectionLabel(resume, key)} to reorder`}
+                    >
+                      <GripVertical className="size-3.5" />
+                    </span>
+                    {sectionLabel(resume, key)}
+                  </span>
+                  <span className="flex items-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 sm:h-7"
+                      disabled={idx === 0}
+                      title="Move up"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          sectionOrder: moveItem(orderedSectionKeys(r), idx, -1),
+                        }))
+                      }
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 sm:h-7"
+                      disabled={idx === keys.length - 1}
+                      title="Move down"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          sectionOrder: moveItem(orderedSectionKeys(r), idx, 1),
+                        }))
+                      }
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </Section>
 
           {aiError && <p className="text-destructive text-sm">{aiError}</p>}
