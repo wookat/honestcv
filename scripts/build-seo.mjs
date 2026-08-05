@@ -170,7 +170,61 @@ ${related.map((r) => `<li><a href="${r.path}">${esc(r.title.split(' — ')[0])}<
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · Pay once, own it forever. Your resume stays in your browser.</div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · Pay once, own it forever. Your resume stays in your browser. · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+</body>
+</html>`
+}
+
+const LEGAL_PAGES = [
+  {
+    path: '/terms',
+    title: 'Terms & Refunds — HonestCV',
+    h1: 'Terms & refund policy',
+    sections: [
+      ['What you buy', 'HonestCV sells one-time licenses: Single Resume ($9.99) unlocks unlimited AI rewrites plus PDF and DOCX downloads; Career Bundle ($19.99) adds the AI cover letter and interview prep tools. There is no subscription, no auto-renewal, and nothing to cancel — ever.'],
+      ['Payments', 'Payments are processed by our merchant of record (Lemon Squeezy / Paddle), which handles billing, receipts, and applicable taxes. We never see or store your card details.'],
+      ['Refunds', 'Not happy for any reason within 14 days of purchase? Email us with the order number from your receipt and we will refund you in full — no questions, no hoops.'],
+      ['License', 'Your license key works in any browser and is valid for 10 years. It covers personal use of your own resumes and cover letters; the documents you create are entirely yours.'],
+      ['Fair use', 'AI features are for polishing your own real experience. We may throttle automated or abusive traffic to keep the service fast for everyone.'],
+    ],
+  },
+  {
+    path: '/privacy',
+    title: 'Privacy — HonestCV',
+    h1: 'Privacy policy',
+    sections: [
+      ['Your resume stays in your browser', 'Resume content is stored in your browser\u2019s localStorage. We have no user accounts and no resume database — clearing your browser data deletes your resume from existence.'],
+      ['What our servers see', 'AI rewrite requests send only the text you ask to improve (plus the job description you pasted) to generate a response; we do not retain it after responding. Purchases store an order id and license key so your license can be restored.'],
+      ['Payments', 'Checkout is handled by our merchant of record (Lemon Squeezy / Paddle). Your payment details go to them, not us. Their receipt email is your proof of purchase.'],
+      ['No tracking for sale', 'We do not sell or share personal data. We use no advertising trackers.'],
+      ['Contact', 'Questions or data requests: reply to your receipt email or use the contact link in the footer.'],
+    ],
+  },
+]
+
+function legalPage(p) {
+  const canonical = `${SITE}${p.path}`
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>${esc(p.title)}</title>
+<meta name="description" content="${esc(p.sections[0][1])}" />
+<link rel="canonical" href="${canonical}" />
+<style>${CSS}</style>
+</head>
+<body>
+<header class="site"><div class="in">
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="btn" href="/builder">Build my resume free</a>
+</div></header>
+<main>
+<h1>${esc(p.h1)}</h1>
+${p.sections.map(([h, t]) => `<h2 style="margin-top:1.5rem;font-size:1.125rem">${esc(h)}</h2>\n<p class="lede" style="font-size:1rem">${esc(t)}</p>`).join('\n')}
+</main>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a></div></footer>
 </body>
 </html>`
 }
@@ -182,7 +236,14 @@ for (const p of PAGES) {
   console.log(`built ${p.path}/index.html`)
 }
 
-const urls = ['/', ...PAGES.map((p) => `${p.path}/`)]
+for (const p of LEGAL_PAGES) {
+  const dir = path.join(OUT_DIR, p.path.slice(1))
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(path.join(dir, 'index.html'), legalPage(p))
+  console.log(`built ${p.path}/index.html`)
+}
+
+const urls = ['/', ...PAGES.map((p) => `${p.path}/`), ...LEGAL_PAGES.map((p) => `${p.path}/`)]
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map((u) => `  <url><loc>${SITE}${u}</loc></url>`).join('\n')}
