@@ -49,6 +49,8 @@ export interface Resume {
   skills: string
   certifications: string
   templateId: string
+  /** Custom accent color (hex); empty = template default */
+  accentColor: string
   /** Target role + JD used for tailoring and the ATS score */
   targetRole: string
   jobDescription: string
@@ -74,6 +76,7 @@ export function emptyResume(): Resume {
     skills: '',
     certifications: '',
     templateId: 'classic',
+    accentColor: '',
     targetRole: '',
     jobDescription: '',
   }

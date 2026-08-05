@@ -55,3 +55,15 @@ export const TEMPLATES: TemplateMeta[] = [
 
 export const getTemplate = (id: string): TemplateMeta =>
   TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0]
+
+/** Accent color choices offered in the builder (all print-safe, ATS-neutral) */
+export const ACCENT_CHOICES = [
+  '#1a1a1a', '#0f766e', '#334155', '#7c2d12', '#1d4ed8', '#6d28d9', '#be123c', '#15803d',
+]
+
+/** Template with the user's accent color applied (falls back to template default) */
+export function resolveTemplate(templateId: string, accentColor?: string): TemplateMeta {
+  const tpl = getTemplate(templateId)
+  const custom = accentColor?.trim()
+  return custom && /^#[0-9a-fA-F]{6}$/.test(custom) ? { ...tpl, accent: custom } : tpl
+}
