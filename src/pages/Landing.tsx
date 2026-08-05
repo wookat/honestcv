@@ -39,8 +39,9 @@ const FEATURES = [
 ]
 
 const COMPARISON: [string, string, string][] = [
-  ['Cost to download your resume', '$9.99 once', '$2.70 “trial” → $25.95 every 4 weeks'],
+  ['Cost to download your resume', '$9.99 once', '$1.95–$2.95 “trial” → $25.95–$29.95 every 4 weeks'],
   ['Cost over a 6-month job search', '$9.99', '$150–$180'],
+  ['AI rewriting', 'Never invents facts — marks gaps with [add %]', 'Often fabricates metrics and experience'],
   ['Auto-renews / recurring charges', 'Never', 'Yes — cancellation buried in menus'],
   ['ATS match score', 'Free, before paying', 'Behind the paywall'],
   ['Card stored after purchase', 'No', 'Yes, and charged again'],
@@ -121,9 +122,10 @@ export default function Landing() {
             </h2>
             <p className="text-muted-foreground mx-auto mt-3 max-w-2xl text-center text-sm">
               &ldquo;Zety charged me&rdquo; is one of the most-searched complaints in this
-              category. Big resume builders sell a $1.95&ndash;$2.70 &ldquo;trial&rdquo; that
-              silently becomes ~$25.95 every four weeks, keep your card on file, and
-              bury the cancel button. A resume is something you need for a few weeks,
+              category. We tested the big builders ourselves (August 2026): a
+              $1.95&ndash;$2.95 &ldquo;trial&rdquo; silently becomes $25.95&ndash;$29.95 every
+              four weeks, the trial is pre-selected at checkout, and free downloads are
+              limited to plain .txt files. A resume is something you need for a few weeks,
               a couple of times a decade — it should be a product you buy, not a
               subscription that hunts you.
             </p>

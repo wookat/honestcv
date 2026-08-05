@@ -13,6 +13,7 @@ export type RewriteKind = 'bullets' | 'summary' | 'skills'
 const SYSTEM_WRITER = `You are an expert resume writer for the US/international job market.
 Rules:
 - Never invent employers, titles, dates, degrees, metrics, or tools that are not in the input. You may sharpen phrasing, but every fact must come from the user's text.
+- If a bullet would be stronger with a number the input doesn't provide, insert a bracketed placeholder such as [add %] or [team size] instead of making one up.
 - Use strong action verbs, active voice, and quantified impact where the input provides numbers.
 - ATS-friendly: no tables, no columns, no emojis, no first-person pronouns.
 - Keep each bullet to one line where possible (max ~2 lines), start with a verb, no trailing periods.
@@ -21,7 +22,8 @@ Rules:
 export function buildRewriteMessages(
   kind: RewriteKind,
   text: string,
-  context: { role?: string; jobDescription?: string }
+  context: { role?: string; jobDescription?: string },
+  variants = false
 ): ChatMessage[] {
   const jd = context.jobDescription?.trim()
   const target = context.role?.trim()
@@ -32,6 +34,9 @@ export function buildRewriteMessages(
     task = `Clean up the following skills list: deduplicate, group related skills, use canonical industry names, order by relevance. Output a single comma-separated list.`
   } else {
     task = `Rewrite the following work-experience bullet points. Return the same number of bullets (or merge only redundant ones), one per line, each starting with "- ".`
+  }
+  if (variants && kind !== 'skills') {
+    task += `\nProduce 3 alternative versions with different emphasis (1: concise, 2: impact-focused, 3: keyword/skills-focused). Separate the versions with a line containing only "===". No labels or numbering — just the content.`
   }
   const parts = [task]
   if (target) parts.push(`Target role: ${target}`)

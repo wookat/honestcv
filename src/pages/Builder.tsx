@@ -45,6 +45,7 @@ import {
   aiRewrite,
 } from '@/lib/api'
 import { scoreResume } from '@/lib/ats'
+import { checkBullets } from '@/lib/guidance'
 import { downloadResumeDocx, downloadTextDocx } from '@/lib/docx'
 import { downloadResumePdf, downloadTextPdf } from '@/lib/pdf'
 import {
@@ -61,13 +62,24 @@ import {
 } from '@/lib/resume'
 import { TEMPLATES } from '@/lib/templates'
 
-function useDebouncedSave(resume: Resume) {
+function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
   const t = useRef<number | undefined>(undefined)
+  const [state, setState] = useState<'saving' | 'saved'>('saved')
+  const first = useRef(true)
   useEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
+    setState('saving')
     window.clearTimeout(t.current)
-    t.current = window.setTimeout(() => saveResume(resume), 400)
+    t.current = window.setTimeout(() => {
+      saveResume(resume)
+      setState('saved')
+    }, 400)
     return () => window.clearTimeout(t.current)
   }, [resume])
+  return state
 }
 
 function Section({
@@ -113,9 +125,14 @@ export default function Builder() {
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
   const [freeDlOpen, setFreeDlOpen] = useState(false)
   const pendingDl = useRef<'pdf' | 'docx' | null>(null)
+  const [variantPick, setVariantPick] = useState<{
+    title: string
+    candidates: string[]
+    apply: (text: string) => void
+  } | null>(null)
   const freeMode = useFreeMode()
   const { license, refresh } = useLicense()
-  useDebouncedSave(resume)
+  const saveState = useDebouncedSave(resume)
 
   const unlocked = Boolean(license)
   const hasBundlePlan = license?.plan === 'bundle'
@@ -150,12 +167,26 @@ export default function Builder() {
     setAiBusy(tag)
     setAiError('')
     try {
-      const { text: out, freeRemaining } = await aiRewrite(kind, text, {
-        role: resume.targetRole,
-        jobDescription: resume.jobDescription,
-      })
+      const wantVariants = kind !== 'skills'
+      const { text: out, texts, freeRemaining } = await aiRewrite(
+        kind,
+        text,
+        {
+          role: resume.targetRole,
+          jobDescription: resume.jobDescription,
+        },
+        wantVariants
+      )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
-      apply(out)
+      if (texts && texts.length > 1) {
+        setVariantPick({
+          title: kind === 'summary' ? 'Pick a summary' : 'Pick a rewrite',
+          candidates: texts,
+          apply,
+        })
+      } else {
+        apply(out)
+      }
     } catch (e) {
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
@@ -230,6 +261,9 @@ export default function Builder() {
                 <Lock className="size-3.5" /> Unlock — $9.99 once
               </Button>
             )}
+            <span className="text-muted-foreground hidden text-xs sm:inline">
+              {saveState === 'saving' ? 'Saving…' : 'Saved'}
+            </span>
             <Button size="sm" onClick={() => void download('pdf')} disabled={Boolean(downloading)}>
               {downloading ? <Loader2 className="animate-spin" /> : <Download />}
               PDF
@@ -387,6 +421,7 @@ export default function Builder() {
                   value={e.bullets.join('\n')}
                   onChange={(ev) => setExp(e.id, { bullets: ev.target.value.split('\n') })}
                 />
+                <BulletGuidance bullets={e.bullets} />
                 {aiButton(`exp-${e.id}`, 'AI rewrite bullets', () =>
                   void runRewrite(
                     `exp-${e.id}`,
@@ -689,6 +724,16 @@ export default function Builder() {
                   style={{ width: `${ats.score}%` }}
                 />
               </div>
+              <div className="text-muted-foreground mt-2 flex gap-4 text-xs">
+                {ats.keywordScore !== null && (
+                  <span>
+                    Keywords <span className="text-foreground font-medium">{ats.keywordScore}</span>
+                  </span>
+                )}
+                <span>
+                  Structure <span className="text-foreground font-medium">{ats.structureScore}</span>
+                </span>
+              </div>
               {resume.jobDescription.trim() ? (
                 <div className="mt-3 space-y-2 text-xs">
                   {ats.matched.length > 0 && (
@@ -700,12 +745,33 @@ export default function Builder() {
                     </p>
                   )}
                   {ats.missing.length > 0 && (
-                    <p>
+                    <div>
                       <span className="font-medium text-red-700">
-                        Missing ({ats.missing.length}):
+                        Missing ({ats.missing.length})
                       </span>{' '}
-                      {ats.missing.join(', ')}
-                    </p>
+                      <span className="text-muted-foreground">
+                        — click a keyword you genuinely have to add it to Skills:
+                      </span>
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {ats.missing.map((kw) => (
+                          <button
+                            key={kw}
+                            type="button"
+                            className="bg-muted hover:bg-primary/10 rounded-full border px-2 py-0.5"
+                            onClick={() =>
+                              set(
+                                'skills',
+                                resume.skills.trim()
+                                  ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
+                                  : kw
+                              )
+                            }
+                          >
+                            + {kw}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -778,6 +844,35 @@ export default function Builder() {
         onClose={() => setToolOpen(null)}
         resume={resume}
       />
+      <Dialog open={variantPick !== null} onOpenChange={(o) => !o && setVariantPick(null)}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{variantPick?.title}</DialogTitle>
+            <DialogDescription>
+              Three honest takes on your text — nothing invented. Bracketed placeholders like
+              [add %] mark where a real number would help.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {variantPick?.candidates.map((cand, i) => (
+              <button
+                key={cand.slice(0, 40) + String(i)}
+                type="button"
+                className="hover:border-primary hover:bg-muted/50 w-full rounded-lg border p-3 text-left text-sm whitespace-pre-wrap transition"
+                onClick={() => {
+                  variantPick.apply(cand)
+                  setVariantPick(null)
+                }}
+              >
+                <span className="text-muted-foreground mb-1 block text-xs font-medium">
+                  {['Concise', 'Impact-focused', 'Keyword-focused'][i] ?? `Option ${i + 1}`}
+                </span>
+                {cand}
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
       <FreeDownloadDialog
         open={freeDlOpen}
         onOpenChange={setFreeDlOpen}
@@ -788,6 +883,22 @@ export default function Builder() {
         }}
       />
     </div>
+  )
+}
+
+function BulletGuidance({ bullets }: { bullets: string[] }) {
+  const results = useMemo(() => checkBullets(bullets), [bullets])
+  if (results.length === 0) return null
+  return (
+    <ul className="space-y-0.5 text-xs">
+      {results.slice(0, 4).map((r) =>
+        r.issues.slice(0, 2).map((issue) => (
+          <li key={`${r.index}-${issue.kind}`} className="text-amber-700">
+            ⚠ Line {r.index + 1}: {issue.message}
+          </li>
+        ))
+      )}
+    </ul>
   )
 }
 

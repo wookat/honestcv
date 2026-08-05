@@ -70,7 +70,8 @@ async function entitlementFromRequest(c: {
 async function callLlm(
   env: Env,
   messages: { role: string; content: string }[],
-  temperature = 0.5
+  temperature = 0.5,
+  maxTokens = 1200
 ): Promise<{ text?: string; error?: string; status?: number }> {
   let baseUrl = env.LLM_RELAY_BASE_URL?.replace(/\/+$/, '')
   if (baseUrl && !/\/v\d+$/.test(baseUrl)) baseUrl = `${baseUrl}/v1`
@@ -87,7 +88,7 @@ async function callLlm(
         'content-type': 'application/json',
         authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ model, messages, temperature, max_tokens: 1200 }),
+      body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
     })
   } catch {
     return { error: 'Could not reach the AI service. Please retry.', status: 502 }
@@ -141,6 +142,7 @@ app.post('/api/ai/rewrite', async (c) => {
       text?: string
       role?: string
       jobDescription?: string
+      variants?: boolean
     }>()
     .catch(() => ({}) as Record<string, never>)
   const kind = body.kind as RewriteKind
@@ -170,15 +172,28 @@ app.post('/api/ai/rewrite', async (c) => {
     freeRemaining = remaining
   }
 
+  const wantVariants = body.variants === true && kind !== 'skills'
   const result = await callLlm(
     c.env,
-    buildRewriteMessages(kind, text, {
-      role: body.role,
-      jobDescription: body.jobDescription,
-    })
+    buildRewriteMessages(
+      kind,
+      text,
+      { role: body.role, jobDescription: body.jobDescription },
+      wantVariants
+    ),
+    0.5,
+    wantVariants ? 2000 : 1200
   )
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  return c.json({ text: result.text, freeRemaining })
+  let texts: string[] | undefined
+  if (wantVariants && result.text) {
+    texts = result.text
+      .split(/^\s*===+\s*$/m)
+      .map((t) => t.trim())
+      .filter(Boolean)
+    if (texts.length < 2) texts = undefined
+  }
+  return c.json({ text: texts?.[0] ?? result.text, texts, freeRemaining })
 })
 
 // Cover letter — Career Bundle (free mode: shares the free AI quota)
