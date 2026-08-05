@@ -12,6 +12,13 @@ PADDLE_WEBHOOK_SECRET=pdl_ntfset_xxxx
 PADDLE_PRICE_RESUME_ID=pri_xxxx
 PADDLE_PRICE_BUNDLE_ID=pri_xxxx
 
+# Lemon Squeezy (active provider when LS_* are all set; otherwise Paddle)
+LEMONSQUEEZY_API_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.xxxx
+LEMONSQUEEZY_WEBHOOK_SECRET=random-32-char-secret
+LS_STORE_ID=442392
+LS_VARIANT_RESUME_ID=000000
+LS_VARIANT_BUNDLE_ID=000000
+
 # HMAC signing key for in-app license tokens (long random string)
 LICENSE_SIGNING_SECRET=change-me-random-secret
 
