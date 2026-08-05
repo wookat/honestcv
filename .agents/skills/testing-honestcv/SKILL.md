@@ -42,6 +42,14 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **pSEO**: /templates/{minimal,bold,elegant,engineer} return 200 after trailing-slash redirect with distinct titles; each cross-links the other 7 templates and CTA-links /builder.
 - **Mobile (~420px)**: template row wraps to 2 chip rows + swatch row with no horizontal overflow; note the first (black) swatch wraps up next to the "Engineer" chip and can read as a 9th template dot. Reorder/undo/delete icons are ~28–32px tap targets.
 
+## PR #9 / Round 4 features (drag reorder, custom sections, section order, 12 templates)
+
+- **Drag reorder (Experience/Education)**: GripVertical handle at the card's upper-left is the ONLY drag source (`draggable` on the handle); the whole card is the drop target and highlights `border-primary bg-primary/5` while hovered mid-drag. Arrows remain. To test a real HTML5 drag with computer-use: `mouse_move` onto the handle first, then `left_mouse_down` (no coordinate arg — it errors), several `mouse_move` steps over the target, `zoom` mid-drag to capture the highlight, then `left_mouse_up`. Negative-test by dragging from the card body (should do nothing).
+- **Custom sections**: "Custom sections (optional)" panel → title + one bullet per line textarea; renders as a template-styled heading + bullets in preview/PDF/DOCX. Delete (trash) removes it from editor, Section order list and preview. Verify exports via `pdftotext` and `word/document.xml`.
+- **Section order panel**: collapsed by default; lists the 6 built-ins (Summary, Experience, Projects, Education, Skills, Certifications) + one row per custom section. Supports both arrows and the same grip-handle drag. Order syncs to preview/PDF/DOCX (check heading byte offsets in document.xml). Empty sections (e.g. Certifications with no content) are omitted from outputs — not a bug.
+- **Templates 8→12**: Ivy (serif, center, title-case, green), Slate (sans, left, thick rules, gray), Corporate (serif, center, UPPERCASE name, thick rules, dark red), Startup (sans, left, no divider rules, orange). Accent-swatch override still applies — assert case/align/divider axes, not hue.
+- **pSEO**: /templates/{ivy,slate,corporate,startup} → 200, distinct titles, /builder CTAs, beacon script. Landing/paywall copy says "All 12" (grep bundle for absence of "All 4").
+
 ## Key flows and how to test them (paid mode)
 
 - **Locked vs unlocked**: header shows "Unlock — $9.99 once" when locked; after activation it shows a "Career Bundle" (or plan) badge and PDF/DOCX buttons work.
