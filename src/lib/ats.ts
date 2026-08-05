@@ -50,7 +50,7 @@ function tokenize(text: string): string[] {
       .toLowerCase()
       .replace(/[^a-z0-9+#./ -]/g, ' ')
       .match(/[a-z0-9+#][a-z0-9+#./-]*/g) ?? []
-  )
+  ).map((t) => t.replace(/[./-]+$/, ''))
 }
 
 /** Extract ranked keywords (words + known phrases) from a job description */
