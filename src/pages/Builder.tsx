@@ -493,7 +493,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-7"
+                      className="h-9 sm:h-7"
                       disabled={idx === 0}
                       title="Move up"
                       onClick={() =>
@@ -509,7 +509,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-7"
+                      className="h-9 sm:h-7"
                       disabled={idx === resume.experience.length - 1}
                       title="Move down"
                       onClick={() =>
@@ -525,7 +525,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive h-7"
+                      className="text-destructive h-9 sm:h-7"
                       onClick={() =>
                         setResume((r) => ({
                           ...r,
@@ -866,26 +866,28 @@ export default function Builder() {
                 {t.name}
               </button>
             ))}
-            <span className="mx-1 h-5 border-l" aria-hidden />
-            {ACCENT_CHOICES.map((color) => {
-              const active =
-                (resume.accentColor || getTemplate(resume.templateId).accent) === color
-              return (
-                <button
-                  key={color}
-                  type="button"
-                  title={`Accent ${color}`}
-                  aria-label={`Accent color ${color}`}
-                  onClick={() =>
-                    set('accentColor', color === getTemplate(resume.templateId).accent ? '' : color)
-                  }
-                  className={`size-5 rounded-full border-2 transition ${
-                    active ? 'border-primary scale-110' : 'border-transparent hover:scale-110'
-                  }`}
-                  style={{ background: color }}
-                />
-              )
-            })}
+            <span className="flex items-center gap-2">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              {ACCENT_CHOICES.map((color) => {
+                const active =
+                  (resume.accentColor || getTemplate(resume.templateId).accent) === color
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    title={`Accent ${color}`}
+                    aria-label={`Accent color ${color}`}
+                    onClick={() =>
+                      set('accentColor', color === getTemplate(resume.templateId).accent ? '' : color)
+                    }
+                    className={`size-5 rounded-full border-2 transition ${
+                      active ? 'border-primary scale-110' : 'border-transparent hover:scale-110'
+                    }`}
+                    style={{ background: color }}
+                  />
+                )
+              })}
+            </span>
           </div>
 
           <Card className="py-0">
