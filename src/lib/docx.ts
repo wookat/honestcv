@@ -12,7 +12,7 @@ import {
   TextRun,
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
-import type { Resume } from '@/lib/resume'
+import { type Resume, orderedSectionKeys } from '@/lib/resume'
 import { resolveTemplate } from '@/lib/templates'
 
 const FONT_SERIF = 'Georgia'
@@ -101,81 +101,81 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
     )
   }
 
-  if (resume.summary.trim()) {
-    children.push(heading('Summary'), body(resume.summary.trim(), { after: 100 }))
-  }
-
-  if (resume.experience.some((e) => e.company || e.role)) {
-    children.push(heading('Experience'))
-    for (const e of resume.experience) {
-      if (!e.company && !e.role) continue
-      const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+  for (const key of orderedSectionKeys(resume)) {
+    if (key === 'summary' && resume.summary.trim()) {
+      children.push(heading('Summary'), body(resume.summary.trim(), { after: 100 }))
+    } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
+      children.push(heading('Experience'))
+      for (const e of resume.experience) {
+        if (!e.company && !e.role) continue
+        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            children: [
+              new TextRun({ text: e.role || 'Role', bold: true, size: 22, font }),
+              new TextRun({
+                text: `  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`,
+                size: 21,
+                font,
+              }),
+              ...(dates
+                ? [new TextRun({ text: `   ${dates}`, italics: true, size: 19, font })]
+                : []),
+            ],
+          })
+        )
+        for (const b of e.bullets) {
+          if (b.trim()) children.push(body(b.trim(), { bullet: true }))
+        }
+      }
+    } else if (key === 'projects' && resume.projects.some((p) => p.name)) {
+      children.push(heading('Projects'))
+      for (const p of resume.projects) {
+        if (!p.name) continue
+        children.push(
+          body(`${p.name}${p.link ? ` — ${p.link}` : ''}`, { bold: true, after: 20 })
+        )
+        if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
+      }
+    } else if (key === 'education' && resume.education.some((e) => e.school)) {
+      children.push(heading('Education'))
+      for (const e of resume.education) {
+        if (!e.school) continue
+        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+        children.push(
+          new Paragraph({
+            spacing: { before: 60, after: 20 },
+            children: [
+              new TextRun({ text: e.degree || 'Degree', bold: true, size: 21, font }),
+              new TextRun({
+                text: `  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,
+                size: 21,
+                font,
+              }),
+              ...(dates
+                ? [new TextRun({ text: `   ${dates}`, italics: true, size: 19, font })]
+                : []),
+            ],
+          })
+        )
+        if (e.details.trim()) children.push(body(e.details.trim()))
+      }
+    } else if (key === 'skills' && resume.skills.trim()) {
+      children.push(heading('Skills'), body(resume.skills.trim(), { after: 100 }))
+    } else if (key === 'certifications' && resume.certifications.trim()) {
       children.push(
-        new Paragraph({
-          spacing: { before: 100, after: 20 },
-          children: [
-            new TextRun({ text: e.role || 'Role', bold: true, size: 22, font }),
-            new TextRun({
-              text: `  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`,
-              size: 21,
-              font,
-            }),
-            ...(dates
-              ? [new TextRun({ text: `   ${dates}`, italics: true, size: 19, font })]
-              : []),
-          ],
-        })
+        heading('Certifications'),
+        body(resume.certifications.trim(), { after: 100 })
       )
-      for (const b of e.bullets) {
+    } else if (key.startsWith('custom:')) {
+      const s = resume.customSections.find((x) => `custom:${x.id}` === key)
+      if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue
+      children.push(heading(s.title.trim() || 'Additional'))
+      for (const b of s.bullets) {
         if (b.trim()) children.push(body(b.trim(), { bullet: true }))
       }
     }
-  }
-
-  if (resume.projects.some((p) => p.name)) {
-    children.push(heading('Projects'))
-    for (const p of resume.projects) {
-      if (!p.name) continue
-      children.push(
-        body(`${p.name}${p.link ? ` — ${p.link}` : ''}`, { bold: true, after: 20 })
-      )
-      if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
-    }
-  }
-
-  if (resume.education.some((e) => e.school)) {
-    children.push(heading('Education'))
-    for (const e of resume.education) {
-      if (!e.school) continue
-      const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
-      children.push(
-        new Paragraph({
-          spacing: { before: 60, after: 20 },
-          children: [
-            new TextRun({ text: e.degree || 'Degree', bold: true, size: 21, font }),
-            new TextRun({
-              text: `  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,
-              size: 21,
-              font,
-            }),
-            ...(dates
-              ? [new TextRun({ text: `   ${dates}`, italics: true, size: 19, font })]
-              : []),
-          ],
-        })
-      )
-      if (e.details.trim()) children.push(body(e.details.trim()))
-    }
-  }
-
-  if (resume.skills.trim()) {
-    children.push(heading('Skills'), body(resume.skills.trim(), { after: 100 }))
-  }
-  if (resume.certifications.trim()) {
-    children.push(
-      heading('Certifications'),
-      body(resume.certifications.trim(), { after: 100 })
-    )
   }
 
   const doc = new Document({

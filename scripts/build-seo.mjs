@@ -243,6 +243,38 @@ const TEMPLATE_PAGES = [
       'A no-nonsense sans-serif resume template built for technical resumes — dense, scannable and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Engineer template is built for technical resumes: a compact left-aligned header, clear section rules and typography that keeps dense skill lists scannable. Best for software, data, DevOps and hardware roles.',
   },
+  {
+    path: '/templates/ivy',
+    name: 'Ivy',
+    title: 'Ivy Academic Resume Template — Free to Use Online | HonestCV',
+    description:
+      'An academic serif resume template in deep green — polished, traditional and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Ivy template pairs classic serif typography with a deep green accent for a scholarly, high-trust impression. Best for consulting, graduate-school applications, research and policy roles.',
+  },
+  {
+    path: '/templates/slate',
+    name: 'Slate',
+    title: 'Slate Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A cool gray sans-serif resume template with strong section rules — calm, modern and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Slate template uses a muted gray palette and thick rules to read as calm and confident without shouting. Best for operations, program management and enterprise roles.',
+  },
+  {
+    path: '/templates/corporate',
+    name: 'Corporate',
+    title: 'Corporate Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A formal serif resume template with a commanding uppercase name — built for finance and law, fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Corporate template centers an uppercase name over formal serif body text with strong rules — the traditional look banking, law and accounting recruiters expect, in a parser-safe single column.',
+  },
+  {
+    path: '/templates/startup',
+    name: 'Startup',
+    title: 'Startup Resume Template — Free to Use Online | HonestCV',
+    description:
+      'An energetic resume template with an orange accent and no rules — modern, friendly and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Startup template drops divider rules entirely and leads with a warm orange accent for a modern, product-minded feel. Best for product, growth and early-stage startup roles.',
+  },
 ]
 
 function esc(s) {

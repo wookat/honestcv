@@ -5,7 +5,7 @@
 
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib'
 import { downloadBlob } from '@/lib/download'
-import type { Resume } from '@/lib/resume'
+import { type Resume, orderedSectionKeys } from '@/lib/resume'
 import { getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_W = 612 // US Letter
@@ -183,69 +183,67 @@ export async function buildResumePdf(resume: Resume): Promise<Uint8Array> {
   }
   w.gap(6)
 
-  if (resume.summary.trim()) {
-    w.heading('Summary')
-    w.text(resume.summary.trim(), { size: 10 })
-  }
-
-  if (resume.experience.some((e) => e.company || e.role)) {
-    w.heading('Experience')
-    for (const e of resume.experience) {
-      if (!e.company && !e.role) continue
-      w.gap(4)
-      const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
-      const left = `${e.role || 'Role'}  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`
-      w.text(left, { font: fonts.bold, size: 10.5 })
-      if (dates) {
-        w.gap(1)
-        w.text(dates, { font: fonts.italic, size: 9, color: w.soft })
+  for (const key of orderedSectionKeys(resume)) {
+    if (key === 'summary' && resume.summary.trim()) {
+      w.heading('Summary')
+      w.text(resume.summary.trim(), { size: 10 })
+    } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
+      w.heading('Experience')
+      for (const e of resume.experience) {
+        if (!e.company && !e.role) continue
+        w.gap(4)
+        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+        const left = `${e.role || 'Role'}  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`
+        w.text(left, { font: fonts.bold, size: 10.5 })
+        if (dates) {
+          w.gap(1)
+          w.text(dates, { font: fonts.italic, size: 9, color: w.soft })
+        }
+        w.gap(2)
+        for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
       }
-      w.gap(2)
-      for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
+    } else if (key === 'projects' && resume.projects.some((p) => p.name)) {
+      w.heading('Projects')
+      for (const p of resume.projects) {
+        if (!p.name) continue
+        w.gap(2)
+        w.text(`${p.name}${p.link ? ` — ${p.link}` : ''}`, { font: fonts.bold, size: 10 })
+        if (p.description.trim()) {
+          w.gap(1)
+          w.text(p.description.trim(), { size: 10 })
+        }
+      }
+    } else if (key === 'education' && resume.education.some((e) => e.school)) {
+      w.heading('Education')
+      for (const e of resume.education) {
+        if (!e.school) continue
+        w.gap(2)
+        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+        w.text(
+          `${e.degree || 'Degree'}  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,
+          { font: fonts.bold, size: 10 }
+        )
+        if (dates) {
+          w.gap(1)
+          w.text(dates, { font: fonts.italic, size: 9, color: w.soft })
+        }
+        if (e.details.trim()) {
+          w.gap(1)
+          w.text(e.details.trim(), { size: 10 })
+        }
+      }
+    } else if (key === 'skills' && resume.skills.trim()) {
+      w.heading('Skills')
+      w.text(resume.skills.trim(), { size: 10 })
+    } else if (key === 'certifications' && resume.certifications.trim()) {
+      w.heading('Certifications')
+      w.text(resume.certifications.trim(), { size: 10 })
+    } else if (key.startsWith('custom:')) {
+      const s = resume.customSections.find((x) => `custom:${x.id}` === key)
+      if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue
+      w.heading(s.title.trim() || 'Additional')
+      for (const b of s.bullets) if (b.trim()) w.bullet(b.trim())
     }
-  }
-
-  if (resume.projects.some((p) => p.name)) {
-    w.heading('Projects')
-    for (const p of resume.projects) {
-      if (!p.name) continue
-      w.gap(2)
-      w.text(`${p.name}${p.link ? ` — ${p.link}` : ''}`, { font: fonts.bold, size: 10 })
-      if (p.description.trim()) {
-        w.gap(1)
-        w.text(p.description.trim(), { size: 10 })
-      }
-    }
-  }
-
-  if (resume.education.some((e) => e.school)) {
-    w.heading('Education')
-    for (const e of resume.education) {
-      if (!e.school) continue
-      w.gap(2)
-      const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
-      w.text(
-        `${e.degree || 'Degree'}  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,
-        { font: fonts.bold, size: 10 }
-      )
-      if (dates) {
-        w.gap(1)
-        w.text(dates, { font: fonts.italic, size: 9, color: w.soft })
-      }
-      if (e.details.trim()) {
-        w.gap(1)
-        w.text(e.details.trim(), { size: 10 })
-      }
-    }
-  }
-
-  if (resume.skills.trim()) {
-    w.heading('Skills')
-    w.text(resume.skills.trim(), { size: 10 })
-  }
-  if (resume.certifications.trim()) {
-    w.heading('Certifications')
-    w.text(resume.certifications.trim(), { size: 10 })
   }
 
   return doc.save()

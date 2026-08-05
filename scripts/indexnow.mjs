@@ -6,7 +6,8 @@
 const SITE = 'https://cv.zalize.com'
 const KEY = '88d13cb021bb7d759cc09d7b95af03fc'
 
-const res = await fetch(`${SITE}/sitemap.xml`)
+// cache-bust so we read the freshly deployed sitemap, not the CDN cache
+const res = await fetch(`${SITE}/sitemap.xml?v=${Date.now()}`)
 if (!res.ok) throw new Error(`sitemap fetch failed: ${res.status}`)
 const xml = await res.text()
 const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1])
