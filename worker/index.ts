@@ -70,7 +70,7 @@ async function callLlm(
         'content-type': 'application/json',
         authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ model, messages, temperature }),
+      body: JSON.stringify({ model, messages, temperature, max_tokens: 1200 }),
     })
   } catch {
     return { error: 'Could not reach the AI service. Please retry.', status: 502 }
