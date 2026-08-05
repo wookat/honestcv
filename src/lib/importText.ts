@@ -15,7 +15,7 @@ import {
 } from './resume'
 
 const EMAIL_RE = /[^\s@|,;]+@[^\s@|,;]+\.[a-z]{2,}/i
-const PHONE_RE = /(\+?\d[\d\s().-]{7,}\d)/
+const PHONE_RE = /(\+?\(?\d[\d\s().-]{7,}\d)/
 const LINKEDIN_RE = /linkedin\.com\/[^\s|,;)]+/i
 const URL_RE = /(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s|,;)]*)?/i
 const DATE_RANGE_RE =
@@ -53,7 +53,7 @@ function extractDates(line: string): { rest: string; start: string; end: string 
   if (!m) return { rest: line, start: '', end: '' }
   return {
     rest: (line.slice(0, m.index) + line.slice((m.index ?? 0) + m[0].length))
-      .replace(/[|,()–—-]\s*$/, '')
+      .replace(/[\s|,()–—-]+$/, '')
       .trim(),
     start: m[1].trim(),
     end: m[2].trim(),
