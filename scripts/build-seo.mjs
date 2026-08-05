@@ -10,6 +10,10 @@ const SITE = 'https://cv.zalize.com'
 const OUT_DIR = path.resolve(import.meta.dirname, '../dist/client')
 // Launch/traffic mode: static pages advertise free downloads instead of pricing
 const FREE_MODE = process.env.VITE_FREE_MODE !== 'false'
+// Cloudflare Web Analytics beacon — zone auto-injection does not fire on Worker
+// custom domains, so every static page includes it explicitly.
+const BEACON =
+  '<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=\'{"token": "d3ace0c72c2f4a6f8b96f1e7f8fd4dac"}\'></script>'
 
 const PAGES = [
   {
@@ -304,6 +308,7 @@ function page(p) {
 <meta name="twitter:card" content="summary" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <style>${CSS}</style>
+${BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -371,6 +376,7 @@ function legalPage(p) {
 <meta name="description" content="${esc(p.sections[0][1])}" />
 <link rel="canonical" href="${canonical}" />
 <style>${CSS}</style>
+${BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -427,6 +433,7 @@ function guidePage(p) {
 <meta property="og:url" content="${canonical}" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <style>${CSS}</style>
+${BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -470,6 +477,7 @@ function templatePage(p) {
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
 <style>${CSS}</style>
+${BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
