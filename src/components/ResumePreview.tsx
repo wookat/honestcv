@@ -4,10 +4,10 @@
  */
 
 import type { Resume } from '@/lib/resume'
-import { getTemplate } from '@/lib/templates'
+import { resolveTemplate } from '@/lib/templates'
 
 export function ResumePreview({ resume }: { resume: Resume }) {
-  const tpl = getTemplate(resume.templateId)
+  const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const c = resume.contact
   const fontFamily = tpl.serif ? 'Georgia, "Times New Roman", serif' : 'Inter, Arial, sans-serif'
   const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]

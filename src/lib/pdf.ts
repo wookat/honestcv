@@ -6,7 +6,7 @@
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib'
 import { downloadBlob } from '@/lib/download'
 import type { Resume } from '@/lib/resume'
-import { getTemplate, type TemplateMeta } from '@/lib/templates'
+import { getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_W = 612 // US Letter
 const PAGE_H = 792
@@ -148,7 +148,7 @@ class PdfWriter {
 }
 
 export async function buildResumePdf(resume: Resume): Promise<Uint8Array> {
-  const tpl = getTemplate(resume.templateId)
+  const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const doc = await PDFDocument.create()
   const fonts: Fonts = tpl.serif
     ? {
