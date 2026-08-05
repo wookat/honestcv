@@ -164,17 +164,22 @@ export async function buildResumePdf(resume: Resume): Promise<Uint8Array> {
   const w = new PdfWriter(doc, fonts, tpl)
   const c = resume.contact
 
-  w.text(c.fullName || 'Your Name', { font: fonts.bold, size: 22, center: true })
+  const centerHeader = tpl.headerAlign !== 'left'
+  const name =
+    tpl.nameCase === 'upper'
+      ? (c.fullName || 'Your Name').toUpperCase()
+      : c.fullName || 'Your Name'
+  w.text(name, { font: fonts.bold, size: 22, center: centerHeader })
   if (c.title) {
     w.gap(2)
-    w.text(c.title, { size: 12, color: w.accent, center: true })
+    w.text(c.title, { size: 12, color: w.accent, center: centerHeader })
   }
   const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]
     .filter(Boolean)
     .join('  |  ')
   if (contactLine) {
     w.gap(2)
-    w.text(contactLine, { size: 9, color: w.soft, center: true })
+    w.text(contactLine, { size: 9, color: w.soft, center: centerHeader })
   }
   w.gap(6)
 

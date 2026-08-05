@@ -66,19 +66,23 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   const children: Paragraph[] = []
   const c = resume.contact
 
+  const headerAlignment =
+    tpl.headerAlign === 'left' ? AlignmentType.LEFT : AlignmentType.CENTER
+  const name =
+    tpl.nameCase === 'upper'
+      ? (c.fullName || 'Your Name').toUpperCase()
+      : c.fullName || 'Your Name'
   children.push(
     new Paragraph({
-      alignment: AlignmentType.CENTER,
+      alignment: headerAlignment,
       spacing: { after: 40 },
-      children: [
-        new TextRun({ text: c.fullName || 'Your Name', bold: true, size: 40, font }),
-      ],
+      children: [new TextRun({ text: name, bold: true, size: 40, font })],
     })
   )
   if (c.title) {
     children.push(
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: headerAlignment,
         spacing: { after: 40 },
         children: [new TextRun({ text: c.title, size: 24, color: accent, font })],
       })
@@ -90,7 +94,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   if (contactLine) {
     children.push(
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: headerAlignment,
         spacing: { after: 120 },
         children: [new TextRun({ text: contactLine, size: 19, font })],
       })

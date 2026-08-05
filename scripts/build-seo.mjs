@@ -207,6 +207,38 @@ const TEMPLATE_PAGES = [
       'An authoritative resume template with strong headings for leadership roles — single-column and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Executive template uses commanding headings and generous whitespace to frame leadership scope and outcomes. Best for director, VP and C-level applications where gravitas counts.',
   },
+  {
+    path: '/templates/minimal',
+    name: 'Minimal',
+    title: 'Minimal ATS Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A whitespace-first, left-aligned resume template with no dividers — quiet, modern and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Minimal template strips away rules and ornament, letting a left-aligned header and clean typography carry the design. Best for design, product and modern tech roles where restraint reads as confidence.',
+  },
+  {
+    path: '/templates/bold',
+    name: 'Bold',
+    title: 'Bold ATS Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A high-contrast resume template with strong headings and thick rules — memorable but still single-column and ATS-safe. Use it free in your browser.',
+    blurb: 'The Bold template pairs an uppercase name with thick section rules so your resume stands out in a printed stack — while staying strictly single-column for parsers. Best for sales, marketing and client-facing roles.',
+  },
+  {
+    path: '/templates/elegant',
+    name: 'Elegant',
+    title: 'Elegant Serif Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A refined serif resume template with a left-aligned header and fine rules — polished, formal and ATS-parseable. Use it free in your browser.',
+    blurb: 'The Elegant template combines refined serif typography with a left-aligned header and fine dividers for a polished, formal impression. Best for consulting, academia, publishing and client advisory roles.',
+  },
+  {
+    path: '/templates/engineer',
+    name: 'Engineer',
+    title: 'Engineer Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A no-nonsense sans-serif resume template built for technical resumes — dense, scannable and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Engineer template is built for technical resumes: a compact left-aligned header, clear section rules and typography that keeps dense skill lists scannable. Best for software, data, DevOps and hardware roles.',
+  },
 ]
 
 function esc(s) {
