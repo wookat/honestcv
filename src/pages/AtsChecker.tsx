@@ -108,6 +108,28 @@ export default function AtsChecker() {
                 </span>
               </div>
 
+              <div className="text-muted-foreground mt-2 flex gap-5 text-sm">
+                {result.keywordScore !== null && (
+                  <span>
+                    Keyword match{' '}
+                    <span className="text-foreground font-semibold">
+                      {result.keywordScore}/100
+                    </span>
+                  </span>
+                )}
+                <span>
+                  Structure{' '}
+                  <span className="text-foreground font-semibold">
+                    {result.structureScore}/100
+                  </span>
+                </span>
+                {result.keywordScore === null && (
+                  <span className="text-xs">
+                    Add a job description to get a keyword match score.
+                  </span>
+                )}
+              </div>
+
               {jd.trim() && (
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>

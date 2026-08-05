@@ -36,8 +36,12 @@ export function ResumePreview({ resume }: { resume: Resume }) {
       style={{ fontFamily, aspectRatio: '8.5 / 11', overflow: 'hidden' }}
       aria-label="Resume preview"
     >
-      <div className="text-center">
-        <h2 className="text-2xl font-bold">{c.fullName || 'Your Name'}</h2>
+      <div className={tpl.headerAlign === 'left' ? 'text-left' : 'text-center'}>
+        <h2 className="text-2xl font-bold">
+          {tpl.nameCase === 'upper'
+            ? (c.fullName || 'Your Name').toUpperCase()
+            : c.fullName || 'Your Name'}
+        </h2>
         {c.title && (
           <p className="mt-0.5 text-sm" style={{ color: tpl.accent }}>
             {c.title}

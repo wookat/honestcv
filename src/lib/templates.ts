@@ -12,6 +12,10 @@ export interface TemplateMeta {
   serif: boolean
   /** Divider style under section headings */
   divider: 'line' | 'thick' | 'none'
+  /** Header block alignment */
+  headerAlign: 'center' | 'left'
+  /** Candidate name casing */
+  nameCase: 'normal' | 'upper'
 }
 
 export const TEMPLATES: TemplateMeta[] = [
@@ -23,6 +27,8 @@ export const TEMPLATES: TemplateMeta[] = [
     headingCase: 'upper',
     serif: true,
     divider: 'line',
+    headerAlign: 'center',
+    nameCase: 'normal',
   },
   {
     id: 'modern',
@@ -32,6 +38,8 @@ export const TEMPLATES: TemplateMeta[] = [
     headingCase: 'upper',
     serif: false,
     divider: 'thick',
+    headerAlign: 'center',
+    nameCase: 'normal',
   },
   {
     id: 'compact',
@@ -41,6 +49,8 @@ export const TEMPLATES: TemplateMeta[] = [
     headingCase: 'title',
     serif: false,
     divider: 'line',
+    headerAlign: 'center',
+    nameCase: 'normal',
   },
   {
     id: 'executive',
@@ -50,6 +60,52 @@ export const TEMPLATES: TemplateMeta[] = [
     headingCase: 'upper',
     serif: true,
     divider: 'none',
+    headerAlign: 'center',
+    nameCase: 'normal',
+  },
+  {
+    id: 'minimal',
+    name: 'Minimal',
+    description: 'Left-aligned, whitespace-first — modern tech look',
+    accent: '#1a1a1a',
+    headingCase: 'title',
+    serif: false,
+    divider: 'none',
+    headerAlign: 'left',
+    nameCase: 'normal',
+  },
+  {
+    id: 'bold',
+    name: 'Bold',
+    description: 'Strong headings and rules — stands out in a stack',
+    accent: '#1d4ed8',
+    headingCase: 'upper',
+    serif: false,
+    divider: 'thick',
+    headerAlign: 'left',
+    nameCase: 'upper',
+  },
+  {
+    id: 'elegant',
+    name: 'Elegant',
+    description: 'Refined serif with left-aligned header — polished and formal',
+    accent: '#6d28d9',
+    headingCase: 'title',
+    serif: true,
+    divider: 'line',
+    headerAlign: 'left',
+    nameCase: 'normal',
+  },
+  {
+    id: 'engineer',
+    name: 'Engineer',
+    description: 'No-nonsense sans-serif built for technical resumes',
+    accent: '#15803d',
+    headingCase: 'upper',
+    serif: false,
+    divider: 'line',
+    headerAlign: 'left',
+    nameCase: 'normal',
   },
 ]
 
