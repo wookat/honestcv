@@ -32,7 +32,7 @@ export async function fetchCheckoutEnabled(): Promise<boolean> {
 }
 
 /** Email waitlist while checkout is not yet enabled */
-export async function submitLead(email: string, plan: Plan): Promise<void> {
+export async function submitLead(email: string, plan: Plan | 'free-download'): Promise<void> {
   const res = await fetch('/api/leads', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

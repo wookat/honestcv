@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { SiteFooter, SiteHeader } from '@/components/Layout'
+import { useFreeMode } from '@/components/Paywall'
 
 const FEATURES = [
   {
@@ -48,6 +49,7 @@ const COMPARISON: [string, string, string][] = [
 ]
 
 export default function Landing() {
+  const freeMode = useFreeMode()
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader
@@ -70,9 +72,19 @@ export default function Landing() {
             The resume builder you pay for <span className="underline decoration-emerald-500 decoration-4 underline-offset-4">once</span>
           </h1>
           <p className="text-muted-foreground mx-auto mt-4 max-w-2xl text-lg">
-            Build an ATS-friendly resume with AI tailoring and a free match score.
-            Pay <strong>$9.99 one time</strong> to download — not $25.95 every four
-            weeks until you remember to cancel.
+            {freeMode ? (
+              <>
+                Build an ATS-friendly resume with AI tailoring and a free match score.
+                <strong> Downloads are 100% free during our launch</strong> — no card, no
+                trial, nothing that renews.
+              </>
+            ) : (
+              <>
+                Build an ATS-friendly resume with AI tailoring and a free match score.
+                Pay <strong>$9.99 one time</strong> to download — not $25.95 every four
+                weeks until you remember to cancel.
+              </>
+            )}
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg">
@@ -81,7 +93,9 @@ export default function Landing() {
               </Link>
             </Button>
             <p className="text-muted-foreground text-sm">
-              Editing, templates &amp; ATS score are free. Pay only to download.
+              {freeMode
+                ? 'Editor, templates, ATS score, AI tools and downloads — all free right now.'
+                : 'Editing, templates & ATS score are free. Pay only to download.'}
             </p>
           </div>
         </section>
@@ -148,6 +162,13 @@ export default function Landing() {
           <p className="text-muted-foreground mt-2 text-center text-sm">
             Try everything free. Pay once, only when you&apos;re ready to download.
           </p>
+          {freeMode && (
+            <div className="mx-auto mt-4 max-w-xl rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-900">
+              <strong>Launch special:</strong> everything below is free right now —
+              downloads included. When paid plans open they'll stay one-time, never a
+              subscription.
+            </div>
+          )}
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <Card className="py-0">
               <CardContent className="p-6">

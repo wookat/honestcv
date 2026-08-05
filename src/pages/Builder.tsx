@@ -30,7 +30,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader } from '@/components/Layout'
-import { UpgradeDialog, useLicense } from '@/components/Paywall'
+import {
+  FreeDownloadDialog,
+  UpgradeDialog,
+  hasSubscribed,
+  useFreeMode,
+  useLicense,
+} from '@/components/Paywall'
 import { ResumePreview } from '@/components/ResumePreview'
 import {
   PaymentRequiredError,
@@ -105,6 +111,9 @@ export default function Builder() {
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
+  const [freeDlOpen, setFreeDlOpen] = useState(false)
+  const pendingDl = useRef<'pdf' | 'docx' | null>(null)
+  const freeMode = useFreeMode()
   const { license, refresh } = useLicense()
   useDebouncedSave(resume)
 
@@ -148,7 +157,7 @@ export default function Builder() {
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       apply(out)
     } catch (e) {
-      if (e instanceof PaymentRequiredError) requireUnlock(e.message)
+      if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
     } finally {
       setAiBusy(null)
@@ -157,10 +166,17 @@ export default function Builder() {
 
   const download = async (fmt: 'pdf' | 'docx') => {
     if (!unlocked) {
-      requireUnlock(
-        'Downloading your resume as PDF or DOCX is the one thing we charge for — once, not monthly.'
-      )
-      return
+      if (!freeMode) {
+        requireUnlock(
+          'Downloading your resume as PDF or DOCX is the one thing we charge for — once, not monthly.'
+        )
+        return
+      }
+      if (!hasSubscribed()) {
+        pendingDl.current = fmt
+        setFreeDlOpen(true)
+        return
+      }
     }
     setDownloading(fmt)
     try {
@@ -204,6 +220,10 @@ export default function Builder() {
               <Badge variant="secondary" className="gap-1">
                 <Unlock className="size-3" />
                 {hasBundlePlan ? 'Career Bundle' : 'Unlocked'}
+              </Badge>
+            ) : freeMode ? (
+              <Badge variant="secondary" className="gap-1">
+                <Unlock className="size-3" /> Free during launch
               </Badge>
             ) : (
               <Button size="sm" variant="outline" onClick={() => setUpgradeOpen(true)}>
@@ -606,8 +626,8 @@ export default function Builder() {
           {aiError && <p className="text-destructive text-sm">{aiError}</p>}
           {freeLeft !== null && !unlocked && (
             <p className="text-muted-foreground text-xs">
-              {freeLeft} free AI rewrite{freeLeft === 1 ? '' : 's'} left — unlock once for
-              unlimited.
+              {freeLeft} free AI rewrite{freeLeft === 1 ? '' : 's'} left
+              {freeMode ? ' — resets within 30 days.' : ' — unlock once for unlimited.'}
             </p>
           )}
         </div>
@@ -715,19 +735,20 @@ export default function Builder() {
             <Button
               variant="outline"
               onClick={() =>
-                hasBundlePlan
+                hasBundlePlan || freeMode
                   ? setToolOpen('cover')
                   : requireUnlock(
                       'The AI cover letter writer is part of the Career Bundle ($19.99, one-time).'
                     )
               }
             >
-              <FileText /> Cover letter {!hasBundlePlan && <Lock className="size-3 opacity-60" />}
+              <FileText /> Cover letter{' '}
+              {!hasBundlePlan && !freeMode && <Lock className="size-3 opacity-60" />}
             </Button>
             <Button
               variant="outline"
               onClick={() =>
-                hasBundlePlan
+                hasBundlePlan || freeMode
                   ? setToolOpen('interview')
                   : requireUnlock(
                       'Interview prep is part of the Career Bundle ($19.99, one-time).'
@@ -735,7 +756,7 @@ export default function Builder() {
               }
             >
               <MessagesSquare /> Interview prep{' '}
-              {!hasBundlePlan && <Lock className="size-3 opacity-60" />}
+              {!hasBundlePlan && !freeMode && <Lock className="size-3 opacity-60" />}
             </Button>
           </div>
         </div>
@@ -756,6 +777,15 @@ export default function Builder() {
         kind={toolOpen}
         onClose={() => setToolOpen(null)}
         resume={resume}
+      />
+      <FreeDownloadDialog
+        open={freeDlOpen}
+        onOpenChange={setFreeDlOpen}
+        onUnlocked={() => {
+          const fmt = pendingDl.current
+          pendingDl.current = null
+          if (fmt) void download(fmt)
+        }}
       />
     </div>
   )
