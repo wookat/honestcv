@@ -71,6 +71,7 @@ import {
   emptyProject,
   emptyResume,
   loadResume,
+  newId,
   orderedSectionKeys,
   listResumeVersions,
   resumeToPlainText,
@@ -767,6 +768,29 @@ export default function Builder() {
                       }
                     >
                       <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 sm:h-7"
+                      title="Duplicate role — handy for a promotion at the same company"
+                      aria-label={`Duplicate role ${idx + 1}`}
+                      onClick={() =>
+                        setResume((r) => {
+                          const i = r.experience.findIndex((x) => x.id === e.id)
+                          const copy = {
+                            ...r.experience[i],
+                            id: newId(),
+                            bullets: [...r.experience[i].bullets],
+                          }
+                          const experience = [...r.experience]
+                          experience.splice(i + 1, 0, copy)
+                          return { ...r, experience }
+                        })
+                      }
+                    >
+                      <Copy className="size-3.5" />
                     </Button>
                     <Button
                       type="button"

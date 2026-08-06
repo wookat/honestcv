@@ -1250,3 +1250,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Production paste-import of the two-line-header sample: one experience
   entry (role/company/dates/bullet all correct) and one education entry
   with dates 2013|2017; no bogus entries.
+
+## Round 62 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA golden path (desktop) | Strength meter, page-count indicator, ATS score and DOCX export (Letter `pgSz` 12240×15840, real `<w:tab/>`) all green after the R57/R61 importer changes | — |
+| 2 | Competitor UX comparison | Zety/Resume.io both offer duplicating an experience entry (promotion at the same company = copy + edit); we forced retyping the whole card | P2 |
+
+**Fixes shipped** (worker version `b17712c6`)
+
+- Duplicate button on experience cards: inserts a copy (new id, copied
+  bullets) right below the original.
+
+**Verification (live)**
+
+- Production: Duplicate role 1 → 2 entries, same content, distinct ids;
+  delete restores.
