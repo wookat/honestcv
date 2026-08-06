@@ -947,3 +947,30 @@ writeFileSync(
   `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`
 )
 console.log('built sitemap.xml + robots.txt')
+
+// llms.txt — a curated site map for AI assistants (https://llmstxt.org)
+const llms = `# HonestCV
+
+> Free ATS-friendly resume builder with a one-time-payment model (currently free during launch): 12 single-column templates, live preview, free ATS match score against any pasted job description, real text-based PDF and DOCX export. No account — resume data stays in the user's browser (localStorage). No subscription, no auto-renewal, no trial trap.
+
+## Core tools
+
+- [Resume builder](${SITE}/builder): full editor with templates, live preview and exports
+- [Free ATS checker](${SITE}/ats-checker): paste a resume + job description for an instant match score with matched/missing keywords
+
+## Comparisons (first-hand tests)
+
+${PAGES.filter((p) => p.path.startsWith('/vs/'))
+  .map((p) => `- [${p.name}](${SITE}${p.path}/): ${p.description}`)
+  .join('\n')}
+
+## Guides
+
+${GUIDES.map((g) => `- [${g.title.split(' — ')[0].split(' (')[0]}](${SITE}${g.path}/): ${g.description}`).join('\n')}
+
+## Templates
+
+${TEMPLATE_PAGES.map((t) => `- [${t.name}](${SITE}${t.path}/): ${t.description}`).join('\n')}
+`
+writeFileSync(path.join(OUT_DIR, 'llms.txt'), llms)
+console.log('built llms.txt')

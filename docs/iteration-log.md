@@ -586,3 +586,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Click on the link fills both fields and renders score with matched/missing
   keywords.
+
+## Round 29 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data/discovery analysis (traffic mode) | robots.txt + sitemap present, but no llms.txt — AI assistants (a growing referral source for "best free resume builder"-type questions) had no curated site index | P2 |
+
+**Fixes shipped** (worker version `8a0ae82b`)
+
+- Generated `/llms.txt` (llmstxt.org format) in `build-seo.mjs`: product
+  summary + all comparison/guide/template URLs with descriptions.
+
+**Verification (live)**
+
+- `https://cv.zalize.com/llms.txt` → HTTP 200, 50 lines, all sections
+  present.
