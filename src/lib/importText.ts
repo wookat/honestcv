@@ -5,6 +5,7 @@
  */
 
 import {
+  type CustomSection,
   type EducationItem,
   type ExperienceItem,
   type Resume,
@@ -38,6 +39,10 @@ const SECTION_HEADINGS: [RegExp, SectionName][] = [
   [/^(certifications?|certificates|licenses)\b/i, 'certifications'],
 ]
 
+// Common resume sections without a dedicated field — imported as custom sections
+const CUSTOM_HEADING_RE =
+  /^(awards?|honors?|achievements?|publications?|volunteer(ing|\s+experience)?|languages?|interests?|hobbies|activities|leadership|references)\b/i
+
 const isBullet = (line: string) => /^[-–—•*·▪◦]\s+/.test(line)
 const stripBullet = (line: string) => line.replace(/^[-–—•*·▪◦]\s+/, '').trim()
 
@@ -57,6 +62,16 @@ function matchHeading(line: string): SectionName | null {
   const t = line.trim().replace(/[:：]$/, '')
   if (t.length > 40) return null
   for (const [re, name] of SECTION_HEADINGS) if (re.test(t)) return name
+  return null
+}
+
+/** Heading for a section we don't have a dedicated field for (Awards, Languages…) */
+function matchCustomHeading(line: string): string | null {
+  const t = line.trim().replace(/[:：]$/, '')
+  if (t.length > 32) return null
+  if (CUSTOM_HEADING_RE.test(t)) return t
+  // Generic short ALL-CAPS heading like "PRO BONO WORK"
+  if (/^[A-Z][A-Z &/'-]+$/.test(t) && t.split(/\s+/).length <= 3) return t
   return null
 }
 
@@ -150,9 +165,10 @@ export function parseResumeText(raw: string): Resume {
     if (resume.contact.location) break
   }
 
-  let section: SectionName | null = null
+  let section: SectionName | 'custom' | null = null
   let currentExp: ExperienceItem | null = null
   let currentEdu: EducationItem | null = null
+  let currentCustom: CustomSection | null = null
   const summaryLines: string[] = []
   const skillLines: string[] = []
   const certLines: string[] = []
@@ -164,9 +180,25 @@ export function parseResumeText(raw: string): Resume {
       section = heading
       currentExp = null
       currentEdu = null
+      currentCustom = null
       continue
     }
     if (line === resume.contact.fullName) continue
+    if (section !== null) {
+      const customTitle = matchCustomHeading(line)
+      if (customTitle) {
+        section = 'custom'
+        currentExp = null
+        currentEdu = null
+        currentCustom = {
+          id: newId(),
+          title: customTitle,
+          bullets: [],
+        }
+        resume.customSections.push(currentCustom)
+        continue
+      }
+    }
 
     switch (section) {
       case 'summary':
@@ -177,6 +209,9 @@ export function parseResumeText(raw: string): Resume {
         break
       case 'certifications':
         certLines.push(line)
+        break
+      case 'custom':
+        if (currentCustom) currentCustom.bullets.push(stripBullet(line))
         break
       case 'experience': {
         if (isBullet(line)) {

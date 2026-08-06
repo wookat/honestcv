@@ -1532,3 +1532,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Builder loads, page-count indicator shows "1 page" (lazy pdf chunk
   works), PDF and DOCX exports both download.
+
+## Round 77 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (import parser, resume with Awards/Languages sections) | Unknown headings were swallowed into whichever section came before — "AWARDS … LANGUAGES …" ended up inside Certifications with heading names embedded | P1 |
+
+**Fixes shipped** (worker version `e3222637`)
+
+- Import parser recognizes common extra sections (Awards, Honors,
+  Publications, Volunteering, Languages, Interests…) plus generic short
+  ALL-CAPS headings, and imports them as custom sections with their
+  lines as bullets.
+
+**Verification (live)**
+
+- Production import of a sample with AWARDS + LANGUAGES → two custom
+  sections with the right bullets; certifications no longer polluted;
+  R69/R76 samples still parse identically.
