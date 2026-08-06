@@ -268,7 +268,7 @@ export default function AtsChecker() {
                   AI rewrites your bullets toward this exact job, live ATS score as you
                   edit, and clean PDF/DOCX export. No sign-up, no subscription.
                 </p>
-                <Button className="mt-3" onClick={openInBuilder}>
+                <Button className="mt-3 h-auto max-w-full whitespace-normal" onClick={openInBuilder}>
                   Fix it in the builder — resume &amp; job carried over <ArrowRight />
                 </Button>
               </div>

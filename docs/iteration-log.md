@@ -432,3 +432,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
   `overflow: visible`; printed PDF contains the resume text only.
 
 **Rounds 16–20 complete — batch SOP-04 report sent.**
+
+## Round 21 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Mobile UX walkthrough (/ats-checker funnel, 375px) | After scoring, the "Fix it in the builder — resume & job carried over" CTA (`whitespace-nowrap`, 393px wide) caused horizontal page overflow (scrollWidth 451 vs 360) on the funnel's key conversion screen | P1 |
+| 2 | Same walkthrough | Resume + JD carryover into builder re-verified working (`honestcv.resume` gets name + jobDescription) | — |
+
+**Fixes shipped** (worker version `f353553f`)
+
+- CTA button now `h-auto max-w-full whitespace-normal` so the label wraps on
+  narrow screens.
+
+**Verification (live)**
+
+- 375px: overflow `{"s":360,"c":360}` after scoring; carryover confirmed
+  (`name: "Jordan Reyes"`, JD present).
