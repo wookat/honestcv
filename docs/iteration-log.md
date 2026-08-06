@@ -1191,3 +1191,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production preview box ratio 0.773 (Letter) → 0.707 (A4) when toggling.
+
+## Round 59 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data/funnel (stat hygiene) | Every first-party hit to date is internal QA traffic; once organic visitors arrive the two would be indistinguishable, permanently muddying the funnel numbers the traffic phase is supposed to measure | P1 |
+| 2 | UX walkthrough (email unlock, mobile 375px) | Fresh-visitor download gate verified healthy: subscribe dialog fits, unlock succeeds and the download auto-continues without re-clicking | — |
+
+**Fixes shipped** (worker version `e4871398`)
+
+- Both beacons (SPA + static pages) skip when `localStorage.honestcv.qa`
+  is `'1'`; the flag is now set in our QA browser profile, so internal
+  walkthroughs stop counting as traffic from today.
+
+**Verification (live)**
+
+- With the flag: 0 `/api/hit` requests across SPA and static pages;
+  without it: beacon fires normally.
