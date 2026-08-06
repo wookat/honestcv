@@ -253,6 +253,66 @@ const GUIDES = [
       ['Don’t let one gap define the document', 'Recruiters weigh your strongest evidence first: quantified achievements, relevant skills, a tailored summary. Make those excellent and the gap becomes a footnote. Run your final draft through a free ATS check to make sure the substance, not the gap, leads.'],
     ],
   },
+  {
+    path: '/guides/skills-for-resume',
+    title: 'What Skills to Put on a Resume in 2026 (and How to List Them)',
+    description:
+      'How to choose resume skills that actually match the job, hard vs soft skills, how many to list, formatting that ATS parsers read cleanly, and what to leave out.',
+    h1: 'What skills to put on your resume (and how)',
+    sections: [
+      ['Start from the job posting, not from memory', 'The skills section exists to match one specific job description. Open the posting, list every concrete skill, tool and qualification it names, and check which ones you genuinely have — those go first, in the posting’s exact wording. Everything else is secondary.'],
+      ['Hard skills carry the section', 'Tools, languages, frameworks, certifications, methodologies: “Python”, “QuickBooks”, “Google Analytics”, “OSHA 30”. These are what ATS keyword matching and skimming recruiters both look for. List them as plain comma-separated text or simple groups — no skill bars, icons or star ratings, which parsers cannot read.'],
+      ['Soft skills need proof, not a list entry', '“Leadership” in a skills list is noise; “Led a 6-person support team through a CRM migration” in a bullet is evidence. Keep at most one or two soft skills in the list, and demonstrate the rest inside your experience bullets.'],
+      ['How many skills to list', 'Aim for 8–15. Fewer looks thin; more looks like keyword stuffing and dilutes the ones that matter. If you’re tempted to list 25, group them (“Languages: … / Cloud: … / Data: …”) and cut anything you couldn’t discuss in an interview.'],
+      ['Match level honestly', 'Only list skills you can use on day one. “Familiar with” skills you’ve merely read about set interview traps — one probing question and your credibility is gone. If a required skill is a genuine gap, address it in the cover letter as something you’re actively learning.'],
+      ['Check the match before you send', 'Paste your resume and the job posting into our free ATS checker to see which of the posting’s keywords your skills section already covers and which are missing — it runs entirely in your browser.'],
+    ],
+  },
+  {
+    path: '/guides/best-resume-format',
+    title: 'Best Resume Format for 2026: Chronological vs Functional vs Hybrid',
+    description:
+      'Which resume format gets read: reverse-chronological, functional, or hybrid — what ATS parsers handle, who each format suits, and the layout rules that matter in 2026.',
+    h1: 'The best resume format for 2026 (and who each fits)',
+    sections: [
+      ['Reverse-chronological wins for most people', 'Most recent role first, working backwards. It’s what recruiters expect, what ATS parsers handle most reliably, and what makes career progression obvious. If you have a conventional work history, this is your format — full stop.'],
+      ['Functional format is a red flag in 2026', 'The skills-first, dates-buried “functional” resume was designed to hide something, and every recruiter knows it. Many ATS parsers also misfile its non-standard sections. If you’re tempted by functional because of gaps or a career change, use a hybrid instead.'],
+      ['Hybrid: a skills summary on top of a chronological core', 'A short skills/achievements block up top, followed by a normal reverse-chronological history. Works for career changers (lead with transferable skills) and senior candidates (lead with scope). The chronological backbone keeps parsers and recruiters oriented.'],
+      ['Layout rules that outrank format choice', 'Single column. Standard headings (“Experience”, “Education”, “Skills”). Real selectable text, no tables or text boxes. 10.5–12pt body font. These parsing rules matter more than which format you picked — a scrambled parse loses to any format.'],
+      ['One page or two?', 'Under ~10 years of experience: one page. More than that, or dense technical/academic work: two pages is fine and normal. What kills resumes isn’t a second page — it’s padding. Every line must earn its place.'],
+      ['Format is the container, evidence is the content', 'No format rescues vague bullets. Quantify achievements, mirror the posting’s keywords, tailor the summary — then run a free ATS check to confirm the result parses cleanly before you send it.'],
+    ],
+  },
+  {
+    path: '/guides/tailor-resume-to-job',
+    title: 'How to Tailor Your Resume to a Job Description (in 15 Minutes)',
+    description:
+      'A 15-minute process for tailoring your resume to any job posting: extract keywords, rework the summary, reorder bullets, and verify the match with a free ATS score.',
+    h1: 'Tailor your resume to the job description — a 15-minute process',
+    sections: [
+      ['Why one generic resume underperforms', 'ATS screening compares your resume to one specific posting, and recruiters skim for the posting’s own vocabulary. A generic resume loses on both fronts. Tailoring is the highest-leverage 15 minutes in a job application.'],
+      ['Minute 0–3: extract the posting’s keywords', 'Read the posting once and mark every concrete skill, tool, qualification and repeated phrase. The requirements section matters most; anything named twice matters more. This list is your checklist for everything that follows.'],
+      ['Minute 3–6: rewrite the summary for this job', 'Your summary should read like it was written for this posting — because it was. Mirror the job title, name the two or three requirements you meet most strongly, and use the posting’s wording for them.'],
+      ['Minute 6–11: reorder and rephrase bullets', 'Within each role, move the bullets most relevant to this posting to the top and align their vocabulary with the posting’s (“CI/CD pipelines” vs “build automation” — use theirs). Don’t invent new achievements; re-emphasize real ones.'],
+      ['Minute 11–13: align the skills section', 'Add any posting keywords you genuinely have but forgot to list, in the posting’s exact wording (including acronym + full phrase). Remove skills irrelevant to this application to sharpen the signal.'],
+      ['Minute 13–15: verify with a match score', 'Paste your tailored resume and the posting into our free ATS checker: it shows your keyword match score and exactly which posting keywords are still missing. Fix what’s real, skip what isn’t — then send.'],
+    ],
+  },
+  {
+    path: '/guides/remote-job-resume',
+    title: 'Resume for Remote Jobs: What to Change (2026 Guide)',
+    description:
+      'How to position your resume for remote roles: proving async and self-management skills, listing remote experience correctly, tools to name, and what remote employers screen for.',
+    h1: 'Writing a resume for remote jobs',
+    sections: [
+      ['Say “remote” explicitly', 'If you’ve worked remotely, put it in the location slot: “Acme Corp — Remote (US)”. Remote employers scan for prior remote experience specifically; making them infer it is a missed signal. Hybrid roles: “Hybrid — Chicago, IL”.'],
+      ['Prove self-management with outcomes', 'Remote hiring managers screen for people who ship without supervision. Bullets that show ownership end-to-end — “Owned the release pipeline for a 9-person distributed team across 4 time zones” — beat any claim of being a “self-starter”.'],
+      ['Name your collaboration stack', 'Slack, Zoom, Notion, Jira, Linear, GitHub, Figma — concrete tool names are both ATS keywords and instant credibility that you can operate in an async toolchain. List them in skills; better, embed them in bullets.'],
+      ['Show async communication in writing', 'Remote work runs on writing: documentation, RFCs, post-mortems, runbooks. If you’ve written any of these, say so with scope: “Wrote onboarding docs that cut new-hire ramp time from 6 to 3 weeks”. Your resume itself is a writing sample — keep it tight.'],
+      ['Time zones and eligibility up top', 'Many remote postings restrict by country or overlap hours. Put your time zone and work eligibility in the contact line (“CET, eligible to work in the EU”) so a recruiter never has to guess whether you fit the constraint.'],
+      ['Tailor to each remote posting like any other', 'Remote roles get more applicants, so keyword matching is stricter, not looser. Extract each posting’s keywords and check your match with a free ATS score before applying.'],
+    ],
+  },
 ]
 
 /** pSEO template pages, one per built-in template */
