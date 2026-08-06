@@ -34,7 +34,11 @@ export function ResumePreview({ resume }: { resume: Resume }) {
     <div
       data-resume-preview
       className="mx-auto w-full rounded-md border bg-white p-8 text-[#1f1f1f] shadow-sm"
-      style={{ fontFamily, aspectRatio: '8.5 / 11', overflow: 'hidden' }}
+      style={{
+        fontFamily,
+        aspectRatio: resume.pageSize === 'a4' ? '210 / 297' : '8.5 / 11',
+        overflow: 'hidden',
+      }}
       aria-label="Resume preview"
     >
       <div className={tpl.headerAlign === 'left' ? 'text-left' : 'text-center'}>

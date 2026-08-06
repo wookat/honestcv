@@ -1175,3 +1175,19 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
   "Software Engineer" / company "Brightlane" / location "Austin, TX";
   degree "B.S. Computer Science" / school "University of Texas at Austin"
   / location "Austin, TX".
+
+## Round 58 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Visual review (R54 follow-up) | The on-screen preview page kept the US Letter 8.5:11 aspect ratio even with A4 selected — the preview no longer matched what the PDF export produces | P2 |
+
+**Fixes shipped** (worker version `27a5a2fe`)
+
+- `ResumePreview` aspect ratio follows `resume.pageSize` (210/297 for A4).
+
+**Verification (live)**
+
+- Production preview box ratio 0.773 (Letter) → 0.707 (A4) when toggling.
