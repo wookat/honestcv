@@ -200,6 +200,12 @@ const GUIDES = [
       ['Export as real text, not an image', 'Your PDF must contain selectable text. Screenshots, scanned documents, or design-tool exports that flatten text to outlines are unreadable to parsers. Test: if you can’t select and copy text in your PDF, neither can the ATS.'],
       ['Quantify your achievements', 'Numbers survive both parsers and recruiters: “cut deploy time 40%” beats “improved deployment process”. Aim for at least half your bullets to include a number, %, or $ figure.'],
       ['Skip the photo, graphics and icons', 'In the US/UK/Canada market, photos are discouraged (bias policies) and graphics are parser hazards. Icons for phone/email often replace the actual text — make sure your contact details are typed out.'],
+      ['PDF vs DOCX: which to send', 'Send PDF unless the posting explicitly asks for Word. Modern parsers read text-based PDFs reliably, and PDF locks your layout; DOCX can reflow on the reviewer’s machine. When a portal insists on .doc/.docx, export DOCX rather than renaming a PDF — the extension must match the real format.'],
+      ['Write dates the boring way', '“Mar 2021 – Present” or “03/2021 – Present” parse everywhere. Seasons (“Spring 2021”), typographic ornaments, or dates buried mid-sentence can break the experience timeline some ATS build. Keep one consistent date format for the whole resume.'],
+      ['Spell out acronyms once', 'Postings vary between “SEO” and “search engine optimization”, “PM” and “product manager”. Include the spelled-out form and the acronym on first use — you match both variants without stuffing.'],
+      ['Don’t fear the ATS — fear the generic resume', 'ATS rarely auto-reject structurally sound resumes; the common failure is a human running a keyword search and your resume missing the terms. Tailoring beats tricks: two minutes matching your skills section to the posting outperforms any formatting hack.'],
+      ['Test your resume like a parser would', 'Copy-paste your exported file into a plain-text editor: if sections come out in order with readable headings and dates, a parser will cope. Or run it through our free ATS checker, which parses your actual file in the browser and scores structure and keywords separately.'],
+      ['The checklist', 'Single column · standard headings · posting keywords in your wording · real-text export · quantified bullets · no photo/graphics · consistent dates · acronyms spelled out once · tested against the actual job description. That is the whole game — everything else is typography.'],
     ],
   },
   {
