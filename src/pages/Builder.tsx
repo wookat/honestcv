@@ -1745,7 +1745,8 @@ export default function Builder() {
                   <div className="min-w-0">
                     <p className="truncate font-medium">{v.name}</p>
                     <p className="text-muted-foreground text-xs">
-                      {new Date(v.updatedAt).toLocaleString()}
+                      {new Date(v.updatedAt).toLocaleString()} · ATS{' '}
+                      {scoreResume(v.data, v.data.jobDescription).score}/100
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
