@@ -1493,3 +1493,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - `/guides/` shows 23 link+blurb rows, `/vs/` shows 7.
+
+## Round 75 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Visual/a11y (updated hubs, 360px) | `/guides/` and `/vs/` — no overflow, zero axe WCAG A/AA violations | — |
+| 2 | UX walkthrough (free-download funnel, live) | Subscribe gate → email → unlock → Final Check all work; copies dialog warns before replacing the editor | — |
+| 3 | Editor consistency | Experience (R62) and education (R72) cards have Duplicate; project cards didn't | P2 |
+
+**Fixes shipped** (worker version `3b742a5d`)
+
+- Duplicate button on project cards, matching the other entry types.
+
+**Verification (live)**
+
+- Production: expand Projects → "Duplicate project 1" → Alpha, Alpha
+  with unique ids; state restored after test.
