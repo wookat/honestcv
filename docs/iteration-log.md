@@ -1866,3 +1866,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 94 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Visual/a11y (360px axe sweep) | best-resume-format, internship-resume, resume-keywords all 0 WCAG A/AA violations, no horizontal overflow after expansion | — |
+| 2 | Content quality audit (continued) | /guides/resume-with-no-experience/ at ~510 words | P1 (SEO) |
+
+**Fixes shipped** (worker version `49c3e8ea`)
+
+- resume-with-no-experience expanded 6 → 12 sections (~774 words):
+  volunteering as experience, freelance/informal work, certifications,
+  what to build while applying, first-resume mistakes, and a worked
+  section skeleton.
+
+**Verification (live)**
+
+- Production page serves the new sections.
