@@ -13,7 +13,9 @@ const FREE_MODE = process.env.VITE_FREE_MODE !== 'false'
 // Cloudflare Web Analytics beacon — zone auto-injection does not fire on Worker
 // custom domains, so every static page includes it explicitly.
 const BEACON =
-  '<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=\'{"token": "d3ace0c72c2f4a6f8b96f1e7f8fd4dac"}\'></script>'
+  '<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=\'{"token": "d3ace0c72c2f4a6f8b96f1e7f8fd4dac"}\'></script>' +
+  // First-party pageview beacon (adblock-proof fallback; path only, no PII)
+  '<script>try{navigator.sendBeacon("/api/hit",location.pathname)}catch(e){}</script>'
 
 const PAGES = [
   {

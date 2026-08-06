@@ -54,6 +54,37 @@ for (const row of acc.byPath) {
 // Email leads collected in KV (waitlist + free-download subscribes)
 const KV_ID = '580004279c364a678ad3eeaf4f604425'
 const kvToken = process.env.CLOUDFLARE_WORKERS_API_TOKEN ?? token
+
+// First-party pageview hits (adblock-proof /api/hit beacon), keyed hit:<day>:<ts>
+{
+  const byDayFP = new Map()
+  let cur = ''
+  do {
+    const url = new URL(
+      `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/storage/kv/namespaces/${KV_ID}/keys`
+    )
+    url.searchParams.set('prefix', 'hit:')
+    url.searchParams.set('limit', '1000')
+    if (cur) url.searchParams.set('cursor', cur)
+    const kv = await (
+      await fetch(url, { headers: { authorization: `Bearer ${kvToken}` } })
+    ).json()
+    if (!kv.success) {
+      console.log(`\nfirst-party hits: unavailable (${JSON.stringify(kv.errors)})`)
+      break
+    }
+    for (const k of kv.result) {
+      const day = k.name.split(':')[1]
+      if (day >= d(start)) byDayFP.set(day, (byDayFP.get(day) ?? 0) + 1)
+    }
+    cur = kv.result_info?.cursor ?? ''
+    if (cur === '') {
+      console.log('\nfirst-party hits (adblock-proof beacon):')
+      for (const [day, n] of [...byDayFP].sort()) console.log(`  ${day}  ${n}`)
+      if (byDayFP.size === 0) console.log('  none yet')
+    }
+  } while (cur)
+}
 let cursor = ''
 let leads = 0
 do {

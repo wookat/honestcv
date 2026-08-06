@@ -61,6 +61,29 @@
       src="https://static.cloudflareinsights.com/beacon.min.js"
       data-cf-beacon='{"token": "d3ace0c72c2f4a6f8b96f1e7f8fd4dac"}'
     ></script>
+    <script>
+      // First-party pageview beacon (adblock-proof fallback; path only, no PII).
+      ;(function () {
+        var sent = ''
+        var hit = function () {
+          var p = location.pathname
+          if (p === sent) return
+          sent = p
+          try {
+            navigator.sendBeacon('/api/hit', p)
+          } catch (e) {
+            /* ignore */
+          }
+        }
+        hit()
+        var push = history.pushState
+        history.pushState = function () {
+          push.apply(this, arguments)
+          hit()
+        }
+        addEventListener('popstate', hit)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
