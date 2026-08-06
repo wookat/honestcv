@@ -34,3 +34,31 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Per-route titles confirmed in live browser.
 
 **Data snapshot**: 7d PV 5 / UV 5 (QA), leads 3 (test).
+
+## Round 2 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor research | Zety/Resume.io/Rezi/Teal all support uploading an existing resume file; HonestCV only accepted pasted text — the biggest onboarding friction for users with an existing PDF/DOCX resume | P1 |
+| 2 | UX walkthrough | `/ats-checker` also required manual paste; the shareable checker is the top-of-funnel page, so upload matters most there | P1 |
+
+**Fixes shipped** (worker version `19f90b94`)
+
+- New `src/lib/extractFile.ts`: client-side text extraction from `.pdf` (pdfjs-dist
+  **legacy build** — the standard v6 build crashed with `a.toHex is not a function`
+  on browsers without the newest `Uint8Array` APIs; legacy ships polyfills),
+  `.docx` (fflate unzip + `word/document.xml` strip) and `.txt`. PDF lines are
+  reconstructed by grouping text items on y-coordinate so `parseResumeText`
+  still sees real line structure. pdfjs loads lazily (separate ~127 KB gz chunk)
+  only when a PDF is chosen; nothing is uploaded to a server.
+- Builder import dialog: "Upload PDF / DOCX / TXT" button fills the review textarea
+  before importing; scanned-image PDFs get a clear error.
+- `/ats-checker`: upload button fills the resume textarea directly.
+
+**Verification (live)**
+
+- PDF upload on `/ats-checker` → text extracted (name/bullets present) → score renders.
+- DOCX upload on `/ats-checker` → text extracted with skills intact.
+- Builder: PDF upload → review text → import → preview shows parsed employer and metrics.

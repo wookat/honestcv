@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BadgeCheck, CircleAlert, Target } from 'lucide-react'
+import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { scoreResumeText } from '@/lib/ats'
+import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 export default function AtsChecker() {
   usePageMeta(
@@ -17,6 +18,9 @@ export default function AtsChecker() {
   const [resumeText, setResumeText] = useState('')
   const [jd, setJd] = useState('')
   const [checked, setChecked] = useState(false)
+  const [fileBusy, setFileBusy] = useState(false)
+  const [fileError, setFileError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const result = useMemo(
     () => (checked ? scoreResumeText(resumeText, jd) : null),
@@ -52,7 +56,49 @@ export default function AtsChecker() {
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="resume-text">Your resume (paste the text)</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="resume-text">Your resume (paste or upload)</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 text-xs"
+                disabled={fileBusy}
+                onClick={() => fileRef.current?.click()}
+              >
+                <FileUp className="size-3" />
+                {fileBusy ? 'Reading…' : 'Upload PDF / DOCX'}
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept={IMPORT_ACCEPT}
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file) return
+                  setFileBusy(true)
+                  setFileError('')
+                  extractTextFromFile(file)
+                    .then((text) => {
+                      if (!text.trim())
+                        throw new Error(
+                          'No text found in this file — it may be a scanned image. Paste the text instead.'
+                        )
+                      setResumeText(text)
+                      setChecked(false)
+                    })
+                    .catch((err: unknown) =>
+                      setFileError(
+                        err instanceof Error ? err.message : 'Could not read this file.'
+                      )
+                    )
+                    .finally(() => setFileBusy(false))
+                }}
+              />
+            </div>
+            {fileError && <p className="text-destructive text-xs">{fileError}</p>}
             <Textarea
               id="resume-text"
               rows={12}
