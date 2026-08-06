@@ -357,6 +357,23 @@ app.post('/api/billing/ls-webhook', async (c) => {
   return c.json({ ok: true })
 })
 
+// First-party pageview beacon — fallback for when adblockers block
+// Cloudflare's beacon.min.js. Stores path + day only; no cookies, no PII.
+app.post('/api/hit', async (c) => {
+  const body = await c.req.text()
+  const path = body.trim()
+  if (!path.startsWith('/') || path.length > 200 || /[\s<>]/.test(path)) {
+    return c.json({ error: 'bad path' }, 400)
+  }
+  const day = new Date().toISOString().slice(0, 10)
+  await c.env.KV.put(
+    `hit:${day}:${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
+    JSON.stringify({ p: path }),
+    { expirationTtl: 60 * 60 * 24 * 90 }
+  )
+  return c.json({ ok: true })
+})
+
 // Email waitlist while the payment channel is pending approval
 app.post('/api/leads', async (c) => {
   const { email, plan } = await c.req
