@@ -11,6 +11,7 @@ import {
   FileUp,
   GraduationCap,
   GripVertical,
+  Lightbulb,
   ListOrdered,
   Loader2,
   Lock,
@@ -73,6 +74,7 @@ import {
   sectionLabel,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
+import { bulletStartersFor } from '@/lib/bulletStarters'
 import { ACCENT_CHOICES, TEMPLATES, getTemplate } from '@/lib/templates'
 
 function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
@@ -664,6 +666,14 @@ export default function Builder() {
                   onChange={(ev) => setExp(e.id, { bullets: ev.target.value.split('\n') })}
                 />
                 <BulletGuidance bullets={e.bullets} />
+                <BulletIdeas
+                  role={`${e.role} ${resume.targetRole}`}
+                  onAdd={(s) =>
+                    setExp(e.id, {
+                      bullets: [...e.bullets.filter((b) => b.trim()), s],
+                    })
+                  }
+                />
                 {aiButton(`exp-${e.id}`, 'AI rewrite bullets', () =>
                   void runRewrite(
                     `exp-${e.id}`,
@@ -1450,6 +1460,42 @@ export default function Builder() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const starters = useMemo(() => bulletStartersFor(role), [role])
+  return (
+    <div>
+      <button
+        type="button"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline underline-offset-2"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Lightbulb className="size-3" /> {open ? 'Hide bullet ideas' : 'Need ideas? Show bullet starters'}
+      </button>
+      {open && (
+        <ul className="mt-2 space-y-1">
+          {starters.map((s) => (
+            <li key={s}>
+              <button
+                type="button"
+                className="bg-muted/60 hover:bg-muted w-full rounded-md border px-2 py-1.5 text-left text-xs"
+                title="Add this bullet"
+                onClick={() => onAdd(s)}
+              >
+                + {s}
+              </button>
+            </li>
+          ))}
+          <li className="text-muted-foreground text-[11px]">
+            Replace every [add …] with your real numbers — never invent facts.
+          </li>
+        </ul>
+      )}
     </div>
   )
 }

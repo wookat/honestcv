@@ -232,3 +232,26 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - `https://cv.zalize.com/og.png` → 200; `og:image` present on `/` and `/vs/zety/`.
 
 **Rounds 6–10 complete — batch SOP-04 report sent.**
+
+## Round 11 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor research | Zety/Resume.io's most-loved editor feature is pre-written content suggestions; we offered nothing for the blank-textarea problem (AI rewrite needs existing text, and the AI relay is down anyway) | P1 |
+
+**Fixes shipped** (worker version `103448d9`)
+
+- `src/lib/bulletStarters.ts`: curated bullet starters for 8 role families
+  (engineering, sales, marketing, PM, design, data, support, ops) + generic
+  fallback, matched against the role title + target role. All quantities are
+  `[add …]` placeholders — consistent with the anti-fabrication stance, unlike
+  competitors' invented numbers.
+- `BulletIdeas` toggle under each experience card: click a starter to append it
+  as a bullet; footer reminds users to replace placeholders with real numbers.
+
+**Verification (live)**
+
+- Example resume → toggle shows engineering starters → click appends bullet
+  (3 → 4 bullets in localStorage). Works without AI, fully client-side.
