@@ -507,3 +507,25 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - `/vs/zety/` shows the re-verified stamp; competitor prices confirmed via
   their own public pricing pages.
+
+## Round 25 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA regression (builder golden path) | Template switch → PDF (text-extractable, uppercase Bold header correct) → DOCX (valid zip, 22 entries) all green | — |
+| 2 | Visual/accessibility review (mobile touch targets) | Bullet-starter toggle was 16px tall and accent swatches 20px — well under the ~44px/24px touch guidance | P2 |
+
+**Fixes shipped** (worker version `14ae4d6c`)
+
+- Bullet-ideas toggle: `min-h-8` with negative-margin-compensated padding.
+- Accent swatches: 32px hit area (`size-8` button wrapping the visual 20px
+  dot), keeping the visual design unchanged.
+
+**Verification (live)**
+
+- 375px: swatch and toggle hit areas both 32px, no overflow, swatch click
+  still applies the accent.
+
+**Rounds 21–25 complete — batch SOP-04 report sent.**
