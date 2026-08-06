@@ -53,7 +53,7 @@ import {
   aiRewrite,
 } from '@/lib/api'
 import { scoreResume } from '@/lib/ats'
-import { checkBullets } from '@/lib/guidance'
+import { checkBullets, resumeStrength } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { downloadResumeDocx, downloadTextDocx } from '@/lib/docx'
@@ -339,6 +339,8 @@ export default function Builder() {
     }
   }
 
+  const strength = useMemo(() => resumeStrength(resume), [resume])
+
   const finalCheckIssues = useMemo(() => {
     const issues: string[] = []
     for (const c of ats.checks) if (!c.pass) issues.push(`${c.label} — ${c.hint}`)
@@ -494,6 +496,38 @@ export default function Builder() {
             >
               <FileUp className="size-3" /> Import resume (PDF/DOCX/text)
             </Button>
+          </div>
+
+          <div className="bg-card rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-medium">Resume strength</span>
+              <span className="text-muted-foreground text-xs">{strength.score}%</span>
+            </div>
+            <div
+              className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full"
+              role="progressbar"
+              aria-label="Resume strength"
+              aria-valuenow={strength.score}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className={`h-full rounded-full transition-all ${
+                  strength.score >= 80
+                    ? 'bg-emerald-500'
+                    : strength.score >= 50
+                      ? 'bg-amber-500'
+                      : 'bg-red-400'
+                }`}
+                style={{ width: `${strength.score}%` }}
+              />
+            </div>
+            {strength.missing.length > 0 && (
+              <p className="text-muted-foreground mt-2 text-xs">
+                Next: {strength.missing.slice(0, 2).join(' · ')}
+                {strength.missing.length > 2 ? ` · +${strength.missing.length - 2} more` : ''}
+              </p>
+            )}
           </div>
 
           <Section title="Target job (powers AI + ATS score)" icon={<Target className="size-4" />}>
