@@ -108,3 +108,25 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - `scrollWidth === clientWidth` (375) — overflow gone.
 - Preview button visible, click scrolls to preview (scrollY ≈ 2535).
+
+## Round 5 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA regression (live golden path) | Clean-profile run passed: load example → ATS score renders → PDF download via free email unlock → DOCX download (`jordan-reyes-resume.pdf/.docx` both received) | — |
+| 2 | Visual/a11y (axe on static SEO pages — first scan of these) | `link-in-text-block` (serious) on guides, /vs/ and template pages: inline links relied on color alone (`text-decoration:none` until hover) | P1 |
+
+**Fixes shipped** (worker version `300d076c`)
+
+- Static-page CSS: links are always underlined (`text-underline-offset:3px`);
+  buttons and the brand link opt out (`a.btn, a.brand`).
+
+**Verification (live)**
+
+- axe rerun on guides, `/vs/zety`, `/templates/ivy`, `/privacy`, `/terms`: all clean
+  (guide pages needed ~30s edge-cache propagation).
+- Golden-path QA as above — no regressions from R1–R4 changes.
+
+**Data snapshot**: unchanged (5 PV / 5 UV QA-only, 3 test leads).

@@ -349,7 +349,8 @@ const CSS = `
 :root{--bg:oklch(0.99 0.002 250);--fg:oklch(0.18 0.02 260);--muted:oklch(0.52 0.02 260);--primary:oklch(0.5 0.18 265);--primary-fg:oklch(0.985 0 0);--border:oklch(0.91 0.01 260);--card:oklch(1 0 0);--accent:oklch(0.94 0.03 265);--radius:0.625rem}
 *{box-sizing:border-box;border-color:var(--border)}
 body{margin:0;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.7}
-a{color:var(--primary);text-decoration:none}a:hover{text-decoration:underline}
+a{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
+a.btn,a.brand{text-decoration:none}
 header.site{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--border);background:color-mix(in oklch,var(--bg) 85%,transparent);backdrop-filter:blur(8px)}
 header.site .in{max-width:72rem;margin:0 auto;height:3.5rem;display:flex;align-items:center;justify-content:space-between;padding:0 1rem}
 header.site .brand{display:flex;align-items:center;gap:.5rem;font-weight:600;color:var(--fg)}
