@@ -1750,3 +1750,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 88 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Content quality audit (continued) | /guides/resume-vs-cv/ at ~496 words with only 5 sections — a top informational query in the category | P1 (SEO) |
+
+**Fixes shipped** (worker version `7fa588d7`)
+
+- resume-vs-cv expanded 5 → 11 sections (~766 words): CV→resume and
+  resume→CV conversion, regional photo/DOB conventions, international
+  formats (Europass, Rirekisho), US federal/USAJOBS resumes, and the
+  maintain-the-superset workflow (cross-promotes Copies).
+
+**Verification (live)**
+
+- Production page serves the new sections.
