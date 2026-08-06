@@ -1363,3 +1363,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production DOCX inspected: `<w:keepNext/>` present on every heading
   and entry header paragraph (EXPERIENCE, entry, EDUCATION, entry).
+
+## Round 68 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor pricing re-check (live) | Rezi pricing page still $29/month Pro / $149 lifetime — matches our `/vs/rezi` claims. Teal's pricing page did not render content in-browser (683 chars), so no claim change; our $13/week figure stays as previously observed | — |
+| 2 | Visual/a11y (builder 360px after R62/R64/R65 buttons) | No overflow (345/345), axe WCAG A/AA zero violations | — |
+| 3 | SEO | `sitemap.xml` had no `<lastmod>`; crawlers use it to prioritize re-crawling after content updates | P2 |
+
+**Fixes shipped** (worker version `3f0b4fae`)
+
+- Sitemap entries include `<lastmod>` (build date).
+
+**Verification (live)**
+
+- Production sitemap: 52/52 URLs carry `<lastmod>2026-08-06</lastmod>`.
