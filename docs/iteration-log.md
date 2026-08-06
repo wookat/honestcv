@@ -663,3 +663,20 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Template inserts with 5 numbered sections; DOCX export valid (22 zip
   entries).
+
+## Round 33 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA regression (site consistency audit) | /terms and /privacy footers missed the R14 footer unification: no Guides/Templates hub links, no cross-promo links; legal pages also lacked og:/twitter meta present on every other static page | P2 |
+
+**Fixes shipped** (worker version `407cd711`)
+
+- `legalPage()` now uses the standard footer (Guides/Templates hubs +
+  HonestQR/HonestPDF/SubSleuth) and full og:/twitter:card meta.
+
+**Verification (live)**
+
+- `/terms/` serves og:image meta and /guides/ footer link.
