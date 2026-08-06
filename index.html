@@ -63,8 +63,14 @@
     ></script>
     <script>
       // First-party pageview beacon (adblock-proof fallback; path + external
-      // referrer origin on the first hit only, no PII).
+      // referrer origin on the first hit only, no PII). Browsers with the
+      // honestcv.qa flag (internal QA) are excluded from stats.
       ;(function () {
+        try {
+          if (localStorage.getItem('honestcv.qa') === '1') return
+        } catch (e) {
+          /* ignore */
+        }
         var sent = ''
         var hit = function () {
           var p = location.pathname
