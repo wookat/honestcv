@@ -1034,7 +1034,7 @@ const HUBS = [
     items: PAGES.filter((p) => p.path.startsWith('/vs/')).map((p) => ({
       href: `${p.path}/`,
       label: p.name,
-      blurb: '',
+      blurb: `${p.description.split('. ')[0].replace(/\.$/, '')}.`,
     })),
   },
   {
@@ -1048,7 +1048,7 @@ const HUBS = [
     items: GUIDES.map((g) => ({
       href: `${g.path}/`,
       label: g.title.split(' — ')[0].split(' (')[0],
-      blurb: '',
+      blurb: `${g.description.split('. ')[0].replace(/\.$/, '')}.`,
     })),
   },
   {

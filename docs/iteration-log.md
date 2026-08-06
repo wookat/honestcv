@@ -1476,3 +1476,20 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production DOCX with a project: PROJECTS heading and project-name
   paragraph both carry `<w:keepNext/>`.
+
+## Round 74 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (`/guides/` and `/vs/` hubs) | Hubs listed 23 guide / 7 comparison links as bare titles — no way to tell what each covers without clicking, weak anchor context for crawlers | P2 |
+
+**Fixes shipped** (worker version `287a5663`)
+
+- Hub list items now show a one-line blurb (first sentence of each
+  page's meta description) after the link.
+
+**Verification (live)**
+
+- `/guides/` shows 23 link+blurb rows, `/vs/` shows 7.
