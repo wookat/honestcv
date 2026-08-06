@@ -92,6 +92,7 @@ const kvToken = process.env.CLOUDFLARE_WORKERS_API_TOKEN ?? token
     // Per-path breakdown needs the values; cap reads to keep the report fast.
     const sample = inRange.slice(-2000)
     const byPath = new Map()
+    const byRef = new Map()
     for (const key of sample) {
       const v = await (
         await fetch(
@@ -100,8 +101,10 @@ const kvToken = process.env.CLOUDFLARE_WORKERS_API_TOKEN ?? token
         )
       ).text()
       try {
-        const p = JSON.parse(v).p ?? '(unknown)'
+        const rec = JSON.parse(v)
+        const p = rec.p ?? '(unknown)'
         byPath.set(p, (byPath.get(p) ?? 0) + 1)
+        if (rec.r) byRef.set(rec.r, (byRef.get(rec.r) ?? 0) + 1)
       } catch {
         byPath.set('(unparsed)', (byPath.get('(unparsed)') ?? 0) + 1)
       }
@@ -110,6 +113,13 @@ const kvToken = process.env.CLOUDFLARE_WORKERS_API_TOKEN ?? token
       console.log('  top paths (first-party):')
       for (const [p, n] of [...byPath].sort((a, b) => b[1] - a[1]).slice(0, 15))
         console.log(`    ${p}  ${n}`)
+    }
+    if (byRef.size > 0) {
+      console.log('  top referrers (first-party):')
+      for (const [r, n] of [...byRef].sort((a, b) => b[1] - a[1]).slice(0, 15))
+        console.log(`    ${r}  ${n}`)
+    } else {
+      console.log('  referrers: none recorded yet')
     }
   }
 }

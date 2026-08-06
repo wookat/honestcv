@@ -358,17 +358,31 @@ app.post('/api/billing/ls-webhook', async (c) => {
 })
 
 // First-party pageview beacon — fallback for when adblockers block
-// Cloudflare's beacon.min.js. Stores path + day only; no cookies, no PII.
+// Cloudflare's beacon.min.js. Stores path + day + external referrer origin
+// only; no cookies, no PII. Accepts JSON {p, r} or a legacy plain path.
 app.post('/api/hit', async (c) => {
   const body = await c.req.text()
-  const path = body.trim()
+  let path = ''
+  let ref = ''
+  if (body.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(body) as { p?: string; r?: string }
+      path = (parsed.p ?? '').trim()
+      ref = (parsed.r ?? '').trim()
+    } catch {
+      return c.json({ error: 'bad body' }, 400)
+    }
+  } else {
+    path = body.trim()
+  }
   if (!path.startsWith('/') || path.length > 200 || /[\s<>]/.test(path)) {
     return c.json({ error: 'bad path' }, 400)
   }
+  if (!/^https?:\/\/[^\s<>"']{1,100}$/.test(ref)) ref = ''
   const day = new Date().toISOString().slice(0, 10)
   await c.env.KV.put(
     `hit:${day}:${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
-    JSON.stringify({ p: path }),
+    JSON.stringify(ref ? { p: path, r: ref } : { p: path }),
     { expirationTtl: 60 * 60 * 24 * 90 }
   )
   return c.json({ ok: true })

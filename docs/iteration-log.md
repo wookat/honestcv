@@ -1069,3 +1069,25 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - `pdftotext -layout` shows dates flush right on entry lines; sample export
   still 1 page. DOCX from production has 3 right tab stops and 3 `<w:tab/>`
   elements.
+
+## Round 53 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data/funnel (traffic-source visibility) | The first-party beacon recorded only paths — once organic traffic starts we would have no way to tell Google from Reddit from direct, and CF RUM (which has referrers) is adblocked for exactly the visitors the beacon exists for | P1 |
+
+**Fixes shipped** (worker version `6302087c`)
+
+- Beacon (SPA + static pages) now sends `{p, r}` where `r` is the external
+  referrer *origin* only, first hit per pageview chain only — still no PII.
+- `/api/hit` accepts JSON or the legacy plain-path body; referrer is scrubbed
+  unless it matches a strict `https?://` origin pattern (`javascript:` etc.
+  dropped).
+- `scripts/analytics.mjs` reports "top referrers (first-party)".
+
+**Verification (live)**
+
+- JSON + legacy bodies both accepted; `javascript:` referrer stored without
+  `r`; report shows `https://www.google.com  1` from the QA probe.
