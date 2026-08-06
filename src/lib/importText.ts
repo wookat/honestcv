@@ -72,16 +72,31 @@ function extractDates(line: string): { rest: string; start: string; end: string 
   }
 }
 
-/** Split "Role at Company" / "Role — Company" / "Role, Company" / "Role | Company" */
-function splitRoleCompany(text: string): { role: string; company: string } {
+/** Split "Role · Company" / "Role at Company" / "Role — Company" / "Role, Company" / "Role | Company" */
+function splitRoleCompany(text: string): { role: string; company: string; location: string } {
+  // "Role · Company, Location" — the middle-dot binds role/company; a
+  // comma after it introduces a location, not another separator.
+  const dot = text.split(/\s*·\s*/)
+  if (dot.length >= 2 && dot[0].trim() && dot[1].trim()) {
+    const rest = dot.slice(1).join(' · ').trim()
+    const comma = rest.indexOf(', ')
+    if (comma > 0) {
+      return {
+        role: dot[0].trim(),
+        company: rest.slice(0, comma).trim(),
+        location: rest.slice(comma + 2).trim(),
+      }
+    }
+    return { role: dot[0].trim(), company: rest, location: '' }
+  }
   const seps = [/\s+at\s+/i, /\s*[—–|]\s*/, /,\s+/]
   for (const sep of seps) {
     const parts = text.split(sep)
     if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
-      return { role: parts[0].trim(), company: parts.slice(1).join(', ').trim() }
+      return { role: parts[0].trim(), company: parts.slice(1).join(', ').trim(), location: '' }
     }
   }
-  return { role: text.trim(), company: '' }
+  return { role: text.trim(), company: '', location: '' }
 }
 
 export function parseResumeText(raw: string): Resume {
@@ -155,12 +170,13 @@ export function parseResumeText(raw: string): Resume {
             // second header line (e.g. company on its own line)
             currentExp.company = rest
           } else {
-            const { role, company } = splitRoleCompany(rest || line)
+            const { role, company, location } = splitRoleCompany(rest || line)
             currentExp = {
               ...emptyExperience(),
               id: newId(),
               role,
               company,
+              location,
               startDate: start,
               endDate: end,
               bullets: [],
@@ -177,12 +193,13 @@ export function parseResumeText(raw: string): Resume {
             .filter(Boolean)
             .join('; ')
         } else {
-          const { role: degree, company: school } = splitRoleCompany(rest || line)
+          const { role: degree, company: school, location: eduLoc } = splitRoleCompany(rest || line)
           currentEdu = {
             ...emptyEducation(),
             id: newId(),
             degree,
             school,
+            location: eduLoc,
             startDate: start,
             endDate: end,
           }

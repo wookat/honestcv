@@ -1154,3 +1154,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Both routes 200 on production and listed on `/guides/`; sitemap.xml
   serves 50 `<loc>` entries.
+
+## Round 57 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (round-trip import) | Importing our own exported PDF mangled entry headers: "Software Engineer · Brightlane, Austin, TX" parsed as role="Software Engineer · Brightlane" / company="Austin, TX", and education similarly ("Austin, Austin, TX" as school) — the importer had no rule for the middle-dot convention our exports (and many builders) use | P1 |
+
+**Fixes shipped** (worker version `39da1a56`)
+
+- `splitRoleCompany` recognizes `Role · Company, Location`: middle-dot
+  binds role/company; a comma after it is treated as a location and now
+  fills the entry's `location` field (experience and education).
+
+**Verification (live)**
+
+- Round-trip on production (export Letter PDF → import): role
+  "Software Engineer" / company "Brightlane" / location "Austin, TX";
+  degree "B.S. Computer Science" / school "University of Texas at Austin"
+  / location "Austin, TX".
