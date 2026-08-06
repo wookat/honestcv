@@ -548,3 +548,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Paste-import on /ats-checker → builder: phone empty (no false year range),
   en-dash lines land as bullets.
+
+## Round 27 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Visual review + competitor pattern (Zety/Resume.io template galleries are fully visual) | Our /templates/ hub and 12 template pSEO pages were text-only — no visual preview at all, while templates are an inherently visual purchase decision | P1 |
+
+**Fixes shipped** (worker version `8ccb73c7`)
+
+- `templateThumbSvg()` in `build-seo.mjs`: inline SVG schematic per template
+  (header alignment, name case, accent color, divider style) mirroring the
+  in-app `TemplateThumb`. Rendered on each `/templates/*` page (140px) and as
+  72px thumbs beside every entry on the `/templates/` hub.
+
+**Verification (live)**
+
+- `/templates/` serves 12 SVGs, each template page 1; axe clean, no mobile
+  overflow at 375px.
