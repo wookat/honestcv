@@ -1091,3 +1091,27 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - JSON + legacy bodies both accepted; `javascript:` referrer stored without
   `r`; report shows `https://www.google.com  1` from the QA probe.
+
+## Round 54 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (export consistency) | PDF exported US Letter while DOCX had no explicit page size and defaulted to A4 — the two formats of the same resume printed on different paper | P1 |
+| 2 | Competitor research (international users) | Zety/Resume.io/Kickresume all offer an A4/Letter choice; we had none despite targeting UK/EU users (the resume-vs-cv guide explicitly addresses them) | P1 |
+
+**Fixes shipped** (worker version `80efbbc7`)
+
+- `Resume.pageSize: 'letter' | 'a4'` (default letter), persisted with the
+  resume and included in copies/backups automatically.
+- Builder: Letter/A4 toggle next to the accent swatches with region hints
+  in tooltips.
+- PDF: `PdfWriter` parameterized on page size (A4 595.28×841.89pt).
+- DOCX: explicit `pgSz` for both sizes (was implicit A4); right tab stop
+  derived from the chosen width.
+
+**Verification (live)**
+
+- Production exports: A4 PDF 595.28×841.89, Letter PDF 612×792, A4 DOCX
+  `<w:pgSz w:w="11906" w:h="16838"/>`; selection survives reload.

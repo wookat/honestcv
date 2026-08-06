@@ -20,12 +20,17 @@ import { resolveTemplate } from '@/lib/templates'
 
 const FONT_SERIF = 'Georgia'
 const FONT_SANS = 'Calibri'
-// US Letter (12240 twips) minus the 864-twip left/right margins
-const RIGHT_TAB = 12240 - 864 * 2
+// Page width in twips minus the 864-twip left/right margins
+const PAGE_TWIPS = {
+  letter: { width: 12240, height: 15840 },
+  a4: { width: 11906, height: 16838 },
+} as const
 
 export async function downloadResumeDocx(resume: Resume, filename: string) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const font = tpl.serif ? FONT_SERIF : FONT_SANS
+  const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
+  const rightTab = pageSize.width - 864 * 2
   const accent = tpl.accent.replace('#', '')
   const heading = (text: string) =>
     new Paragraph({
@@ -134,7 +139,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
-            tabStops: [{ type: TabStopType.RIGHT, position: RIGHT_TAB }],
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({ text: e.role || 'Role', bold: true, size: 22, font }),
               new TextRun({
@@ -169,7 +174,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         children.push(
           new Paragraph({
             spacing: { before: 60, after: 20 },
-            tabStops: [{ type: TabStopType.RIGHT, position: RIGHT_TAB }],
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({ text: e.degree || 'Degree', bold: true, size: 21, font }),
               new TextRun({
@@ -207,6 +212,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       {
         properties: {
           page: {
+            size: pageSize,
             margin: { top: 720, bottom: 720, left: 864, right: 864 },
           },
         },

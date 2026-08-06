@@ -1,6 +1,6 @@
 /**
  * Text-based PDF export via pdf-lib: real selectable/parseable text
- * (never an image), single-column US Letter layout, template-aware styling.
+ * (never an image), single-column US Letter or A4 layout, template-aware styling.
  */
 
 import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'
@@ -8,10 +8,11 @@ import { downloadBlob } from '@/lib/download'
 import { type Resume, orderedSectionKeys } from '@/lib/resume'
 import { getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
-const PAGE_W = 612 // US Letter
-const PAGE_H = 792
+const PAGE_SIZES = {
+  letter: { w: 612, h: 792 },
+  a4: { w: 595.28, h: 841.89 },
+} as const
 const MARGIN = 54
-const CONTENT_W = PAGE_W - MARGIN * 2
 
 function hexToRgb(hex: string) {
   const n = parseInt(hex.replace('#', ''), 16)
@@ -50,20 +51,26 @@ class PdfWriter {
   accent: ReturnType<typeof rgb>
   ink = rgb(0.12, 0.12, 0.12)
   soft = rgb(0.35, 0.35, 0.35)
+  pageW: number
+  pageH: number
+  contentW: number
 
-  constructor(doc: PDFDocument, fonts: Fonts, tpl: TemplateMeta) {
+  constructor(doc: PDFDocument, fonts: Fonts, tpl: TemplateMeta, size: 'letter' | 'a4') {
     this.doc = doc
     this.fonts = fonts
     this.tpl = tpl
     this.accent = hexToRgb(tpl.accent)
-    this.page = doc.addPage([PAGE_W, PAGE_H])
-    this.y = PAGE_H - MARGIN
+    this.pageW = PAGE_SIZES[size].w
+    this.pageH = PAGE_SIZES[size].h
+    this.contentW = this.pageW - MARGIN * 2
+    this.page = doc.addPage([this.pageW, this.pageH])
+    this.y = this.pageH - MARGIN
   }
 
   ensure(height: number) {
     if (this.y - height < MARGIN) {
-      this.page = this.doc.addPage([PAGE_W, PAGE_H])
-      this.y = PAGE_H - MARGIN
+      this.page = this.doc.addPage([this.pageW, this.pageH])
+      this.y = this.pageH - MARGIN
     }
   }
 
@@ -82,12 +89,12 @@ class PdfWriter {
     const font = opts.font ?? this.fonts.regular
     const size = opts.size ?? 10
     const indent = opts.indent ?? 0
-    const maxWidth = opts.maxWidth ?? CONTENT_W - indent
+    const maxWidth = opts.maxWidth ?? this.contentW - indent
     const lineHeight = size * 1.35 + (opts.lineGap ?? 0)
     for (const line of wrapText(text, font, size, maxWidth)) {
       this.ensure(lineHeight)
       const width = font.widthOfTextAtSize(line, size)
-      const x = opts.center ? (PAGE_W - width) / 2 : MARGIN + indent
+      const x = opts.center ? (this.pageW - width) / 2 : MARGIN + indent
       this.y -= lineHeight
       this.page.drawText(line, {
         x,
@@ -109,7 +116,7 @@ class PdfWriter {
     const size = opts.size ?? 10.5
     const dateSize = 9
     const rightWidth = right ? this.fonts.italic.widthOfTextAtSize(right, dateSize) : 0
-    const leftMax = CONTENT_W - (right ? rightWidth + 12 : 0)
+    const leftMax = this.contentW - (right ? rightWidth + 12 : 0)
     if (!right || this.fonts.bold.widthOfTextAtSize(left, size) > leftMax) {
       this.text(left, { font: this.fonts.bold, size })
       if (right) {
@@ -129,7 +136,7 @@ class PdfWriter {
       color: this.ink,
     })
     this.page.drawText(right, {
-      x: PAGE_W - MARGIN - rightWidth,
+      x: this.pageW - MARGIN - rightWidth,
       y: this.y,
       size: dateSize,
       font: this.fonts.italic,
@@ -148,14 +155,14 @@ class PdfWriter {
     const sep = '  |  '
     const full = segments.map((s) => s.text).join(sep)
     const totalWidth = font.widthOfTextAtSize(full, size)
-    if (totalWidth > CONTENT_W) {
+    if (totalWidth > this.contentW) {
       this.text(full, { size, color: opts.color, center: opts.center })
       return
     }
     const lineHeight = size * 1.35
     this.ensure(lineHeight)
     this.y -= lineHeight
-    let x = opts.center ? (PAGE_W - totalWidth) / 2 : MARGIN
+    let x = opts.center ? (this.pageW - totalWidth) / 2 : MARGIN
     segments.forEach((s, i) => {
       const withSep = i < segments.length - 1 ? s.text + sep : s.text
       this.page.drawText(s.text, {
@@ -192,7 +199,7 @@ class PdfWriter {
       this.gap(3)
       this.page.drawLine({
         start: { x: MARGIN, y: this.y },
-        end: { x: PAGE_W - MARGIN, y: this.y },
+        end: { x: this.pageW - MARGIN, y: this.y },
         thickness,
         color: this.accent,
       })
@@ -206,7 +213,7 @@ class PdfWriter {
     const size = 10
     const font = this.fonts.regular
     const indent = 14
-    const lines = wrapText(text, font, size, CONTENT_W - indent)
+    const lines = wrapText(text, font, size, this.contentW - indent)
     const lineHeight = size * 1.35
     lines.forEach((line, i) => {
       this.ensure(lineHeight)
@@ -240,7 +247,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         bold: await doc.embedFont(StandardFonts.HelveticaBold),
         italic: await doc.embedFont(StandardFonts.HelveticaOblique),
       }
-  const w = new PdfWriter(doc, fonts, tpl)
+  const w = new PdfWriter(doc, fonts, tpl, resume.pageSize === 'a4' ? 'a4' : 'letter')
   const c = resume.contact
 
   const centerHeader = tpl.headerAlign !== 'left'
@@ -349,7 +356,7 @@ export async function downloadTextPdf(title: string, text: string, filename: str
     italic: await doc.embedFont(StandardFonts.HelveticaOblique),
   }
   const tpl = getTemplate('modern')
-  const w = new PdfWriter(doc, fonts, tpl)
+  const w = new PdfWriter(doc, fonts, tpl, 'letter')
   w.text(title, { font: fonts.bold, size: 16 })
   w.gap(10)
   for (const block of text.split(/\n{2,}/)) {

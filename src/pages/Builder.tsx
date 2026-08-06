@@ -1358,6 +1358,28 @@ export default function Builder() {
                 )
               })}
             </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              {(['letter', 'a4'] as const).map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  title={
+                    size === 'letter'
+                      ? 'US Letter — standard in the US and Canada'
+                      : 'A4 — standard in the UK, Europe and most other countries'
+                  }
+                  onClick={() => set('pageSize', size)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.pageSize === 'a4' ? 'a4' : 'letter') === size
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {size === 'letter' ? 'Letter' : 'A4'}
+                </button>
+              ))}
+            </span>
           </div>
 
           <Card className="py-0">
