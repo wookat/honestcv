@@ -1269,3 +1269,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production: Duplicate role 1 → 2 entries, same content, distinct ids;
   delete restores.
+
+## Round 63 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Visual/a11y sweep (360px, axe WCAG A/AA) | `/vs/`, `/guides/`, `/templates/`, two article pages, a template page and the 404 page: zero overflow, zero violations | — |
+| 2 | UX (ats-checker with real DOCX upload) | Upload → parse → score 47/100 with sub-scores works end-to-end | — |
+| 3 | SEO/search-demand | Two high-volume queries with no page: "hobbies and interests on resume" and "how to email a resume" | P2 |
+
+**Fixes shipped** (worker version `201d7531`)
+
+- `/guides/hobbies-and-interests-on-resume` and
+  `/guides/how-to-email-a-resume`; sitemap 50 → 52, IndexNow HTTP 200.
+
+**Verification (live)**
+
+- Both routes 200 in production; guides hub links both.
