@@ -1654,3 +1654,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 83 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor price re-check (live) | Resume.io still $2.95 trial → $29.95/4wk (matches our /vs/ page); Zety pricing page renders ~1.8k chars with no prices (bot wall) — no claim changes | — |
+| 2 | Content quality audit (continued) | Flagship keyword guide /guides/ats-friendly-resume/ still ~488 words | P1 (SEO) |
+
+**Fixes shipped** (worker version `3aa86dbb`)
+
+- ats-friendly-resume expanded 6 → 12 sections (~762 words): PDF vs
+  DOCX, date formats, acronym spelling, "fear the generic resume, not
+  the ATS", plain-text parser self-test, and a closing checklist.
+
+**Verification (live)**
+
+- Production page serves the new sections.
