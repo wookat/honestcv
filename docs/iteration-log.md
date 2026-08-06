@@ -604,3 +604,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - `https://cv.zalize.com/llms.txt` → HTTP 200, 50 lines, all sections
   present.
+
+## Round 30 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA regression (full sitemap sweep) | All 43 sitemap URLs → HTTP 200 | — |
+| 2 | Accessibility scan (SPA routes, mobile) | Landing's pricing comparison table wrapper (`overflow-x-auto`) was scrollable but not keyboard-focusable — axe `scrollable-region-focusable` violation | P1 |
+
+**Fixes shipped** (worker version `e5aa9b45`)
+
+- Comparison-table scroll wrapper gets `tabIndex={0}` + `role="region"` +
+  descriptive `aria-label`, making it keyboard-scrollable.
+
+**Verification (live)**
+
+- axe on `/` at 375px: zero WCAG 2.0/2.1 A/AA violations (was 1).
