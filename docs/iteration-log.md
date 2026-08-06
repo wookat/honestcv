@@ -87,3 +87,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - `ld+json` present on live homepage; sitemap serves 30 `<loc>` entries.
 
 **Data snapshot**: 7d PV 5 / UV 5 (QA only), leads 3 (test). No organic traffic yet — social/community posting still pending on boss's side.
+
+## Round 4 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Visual/mobile walkthrough (390px viewport) | `/builder` had horizontal overflow (`scrollWidth` 497 vs 375 viewport): the header action row (badge + undo + PDF + DOCX) pushed past the edge, cutting off the download buttons and leaving a horizontal scrollbar | P1 |
+| 2 | UX walkthrough (mobile) | Live preview sits ~2500px below the editor on mobile with no way to jump to it — users can't see what they're building | P1 |
+
+**Fixes shipped** (worker version `092234a3`)
+
+- "Free during launch"/"Unlocked" badge hidden below `sm` — header now fits 390px
+  (`scrollWidth` 375 = viewport, no overflow).
+- Floating "Preview" button (bottom-right, `lg:hidden`) smooth-scrolls to the
+  preview column; preview container got `scroll-mt-16` for the sticky header.
+
+**Verification (live, 390×844)**
+
+- `scrollWidth === clientWidth` (375) — overflow gone.
+- Preview button visible, click scrolls to preview (scrollY ≈ 2535).
