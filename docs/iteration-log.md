@@ -1691,3 +1691,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production import: name "Jordan Reyes", title "Software Engineer";
   R69/R76/R77 regression samples parse identically.
+
+## Round 85 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Visual/a11y (/, /ats-checker, /templates, expanded guide; 360px) | Zero axe WCAG A/AA violations, zero horizontal overflow on all four | — |
+| 2 | Content quality audit (continued) | /guides/remote-job-resume/ still ~486 words | P1 (SEO) |
+
+**Fixes shipped** (worker version `2b2f26ae`)
+
+- remote-job-resume expanded 6 → 12 sections (~745 words): remote-ready
+  summary line, quantifying distributed scope, freelance/contract
+  framing, what remote employers screen out, don't-oversell honesty
+  advice, and a closing checklist.
+
+**Verification (live)**
+
+- Production page serves the new sections.
