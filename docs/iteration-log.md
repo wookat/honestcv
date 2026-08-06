@@ -1788,3 +1788,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production ATS-checker upload of our own DOCX artifact now extracts
   the header and the date range as separate lines.
+
+## Round 90 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data (scripts/analytics.mjs) | CF Web Analytics 0 PV/UV last 14 days; first-party 82 hits on 2026-08-06 all internal QA (top: /builder 55); one www.google.com referrer recorded is a QA probe; 9 leads all test addresses — still no organic traffic | — |
+| 2 | Content quality audit (continued) | /guides/hobbies-and-interests-on-resume/ at ~499 words | P1 (SEO) |
+
+**Fixes shipped** (worker version `6fa5d9f0`)
+
+- hobbies-and-interests guide expanded 6 → 12 sections (~745 words):
+  hobbies-vs-interests-vs-activities, industry norms, volunteering
+  beats hobbies, new-grad activities-as-experience, never-pad honesty
+  advice, and the one-line rule.
+
+**Verification (live)**
+
+- Production page serves the new sections.

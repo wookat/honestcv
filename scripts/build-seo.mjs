@@ -556,6 +556,12 @@ const GUIDES = [
       ['Interests that backfire', 'Anything polarizing (politics, religion — unless applying to an aligned organization), anything risky-sounding for the role, and long lists of passive consumption (watching series, browsing social media). One or two strong items maximum.'],
       ['How to format the section', 'One line at the very bottom, labeled “Interests”, comma-separated. Never above skills or experience, never with icons or graphics that break ATS parsing. In HonestCV, a one-line custom section keeps it parseable in both the PDF and DOCX export.'],
       ['The test before you keep it', 'Ask: would a hiring manager reading only this line learn something that helps them say yes? If not, cut it and let your experience do the talking.'],
+      ['Hobbies vs interests vs activities', 'Recruiters read them the same way, but “Activities” earns its place most often: it implies participation with outcomes (club leadership, organized events, competitions) rather than passive preference. If your items are genuinely activities, label them that.'],
+      ['Interests by industry', 'Conservative fields (law, banking, government) expect none — cut the section. Creative and consumer-facing fields tolerate one strong line. Early-stage startups sometimes read interests as culture signal; check whether the posting or careers page mentions any.'],
+      ['Volunteering usually beats hobbies', 'If you must fill space, structured volunteering (tutoring, tax prep, coaching, open-source maintenance) carries verifiable responsibility and outcomes. It can even be a short custom section of its own with one bullet of scope — stronger than any interest line.'],
+      ['New grads: activities are experience', 'Before your first job, campus activities with responsibility — treasurer, team captain, hackathon organizer — belong under a proper “Activities” or “Leadership” section with quantified bullets, not compressed into an interests line. See our new-grad guide for full structure.'],
+      ['Never pad with inventions', 'An invented marathon or fake chess rating is the cheapest thing for an interviewer to poke at — small-talk questions come precisely from this line. If nothing true is worth listing, the honest empty line is stronger.'],
+      ['The one-line rule', 'However you use it: one line, bottom of the page, concrete items only, and only after skills and experience are as strong as you can make them. It is a garnish, never a course.'],
     ],
   },
   {
