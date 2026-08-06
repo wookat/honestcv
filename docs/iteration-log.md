@@ -643,3 +643,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Template inserts with company "Stripe" + resume name; PDF export of the
   letter is real text (extractable).
+
+## Round 32 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (bundle tools, follow-up to R31) | Interview-prep dialog had the same AI dead end R31 fixed for cover letters — no non-AI path | P1 |
+
+**Fixes shipped** (worker version `40fe81e1`)
+
+- "Start from a template" now also works for interview prep: inserts a
+  5-section prep checklist (story, evidence, posting keywords, questions to
+  ask, logistics) pre-filled with the target role, `[add …]` placeholders,
+  exportable via existing PDF/DOCX buttons.
+
+**Verification (live)**
+
+- Template inserts with 5 numbered sections; DOCX export valid (22 zip
+  entries).

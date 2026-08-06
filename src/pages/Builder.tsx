@@ -1579,6 +1579,14 @@ function BundleToolDialog({
   }
 
   const insertTemplate = () => {
+    if (kind === 'interview') {
+      const role = resume.targetRole || '[the role]'
+      setResult(
+        `Interview prep — ${role}\n\n1. Your story (2 minutes)\n- Why you: [the one-line version of your background that fits this role]\n- Why this company: [a product, mission or recent news you genuinely care about]\n- Why now: [what you want next that this role offers]\n\n2. Evidence to have ready\n- [Your strongest achievement relevant to the posting — with the real number]\n- [A hard problem you solved — situation, action, result]\n- [A failure or conflict and what you changed afterwards]\n\n3. Keywords from the posting to work into answers\n- [Copy the top 5 requirements from the job description here]\n\n4. Questions to ask them\n- What does success in this role look like after 6 months?\n- What's the hardest problem the team is working on right now?\n- [A question specific to this company you couldn't ask anywhere else]\n\n5. Logistics\n- [Interviewer names + roles] / [format and length] / [what to bring or prepare]`
+      )
+      setError('')
+      return
+    }
     const name = resume.contact.fullName || '[Your name]'
     const role = resume.targetRole || '[the role]'
     const co = company || '[Company]'
@@ -1614,11 +1622,9 @@ function BundleToolDialog({
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {busy ? 'Writing…' : result ? 'Regenerate' : 'Generate'}
           </Button>
-          {kind === 'cover' && (
-            <Button variant="outline" onClick={insertTemplate} disabled={busy}>
-              Start from a template
-            </Button>
-          )}
+          <Button variant="outline" onClick={insertTemplate} disabled={busy}>
+            Start from a template
+          </Button>
         </div>
         {error && <p className="text-destructive text-sm">{error}</p>}
         {result && (
