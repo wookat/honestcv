@@ -175,6 +175,66 @@ const GUIDES = [
       ['Check your match before applying', 'Paste your resume and the job description into our free ATS checker to see your match score, matched keywords and missing keywords — it runs entirely in your browser, no upload, no signup.'],
     ],
   },
+  {
+    path: '/guides/resume-action-verbs',
+    title: 'Resume Action Verbs That Actually Work in 2026 (by Category)',
+    description:
+      'Strong action verbs for leadership, engineering, sales, analysis and communication bullets — plus the tired verbs to cut and how to pair verbs with numbers.',
+    h1: 'Resume action verbs that actually work',
+    sections: [
+      ['Why the first word of every bullet matters', 'Recruiters scan bullets left to right and often read only the first few words. A concrete action verb (“Reduced”, “Launched”, “Negotiated”) tells them instantly what you did; a filler opener (“Responsible for”, “Helped with”, “Worked on”) tells them nothing and wastes your strongest position.'],
+      ['Leadership & management', 'Led, Directed, Coordinated, Mentored, Delegated, Unified, Chaired, Restructured. Pair with scope: “Led a 7-person on-call rotation across 3 time zones” beats “Led a team”.'],
+      ['Building & engineering', 'Built, Designed, Implemented, Automated, Migrated, Optimized, Refactored, Shipped. Pair with outcome: “Automated invoice matching, saving 12 hours/week” beats “Automated processes”.'],
+      ['Growth, sales & impact', 'Grew, Increased, Reduced, Generated, Closed, Negotiated, Converted, Accelerated. These verbs demand a number — “Grew organic traffic 3×” or “Closed $1.2M in new ARR”. A growth verb without a metric reads as evasive.'],
+      ['Analysis & communication', 'Analyzed, Forecasted, Modeled, Presented, Authored, Translated, Synthesized, Advised. Best for consulting, finance and research bullets where the deliverable is insight rather than software.'],
+      ['Verbs to cut', '“Responsible for”, “Tasked with”, “Assisted”, “Participated in”, “Utilized”, “Various duties”. They are passive, vague, or both. Rewrite: “Responsible for onboarding” → “Onboarded 30+ enterprise customers with a 95% activation rate”. One quantified bullet outworks five vague ones.'],
+    ],
+  },
+  {
+    path: '/guides/how-long-should-a-resume-be',
+    title: 'How Long Should a Resume Be in 2026? (One Page vs Two, Decided)',
+    description:
+      'The one-page rule, when two pages are correct, what recruiters and ATS systems actually do with length, and concrete ways to cut a resume down without losing impact.',
+    h1: 'How long should a resume be?',
+    sections: [
+      ['The short answer', 'One page for under ~10 years of experience; two pages when you genuinely need them (10+ years, senior/leadership scope, or technical roles with substantial relevant projects). Almost never three — a CV for academia is a different document.'],
+      ['What recruiters actually do', 'Screeners spend roughly 6–8 seconds on a first pass. Length itself isn’t scored, but density is: a tight one-pager concentrates your best material where it will actually be read. Page two gets read only after page one earns it.'],
+      ['ATS systems don’t care — parsers do', 'No mainstream ATS rejects a resume for being two pages. The real length-related risk is structural: cramming with tiny fonts, dual columns or tables to force one page breaks parsing. A clean two-pager beats a hacked one-pager.'],
+      ['When two pages are correct', 'You have 10+ years directly relevant to the target role; you manage scope worth describing (P&L, org size, portfolio); or the posting asks for depth (government, defense, some enterprise roles). Senior candidates who compress to one page often cut exactly the evidence hiring managers want.'],
+      ['How to cut without losing impact', 'Drop roles older than ~15 years or compress them to one line. Cut bullets that describe duties rather than outcomes. Merge overlapping bullets and keep the quantified one. Trim your skills list to what the job posting names. Your summary earns three lines, not eight.'],
+      ['The real rule', 'Every line must earn its place against one question: does this help this specific application? Length is an output of that filter, not a target. Write tight, tailor per posting, and the page count resolves itself.'],
+    ],
+  },
+  {
+    path: '/guides/resume-with-no-experience',
+    title: 'How to Write a Resume With No Work Experience (Students & Grads, 2026)',
+    description:
+      'A section-by-section plan for first resumes: what replaces work history, how to frame projects and coursework, and a structure recruiters and ATS parsers both accept.',
+    h1: 'How to write a resume with no work experience',
+    sections: [
+      ['You have more material than you think', 'Course projects, hackathons, club leadership, volunteering, freelance gigs, open-source contributions, part-time and seasonal work all count. The question isn’t “have I been employed” — it’s “can I show evidence of skills the posting asks for”.'],
+      ['Lead with education', 'With no work history, education goes first: degree, school, graduation date, plus GPA if it’s strong (3.5+), relevant coursework, honors and scholarships. Recent grads can keep this section rich; it shrinks later as experience grows.'],
+      ['Turn projects into experience bullets', 'Write projects exactly like job bullets: action verb + what you built + measurable result. “Built a course-scheduling app in React used by 200+ students” reads like experience because it is experience — it just wasn’t salaried.'],
+      ['Use a skills section that mirrors the posting', 'Entry-level screens lean heavily on keyword matching because there’s no work history to parse. Mirror the concrete skills the posting names (languages, tools, certifications) — and check your match with a free ATS checker before submitting.'],
+      ['A summary beats an objective', 'Skip “Seeking a position where I can grow”. Write two lines of evidence: “CS graduate with three shipped web projects and a summer of freelance client work. Strongest in React and Python; built a data pipeline processing 1M+ rows for a research lab.”'],
+      ['Keep the format boringly standard', 'One page, single column, standard headings (Education, Projects, Skills, Experience). First resumes fail screens for formatting far more often than for thin content — creativity belongs in your portfolio link, not the layout.'],
+    ],
+  },
+  {
+    path: '/guides/employment-gap-resume',
+    title: 'How to Explain an Employment Gap on Your Resume (2026 Guide)',
+    description:
+      'When a resume gap needs explaining, when it doesn’t, date formats that de-emphasize short gaps honestly, and exact one-line framings for common situations.',
+    h1: 'Employment gaps: what to say and where',
+    sections: [
+      ['Most gaps need less explanation than you fear', 'Post-2020, career gaps are normal: layoffs, caregiving, health, retraining, relocation. Screeners flag unexplained multi-year holes, not a few months between roles. Your job is to remove the mystery, not to apologize.'],
+      ['Use years-only dates for short gaps — honestly', 'Formatting dates as “2021 – 2023” instead of “Nov 2021 – Jan 2023” de-emphasizes gaps under a year and is standard practice. What crosses the line is shifting dates to hide a gap — background checks verify employment dates, and a caught lie ends the process.'],
+      ['Explain long gaps in one matter-of-fact line', 'For gaps over ~a year, add a one-line entry right in your experience section: “Career break — full-time caregiver (2022 – 2023)” or “Sabbatical — completed AWS certification and two freelance contracts (2023)”. Named plainly, it stops being a red flag.'],
+      ['Fill the gap with what you actually did', 'Freelance projects, certifications, courses, volunteering and open-source work done during a gap belong on the resume as real entries with real bullets. A gap with visible activity reads as initiative, not absence.'],
+      ['What to say in the interview', 'One calm sentence, then pivot forward: “I took 18 months to care for a parent; during that time I kept current with X, and I’m ready to get back to shipping.” No over-explaining, no apology spiral — interviewers take their cue from your tone.'],
+      ['Don’t let one gap define the document', 'Recruiters weigh your strongest evidence first: quantified achievements, relevant skills, a tailored summary. Make those excellent and the gap becomes a footnote. Run your final draft through a free ATS check to make sure the substance, not the gap, leads.'],
+    ],
+  },
 ]
 
 /** pSEO template pages, one per built-in template */

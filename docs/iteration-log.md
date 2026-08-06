@@ -62,3 +62,28 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - PDF upload on `/ats-checker` → text extracted (name/bullets present) → score renders.
 - DOCX upload on `/ats-checker` → text extracted with skills intact.
 - Builder: PDF upload → review text → import → preview shows parsed employer and metrics.
+
+## Round 3 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data analysis | 7d traffic still 5 PV / 5 UV (all QA) — traffic acquisition is the bottleneck, and the guide library (3 posts) is far thinner than competitors' content hubs (Zety/Resume Genius run hundreds of guide pages that drive their organic traffic) | P1 |
+| 2 | Competitor research | Highest-volume long-tail topics we don't cover: resume action verbs, resume length, resume with no experience (peak season for new grads), employment gaps | P1 |
+| 3 | QA/SEO | Homepage had no structured data (JSON-LD), reducing rich-result eligibility | P2 |
+
+**Fixes shipped** (worker version `f87c573f`)
+
+- 4 new long-tail guides (6 substantive sections each, cross-linked from every
+  guide's "related" block, in sitemap): `/guides/resume-action-verbs`,
+  `/guides/how-long-should-a-resume-be`, `/guides/resume-with-no-experience`,
+  `/guides/employment-gap-resume`. Sitemap 26 → 30 URLs; IndexNow push HTTP 200 (30 URLs).
+- `WebApplication` JSON-LD on the homepage.
+
+**Verification (live)**
+
+- All 4 guide URLs → HTTP 200 (one needed ~30s asset propagation after deploy).
+- `ld+json` present on live homepage; sitemap serves 30 `<loc>` entries.
+
+**Data snapshot**: 7d PV 5 / UV 5 (QA only), leads 3 (test). No organic traffic yet — social/community posting still pending on boss's side.
