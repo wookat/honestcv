@@ -927,3 +927,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Live run: 32 first-party hits on 2026-08-06 break down to /builder 24,
   /templates/ 2, /ats-checker 2, etc. — all QA/internal traffic, as expected;
   organic remains zero.
+
+## Round 46 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor gap (Zety/Resume.io both offer multiple documents) | HonestCV held exactly one resume — yet our core pitch is tailoring per job description. Users tailoring for job B destroyed their version for job A | P1 |
+
+**Fixes shipped** (worker version `cd989255`)
+
+- Named resume copies stored browser-locally (`honestcv.resumeVersions`):
+  "Copies" toolbar button opens a dialog to save the current resume under a
+  name (prefilled from target role), load a copy into the editor, or delete
+  one. Copy count badge on the button.
+
+**Verification (live)**
+
+- Save copy → edit → save second copy → load first restores the original
+  name; delete removes the row; the count badge updates.

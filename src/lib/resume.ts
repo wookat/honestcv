@@ -259,6 +259,50 @@ export function saveResume(resume: Resume) {
   }
 }
 
+/** Named saved copies of the resume, e.g. one tailored per job application. */
+export interface ResumeVersion {
+  id: string
+  name: string
+  updatedAt: number
+  data: Resume
+}
+
+const VERSIONS_KEY = 'honestcv.resumeVersions'
+
+export function listResumeVersions(): ResumeVersion[] {
+  try {
+    const raw = localStorage.getItem(VERSIONS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as ResumeVersion[]
+    return Array.isArray(parsed) ? parsed.filter((v) => v.id && v.data) : []
+  } catch {
+    return []
+  }
+}
+
+function persistVersions(versions: ResumeVersion[]) {
+  try {
+    localStorage.setItem(VERSIONS_KEY, JSON.stringify(versions))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
+  const versions = [
+    { id: newId(), name, updatedAt: Date.now(), data },
+    ...listResumeVersions(),
+  ]
+  persistVersions(versions)
+  return versions
+}
+
+export function deleteResumeVersion(id: string): ResumeVersion[] {
+  const versions = listResumeVersions().filter((v) => v.id !== id)
+  persistVersions(versions)
+  return versions
+}
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
