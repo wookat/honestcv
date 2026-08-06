@@ -103,6 +103,40 @@ class PdfWriter {
     this.y -= h
   }
 
+  /** Entry header: bold left text with right-aligned date on the same
+   *  baseline; stacks the date on its own line when the two would collide. */
+  titleLine(left: string, right: string, opts: { size?: number } = {}) {
+    const size = opts.size ?? 10.5
+    const dateSize = 9
+    const rightWidth = right ? this.fonts.italic.widthOfTextAtSize(right, dateSize) : 0
+    const leftMax = CONTENT_W - (right ? rightWidth + 12 : 0)
+    if (!right || this.fonts.bold.widthOfTextAtSize(left, size) > leftMax) {
+      this.text(left, { font: this.fonts.bold, size })
+      if (right) {
+        this.gap(1)
+        this.text(right, { font: this.fonts.italic, size: dateSize, color: this.soft })
+      }
+      return
+    }
+    const lineHeight = size * 1.35
+    this.ensure(lineHeight)
+    this.y -= lineHeight
+    this.page.drawText(left, {
+      x: MARGIN,
+      y: this.y,
+      size,
+      font: this.fonts.bold,
+      color: this.ink,
+    })
+    this.page.drawText(right, {
+      x: PAGE_W - MARGIN - rightWidth,
+      y: this.y,
+      size: dateSize,
+      font: this.fonts.italic,
+      color: this.soft,
+    })
+  }
+
   /** One line of segments where some are clickable links; falls back to plain
    *  wrapped text when the line is too wide for link geometry. */
   linkLine(
@@ -244,11 +278,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         w.gap(4)
         const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
         const left = `${e.role || 'Role'}  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`
-        w.text(left, { font: fonts.bold, size: 10.5 })
-        if (dates) {
-          w.gap(1)
-          w.text(dates, { font: fonts.italic, size: 9, color: w.soft })
-        }
+        w.titleLine(left, dates, { size: 10.5 })
         w.gap(2)
         for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
       }
@@ -269,14 +299,11 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         if (!e.school) continue
         w.gap(2)
         const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
-        w.text(
+        w.titleLine(
           `${e.degree || 'Degree'}  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,
-          { font: fonts.bold, size: 10 }
+          dates,
+          { size: 10 }
         )
-        if (dates) {
-          w.gap(1)
-          w.text(dates, { font: fonts.italic, size: 9, color: w.soft })
-        }
         if (e.details.trim()) {
           w.gap(1)
           w.text(e.details.trim(), { size: 10 })

@@ -1045,3 +1045,27 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - All three new copy blocks render on production; 360px landing shows no
   horizontal overflow with the 6-card grid.
+
+## Round 52 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor export reverse-engineering (Zety/Resume.io entry headers) | Both competitors right-align dates on the entry-title line; our exports stacked dates on a second line under each role/degree — less scannable and one wasted line per entry against the 1-page goal | P2 |
+
+**Fixes shipped** (worker version `6109c2e5`)
+
+- PDF: `PdfWriter.titleLine(left, right)` draws the bold title and the
+  right-aligned italic date on one baseline; stacks (old behavior) when
+  they would collide.
+- DOCX: entry-header paragraphs get a right tab stop at the margin with a
+  real `<w:tab/>` before the date run (first attempt used a literal `\t`
+  inside `w:t`, which Word does not treat as a tab — caught in live
+  verification and fixed with docx's `Tab` child).
+
+**Verification (live)**
+
+- `pdftotext -layout` shows dates flush right on entry lines; sample export
+  still 1 page. DOCX from production has 3 right tab stops and 3 `<w:tab/>`
+  elements.

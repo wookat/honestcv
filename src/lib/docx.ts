@@ -10,6 +10,8 @@ import {
   ExternalHyperlink,
   Packer,
   Paragraph,
+  Tab,
+  TabStopType,
   TextRun,
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
@@ -18,6 +20,8 @@ import { resolveTemplate } from '@/lib/templates'
 
 const FONT_SERIF = 'Georgia'
 const FONT_SANS = 'Calibri'
+// US Letter (12240 twips) minus the 864-twip left/right margins
+const RIGHT_TAB = 12240 - 864 * 2
 
 export async function downloadResumeDocx(resume: Resume, filename: string) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
@@ -130,6 +134,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
+            tabStops: [{ type: TabStopType.RIGHT, position: RIGHT_TAB }],
             children: [
               new TextRun({ text: e.role || 'Role', bold: true, size: 22, font }),
               new TextRun({
@@ -138,7 +143,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
                 font,
               }),
               ...(dates
-                ? [new TextRun({ text: `   ${dates}`, italics: true, size: 19, font })]
+                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: 19, font })]
                 : []),
             ],
           })
@@ -164,6 +169,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         children.push(
           new Paragraph({
             spacing: { before: 60, after: 20 },
+            tabStops: [{ type: TabStopType.RIGHT, position: RIGHT_TAB }],
             children: [
               new TextRun({ text: e.degree || 'Degree', bold: true, size: 21, font }),
               new TextRun({
@@ -172,7 +178,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
                 font,
               }),
               ...(dates
-                ? [new TextRun({ text: `   ${dates}`, italics: true, size: 19, font })]
+                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: 19, font })]
                 : []),
             ],
           })
