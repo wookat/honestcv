@@ -8,6 +8,7 @@ import {
   ClipboardPaste,
   Download,
   FileText,
+  Copy,
   FileUp,
   GraduationCap,
   GripVertical,
@@ -62,6 +63,8 @@ import { countResumePdfPages, downloadResumePdf, downloadTextPdf } from '@/lib/p
 import {
   type ExperienceItem,
   type Resume,
+  type ResumeVersion,
+  deleteResumeVersion,
   emptyCustomSection,
   emptyEducation,
   emptyExperience,
@@ -69,9 +72,11 @@ import {
   emptyResume,
   loadResume,
   orderedSectionKeys,
+  listResumeVersions,
   resumeToPlainText,
   sampleResume,
   saveResume,
+  saveResumeVersion,
   sectionLabel,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
@@ -293,6 +298,9 @@ export default function Builder() {
   const importFileRef = useRef<HTMLInputElement>(null)
   const backupFileRef = useRef<HTMLInputElement>(null)
   const [restoreError, setRestoreError] = useState('')
+  const [versionsOpen, setVersionsOpen] = useState(false)
+  const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
+  const [versionName, setVersionName] = useState('')
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
   const finalCheckFmt = useRef<'pdf' | 'docx' | null>(null)
   const freeMode = useFreeMode()
@@ -561,6 +569,20 @@ export default function Builder() {
               onClick={() => backupFileRef.current?.click()}
             >
               <FileUp className="size-3" /> Restore
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              title="Save and switch between copies tailored to different jobs"
+              onClick={() => {
+                setVersions(listResumeVersions())
+                setVersionName(resume.targetRole || '')
+                setVersionsOpen(true)
+              }}
+            >
+              <Copy className="size-3" /> Copies{versions.length > 0 ? ` (${versions.length})` : ''}
             </Button>
             <input
               ref={backupFileRef}
@@ -1541,6 +1563,84 @@ export default function Builder() {
           if (fmt) void download(fmt)
         }}
       />
+      <Dialog open={versionsOpen} onOpenChange={setVersionsOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Resume copies</DialogTitle>
+            <DialogDescription>
+              Keep one copy per job you're applying to — tailor keywords without
+              losing your master version. Copies live in this browser only.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Input
+              value={versionName}
+              onChange={(e) => setVersionName(e.target.value)}
+              placeholder="Name this copy, e.g. Google — SWE II"
+              aria-label="Copy name"
+            />
+            <Button
+              type="button"
+              size="sm"
+              className="shrink-0"
+              onClick={() => {
+                setVersions(
+                  saveResumeVersion(versionName.trim() || 'Untitled copy', resume)
+                )
+                setVersionName('')
+              }}
+            >
+              Save current as copy
+            </Button>
+          </div>
+          {versions.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No saved copies yet.</p>
+          ) : (
+            <ul className="max-h-64 space-y-2 overflow-y-auto">
+              {versions.map((v) => (
+                <li
+                  key={v.id}
+                  className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{v.name}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {new Date(v.updatedAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        setResume({ ...emptyResume(), ...v.data })
+                        setVersionsOpen(false)
+                      }}
+                    >
+                      Load
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive h-7 text-xs"
+                      onClick={() => setVersions(deleteResumeVersion(v.id))}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-muted-foreground text-xs">
+            Loading a copy replaces what's in the editor — save the current
+            resume as a copy first if you want to keep it.
+          </p>
+        </DialogContent>
+      </Dialog>
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
