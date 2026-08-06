@@ -471,6 +471,36 @@ const GUIDES = [
       ['Same rules either way', 'Whatever it’s called, the screening reality is identical: clean single-column structure, real text, standard headings, keywords that mirror the posting. Our free ATS checker works on both — and the builder exports a clean PDF or DOCX either way.'],
     ],
   },
+  {
+    path: '/guides/references-on-resume',
+    title: 'References on a Resume: Should You Include Them? (2026)',
+    description:
+      'Whether to put references on your resume, why “references available upon request” wastes a line, how to prepare a separate reference sheet, and what to do when a posting explicitly asks for references.',
+    h1: 'References on a resume: almost always leave them off',
+    sections: [
+      ['The short answer', 'Do not list references on your resume, and do not write “references available upon request”. Recruiters assume you have references; they will ask for them at the offer stage, not the screening stage. Every line spent on references is a line not spent on evidence that gets you the interview.'],
+      ['Why the old advice died', '“References available upon request” was a convention from paper resumes. Today it signals an outdated template, and worse, it burns space in the exact document where recruiters spend seconds. No hiring team rejects a resume for omitting it.'],
+      ['When a posting explicitly asks', 'Some applications — government, academia, some agencies — genuinely require references up front. Follow the instruction, but put them in a separate document or the application form fields, not inside the resume itself, unless the posting says otherwise.'],
+      ['Prepare a separate reference sheet', 'Keep a one-page sheet matching your resume header: 3–4 people, each with name, title, organization, relationship to you (“direct manager, 2021–2023”), email and phone. Send it only when asked. Always ask each reference for permission first and tell them which job to expect a call about.'],
+      ['Who makes a strong reference', 'Recent direct managers beat grand titles: someone who supervised your work in the last few years and can speak to specifics. Peers and cross-functional partners work when you lack manager options; professors and internship mentors are fine for new grads. Avoid friends and family.'],
+      ['Use the space for evidence instead', 'Cut the references line and spend it on a quantified bullet or a skills match. Our free ATS checker shows which keywords from the posting your resume is missing — that is what screening actually rewards.'],
+    ],
+  },
+  {
+    path: '/guides/resume-objective-vs-summary',
+    title: 'Resume Objective vs Summary: Which to Use in 2026 (with Examples)',
+    description:
+      'Resume objective vs professional summary: what each is, why objectives are outdated for most applicants, when a career-change or new-grad objective still works, and how to write a summary that survives a 7-second scan.',
+    h1: 'Objective vs summary: lead with what you offer, not what you want',
+    sections: [
+      ['The difference in one line', 'An objective states what you want (“Seeking a challenging position…”); a summary states what you offer (“Support engineer with 5 years in SaaS, cut median ticket time 40%”). Recruiters scan for evidence, so the summary wins for almost everyone.'],
+      ['Why objectives fell out of favor', 'An objective spends your most valuable lines — the top of page one — describing your wishes, which every applicant shares. It adds no screening signal: no skills, no scope, no numbers. Most modern templates and career centers dropped it years ago.'],
+      ['The exceptions where an objective still works', 'A one-line, specific objective can help when your target is not obvious from your history: career changers (“Transitioning from teaching to instructional design; built 12 online courses”) and new grads targeting a niche role. Even then, pack it with evidence, not aspiration.'],
+      ['How to write a summary that scans', '2–3 lines: role + years, the strongest quantified result you can claim honestly, and the skills that mirror the posting. No first person, no buzzword chains (“results-driven team player”), no claims you cannot back in an interview.'],
+      ['Tailor it per application', 'The summary is the easiest section to tailor: swap the emphasized skills to mirror each posting’s language. Save a named copy per job in the builder so version A for one company never overwrites version B for another.'],
+      ['Check the result', 'Paste the posting into our free ATS checker to see whether your summary and skills actually mirror the keywords screening filters look for — before you send it.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */

@@ -1133,3 +1133,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production builder exposes 22 `[aria-pressed]` toggles with exactly 3
   `aria-pressed="true"` (active template + accent + size).
+
+## Round 56 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Search/SEO gap analysis | Two high-volume evergreen questions had no page: "references on resume" (the outdated "available upon request" line is still in circulation) and "resume objective vs summary" — both funnel naturally into the summary editor, per-job copies and the ATS checker | P2 |
+
+**Fixes shipped** (worker version `47e2e0f0`)
+
+- `/guides/references-on-resume` — leave references off, kill the
+  "available upon request" line, separate reference sheet how-to.
+- `/guides/resume-objective-vs-summary` — objectives are outdated except
+  career-change/new-grad edge cases; how to write a scannable summary.
+- Sitemap 48 → 50 URLs; IndexNow submitted (HTTP 200).
+
+**Verification (live)**
+
+- Both routes 200 on production and listed on `/guides/`; sitemap.xml
+  serves 50 `<loc>` entries.
