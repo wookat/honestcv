@@ -255,3 +255,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Example resume → toggle shows engineering starters → click appends bullet
   (3 → 4 bullets in localStorage). Works without AI, fully client-side.
+
+## Round 12 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | SEO/data (traffic is the sole current goal) | Content library at 7 guides vs competitors' hundreds; four high-volume long-tail topics uncovered: skills section, resume format, tailoring to a JD, remote-job resumes | P1 |
+
+**Fixes shipped** (worker version `1c0ae5d4`)
+
+- Four new guides: `/guides/skills-for-resume`, `/guides/best-resume-format`,
+  `/guides/tailor-resume-to-job`, `/guides/remote-job-resume` — six substantive
+  sections each, honest-advice angle, cross-linked, funneling to the ATS checker.
+- Sitemap 31 → 35 URLs; IndexNow submitted (HTTP 200).
+
+**Verification (live)**
+
+- All four new guide URLs → HTTP 200.
