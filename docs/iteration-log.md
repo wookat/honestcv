@@ -1458,3 +1458,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production: "Duplicate education 1" → 2 entries (UCLA, UCLA), copy
   deleted afterwards.
+
+## Round 73 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (export keep-together audit after R66/R67) | Projects entries were the remaining gap: a project name could be orphaned from its description at a page break in both PDF (no `ensure`) and DOCX (no `keepNext`) | P2 |
+
+**Fixes shipped** (worker version `9eff0e50`)
+
+- PDF reserves space before a project name (`ensure(30)`); DOCX `body`
+  helper accepts `keepNext` and project names use it.
+
+**Verification (live)**
+
+- Production DOCX with a project: PROJECTS heading and project-name
+  paragraph both carry `<w:keepNext/>`.

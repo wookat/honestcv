@@ -297,6 +297,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
       for (const p of resume.projects) {
         if (!p.name) continue
         w.gap(2)
+        w.ensure(30) // keep the project name with its description
         w.text(`${p.name}${p.link ? ` — ${p.link}` : ''}`, { font: fonts.bold, size: 10 })
         if (p.description.trim()) {
           w.gap(1)
