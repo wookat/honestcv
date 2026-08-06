@@ -529,3 +529,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
   still applies the accent.
 
 **Rounds 21–25 complete — batch SOP-04 report sent.**
+
+## Round 26 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (new import-parser test cases: LinkedIn-style, ALL-CAPS, no-blank-lines, unicode dashes) | Year ranges like "2010 - 2014" were extracted as the phone number (`PHONE_RE` matched them) | P1 |
+| 2 | Same | En/em-dash bullet lines ("– Shipped API") weren't recognized as bullets and got misparsed as roles | P2 |
+
+**Fixes shipped** (worker version `25bb633c`)
+
+- `findPhone()` skips year-range candidates and requires ≥7 digits.
+- Bullet detection now accepts `–` and `—` markers.
+
+**Verification (live)**
+
+- Paste-import on /ats-checker → builder: phone empty (no false year range),
+  en-dash lines land as bullets.
