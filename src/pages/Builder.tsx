@@ -350,8 +350,13 @@ export default function Builder() {
       issues.push(
         `${bulletIssueCount} bullet-quality warning${bulletIssueCount === 1 ? '' : 's'} in Experience (weak openers, missing numbers…)`
       )
+    const placeholderCount = resumeToPlainText(resume).match(/\[[^\]\n]{1,60}\]/g)?.length ?? 0
+    if (placeholderCount > 0)
+      issues.push(
+        `${placeholderCount} bracket placeholder${placeholderCount === 1 ? '' : 's'} like [add %] still in the resume — replace with your real details`
+      )
     return issues
-  }, [ats, resume.experience])
+  }, [ats, resume])
 
   const download = async (fmt: 'pdf' | 'docx', skipFinalCheck = false) => {
     if (!unlocked) {
