@@ -1038,8 +1038,41 @@ export default function Builder() {
           </Section>
 
           <Section title="Projects (optional)" icon={<FileText className="size-4" />} defaultOpen={false}>
-            {resume.projects.map((p) => (
+            {resume.projects.map((p, pIdx) => (
               <div key={p.id} className="space-y-2 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-muted-foreground text-xs font-medium">Project {pIdx + 1}</p>
+                  <div className="flex items-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 sm:h-7"
+                      disabled={pIdx === 0}
+                      title="Move up"
+                      aria-label={`Move project ${pIdx + 1} up`}
+                      onClick={() =>
+                        setResume((r) => ({ ...r, projects: moveItem(r.projects, pIdx, -1) }))
+                      }
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 sm:h-7"
+                      disabled={pIdx === resume.projects.length - 1}
+                      title="Move down"
+                      aria-label={`Move project ${pIdx + 1} down`}
+                      onClick={() =>
+                        setResume((r) => ({ ...r, projects: moveItem(r.projects, pIdx, 1) }))
+                      }
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Project name"
