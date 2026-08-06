@@ -152,3 +152,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Mobile 390px re-check: no horizontal overflow with the new grid.
 - Note: bundle propagation took ~60s post-deploy (old JS hash served briefly) —
   worth remembering when verifying deploys.
+
+## Round 7 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX/conversion walkthrough | Landing page showed no product visual at all — competitors lead with template galleries; visitors had to click into the builder blind | P1 |
+
+**Fixes shipped** (worker version `fdc54346`)
+
+- `TemplateThumb` extracted to `src/components/TemplateThumb.tsx` (shared).
+- New landing section "12 ATS-safe templates, one honest layout rule": all 12
+  template thumbnails linking to `/builder`, with the single-column/ATS-safe
+  positioning line.
+
+**Verification (live)**
+
+- Gallery renders with 12 linked thumbnails; axe on landing clean; no mobile
+  overflow at 390px.

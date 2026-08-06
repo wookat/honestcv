@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { useFreeMode } from '@/components/Paywall'
+import { TemplateThumb } from '@/components/TemplateThumb'
+import { TEMPLATES } from '@/lib/templates'
 
 const FEATURES = [
   {
@@ -119,6 +121,30 @@ export default function Landing() {
               </CardContent>
             </Card>
           ))}
+        </section>
+
+        {/* Templates gallery */}
+        <section aria-labelledby="templates-heading" className="mx-auto max-w-5xl px-4 py-10">
+          <h2 id="templates-heading" className="text-center text-2xl font-bold">
+            12 ATS-safe templates, one honest layout rule
+          </h2>
+          <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-center text-sm">
+            Every template is single-column real text — the format ATS parsers read
+            cleanly. Pick a look, then switch any time; your content stays put.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {TEMPLATES.map((t) => (
+              <Link
+                key={t.id}
+                to="/builder"
+                title={t.description}
+                className="hover:border-primary w-20 rounded-md border p-1.5 transition"
+              >
+                <TemplateThumb t={t} />
+                <span className="mt-1 block truncate text-center text-xs">{t.name}</span>
+              </Link>
+            ))}
+          </div>
         </section>
 
         {/* Why one-time */}
