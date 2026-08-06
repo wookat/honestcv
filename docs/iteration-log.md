@@ -292,3 +292,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - `/guides/` and `/templates/` → HTTP 200; sitemap serves 37 `<loc>` entries.
+
+## Round 14 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA regression (mobile 390px + axe) | Builder, ATS checker, hubs, landing: no overflow, hubs axe-clean, bullet-starter buttons 46px touch targets — no P0/P1 found | — |
+| 2 | SEO/internal linking | New hubs weren't linked from any footer: SPA footer pointed at a single guide/template, static footers had no hub links at all | P1 |
+
+**Fixes shipped** (worker version `b05f4216`)
+
+- SPA footer: "Resume guides" → `/guides/`, "Resume templates" → `/templates/`.
+- All static page footers (comparison/guide/template/legal/hub) now link
+  Guides · Templates hubs.
+
+**Verification (live)**
+
+- `/vs/zety/` footer contains `/guides/` link; SPA serving new bundle.
