@@ -148,7 +148,10 @@ export function parseResumeText(raw: string): Resume {
       !matchHeading(line) &&
       line.split(/\s+/).length <= 6
     ) {
-      resume.contact.fullName = line
+      // "Name — Title" header lines carry the professional title too
+      const dash = line.split(/\s+[—–]\s+/)
+      resume.contact.fullName = dash[0].trim()
+      if (dash.length > 1) resume.contact.title = dash.slice(1).join(' — ').trim()
       break
     }
   }
