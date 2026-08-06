@@ -488,3 +488,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - `/nonexistent-xyz` → HTTP 404 with the new not-found page and hub links.
+
+## Round 24 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor research (pricing re-verification, public pages only) | Zety ($1.95 trial → $25.95/4wk), Resume.io ($2.95 → $29.95), Kickresume ($19.20–24/mo, currently on a 20% "limited time" discount) — all our /vs/ pricing claims still accurate as of today | — |
+| 2 | Same | Comparison pages carried no "when was this checked" signal — freshness is a trust factor for an honesty-branded product | P2 |
+
+**Fixes shipped** (worker version `db6d1341`)
+
+- All `/vs/` pages now show "Competitor pricing and free-tier limits last
+  re-verified against their public pricing pages: August 2026."
+
+**Verification (live)**
+
+- `/vs/zety/` shows the re-verified stamp; competitor prices confirmed via
+  their own public pricing pages.
