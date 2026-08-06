@@ -368,6 +368,12 @@ const GUIDES = [
       ['Show async communication in writing', 'Remote work runs on writing: documentation, RFCs, post-mortems, runbooks. If you’ve written any of these, say so with scope: “Wrote onboarding docs that cut new-hire ramp time from 6 to 3 weeks”. Your resume itself is a writing sample — keep it tight.'],
       ['Time zones and eligibility up top', 'Many remote postings restrict by country or overlap hours. Put your time zone and work eligibility in the contact line (“CET, eligible to work in the EU”) so a recruiter never has to guess whether you fit the constraint.'],
       ['Tailor to each remote posting like any other', 'Remote roles get more applicants, so keyword matching is stricter, not looser. Extract each posting’s keywords and check your match with a free ATS score before applying.'],
+      ['A remote-ready summary line', 'Fold the remote signal into your summary rather than adding a separate section: “Backend engineer with 6 years, the last 3 fully remote on a 12-person distributed team”. One clause converts your whole work history into remote evidence.'],
+      ['Quantify the distributed part', 'Numbers make remote claims concrete: how many time zones, how large the distributed team, how often you shipped. “Coordinated releases across 4 time zones with zero missed deadlines in 18 months” is a remote-work bullet; “worked well remotely” is not.'],
+      ['Freelance and contract work counts', 'Client work delivered remotely is remote experience — list it like employment: “Freelance Designer — Remote, 2023–2025” with client outcomes as bullets. Group small engagements under one heading so the timeline stays readable.'],
+      ['What remote employers screen out', 'Vague availability (no time zone), no evidence of written communication, and resumes that never mention how work was coordinated. None of these are fatal in an office resume; all three are red flags for a distributed team.'],
+      ['Don’t oversell it', 'If your remote experience is thin, say what’s true — “2 days/week hybrid for 2 years” — and let your async-tooling and writing evidence carry the application. Claiming years of remote work you can’t back up unravels in the first reference call.'],
+      ['The remote checklist', 'Location slots say Remote where true · time zone + eligibility in the contact line · distributed scope quantified · collaboration stack named · one writing-deliverable bullet · keywords matched to the posting. Run the posting through our free ATS checker before you send it.'],
     ],
   },
   {
