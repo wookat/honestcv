@@ -415,7 +415,7 @@ export function UpgradeDialog({
           <ActivateForm onActivated={onActivated} />
 
           <p className="text-muted-foreground text-xs">
-            Payments are securely processed by Paddle. One-time charge — your card is
+            Payments are securely processed by our merchant of record. One-time charge — your card is
             never stored for recurring billing. 7-day money-back guarantee: email
             support@zalize.com and we'll refund you, no questions asked.
           </p>
