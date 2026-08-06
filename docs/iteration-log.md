@@ -311,3 +311,25 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - `/vs/zety/` footer contains `/guides/` link; SPA serving new bundle.
+
+## Round 15 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (golden path export regression) | Free-mode email unlock → PDF (real text, `pdftotext` extracts content) → DOCX (valid zip, 22 entries) all pass | — |
+| 2 | QA (new-feature interaction) | R11 bullet starters insert `[add …]` placeholders, but the pre-download Final Check didn't flag unreplaced ones — users could ship a resume literally containing "[add %]" | P1 |
+
+**Fixes shipped** (worker version `c1bae6de`)
+
+- `finalCheckIssues` now counts bracket placeholders (`/\[[^\]\n]{1,60}\]/g`)
+  across the whole resume and warns "replace with your real details" before
+  download.
+
+**Verification (live)**
+
+- Insert starter → click PDF → Final Check dialog flags the bracket
+  placeholder. Export regression all green.
+
+**Rounds 11–15 complete — batch SOP-04 report sent.**
