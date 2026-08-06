@@ -281,6 +281,7 @@ export default function Builder() {
   const [upgradeReason, setUpgradeReason] = useState('')
   const [aiBusy, setAiBusy] = useState<string | null>(null)
   const [aiError, setAiError] = useState('')
+  const [aiErrorTag, setAiErrorTag] = useState<string | null>(null)
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
@@ -349,9 +350,20 @@ export default function Builder() {
     text: string,
     apply: (out: string) => void
   ) => {
-    if (!text.trim()) return
+    if (!text.trim()) {
+      setAiErrorTag(tag)
+      setAiError(
+        kind === 'summary'
+          ? 'Write a rough summary first — the AI polishes your draft, it never invents one.'
+          : kind === 'skills'
+            ? 'Add some skills first — the AI cleans up your list, it never invents skills.'
+            : 'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+      )
+      return
+    }
     setAiBusy(tag)
     setAiError('')
+    setAiErrorTag(tag)
     try {
       const wantVariants = kind !== 'skills'
       const { text: out, texts, freeRemaining } = await aiRewrite(
@@ -444,21 +456,26 @@ export default function Builder() {
     onClick: () => void,
     disabled?: boolean
   ) => (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={onClick}
-      disabled={Boolean(aiBusy) || disabled}
-      className="h-7 gap-1 text-xs"
-    >
-      {aiBusy === tag ? (
-        <Loader2 className="size-3 animate-spin" />
-      ) : (
-        <Wand2 className="size-3" />
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onClick}
+        disabled={Boolean(aiBusy) || disabled}
+        className="h-7 gap-1 text-xs"
+      >
+        {aiBusy === tag ? (
+          <Loader2 className="size-3 animate-spin" />
+        ) : (
+          <Wand2 className="size-3" />
+        )}
+        {label}
+      </Button>
+      {aiError && aiErrorTag === tag && (
+        <p className="text-destructive text-xs">{aiError}</p>
       )}
-      {label}
-    </Button>
+    </>
   )
 
   return (
@@ -1390,7 +1407,7 @@ export default function Builder() {
             </ul>
           </Section>
 
-          {aiError && <p className="text-destructive text-sm">{aiError}</p>}
+
           {freeLeft !== null && !unlocked && (
             <p className="text-muted-foreground text-xs">
               {freeLeft} free AI rewrite{freeLeft === 1 ? '' : 's'} left
