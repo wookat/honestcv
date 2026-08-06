@@ -12,6 +12,36 @@ import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { parseResumeText } from '@/lib/importText'
 import { loadResume, saveResume } from '@/lib/resume'
 
+const EXAMPLE_RESUME = `Jordan Reyes
+Software Engineer
+jordan.reyes@email.com | (555) 210-4432 | Austin, TX
+
+Summary
+Software engineer with 5 years of experience building web applications and APIs.
+
+Experience
+Software Engineer — Acme Corp | Jun 2021 – Present
+- Built REST APIs in Node.js serving 2M requests/day
+- Cut deployment time from 40 to 12 minutes by introducing CI/CD pipelines
+
+Junior Developer — Startly | Jul 2019 – May 2021
+- Developed React components used across 3 product teams
+
+Education
+University of Texas at Austin — BS, Computer Science, 2019
+
+Skills
+JavaScript, TypeScript, React, Node.js, PostgreSQL, Docker`
+
+const EXAMPLE_JD = `We are looking for a Senior Software Engineer to join our platform team.
+
+Requirements:
+- 4+ years of experience with JavaScript/TypeScript and React
+- Experience building and operating REST APIs (Node.js)
+- Familiarity with PostgreSQL, Docker and Kubernetes
+- Experience with CI/CD pipelines and AWS
+- Strong communication skills`
+
 export default function AtsChecker() {
   usePageMeta(
     'Free ATS Resume Checker — Instant Match Score | HonestCV',
@@ -159,7 +189,19 @@ export default function AtsChecker() {
           </Button>
           {resumeText.trim().length < 30 && (
             <p className="text-muted-foreground mt-2 text-xs">
-              Paste your resume text to enable the check.
+              Paste your resume text to enable the check, or{' '}
+              <button
+                type="button"
+                className="hover:text-foreground underline underline-offset-2"
+                onClick={() => {
+                  setResumeText(EXAMPLE_RESUME)
+                  setJd(EXAMPLE_JD)
+                  setChecked(true)
+                }}
+              >
+                see an example score
+              </button>
+              .
             </p>
           )}
         </div>
