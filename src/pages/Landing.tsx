@@ -110,12 +110,17 @@ export default function Landing() {
                 Start free — no sign-up <ArrowRight />
               </Link>
             </Button>
-            <p className="text-muted-foreground text-sm">
-              {freeMode
-                ? 'Editor, templates, ATS score, AI tools and downloads — all free right now.'
-                : 'Editing, templates & ATS score are free. Pay only to download.'}
-            </p>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/ats-checker">
+                <Target /> Check my resume&apos;s ATS score
+              </Link>
+            </Button>
           </div>
+          <p className="text-muted-foreground mt-3 text-sm">
+            {freeMode
+              ? 'Editor, templates, ATS score, AI tools and downloads — all free right now.'
+              : 'Editing, templates & ATS score are free. Pay only to download.'}
+          </p>
         </section>
 
         {/* Features */}
