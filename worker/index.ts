@@ -597,11 +597,22 @@ app.get('/api/license/status', async (c) => {
   return c.json({ plan: ent.plan, expiresAt: ent.exp })
 })
 
-app.notFound((c) => {
+// Client-side routes rendered by the SPA shell; anything else missing from
+// static assets is a real 404 (avoids soft-404s for arbitrary URLs).
+const SPA_ROUTES = new Set(['/', '/builder', '/ats-checker'])
+
+app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {
     return c.json({ error: 'Not Found' }, 404)
   }
-  return c.env.ASSETS.fetch(c.req.raw)
+  const res = await c.env.ASSETS.fetch(c.req.raw)
+  if (res.status !== 404) return res
+  const path = c.req.path.length > 1 ? c.req.path.replace(/\/+$/, '') : c.req.path
+  const shell = await c.env.ASSETS.fetch(new Request(new URL('/', c.req.url)))
+  return new Response(shell.body, {
+    status: SPA_ROUTES.has(path) ? 200 : 404,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  })
 })
 
 export default app
