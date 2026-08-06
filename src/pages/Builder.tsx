@@ -408,12 +408,12 @@ export default function Builder() {
         action={
           <div className="flex items-center gap-2">
             {unlocked ? (
-              <Badge variant="secondary" className="gap-1">
+              <Badge variant="secondary" className="hidden gap-1 sm:flex">
                 <Unlock className="size-3" />
                 {hasBundlePlan ? 'Career Bundle' : 'Unlocked'}
               </Badge>
             ) : freeMode ? (
-              <Badge variant="secondary" className="gap-1">
+              <Badge variant="secondary" className="hidden gap-1 sm:flex">
                 <Unlock className="size-3" /> Free during launch
               </Badge>
             ) : (
@@ -1100,7 +1100,7 @@ export default function Builder() {
         </div>
 
         {/* ---- Right: preview + ATS ---- */}
-        <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+        <div id="preview" className="scroll-mt-16 space-y-4 lg:sticky lg:top-20 lg:self-start">
           <div className="flex flex-wrap items-center gap-2">
             {TEMPLATES.map((t) => (
               <button
@@ -1281,6 +1281,18 @@ export default function Builder() {
           </div>
         </div>
       </main>
+
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        className="fixed right-4 bottom-4 z-30 shadow-lg lg:hidden"
+        onClick={() =>
+          document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth' })
+        }
+      >
+        <FileText className="size-3.5" /> Preview
+      </Button>
 
       <SiteFooter />
 
