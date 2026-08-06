@@ -172,3 +172,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Gallery renders with 12 linked thumbnails; axe on landing clean; no mobile
   overflow at 390px.
+
+## Round 8 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data/funnel analysis | /ats-checker → /builder is the main conversion funnel, but the CTA opened an empty builder — users had to re-paste everything, a guaranteed drop-off point | P1 |
+
+**Fixes shipped** (worker version `8589e90b`)
+
+- ATS checker CTA now carries the pasted resume + job description into the
+  builder: parses via `parseResumeText`, saves to localStorage, navigates.
+  If the builder already has a saved resume, a confirm dialog protects it
+  (cancel keeps the resume but still carries the JD over).
+
+**Verification (live)**
+
+- Clean profile: paste resume + JD → check score → CTA → lands on /builder with
+  contact name "Alex Doe" and the JD present in the saved resume.
