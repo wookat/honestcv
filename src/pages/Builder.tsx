@@ -275,6 +275,8 @@ export default function Builder() {
   const [aiError, setAiError] = useState('')
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
   const [freeDlOpen, setFreeDlOpen] = useState(false)
   const pendingDl = useRef<'pdf' | 'docx' | null>(null)
@@ -411,6 +413,11 @@ export default function Builder() {
       const name = (resume.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
       if (fmt === 'pdf') await downloadResumePdf(resume, `${name}-resume.pdf`)
       else await downloadResumeDocx(resume, `${name}-resume.docx`)
+      if (!localStorage.getItem('honestcv.shared')) {
+        localStorage.setItem('honestcv.shared', '1')
+        setShareCopied(false)
+        setShareOpen(true)
+      }
     } finally {
       setDownloading(null)
     }
@@ -1473,6 +1480,49 @@ export default function Builder() {
           if (fmt) void download(fmt)
         }}
       />
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Resume downloaded — good luck out there</DialogTitle>
+            <DialogDescription>
+              If HonestCV helped, pass the free ATS checker to a friend who's job
+              hunting. No signup, no subscription trap — just a match score.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void navigator.clipboard
+                  .writeText('https://cv.zalize.com/ats-checker')
+                  .then(() => setShareCopied(true))
+              }}
+            >
+              {shareCopied ? 'Copied!' : 'Copy checker link'}
+            </Button>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Free ATS resume checker — no signup, runs in your browser: https://cv.zalize.com/ats-checker')}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Share on X
+              </a>
+            </Button>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <a
+                href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcv.zalize.com%2Fats-checker"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Share on LinkedIn
+              </a>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
