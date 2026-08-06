@@ -1711,3 +1711,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 86 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Content quality audit (continued) | Next-thinnest: /guides/resume-keywords/ at ~491 words — the guide most directly tied to the ATS-checker funnel | P1 (SEO) |
+
+**Fixes shipped** (worker version `741bca75`)
+
+- resume-keywords expanded 6 → 12 sections (~756 words): five-minute
+  extraction method, required-vs-preferred prioritization, job titles
+  as keywords, literal credential matching, re-extract per application,
+  and handling a missing required keyword honestly.
+
+**Verification (live)**
+
+- Production page serves the new sections.
