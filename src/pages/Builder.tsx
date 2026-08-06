@@ -57,6 +57,7 @@ import { checkBullets, resumeStrength } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { downloadResumeDocx, downloadTextDocx } from '@/lib/docx'
+import { downloadText } from '@/lib/download'
 import { countResumePdfPages, downloadResumePdf, downloadTextPdf } from '@/lib/pdf'
 import {
   type ExperienceItem,
@@ -290,6 +291,8 @@ export default function Builder() {
   const [importBusy, setImportBusy] = useState(false)
   const [importError, setImportError] = useState('')
   const importFileRef = useRef<HTMLInputElement>(null)
+  const backupFileRef = useRef<HTMLInputElement>(null)
+  const [restoreError, setRestoreError] = useState('')
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
   const finalCheckFmt = useRef<'pdf' | 'docx' | null>(null)
   const freeMode = useFreeMode()
@@ -530,7 +533,65 @@ export default function Builder() {
             >
               <FileUp className="size-3" /> Import resume (PDF/DOCX/text)
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              title="Save a .json backup of this resume — everything lives in this browser only"
+              onClick={() => {
+                const name = (resume.contact.fullName || 'resume')
+                  .replace(/\s+/g, '-')
+                  .toLowerCase()
+                downloadText(
+                  JSON.stringify(resume, null, 2),
+                  `${name}-honestcv-backup.json`,
+                  'application/json'
+                )
+              }}
+            >
+              <Download className="size-3" /> Backup
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              title="Restore a resume from a .json backup"
+              onClick={() => backupFileRef.current?.click()}
+            >
+              <FileUp className="size-3" /> Restore
+            </Button>
+            <input
+              ref={backupFileRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (!file) return
+                void file.text().then((raw) => {
+                  try {
+                    const parsed = JSON.parse(raw) as Resume
+                    if (!parsed.contact || !Array.isArray(parsed.experience)) {
+                      setRestoreError('That file is not a HonestCV backup.')
+                      return
+                    }
+                    setRestoreError('')
+                    setResume({ ...emptyResume(), ...parsed })
+                  } catch {
+                    setRestoreError('That file is not a HonestCV backup.')
+                  }
+                })
+              }}
+            />
           </div>
+          {restoreError && (
+            <p className="text-destructive text-right text-xs" role="alert">
+              {restoreError}
+            </p>
+          )}
 
           <div className="bg-card rounded-lg border p-3">
             <div className="flex items-center justify-between gap-2 text-sm">

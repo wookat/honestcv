@@ -885,3 +885,26 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - `/vs/zety/` serves `"price":"0"`; `/guides/resume-keywords/` serves
   `"dateModified":"2026-08-06"`.
+
+## Round 44 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (data-safety) | Our privacy page warns "clearing your browser data deletes your resume from existence" — yet the product offered no way to back up or restore that data. One accidental clear and hours of work vanish | P1 |
+| 2 | Mobile/axe regression (375px builder, chips + share dialog) | No overflow, axe clean | — |
+
+**Fixes shipped** (worker version `7dc1fbce`)
+
+- Backup button downloads the resume as pretty-printed JSON
+  (`<name>-honestcv-backup.json`); Restore reads a `.json` file back with the
+  same shape validation as `loadResume`, showing an inline error for
+  non-backup files. Keeps the browser-only privacy promise — no server
+  involved.
+
+**Verification (live)**
+
+- Backup downloads valid JSON; overwriting the name and restoring the file
+  brings the original back; a junk JSON file shows "That file is not a
+  HonestCV backup."
