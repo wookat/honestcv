@@ -745,3 +745,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - `/builder?template=bold` → Bold selected; `?template=elegant` → Elegant
   selected. `/templates/bold/` serves two `?template=bold` CTAs.
+
+## Round 37 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor pattern (Zety/Kickresume/Rezi all offer role-based suggested skills) | Skills was a bare textarea unless a JD was pasted (ATS missing-keyword chips) — no help for users without a posting at hand, and the bullet-starter role library already existed to match against | P2 |
+
+**Fixes shipped** (worker version `e11fb055`)
+
+- `skillSuggestionsFor(role)` in `bulletStarters.ts`: curated common-skill
+  chips for the same 8 role families. Chips render under the Skills textarea
+  ("tap only skills you actually have" — anti-fabrication framing), filter
+  out already-listed skills, and append on click (same interaction as the ATS
+  missing-keyword chips).
+
+**Verification (live)**
+
+- Target role "Product Manager" → chips render; clicking "+ Roadmapping"
+  appends to Skills and removes the chip.
