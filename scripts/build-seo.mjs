@@ -144,6 +144,42 @@ const PAGES = [
       'No account needed; your resume stays in your browser',
     ],
   },
+  {
+    slug: 'vs-rezi',
+    path: '/vs/rezi',
+    name: 'HonestCV vs Rezi',
+    title: 'HonestCV vs Rezi — Free ATS Scoring Without the Free-Tier Limits',
+    description:
+      'We tested Rezi ourselves: the free tier caps you at 1 resume, 3 PDF downloads, 10 AI generations and 1 template; DOCX is paywalled. HonestCV has none of those limits and no subscription.',
+    h1: 'HonestCV vs Rezi: what the free tier actually lets you do',
+    intro:
+      'We registered for Rezi and ran the full flow ourselves (August 2026). It is a polished product — the Rezi Score and keyword targeting are genuinely good. But the free tier is tightly rationed: one resume, three PDF downloads, ten AI generations, one template (the other ten are Pro-locked), and DOCX export sits behind a hard paywall. Full access is a subscription at $29/month (or $149 lifetime). HonestCV takes the opposite approach: unlimited resumes and downloads, real text-based PDF and DOCX export, a free ATS match score against any job description you paste, and 12 templates you can switch between freely — with your data staying in your browser instead of an account.',
+    bullets: [
+      'No caps: Rezi free tier = 1 resume, 3 PDF downloads, 10 AI generations, 1 of 11 templates; DOCX paywalled',
+      'No subscription vs $29/month (or a $149 lifetime plan)',
+      'Free ATS match score with matched & missing keywords against any pasted job description',
+      'All 12 ATS-safe single-column templates included — switch any time without retyping',
+      'No account needed; your resume stays in your browser',
+    ],
+  },
+  {
+    slug: 'vs-teal',
+    path: '/vs/teal',
+    name: 'HonestCV vs Teal',
+    title: 'HonestCV vs Teal — A Focused Resume Builder vs $13/week Upsells',
+    description:
+      'We tested Teal ourselves: a capable free tier inside a job-search platform, monetized by weekly-billed subscriptions (~$13/week) and paywalled optimization details. HonestCV is a focused, no-subscription resume builder.',
+    h1: 'HonestCV vs Teal: focused resume building vs a weekly-billed platform',
+    intro:
+      'We registered for Teal and ran the full flow ourselves (August 2026). Credit where due: Teal’s free tier is one of the most generous — unlimited resumes, watermark-free PDF export, ten templates. But it is a whole job-search platform, and its business model is a subscription billed from about $13 per week, with the monthly plan pre-selected at checkout and the useful depth (analyzer suggestion details, the full keyword comparison list, unlimited AI) locked behind it. In our test its AI also invented a fictional “30%” metric the resume never contained. HonestCV is deliberately narrower: just an honest resume builder with free ATS scoring including the full missing-keyword list, AI that refuses to fabricate facts, real PDF and DOCX export, and no subscription of any kind.',
+    bullets: [
+      'No subscription vs ~$13/week billing (monthly plan pre-selected at checkout)',
+      'Full ATS keyword comparison free — Teal locks the complete missing-keyword list behind Teal+',
+      'AI that never invents metrics — Teal’s AI added a fictional “30%” figure in our test',
+      'Real text-based PDF and DOCX export, unlimited downloads',
+      'No account needed; your resume stays in your browser',
+    ],
+  },
 ]
 
 /** Long-tail guide pages: real content, not thin doorway pages */

@@ -333,3 +333,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
   placeholder. Export regression all green.
 
 **Rounds 11–15 complete — batch SOP-04 report sent.**
+
+## Round 16 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor research (first-hand benchmark R1 reports) + SEO | Verified first-hand evidence on Rezi (free tier: 1 resume / 3 PDFs / 10 AI generations / 1 of 11 templates, DOCX paywalled, $29/mo) and Teal (~$13/week billing, monthly pre-selected, keyword list paywalled, AI invented "30%") had no comparison pages | P1 |
+
+**Fixes shipped** (worker version `af8b154c`)
+
+- `/vs/rezi` and `/vs/teal` comparison pages — claims limited to what
+  `docs/bench-r1/report-rezi.md` / `report-teal.md` actually observed
+  (Teal's generous free tier is acknowledged).
+- Sitemap 37 → 39 URLs; IndexNow submitted (HTTP 200, 39 URLs).
+
+**Verification (live)**
+
+- `/vs/rezi/` and `/vs/teal/` → HTTP 200; sitemap serves 39 `<loc>` entries.
