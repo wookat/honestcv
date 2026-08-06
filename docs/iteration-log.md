@@ -211,3 +211,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - `/vs/kickresume/` → HTTP 200 (after ~60s asset propagation); sitemap serves
   31 `<loc>` entries.
+
+## Round 10 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Visual/social + traffic goal | No `og:image` anywhere — shared links (the whole traffic play) rendered as bare text cards on X/LinkedIn/Slack/Reddit | P1 |
+
+**Fixes shipped** (worker version `87772f24`)
+
+- New 1200×630 `public/og.png` (brand, "never charges you monthly" headline,
+  schematic resume visual, "Free during launch" pill).
+- `og:image` + `twitter:card summary_large_image` on the SPA (`index.html`) and
+  all static SEO/guide/legal templates in `build-seo.mjs`.
+
+**Verification (live)**
+
+- `https://cv.zalize.com/og.png` → 200; `og:image` present on `/` and `/vs/zety/`.
+
+**Rounds 6–10 complete — batch SOP-04 report sent.**

@@ -416,7 +416,8 @@ function page(p) {
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
 <meta property="og:locale" content="en_US" />
-<meta name="twitter:card" content="summary" />
+<meta property="og:image" content="${SITE}/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <style>${CSS}</style>
 ${BEACON}
@@ -542,6 +543,8 @@ function guidePage(p) {
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
+<meta property="og:image" content="${SITE}/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <style>${CSS}</style>
 ${BEACON}
@@ -587,6 +590,8 @@ function templatePage(p) {
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
+<meta property="og:image" content="${SITE}/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
 <style>${CSS}</style>
 ${BEACON}
 </head>
