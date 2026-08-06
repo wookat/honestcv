@@ -451,3 +451,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - 375px: overflow `{"s":360,"c":360}` after scoring; carryover confirmed
   (`name: "Jordan Reyes"`, JD present).
+
+## Round 22 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data/search-term analysis (fall recruiting season) | Guide library had no pages for the season's highest-volume audiences: new grads, internship applicants, career changers | P1 |
+
+**Fixes shipped** (worker version `c13c69ea`)
+
+- Three new guides: `/guides/new-grad-resume`, `/guides/internship-resume`,
+  `/guides/career-change-resume` — six substantive sections each, funneling to
+  the free ATS checker. Auto-listed on the `/guides/` hub.
+- Sitemap 40 → 43 URLs; IndexNow submitted (HTTP 200, 43 URLs).
+
+**Verification (live)**
+
+- All three guides → HTTP 200; sitemap serves 43 `<loc>` entries.

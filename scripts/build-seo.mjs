@@ -349,6 +349,51 @@ const GUIDES = [
       ['Tailor to each remote posting like any other', 'Remote roles get more applicants, so keyword matching is stricter, not looser. Extract each posting’s keywords and check your match with a free ATS score before applying.'],
     ],
   },
+  {
+    path: '/guides/new-grad-resume',
+    title: 'New Grad Resume Guide for the 2026 Hiring Season',
+    description:
+      'How to write a new-grad resume that gets interviews: what to lead with when you have no full-time experience, how to present projects, internships and coursework, and the format campus recruiters actually read.',
+    h1: 'The new grad resume: what to write when your experience is school',
+    sections: [
+      ['Education goes on top — for now', 'Until you have your first full-time role, Education leads: school, degree, graduation date (month + year), GPA if it’s 3.5+ or the posting asks. Relevant coursework only if it maps to the posting’s requirements — “Data Structures, Distributed Systems” for a backend role, not a full transcript.'],
+      ['Projects are your experience section', 'Treat substantial projects — capstones, research, hackathons, personal builds people actually used — exactly like jobs: name, dates, and outcome-focused bullets. “Built a course-planning app used by 400 students; cut average planning time from 2 hours to 15 minutes” outranks any list of technologies alone.'],
+      ['Internships: results, not duties', 'One internship with two quantified bullets beats three internships described as “assisted the team with various tasks”. What shipped because you were there? What number moved? If you genuinely don’t know the number, describe the concrete artifact you delivered.'],
+      ['Part-time work counts more than you think', 'Retail, food service, campus jobs — recruiters read these as reliability, customer exposure, and working under pressure. One or two lines each, with anything measurable: “Trained 5 new hires; handled 100+ transactions per shift”.'],
+      ['Keep it to one page, single column', 'A new-grad resume over one page signals inability to prioritize. Single column, standard headings, real text — the same ATS parsing rules as any resume apply to campus recruiting portals, which are often the strictest parsers of all.'],
+      ['Match each posting before you submit', 'New-grad postings still keyword-screen. Paste your resume and the posting into our free ATS checker to see your match score and which required skills you list nowhere — it runs in your browser, free.'],
+    ],
+  },
+  {
+    path: '/guides/internship-resume',
+    title: 'Internship Resume Guide: Getting Your First Internship (2026)',
+    description:
+      'How to write a resume for internship applications with little or no work history: what recruiters expect from students, how to use coursework and projects, and one-page structure that parses cleanly.',
+    h1: 'The internship resume: applying with (almost) nothing on it',
+    sections: [
+      ['Recruiters calibrate to your year', 'Nobody expects a sophomore to have shipped production software or closed deals. Internship screeners look for trajectory and initiative: coursework that matches the role, anything you built or organized, and evidence you can commit to something and finish it.'],
+      ['Structure: Education, Projects, Activities, Skills', 'Lead with Education (school, major, expected graduation, GPA if strong). Then Projects — class projects count if you describe your specific contribution. Then Activities with responsibility: club treasurer, event organizer, team captain. Then a concrete Skills list.'],
+      ['Class projects are legitimate material', 'The trick is specificity about your part: “Implemented the recommendation module in a 4-person team project; ranked top 3 of 40 teams” — not “worked on a group project”. Name the tools; those are the keywords the screen matches.'],
+      ['Show initiative outside requirements', 'Anything you did that nobody assigned — a personal site, a small business, volunteering you organized, a YouTube channel with real viewers — is disproportionately powerful on an internship resume because it separates you from classmates with identical coursework.'],
+      ['One page, no filler', 'Skip the objective statement (“seeking a challenging internship…” says nothing). Skip high-school achievements after freshman year. Skip skill bars and photos. Every line should say something specific and true about what you can do.'],
+      ['Run the match check first', 'Internship portals use the same ATS keyword screens as full-time postings. Check your resume against each posting with our free ATS checker so you know your match score — and what’s missing — before you hit submit.'],
+    ],
+  },
+  {
+    path: '/guides/career-change-resume',
+    title: 'Career Change Resume: How to Reposition Your Experience (2026)',
+    description:
+      'How to write a resume when switching fields: the hybrid format that works, translating your experience into the new field’s vocabulary, handling the “why” — and what not to hide.',
+    h1: 'The career change resume: repositioning, not hiding',
+    sections: [
+      ['Use a hybrid, not a functional format', 'Career changers are the one group tempted by the skills-only “functional” resume — and it backfires, because recruiters read it as concealment. Use a hybrid: a strong summary and transferable-skills block up top, then your normal reverse-chronological history underneath.'],
+      ['The summary carries the switch', 'Your summary must answer “why should we interview someone from another field” in three lines: name the target role explicitly, state the transferable strengths you bring, and mention any bridge credential — a course, certification, or project in the new field.'],
+      ['Translate, don’t transplant, your bullets', 'Rewrite each old-role bullet in the target field’s vocabulary where it’s honest to do so: a teacher moving to L&D writes “designed and delivered training for 120 learners”, not “taught five classes of students”. Same facts, the reader’s language.'],
+      ['Build one real artifact in the new field', 'A shipped project outweighs any claim of passion: a data-analysis portfolio, a redesigned nonprofit website, a QA certification plus bug reports on open-source projects. Put it in a Projects section with the same outcome-focused bullets as a job.'],
+      ['Don’t hide the old career', 'Unexplained gaps and vague role names read worse than an honest history. Your previous career is evidence of reliability and seniority; the summary’s job is to frame it, not erase it.'],
+      ['Keyword-match against the new field’s postings', 'Field-switchers fail ATS screens most often because their vocabulary doesn’t match the posting’s. Paste your rewritten resume and a target posting into our free ATS checker to see exactly which of the field’s terms you’re still missing.'],
+    ],
+  },
 ]
 
 /** pSEO template pages, one per built-in template */
