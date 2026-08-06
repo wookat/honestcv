@@ -1007,3 +1007,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Both routes 200; `/guides/` hub lists both.
+
+## Round 50 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA regression (mobile sweep at 360px + axe across /, /ats-checker, /builder, new guides) | The builder toolbar row (Import/Backup/Restore/Copies) did not wrap, causing 527px horizontal overflow on a 345px viewport — the R46 Copies button pushed it past the edge | P1 |
+| 2 | Same sweep | axe WCAG 2.0 A/AA clean on all swept routes including the new Copies dialog | — |
+
+**Fixes shipped** (worker version `fa9f87e9`)
+
+- Toolbar row gets `flex-wrap` + `gap-2` so the buttons wrap onto a second
+  line on narrow screens.
+
+**Verification (live)**
+
+- 360px `/builder` scrollWidth 345/345 (no overflow); all other swept routes
+  already clean.
