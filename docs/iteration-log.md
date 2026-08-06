@@ -352,3 +352,25 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - `/vs/rezi/` and `/vs/teal/` → HTTP 200; sitemap serves 39 `<loc>` entries.
+
+## Round 17 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (landing, free mode) | FAQ and pricing footnote contradicted the live product: "You pay only to download PDF/DOCX", "Payments processed by Paddle", "purchase comes with a license key" — while downloads are actually free with an email. Misleading copy on an honesty-branded product | P0 |
+
+**Fixes shipped** (worker version `a0d10b92`)
+
+- Three FAQ answers ("Is it really one payment?", "What exactly is free?",
+  "What if I need it on another device?") and the pricing footnote are now
+  `freeMode`-aware; paid-mode copy returns automatically when FREE_MODE flips.
+- Removed the stale "Payments processed by Paddle" claim (paid-mode copy now
+  says "merchant of record").
+
+**Verification (live)**
+
+- Landing shows "zero payments — everything is free during launch" FAQ and
+  "No payment is collected during launch" footnote; no "processed by Paddle"
+  text remains.

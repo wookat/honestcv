@@ -250,8 +250,9 @@ export default function Landing() {
           </div>
           <p className="text-muted-foreground mt-4 text-center text-xs">
             <Lock className="mr-1 inline size-3" />
-            Payments processed by Paddle. 7-day money-back guarantee — email
-            support@zalize.com. Your card is never stored for recurring billing.
+            {freeMode
+              ? 'No payment is collected during launch — no card, no trial, nothing that renews.'
+              : 'Payments processed by our merchant of record. 7-day money-back guarantee — email support@zalize.com. Your card is never stored for recurring billing.'}
           </p>
         </section>
 
@@ -262,11 +263,15 @@ export default function Landing() {
             {[
               [
                 'Is it really one payment?',
-                'Yes. $9.99 (or $19.99 for the bundle) is charged exactly once. There is no plan to cancel because there is no plan — we never store your card for recurring billing.',
+                freeMode
+                  ? 'Right now it is zero payments — everything is free during launch. When paid plans open, $9.99 (or $19.99 for the bundle) will be charged exactly once. Never a subscription, never a stored card.'
+                  : 'Yes. $9.99 (or $19.99 for the bundle) is charged exactly once. There is no plan to cancel because there is no plan — we never store your card for recurring billing.',
               ],
               [
                 'What exactly is free?',
-                'The full editor, all templates, the live preview, the ATS match score against any job description, and 5 AI rewrites. You pay only to download PDF/DOCX and for unlimited AI.',
+                freeMode
+                  ? 'Everything, during launch: the full editor, all 12 templates, the live preview, the ATS match score, AI tools, and PDF/DOCX downloads. We only ask for an email before your first download.'
+                  : 'The full editor, all templates, the live preview, the ATS match score against any job description, and 5 AI rewrites. You pay only to download PDF/DOCX and for unlimited AI.',
               ],
               [
                 'Will my resume pass ATS systems?',
@@ -278,7 +283,9 @@ export default function Landing() {
               ],
               [
                 'What if I need it on another device?',
-                'Your purchase comes with a license key — enter it on any device to unlock downloads there. Resume content itself stays on each device.',
+                freeMode
+                  ? 'During launch, downloads are free on every device. Resume content lives in each browser — export a PDF/DOCX or paste your text to move it between devices.'
+                  : 'Your purchase comes with a license key — enter it on any device to unlock downloads there. Resume content itself stays on each device.',
               ],
             ].map(([q, a]) => (
               <div key={q}>
