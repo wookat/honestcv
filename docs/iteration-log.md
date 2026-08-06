@@ -1906,3 +1906,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 96 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Content quality audit (continued) | /guides/how-long-should-a-resume-be/ at ~521 words | P1 (SEO) |
+
+**Fixes shipped** (worker version `35063c8e`)
+
+- how-long-should-a-resume-be expanded 6 → 12 sections (~819 words):
+  length by career stage, the 1.5-page trap, no layout hacks, an
+  ordered cut list, the live page-count indicator cross-promo, and a
+  short length FAQ.
+
+**Verification (live)**
+
+- Production page serves the new sections.
