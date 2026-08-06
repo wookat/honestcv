@@ -632,7 +632,9 @@ function page(p) {
     url: canonical,
     applicationCategory: 'BusinessApplication',
     description: p.description,
-    offers: { '@type': 'Offer', price: '9.99', priceCurrency: 'USD' },
+    offers: FREE_MODE
+      ? { '@type': 'Offer', price: '0', priceCurrency: 'USD' }
+      : { '@type': 'Offer', price: '9.99', priceCurrency: 'USD' },
   }
   const related = PAGES.filter((r) => r.slug !== p.slug)
   return `<!doctype html>
@@ -768,6 +770,9 @@ function guidePage(p) {
     headline: p.h1,
     description: p.description,
     url: canonical,
+    mainEntityOfPage: canonical,
+    dateModified: new Date().toISOString().slice(0, 10),
+    author: { '@type': 'Organization', name: 'HonestCV', url: SITE },
     publisher: { '@type': 'Organization', name: 'HonestCV', url: SITE },
   }
   const related = [...GUIDES.filter((g) => g.path !== p.path), ...PAGES.slice(0, 3)]

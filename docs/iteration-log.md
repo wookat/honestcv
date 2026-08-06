@@ -864,3 +864,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Example-score flow renders the line; clicking copies and flips to
   "Link copied!".
+
+## Round 43 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | SEO/data (structured-data audit) | `WebApplication` JSON-LD on all static SEO pages hardcoded `price: 9.99` while the live product is in free mode — structured data contradicted the page's own free-mode banner | P1 |
+| 2 | SEO | Guide `Article` JSON-LD lacked `dateModified`, `mainEntityOfPage`, `author` — signals Google uses for article freshness | P2 |
+
+**Fixes shipped** (worker version `c2afe9fd`)
+
+- JSON-LD offer is now `price: '0'` when `FREE_MODE` (falls back to 9.99
+  when payment mode returns).
+- Guide Article JSON-LD gains `dateModified` (build date),
+  `mainEntityOfPage`, `author`.
+
+**Verification (live)**
+
+- `/vs/zety/` serves `"price":"0"`; `/guides/resume-keywords/` serves
+  `"dateModified":"2026-08-06"`.
