@@ -1636,3 +1636,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production page shows 12 content h2s and the new sections; remaining
   thin guides queued for future rounds.
+
+## Round 82 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Content quality audit (continued from R81) | Next-thinnest guide: /guides/resume-summary-examples/ at ~482 words with only 3 example personas | P1 (SEO) |
+
+**Fixes shipped** (worker version `ee0f168d`)
+
+- resume-summary-examples expanded 6 → 12 sections (~784 words): new
+  grad / manager / sales examples, summary-vs-objective cross-ref,
+  tailor-line-3 advice, and when to skip the summary entirely.
+
+**Verification (live)**
+
+- Production page serves the new sections.
