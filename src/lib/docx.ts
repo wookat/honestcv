@@ -58,10 +58,17 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
     })
   const body = (
     text: string,
-    opts: { bold?: boolean; italic?: boolean; bullet?: boolean; after?: number } = {}
+    opts: {
+      bold?: boolean
+      italic?: boolean
+      bullet?: boolean
+      after?: number
+      keepNext?: boolean
+    } = {}
   ) =>
     new Paragraph({
       spacing: { after: opts.after ?? 60 },
+      keepNext: opts.keepNext,
       bullet: opts.bullet ? { level: 0 } : undefined,
       children: [
         new TextRun({
@@ -164,7 +171,11 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       for (const p of resume.projects) {
         if (!p.name) continue
         children.push(
-          body(`${p.name}${p.link ? ` — ${p.link}` : ''}`, { bold: true, after: 20 })
+          body(`${p.name}${p.link ? ` — ${p.link}` : ''}`, {
+            bold: true,
+            after: 20,
+            keepNext: true,
+          })
         )
         if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
       }
