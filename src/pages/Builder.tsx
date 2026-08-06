@@ -35,7 +35,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { SiteFooter, SiteHeader } from '@/components/Layout'
+import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
   FreeDownloadDialog,
   UpgradeDialog,
@@ -233,6 +233,10 @@ function Section({
 }
 
 export default function Builder() {
+  usePageMeta(
+    'Resume Builder — HonestCV',
+    'Build an ATS-friendly resume in your browser: 12 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
+  )
   const [resume, setResume] = useState<Resume>(() => loadResume() ?? emptyResume())
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [upgradeReason, setUpgradeReason] = useState('')
@@ -441,6 +445,7 @@ export default function Builder() {
       />
 
       <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <h1 className="sr-only">Resume builder</h1>
         {/* ---- Left: editor ---- */}
         <div className="space-y-4">
           {resume === null ||
@@ -557,6 +562,7 @@ export default function Builder() {
                   <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
                     <span
                       {...expDrag.handleProps(idx)}
+                      role="button"
                       className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1 active:cursor-grabbing"
                       title="Drag to reorder"
                       aria-label={`Drag role ${idx + 1} to reorder`}
@@ -603,6 +609,8 @@ export default function Builder() {
                       variant="ghost"
                       size="sm"
                       className="text-destructive h-9 sm:h-7"
+                      title="Delete role"
+                      aria-label={`Delete role ${idx + 1}`}
                       onClick={() =>
                         setResume((r) => ({
                           ...r,
@@ -690,6 +698,7 @@ export default function Builder() {
                 <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
                   <span
                     {...eduDrag.handleProps(idx)}
+                    role="button"
                     className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1 active:cursor-grabbing"
                     title="Drag to reorder"
                     aria-label={`Drag education ${idx + 1} to reorder`}
@@ -806,6 +815,8 @@ export default function Builder() {
                     variant="ghost"
                     size="sm"
                     className="text-destructive h-9 shrink-0"
+                    title="Delete education"
+                    aria-label={`Delete education ${idx + 1}`}
                     onClick={() =>
                       setResume((r) => ({
                         ...r,
@@ -878,6 +889,8 @@ export default function Builder() {
                     variant="ghost"
                     size="sm"
                     className="text-destructive h-9 shrink-0"
+                    title="Delete project"
+                    aria-label="Delete project"
                     onClick={() =>
                       setResume((r) => ({
                         ...r,
@@ -1024,6 +1037,7 @@ export default function Builder() {
                   <span className="flex items-center gap-1.5">
                     <span
                       {...secDrag.handleProps(idx)}
+                      role="button"
                       className="text-muted-foreground/60 hover:text-foreground cursor-grab touch-none p-1 active:cursor-grabbing"
                       title="Drag to reorder"
                       aria-label={`Drag ${sectionLabel(resume, key)} to reorder`}

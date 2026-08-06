@@ -6,7 +6,7 @@
   "routes": [{ "pattern": "cv.zalize.com", "custom_domain": true }],
   "assets": {
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "none"
   },
   "kv_namespaces": [
     // Stores licenses / free quotas / leads (namespace HONESTCV_KV)

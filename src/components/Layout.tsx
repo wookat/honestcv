@@ -1,5 +1,14 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { FileCheck2 } from 'lucide-react'
+
+/** Sets the document title and meta description for the current route. */
+export function usePageMeta(title: string, description: string) {
+  useEffect(() => {
+    document.title = title
+    document.querySelector('meta[name="description"]')?.setAttribute('content', description)
+  }, [title, description])
+}
 
 export function SiteHeader({ action }: { action?: React.ReactNode }) {
   return (

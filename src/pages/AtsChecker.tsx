@@ -6,10 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { SiteFooter, SiteHeader } from '@/components/Layout'
+import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { scoreResumeText } from '@/lib/ats'
 
 export default function AtsChecker() {
+  usePageMeta(
+    'Free ATS Resume Checker — Instant Match Score | HonestCV',
+    'Paste your resume and a job description to get an instant ATS match score, missing keywords and format checks. 100% free, no sign-up — runs entirely in your browser.'
+  )
   const [resumeText, setResumeText] = useState('')
   const [jd, setJd] = useState('')
   const [checked, setChecked] = useState(false)

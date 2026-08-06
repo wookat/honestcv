@@ -12,7 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { SiteFooter, SiteHeader } from '@/components/Layout'
+import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { useFreeMode } from '@/components/Paywall'
 
 const FEATURES = [
@@ -50,6 +50,10 @@ const COMPARISON: [string, string, string][] = [
 ]
 
 export default function Landing() {
+  usePageMeta(
+    'HonestCV — One-Time Payment Resume Builder. No Subscriptions, Ever.',
+    'HonestCV: the resume builder you pay for once — free during launch. ATS-friendly templates, free ATS match score, AI rewrites, real PDF & DOCX export. No subscription, no auto-renewal, no trial trap.'
+  )
   const freeMode = useFreeMode()
   return (
     <div className="flex min-h-screen flex-col">
@@ -102,7 +106,10 @@ export default function Landing() {
         </section>
 
         {/* Features */}
-        <section className="mx-auto grid max-w-5xl gap-4 px-4 py-8 sm:grid-cols-2">
+        <section aria-labelledby="features-heading" className="mx-auto grid max-w-5xl gap-4 px-4 py-8 sm:grid-cols-2">
+          <h2 id="features-heading" className="sr-only">
+            What you get
+          </h2>
           {FEATURES.map((f) => (
             <Card key={f.title} className="py-0">
               <CardContent className="p-5">
@@ -133,7 +140,9 @@ export default function Landing() {
               <table className="w-full min-w-[560px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="py-2 pr-4 text-left font-medium"></th>
+                    <th className="py-2 pr-4 text-left font-medium">
+                      <span className="sr-only">Feature</span>
+                    </th>
                     <th className="text-primary py-2 pr-4 text-left font-semibold">HonestCV</th>
                     <th className="text-muted-foreground py-2 text-left font-medium">
                       Typical subscription builder
