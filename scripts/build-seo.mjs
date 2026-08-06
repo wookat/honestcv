@@ -396,6 +396,51 @@ const GUIDES = [
   },
 ]
 
+/** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */
+const TEMPLATE_META = {
+  classic: { accent: '#1a1a1a', serif: true, divider: 'line', headerAlign: 'center', nameCase: 'normal' },
+  modern: { accent: '#0f766e', serif: false, divider: 'thick', headerAlign: 'center', nameCase: 'normal' },
+  compact: { accent: '#334155', serif: false, divider: 'line', headerAlign: 'center', nameCase: 'normal' },
+  executive: { accent: '#7c2d12', serif: true, divider: 'none', headerAlign: 'center', nameCase: 'normal' },
+  minimal: { accent: '#1a1a1a', serif: false, divider: 'none', headerAlign: 'left', nameCase: 'normal' },
+  bold: { accent: '#1d4ed8', serif: false, divider: 'thick', headerAlign: 'left', nameCase: 'upper' },
+  elegant: { accent: '#6d28d9', serif: true, divider: 'line', headerAlign: 'left', nameCase: 'normal' },
+  engineer: { accent: '#15803d', serif: false, divider: 'line', headerAlign: 'left', nameCase: 'normal' },
+  ivy: { accent: '#14532d', serif: true, divider: 'line', headerAlign: 'center', nameCase: 'normal' },
+  slate: { accent: '#475569', serif: false, divider: 'thick', headerAlign: 'left', nameCase: 'normal' },
+  corporate: { accent: '#7f1d1d', serif: true, divider: 'thick', headerAlign: 'center', nameCase: 'upper' },
+  startup: { accent: '#c2410c', serif: false, divider: 'none', headerAlign: 'left', nameCase: 'normal' },
+}
+
+/** Inline SVG schematic of a template's layout (same idea as TemplateThumb.tsx). */
+function templateThumbSvg(slug, width = 96) {
+  const m = TEMPLATE_META[slug]
+  if (!m) return ''
+  const W = 96
+  const H = 124
+  const cx = (w) => (m.headerAlign === 'center' ? (W - w) / 2 : 10)
+  const nameW = 34
+  const subW = 44
+  let y = 12
+  const parts = []
+  parts.push(`<rect x="${cx(nameW)}" y="${y}" width="${nameW}" height="6" rx="1" fill="${m.nameCase === 'upper' ? '#111' : '#333'}"/>`)
+  y += 10
+  parts.push(`<rect x="${cx(subW)}" y="${y}" width="${subW}" height="4" rx="1" fill="#d4d4d4"/>`)
+  y += 12
+  for (let i = 0; i < 3; i++) {
+    parts.push(`<rect x="10" y="${y}" width="24" height="5" rx="1" fill="${m.accent}"/>`)
+    if (m.divider !== 'none')
+      parts.push(`<rect x="10" y="${y + 7}" width="${W - 20}" height="${m.divider === 'thick' ? 2 : 1}" fill="${m.accent}"/>`)
+    let ly = y + (m.divider !== 'none' ? 12 : 9)
+    for (const w of [W - 20, W - 32]) {
+      parts.push(`<rect x="10" y="${ly}" width="${w}" height="4" rx="1" fill="#e5e5e5"/>`)
+      ly += 7
+    }
+    y = ly + 6
+  }
+  return `<svg role="img" aria-label="${esc(slug)} template layout preview" width="${width}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="background:#fff;border:1px solid var(--border);border-radius:6px">${parts.join('')}</svg>`
+}
+
 /** pSEO template pages, one per built-in template */
 const TEMPLATE_PAGES = [
   {
@@ -744,6 +789,7 @@ ${BEACON}
 </div></header>
 <main>
 <h1>${esc(p.name)} — ATS-friendly resume template</h1>
+<div style="margin:1rem 0">${templateThumbSvg(p.path.split('/').pop(), 140)}</div>
 <p class="lede">${esc(p.blurb)}</p>
 <ul class="features">
 <li>Strictly single-column — the layout ATS parsers read most reliably</li>
@@ -798,7 +844,7 @@ ${BEACON}
 <h1>${esc(h1)}</h1>
 <p class="lede">${esc(intro)}</p>
 <ul class="features">
-${items.map(({ href, label, blurb }) => `<li><a href="${href}">${esc(label)}</a>${blurb ? ` — ${esc(blurb)}` : ''}</li>`).join('\n')}
+${items.map(({ href, label, blurb, thumb }) => `<li${thumb ? ' style="display:flex;align-items:center;gap:.75rem"' : ''}>${thumb ? `<a href="${href}" style="flex-shrink:0;line-height:0">${thumb}</a>` : ''}<span><a href="${href}">${esc(label)}</a>${blurb ? ` — ${esc(blurb)}` : ''}</span></li>`).join('\n')}
 </ul>
 <div class="cta">
 <p>${FREE_MODE ? 'The HonestCV builder is completely free during launch: templates, AI rewrites, ATS score and PDF/DOCX downloads.' : 'The HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
@@ -851,6 +897,7 @@ const HUBS = [
       href: `${t.path}/`,
       label: `${t.name} resume template`,
       blurb: '',
+      thumb: templateThumbSvg(t.path.split('/').pop(), 72),
     })),
   },
 ]
