@@ -766,6 +766,20 @@ ${items.map(({ href, label, blurb }) => `<li><a href="${href}">${esc(label)}</a>
 
 const HUBS = [
   {
+    pathname: '/vs/',
+    title: 'HonestCV vs Other Resume Builders — First-Hand Comparisons',
+    description:
+      'How HonestCV compares to Zety, Resume.io, Rezi, Teal, Kickresume and other resume builders — based on our own first-hand tests, with pricing and free-tier limits documented.',
+    h1: 'HonestCV vs other resume builders',
+    intro:
+      'We sign up for competitors and run their full flows ourselves — build a resume, use the AI, check the ATS score, try to export — then document what the free tier actually allows and what the subscription really costs. No secondhand claims.',
+    items: PAGES.filter((p) => p.path.startsWith('/vs/')).map((p) => ({
+      href: `${p.path}/`,
+      label: p.name,
+      blurb: '',
+    })),
+  },
+  {
     pathname: '/guides/',
     title: 'Resume Guides — Honest, Practical Advice for 2026 | HonestCV',
     description:

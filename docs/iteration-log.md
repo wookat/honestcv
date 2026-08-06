@@ -393,3 +393,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - `/` serves FAQPage JSON-LD; typecheck/lint/build green.
+
+## Round 19 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX/SEO walkthrough | `/vs/` (natural hub URL above 7 comparison pages) returned 404 — same gap class as R13's `/guides/`+`/templates/` | P1 |
+
+**Fixes shipped** (worker version `2648b516`)
+
+- `/vs/` hub added to `HUBS`, listing all comparison pages with a
+  first-hand-testing methodology intro.
+- Sitemap 39 → 40 URLs; IndexNow submitted (HTTP 200, 40 URLs).
+
+**Verification (live)**
+
+- `/vs/` → HTTP 200; sitemap serves 40 `<loc>` entries.
