@@ -501,6 +501,36 @@ const GUIDES = [
       ['Check the result', 'Paste the posting into our free ATS checker to see whether your summary and skills actually mirror the keywords screening filters look for — before you send it.'],
     ],
   },
+  {
+    path: '/guides/hobbies-and-interests-on-resume',
+    title: 'Hobbies and Interests on a Resume: When They Help (and Hurt) in 2026',
+    description:
+      'Whether to add hobbies and interests to your resume, which ones actually strengthen an application, which ones backfire, and how to format the section when you use it.',
+    h1: 'Hobbies and interests on a resume: when they help',
+    sections: [
+      ['The default: leave them off', 'For most mid-career applications, the interests line is the first thing to cut. Recruiters screen for evidence you can do the job; “reading, travel, music” adds none and costs a line your skills or a quantified bullet could use.'],
+      ['When they genuinely help', 'Three cases: you are early-career and the page is thin; the interest demonstrates a job-relevant capability (a marathon for discipline-heavy roles, open-source contributions for engineering, a 10k-follower channel for marketing); or the employer signals culture fit matters (startups, mission-driven orgs, roles naming the interest).'],
+      ['Pick interests with evidence, not adjectives', 'Treat an interest like a bullet: concrete and verifiable. “Chess — competitive player, 1800 rating” or “Volunteer tax preparer, 3 seasons” beats “strategy games” and “volunteering”. If you cannot attach a fact, it is filler.'],
+      ['Interests that backfire', 'Anything polarizing (politics, religion — unless applying to an aligned organization), anything risky-sounding for the role, and long lists of passive consumption (watching series, browsing social media). One or two strong items maximum.'],
+      ['How to format the section', 'One line at the very bottom, labeled “Interests”, comma-separated. Never above skills or experience, never with icons or graphics that break ATS parsing. In HonestCV, a one-line custom section keeps it parseable in both the PDF and DOCX export.'],
+      ['The test before you keep it', 'Ask: would a hiring manager reading only this line learn something that helps them say yes? If not, cut it and let your experience do the talking.'],
+    ],
+  },
+  {
+    path: '/guides/how-to-email-a-resume',
+    title: 'How to Email a Resume in 2026: Subject Line, Message, and Attachment',
+    description:
+      'A practical template for emailing your resume: what to put in the subject line, the 5-sentence body that works, PDF vs DOCX attachment, file naming, and mistakes to avoid.',
+    h1: 'How to email a resume (subject line, body, attachment)',
+    sections: [
+      ['Subject line: job title + your name', 'Recruiters triage by subject. Use the posting’s exact title plus your name, and the requisition ID if there is one: “Application: Senior Accountant — Maya Chen (Req 4821)”. Never “Resume”, “Job application”, or an empty subject.'],
+      ['The 5-sentence body', 'Sentence 1: which role you are applying for and where you saw it. Sentences 2–3: your strongest one or two qualifications, mirrored to the posting’s language, with a number if you have one. Sentence 4: the attachment note (“My resume is attached as a PDF”). Sentence 5: availability and thanks. Recruiters skim — anything longer gets skipped.'],
+      ['PDF unless they ask for DOCX', 'PDF preserves your layout on every device and is the safe default. Send DOCX only when the posting explicitly requests it (some agencies and government portals do). Whatever you send, make sure the text is selectable — image-based PDFs fail both ATS parsing and quick skims.'],
+      ['Name the file like a professional', '“Maya-Chen-Resume.pdf” — your name, the word resume, no version numbers, no “final_v3 (2)”, no dates. The file name shows up in the recruiter’s download folder and in the ATS; make it identify you.'],
+      ['Address a human if you can', 'A named greeting (“Dear Ms. Alvarez”) measurably outperforms “To whom it may concern”. Check the posting, the team page, or LinkedIn for the recruiter or hiring manager. If you genuinely cannot find a name, “Dear Hiring Team” is fine.'],
+      ['Mistakes that get emails deleted', 'Forgetting the attachment (re-read before sending), a generic body reused verbatim across companies, emailing from an unprofessional address, attaching an editable file full of tracked changes, and following up within 24 hours. Wait about a week before a single polite follow-up.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */
