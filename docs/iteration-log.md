@@ -808,3 +808,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - All three guide URLs serve HTTP 200; sitemap serves 46 locs.
+
+## Round 40 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA golden path (fresh state → text import → strength/pages/ATS → gated PDF export, live) | Import parsed name/roles correctly, strength 70%, page indicator live, ATS keywords matched, exported PDF has real text | — |
+| 2 | Accessibility (same walkthrough) | Dialog close button's screen-reader label was Chinese "关闭" on an English product (shadcn scaffold leftover); one more Chinese comment in `download.ts` | P1 |
+
+**Fixes shipped** (worker version `10aff20d`)
+
+- `dialog.tsx` sr-only close label `关闭` → `Close`; translated the stray
+  Chinese comment. Repo-wide Han-character scan now clean.
+
+**Verification (live)**
+
+- Full golden path re-ran green; exported PDF text extracts correctly
+  ("Jordan Reyes / Software Engineer / …").
