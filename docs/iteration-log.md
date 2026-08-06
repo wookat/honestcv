@@ -1438,3 +1438,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - `/guides/resume-keywords/`, `/vs/zety/`, `/templates/modern/` each
   serve a BreadcrumbList with correct Home → hub → page items.
+
+## Round 72 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (round-trip: our PDF export → ATS checker upload) | Healthy — exported PDF re-imports and scores | — |
+| 2 | Data | First-party hits unchanged since R65 report (82 today, all internal; QA flag confirmed active in the test browser) | — |
+| 3 | Editor consistency | Experience cards gained Duplicate in R62 but education cards had none — second degree / minor at the same school means retyping | P2 |
+
+**Fixes shipped** (worker version `608764f8`)
+
+- Duplicate button on education cards (copy inserted below the
+  original), matching the experience-card control.
+
+**Verification (live)**
+
+- Production: "Duplicate education 1" → 2 entries (UCLA, UCLA), copy
+  deleted afterwards.
