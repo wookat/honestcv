@@ -1925,3 +1925,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 97 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Content quality audit (continued) | /guides/employment-gap-resume/ at ~524 words | P1 (SEO) |
+
+**Fixes shipped** (worker version `6063efc8`)
+
+- employment-gap-resume expanded 6 → 12 sections (~828 words):
+  one-line framings per situation, anchoring a current gap, multiple
+  gaps as pattern, what never to do (anti-fabrication), where the
+  explanation lives (resume/letter/interview/LinkedIn consistency),
+  and a gap checklist.
+
+**Verification (live)**
+
+- Production page serves the new sections.
