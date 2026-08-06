@@ -1730,3 +1730,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 87 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (golden path, live) | Example resume → PDF export works end to end post-R76 lazy chunks (maya-chen-resume.pdf downloaded, no paywall regression) | — |
+| 2 | Content quality audit (continued) | /guides/tailor-resume-to-job/ at ~496 words — the guide that ties directly into R80's per-copy ATS scores | P1 (SEO) |
+
+**Fixes shipped** (worker version `3f59494e`)
+
+- tailor-resume-to-job expanded 6 → 12 sections (~760 words):
+  master-vs-copies workflow (cross-promotes the Copies feature),
+  what never to change, careful title annotation, vague postings,
+  role-cluster batching, and the 15-minute ceiling-not-floor rule.
+
+**Verification (live)**
+
+- Production page serves the new sections.
