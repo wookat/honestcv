@@ -93,7 +93,16 @@ function splitRoleCompany(text: string): { role: string; company: string; locati
   for (const sep of seps) {
     const parts = text.split(sep)
     if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
-      return { role: parts[0].trim(), company: parts.slice(1).join(', ').trim(), location: '' }
+      const company = parts.slice(1).join(', ').trim()
+      // "Role — Company, City, ST" — peel a trailing location off the company
+      const loc = company.match(/,\s*([A-Za-z .'-]+,\s*[A-Z]{2}|Remote)$/)
+      if (loc && !sep.source.includes(','))
+        return {
+          role: parts[0].trim(),
+          company: company.slice(0, loc.index).trim(),
+          location: loc[1].trim(),
+        }
+      return { role: parts[0].trim(), company, location: '' }
     }
   }
   return { role: text.trim(), company: '', location: '' }
@@ -127,6 +136,18 @@ export function parseResumeText(raw: string): Resume {
       resume.contact.fullName = line
       break
     }
+  }
+
+  // Location: a "City, ST" segment on one of the header contact lines
+  for (const line of nonEmpty.slice(0, 5)) {
+    if (matchHeading(line)) break
+    for (const seg of line.split(/\s*[|•·]\s*/)) {
+      if (/^[A-Za-z .'-]+,\s*[A-Z]{2}$/.test(seg.trim())) {
+        resume.contact.location = seg.trim()
+        break
+      }
+    }
+    if (resume.contact.location) break
   }
 
   let section: SectionName | null = null

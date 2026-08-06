@@ -1381,3 +1381,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production sitemap: 52/52 URLs carry `<lastmod>2026-08-06</lastmod>`.
+
+## Round 69 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (import parser, new realistic sample) | Two gaps: a "City, ST" segment on the contact line was dropped entirely, and "Role — Company, City, ST" headers left the location inside the company field (the em-dash path lacked the location split the middle-dot path got in R57) | P1 |
+
+**Fixes shipped** (worker version `7b87ec7c`)
+
+- Contact parsing picks up a `City, ST` segment from the header lines.
+- `splitRoleCompany` peels a trailing `, City, ST` / `, Remote` off the
+  company for the at/dash/pipe separators.
+
+**Verification (live)**
+
+- Production paste-import: `contact.location` = "Chicago, IL"; entry =
+  role "Senior Data Analyst", company "NorthBridge Health", location
+  "Chicago, IL", dates Mar 2021 – Present.
