@@ -1886,3 +1886,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 95 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Content quality audit (continued) | /guides/career-change-resume/ at ~511 words | P1 (SEO) |
+
+**Fixes shipped** (worker version `42da964a`)
+
+- career-change-resume expanded 6 → 12 sections (~788 words):
+  overlap-mapping before writing, one-variable-at-a-time target roles,
+  credentials that actually match, switcher section sequencing
+  (reorder cross-promo), the seniority/salary reality, and a
+  realistic switch timeline.
+
+**Verification (live)**
+
+- Production page serves the new sections.
