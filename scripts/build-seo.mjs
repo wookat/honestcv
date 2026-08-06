@@ -13,8 +13,9 @@ const FREE_MODE = process.env.VITE_FREE_MODE !== 'false'
 // Cloudflare Web Analytics beacon — zone auto-injection does not fire on Worker
 // custom domains, so every static page includes it explicitly.
 const BEACON =
-  '<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=\'{"token": "d3ace0c72c2f4a6f8b96f1e7f8fd4dac"}\'></script>' +
-  // First-party pageview beacon (adblock-proof fallback; path only, no PII)
+  '<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=\'{"token": "d3ace0c72c2f4a6f8b96f1e7f8fd4dac"}\'></script>'
+// First-party pageview beacon (adblock-proof fallback; path only, no PII)
+const FP_BEACON =
   '<script>try{navigator.sendBeacon("/api/hit",location.pathname)}catch(e){}</script>'
 
 const PAGES = [
@@ -608,7 +609,7 @@ function page(p) {
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <style>${CSS}</style>
-${BEACON}
+${BEACON}${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -684,7 +685,7 @@ function legalPage(p) {
 <meta property="og:image" content="${SITE}/og.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <style>${CSS}</style>
-${BEACON}
+${BEACON}${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -743,7 +744,7 @@ function guidePage(p) {
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <style>${CSS}</style>
-${BEACON}
+${BEACON}${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -789,7 +790,7 @@ function templatePage(p) {
 <meta property="og:image" content="${SITE}/og.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <style>${CSS}</style>
-${BEACON}
+${BEACON}${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -842,7 +843,7 @@ function hubPage({ pathname, title, description, h1, intro, items }) {
 <meta property="og:image" content="${SITE}/og.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <style>${CSS}</style>
-${BEACON}
+${BEACON}${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
