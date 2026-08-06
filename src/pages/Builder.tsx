@@ -531,7 +531,7 @@ export default function Builder() {
               </div>
             ))}
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
               variant="outline"
