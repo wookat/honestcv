@@ -7,6 +7,7 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  ExternalHyperlink,
   Packer,
   Paragraph,
   TextRun,
@@ -88,15 +89,32 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       })
     )
   }
-  const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]
-    .filter(Boolean)
-    .join('  |  ')
-  if (contactLine) {
+  const httpUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
+  const contactSegments = [
+    c.email ? { text: c.email, url: `mailto:${c.email}` } : null,
+    c.phone ? { text: c.phone } : null,
+    c.location ? { text: c.location } : null,
+    c.website ? { text: c.website, url: httpUrl(c.website) } : null,
+    c.linkedin ? { text: c.linkedin, url: httpUrl(c.linkedin) } : null,
+  ].filter((s): s is { text: string; url?: string } => s !== null)
+  if (contactSegments.length > 0) {
+    const runs: (TextRun | ExternalHyperlink)[] = []
+    contactSegments.forEach((s, i) => {
+      if (i > 0) runs.push(new TextRun({ text: '  |  ', size: 19, font }))
+      runs.push(
+        s.url
+          ? new ExternalHyperlink({
+              link: s.url,
+              children: [new TextRun({ text: s.text, size: 19, font, style: 'Hyperlink' })],
+            })
+          : new TextRun({ text: s.text, size: 19, font })
+      )
+    })
     children.push(
       new Paragraph({
         alignment: headerAlignment,
         spacing: { after: 120 },
-        children: [new TextRun({ text: contactLine, size: 19, font })],
+        children: runs,
       })
     )
   }
