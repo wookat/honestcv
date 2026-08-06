@@ -1150,11 +1150,16 @@ export default function Builder() {
                     onClick={() =>
                       set('accentColor', color === getTemplate(resume.templateId).accent ? '' : color)
                     }
-                    className={`size-5 rounded-full border-2 transition ${
-                      active ? 'border-primary scale-110' : 'border-transparent hover:scale-110'
-                    }`}
-                    style={{ background: color }}
-                  />
+                    className="-m-0.5 flex size-8 items-center justify-center rounded-full"
+                  >
+                    <span
+                      aria-hidden
+                      className={`block size-5 rounded-full border-2 transition ${
+                        active ? 'border-primary scale-110' : 'border-transparent hover:scale-110'
+                      }`}
+                      style={{ background: color }}
+                    />
+                  </button>
                 )
               })}
             </span>
@@ -1476,7 +1481,7 @@ function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void
     <div>
       <button
         type="button"
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline underline-offset-2"
+        className="text-muted-foreground hover:text-foreground -my-1.5 inline-flex min-h-8 items-center gap-1 py-1.5 text-xs underline underline-offset-2"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
