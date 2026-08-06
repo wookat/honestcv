@@ -827,3 +827,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Full golden path re-ran green; exported PDF text extracts correctly
   ("Jordan Reyes / Software Engineer / …").
+
+## Round 41 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data/funnel (traffic-mode strategy) | The moment of highest goodwill — right after a successful free download — ended silently; no share loop anywhere in the product while off-site distribution is the #1 traffic bottleneck | P1 |
+
+**Fixes shipped** (worker version `cd4c6e90`)
+
+- One-time post-download share dialog (per-browser `honestcv.shared` flag):
+  copy-link for `/ats-checker` plus X and LinkedIn share intents. Framing
+  stays honest — "if HonestCV helped, pass the free ATS checker to a friend".
+
+**Verification (live)**
+
+- After a real PDF download the dialog appears once, sets the flag, and does
+  not re-show on subsequent downloads.
