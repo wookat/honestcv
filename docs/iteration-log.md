@@ -1288,3 +1288,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Both routes 200 in production; guides hub links both.
+
+## Round 64 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX consistency audit (builder sections) | Experience/education entries and whole sections can be reordered, but project entries could not — a candidate wanting their strongest project first had to delete and retype | P2 |
+
+**Fixes shipped** (worker version `c8cb7de9`)
+
+- Project cards get a header row with move up/down buttons (same
+  pattern as experience/education).
+
+**Verification (live)**
+
+- Production: added Alpha + Beta, "Move project 2 up" → order
+  Beta,Alpha in stored resume; cleanup ok.
