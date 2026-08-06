@@ -1578,6 +1578,16 @@ function BundleToolDialog({
     }
   }
 
+  const insertTemplate = () => {
+    const name = resume.contact.fullName || '[Your name]'
+    const role = resume.targetRole || '[the role]'
+    const co = company || '[Company]'
+    setResult(
+      `Dear Hiring Manager,\n\nI'm writing to apply for the ${role} position at ${co}. [One sentence on why this company or team specifically — a product, a mission, a recent launch.]\n\nIn my current role at [current company], I [your strongest, most relevant achievement — with a real number if you have one]. Before that, I [second relevant achievement or responsibility]. These map directly to what you're looking for: [requirement from the job description you meet best].\n\nI'd welcome the chance to talk about how I can help ${co} [team goal from the posting]. Thank you for your consideration.\n\nSincerely,\n${name}`
+    )
+    setError('')
+  }
+
   const title = kind === 'cover' ? 'AI Cover Letter' : 'Interview Prep Brief'
   return (
     <Dialog open={kind !== null} onOpenChange={(o) => !o && onClose()}>
@@ -1599,10 +1609,17 @@ function BundleToolDialog({
             />
           </div>
         )}
-        <Button onClick={() => void generate()} disabled={busy}>
-          {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
-          {busy ? 'Writing…' : result ? 'Regenerate' : 'Generate'}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => void generate()} disabled={busy}>
+            {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+            {busy ? 'Writing…' : result ? 'Regenerate' : 'Generate'}
+          </Button>
+          {kind === 'cover' && (
+            <Button variant="outline" onClick={insertTemplate} disabled={busy}>
+              Start from a template
+            </Button>
+          )}
+        </div>
         {error && <p className="text-destructive text-sm">{error}</p>}
         {result && (
           <>

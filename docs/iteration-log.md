@@ -622,3 +622,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - axe on `/` at 375px: zero WCAG 2.0/2.1 A/AA violations (was 1).
+
+## Round 31 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (bundle tools, AI relay still out of quota) | The cover-letter dialog was a hard dead end without AI: "Generate" is the only path and it errors while the relay is down | P1 |
+
+**Fixes shipped** (worker version `6101a3f6`)
+
+- "Start from a template" in the cover-letter dialog: inserts a structured,
+  non-fabricating letter skeleton pre-filled with the user's name, target
+  role and company, using the same `[add …]`-style placeholders as bullet
+  starters. Editable and exportable via the existing PDF/DOCX buttons — no AI
+  required.
+
+**Verification (live)**
+
+- Template inserts with company "Stripe" + resume name; PDF export of the
+  letter is real text (extractable).
