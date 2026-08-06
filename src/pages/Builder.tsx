@@ -8,6 +8,7 @@ import {
   ClipboardPaste,
   Download,
   FileText,
+  FileUp,
   GraduationCap,
   GripVertical,
   ListOrdered,
@@ -53,6 +54,7 @@ import {
 import { scoreResume } from '@/lib/ats'
 import { checkBullets } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
+import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { downloadResumeDocx, downloadTextDocx } from '@/lib/docx'
 import { downloadResumePdf, downloadTextPdf } from '@/lib/pdf'
 import {
@@ -254,6 +256,9 @@ export default function Builder() {
   } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
+  const [importBusy, setImportBusy] = useState(false)
+  const [importError, setImportError] = useState('')
+  const importFileRef = useRef<HTMLInputElement>(null)
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
   const finalCheckFmt = useRef<'pdf' | 'docx' | null>(null)
   const freeMode = useFreeMode()
@@ -465,7 +470,7 @@ export default function Builder() {
                   className="text-primary underline"
                   onClick={() => setImportOpen(true)}
                 >
-                  import from pasted text
+                  import your existing resume (PDF/DOCX/text)
                 </button>
                 .
               </div>
@@ -479,7 +484,7 @@ export default function Builder() {
               className="h-7 gap-1 text-xs"
               onClick={() => setImportOpen(true)}
             >
-              <ClipboardPaste className="size-3" /> Import from text
+              <FileUp className="size-3" /> Import resume (PDF/DOCX/text)
             </Button>
           </div>
 
@@ -1334,13 +1339,52 @@ export default function Builder() {
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Import from pasted text</DialogTitle>
+            <DialogTitle>Import your existing resume</DialogTitle>
             <DialogDescription>
-              Paste your existing resume (copy it from a PDF, Word doc or LinkedIn). We'll
-              pre-fill the sections — in your browser, nothing is uploaded. Review the
-              result; imports are a starting point, not perfect.
+              Upload a PDF, DOCX or TXT file — or paste the text below. We'll pre-fill
+              the sections, entirely in your browser; nothing is uploaded to a server.
+              Review the result; imports are a starting point, not perfect.
             </DialogDescription>
           </DialogHeader>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={importBusy}
+              onClick={() => importFileRef.current?.click()}
+            >
+              <FileUp className="size-4" />
+              {importBusy ? 'Reading file…' : 'Upload PDF / DOCX / TXT'}
+            </Button>
+            <span className="text-muted-foreground text-xs">or paste the text:</span>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept={IMPORT_ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (!file) return
+                setImportBusy(true)
+                setImportError('')
+                extractTextFromFile(file)
+                  .then((text) => {
+                    if (!text.trim())
+                      throw new Error(
+                        'No text found in this file — it may be a scanned image. Paste the text instead.'
+                      )
+                    setImportText(text)
+                  })
+                  .catch((err: unknown) =>
+                    setImportError(err instanceof Error ? err.message : 'Could not read this file.')
+                  )
+                  .finally(() => setImportBusy(false))
+              }}
+            />
+          </div>
+          {importError && <p className="text-destructive text-sm">{importError}</p>}
           <Textarea
             rows={12}
             placeholder={'Jordan Reyes\nSoftware Engineer\njordan@email.com | (555) 210-4432\n\nEXPERIENCE\nSoftware Engineer at Brightlane (Jun 2023 – Present)\n- Led migration of the checkout flow…'}
