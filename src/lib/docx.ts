@@ -35,6 +35,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   const heading = (text: string) =>
     new Paragraph({
       spacing: { before: 240, after: 80 },
+      keepNext: true,
       border:
         tpl.divider === 'none'
           ? undefined
@@ -139,6 +140,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
+            keepNext: true,
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({ text: e.role || 'Role', bold: true, size: 22, font }),
@@ -174,6 +176,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         children.push(
           new Paragraph({
             spacing: { before: 60, after: 20 },
+            keepNext: true,
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({ text: e.degree || 'Degree', bold: true, size: 21, font }),

@@ -1345,3 +1345,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Production 2-page A4 export: page 1 ends mid-entry after header + 2
   bullets (header kept with content); page 2's EDUCATION heading sits
   with its entry, not orphaned.
+
+## Round 67 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (DOCX parity with R66) | The DOCX export had no equivalent of R66's keep-together: Word could break a page right after a section heading or entry header, orphaning it from its content | P2 |
+
+**Fixes shipped** (worker version `3281014c`)
+
+- `keepNext: true` on heading paragraphs and experience/education
+  entry-header paragraphs in the DOCX export.
+
+**Verification (live)**
+
+- Production DOCX inspected: `<w:keepNext/>` present on every heading
+  and entry header paragraph (EXPERIENCE, entry, EDUCATION, entry).
