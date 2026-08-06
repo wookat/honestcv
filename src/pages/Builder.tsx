@@ -1010,6 +1010,25 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="h-9 shrink-0"
+                    title="Duplicate education — handy for a second degree at the same school"
+                    aria-label={`Duplicate education ${idx + 1}`}
+                    onClick={() =>
+                      setResume((r) => {
+                        const i = r.education.findIndex((x) => x.id === e.id)
+                        const copy = { ...r.education[i], id: newId() }
+                        const education = [...r.education]
+                        education.splice(i + 1, 0, copy)
+                        return { ...r, education }
+                      })
+                    }
+                  >
+                    <Copy className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive h-9 shrink-0"
                     title="Delete education"
                     aria-label={`Delete education ${idx + 1}`}
