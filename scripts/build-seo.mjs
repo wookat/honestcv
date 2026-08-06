@@ -574,6 +574,7 @@ ${BEACON}
 <ul class="features">
 ${p.bullets.map((b) => `<li>${esc(b)}</li>`).join('\n')}
 </ul>
+${p.path.startsWith('/vs/') ? '<p style="color:var(--muted);font-size:.85rem">Competitor pricing and free-tier limits last re-verified against their public pricing pages: August 2026.</p>' : ''}
 <div class="cta">
 <p>${FREE_MODE ? 'Launch special: everything is free right now — editor, ATS templates, match score, AI tools and PDF/DOCX downloads. No card, no trial, nothing that renews.' : 'Everything is free to try — editor, ATS templates, live preview, match score. Pay $9.99 exactly once to download. No subscription, no auto-renewal, nothing to cancel.'}</p>
 <a class="btn" href="${p.cta ?? '/builder'}">${esc(p.ctaLabel ?? 'Start building free')}</a>
