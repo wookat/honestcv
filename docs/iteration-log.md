@@ -725,3 +725,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - POST /api/hit → `{"ok":true}`; browser visit increments the KV count
   (1→2); analytics report shows the first-party section.
+
+## Round 36 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (template funnel) | Clicking a specific template on the landing gallery or a `/templates/<slug>/` page opened the builder with the *default* template — the user's choice was silently discarded at the exact moment of highest intent | P1 |
+
+**Fixes shipped** (worker version `200a6e26`)
+
+- Builder honors a `?template=<id>` deep link (validated against `TEMPLATES`)
+  when initializing state.
+- Landing gallery thumbs link to `/builder?template=<id>`; both CTAs on each
+  static template page link to `/builder?template=<slug>`.
+
+**Verification (live)**
+
+- `/builder?template=bold` → Bold selected; `?template=elegant` → Elegant
+  selected. `/templates/bold/` serves two `?template=bold` CTAs.

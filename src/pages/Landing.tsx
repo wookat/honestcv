@@ -136,7 +136,7 @@ export default function Landing() {
             {TEMPLATES.map((t) => (
               <Link
                 key={t.id}
-                to="/builder"
+                to={`/builder?template=${t.id}`}
                 title={t.description}
                 className="hover:border-primary w-20 rounded-md border p-1.5 transition"
               >

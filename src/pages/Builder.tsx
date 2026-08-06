@@ -242,7 +242,15 @@ export default function Builder() {
     'Resume Builder — HonestCV',
     'Build an ATS-friendly resume in your browser: 12 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
   )
-  const [resume, setResume] = useState<Resume>(() => loadResume() ?? emptyResume())
+  const [resume, setResume] = useState<Resume>(() => {
+    const r = loadResume() ?? emptyResume()
+    // ?template=<id> deep link from the landing gallery / static template pages
+    const wanted = new URLSearchParams(window.location.search).get('template')
+    if (wanted && TEMPLATES.some((t) => t.id === wanted) && r.templateId !== wanted) {
+      return { ...r, templateId: wanted }
+    }
+    return r
+  })
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [upgradeReason, setUpgradeReason] = useState('')
   const [aiBusy, setAiBusy] = useState<string | null>(null)
