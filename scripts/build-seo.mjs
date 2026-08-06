@@ -686,6 +686,86 @@ ${others.map((t) => `<li><a href="${t.path}">${esc(t.name)} resume template</a><
 </html>`
 }
 
+function hubPage({ pathname, title, description, h1, intro, items }) {
+  const canonical = `${SITE}${pathname}`
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(description)}" />
+<link rel="canonical" href="${canonical}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="HonestCV" />
+<meta property="og:title" content="${esc(title)}" />
+<meta property="og:description" content="${esc(description)}" />
+<meta property="og:url" content="${canonical}" />
+<meta property="og:image" content="${SITE}/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<style>${CSS}</style>
+${BEACON}
+</head>
+<body>
+<header class="site"><div class="in">
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="btn" href="/builder">Build my resume free</a>
+</div></header>
+<main>
+<h1>${esc(h1)}</h1>
+<p class="lede">${esc(intro)}</p>
+<ul class="features">
+${items.map(({ href, label, blurb }) => `<li><a href="${href}">${esc(label)}</a>${blurb ? ` — ${esc(blurb)}` : ''}</li>`).join('\n')}
+</ul>
+<div class="cta">
+<p>${FREE_MODE ? 'The HonestCV builder is completely free during launch: templates, AI rewrites, ATS score and PDF/DOCX downloads.' : 'The HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
+<a class="btn" href="/builder">Build my resume free</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
+</div>
+</main>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+</body>
+</html>`
+}
+
+const HUBS = [
+  {
+    pathname: '/guides/',
+    title: 'Resume Guides — Honest, Practical Advice for 2026 | HonestCV',
+    description:
+      'Free resume guides: ATS formatting, keywords, summaries, action verbs, employment gaps, tailoring to job descriptions, remote-job resumes and more.',
+    h1: 'Resume guides',
+    intro:
+      'Practical, honest resume advice — no fluff, no fabricated-metrics tricks. Each guide is written to be actionable in minutes and pairs with our free in-browser ATS checker.',
+    items: GUIDES.map((g) => ({
+      href: `${g.path}/`,
+      label: g.title.split(' — ')[0].split(' (')[0],
+      blurb: '',
+    })),
+  },
+  {
+    pathname: '/templates/',
+    title: 'ATS-Friendly Resume Templates (Free) — HonestCV',
+    description:
+      'All 12 HonestCV resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Free during launch — no account, no subscription.',
+    h1: 'ATS-friendly resume templates',
+    intro:
+      'Every HonestCV template follows one rule: strictly single-column real text, the layout ATS parsers read most reliably. Pick a look below — you can switch templates any time without retyping.',
+    items: TEMPLATE_PAGES.map((t) => ({
+      href: `${t.path}/`,
+      label: `${t.name} resume template`,
+      blurb: '',
+    })),
+  },
+]
+
+for (const h of HUBS) {
+  const dir = path.join(OUT_DIR, h.pathname.slice(1))
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(path.join(dir, 'index.html'), hubPage(h))
+  console.log(`built ${h.pathname}index.html`)
+}
+
 for (const p of GUIDES) {
   const dir = path.join(OUT_DIR, p.path.slice(1))
   mkdirSync(dir, { recursive: true })
@@ -705,6 +785,7 @@ const urls = [
   '/builder',
   '/ats-checker',
   ...PAGES.map((p) => `${p.path}/`),
+  ...HUBS.map((h) => h.pathname),
   ...GUIDES.map((p) => `${p.path}/`),
   ...TEMPLATE_PAGES.map((p) => `${p.path}/`),
   ...LEGAL_PAGES.map((p) => `${p.path}/`),

@@ -274,3 +274,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - All four new guide URLs → HTTP 200.
+
+## Round 13 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | SEO/UX walkthrough | `/guides/` and `/templates/` (natural hub URLs users and crawlers try) returned 404 — 11 guides and 12 template pages had no index/hub, weakening internal linking | P1 |
+
+**Fixes shipped** (worker version `89866088`)
+
+- New `hubPage` generator in `build-seo.mjs`; static hub pages at `/guides/`
+  (lists all 11 guides) and `/templates/` (lists all 12 template pages).
+- Sitemap 35 → 37 URLs; IndexNow submitted (HTTP 200, 37 URLs).
+
+**Verification (live)**
+
+- `/guides/` and `/templates/` → HTTP 200; sitemap serves 37 `<loc>` entries.
