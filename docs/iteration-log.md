@@ -701,3 +701,27 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Meter renders in the builder (45% for a partial resume) with "Next: …"
   hints; updates live as fields change.
+
+## Round 35 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data analysis (traffic instrumentation audit) | Cloudflare's beacon.min.js is blocked by adblockers (`ERR_BLOCKED_BY_CLIENT` reproduced in our own browser) — our only traffic measurement silently undercounts exactly when real users arrive | P0 (data) |
+| 2 | QA regression (mobile builder after R34) | 375px builder: no overflow, axe clean, strength meter renders | — |
+
+**Fixes shipped** (worker version `5272d3a5`)
+
+- First-party `/api/hit` endpoint: stores `hit:<day>:<ts>` keys in KV
+  (path only, no cookies/PII, 90-day TTL).
+- SPA (`index.html`): `navigator.sendBeacon('/api/hit', pathname)` on load +
+  pushState/popstate route changes. Static pages: one-line beacon appended to
+  `BEACON`.
+- `scripts/analytics.mjs` now also reports per-day first-party hits alongside
+  the CF Web Analytics numbers.
+
+**Verification (live)**
+
+- POST /api/hit → `{"ok":true}`; browser visit increments the KV count
+  (1→2); analytics report shows the first-party section.
