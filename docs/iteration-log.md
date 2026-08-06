@@ -374,3 +374,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Landing shows "zero payments — everything is free during launch" FAQ and
   "No payment is collected during launch" footnote; no "processed by Paddle"
   text remains.
+
+## Round 18 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (copy consistency sweep, follow-up to R17) | Upgrade dialog (paid-mode surface) still claimed "Payments are securely processed by Paddle" — the live provider abstraction may use Lemon Squeezy | P1 |
+| 2 | SEO | Landing FAQ had no FAQPage structured data for rich results | P2 |
+
+**Fixes shipped** (worker version `11f646bf`)
+
+- Paywall dialog footnote: "Paddle" → "our merchant of record".
+- FAQPage JSON-LD in `index.html` with the two mode-invariant Q&As (ATS
+  parseability, browser-local data).
+
+**Verification (live)**
+
+- `/` serves FAQPage JSON-LD; typecheck/lint/build green.
