@@ -680,3 +680,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - `/terms/` serves og:image meta and /guides/ footer link.
+
+## Round 34 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor pattern (Zety/Resume.io both keep a persistent "resume score/completeness" meter in the editor) | Our builder had no always-visible completeness signal — new users get no guidance on what to fill in next until they hit Final Check at download time | P1 |
+
+**Fixes shipped** (worker version `8a38b8e5`)
+
+- `resumeStrength()` in `guidance.ts`: rule-based 0–100 completeness score
+  (contact, summary, experience, bullets with numbers, education, skills,
+  JD) — no AI. Builder shows a compact "Resume strength" card with color-coded
+  progress bar (`role="progressbar"` + aria values) and the next 2 missing
+  items.
+
+**Verification (live)**
+
+- Meter renders in the builder (45% for a partial resume) with "Next: …"
+  hints; updates live as fields change.

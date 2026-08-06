@@ -2,6 +2,7 @@
  * Rule-based bullet quality checks — runs locally, no AI calls.
  * Flags weak openers, missing quantification, and length problems.
  */
+import type { Resume } from '@/lib/resume'
 
 const WEAK_OPENERS = [
   'responsible for',
@@ -67,4 +68,39 @@ export function checkBullets(bullets: string[]): { index: number; issues: Bullet
   return bullets
     .map((b, index) => ({ index, issues: checkBullet(b) }))
     .filter((r) => r.issues.length > 0)
+}
+
+export interface StrengthResult {
+  /** 0–100 completeness score */
+  score: number
+  /** What's still missing, in fix-first order */
+  missing: string[]
+}
+
+/** Rule-based resume completeness meter — no AI, mirrors what recruiters scan for. */
+export function resumeStrength(r: Resume): StrengthResult {
+  const allBullets = r.experience.flatMap((e) => e.bullets.filter((b) => b.trim()))
+  const checks: [boolean, string, number][] = [
+    [Boolean(r.contact.fullName.trim()), 'Add your name', 10],
+    [Boolean(r.contact.email.trim()), 'Add an email address', 10],
+    [Boolean(r.contact.title.trim()), 'Add a professional title', 5],
+    [r.summary.trim().length >= 60, 'Write a 2–3 sentence summary', 10],
+    [r.experience.length > 0, 'Add at least one experience entry', 15],
+    [allBullets.length >= 3, 'Add 3+ achievement bullets across your roles', 15],
+    [allBullets.some((b) => /\d/.test(b)), 'Put a real number in at least one bullet', 10],
+    [r.education.length > 0, 'Add your education', 10],
+    [
+      r.skills.split(/[,\n]/).filter((s) => s.trim()).length >= 5,
+      'List at least 5 skills',
+      10,
+    ],
+    [Boolean(r.jobDescription.trim()), 'Paste a job description to tailor against', 5],
+  ]
+  let score = 0
+  const missing: string[] = []
+  for (const [pass, hint, weight] of checks) {
+    if (pass) score += weight
+    else missing.push(hint)
+  }
+  return { score, missing }
 }
