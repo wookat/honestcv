@@ -1,4 +1,4 @@
-/** 触发浏览器下载一段文本内容 */
+/** Trigger a browser download of text content */
 export function downloadText(content: string, filename: string, mime = 'text/plain') {
   const blob = new Blob([content], { type: `${mime};charset=utf-8` })
   downloadBlob(blob, filename)
