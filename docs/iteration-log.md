@@ -1827,3 +1827,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production ATS-checker upload of our own PDF artifact now extracts
   the header and the date range as separate lines.
+
+## Round 92 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Content quality audit (continued) | /guides/best-resume-format/ at ~503 words — high-volume head query for the category | P1 (SEO) |
+
+**Fixes shipped** (worker version `9106c620`)
+
+- best-resume-format expanded 6 → 12 sections (~774 words): section
+  order (drag-to-reorder cross-promo), concrete hybrid block sizing,
+  honest gap formatting (years-only presentation vs never stretching
+  dates), career-changer hybrid guidance, formats by career stage,
+  and a closing format checklist.
+
+**Verification (live)**
+
+- Production page serves the new sections.
