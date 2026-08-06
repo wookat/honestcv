@@ -1847,3 +1847,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 93 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Content quality audit (continued) | /guides/internship-resume/ at ~506 words — fall-recruiting season page | P1 (SEO) |
+
+**Fixes shipped** (worker version `3ad831ae`)
+
+- internship-resume expanded 6 → 12 sections (~779 words): GPA
+  thresholds, relevant-coursework line, quantifying like a student,
+  part-time jobs as evidence, master-plus-copies tailoring, and a
+  pre-submit checklist.
+
+**Verification (live)**
+
+- Production page serves the new sections.
