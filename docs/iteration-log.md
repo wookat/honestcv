@@ -192,3 +192,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Clean profile: paste resume + JD → check score → CTA → lands on /builder with
   contact name "Alex Doe" and the JD present in the saved resume.
+
+## Round 9 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor research (first-hand R3 Kickresume test) + SEO | We hold verified first-hand evidence on Kickresume (free tier = PNG-of-page-one only, ~$19–24/mo, AI fabricated metrics) but had no /vs/kickresume page to capture that search demand | P1 |
+
+**Fixes shipped** (worker version `5971cc43`)
+
+- New `/vs/kickresume` comparison page built from our own August 2026 test
+  findings (no unverifiable claims). Sitemap 30 → 31 URLs; IndexNow resubmitted
+  (HTTP 200, 31 URLs).
+
+**Verification (live)**
+
+- `/vs/kickresume/` → HTTP 200 (after ~60s asset propagation); sitemap serves
+  31 `<loc>` entries.
