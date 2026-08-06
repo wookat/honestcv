@@ -1553,3 +1553,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Production import of a sample with AWARDS + LANGUAGES → two custom
   sections with the right bullets; certifications no longer polluted;
   R69/R76 samples still parse identically.
+
+## Round 78 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor re-check | Teal pricing page still renders only ~687 chars in a real browser — no new claim; existing /vs/teal claims unchanged | — |
+| 2 | SEO/internal linking | Cross-links on static pages pointed at slash-less URLs (`/guides/x`) which 307-redirect to `/guides/x/` — one extra hop per click and per crawl; guide "Keep reading" also listed all 22 other guides + 3 product pages (diluted) | P2 |
+
+**Fixes shipped** (worker version `a06118c8`)
+
+- All static cross-links now include the trailing slash (guide related
+  lists, template "others", keyword/comparison related lists).
+- Guide "Keep reading" trimmed to 4 neighbouring guides (wrap-around)
+  plus the comparisons hub.
+
+**Verification (live)**
+
+- `/guides/ats-friendly-resume/` shows 4 guide links + `/vs/` hub, all
+  with trailing slash; `/vs/zety/` related links all trailing-slash.

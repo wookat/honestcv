@@ -739,7 +739,10 @@ function page(p) {
       ? { '@type': 'Offer', price: '0', priceCurrency: 'USD' }
       : { '@type': 'Offer', price: '9.99', priceCurrency: 'USD' },
   }
-  const related = PAGES.filter((r) => r.slug !== p.slug)
+  const related = PAGES.filter((r) => r.slug !== p.slug).map((r) => ({
+    ...r,
+    path: `${r.path}/`,
+  }))
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -879,7 +882,13 @@ function guidePage(p) {
     author: { '@type': 'Organization', name: 'HonestCV', url: SITE },
     publisher: { '@type': 'Organization', name: 'HonestCV', url: SITE },
   }
-  const related = [...GUIDES.filter((g) => g.path !== p.path), ...PAGES.slice(0, 3)]
+  // 4 neighbouring guides (wrap-around) + comparisons hub — a focused list
+  // of direct links (trailing slash avoids a 307 per click/crawl)
+  const gi = GUIDES.findIndex((g) => g.path === p.path)
+  const related = [1, 2, 3, 4]
+    .map((d) => GUIDES[(gi + d) % GUIDES.length])
+    .map((g) => ({ path: `${g.path}/`, title: g.title }))
+    .concat([{ path: '/vs/', title: 'HonestCV vs other resume builders' }])
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -971,7 +980,7 @@ ${BEACON}${FP_BEACON}
 <div class="related">
 <h2>Other templates</h2>
 <ul>
-${others.map((t) => `<li><a href="${t.path}">${esc(t.name)} resume template</a></li>`).join('\n')}
+${others.map((t) => `<li><a href="${t.path}/">${esc(t.name)} resume template</a></li>`).join('\n')}
 </ul>
 </div>
 </main>
