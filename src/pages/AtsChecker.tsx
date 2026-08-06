@@ -50,6 +50,7 @@ export default function AtsChecker() {
   const [resumeText, setResumeText] = useState('')
   const [jd, setJd] = useState('')
   const [checked, setChecked] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -314,6 +315,22 @@ export default function AtsChecker() {
                   Fix it in the builder — resume &amp; job carried over <ArrowRight />
                 </Button>
               </div>
+
+              <p className="text-muted-foreground mt-4 text-center text-xs">
+                Know someone job hunting?{' '}
+                <button
+                  type="button"
+                  className="text-primary underline"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText('https://cv.zalize.com/ats-checker')
+                      .then(() => setLinkCopied(true))
+                  }}
+                >
+                  {linkCopied ? 'Link copied!' : 'Copy the checker link'}
+                </button>{' '}
+                — free, no sign-up, nothing leaves the browser.
+              </p>
             </CardContent>
           </Card>
         )}
