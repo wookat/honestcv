@@ -846,3 +846,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - After a real PDF download the dialog appears once, sets the flag, and does
   not re-show on subsequent downloads.
+
+## Round 42 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data/funnel (R41 follow-through) | The ATS checker is the designated shareable traffic magnet, yet its own results screen had no share affordance — the R41 share loop only existed in the builder | P2 |
+
+**Fixes shipped** (worker version `0af7122e`)
+
+- One-line share footer under the checker results: "Know someone job
+  hunting?" with an inline copy-link button ("Link copied!" feedback).
+
+**Verification (live)**
+
+- Example-score flow renders the line; clicking copies and flips to
+  "Link copied!".
