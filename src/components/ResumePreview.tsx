@@ -32,6 +32,7 @@ export function ResumePreview({ resume }: { resume: Resume }) {
 
   return (
     <div
+      data-resume-preview
       className="mx-auto w-full rounded-md border bg-white p-8 text-[#1f1f1f] shadow-sm"
       style={{ fontFamily, aspectRatio: '8.5 / 11', overflow: 'hidden' }}
       aria-label="Resume preview"

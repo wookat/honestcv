@@ -411,3 +411,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - `/vs/` → HTTP 200; sitemap serves 40 `<loc>` entries.
+
+## Round 20 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough | Ctrl+P from the builder printed the entire app UI (header, form, buttons) instead of the resume — a common escape hatch users reach for | P1 |
+
+**Fixes shipped** (worker version `ff08dab6`)
+
+- Print stylesheet in `index.css`: only the resume preview
+  (`[data-resume-preview]`) is visible when printing; border/shadow/aspect-ratio
+  clipping removed so multi-page content flows.
+
+**Verification (live)**
+
+- Print-media emulation: preview `visibility: visible`, header hidden,
+  `overflow: visible`; printed PDF contains the resume text only.
+
+**Rounds 16–20 complete — batch SOP-04 report sent.**

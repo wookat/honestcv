@@ -63,3 +63,23 @@
       system-ui, sans-serif;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [data-resume-preview],
+  [data-resume-preview] * {
+    visibility: visible;
+  }
+  [data-resume-preview] {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    aspect-ratio: auto !important;
+    overflow: visible !important;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+}
