@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { scoreResumeText } from '@/lib/ats'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
+import { parseResumeText } from '@/lib/importText'
+import { loadResume, saveResume } from '@/lib/resume'
 
 export default function AtsChecker() {
   usePageMeta(
@@ -21,6 +23,28 @@ export default function AtsChecker() {
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const navigate = useNavigate()
+
+  const openInBuilder = () => {
+    const existing = loadResume()
+    const hasContent = Boolean(
+      existing && (existing.contact.fullName || existing.experience.length)
+    )
+    if (
+      !hasContent ||
+      window.confirm(
+        'Replace the resume currently saved in the builder with this pasted one? (Cancel keeps your saved resume; the job description still carries over.)'
+      )
+    ) {
+      const parsed = parseResumeText(resumeText)
+      parsed.jobDescription = jd
+      saveResume(parsed)
+    } else if (existing) {
+      existing.jobDescription = jd
+      saveResume(existing)
+    }
+    void navigate('/builder')
+  }
 
   const result = useMemo(
     () => (checked ? scoreResumeText(resumeText, jd) : null),
@@ -244,10 +268,8 @@ export default function AtsChecker() {
                   AI rewrites your bullets toward this exact job, live ATS score as you
                   edit, and clean PDF/DOCX export. No sign-up, no subscription.
                 </p>
-                <Button asChild className="mt-3">
-                  <Link to="/builder">
-                    Open the resume builder <ArrowRight />
-                  </Link>
+                <Button className="mt-3" onClick={openInBuilder}>
+                  Fix it in the builder — resume &amp; job carried over <ArrowRight />
                 </Button>
               </div>
             </CardContent>
