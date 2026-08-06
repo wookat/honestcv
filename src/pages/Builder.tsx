@@ -1090,6 +1090,25 @@ export default function Builder() {
                     >
                       <ArrowDown className="size-3.5" />
                     </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 sm:h-7"
+                      title="Duplicate project"
+                      aria-label={`Duplicate project ${pIdx + 1}`}
+                      onClick={() =>
+                        setResume((r) => {
+                          const i = r.projects.findIndex((x) => x.id === p.id)
+                          const copy = { ...r.projects[i], id: newId() }
+                          const projects = [...r.projects]
+                          projects.splice(i + 1, 0, copy)
+                          return { ...r, projects }
+                        })
+                      }
+                    >
+                      <Copy className="size-3.5" />
+                    </Button>
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
