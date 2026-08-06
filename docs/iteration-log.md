@@ -1574,3 +1574,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - `/guides/ats-friendly-resume/` shows 4 guide links + `/vs/` hub, all
   with trailing slash; `/vs/zety/` related links all trailing-slash.
+
+## Round 79 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (AI buttons, live) | Clicking "AI polish summary" with an empty summary silently did nothing (`if (!text.trim()) return`), and AI errors rendered at the very bottom of the editor column, far from the button clicked | P1 |
+
+**Fixes shipped** (worker version `0e444341`)
+
+- Empty-input clicks now explain what to do ("Write a rough summary
+  first — the AI polishes your draft, it never invents one", same for
+  bullets/skills, reinforcing the anti-fabrication stance).
+- AI errors render inline next to the button that was clicked
+  (`aiErrorTag`), replacing the bottom-of-column message.
+
+**Verification (live)**
+
+- Production: empty summary + "AI polish summary" → inline hint appears
+  right under the button.
