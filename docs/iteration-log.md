@@ -1673,3 +1673,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 84 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (export → import round trip incl. R77 custom sections) | Custom sections survive the round trip, but a "Name — Title" header line (exactly what our own plain-text export emits) was imported whole into the name field: `fullName: "Jordan Reyes — Software Engineer"` | P1 |
+
+**Fixes shipped** (worker version `c0aaeac2`)
+
+- Import parser splits "Name — Title" header lines into fullName +
+  professional title (em/en dash).
+
+**Verification (live)**
+
+- Production import: name "Jordan Reyes", title "Software Engineer";
+  R69/R76/R77 regression samples parse identically.
