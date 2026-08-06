@@ -147,7 +147,7 @@ class PdfWriter {
   }
 }
 
-export async function buildResumePdf(resume: Resume): Promise<Uint8Array> {
+async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const doc = await PDFDocument.create()
   const fonts: Fonts = tpl.serif
@@ -246,7 +246,16 @@ export async function buildResumePdf(resume: Resume): Promise<Uint8Array> {
     }
   }
 
-  return doc.save()
+  return doc
+}
+
+export async function buildResumePdf(resume: Resume): Promise<Uint8Array> {
+  return (await composeResumePdf(resume)).save()
+}
+
+/** Page count of the exported PDF — drives the page indicator in the builder. */
+export async function countResumePdfPages(resume: Resume): Promise<number> {
+  return (await composeResumePdf(resume)).getPageCount()
 }
 
 export async function downloadResumePdf(resume: Resume, filename: string) {

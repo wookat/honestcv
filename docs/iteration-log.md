@@ -766,3 +766,26 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Target role "Product Manager" → chips render; clicking "+ Roadmapping"
   appends to Skills and removes the chip.
+
+## Round 38 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough + competitor pattern (Zety/Resume.io preview shows page breaks) | Our continuous preview gives no hint whether the exported PDF is 1 or 2 pages — users only find out after downloading | P1 |
+| 2 | Visual/mobile regression (375px, 6 key routes) | No overflow, axe clean everywhere | — |
+
+**Fixes shipped** (worker version `43ef839a`)
+
+- `pdf.ts`: extracted `composeResumePdf()` (returns the `PDFDocument`);
+  `buildResumePdf()` saves it, new `countResumePdfPages()` returns
+  `getPageCount()`.
+- Builder `usePdfPageCount` hook (800 ms debounce, stale-result guard)
+  renders "PDF export: N page(s)" above the preview — amber with a trimming
+  hint when >1 page.
+
+**Verification (live)**
+
+- Indicator shows "PDF export: 1 page" in the builder and recomputes on
+  edits.

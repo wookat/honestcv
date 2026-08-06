@@ -57,7 +57,7 @@ import { checkBullets, resumeStrength } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { downloadResumeDocx, downloadTextDocx } from '@/lib/docx'
-import { downloadResumePdf, downloadTextPdf } from '@/lib/pdf'
+import { countResumePdfPages, downloadResumePdf, downloadTextPdf } from '@/lib/pdf'
 import {
   type ExperienceItem,
   type Resume,
@@ -95,6 +95,24 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     return () => window.clearTimeout(t.current)
   }, [resume])
   return state
+}
+
+/** Debounced page count of the exported PDF, shown next to the preview. */
+function usePdfPageCount(resume: Resume): number | null {
+  const [pages, setPages] = useState<number | null>(null)
+  const seq = useRef(0)
+  useEffect(() => {
+    const id = ++seq.current
+    const t = window.setTimeout(() => {
+      void countResumePdfPages(resume)
+        .then((n) => {
+          if (seq.current === id) setPages(n)
+        })
+        .catch(() => undefined)
+    }, 800)
+    return () => window.clearTimeout(t)
+  }, [resume])
+  return pages
 }
 
 /** Global undo: snapshots resume state (throttled) and restores on Ctrl/Cmd+Z */
@@ -275,6 +293,7 @@ export default function Builder() {
   const freeMode = useFreeMode()
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
+  const pdfPages = usePdfPageCount(resume)
   const { undo, canUndo } = useUndo(resume, setResume)
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
@@ -1194,6 +1213,15 @@ export default function Builder() {
 
         {/* ---- Right: preview + ATS ---- */}
         <div id="preview" className="scroll-mt-16 space-y-4 lg:sticky lg:top-20 lg:self-start">
+          {pdfPages !== null && (
+            <p
+              className={`text-xs ${pdfPages > 1 ? 'text-amber-700' : 'text-muted-foreground'}`}
+            >
+              PDF export: {pdfPages} page{pdfPages === 1 ? '' : 's'}
+              {pdfPages > 1 &&
+                ' — recruiters prefer one page; consider trimming older roles or long bullets'}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             {TEMPLATES.map((t) => (
               <button
