@@ -74,7 +74,7 @@ import {
   sectionLabel,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
-import { bulletStartersFor } from '@/lib/bulletStarters'
+import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
 import { ACCENT_CHOICES, TEMPLATES, getTemplate } from '@/lib/templates'
 
 function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
@@ -993,6 +993,41 @@ export default function Builder() {
                   set('skills', out)
                 )
               )}
+              {(() => {
+                const have = new Set(
+                  resume.skills.split(/[,\n]/).map((s) => s.trim().toLowerCase())
+                )
+                const chips = skillSuggestionsFor(resume.targetRole).filter(
+                  (s) => !have.has(s.toLowerCase())
+                )
+                if (chips.length === 0) return null
+                return (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">
+                      Common for your target role — tap only skills you actually have:
+                    </span>
+                    <span className="mt-1 flex flex-wrap gap-1">
+                      {chips.map((kw) => (
+                        <button
+                          key={kw}
+                          type="button"
+                          className="bg-muted hover:bg-primary/10 rounded-full border px-2 py-0.5"
+                          onClick={() =>
+                            set(
+                              'skills',
+                              resume.skills.trim()
+                                ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
+                                : kw
+                            )
+                          }
+                        >
+                          + {kw}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
+                )
+              })()}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="certs">Certifications (optional)</Label>

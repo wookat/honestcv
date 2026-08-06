@@ -104,3 +104,121 @@ export function bulletStartersFor(role: string): string[] {
   for (const g of GROUPS) if (g.match.test(role)) return g.starters
   return GENERIC
 }
+
+/** Common skills by role family — chips the user taps only if they actually have them. */
+const SKILL_GROUPS: { match: RegExp; skills: string[] }[] = [
+  {
+    match: /engineer|developer|programmer|swe|devops|sre|architect/i,
+    skills: [
+      'JavaScript',
+      'TypeScript',
+      'Python',
+      'React',
+      'Node.js',
+      'SQL',
+      'Docker',
+      'Kubernetes',
+      'AWS',
+      'CI/CD',
+      'Git',
+      'REST APIs',
+    ],
+  },
+  {
+    match: /sales|account exec|business development|bdr|sdr/i,
+    skills: [
+      'Salesforce',
+      'HubSpot',
+      'Prospecting',
+      'Cold outreach',
+      'Pipeline management',
+      'Negotiation',
+      'CRM',
+      'Forecasting',
+    ],
+  },
+  {
+    match: /marketing|growth|seo|content|social media|brand/i,
+    skills: [
+      'SEO',
+      'Google Analytics',
+      'Content marketing',
+      'Email marketing',
+      'Paid social',
+      'Google Ads',
+      'Copywriting',
+      'A/B testing',
+    ],
+  },
+  {
+    match: /product manager|product owner|\bpm\b/i,
+    skills: [
+      'Roadmapping',
+      'User research',
+      'A/B testing',
+      'SQL',
+      'Jira',
+      'Agile',
+      'Stakeholder management',
+      'Product analytics',
+    ],
+  },
+  {
+    match: /designer|ux|ui|creative/i,
+    skills: [
+      'Figma',
+      'Prototyping',
+      'User research',
+      'Design systems',
+      'Usability testing',
+      'Wireframing',
+      'Adobe Creative Suite',
+      'Accessibility',
+    ],
+  },
+  {
+    match: /data|analyst|analytics|scientist|machine learning|\bml\b|\bai\b/i,
+    skills: [
+      'SQL',
+      'Python',
+      'Tableau',
+      'Excel',
+      'Pandas',
+      'Machine learning',
+      'Statistics',
+      'Data visualization',
+      'dbt',
+    ],
+  },
+  {
+    match: /support|customer success|customer service|helpdesk/i,
+    skills: [
+      'Zendesk',
+      'Intercom',
+      'CRM',
+      'Onboarding',
+      'Ticket triage',
+      'Knowledge base writing',
+      'Escalation management',
+    ],
+  },
+  {
+    match: /operations|project manager|program manager|coordinator|logistics/i,
+    skills: [
+      'Project management',
+      'Jira',
+      'Asana',
+      'Process improvement',
+      'Budgeting',
+      'Vendor management',
+      'Excel',
+      'Stakeholder communication',
+    ],
+  },
+]
+
+/** Returns common-skill chips for a role, empty for unrecognized roles. */
+export function skillSuggestionsFor(role: string): string[] {
+  for (const g of SKILL_GROUPS) if (g.match.test(role)) return g.skills
+  return []
+}
