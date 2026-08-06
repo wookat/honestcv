@@ -62,6 +62,8 @@ export interface Resume {
   templateId: string
   /** Custom accent color (hex); empty = template default */
   accentColor: string
+  /** Export paper size: US Letter (US/Canada) or A4 (rest of world) */
+  pageSize: 'letter' | 'a4'
   /** Target role + JD used for tailoring and the ATS score */
   targetRole: string
   jobDescription: string
@@ -90,6 +92,7 @@ export function emptyResume(): Resume {
     sectionOrder: [...SECTION_KEYS],
     templateId: 'classic',
     accentColor: '',
+    pageSize: 'letter',
     targetRole: '',
     jobDescription: '',
   }
