@@ -191,7 +191,9 @@ class PdfWriter {
 
   heading(label: string) {
     const text = this.tpl.headingCase === 'upper' ? label.toUpperCase() : label
-    this.ensure(30)
+    // heading + divider + first content line, so a heading never sits
+    // alone at the bottom of a page
+    this.ensure(52)
     this.gap(10)
     this.text(text, { font: this.fonts.bold, size: 11, color: this.accent })
     if (this.tpl.divider !== 'none') {
@@ -283,6 +285,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
       for (const e of resume.experience) {
         if (!e.company && !e.role) continue
         w.gap(4)
+        w.ensure(34) // keep the entry header with its first bullet
         const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
         const left = `${e.role || 'Role'}  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`
         w.titleLine(left, dates, { size: 10.5 })
@@ -305,6 +308,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
       for (const e of resume.education) {
         if (!e.school) continue
         w.gap(2)
+        w.ensure(34)
         const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
         w.titleLine(
           `${e.degree || 'Degree'}  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,

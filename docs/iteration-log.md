@@ -1325,3 +1325,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - 360px/1280px: CTA present, no horizontal overflow, axe WCAG A/AA
   zero violations; click navigates to `/ats-checker`.
+
+## Round 66 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (multi-page PDF export, 16-entry A4 resume) | Pagination works and page 2 is real text, but there was no keep-together control: a section heading or an entry header could land alone as the last line of a page with its content orphaned onto the next | P2 |
+
+**Fixes shipped** (worker version `ed3f36bf`)
+
+- `PdfWriter.heading` reserves heading + divider + first content line
+  (`ensure(52)`); experience/education entry headers reserve header +
+  first bullet (`ensure(34)`).
+
+**Verification (live)**
+
+- Production 2-page A4 export: page 1 ends mid-entry after header + 2
+  bullets (header kept with content); page 2's EDUCATION heading sits
+  with its entry, not orphaned.
