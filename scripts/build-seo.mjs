@@ -795,7 +795,7 @@ ${BEACON}${FP_BEACON}
 <body>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
-<a class="btn" href="/builder">Use this template free</a>
+<a class="btn" href="/builder?template=${p.path.split('/').pop()}">Use this template free</a>
 </div></header>
 <main>
 <h1>${esc(p.name)} — ATS-friendly resume template</h1>
@@ -809,8 +809,8 @@ ${BEACON}${FP_BEACON}
 <li>${FREE_MODE ? 'Free to download during our launch — no card, no subscription' : 'One-time $9.99 to download — no subscription, nothing to cancel'}</li>
 </ul>
 <div class="cta">
-<p>Open the builder, pick the ${esc(p.name)} template, and start from a working example — no account needed.</p>
-<a class="btn" href="/builder">Use the ${esc(p.name)} template free</a>
+<p>Open the builder with the ${esc(p.name)} template already selected — no account needed.</p>
+<a class="btn" href="/builder?template=${p.path.split('/').pop()}">Use the ${esc(p.name)} template free</a>
 </div>
 <div class="related">
 <h2>Other templates</h2>
