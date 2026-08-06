@@ -568,3 +568,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - `/templates/` serves 12 SVGs, each template page 1; axe clean, no mobile
   overflow at 375px.
+
+## Round 28 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (first-time /ats-checker visitor) | Empty state was a dead end: two blank textareas and a disabled button — nothing demonstrates what the score output looks like before the visitor invests in pasting a resume | P2 |
+
+**Fixes shipped** (worker version `50c1592a`)
+
+- "see an example score" link in the empty state fills a realistic sample
+  resume + job description and immediately shows the scored result.
+
+**Verification (live)**
+
+- Click on the link fills both fields and renders score with matched/missing
+  keywords.
