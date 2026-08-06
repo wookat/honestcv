@@ -1026,3 +1026,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - 360px `/builder` scrollWidth 345/345 (no overflow); all other swept routes
   already clean.
+
+## Round 51 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (landing vs shipped product) | The landing feature grid still described the R1-era product — none of the R44/R46/R47-48 differentiators (backup/restore, per-job copies, clickable exports) appeared anywhere on the page a first-time visitor decides on | P2 |
+
+**Fixes shipped** (worker version `a34fec54`)
+
+- Feature grid 4 → 6 cards: "One copy per job" (R46), "Clickable, ATS-clean
+  exports" (R47/48); "Private by design" copy now mentions one-click JSON
+  backup and restore (R44).
+
+**Verification (live)**
+
+- All three new copy blocks render on production; 360px landing shows no
+  horizontal overflow with the 6-card grid.

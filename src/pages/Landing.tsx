@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BadgeCheck,
   Ban,
+  Copy,
   FileDown,
   Lock,
   ShieldCheck,
@@ -36,7 +37,17 @@ const FEATURES = [
   {
     icon: ShieldCheck,
     title: 'Private by design',
-    text: 'No account, no sign-up. Your resume lives in your browser. The only data we ever see is text you explicitly send for AI rewriting.',
+    text: 'No account, no sign-up. Your resume lives in your browser, with one-click JSON backup and restore. The only data we ever see is text you explicitly send for AI rewriting.',
+  },
+  {
+    icon: Copy,
+    title: 'One copy per job',
+    text: 'Save a named copy of your resume for every application — tailor keywords for job B without losing the version you sent to job A.',
+  },
+  {
+    icon: BadgeCheck,
+    title: 'Clickable, ATS-clean exports',
+    text: 'Your email, website and LinkedIn are live links in both the PDF and the DOCX — recruiters click straight through, and parsers still read every word.',
   },
 ]
 
