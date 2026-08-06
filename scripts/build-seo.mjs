@@ -16,7 +16,7 @@ const BEACON =
   '<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=\'{"token": "d3ace0c72c2f4a6f8b96f1e7f8fd4dac"}\'></script>'
 // First-party pageview beacon (adblock-proof fallback; path only, no PII)
 const FP_BEACON =
-  '<script>try{navigator.sendBeacon("/api/hit",location.pathname)}catch(e){}</script>'
+  '<script>try{var r="";if(document.referrer){var o=new URL(document.referrer).origin;if(o!==location.origin)r=o}navigator.sendBeacon("/api/hit",JSON.stringify({p:location.pathname,r:r}))}catch(e){}</script>'
 
 const PAGES = [
   {
