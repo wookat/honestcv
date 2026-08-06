@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom'
 import Landing from '@/pages/Landing'
 import Builder from '@/pages/Builder'
 import AtsChecker from '@/pages/AtsChecker'
+import NotFound from '@/pages/NotFound'
 
 export default function App() {
   return (
@@ -9,7 +10,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/builder" element={<Builder />} />
       <Route path="/ats-checker" element={<AtsChecker />} />
-      <Route path="*" element={<Landing />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }

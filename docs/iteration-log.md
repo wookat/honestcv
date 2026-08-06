@@ -470,3 +470,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - All three guides → HTTP 200; sitemap serves 43 `<loc>` entries.
+
+## Round 23 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA regression (R22 pages) | 6 new/hub pages axe-clean, no mobile overflow | — |
+| 2 | UX walkthrough | Unknown URLs returned HTTP 404 correctly (R1 fix) but rendered the full landing page — confusing "am I in the right place?" experience with no recovery links | P2 |
+
+**Fixes shipped** (worker version `7ce748bd`)
+
+- Dedicated `NotFound` page for the SPA catch-all route: clear "Page not
+  found" heading + CTAs to builder/ATS checker and links to the three hubs.
+
+**Verification (live)**
+
+- `/nonexistent-xyz` → HTTP 404 with the new not-found page and hub links.
