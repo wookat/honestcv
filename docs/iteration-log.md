@@ -1512,3 +1512,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production: expand Projects → "Duplicate project 1" → Alpha, Alpha
   with unique ids; state restored after test.
+
+## Round 76 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (import parser, pipe-separated sample) | Healthy: `Role | Company` headers, month-name date lines, `MBA | School` education all parse correctly | — |
+| 2 | Frontend performance | Main JS bundle was 1.2 MB — `pdf-lib` and `docx` were bundled eagerly even though they're only needed at export time | P1 |
+
+**Fixes shipped** (worker version `c7caf0a1`)
+
+- `pdf` and `docx` libs now load via dynamic `import()` at export /
+  page-count time; main bundle 1207 KB → 425 KB (pdf 426 KB and docx
+  354 KB split into lazy chunks).
+
+**Verification (live)**
+
+- Builder loads, page-count indicator shows "1 page" (lazy pdf chunk
+  works), PDF and DOCX exports both download.
