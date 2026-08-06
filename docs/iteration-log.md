@@ -1945,3 +1945,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 98 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Content quality audit (continued) | /guides/resume-bullet-points/ at ~525 words — the page that showcases the builder's bullet-quality check | P1 (SEO) |
+
+**Fixes shipped** (worker version `9f64f6ea`)
+
+- resume-bullet-points expanded 6 → 12 sections (~812 words): finding
+  forgotten numbers (scope as metric), one idea per bullet, length
+  rule, tense/person conventions (first-person flag cross-promo,
+  matches guidance.ts behavior), bullets by role type, and a rewrite
+  drill.
+
+**Verification (live)**
+
+- Production page serves the new sections.
