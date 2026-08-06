@@ -1616,3 +1616,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production: save a copy → list row shows "ATS 67/100"; versions
   storage restored after test.
+
+## Round 81 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Content quality audit (all 23 guides, word count) | Guides run ~455–500 words each — thin against competitor guides (typically 1,500+ words); thinnest is /guides/resume-action-verbs/ at 455 | P1 (SEO) |
+
+**Fixes shipped** (worker version `b003d45a`)
+
+- resume-action-verbs guide expanded 6 → 12 sections (operations,
+  design/content, support/healthcare verb categories; repeated-verb,
+  verb-vs-posting and verb-needs-a-number advice), ~455 → ~710 words.
+  All claims kept factual; anti-fabrication framing retained.
+
+**Verification (live)**
+
+- Production page shows 12 content h2s and the new sections; remaining
+  thin guides queued for future rounds.

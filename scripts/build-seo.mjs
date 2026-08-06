@@ -245,6 +245,12 @@ const GUIDES = [
       ['Growth, sales & impact', 'Grew, Increased, Reduced, Generated, Closed, Negotiated, Converted, Accelerated. These verbs demand a number — “Grew organic traffic 3×” or “Closed $1.2M in new ARR”. A growth verb without a metric reads as evasive.'],
       ['Analysis & communication', 'Analyzed, Forecasted, Modeled, Presented, Authored, Translated, Synthesized, Advised. Best for consulting, finance and research bullets where the deliverable is insight rather than software.'],
       ['Verbs to cut', '“Responsible for”, “Tasked with”, “Assisted”, “Participated in”, “Utilized”, “Various duties”. They are passive, vague, or both. Rewrite: “Responsible for onboarding” → “Onboarded 30+ enterprise customers with a 95% activation rate”. One quantified bullet outworks five vague ones.'],
+      ['Operations & process', 'Streamlined, Standardized, Consolidated, Scheduled, Audited, Reconciled, Expedited, Overhauled. Operations bullets live or die on before/after: “Overhauled the returns workflow, cutting turnaround from 9 days to 2” shows the process and the payoff in one line.'],
+      ['Design, content & product', 'Designed, Prototyped, Authored, Produced, Localized, Rebranded, Storyboarded, Curated. Attach the audience or reach: “Produced onboarding videos watched by 40k new users” or “Rebranded the newsletter, lifting open rate from 18% to 31%”.'],
+      ['Support, healthcare & service', 'Treated, Triaged, Counseled, Resolved, De-escalated, Trained, Administered, Advocated. Volume and quality metrics both work: “Resolved 60+ tickets/week with a 4.9/5 CSAT” or “Triaged intake for a 30-bed unit”.'],
+      ['Don’t repeat the same verb', 'Two bullets in the same job starting with “Led” read as padding. Vary within the same family — Led / Directed / Chaired / Coordinated — and reserve your strongest verb for your strongest result. Our builder’s bullet-quality check flags weak openers as you type.'],
+      ['Match the verb to the posting', 'Job descriptions telegraph the verbs they want: a posting that says “drive adoption” rewards “Drove”, one that says “own the roadmap” rewards “Owned”. Mirror the posting’s verbs where they’re true of your work — that is exactly what keyword-matching ATS screens reward.'],
+      ['The verb is a promise the number keeps', 'A strong verb sets up an expectation; the metric pays it off. “Reduced” demands “by how much?”, “Launched” demands “to whom?”. If you can’t finish the sentence with a concrete fact, choose a verb you can back up — never invent the number.'],
     ],
   },
   {
