@@ -1401,3 +1401,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Production paste-import: `contact.location` = "Chicago, IL"; entry =
   role "Senior Data Analyst", company "NorthBridge Health", location
   "Chicago, IL", dates Mar 2021 – Present.
+
+## Round 70 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (cover-letter template flow, live) | Flow healthy end-to-end (template → edit → PDF/DOCX), but the exported document was titled "AI Cover Letter" even when built from the non-AI template — mislabeling on a document users send to employers — and the placeholder produced "the [the role] position" | P2 |
+
+**Fixes shipped** (worker version `096cf25b`)
+
+- Export title is now "Cover Letter"; role placeholder is `[role]` so
+  the sentence reads "the [role] position".
+
+**Verification (live)**
+
+- Production template letter: "…apply for the [role] position…"; DOCX
+  document title "Cover Letter".

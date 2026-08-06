@@ -1978,7 +1978,7 @@ function BundleToolDialog({
 
   const insertTemplate = () => {
     if (kind === 'interview') {
-      const role = resume.targetRole || '[the role]'
+      const role = resume.targetRole || '[role]'
       setResult(
         `Interview prep — ${role}\n\n1. Your story (2 minutes)\n- Why you: [the one-line version of your background that fits this role]\n- Why this company: [a product, mission or recent news you genuinely care about]\n- Why now: [what you want next that this role offers]\n\n2. Evidence to have ready\n- [Your strongest achievement relevant to the posting — with the real number]\n- [A hard problem you solved — situation, action, result]\n- [A failure or conflict and what you changed afterwards]\n\n3. Keywords from the posting to work into answers\n- [Copy the top 5 requirements from the job description here]\n\n4. Questions to ask them\n- What does success in this role look like after 6 months?\n- What's the hardest problem the team is working on right now?\n- [A question specific to this company you couldn't ask anywhere else]\n\n5. Logistics\n- [Interviewer names + roles] / [format and length] / [what to bring or prepare]`
       )
@@ -1986,7 +1986,7 @@ function BundleToolDialog({
       return
     }
     const name = resume.contact.fullName || '[Your name]'
-    const role = resume.targetRole || '[the role]'
+    const role = resume.targetRole || '[role]'
     const co = company || '[Company]'
     setResult(
       `Dear Hiring Manager,\n\nI'm writing to apply for the ${role} position at ${co}. [One sentence on why this company or team specifically — a product, a mission, a recent launch.]\n\nIn my current role at [current company], I [your strongest, most relevant achievement — with a real number if you have one]. Before that, I [second relevant achievement or responsibility]. These map directly to what you're looking for: [requirement from the job description you meet best].\n\nI'd welcome the chance to talk about how I can help ${co} [team goal from the posting]. Thank you for your consideration.\n\nSincerely,\n${name}`
@@ -1994,7 +1994,7 @@ function BundleToolDialog({
     setError('')
   }
 
-  const title = kind === 'cover' ? 'AI Cover Letter' : 'Interview Prep Brief'
+  const title = kind === 'cover' ? 'Cover Letter' : 'Interview Prep Brief'
   return (
     <Dialog open={kind !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
