@@ -38,8 +38,20 @@ const SECTION_HEADINGS: [RegExp, SectionName][] = [
   [/^(certifications?|certificates|licenses)\b/i, 'certifications'],
 ]
 
-const isBullet = (line: string) => /^[-•*·▪◦]\s+/.test(line)
-const stripBullet = (line: string) => line.replace(/^[-•*·▪◦]\s+/, '').trim()
+const isBullet = (line: string) => /^[-–—•*·▪◦]\s+/.test(line)
+const stripBullet = (line: string) => line.replace(/^[-–—•*·▪◦]\s+/, '').trim()
+
+/** First phone-like match that isn't actually a year range like "2010 - 2014". */
+function findPhone(text: string): string {
+  const re = new RegExp(PHONE_RE.source, 'g')
+  for (const m of text.matchAll(re)) {
+    const candidate = m[0].trim()
+    if (/^\d{4}\s*[–—-]\s*\d{4}$/.test(candidate)) continue
+    if (candidate.replace(/\D/g, '').length < 7) continue
+    return candidate
+  }
+  return ''
+}
 
 function matchHeading(line: string): SectionName | null {
   const t = line.trim().replace(/[:：]$/, '')
@@ -83,7 +95,7 @@ export function parseResumeText(raw: string): Resume {
 
   const email = text.match(EMAIL_RE)?.[0] ?? ''
   const linkedin = text.match(LINKEDIN_RE)?.[0] ?? ''
-  const phone = text.match(PHONE_RE)?.[0]?.trim() ?? ''
+  const phone = findPhone(text)
   resume.contact.email = email
   resume.contact.phone = phone
   resume.contact.linkedin = linkedin
