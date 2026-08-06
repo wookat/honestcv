@@ -947,3 +947,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Save copy → edit → save second copy → load first restores the original
   name; delete removes the row; the count badge updates.
+
+## Round 47 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor export reverse-engineering (Zety/Resume.io PDFs have clickable contact links) | Our exported PDF rendered email/website/LinkedIn as dead text — recruiters can't click through | P1 |
+
+**Fixes shipped** (worker version `9953cd0c`)
+
+- `PdfWriter.linkLine()`: contact line drawn as measured segments with
+  pdf-lib URI link annotations (`mailto:` for email, https-normalized for
+  website/LinkedIn); falls back to plain wrapped text when too wide for
+  link geometry.
+
+**Verification (live)**
+
+- Exported PDF from production carries a `/Subtype /Link` annotation with
+  `URI (mailto:jordan.reyes@email.com)` at the contact line coordinates
+  (annotations live in object streams, verified by re-parsing with pdf-lib).

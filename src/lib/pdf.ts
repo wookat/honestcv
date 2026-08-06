@@ -3,7 +3,7 @@
  * (never an image), single-column US Letter layout, template-aware styling.
  */
 
-import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib'
+import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'
 import { downloadBlob } from '@/lib/download'
 import { type Resume, orderedSectionKeys } from '@/lib/resume'
 import { getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
@@ -103,6 +103,51 @@ class PdfWriter {
     this.y -= h
   }
 
+  /** One line of segments where some are clickable links; falls back to plain
+   *  wrapped text when the line is too wide for link geometry. */
+  linkLine(
+    segments: { text: string; url?: string }[],
+    opts: { size?: number; color?: ReturnType<typeof rgb>; center?: boolean } = {}
+  ) {
+    const font = this.fonts.regular
+    const size = opts.size ?? 9
+    const sep = '  |  '
+    const full = segments.map((s) => s.text).join(sep)
+    const totalWidth = font.widthOfTextAtSize(full, size)
+    if (totalWidth > CONTENT_W) {
+      this.text(full, { size, color: opts.color, center: opts.center })
+      return
+    }
+    const lineHeight = size * 1.35
+    this.ensure(lineHeight)
+    this.y -= lineHeight
+    let x = opts.center ? (PAGE_W - totalWidth) / 2 : MARGIN
+    segments.forEach((s, i) => {
+      const withSep = i < segments.length - 1 ? s.text + sep : s.text
+      this.page.drawText(s.text, {
+        x,
+        y: this.y,
+        size,
+        font,
+        color: opts.color ?? this.ink,
+      })
+      if (s.url) {
+        const w = font.widthOfTextAtSize(s.text, size)
+        const annot = this.doc.context.register(
+          this.doc.context.obj({
+            Type: 'Annot',
+            Subtype: 'Link',
+            Rect: [x, this.y - 2, x + w, this.y + size + 2],
+            Border: [0, 0, 0],
+            A: { Type: 'Action', S: 'URI', URI: PDFString.of(s.url) },
+          })
+        )
+        this.page.node.addAnnot(annot)
+      }
+      x += font.widthOfTextAtSize(withSep, size)
+    })
+  }
+
   heading(label: string) {
     const text = this.tpl.headingCase === 'upper' ? label.toUpperCase() : label
     this.ensure(30)
@@ -174,12 +219,17 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
     w.gap(2)
     w.text(c.title, { size: 12, color: w.accent, center: centerHeader })
   }
-  const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]
-    .filter(Boolean)
-    .join('  |  ')
-  if (contactLine) {
+  const httpUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
+  const contactSegments = [
+    c.email ? { text: c.email, url: `mailto:${c.email}` } : null,
+    c.phone ? { text: c.phone } : null,
+    c.location ? { text: c.location } : null,
+    c.website ? { text: c.website, url: httpUrl(c.website) } : null,
+    c.linkedin ? { text: c.linkedin, url: httpUrl(c.linkedin) } : null,
+  ].filter((s): s is { text: string; url?: string } => s !== null)
+  if (contactSegments.length > 0) {
     w.gap(2)
-    w.text(contactLine, { size: 9, color: w.soft, center: centerHeader })
+    w.linkLine(contactSegments, { size: 9, color: w.soft, center: centerHeader })
   }
   w.gap(6)
 
