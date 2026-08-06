@@ -712,6 +712,20 @@ footer.site{border-top:1px solid var(--border)}
 footer.site .in{max-width:72rem;margin:0 auto;padding:1.5rem 1rem;text-align:center;font-size:.75rem;color:var(--muted)}
 `.trim()
 
+/** BreadcrumbList JSON-LD: Home → hub → page */
+function breadcrumbLd(crumbs) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [{ name: 'Home', path: '/' }, ...crumbs].map((c, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: c.name,
+      item: `${SITE}${c.path}`,
+    })),
+  }
+}
+
 function page(p) {
   const canonical = `${SITE}${p.path}`
   const jsonLd = {
@@ -744,6 +758,7 @@ function page(p) {
 <meta property="og:image" content="${SITE}/og.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
+<script type="application/ld+json">${JSON.stringify(breadcrumbLd(p.path.startsWith('/vs/') ? [{ name: 'Comparisons', path: '/vs/' }, { name: p.h1, path: p.path }] : [{ name: p.h1, path: p.path }]))}</script>
 <style>${CSS}</style>
 ${BEACON}${FP_BEACON}
 </head>
@@ -882,6 +897,7 @@ function guidePage(p) {
 <meta property="og:image" content="${SITE}/og.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
+<script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Guides', path: '/guides/' }, { name: p.h1, path: p.path }]))}</script>
 <style>${CSS}</style>
 ${BEACON}${FP_BEACON}
 </head>
@@ -928,6 +944,7 @@ function templatePage(p) {
 <meta property="og:url" content="${canonical}" />
 <meta property="og:image" content="${SITE}/og.png" />
 <meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Templates', path: '/templates/' }, { name: `${p.name} resume template`, path: p.path }]))}</script>
 <style>${CSS}</style>
 ${BEACON}${FP_BEACON}
 </head>

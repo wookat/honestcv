@@ -1419,3 +1419,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production template letter: "…apply for the [role] position…"; DOCX
   document title "Cover Letter".
+
+## Round 71 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | UX walkthrough (interview-prep template flow, live) | Healthy: template fills brief, PDF exports with real text (923 chars); dialog fits 360px with no overflow | — |
+| 2 | SEO | Static pages had Article/WebApplication JSON-LD but no `BreadcrumbList` — breadcrumb schema powers the breadcrumb trail in Google results and clarifies site structure | P2 |
+
+**Fixes shipped** (worker version `190e7f55`)
+
+- `BreadcrumbList` JSON-LD (Home → hub → page) on guide, template,
+  comparison and keyword pages.
+
+**Verification (live)**
+
+- `/guides/resume-keywords/`, `/vs/zety/`, `/templates/modern/` each
+  serve a BreadcrumbList with correct Home → hub → page items.
