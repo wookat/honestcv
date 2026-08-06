@@ -987,3 +987,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - DOCX downloaded from production: `word/_rels/document.xml.rels` contains
   `mailto:jordan.reyes@email.com` and `document.xml` has the hyperlink run.
+
+## Round 49 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | SEO (search-term analysis) | Two of the highest-volume informational queries in the category — "what is an ATS" and "resume vs CV" — had no page; both funnel naturally into the free checker/builder | P2 |
+
+**Fixes shipped** (worker version `d107124e`)
+
+- `/guides/what-is-an-ats` — myth-busting explainer (parsing mechanics, what
+  recruiters see, the fake 75% auto-reject stat), CTA to the checker.
+- `/guides/resume-vs-cv` — US/international usage, academic CVs, what to
+  send when a posting says "CV". Sitemap 46 → 48; IndexNow submitted
+  (48 URLs → HTTP 200).
+
+**Verification (live)**
+
+- Both routes 200; `/guides/` hub lists both.

@@ -442,6 +442,35 @@ const GUIDES = [
       ['Match the posting’s keywords', 'Bullets are where keyword matches naturally live — the posting says “stakeholder management”, your bullet should name the stakeholders you managed. Check your match score against any posting with our free ATS checker before you submit.'],
     ],
   },
+  {
+    path: '/guides/what-is-an-ats',
+    title: 'What Is an ATS? How Applicant Tracking Systems Read Your Resume (2026)',
+    description:
+      'What an applicant tracking system actually does with your resume: how parsing works, what recruiters see, the myths about “beating the bots”, and how to check your resume parses cleanly — free.',
+    h1: 'What an ATS actually does with your resume',
+    sections: [
+      ['It’s a filing system, not a robot gatekeeper', 'An ATS (applicant tracking system — Workday, Greenhouse, Lever, iCIMS, Taleo…) is the database recruiters use to manage applications. It parses your resume into structured fields: name, contact, work history, skills. Most rejections blamed on “the ATS” are a human recruiter spending eight seconds on a parsed profile that looked thin or mismatched.'],
+      ['How parsing works', 'The parser extracts text and maps it to fields using section headings and layout. Standard headings (“Work Experience”, “Education”, “Skills”), single-column layout, and real text (not images) parse reliably. Creative headings, multi-column designs, tables and graphics are where data gets scrambled or dropped.'],
+      ['What recruiters actually see', 'A summary card: recent titles, companies, dates, skills, sometimes a match score against the posting. If your best material is trapped in a sidebar the parser skipped, the recruiter never sees it. That is why ATS-friendly formatting matters — not because software rejects you, but because humans decide from the parsed view.'],
+      ['Keyword screening is real, but simpler than you think', 'Recruiters filter and search by terms from the posting — “Kubernetes”, “account management”, “CPA”. Matching happens on the words you actually use, so mirror the posting’s vocabulary where it is true of you. Stuffing white-text keywords or unrelated terms fails the human review that always follows.'],
+      ['The myths', 'No, ATS software does not auto-reject 75% of resumes — that number traces to a vendor survey, not parser behavior. No, PDFs are not unreadable — a text-based PDF parses fine nearly everywhere; an image-based (scanned or “flattened”) PDF does not, anywhere. No, you don’t need to trick anything: clean structure plus honest keyword overlap is the whole game.'],
+      ['Check how yours parses', 'Our free ATS checker runs the same structural checks parsers rely on — headings, contact line, text extraction, keyword match against a posting — right in your browser. No signup, and your resume never leaves your machine.'],
+    ],
+  },
+  {
+    path: '/guides/resume-vs-cv',
+    title: 'Resume vs CV: The Difference (and Which One to Send) — 2026',
+    description:
+      'Resume vs CV explained: length, content, and when each is expected — US/Canada vs UK/Europe usage, academic CVs, and what to send when a posting says “CV” but means resume.',
+    h1: 'Resume vs CV: which one does this job want?',
+    sections: [
+      ['The short answer', 'In the US and Canada: a resume is the 1–2 page tailored summary almost every job wants; a CV (curriculum vitae) is the complete multi-page academic record used for research, faculty and grant applications. In the UK, Ireland, Europe, Australia and much of the rest of the world, “CV” simply means what Americans call a resume.'],
+      ['What a resume is', 'A marketing document, not a biography: 1–2 pages, tailored to one target role, leading with your strongest relevant evidence — recent roles, quantified bullets, matching skills. Older and irrelevant material gets cut, not summarized.'],
+      ['What an academic CV is', 'A complete record that grows with your career: every publication, conference talk, grant, teaching appointment and committee. Length is expected — a mid-career academic CV runs 5–15 pages. Nothing is tailored away; completeness is the point.'],
+      ['Reading the posting', 'A UK/EU posting asking for a “CV” wants a 1–2 page resume. A US university posting for a research or faculty role asking for a “CV” wants the full academic document. A US company posting asking for a resume never wants 8 pages — when in doubt, send the concise tailored version.'],
+      ['Same rules either way', 'Whatever it’s called, the screening reality is identical: clean single-column structure, real text, standard headings, keywords that mirror the posting. Our free ATS checker works on both — and the builder exports a clean PDF or DOCX either way.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */
