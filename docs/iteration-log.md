@@ -1211,3 +1211,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - With the flag: 0 `/api/hit` requests across SPA and static pages;
   without it: beacon fires normally.
+
+## Round 60 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor pricing re-check (live pages) | Zety still $1.95 trial / $25.95 — matches our claims. Resume.io's pricing page now lists $29.95/month (and $49.95 tier), but `/vs/resume-io` still said "roughly $24.95/month" — an outdated claim on a page whose whole pitch is honesty | P1 |
+
+**Fixes shipped** (worker version `a6b5f86f`)
+
+- `/vs/resume-io` intro + bullet updated to $29.95/month ("its pricing
+  page currently lists"), keeping the August 2026 re-verified stamp
+  accurate. Landing's $25.95–$29.95 range already covered it.
+
+**Verification (live)**
+
+- Zety and Resume.io pricing pages fetched in-browser; production
+  `/vs/resume-io` now serves the $29.95 figures.

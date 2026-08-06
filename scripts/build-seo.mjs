@@ -102,9 +102,9 @@ const PAGES = [
       'Resume.io charges a small trial fee that converts to a recurring subscription. HonestCV is a one-time purchase: ATS templates, AI rewrites, free match score, PDF/DOCX export.',
     h1: 'HonestCV vs Resume.io: buy your resume, don’t rent it',
     intro:
-      'Resume.io is one of the most popular resume builders, and like most of the category it monetizes through a low-cost 7-day trial that automatically converts into a recurring subscription (roughly $24.95/month) unless you cancel in time. If you only need a resume for a few weeks of applications, that pricing model works against you. HonestCV is the opposite: the editor, templates and ATS match score are free, and downloading is a one-time purchase — there is never anything to cancel.',
+      'Resume.io is one of the most popular resume builders, and like most of the category it monetizes through a low-cost 7-day trial that automatically converts into a recurring subscription (its pricing page currently lists $29.95/month) unless you cancel in time. If you only need a resume for a few weeks of applications, that pricing model works against you. HonestCV is the opposite: the editor, templates and ATS match score are free, and downloading is a one-time purchase — there is never anything to cancel.',
     bullets: [
-      'One-time purchase vs a ~$24.95/month auto-renewing subscription',
+      'One-time purchase vs a ~$29.95/month auto-renewing subscription',
       'Free ATS match score against any pasted job description — before paying anything',
       'No account required; your resume lives in your browser, not a server database',
       'AI rewrites that sharpen your real experience without inventing anything',
