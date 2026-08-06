@@ -968,3 +968,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Exported PDF from production carries a `/Subtype /Link` annotation with
   `URI (mailto:jordan.reyes@email.com)` at the contact line coordinates
   (annotations live in object streams, verified by re-parsing with pdf-lib).
+
+## Round 48 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (R47 parity check) | Same dead-text contact gap in the DOCX export — recruiters opening the Word file also could not click email/website/LinkedIn | P1 |
+
+**Fixes shipped** (worker version `3969bbcb`)
+
+- `docx.ts` contact line rebuilt from segments: `ExternalHyperlink` runs with
+  the built-in `Hyperlink` style for email (`mailto:`) and https-normalized
+  website/LinkedIn; plain runs for phone/location.
+
+**Verification (live)**
+
+- DOCX downloaded from production: `word/_rels/document.xml.rels` contains
+  `mailto:jordan.reyes@email.com` and `document.xml` has the hyperlink run.
