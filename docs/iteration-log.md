@@ -130,3 +130,25 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Golden-path QA as above — no regressions from R1–R4 changes.
 
 **Data snapshot**: unchanged (5 PV / 5 UV QA-only, 3 test leads).
+
+## Round 6 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Competitor research + visual | Zety/Resume.io/Kickresume all show visual template previews; our picker was 12 text chips with only a color dot — users couldn't compare layouts without clicking through each | P1 |
+
+**Fixes shipped** (worker version `ce91d140`)
+
+- Template picker: new `TemplateThumb` schematic mini-previews (64px cards)
+  derived from each template's real metadata — header alignment, serif font,
+  divider style (line/thick/none) and accent color — with the template name below
+  and a ring on the selected card.
+
+**Verification (live)**
+
+- 12 thumbnails render, selection ring follows clicks (screenshot in PR #15).
+- Mobile 390px re-check: no horizontal overflow with the new grid.
+- Note: bundle propagation took ~60s post-deploy (old JS hash served briefly) —
+  worth remembering when verifying deploys.

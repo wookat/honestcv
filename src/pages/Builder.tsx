@@ -72,7 +72,7 @@ import {
   saveResume,
   sectionLabel,
 } from '@/lib/resume'
-import { ACCENT_CHOICES, TEMPLATES, getTemplate } from '@/lib/templates'
+import { ACCENT_CHOICES, TEMPLATES, getTemplate, type TemplateMeta } from '@/lib/templates'
 
 function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
   const t = useRef<number | undefined>(undefined)
@@ -143,6 +143,39 @@ function useUndo(
   }, [undo])
 
   return { undo, canUndo }
+}
+
+/** Schematic mini-preview of a template's layout (header alignment, divider, accent). */
+function TemplateThumb({ t }: { t: TemplateMeta }) {
+  const align = t.headerAlign === 'center' ? 'items-center' : 'items-start'
+  const divider =
+    t.divider === 'none' ? '' : t.divider === 'thick' ? 'border-b-2' : 'border-b'
+  return (
+    <span
+      aria-hidden
+      className={`flex h-20 w-full flex-col gap-[3px] rounded-sm border bg-white p-1.5 ${
+        t.serif ? 'font-serif' : ''
+      }`}
+    >
+      <span className={`flex w-full flex-col gap-[2px] ${align}`}>
+        <span
+          className="h-[5px] w-7 rounded-[1px]"
+          style={{ background: t.nameCase === 'upper' ? '#111' : '#333' }}
+        />
+        <span className="h-[3px] w-9 rounded-[1px] bg-neutral-300" />
+      </span>
+      {[0, 1].map((i) => (
+        <span key={i} className="mt-[3px] flex w-full flex-col gap-[2px]">
+          <span
+            className={`h-[4px] w-5 rounded-[1px] ${divider}`}
+            style={{ background: t.accent, borderColor: t.accent }}
+          />
+          <span className="h-[3px] w-full rounded-[1px] bg-neutral-200" />
+          <span className="h-[3px] w-4/5 rounded-[1px] bg-neutral-200" />
+        </span>
+      ))}
+    </span>
+  )
 }
 
 function moveItem<T>(arr: T[], index: number, delta: number): T[] {
@@ -1108,17 +1141,16 @@ export default function Builder() {
                 type="button"
                 title={t.description}
                 onClick={() => set('templateId', t.id)}
-                className={`rounded-md border px-3 py-1.5 text-sm transition ${
+                className={`w-16 rounded-md border p-1 transition ${
                   resume.templateId === t.id
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'bg-background hover:bg-muted'
+                    ? 'border-primary ring-primary/40 ring-2'
+                    : 'hover:border-muted-foreground/40'
                 }`}
               >
-                <span
-                  className="mr-1.5 inline-block size-2 rounded-full"
-                  style={{ background: t.accent }}
-                />
-                {t.name}
+                <TemplateThumb t={t} />
+                <span className="mt-0.5 block truncate text-center text-[10px] leading-tight">
+                  {t.name}
+                </span>
               </button>
             ))}
             <span className="flex items-center gap-2">
