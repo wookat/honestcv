@@ -1115,3 +1115,21 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production exports: A4 PDF 595.28×841.89, Letter PDF 612×792, A4 DOCX
   `<w:pgSz w:w="11906" w:h="16838"/>`; selection survives reload.
+
+## Round 55 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA regression sweep (post R51–R54 UI changes) | 360px + 1280px overflow and axe WCAG 2.0 A/AA clean on `/`, `/builder`, `/ats-checker` — no regressions from the feature-grid and page-size changes | — |
+| 2 | Accessibility walkthrough | The builder's template, accent and Letter/A4 toggle buttons conveyed their selected state only visually (ring); screen readers heard 22 identical unlabeled-state buttons | P2 |
+
+**Fixes shipped** (worker version `bda2da71`)
+
+- `aria-pressed` on all template, accent-color and page-size toggle buttons.
+
+**Verification (live)**
+
+- Production builder exposes 22 `[aria-pressed]` toggles with exactly 3
+  `aria-pressed="true"` (active template + accent + size).

@@ -1318,6 +1318,7 @@ export default function Builder() {
                 key={t.id}
                 type="button"
                 title={t.description}
+                aria-pressed={resume.templateId === t.id}
                 onClick={() => set('templateId', t.id)}
                 className={`w-16 rounded-md border p-1 transition ${
                   resume.templateId === t.id
@@ -1342,6 +1343,7 @@ export default function Builder() {
                     type="button"
                     title={`Accent ${color}`}
                     aria-label={`Accent color ${color}`}
+                    aria-pressed={active}
                     onClick={() =>
                       set('accentColor', color === getTemplate(resume.templateId).accent ? '' : color)
                     }
@@ -1369,6 +1371,7 @@ export default function Builder() {
                       ? 'US Letter — standard in the US and Canada'
                       : 'A4 — standard in the UK, Europe and most other countries'
                   }
+                  aria-pressed={(resume.pageSize === 'a4' ? 'a4' : 'letter') === size}
                   onClick={() => set('pageSize', size)}
                   className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
                     (resume.pageSize === 'a4' ? 'a4' : 'letter') === size
