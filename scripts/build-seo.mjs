@@ -126,6 +126,24 @@ const PAGES = [
       '14-day money-back guarantee, no questions asked',
     ],
   },
+  {
+    slug: 'vs-kickresume',
+    path: '/vs/kickresume',
+    name: 'HonestCV vs Kickresume',
+    title: 'HonestCV vs Kickresume — Free Real PDF Export vs a PNG Preview',
+    description:
+      'We tested Kickresume ourselves: the free tier only exports a PNG of your first page, and full access runs ~$19–24/month. HonestCV gives you real PDF & DOCX downloads with no subscription.',
+    h1: 'HonestCV vs Kickresume: a real PDF beats a PNG preview',
+    intro:
+      'We signed up for Kickresume and ran the full flow ourselves (August 2026). The editor is slick, but the free tier will not give you a usable resume: PDF download is locked, and the only free export is a PNG image of your first page — which ATS systems cannot parse. Full access is a subscription at roughly $19–24 per month. We also found its AI writer happily invents metrics (percentages and dollar figures) it cannot know about you. HonestCV exports real, text-based PDF and DOCX files, scores your resume against the actual job description for free, and its AI never fabricates facts — it marks gaps for you to fill instead.',
+    bullets: [
+      'HonestCV: real text-based PDF + DOCX export. Kickresume free tier: PNG image of page one only',
+      'No subscription vs ~$19–24/month for full access',
+      'Free ATS match score against any pasted job description',
+      'AI that never invents employers, dates or metrics — Kickresume’s AI generated fictional “35%” style achievements in our test',
+      'No account needed; your resume stays in your browser',
+    ],
+  },
 ]
 
 /** Long-tail guide pages: real content, not thin doorway pages */
