@@ -789,3 +789,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Indicator shows "PDF export: 1 page" in the builder and recomputes on
   edits.
+
+## Round 39 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (R38 follow-up) | Verified the >1-page path live: 8 stuffed experience entries → "PDF export: 2 pages" amber warning renders | — |
+| 2 | SEO/data (search-term coverage) | Three high-volume long-tail topics uncovered: cover letter writing (cross-sells our cover-letter tool), common resume mistakes, bullet-point formula (cross-sells bullet starters + guidance warnings) | P2 |
+
+**Fixes shipped** (worker version `53fb56a2`)
+
+- 3 new guides: `/guides/how-to-write-a-cover-letter`,
+  `/guides/common-resume-mistakes`, `/guides/resume-bullet-points`
+  (sitemap 43 → 46 URLs; IndexNow submitted 46 → HTTP 200).
+
+**Verification (live)**
+
+- All three guide URLs serve HTTP 200; sitemap serves 46 locs.

@@ -397,6 +397,51 @@ const GUIDES = [
       ['Keyword-match against the new field’s postings', 'Field-switchers fail ATS screens most often because their vocabulary doesn’t match the posting’s. Paste your rewritten resume and a target posting into our free ATS checker to see exactly which of the field’s terms you’re still missing.'],
     ],
   },
+  {
+    path: '/guides/how-to-write-a-cover-letter',
+    title: 'How to Write a Cover Letter in 2026 (Structure + What to Skip)',
+    description:
+      'A practical cover letter guide: the four-paragraph structure that works, how to open without “I am writing to apply”, what hiring managers actually read, and the filler to cut.',
+    h1: 'How to write a cover letter that gets read',
+    sections: [
+      ['Most cover letters are skimmed in 10 seconds', 'Hiring managers skim for two things: do you understand what this specific job is, and can you point to evidence you can do it. A letter that could be sent to any company fails both tests instantly — the company name in the first paragraph is the minimum, a specific product, launch or challenge is better.'],
+      ['The four-paragraph structure', 'One: the role you’re applying for and one sentence on why this company specifically. Two: your strongest relevant achievement, with a real number. Three: your second proof point, mapped to a requirement from the posting. Four: a short close asking for the conversation. That’s it — half a page, never more than one.'],
+      ['Open with them, not you', '“I am writing to express my interest…” wastes your most-read sentence. Compare: “Your posting asks for someone who has scaled support past 100k tickets a year — at Acme I led exactly that transition.” The reader knows immediately why to keep reading.'],
+      ['Numbers work in letters too', 'The same rule as resume bullets: “cut onboarding time from 3 weeks to 4 days” beats “significantly improved processes”. Pick your one or two best quantified wins and spend a sentence of context on each — the letter can tell the short story the resume bullet can’t.'],
+      ['What to cut', 'Cut anything the resume already says without added context, all adjectives about yourself (“passionate”, “results-driven”), salary talk, and apologies for missing requirements. If a paragraph doesn’t answer “why you for this job”, it goes.'],
+      ['Start from your resume, not a blank page', 'Our builder’s cover letter tool drafts a letter from your actual resume, target role and company — with placeholders where your real facts go, never invented achievements. Edit it to sound like you, then export to PDF or DOCX free.'],
+    ],
+  },
+  {
+    path: '/guides/common-resume-mistakes',
+    title: '12 Common Resume Mistakes That Get You Rejected (2026)',
+    description:
+      'The resume mistakes recruiters and ATS parsers reject most: multi-column layouts, image-based PDFs, vague bullets, keyword mismatch, and the fixes for each — checked against real parser behavior.',
+    h1: 'The resume mistakes that actually cost you interviews',
+    sections: [
+      ['Format mistakes ATS parsers punish', 'Multi-column layouts read out of order or not at all. Text in headers/footers is skipped by many parsers — contact info there can vanish. Tables, text boxes and graphics scramble parsing. Image-based or “flattened” PDFs contain no readable text at all. Single column, real text, standard headings avoids all of it.'],
+      ['Vague bullets', '“Responsible for managing social media” says what the job was; “Grew Instagram from 2k to 40k followers in 8 months” says what you did with it. Every bullet without a number, artifact or concrete outcome is a wasted line — and weak openers like “helped with” or “worked on” read as filler.'],
+      ['One resume for every job', 'The highest-leverage fix: postings keyword-screen, and a resume tuned for one role scores poorly against another. You don’t need a rewrite per application — swap the summary and the skills emphasis to mirror each posting’s actual vocabulary.'],
+      ['Length and priority errors', 'Two pages before ten years of experience, first-person pronouns, an “objective” statement, high-school details past your first year of college, “references available upon request” — all signal you don’t know what matters. One page, strongest material in the top third.'],
+      ['Honesty mistakes', 'Inflated titles, stretched dates and invented metrics surface in background checks and reference calls — usually after you’ve counted on the offer. If you don’t know the exact number, describe the concrete thing you delivered instead of inventing one.'],
+      ['Check before you send', 'Run your resume and the posting through our free ATS checker: it shows your match score, missing keywords, and format warnings — the same checks in this list, automated. It runs in your browser; your resume never leaves your machine.'],
+    ],
+  },
+  {
+    path: '/guides/resume-bullet-points',
+    title: 'How to Write Resume Bullet Points (Formula + Examples, 2026)',
+    description:
+      'The bullet point formula recruiters respond to: action verb + what you did + measurable result. Real before/after examples by role, how many bullets per job, and what to do when you have no numbers.',
+    h1: 'Resume bullet points: the formula and the fixes',
+    sections: [
+      ['The formula', 'Strong action verb + the specific thing you did + the measurable result: “Rebuilt the checkout flow, lifting conversion 14%”. Weak bullets fail one of the three parts: no verb (“Responsible for checkout”), no specifics (“improved various flows”), or no result (“rebuilt the checkout flow.” — and?).'],
+      ['Before and after', '“Worked on customer support” → “Resolved 40+ tickets daily at 96% CSAT, top 3 of a 15-person team”. “Helped with marketing campaigns” → “Wrote email sequences that drove $120k in pipeline over two quarters”. Same jobs, same facts — the second version just states them.'],
+      ['How many bullets', 'Three to five for recent, relevant roles; one or two for older or less relevant ones. Recruiters read top-down and stop early — your best bullet goes first in every role, not in chronological order of your duties.'],
+      ['No numbers? Use artifacts', 'If the metric genuinely doesn’t exist, anchor the bullet to something concrete: what you shipped, how often, for whom — “Wrote the onboarding runbook now used by all new hires” works without a percentage. Never invent a number; interviewers probe them.'],
+      ['Start from a working verb', 'Built, led, cut, grew, shipped, negotiated, automated — the verb carries the bullet. Our builder includes role-matched bullet starters with [add …] placeholders where your real facts go, plus quality warnings on weak openers and missing numbers as you type.'],
+      ['Match the posting’s keywords', 'Bullets are where keyword matches naturally live — the posting says “stakeholder management”, your bullet should name the stakeholders you managed. Check your match score against any posting with our free ATS checker before you submit.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */
