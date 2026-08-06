@@ -1595,3 +1595,24 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production: empty summary + "AI polish summary" → inline hint appears
   right under the button.
+
+## Round 80 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (full-site sweep) | All 52 sitemap URLs return 200; robots.txt + sitemap healthy | — |
+| 2 | Visual/a11y (builder, 360px) | Zero axe WCAG A/AA violations, no horizontal overflow | — |
+| 3 | Data | First-party 2026-08-06: 82 hits, all internal (pre-R59 QA-flag hits included in the day's counter); 9 leads, all test addresses; still no organic traffic | — |
+| 4 | UX (copies ↔ ATS linkage) | Saved copies showed only name + timestamp — users tailoring one copy per job couldn't compare which version scores best | P2 |
+
+**Fixes shipped** (worker version `e64099a2`)
+
+- Copies dialog shows each copy's ATS score ("… · ATS 67/100"),
+  computed against the copy's own saved job description.
+
+**Verification (live)**
+
+- Production: save a copy → list row shows "ATS 67/100"; versions
+  storage restored after test.
