@@ -68,7 +68,9 @@ async function extractDocx(file: File): Promise<string> {
   if (!doc) throw new Error('Could not read this DOCX file.')
   const xml = strFromU8(doc)
   const text = xml
-    .replace(/<w:tab[^>]*\/>/g, ' ')
+    // Tabs typically separate a header from a right-aligned date; a line
+    // break keeps them as separate fields for the import parser.
+    .replace(/<w:tab[^>]*\/>/g, '\n')
     .replace(/<w:br[^>]*\/>/g, '\n')
     .replace(/<\/w:p>/g, '\n')
     .replace(/<[^>]+>/g, '')

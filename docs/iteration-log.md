@@ -1769,3 +1769,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 89 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (DOCX export → ATS-checker upload round trip, live) | Since R52's right-aligned dates, DOCX entry headers use a tab before the date; extraction turned the tab into a space, producing "Marketing Manager · Acme Corp Jan 2021 – Present" on one line — the middle-dot parse would then swallow the date into the company name | P1 |
+
+**Fixes shipped** (worker version `594c5186`)
+
+- `extractDocx` converts `<w:tab/>` to a line break instead of a space,
+  so the date lands on its own line — which R61's standalone-date-line
+  handling already parses into the current entry.
+
+**Verification (live)**
+
+- Production ATS-checker upload of our own DOCX artifact now extracts
+  the header and the date range as separate lines.
