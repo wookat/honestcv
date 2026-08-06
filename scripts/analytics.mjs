@@ -58,7 +58,9 @@ const kvToken = process.env.CLOUDFLARE_WORKERS_API_TOKEN ?? token
 // First-party pageview hits (adblock-proof /api/hit beacon), keyed hit:<day>:<ts>
 {
   const byDayFP = new Map()
+  const inRange = []
   let cur = ''
+  let failed = false
   do {
     const url = new URL(
       `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/storage/kv/namespaces/${KV_ID}/keys`
@@ -71,19 +73,45 @@ const kvToken = process.env.CLOUDFLARE_WORKERS_API_TOKEN ?? token
     ).json()
     if (!kv.success) {
       console.log(`\nfirst-party hits: unavailable (${JSON.stringify(kv.errors)})`)
+      failed = true
       break
     }
     for (const k of kv.result) {
       const day = k.name.split(':')[1]
-      if (day >= d(start)) byDayFP.set(day, (byDayFP.get(day) ?? 0) + 1)
+      if (day >= d(start)) {
+        byDayFP.set(day, (byDayFP.get(day) ?? 0) + 1)
+        inRange.push(k.name)
+      }
     }
     cur = kv.result_info?.cursor ?? ''
-    if (cur === '') {
-      console.log('\nfirst-party hits (adblock-proof beacon):')
-      for (const [day, n] of [...byDayFP].sort()) console.log(`  ${day}  ${n}`)
-      if (byDayFP.size === 0) console.log('  none yet')
-    }
   } while (cur)
+  if (!failed) {
+    console.log('\nfirst-party hits (adblock-proof beacon):')
+    for (const [day, n] of [...byDayFP].sort()) console.log(`  ${day}  ${n}`)
+    if (byDayFP.size === 0) console.log('  none yet')
+    // Per-path breakdown needs the values; cap reads to keep the report fast.
+    const sample = inRange.slice(-2000)
+    const byPath = new Map()
+    for (const key of sample) {
+      const v = await (
+        await fetch(
+          `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/storage/kv/namespaces/${KV_ID}/values/${encodeURIComponent(key)}`,
+          { headers: { authorization: `Bearer ${kvToken}` } }
+        )
+      ).text()
+      try {
+        const p = JSON.parse(v).p ?? '(unknown)'
+        byPath.set(p, (byPath.get(p) ?? 0) + 1)
+      } catch {
+        byPath.set('(unparsed)', (byPath.get('(unparsed)') ?? 0) + 1)
+      }
+    }
+    if (byPath.size > 0) {
+      console.log('  top paths (first-party):')
+      for (const [p, n] of [...byPath].sort((a, b) => b[1] - a[1]).slice(0, 15))
+        console.log(`    ${p}  ${n}`)
+    }
+  }
 }
 let cursor = ''
 let leads = 0

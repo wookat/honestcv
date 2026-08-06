@@ -908,3 +908,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 - Backup downloads valid JSON; overwriting the name and restoring the file
   brings the original back; a junk JSON file shows "That file is not a
   HonestCV backup."
+
+## Round 45 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data analysis (first-party funnel) | The adblock-proof beacon recorded hits per day only — no per-path breakdown, so the report could not show which pages actually attract visits (the whole point of the traffic phase) | P1 |
+
+**Fixes shipped** (script-only, no worker deploy needed)
+
+- `scripts/analytics.mjs` now reads hit values (capped at 2000) and prints a
+  first-party top-paths table alongside the per-day counts.
+
+**Verification**
+
+- Live run: 32 first-party hits on 2026-08-06 break down to /builder 24,
+  /templates/ 2, /ats-checker 2, etc. — all QA/internal traffic, as expected;
+  organic remains zero.
