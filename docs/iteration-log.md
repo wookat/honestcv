@@ -1306,3 +1306,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Production: added Alpha + Beta, "Move project 2 up" → order
   Beta,Alpha in stored resume; cleanup ok.
+
+## Round 65 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | Data/funnel | First-party: 82 hits today, still all internal (QA-flag exclusion only active since R59); leads 8 (all test). Export filenames already personalized (`<name>-resume.pdf`) — no gap there | — |
+| 2 | Funnel (landing → traffic magnet) | The ATS checker — our shareable traffic magnet — was only linked from the footer of the landing page; the hero had a single builder CTA | P2 |
+
+**Fixes shipped** (worker version `7a883601`)
+
+- Second hero CTA "Check my resume's ATS score" (outline) linking to
+  `/ats-checker`; free-mode caption moved below the button row.
+
+**Verification (live)**
+
+- 360px/1280px: CTA present, no horizontal overflow, axe WCAG A/AA
+  zero violations; click navigates to `/ats-checker`.
