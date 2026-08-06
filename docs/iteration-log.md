@@ -1965,3 +1965,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 99 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (full-site sweep) | All 52 sitemap URLs return 200 in production | — |
+| 2 | Content quality audit (continued) | /guides/resume-objective-vs-summary/ at ~527 words | P1 (SEO) |
+
+**Fixes shipped** (worker version `1ad1a9b3`)
+
+- resume-objective-vs-summary expanded 6 → 12 sections (~807 words):
+  summary examples by stage, objective examples that still work,
+  when to skip both, common summary mistakes, headline+summary
+  pattern (builder title-field cross-promo), and the 7-second test.
+
+**Verification (live)**
+
+- Production page serves the new sections; 52/52 sitemap URLs 200.
