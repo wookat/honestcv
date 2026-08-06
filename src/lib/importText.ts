@@ -166,7 +166,11 @@ export function parseResumeText(raw: string): Resume {
           currentExp.bullets.push(stripBullet(line))
         } else {
           const { rest, start, end } = extractDates(line)
-          if (currentExp && !currentExp.company && !start && rest.length <= 60) {
+          if (!rest && start && currentExp && !currentExp.startDate) {
+            // date range on its own line under the entry header
+            currentExp.startDate = start
+            currentExp.endDate = end
+          } else if (currentExp && !currentExp.company && !start && rest.length <= 60) {
             // second header line (e.g. company on its own line)
             currentExp.company = rest
           } else {
@@ -192,6 +196,9 @@ export function parseResumeText(raw: string): Resume {
           currentEdu.details = [currentEdu.details, stripBullet(line)]
             .filter(Boolean)
             .join('; ')
+        } else if (!rest && start && currentEdu && !currentEdu.startDate) {
+          currentEdu.startDate = start
+          currentEdu.endDate = end
         } else {
           const { role: degree, company: school, location: eduLoc } = splitRoleCompany(rest || line)
           currentEdu = {

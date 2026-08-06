@@ -1230,3 +1230,23 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Zety and Resume.io pricing pages fetched in-browser; production
   `/vs/resume-io` now serves the $29.95 figures.
+
+## Round 61 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (import parser, new real-world samples) | A very common resume layout — entry header on one line, date range alone on the next ("Marketing Manager | Acme Corp" ↵ "Jan 2021 - Present") — created a bogus second entry whose role was the date text, in both experience and education | P1 |
+
+**Fixes shipped** (worker version `1a3a3d15`)
+
+- A line that is only a date range now fills the dates of the current
+  entry (when it has none) instead of spawning a new entry — experience
+  and education both.
+
+**Verification (live)**
+
+- Production paste-import of the two-line-header sample: one experience
+  entry (role/company/dates/bullet all correct) and one education entry
+  with dates 2013|2017; no bogus entries.
