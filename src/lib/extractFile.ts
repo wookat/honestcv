@@ -25,9 +25,9 @@ async function extractPdf(file: File): Promise<string> {
     const page = await doc.getPage(i)
     const content = await page.getTextContent()
     // Group items into lines by their y coordinate so the structure survives.
-    const lines = new Map<number, { x: number; str: string }[]>()
+    const lines = new Map<number, { x: number; w: number; str: string }[]>()
     for (const item of content.items) {
-      if (!('str' in item) || !item.str) continue
+      if (!('str' in item) || !item.str.trim()) continue
       const y = Math.round(item.transform[5])
       let line = lines.get(y)
       if (!line) {
@@ -42,19 +42,29 @@ async function extractPdf(file: File): Promise<string> {
         line = []
         lines.set(y, line)
       }
-      line.push({ x: item.transform[4], str: item.str })
+      line.push({ x: item.transform[4], w: item.width, str: item.str })
     }
     const ordered = [...lines.entries()].sort((a, b) => b[0] - a[0])
     pages.push(
       ordered
-        .map(([, items]) =>
-          items
-            .sort((a, b) => a.x - b.x)
-            .map((it) => it.str)
-            .join(' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-        )
+        .map(([, items]) => {
+          const sorted = items.sort((a, b) => a.x - b.x)
+          // A wide gap (e.g. a right-aligned date after an entry header)
+          // separates fields — emit them as their own lines.
+          let out = ''
+          let prevEnd = -Infinity
+          for (const it of sorted) {
+            if (out && it.x - prevEnd > 40) out += '\n'
+            else if (out) out += ' '
+            out += it.str
+            prevEnd = it.x + it.w
+          }
+          return out
+            .split('\n')
+            .map((l) => l.replace(/\s+/g, ' ').trim())
+            .filter(Boolean)
+            .join('\n')
+        })
         .filter(Boolean)
         .join('\n')
     )

@@ -1808,3 +1808,22 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 **Verification (live)**
 
 - Production page serves the new sections.
+
+## Round 91 — 2026-08-06
+
+**Drivers & findings**
+
+| # | Driver | Finding | Priority |
+|---|--------|---------|----------|
+| 1 | QA (PDF export → ATS-checker upload round trip, live) | Same class of bug as R89 on the PDF path: the right-aligned date is a separate text item bridged by a wide whitespace item, so extraction joined "Marketing Manager · Acme Corp Jan 2021 – Present" onto one line | P1 |
+
+**Fixes shipped** (worker version `4f9d9a0a`)
+
+- `extractPdf` skips whitespace-only text items and emits a line break
+  when the x-gap between adjacent items on a line exceeds 40 units, so
+  right-aligned dates land on their own line (parsed by R61 handling).
+
+**Verification (live)**
+
+- Production ATS-checker upload of our own PDF artifact now extracts
+  the header and the date range as separate lines.
