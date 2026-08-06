@@ -57,9 +57,9 @@ import { scoreResume } from '@/lib/ats'
 import { checkBullets, resumeStrength } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
-import { downloadResumeDocx, downloadTextDocx } from '@/lib/docx'
+
 import { downloadText } from '@/lib/download'
-import { countResumePdfPages, downloadResumePdf, downloadTextPdf } from '@/lib/pdf'
+
 import {
   type ExperienceItem,
   type Resume,
@@ -111,7 +111,8 @@ function usePdfPageCount(resume: Resume): number | null {
   useEffect(() => {
     const id = ++seq.current
     const t = window.setTimeout(() => {
-      void countResumePdfPages(resume)
+      void import('@/lib/pdf')
+        .then((m) => m.countResumePdfPages(resume))
         .then((n) => {
           if (seq.current === id) setPages(n)
         })
@@ -423,8 +424,10 @@ export default function Builder() {
     setDownloading(fmt)
     try {
       const name = (resume.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
-      if (fmt === 'pdf') await downloadResumePdf(resume, `${name}-resume.pdf`)
-      else await downloadResumeDocx(resume, `${name}-resume.docx`)
+      if (fmt === 'pdf')
+        await (await import('@/lib/pdf')).downloadResumePdf(resume, `${name}-resume.pdf`)
+      else
+        await (await import('@/lib/docx')).downloadResumeDocx(resume, `${name}-resume.docx`)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
         setShareCopied(false)
@@ -2076,10 +2079,12 @@ function BundleToolDialog({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  void downloadTextPdf(
-                    title,
-                    result,
-                    kind === 'cover' ? 'cover-letter.pdf' : 'interview-prep.pdf'
+                  void import('@/lib/pdf').then((m) =>
+                    m.downloadTextPdf(
+                      title,
+                      result,
+                      kind === 'cover' ? 'cover-letter.pdf' : 'interview-prep.pdf'
+                    )
                   )
                 }
               >
@@ -2089,10 +2094,12 @@ function BundleToolDialog({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  void downloadTextDocx(
-                    title,
-                    result,
-                    kind === 'cover' ? 'cover-letter.docx' : 'interview-prep.docx'
+                  void import('@/lib/docx').then((m) =>
+                    m.downloadTextDocx(
+                      title,
+                      result,
+                      kind === 'cover' ? 'cover-letter.docx' : 'interview-prep.docx'
+                    )
                   )
                 }
               >
