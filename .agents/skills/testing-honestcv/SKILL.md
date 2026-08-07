@@ -62,6 +62,15 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **Static asset cache pitfall**: after deploys, `/og.png` (and similar public/ assets) can stay stale at the Cloudflare edge (`cf-cache-status: HIT`) even when the JS bundle is fresh — compare live md5 against the branch file; a cache purge may be needed.
 - pSEO expanded: /templates/{horizon,metro,scholar,ink,coral,atlas,prairie,quartz,ruby,cobalt}/ all 200 with SVG layout previews and cross-links. Landing copy says "22" (grep bundle for absence of "All 12").
 
+## PR #117 / Design upgrade round 2 (filters, export check, empty states)
+
+- **Template filter chips**: landing gallery has All/Serif/Modern sans/Banded headings/Minimal with counts, e.g. "All (22)"; builder picker has the same chips without counts. Selected chip = `aria-pressed=true` inside `[role=group][aria-label="Filter templates by style"]`. Banded = the 5 band templates (Horizon/Metro/Scholar/Ink/Ruby); Serif = 9; Minimal = `divider:none && !band` = 5.
+- **Export success check**: after PDF/DOCX/TXT/MD download the button icon becomes a green `Check` with class `.animate-pop` for 1800ms then reverts. Screenshot within ~1s of the click to catch it. **Reduced-motion check without a second Chrome**: keep a CDP websocket OPEN (emulation resets when the socket closes!), send `Emulation.setEmulatedMedia` with `prefers-reduced-motion: reduce`, trigger a download in the same session, and read `getComputedStyle(document.querySelector('.animate-pop')).animationDuration` — should be `0.01ms` (1e-05s) via the global CSS kill-switch.
+- **Empty-state illustrations**: `/ats-checker` shows a doc+magnifier SVG below the disabled Check button when resume text < 30 chars (disappears at ≥30); builder "Starting fresh?" card (reachable by removing `honestcv.resume`) shows a doc+pencil SVG. Both are `svg[viewBox="0 0 160 100"]` with `aria-hidden=true`.
+- **Deep-link example fix (since PR #116 tail 71c6e21)**: `/builder?template=horizon` + "Load an example resume" now KEEPS the deep-linked template (check `JSON.parse(localStorage['honestcv.resume']).templateId`).
+- **og image renamed to /og2.png** to bust the stale edge cache — og:image meta and live bytes both point at the new dark card now.
+- **CDP emulation state is per-connection**: any `Emulation.*` override (device metrics, emulated media) is silently cleared when your websocket disconnects — do all dependent steps within one open connection, or the page reverts to desktop/no-emulation.
+
 ## Key flows and how to test them (paid mode)
 
 - **Locked vs unlocked**: header shows "Unlock — $9.99 once" when locked; after activation it shows a "Career Bundle" (or plan) badge and PDF/DOCX buttons work.

@@ -2200,3 +2200,15 @@ notes in docs/design-upgrade-round-1.md.**
   regenerated og.png 1200×630).
 - Landing hero: subtle dual radial gradient mesh (Enhancv/Stripe-inspired).
 - Copy 12→22 templates site-wide.
+
+## Design upgrade round 2 (2026-08-05)
+
+- Template gallery filters: style chips (All/Serif/Modern sans/Banded/Minimal)
+  derived from template metadata (`TEMPLATE_FILTERS`), on landing gallery
+  (with counts) and builder picker; aria-pressed on chips.
+- Export success feedback: download buttons show a green check with a short
+  pop animation after each PDF/DOCX/TXT/MD export (CSS keyframes, covered by
+  the global prefers-reduced-motion kill-switch).
+- Empty-state illustrations: original brand-style SVGs (document+scan on
+  /ats-checker empty state, document+pencil on builder "starting fresh"),
+  matching the LogoMark palette; aria-hidden, no external assets.
