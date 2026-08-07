@@ -2058,3 +2058,24 @@ connected, no real charges).
 - G8 (honest pricing content): new /vs/flowcv comparison page from firsthand
   test, crediting FlowCV's fair free tier while stating our structural
   differences (browser-local privacy, no account gate, one-time pricing).
+
+## Competitor Research Round 2 — Novorésumé firsthand (2026-08)
+
+**Driver: competitor research (five-driver cycle).**
+
+- Full firsthand Novorésumé walkthrough on a real account: template → live
+  WYSIWYG editor → registration (6-digit email code) → 4-step personalization
+  wizard → Optimizer → pre-download review modal → free watermark-free PDF.
+- Pricing verified in-app: Basic free (1 resume, 1 page, no cover letter),
+  Premium $21.99/mo / $39.99/quarter / $139.99/yr, explicitly non-recurring.
+- PDF metadata: Ghostscript + headless Chromium → server-side rendering.
+- Full findings: docs/competitor-research-round-2.md (gaps G9–G11).
+
+**Fixes shipped this round**
+
+- G9 (Novorésumé TXT export pattern): plain-text (.txt) resume export added
+  to the builder header — useful for online application forms and ATS paste
+  boxes. Reuses resumeToPlainText, browser-local like all exports.
+- G8 (honest pricing content): new /vs/novoresume comparison page from
+  firsthand test, crediting its non-recurring pricing and free download while
+  stating our structural differences.
