@@ -10,13 +10,14 @@ import {
   ExternalHyperlink,
   Packer,
   Paragraph,
+  ShadingType,
   Tab,
   TabStopType,
   TextRun,
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
 import { type Resume, orderedSectionKeys } from '@/lib/resume'
-import { resolveTemplate } from '@/lib/templates'
+import { accentTint, resolveTemplate } from '@/lib/templates'
 
 const FONT_SERIF = 'Georgia'
 const FONT_SANS = 'Calibri'
@@ -36,8 +37,11 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
     new Paragraph({
       spacing: { before: 240, after: 80 },
       keepNext: true,
+      shading: tpl.band
+        ? { type: ShadingType.CLEAR, fill: accentTint(tpl.accent).replace('#', '') }
+        : undefined,
       border:
-        tpl.divider === 'none'
+        tpl.divider === 'none' || tpl.band
           ? undefined
           : {
               bottom: {

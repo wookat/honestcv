@@ -384,7 +384,7 @@ export function UpgradeDialog({
             <ul className="text-muted-foreground mt-2 space-y-1 text-sm">
               <li>· Unlimited PDF + DOCX downloads, no watermark</li>
               <li>· Unlimited AI rewrites &amp; job-targeted tailoring</li>
-              <li>· All 12 ATS-friendly templates</li>
+              <li>· All 22 ATS-friendly templates</li>
               <li>· Edit and re-download forever — data stays in your browser</li>
             </ul>
             <CheckoutButton plan="resume" variant="outline" className="mt-3" onActivated={onActivated}>
