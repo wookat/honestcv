@@ -2142,3 +2142,14 @@ connected, no real charges).
   short fit tags; landing gallery shows the primary tag under each
   thumbnail, and the builder picker shows the selected template's
   description + tags line.
+
+## Frontend replication batch — JD keyword highlighting (2026-08)
+
+**Driver: competitor research follow-through (gap G17, Resume Worded).**
+
+- /ats-checker now renders the pasted job description with matched keywords
+  highlighted green and missing keywords amber, inline (Resume Worded's
+  side-by-side pattern, adapted to a single annotated JD panel).
+  Fully browser-local; regex built from the same keyword set the scorer
+  uses, longest-first, with word-boundary guards for tech tokens
+  (C++, CI/CD, .NET).
