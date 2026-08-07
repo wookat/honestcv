@@ -362,7 +362,7 @@ app.post('/api/billing/ls-webhook', async (c) => {
 // only; no cookies, no PII. Accepts JSON {p, r} or a legacy plain path.
 app.post('/api/hit', async (c) => {
   const body = await c.req.text()
-  let path = ''
+  let path: string
   let ref = ''
   if (body.startsWith('{')) {
     try {

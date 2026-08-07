@@ -490,7 +490,7 @@ export default function Builder() {
               </Badge>
             ) : freeMode ? (
               <Badge variant="secondary" className="hidden gap-1 sm:flex">
-                <Unlock className="size-3" /> Free during launch
+                <Unlock className="size-3" /> Beta free trial
               </Badge>
             ) : (
               <Button size="sm" variant="outline" onClick={() => setUpgradeOpen(true)}>

@@ -2010,3 +2010,27 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 logged here, and merged via PRs #10–#110. Remaining external gaps:
 off-site distribution (social accounts), AI relay quota, email
 provider — all owner-side.
+
+## Special project R101 — 2026-08-05 (Beta pricing reframe)
+
+**Driver**: owner directive — stop positioning the product as "free";
+reframe as a paid product ($9.99/$19.99 one-time) currently in a
+**beta free trial** with every plan fully unlocked (billing not yet
+connected, no real charges).
+
+**Fixes shipped** (worker version `21568a22`)
+
+- Landing: hero, CTA labels, pricing section banner, footnote and FAQ
+  reworded from "free during launch" to "beta free trial of both paid
+  plans"; plan cards unchanged ($9.99 / $19.99 one-time).
+- Builder toolbar badge: "Free during launch" → "Beta free trial".
+- Download-unlock dialog: "free during launch" → "included in the
+  beta trial".
+- Static SEO pages (vs/templates/guides CTA blocks), llms.txt and
+  index.html meta/JSON-LD description reworded to the same framing.
+- Drive-by lint fix: `no-useless-assignment` on worker/index.ts `path`.
+
+**Verification (live)**
+
+- `/`, `/guides/what-is-an-ats/`, `/vs/zety/` all serve the new
+  beta-trial copy in production.
