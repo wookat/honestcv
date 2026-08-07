@@ -1049,7 +1049,7 @@ function page(p) {
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:image" content="${SITE}/og.png" />
+<meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd(p.path.startsWith('/vs/') ? [{ name: 'Comparisons', path: '/vs/' }, { name: p.h1, path: p.path }] : [{ name: p.h1, path: p.path }]))}</script>
@@ -1127,7 +1127,7 @@ function legalPage(p) {
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.sections[0][1])}" />
 <meta property="og:url" content="${canonical}" />
-<meta property="og:image" content="${SITE}/og.png" />
+<meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <style>${CSS}</style>
 ${BEACON}${FP_BEACON}
@@ -1194,7 +1194,7 @@ function guidePage(p) {
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
-<meta property="og:image" content="${SITE}/og.png" />
+<meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Guides', path: '/guides/' }, { name: p.h1, path: p.path }]))}</script>
@@ -1242,7 +1242,7 @@ function templatePage(p) {
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
-<meta property="og:image" content="${SITE}/og.png" />
+<meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Templates', path: '/templates/' }, { name: `${p.name} resume template`, path: p.path }]))}</script>
 <style>${CSS}</style>
@@ -1296,7 +1296,7 @@ function hubPage({ pathname, title, description, h1, intro, items }) {
 <meta property="og:title" content="${esc(title)}" />
 <meta property="og:description" content="${esc(description)}" />
 <meta property="og:url" content="${canonical}" />
-<meta property="og:image" content="${SITE}/og.png" />
+<meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <style>${CSS}</style>
 ${BEACON}${FP_BEACON}

@@ -51,6 +51,17 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **Templates 8→12**: Ivy (serif, center, title-case, green), Slate (sans, left, thick rules, gray), Corporate (serif, center, UPPERCASE name, thick rules, dark red), Startup (sans, left, no divider rules, orange). Accent-swatch override still applies — assert case/align/divider axes, not hue.
 - **pSEO**: /templates/{ivy,slate,corporate,startup} → 200, distinct titles, /builder CTAs, beacon script. Landing/paywall copy says "All 12" (grep bundle for absence of "All 4").
 
+## PR #116 / Visual upgrade round 1 (22 templates, band headings, ScoreRing, brand)
+
+- **Templates 12→22**: Horizon, Metro, Scholar, Ink, Coral, Atlas, Prairie, Quartz, Ruby, Cobalt. Horizon/Metro/Scholar/Ink/Ruby have `band: true` — accent-tinted band behind heading text. `accentTint(hex)` = 12% mix toward white (e.g. #0e7490 → #e2eef2). Band template thumbnails show a full-width tinted strip instead of the plain accent bar.
+- **Band verification per surface**: preview — h3 has inline `background` tint; PDF — decompress content streams and look for the tint's normalized RGB fill (e.g. `0.886 0.933 0.949 rg` for #e2eef2) plus real `drawText` headings (pdftotext must extract them); DOCX — `word/document.xml` has `<w:shd w:fill="e2eef2" w:val="clear"/>` on heading paragraphs and NO bottom border there.
+- **Deep-link pitfall**: `/builder?template=horizon` applies Horizon, but clicking "Load an example resume" afterwards resets the template to Classic (example data carries its own `templateId`) — re-select the template after loading.
+- **ScoreRing** (/ats-checker): animated ring + count-up; `span[role="img"]` with `aria-label="Score N out of 100"`. Screenshot immediately after clicking "Check my ATS score" to catch mid-count-up. Reduced motion: launch a second Chrome with `--force-prefers-reduced-motion` — final value + full ring on first frame.
+- **375px emulation**: Chrome's minimum window width (~500 CSS px) prevents wmctrl-resizing to 375 — instead use CDP `Emulation.setDeviceMetricsOverride` (websocket-client with `suppress_origin=True` to dodge the 403 origin check on port 29229); clear with `Emulation.clearDeviceMetricsOverride`.
+- **axe without chromedriver**: `@axe-core/cli` fails (no chromedriver on the box); instead inject axe.min.js (cdnjs) via CDP `Runtime.evaluate` and run `axe.run()` in the live page.
+- **Static asset cache pitfall**: after deploys, `/og.png` (and similar public/ assets) can stay stale at the Cloudflare edge (`cf-cache-status: HIT`) even when the JS bundle is fresh — compare live md5 against the branch file; a cache purge may be needed.
+- pSEO expanded: /templates/{horizon,metro,scholar,ink,coral,atlas,prairie,quartz,ruby,cobalt}/ all 200 with SVG layout previews and cross-links. Landing copy says "22" (grep bundle for absence of "All 12").
+
 ## Key flows and how to test them (paid mode)
 
 - **Locked vs unlocked**: header shows "Unlock — $9.99 once" when locked; after activation it shows a "Career Bundle" (or plan) badge and PDF/DOCX buttons work.

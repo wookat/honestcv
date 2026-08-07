@@ -560,7 +560,12 @@ export default function Builder() {
                 <button
                   type="button"
                   className="text-primary underline"
-                  onClick={() => setResume(sampleResume())}
+                  onClick={() =>
+                    setResume({
+                      ...sampleResume(),
+                      ...(resume ? { templateId: resume.templateId } : {}),
+                    })
+                  }
                 >
                   Load an example resume
                 </button>{' '}
