@@ -2101,3 +2101,27 @@ connected, no real charges).
 - New /vs/enhancv comparison page from firsthand evidence, crediting its
   onboarding/editor design while stating our structural differences
   (no branding footer, full free report, browser-local, one-time pricing).
+
+## Competitor Research Round 4 — Resume Worded firsthand (2026-08)
+
+**Driver: competitor research (five-driver cycle).**
+
+- Real-account Resume Worded walkthrough: upload → career-level wizard →
+  account wall (pre-checked weekly-email opt-in) → Score My Resume (38/100,
+  Pro-locked checks) → Magic Write demo → free Targeted Resume keyword match
+  (95 relevancy, side-by-side highlighting) → Pro pricing ($19–$49/mo
+  recurring, Paddle, $75 anchor). Findings:
+  docs/competitor-research-round-4.md (gaps G16–G18).
+- Notable: its "Quantify impact" check flagged fully-quantified bullets, and
+  the Magic Write demo fabricated "50+ components / within six months" —
+  reinforcing our anti-fabrication AI policy as a real differentiator.
+
+**Fixes shipped this round**
+
+- G16 (Resume Worded verdict pattern): one-line plain-English verdict under
+  the ATS score ("Great match… / Decent start… / Needs work…", and a
+  structure-only variant when no JD is pasted). Rule-based, honest
+  thresholds, browser-local.
+- New /vs/resume-worded comparison page from firsthand evidence, crediting
+  its genuinely free Targeted Resume tool while stating our structural
+  differences (builder+checker, no locked checks, local, one-time pricing).

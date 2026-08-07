@@ -237,6 +237,24 @@ const PAGES = [
       'One-time pricing ($9.99/$19.99 when billing opens) vs a $16.50–$39/month recurring subscription',
     ],
   },
+  {
+    slug: 'vs-resume-worded',
+    path: '/vs/resume-worded',
+    name: 'HonestCV vs Resume Worded',
+    title: 'HonestCV vs Resume Worded — Free Limits, Privacy and Pricing Compared',
+    description:
+      'We created a Resume Worded account and ran its full flow ourselves: the free resume score locks several checks behind Pro, the keyword targeting tool is genuinely free, and Pro runs $19–$49/month recurring. HonestCV differs on privacy, a fully free report and one-time pricing.',
+    h1: 'HonestCV vs Resume Worded: what we found testing it ourselves',
+    intro:
+      'We created a Resume Worded account and walked its full flow (August 2026). Credit where due: its free Targeted Resume tool really does compare your resume to a job description at no charge, with a relevancy score, found/missing keyword counts and a side-by-side view — a genuinely useful free tool. The catches: it is a checker, not a builder (templates are Word/Google Docs downloads); the free resume score locks several checks (Leadership, Communication, Teamwork and more) plus the full report behind Pro; scoring requires an account and your resume is uploaded to their servers; the signup form pre-checks a weekly email subscription; and Pro is a recurring subscription at $49/month, $33/month billed quarterly, or $19/month billed yearly against a $75 strikethrough anchor. HonestCV is a full builder plus checker: your resume stays in your browser, the entire ATS report is free with no locked checks, and no account or email is needed — one-time pricing, currently in beta with a full free trial.',
+    bullets: [
+      'Full builder + checker in one — Resume Worded checks resumes but sends you to Word/Google Docs templates to edit',
+      'Every check in the ATS report is free — Resume Worded locks several recruiter checks and the full report behind Pro',
+      'Your resume never leaves your browser — Resume Worded requires an account and uploads your resume to score it',
+      'No pre-checked email subscriptions — their signup form opts you into a weekly email by default',
+      'One-time pricing ($9.99/$19.99 when billing opens) vs a $19–$49/month recurring subscription',
+    ],
+  },
 ]
 
 /** Long-tail guide pages: real content, not thin doorway pages */

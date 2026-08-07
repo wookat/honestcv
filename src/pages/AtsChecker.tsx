@@ -225,6 +225,18 @@ export default function AtsChecker() {
                 </span>
               </div>
 
+              <p className="text-muted-foreground mt-2 text-sm">
+                {result.keywordScore === null
+                  ? 'Structure looks ' +
+                    (result.structureScore >= 70 ? 'solid' : 'improvable') +
+                    ' — paste the job description to see how well your keywords match.'
+                  : result.score >= 70
+                    ? 'Great match — your resume covers most of the keywords this job asks for.'
+                    : result.score >= 40
+                      ? 'Decent start — add the missing keywords below (where they are true of you) to improve your match.'
+                      : 'Needs work — this resume is missing most of the keywords the job description emphasizes.'}
+              </p>
+
               <div className="text-muted-foreground mt-2 flex gap-5 text-sm">
                 {result.keywordScore !== null && (
                   <span>
