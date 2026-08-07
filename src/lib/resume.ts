@@ -355,3 +355,55 @@ export function resumeToPlainText(r: Resume): string {
   }
   return lines.join('\n')
 }
+
+/** Flatten to Markdown (for AI tools, GitHub profiles and quick edits) */
+export function resumeToMarkdown(r: Resume): string {
+  const lines: string[] = []
+  const c = r.contact
+  lines.push(`# ${[c.fullName, c.title].filter(Boolean).join(' — ')}`)
+  const contact = [c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean)
+  if (contact.length) lines.push('', contact.join(' · '))
+  const heading = (t: string) => lines.push('', `## ${t}`, '')
+  for (const key of orderedSectionKeys(r)) {
+    if (key === 'summary' && r.summary) {
+      heading('Summary')
+      lines.push(r.summary)
+    } else if (key === 'experience' && r.experience.some((e) => e.company || e.role)) {
+      heading('Experience')
+      for (const e of r.experience) {
+        if (!e.company && !e.role) continue
+        const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
+        lines.push(`### ${[e.role, e.company].filter(Boolean).join(' — ')}${dates}`, '')
+        for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+        lines.push('')
+      }
+    } else if (key === 'projects' && r.projects.some((p) => p.name)) {
+      heading('Projects')
+      for (const p of r.projects) {
+        if (!p.name) continue
+        lines.push(`### ${p.link ? `[${p.name}](${p.link})` : p.name}`, '')
+        if (p.description) lines.push(p.description, '')
+      }
+    } else if (key === 'education' && r.education.some((e) => e.school)) {
+      heading('Education')
+      for (const e of r.education) {
+        if (!e.school) continue
+        const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
+        lines.push(`### ${[e.degree, e.school].filter(Boolean).join(', ')}${dates}`, '')
+        if (e.details) lines.push(e.details, '')
+      }
+    } else if (key === 'skills' && r.skills) {
+      heading('Skills')
+      lines.push(r.skills)
+    } else if (key === 'certifications' && r.certifications) {
+      heading('Certifications')
+      lines.push(r.certifications)
+    } else if (key.startsWith('custom:')) {
+      const s = r.customSections.find((x) => `custom:${x.id}` === key)
+      if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue
+      heading(s.title.trim() || 'Additional')
+      for (const b of s.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+    }
+  }
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n'
+}

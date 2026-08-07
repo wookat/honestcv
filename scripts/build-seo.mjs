@@ -219,6 +219,60 @@ const PAGES = [
       'One-time pricing ($9.99/$19.99 when billing opens) vs $21.99/month Premium (non-recurring, to its credit)',
     ],
   },
+  {
+    slug: 'vs-enhancv',
+    path: '/vs/enhancv',
+    name: 'HonestCV vs Enhancv',
+    title: 'HonestCV vs Enhancv — Branding, Privacy and Pricing Compared',
+    description:
+      'We signed up for Enhancv and ran its full flow ourselves: free downloads carry a "Powered by Enhancv" footer, the ATS keyword check is free but full suggestions are paywalled, and Pro runs $16.50–$39/month. HonestCV differs on branding-free exports, privacy and one-time pricing.',
+    h1: 'HonestCV vs Enhancv: what we found testing it ourselves',
+    intro:
+      'We created an Enhancv account and walked its full flow (August 2026). Credit where due: its guided chat-style onboarding is smooth, the free plan really does export a PDF and a TXT file, and its job-description match check with a per-keyword frequency table is genuinely useful — we liked that pattern enough to build our own version into HonestCV\u2019s free ATS checker. The catches: every free PDF carries a "Powered by Enhancv" branding footer (branding-free export is a paid feature), the resume grade and ATS suggestions are mostly behind an "Unlock Full Report" paywall, saving or downloading requires an account with email code verification, your resume lives on their servers, and Pro is a recurring subscription at $39/month, $23/month billed quarterly, or $16.50/month billed semiannually. HonestCV keeps your resume in your browser, renders PDF/DOCX/TXT locally with no branding at any tier, and shows the whole ATS report free — one-time pricing, currently in beta with a full free trial.',
+    bullets: [
+      'No branding footer on any export — Enhancv\u2019s free PDFs print "Powered by Enhancv" at the bottom',
+      'Full ATS report free, including every suggestion — Enhancv paywalls the full report behind Pro',
+      'Your resume never leaves your browser: local PDF/DOCX/TXT generation vs server-side rendering',
+      'No account or email code needed to download — Enhancv gates save/download behind a verified account',
+      'One-time pricing ($9.99/$19.99 when billing opens) vs a $16.50–$39/month recurring subscription',
+    ],
+  },
+  {
+    slug: 'vs-resume-worded',
+    path: '/vs/resume-worded',
+    name: 'HonestCV vs Resume Worded',
+    title: 'HonestCV vs Resume Worded — Free Limits, Privacy and Pricing Compared',
+    description:
+      'We created a Resume Worded account and ran its full flow ourselves: the free resume score locks several checks behind Pro, the keyword targeting tool is genuinely free, and Pro runs $19–$49/month recurring. HonestCV differs on privacy, a fully free report and one-time pricing.',
+    h1: 'HonestCV vs Resume Worded: what we found testing it ourselves',
+    intro:
+      'We created a Resume Worded account and walked its full flow (August 2026). Credit where due: its free Targeted Resume tool really does compare your resume to a job description at no charge, with a relevancy score, found/missing keyword counts and a side-by-side view — a genuinely useful free tool. The catches: it is a checker, not a builder (templates are Word/Google Docs downloads); the free resume score locks several checks (Leadership, Communication, Teamwork and more) plus the full report behind Pro; scoring requires an account and your resume is uploaded to their servers; the signup form pre-checks a weekly email subscription; and Pro is a recurring subscription at $49/month, $33/month billed quarterly, or $19/month billed yearly against a $75 strikethrough anchor. HonestCV is a full builder plus checker: your resume stays in your browser, the entire ATS report is free with no locked checks, and no account or email is needed — one-time pricing, currently in beta with a full free trial.',
+    bullets: [
+      'Full builder + checker in one — Resume Worded checks resumes but sends you to Word/Google Docs templates to edit',
+      'Every check in the ATS report is free — Resume Worded locks several recruiter checks and the full report behind Pro',
+      'Your resume never leaves your browser — Resume Worded requires an account and uploads your resume to score it',
+      'No pre-checked email subscriptions — their signup form opts you into a weekly email by default',
+      'One-time pricing ($9.99/$19.99 when billing opens) vs a $19–$49/month recurring subscription',
+    ],
+  },
+  {
+    slug: 'vs-jobscan',
+    path: '/vs/jobscan',
+    name: 'HonestCV vs Jobscan',
+    title: 'HonestCV vs Jobscan — Free Scan Limits and Pricing Compared',
+    description:
+      'We checked Jobscan\u2019s public plan page ourselves (August 2026): the free tier allows 5 resume scans per month with 5 findings, and paid plans run $29.98\u2013$49.95/month recurring with a 7-day trial that auto-bills. HonestCV\u2019s ATS checker is unlimited, free and browser-local.',
+    h1: 'HonestCV vs Jobscan: what its own plan page shows',
+    intro:
+      'Jobscan is one of the best-known ATS match tools, and its scan-against-the-job-description concept is genuinely the right idea — it\u2019s the same core workflow our free ATS checker implements. We reviewed Jobscan\u2019s public plan page firsthand (August 2026). What it shows: the free tier is capped at 5 resume scans per month with 5 ATS & recruiter findings; unlimited scans require a paid plan at $49.95/month, or $29.98/month billed quarterly as $89.95 every 3 months; the 7-day free trial converts into a quarterly charge automatically if you don\u2019t cancel in time ("Once your trial ends, you will be billed for the next quarter"), and per its cancellation policy you lose access to paid features and the data associated with them when the subscription expires. We could not fully exercise its scanner (parts of the site block automated-looking traffic), so we make no claims about its scoring quality. HonestCV\u2019s ATS checker is unlimited and free with no account, runs entirely in your browser, and our plans are one-time purchases — currently in beta with a full free trial and no card required.',
+    bullets: [
+      'Unlimited free ATS checks — Jobscan\u2019s free tier is capped at 5 scans per month',
+      'No trial-to-subscription conversion: nothing to cancel, no card required — Jobscan\u2019s 7-day trial auto-bills a quarterly charge',
+      'Your resume never leaves your browser — Jobscan scans server-side on your uploaded resume',
+      'Your data stays yours: browser-local with JSON backup — Jobscan\u2019s policy drops paid-feature data after expiry',
+      'One-time pricing ($9.99/$19.99 when billing opens) vs $29.98\u2013$49.95/month recurring',
+    ],
+  },
 ]
 
 /** Long-tail guide pages: real content, not thin doorway pages */

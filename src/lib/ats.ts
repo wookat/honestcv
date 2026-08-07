@@ -36,16 +36,54 @@ const KNOWN_PHRASES = [
   'risk management', 'change management', 'human resources',
 ]
 
+export interface KeywordDetail {
+  keyword: string
+  inResume: number
+  inJobAd: number
+}
+
 export interface AtsResult {
   score: number
   matched: string[]
   missing: string[]
+  /** Per-keyword occurrence counts (resume vs job ad), missing keywords first */
+  keywordDetail: KeywordDetail[]
   /** Keyword coverage 0-100, or null when no JD was provided */
   keywordScore: number | null
   /** Structure/best-practices sub-score 0-100 */
   structureScore: number
   /** Structural checks independent of the JD */
   checks: { label: string; pass: boolean; hint: string }[]
+}
+
+function countOccurrences(haystack: string, tokens: string[], kw: string): number {
+  if (kw.includes(' ')) {
+    let n = 0
+    let i = haystack.indexOf(kw)
+    while (i !== -1) {
+      n++
+      i = haystack.indexOf(kw, i + kw.length)
+    }
+    return n
+  }
+  return tokens.filter((t) => t === kw).length
+}
+
+function keywordDetailFor(
+  keywords: string[],
+  resumeText: string,
+  resumeTokens: string[],
+  jd: string
+): KeywordDetail[] {
+  const jdLower = jd.toLowerCase()
+  const jdTokens = tokenize(jd)
+  return keywords
+    .map((kw) => ({
+      keyword: kw,
+      inResume: countOccurrences(resumeText, resumeTokens, kw),
+      inJobAd: countOccurrences(jdLower, jdTokens, kw),
+    }))
+    .sort((a, b) => (a.inResume === 0 ? 0 : 1) - (b.inResume === 0 ? 0 : 1) || b.inJobAd - a.inJobAd)
 }
 
 function tokenize(text: string): string[] {
@@ -85,7 +123,8 @@ export function extractKeywords(jd: string, limit = 30): string[] {
 /** Score pasted resume text (standalone ATS checker page) */
 export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
   const resumeText = resumeTextRaw.toLowerCase()
-  const resumeTokens = new Set(tokenize(resumeText))
+  const resumeTokenList = tokenize(resumeText)
+  const resumeTokens = new Set(resumeTokenList)
 
   const keywords = jd.trim() ? extractKeywords(jd) : []
   const matched: string[] = []
@@ -129,14 +168,15 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     },
   ]
 
-  return finalize(keywords, matched, missing, checks)
+  return finalize(keywords, matched, missing, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
 }
 
 function finalize(
   keywords: string[],
   matched: string[],
   missing: string[],
-  checks: AtsResult['checks']
+  checks: AtsResult['checks'],
+  keywordDetail: KeywordDetail[]
 ): AtsResult {
   const structureRatio = checks.filter((c) => c.pass).length / checks.length
   const structureScore = Math.round(structureRatio * 100)
@@ -146,7 +186,7 @@ function finalize(
     keywordScore !== null
       ? Math.round((keywordScore * 70 + structureScore * 30) / 100)
       : structureScore
-  return { score, matched, missing, keywordScore, structureScore, checks }
+  return { score, matched, missing, keywordDetail, keywordScore, structureScore, checks }
 }
 
 import type { Resume } from './resume'
@@ -154,7 +194,8 @@ import { resumeToPlainText } from './resume'
 
 export function scoreResume(resume: Resume, jd: string): AtsResult {
   const resumeText = resumeToPlainText(resume).toLowerCase()
-  const resumeTokens = new Set(tokenize(resumeText))
+  const resumeTokenList = tokenize(resumeText)
+  const resumeTokens = new Set(resumeTokenList)
 
   const keywords = jd.trim() ? extractKeywords(jd) : []
   const matched: string[] = []
@@ -207,5 +248,5 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
     },
   ]
 
-  return finalize(keywords, matched, missing, checks)
+  return finalize(keywords, matched, missing, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
 }

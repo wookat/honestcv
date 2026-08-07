@@ -2079,3 +2079,106 @@ connected, no real charges).
 - G8 (honest pricing content): new /vs/novoresume comparison page from
   firsthand test, crediting its non-recurring pricing and free download while
   stating our structural differences.
+
+## Competitor Research Round 3 — Enhancv firsthand (2026-08)
+
+**Driver: competitor research (five-driver cycle).**
+
+- Full firsthand Enhancv walkthrough on a real account: chat-style onboarding
+  (import? → role → recruiter-vs-ATS goal) → template gallery → inline
+  contenteditable editor → signup (email code) → Check & Tailor JD match →
+  Fix Resume grade → PDF + TXT download → pricing.
+- Free PDF carries a "Powered by Enhancv" branding footer; full ATS/grade
+  reports paywalled; Pro recurring $16.50–$39/mo. Findings:
+  docs/competitor-research-round-3.md (gaps G12–G15).
+
+**Fixes shipped this round**
+
+- G12 (Enhancv keyword-table pattern): per-keyword frequency table added to
+  the free /ats-checker report — Keyword | In resume | In job ad occurrence
+  counts, missing keywords first. Browser-local and rule-based like the rest
+  of the checker; fully free (Enhancv paywalls its full list).
+- New /vs/enhancv comparison page from firsthand evidence, crediting its
+  onboarding/editor design while stating our structural differences
+  (no branding footer, full free report, browser-local, one-time pricing).
+
+## Competitor Research Round 4 — Resume Worded firsthand (2026-08)
+
+**Driver: competitor research (five-driver cycle).**
+
+- Real-account Resume Worded walkthrough: upload → career-level wizard →
+  account wall (pre-checked weekly-email opt-in) → Score My Resume (38/100,
+  Pro-locked checks) → Magic Write demo → free Targeted Resume keyword match
+  (95 relevancy, side-by-side highlighting) → Pro pricing ($19–$49/mo
+  recurring, Paddle, $75 anchor). Findings:
+  docs/competitor-research-round-4.md (gaps G16–G18).
+- Notable: its "Quantify impact" check flagged fully-quantified bullets, and
+  the Magic Write demo fabricated "50+ components / within six months" —
+  reinforcing our anti-fabrication AI policy as a real differentiator.
+
+**Fixes shipped this round**
+
+- G16 (Resume Worded verdict pattern): one-line plain-English verdict under
+  the ATS score ("Great match… / Decent start… / Needs work…", and a
+  structure-only variant when no JD is pasted). Rule-based, honest
+  thresholds, browser-local.
+- New /vs/resume-worded comparison page from firsthand evidence, crediting
+  its genuinely free Targeted Resume tool while stating our structural
+  differences (builder+checker, no locked checks, local, one-time pricing).
+
+## Competitor Research Round 5 — Reactive Resume firsthand (2026-08)
+
+**Driver: competitor research (five-driver cycle).**
+
+- Real-account walkthrough of rxresu.me (open-source, ~40k stars): register
+  (email verification optional) → dashboard (Resumes/Applications/Agents,
+  command palette) → builder (three-panel, drag-drop layout) → export
+  dialog (PDF/DOCX/Markdown/JSON). PDF verified: real text, no branding,
+  no gates. Findings: docs/competitor-research-round-5.md (gaps G19–G22).
+
+**Fixes shipped this round**
+
+- G19 (Reactive Resume template-tags pattern): every template now carries
+  short fit tags; landing gallery shows the primary tag under each
+  thumbnail, and the builder picker shows the selected template's
+  description + tags line.
+
+## Frontend replication batch — JD keyword highlighting (2026-08)
+
+**Driver: competitor research follow-through (gap G17, Resume Worded).**
+
+- /ats-checker now renders the pasted job description with matched keywords
+  highlighted green and missing keywords amber, inline (Resume Worded's
+  side-by-side pattern, adapted to a single annotated JD panel).
+  Fully browser-local; regex built from the same keyword set the scorer
+  uses, longest-first, with word-boundary guards for tech tokens
+  (C++, CI/CD, .NET).
+
+## Competitor Research Round 6 — blocked-site revisits (2026-08)
+
+**Driver: competitor research (five-driver cycle).**
+
+- Teal pricing page: still behind a Cloudflare bot wall ("Sorry, you have
+  been blocked") — remains blocked; /vs/teal claims unchanged, no bypass
+  attempted.
+- Jobscan: app.jobscan.co/plan is publicly accessible (observed). Free tier
+  = 5 resume scans/month + 5 findings; Quarterly $29.98/mo (billed $89.95/3mo,
+  7-day trial auto-bills the quarter); Monthly $49.95/mo. Cancellation policy
+  states paid-feature data is dropped after expiry. Scanner itself remains
+  partially blocked — no claims made about scoring quality.
+
+**Fixes shipped this round**
+
+- New /vs/jobscan comparison page from the observed plan-page evidence
+  (unlimited free local checks vs 5 scans/month; no trial-to-subscription
+  conversion; one-time pricing). Sitemap 56→57, IndexNow pushed.
+
+## Frontend replication batch — Markdown export (gap G20) (2026-08)
+
+**Driver: competitor research follow-through (Reactive Resume).**
+
+- New MD export button in the builder header: `resumeToMarkdown` flattens
+  the resume (same section order as preview) to Markdown — H1 name+title,
+  H2 sections, H3 entry headers with italic dates, link-formatted project
+  URLs. Useful for AI-tool workflows, GitHub profiles and quick edits;
+  fully browser-local like TXT.

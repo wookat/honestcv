@@ -158,6 +158,9 @@ export default function Landing() {
               >
                 <TemplateThumb t={t} />
                 <span className="mt-1 block truncate text-center text-xs">{t.name}</span>
+                <span className="text-muted-foreground block truncate text-center text-[10px]">
+                  {t.tags[0]}
+                </span>
               </Link>
             ))}
           </div>

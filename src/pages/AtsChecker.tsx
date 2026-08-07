@@ -42,6 +42,29 @@ Requirements:
 - Experience with CI/CD pipelines and AWS
 - Strong communication skills`
 
+type JdSegment = { text: string; kind: 'plain' | 'matched' | 'missing' }
+
+/** Split the JD into segments so matched/missing keywords can be highlighted inline. */
+function segmentJd(jd: string, matched: string[], missing: string[]): JdSegment[] {
+  const kinds = new Map<string, 'matched' | 'missing'>()
+  for (const k of matched) kinds.set(k.toLowerCase(), 'matched')
+  for (const k of missing) kinds.set(k.toLowerCase(), 'missing')
+  const kws = [...kinds.keys()].sort((a, b) => b.length - a.length)
+  if (kws.length === 0) return [{ text: jd, kind: 'plain' }]
+  const escaped = kws.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const re = new RegExp(`(?<![\\w/#+.-])(${escaped.join('|')})(?![\\w/#+-])`, 'gi')
+  const out: JdSegment[] = []
+  let last = 0
+  for (const m of jd.matchAll(re)) {
+    const i = m.index
+    if (i > last) out.push({ text: jd.slice(last, i), kind: 'plain' })
+    out.push({ text: m[0], kind: kinds.get(m[0].toLowerCase()) ?? 'matched' })
+    last = i + m[0].length
+  }
+  if (last < jd.length) out.push({ text: jd.slice(last), kind: 'plain' })
+  return out
+}
+
 export default function AtsChecker() {
   usePageMeta(
     'Free ATS Resume Checker — Instant Match Score | HonestCV',
@@ -225,6 +248,18 @@ export default function AtsChecker() {
                 </span>
               </div>
 
+              <p className="text-muted-foreground mt-2 text-sm">
+                {result.keywordScore === null
+                  ? 'Structure looks ' +
+                    (result.structureScore >= 70 ? 'solid' : 'improvable') +
+                    ' — paste the job description to see how well your keywords match.'
+                  : result.score >= 70
+                    ? 'Great match — your resume covers most of the keywords this job asks for.'
+                    : result.score >= 40
+                      ? 'Decent start — add the missing keywords below (where they are true of you) to improve your match.'
+                      : 'Needs work — this resume is missing most of the keywords the job description emphasizes.'}
+              </p>
+
               <div className="text-muted-foreground mt-2 flex gap-5 text-sm">
                 {result.keywordScore !== null && (
                   <span>
@@ -280,6 +315,74 @@ export default function AtsChecker() {
                         </p>
                       )}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {jd.trim() && (result.matched.length > 0 || result.missing.length > 0) && (
+                <div className="mt-5">
+                  <p className="text-sm font-medium">Job description with keywords highlighted</p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    <span className="rounded bg-emerald-100 px-1 text-emerald-900">green</span>{' '}
+                    = already on your resume,{' '}
+                    <span className="rounded bg-amber-100 px-1 text-amber-900">amber</span> =
+                    missing.
+                  </p>
+                  <div className="bg-muted/40 mt-2 max-h-56 overflow-y-auto rounded-md border p-3 text-sm whitespace-pre-wrap">
+                    {segmentJd(jd, result.matched, result.missing).map((s, i) =>
+                      s.kind === 'plain' ? (
+                        <span key={i}>{s.text}</span>
+                      ) : (
+                        <mark
+                          key={i}
+                          className={`rounded px-0.5 ${
+                            s.kind === 'matched'
+                              ? 'bg-emerald-100 text-emerald-900'
+                              : 'bg-amber-100 text-amber-900'
+                          }`}
+                        >
+                          {s.text}
+                        </mark>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {jd.trim() && result.keywordDetail.length > 0 && (
+                <div className="mt-5">
+                  <p className="text-sm font-medium">Keyword frequency</p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    How often each keyword appears in your resume vs the job ad —
+                    missing keywords first.
+                  </p>
+                  <div className="mt-2 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-muted-foreground border-b text-left text-xs">
+                          <th className="py-1.5 pr-2 font-medium">Keyword</th>
+                          <th className="px-2 py-1.5 text-right font-medium">In resume</th>
+                          <th className="px-2 py-1.5 text-right font-medium">In job ad</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.keywordDetail.slice(0, 12).map((k) => (
+                          <tr key={k.keyword} className="border-b last:border-0">
+                            <td className="py-1.5 pr-2">{k.keyword}</td>
+                            <td
+                              className={`px-2 py-1.5 text-right tabular-nums ${
+                                k.inResume === 0 ? 'text-destructive font-medium' : ''
+                              }`}
+                            >
+                              {k.inResume === 0 ? '✕' : k.inResume}
+                            </td>
+                            <td className="text-muted-foreground px-2 py-1.5 text-right tabular-nums">
+                              {k.inJobAd}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
