@@ -183,6 +183,24 @@ const PAGES = [
       'No account needed; your resume stays in your browser',
     ],
   },
+  {
+    slug: 'vs-flowcv',
+    path: '/vs/flowcv',
+    name: 'HonestCV vs FlowCV',
+    title: 'HonestCV vs FlowCV — One-Time Pricing and Browser-Local Privacy',
+    description:
+      'We tested FlowCV ourselves: a genuinely generous free tier (1 resume, unlimited PDF downloads) with $3–5/month subscriptions on top. HonestCV differs on privacy (browser-local, no account) and one-time pricing.',
+    h1: 'HonestCV vs FlowCV: two honest builders, two different trade-offs',
+    intro:
+      'We registered for FlowCV and ran the full flow ourselves (August 2026) — and credit where due: it is one of the fairest products in this category. The free plan really is free: one resume, unlimited watermark-free PDF downloads, all templates, and clear auto-renewal disclosure on its cheap paid tiers (Basic $3/month and Pro $5/month, billed yearly). The differences are structural. FlowCV requires an account and a verified email before any download, renders your PDF on its servers (the exported file’s metadata shows server-side Chromium), and caps the free plan at a single resume. HonestCV needs no account, keeps your resume data in your browser and generates the PDF locally on your machine, lets you keep unlimited tailored copies, and charges once instead of a subscription — currently in beta with a full free trial.',
+    bullets: [
+      'No account or email verification needed to download — FlowCV gates every download behind a verified account',
+      'Your resume never leaves your browser: local PDF/DOCX generation vs FlowCV’s server-side rendering',
+      'Unlimited saved resume copies free — FlowCV’s free plan stores exactly one resume',
+      'One-time pricing ($9.99/$19.99 when billing opens) vs an auto-renewing subscription ($3–5/month billed yearly)',
+      'Free ATS match score against any pasted job description built into the editor',
+    ],
+  },
 ]
 
 /** Long-tail guide pages: real content, not thin doorway pages */

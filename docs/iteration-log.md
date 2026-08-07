@@ -2034,3 +2034,27 @@ connected, no real charges).
 
 - `/`, `/guides/what-is-an-ats/`, `/vs/zety/` all serve the new
   beta-trial copy in production.
+
+## Competitor Research Round 1 — FlowCV firsthand + expanded field (2026-08)
+
+**Driver: competitor research (five-driver cycle).**
+
+- Full firsthand FlowCV walkthrough on a real account (cvbench@zalize.com):
+  build → tips → customize → signup → email verification → real PDF download.
+  Pricing verified in-app: Free $0 (1 resume, unlimited PDFs), Basic $3/mo,
+  Pro $5/mo billed yearly. PDF metadata shows server-side Chromium rendering.
+- Expanded field scanned: Novoresume ($21.99/mo, Next.js), Enhancv (from
+  $16.50/mo, Next.js), Resume Worded (score-first funnel), Reactive Resume
+  (React+Vite+Tailwind OSS, 40k stars). Jobscan/Resume Genius/Canva behind
+  bot walls — recorded as blocked, not bypassed.
+- Full findings, gap matrix (G1–G8) and tech-stack assessment:
+  docs/competitor-research-round-1.md. Conclusion: keep current stack.
+
+**Fixes shipped this round**
+
+- G1 (FlowCV tips pattern): action-verb library (7 groups × 6 verbs) added
+  to the bullet-ideas panel — clicking a verb starts a new bullet with it.
+  Rule-based, no AI dependency.
+- G8 (honest pricing content): new /vs/flowcv comparison page from firsthand
+  test, crediting FlowCV's fair free tier while stating our structural
+  differences (browser-local privacy, no account gate, one-time pricing).
