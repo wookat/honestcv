@@ -64,6 +64,17 @@ export function checkBullet(bullet: string): BulletIssue[] {
   return issues
 }
 
+/** Action-verb library grouped by what the bullet demonstrates. */
+export const ACTION_VERBS: { group: string; verbs: string[] }[] = [
+  { group: 'Achievement', verbs: ['Achieved', 'Exceeded', 'Delivered', 'Won', 'Earned', 'Surpassed'] },
+  { group: 'Leadership', verbs: ['Led', 'Directed', 'Mentored', 'Coordinated', 'Oversaw', 'Chaired'] },
+  { group: 'Building', verbs: ['Built', 'Designed', 'Developed', 'Launched', 'Created', 'Implemented'] },
+  { group: 'Improvement', verbs: ['Improved', 'Increased', 'Reduced', 'Cut', 'Streamlined', 'Accelerated'] },
+  { group: 'Analysis', verbs: ['Analyzed', 'Evaluated', 'Identified', 'Researched', 'Measured', 'Forecast'] },
+  { group: 'Communication', verbs: ['Presented', 'Negotiated', 'Authored', 'Persuaded', 'Trained', 'Advised'] },
+  { group: 'Initiative', verbs: ['Initiated', 'Pioneered', 'Introduced', 'Founded', 'Spearheaded', 'Proposed'] },
+]
+
 export function checkBullets(bullets: string[]): { index: number; issues: BulletIssue[] }[] {
   return bullets
     .map((b, index) => ({ index, issues: checkBullet(b) }))

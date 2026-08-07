@@ -54,7 +54,7 @@ import {
   aiRewrite,
 } from '@/lib/api'
 import { scoreResume } from '@/lib/ats'
-import { checkBullets, resumeStrength } from '@/lib/guidance'
+import { ACTION_VERBS, checkBullets, resumeStrength } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
@@ -1960,6 +1960,31 @@ function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void
           ))}
           <li className="text-muted-foreground text-[11px]">
             Replace every [add …] with your real numbers — never invent facts.
+          </li>
+          <li className="pt-1">
+            <div className="text-muted-foreground text-[11px] font-medium">
+              Or start a bullet with a strong action verb:
+            </div>
+            <div className="mt-1 space-y-1">
+              {ACTION_VERBS.map((g) => (
+                <div key={g.group} className="flex flex-wrap items-center gap-1">
+                  <span className="text-muted-foreground w-28 shrink-0 text-[10px] uppercase tracking-wide">
+                    {g.group}
+                  </span>
+                  {g.verbs.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      className="bg-muted/60 hover:bg-muted rounded border px-1.5 py-0.5 text-[11px]"
+                      title={`Start a bullet with “${v}”`}
+                      onClick={() => onAdd(`${v} `)}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
           </li>
         </ul>
       )}
