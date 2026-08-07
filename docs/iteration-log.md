@@ -2125,3 +2125,20 @@ connected, no real charges).
 - New /vs/resume-worded comparison page from firsthand evidence, crediting
   its genuinely free Targeted Resume tool while stating our structural
   differences (builder+checker, no locked checks, local, one-time pricing).
+
+## Competitor Research Round 5 — Reactive Resume firsthand (2026-08)
+
+**Driver: competitor research (five-driver cycle).**
+
+- Real-account walkthrough of rxresu.me (open-source, ~40k stars): register
+  (email verification optional) → dashboard (Resumes/Applications/Agents,
+  command palette) → builder (three-panel, drag-drop layout) → export
+  dialog (PDF/DOCX/Markdown/JSON). PDF verified: real text, no branding,
+  no gates. Findings: docs/competitor-research-round-5.md (gaps G19–G22).
+
+**Fixes shipped this round**
+
+- G19 (Reactive Resume template-tags pattern): every template now carries
+  short fit tags; landing gallery shows the primary tag under each
+  thumbnail, and the builder picker shows the selected template's
+  description + tags line.

@@ -1458,6 +1458,11 @@ export default function Builder() {
                 </span>
               </button>
             ))}
+            <span className="text-muted-foreground w-full text-xs">
+              {getTemplate(resume.templateId).name}:{' '}
+              {getTemplate(resume.templateId).description} ·{' '}
+              {getTemplate(resume.templateId).tags.join(' · ')}
+            </span>
             <span className="flex items-center gap-2">
               <span className="mx-1 h-5 border-l" aria-hidden />
               {ACCENT_CHOICES.map((color) => {
