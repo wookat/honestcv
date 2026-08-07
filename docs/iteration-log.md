@@ -2079,3 +2079,25 @@ connected, no real charges).
 - G8 (honest pricing content): new /vs/novoresume comparison page from
   firsthand test, crediting its non-recurring pricing and free download while
   stating our structural differences.
+
+## Competitor Research Round 3 — Enhancv firsthand (2026-08)
+
+**Driver: competitor research (five-driver cycle).**
+
+- Full firsthand Enhancv walkthrough on a real account: chat-style onboarding
+  (import? → role → recruiter-vs-ATS goal) → template gallery → inline
+  contenteditable editor → signup (email code) → Check & Tailor JD match →
+  Fix Resume grade → PDF + TXT download → pricing.
+- Free PDF carries a "Powered by Enhancv" branding footer; full ATS/grade
+  reports paywalled; Pro recurring $16.50–$39/mo. Findings:
+  docs/competitor-research-round-3.md (gaps G12–G15).
+
+**Fixes shipped this round**
+
+- G12 (Enhancv keyword-table pattern): per-keyword frequency table added to
+  the free /ats-checker report — Keyword | In resume | In job ad occurrence
+  counts, missing keywords first. Browser-local and rule-based like the rest
+  of the checker; fully free (Enhancv paywalls its full list).
+- New /vs/enhancv comparison page from firsthand evidence, crediting its
+  onboarding/editor design while stating our structural differences
+  (no branding footer, full free report, browser-local, one-time pricing).

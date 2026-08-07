@@ -219,6 +219,24 @@ const PAGES = [
       'One-time pricing ($9.99/$19.99 when billing opens) vs $21.99/month Premium (non-recurring, to its credit)',
     ],
   },
+  {
+    slug: 'vs-enhancv',
+    path: '/vs/enhancv',
+    name: 'HonestCV vs Enhancv',
+    title: 'HonestCV vs Enhancv — Branding, Privacy and Pricing Compared',
+    description:
+      'We signed up for Enhancv and ran its full flow ourselves: free downloads carry a "Powered by Enhancv" footer, the ATS keyword check is free but full suggestions are paywalled, and Pro runs $16.50–$39/month. HonestCV differs on branding-free exports, privacy and one-time pricing.',
+    h1: 'HonestCV vs Enhancv: what we found testing it ourselves',
+    intro:
+      'We created an Enhancv account and walked its full flow (August 2026). Credit where due: its guided chat-style onboarding is smooth, the free plan really does export a PDF and a TXT file, and its job-description match check with a per-keyword frequency table is genuinely useful — we liked that pattern enough to build our own version into HonestCV\u2019s free ATS checker. The catches: every free PDF carries a "Powered by Enhancv" branding footer (branding-free export is a paid feature), the resume grade and ATS suggestions are mostly behind an "Unlock Full Report" paywall, saving or downloading requires an account with email code verification, your resume lives on their servers, and Pro is a recurring subscription at $39/month, $23/month billed quarterly, or $16.50/month billed semiannually. HonestCV keeps your resume in your browser, renders PDF/DOCX/TXT locally with no branding at any tier, and shows the whole ATS report free — one-time pricing, currently in beta with a full free trial.',
+    bullets: [
+      'No branding footer on any export — Enhancv\u2019s free PDFs print "Powered by Enhancv" at the bottom',
+      'Full ATS report free, including every suggestion — Enhancv paywalls the full report behind Pro',
+      'Your resume never leaves your browser: local PDF/DOCX/TXT generation vs server-side rendering',
+      'No account or email code needed to download — Enhancv gates save/download behind a verified account',
+      'One-time pricing ($9.99/$19.99 when billing opens) vs a $16.50–$39/month recurring subscription',
+    ],
+  },
 ]
 
 /** Long-tail guide pages: real content, not thin doorway pages */

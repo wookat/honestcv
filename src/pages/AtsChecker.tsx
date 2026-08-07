@@ -284,6 +284,44 @@ export default function AtsChecker() {
                 </div>
               )}
 
+              {jd.trim() && result.keywordDetail.length > 0 && (
+                <div className="mt-5">
+                  <p className="text-sm font-medium">Keyword frequency</p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    How often each keyword appears in your resume vs the job ad —
+                    missing keywords first.
+                  </p>
+                  <div className="mt-2 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-muted-foreground border-b text-left text-xs">
+                          <th className="py-1.5 pr-2 font-medium">Keyword</th>
+                          <th className="px-2 py-1.5 text-right font-medium">In resume</th>
+                          <th className="px-2 py-1.5 text-right font-medium">In job ad</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.keywordDetail.slice(0, 12).map((k) => (
+                          <tr key={k.keyword} className="border-b last:border-0">
+                            <td className="py-1.5 pr-2">{k.keyword}</td>
+                            <td
+                              className={`px-2 py-1.5 text-right tabular-nums ${
+                                k.inResume === 0 ? 'text-destructive font-medium' : ''
+                              }`}
+                            >
+                              {k.inResume === 0 ? '✕' : k.inResume}
+                            </td>
+                            <td className="text-muted-foreground px-2 py-1.5 text-right tabular-nums">
+                              {k.inJobAd}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-5 space-y-2">
                 <p className="text-sm font-medium">Format &amp; content checks</p>
                 {result.checks.map((c) => (
