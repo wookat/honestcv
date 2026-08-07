@@ -246,11 +246,11 @@ export function FreeDownloadDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Mail className="size-5" /> Downloads are free during launch
+            <Mail className="size-5" /> Downloads are included in the beta trial
           </DialogTitle>
           <DialogDescription>
             No payment, no subscription — just leave an email once and download
-            PDF/DOCX free while we're in launch mode. We'll only email you about
+            PDF/DOCX at no charge while we're in beta. We'll only email you about
             HonestCV updates.
           </DialogDescription>
         </DialogHeader>
@@ -267,7 +267,7 @@ export function FreeDownloadDialog({
             />
             <Button onClick={() => void submit()} disabled={busy} className="shrink-0">
               {busy ? <Loader2 className="animate-spin" /> : <Mail />}
-              {busy ? 'Unlocking…' : 'Unlock free downloads'}
+              {busy ? 'Unlocking…' : 'Unlock downloads'}
             </Button>
           </div>
           {error && <p className="text-destructive text-sm">{error}</p>}

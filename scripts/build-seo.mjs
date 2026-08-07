@@ -880,8 +880,8 @@ ${p.bullets.map((b) => `<li>${esc(b)}</li>`).join('\n')}
 </ul>
 ${p.path.startsWith('/vs/') ? '<p style="color:var(--muted);font-size:.85rem">Competitor pricing and free-tier limits last re-verified against their public pricing pages: August 2026.</p>' : ''}
 <div class="cta">
-<p>${FREE_MODE ? 'Launch special: everything is free right now — editor, ATS templates, match score, AI tools and PDF/DOCX downloads. No card, no trial, nothing that renews.' : 'Everything is free to try — editor, ATS templates, live preview, match score. Pay $9.99 exactly once to download. No subscription, no auto-renewal, nothing to cancel.'}</p>
-<a class="btn" href="${p.cta ?? '/builder'}">${esc(p.ctaLabel ?? 'Start building free')}</a>
+<p>${FREE_MODE ? 'Beta free trial: every plan is fully unlocked at no charge while we\u2019re in beta — editor, ATS templates, match score, AI tools and PDF/DOCX downloads. Plans are $9.99/$19.99 one-time when billing opens. No card, no auto-renewal, nothing that renews.' : 'Everything is free to try — editor, ATS templates, live preview, match score. Pay $9.99 exactly once to download. No subscription, no auto-renewal, nothing to cancel.'}</p>
+<a class="btn" href="${p.cta ?? '/builder'}">${esc(p.ctaLabel ?? 'Start your free trial')}</a>
 </div>
 <div class="related">
 <h2>More from HonestCV</h2>
@@ -1021,8 +1021,8 @@ ${BEACON}${FP_BEACON}
 <h1>${esc(p.h1)}</h1>
 ${p.sections.map(([h, t]) => `<h2 style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
 <div class="cta">
-<p>${FREE_MODE ? 'Put this into practice — the HonestCV builder is completely free during launch: templates, AI rewrites, ATS score and PDF/DOCX downloads.' : 'Put this into practice — the HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
-<a class="btn" href="/builder">Build my resume free</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
+<p>${FREE_MODE ? 'Put this into practice — HonestCV is in beta with a full free trial: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'Put this into practice — the HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
+<a class="btn" href="/builder">Start my free trial</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 <div class="related">
 <h2>Keep reading</h2>
@@ -1124,8 +1124,8 @@ ${BEACON}${FP_BEACON}
 ${items.map(({ href, label, blurb, thumb }) => `<li${thumb ? ' style="display:flex;align-items:center;gap:.75rem"' : ''}>${thumb ? `<a href="${href}" style="flex-shrink:0;line-height:0">${thumb}</a>` : ''}<span><a href="${href}">${esc(label)}</a>${blurb ? ` — ${esc(blurb)}` : ''}</span></li>`).join('\n')}
 </ul>
 <div class="cta">
-<p>${FREE_MODE ? 'The HonestCV builder is completely free during launch: templates, AI rewrites, ATS score and PDF/DOCX downloads.' : 'The HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
-<a class="btn" href="/builder">Build my resume free</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
+<p>${FREE_MODE ? 'HonestCV is in beta with a full free trial: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
+<a class="btn" href="/builder">Start my free trial</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 </main>
 <footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
@@ -1166,7 +1166,7 @@ const HUBS = [
     pathname: '/templates/',
     title: 'ATS-Friendly Resume Templates (Free) — HonestCV',
     description:
-      'All 12 HonestCV resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Free during launch — no account, no subscription.',
+      'All 12 HonestCV resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Fully included in the beta free trial — no account, no subscription.',
     h1: 'ATS-friendly resume templates',
     intro:
       'Every HonestCV template follows one rule: strictly single-column real text, the layout ATS parsers read most reliably. Pick a look below — you can switch templates any time without retyping.',
@@ -1228,7 +1228,7 @@ console.log('built sitemap.xml + robots.txt')
 // llms.txt — a curated site map for AI assistants (https://llmstxt.org)
 const llms = `# HonestCV
 
-> Free ATS-friendly resume builder with a one-time-payment model (currently free during launch): 12 single-column templates, live preview, free ATS match score against any pasted job description, real text-based PDF and DOCX export. No account — resume data stays in the user's browser (localStorage). No subscription, no auto-renewal, no trial trap.
+> ATS-friendly resume builder with a one-time-payment model ($9.99/$19.99 once; currently in beta with a full free trial of every plan): 12 single-column templates, live preview, free ATS match score against any pasted job description, real text-based PDF and DOCX export. No account — resume data stays in the user's browser (localStorage). No subscription, no auto-renewal, no trial trap.
 
 ## Core tools
 
