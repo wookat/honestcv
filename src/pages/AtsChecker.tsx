@@ -4,6 +4,7 @@ import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-reac
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { ScanIllustration } from '@/components/Illustrations'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
@@ -212,6 +213,9 @@ export default function AtsChecker() {
           >
             Check my ATS score <ArrowRight />
           </Button>
+          {resumeText.trim().length < 30 && (
+            <ScanIllustration className="mx-auto mt-4 h-24" />
+          )}
           {resumeText.trim().length < 30 && (
             <p className="text-muted-foreground mt-2 text-xs">
               Paste your resume text to enable the check, or{' '}

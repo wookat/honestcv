@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -16,7 +17,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { useFreeMode } from '@/components/Paywall'
 import { TemplateThumb } from '@/components/TemplateThumb'
-import { TEMPLATES } from '@/lib/templates'
+import { TEMPLATES, TEMPLATE_FILTERS } from '@/lib/templates'
 
 const FEATURES = [
   {
@@ -68,6 +69,7 @@ export default function Landing() {
     'HonestCV: the resume builder you pay for once — currently in beta with a full free trial of every plan. ATS-friendly templates, free ATS match score, AI rewrites, real PDF & DOCX export. No subscription, no auto-renewal, no trial trap.'
   )
   const freeMode = useFreeMode()
+  const [galleryFilter, setGalleryFilter] = useState('all')
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader
@@ -156,8 +158,27 @@ export default function Landing() {
             Every template is single-column real text — the format ATS parsers read
             cleanly. Pick a look, then switch any time; your content stays put.
           </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2" role="group" aria-label="Filter templates by style">
+            {TEMPLATE_FILTERS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={galleryFilter === f.id}
+                onClick={() => setGalleryFilter(f.id)}
+                className={`rounded-full border px-3 py-1 text-xs transition ${
+                  galleryFilter === f.id
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'hover:border-primary'
+                }`}
+              >
+                {f.label} ({TEMPLATES.filter(f.match).length})
+              </button>
+            ))}
+          </div>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            {TEMPLATES.map((t) => (
+            {TEMPLATES.filter(
+              (TEMPLATE_FILTERS.find((f) => f.id === galleryFilter) ?? TEMPLATE_FILTERS[0]).match,
+            ).map((t) => (
               <Link
                 key={t.id}
                 to={`/builder?template=${t.id}`}

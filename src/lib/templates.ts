@@ -32,6 +32,15 @@ export function accentTint(hex: string, alpha = 0.12): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
 }
 
+/** Style filters for template galleries, derived from template metadata. */
+export const TEMPLATE_FILTERS: { id: string; label: string; match: (t: TemplateMeta) => boolean }[] = [
+  { id: 'all', label: 'All', match: () => true },
+  { id: 'serif', label: 'Serif', match: (t) => t.serif },
+  { id: 'sans', label: 'Modern sans', match: (t) => !t.serif },
+  { id: 'banded', label: 'Banded headings', match: (t) => t.band === true },
+  { id: 'minimal', label: 'Minimal', match: (t) => t.divider === 'none' && !t.band },
+]
+
 export const TEMPLATES: TemplateMeta[] = [
   {
     id: 'classic',

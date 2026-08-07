@@ -3,6 +3,7 @@ import {
   ArrowDown,
   ArrowUp,
   Briefcase,
+  Check,
   ChevronDown,
   ChevronUp,
   ClipboardPaste,
@@ -46,6 +47,7 @@ import {
   useFreeMode,
   useLicense,
 } from '@/components/Paywall'
+import { DraftIllustration } from '@/components/Illustrations'
 import { ResumePreview } from '@/components/ResumePreview'
 import {
   PaymentRequiredError,
@@ -83,7 +85,7 @@ import {
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
-import { ACCENT_CHOICES, TEMPLATES, getTemplate } from '@/lib/templates'
+import { ACCENT_CHOICES, TEMPLATES, TEMPLATE_FILTERS, getTemplate } from '@/lib/templates'
 
 function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
   const t = useRef<number | undefined>(undefined)
@@ -285,6 +287,7 @@ export default function Builder() {
   const [aiErrorTag, setAiErrorTag] = useState<string | null>(null)
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
@@ -311,6 +314,7 @@ export default function Builder() {
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
   const pdfPages = usePdfPageCount(resume)
+  const [templateFilter, setTemplateFilter] = useState('all')
   const { undo, canUndo } = useUndo(resume, setResume)
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
@@ -449,6 +453,8 @@ export default function Builder() {
         setShareCopied(false)
         setShareOpen(true)
       }
+      setDownloaded(fmt)
+      window.setTimeout(() => setDownloaded((cur) => (cur === fmt ? null : cur)), 1800)
     } finally {
       setDownloading(null)
     }
@@ -514,7 +520,13 @@ export default function Builder() {
               <Undo2 className="size-3.5" />
             </Button>
             <Button size="sm" onClick={() => void download('pdf')} disabled={Boolean(downloading)}>
-              {downloading ? <Loader2 className="animate-spin" /> : <Download />}
+              {downloading === 'pdf' ? (
+                <Loader2 className="animate-spin" />
+              ) : downloaded === 'pdf' ? (
+                <Check className="animate-pop text-emerald-400" />
+              ) : (
+                <Download />
+              )}
               PDF
             </Button>
             <Button
@@ -523,7 +535,14 @@ export default function Builder() {
               onClick={() => void download('docx')}
               disabled={Boolean(downloading)}
             >
-              <Download /> DOCX
+              {downloading === 'docx' ? (
+                <Loader2 className="animate-spin" />
+              ) : downloaded === 'docx' ? (
+                <Check className="animate-pop text-emerald-600" />
+              ) : (
+                <Download />
+              )}{' '}
+              DOCX
             </Button>
             <Button
               size="sm"
@@ -533,7 +552,7 @@ export default function Builder() {
               title="Plain-text version — handy for online application forms and ATS paste boxes"
               className="hidden sm:inline-flex"
             >
-              <Download /> TXT
+              {downloaded === 'txt' ? <Check className="animate-pop text-emerald-600" /> : <Download />} TXT
             </Button>
             <Button
               size="sm"
@@ -543,7 +562,7 @@ export default function Builder() {
               title="Markdown version — handy for AI tools, GitHub profiles and quick edits"
               className="hidden md:inline-flex"
             >
-              <Download /> MD
+              {downloaded === 'md' ? <Check className="animate-pop text-emerald-600" /> : <Download />} MD
             </Button>
           </div>
         }
@@ -555,7 +574,8 @@ export default function Builder() {
         <div className="space-y-4">
           {resume === null ||
             (!resume.contact.fullName && !resume.summary && (
-              <div className="rounded-lg border border-dashed p-3 text-sm">
+              <div className="rounded-lg border border-dashed p-3 text-center text-sm">
+                <DraftIllustration className="mx-auto mb-1 h-20" />
                 Starting fresh?{' '}
                 <button
                   type="button"
@@ -1456,8 +1476,31 @@ export default function Builder() {
                 ' — recruiters prefer one page; consider trimming older roles or long bullets'}
             </p>
           )}
+          <div
+            className="flex flex-wrap items-center gap-1.5"
+            role="group"
+            aria-label="Filter templates by style"
+          >
+            {TEMPLATE_FILTERS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={templateFilter === f.id}
+                onClick={() => setTemplateFilter(f.id)}
+                className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
+                  templateFilter === f.id
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'hover:border-muted-foreground/40'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
           <div className="flex flex-wrap items-center gap-2">
-            {TEMPLATES.map((t) => (
+            {TEMPLATES.filter(
+              (TEMPLATE_FILTERS.find((f) => f.id === templateFilter) ?? TEMPLATE_FILTERS[0]).match,
+            ).map((t) => (
               <button
                 key={t.id}
                 type="button"
