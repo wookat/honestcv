@@ -1,4 +1,4 @@
-import type { TemplateMeta } from '@/lib/templates'
+import { accentTint, type TemplateMeta } from '@/lib/templates'
 
 /** Schematic mini-preview of a template's layout (header alignment, divider, accent). */
 export function TemplateThumb({ t }: { t: TemplateMeta }) {
@@ -21,10 +21,19 @@ export function TemplateThumb({ t }: { t: TemplateMeta }) {
       </span>
       {[0, 1].map((i) => (
         <span key={i} className="mt-[3px] flex w-full flex-col gap-[2px]">
-          <span
-            className={`h-[4px] w-5 rounded-[1px] ${divider}`}
-            style={{ background: t.accent, borderColor: t.accent }}
-          />
+          {t.band ? (
+            <span
+              className="flex h-[7px] w-full items-center rounded-[1px] px-[2px]"
+              style={{ background: accentTint(t.accent) }}
+            >
+              <span className="h-[3px] w-5 rounded-[1px]" style={{ background: t.accent }} />
+            </span>
+          ) : (
+            <span
+              className={`h-[4px] w-5 rounded-[1px] ${divider}`}
+              style={{ background: t.accent, borderColor: t.accent }}
+            />
+          )}
           <span className="h-[3px] w-full rounded-[1px] bg-neutral-200" />
           <span className="h-[3px] w-4/5 rounded-[1px] bg-neutral-200" />
         </span>

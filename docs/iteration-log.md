@@ -2182,3 +2182,21 @@ connected, no real charges).
   H2 sections, H3 entry headers with italic dates, link-formatted project
   URLs. Useful for AI-tool workflows, GitHub profiles and quick edits;
   fully browser-local like TXT.
+
+## Design & template upgrade — round 1 (2026-08)
+
+**Driver: boss directive 视觉/品牌/特效升级 + 模板大扩容. Full research
+notes in docs/design-upgrade-round-1.md.**
+
+- Templates 12→22: new `band` heading axis (accent-tinted band behind real
+  heading text — ATS-safe) implemented in preview, PDF (pdf-lib rect) and
+  DOCX (paragraph shading). 10 new templates (Horizon/Metro/Scholar/Ink/
+  Coral/Atlas/Prairie/Quartz/Ruby/Cobalt) each with tags + pSEO page;
+  sitemap 57→67.
+- Motion layer: `motion@12.43.0` added; animated ScoreRing gauge with
+  count-up on /ats-checker; global prefers-reduced-motion kill-switch.
+- Brand fix (P0): favicon was a leftover microphone mark from another
+  product — replaced with document+check LogoMark (favicon.svg, header,
+  regenerated og.png 1200×630).
+- Landing hero: subtle dual radial gradient mesh (Enhancv/Stripe-inspired).
+- Copy 12→22 templates site-wide.

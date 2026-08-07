@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { FileCheck2 } from 'lucide-react'
+import { LogoMark } from '@/components/Logo'
 
 /** Sets the document title and meta description for the current route. */
 export function usePageMeta(title: string, description: string) {
@@ -15,7 +15,7 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
     <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2 font-semibold">
-          <FileCheck2 className="text-primary size-5" aria-hidden />
+          <LogoMark className="size-6" />
           HonestCV
         </Link>
         {action}

@@ -82,7 +82,15 @@ export default function Landing() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="mx-auto max-w-4xl px-4 pt-16 pb-12 text-center">
+        <section className="relative mx-auto max-w-4xl px-4 pt-16 pb-12 text-center">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 -top-14 -z-10 mx-auto h-[420px] max-w-5xl"
+            style={{
+              background:
+                'radial-gradient(60% 70% at 30% 20%, oklch(0.5 0.18 265 / 0.10), transparent 70%), radial-gradient(50% 60% at 75% 35%, oklch(0.7 0.15 165 / 0.10), transparent 70%)',
+            }}
+          />
           <Badge variant="secondary" className="mb-4 gap-1">
             <Ban className="size-3" /> No subscriptions. No trial traps. Ever.
           </Badge>
@@ -142,7 +150,7 @@ export default function Landing() {
         {/* Templates gallery */}
         <section aria-labelledby="templates-heading" className="mx-auto max-w-5xl px-4 py-10">
           <h2 id="templates-heading" className="text-center text-2xl font-bold">
-            12 ATS-safe templates, one honest layout rule
+            22 ATS-safe templates, one honest layout rule
           </h2>
           <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-center text-sm">
             Every template is single-column real text — the format ATS parsers read
@@ -243,7 +251,7 @@ export default function Landing() {
                 <ul className="text-muted-foreground mt-3 space-y-1.5 text-sm">
                   <li>· Unlimited PDF + DOCX downloads, no watermark</li>
                   <li>· Unlimited AI rewrites &amp; job-targeted tailoring</li>
-                  <li>· All 12 ATS-friendly templates</li>
+                  <li>· All 22 ATS-friendly templates</li>
                   <li>· Edit and re-download forever</li>
                 </ul>
                 <Button asChild className="mt-4 w-full" variant="outline">
@@ -294,7 +302,7 @@ export default function Landing() {
               [
                 'What does the beta free trial include?',
                 freeMode
-                  ? 'Everything in both plans: the full editor, all 12 templates, the live preview, the ATS match score, AI tools, and PDF/DOCX downloads. We only ask for an email before your first download.'
+                  ? 'Everything in both plans: the full editor, all 22 templates, the live preview, the ATS match score, AI tools, and PDF/DOCX downloads. We only ask for an email before your first download.'
                   : 'The full editor, all templates, the live preview, the ATS match score against any job description, and 5 AI rewrites. You pay only to download PDF/DOCX and for unlimited AI.',
               ],
               [

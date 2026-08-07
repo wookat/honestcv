@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
+import { ScoreRing } from '@/components/ScoreRing'
 import { scoreResumeText } from '@/lib/ats'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { parseResumeText } from '@/lib/importText'
@@ -235,17 +236,7 @@ export default function AtsChecker() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Your ATS match score</h2>
-                <span
-                  className={`text-3xl font-bold ${
-                    result.score >= 70
-                      ? 'text-emerald-600'
-                      : result.score >= 40
-                        ? 'text-amber-600'
-                        : 'text-destructive'
-                  }`}
-                >
-                  {result.score}/100
-                </span>
+                <ScoreRing score={result.score} />
               </div>
 
               <p className="text-muted-foreground mt-2 text-sm">

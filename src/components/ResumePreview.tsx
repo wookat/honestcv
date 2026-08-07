@@ -4,7 +4,7 @@
  */
 
 import { type Resume, orderedSectionKeys } from '@/lib/resume'
-import { resolveTemplate } from '@/lib/templates'
+import { accentTint, resolveTemplate } from '@/lib/templates'
 
 export function ResumePreview({ resume }: { resume: Resume }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
@@ -23,7 +23,10 @@ export function ResumePreview({ resume }: { resume: Resume }) {
           tpl.divider === 'none'
             ? 'none'
             : `${tpl.divider === 'thick' ? 2 : 1}px solid ${tpl.accent}`,
-        paddingBottom: tpl.divider === 'none' ? 0 : 3,
+        paddingBottom: tpl.band ? 3 : tpl.divider === 'none' ? 0 : 3,
+        ...(tpl.band
+          ? { background: accentTint(tpl.accent), padding: '3px 6px', borderRadius: 2 }
+          : {}),
       }}
     >
       {tpl.headingCase === 'upper' ? label.toUpperCase() : label}

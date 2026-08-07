@@ -6,7 +6,7 @@
 import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'
 import { downloadBlob } from '@/lib/download'
 import { type Resume, orderedSectionKeys } from '@/lib/resume'
-import { getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
+import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_SIZES = {
   letter: { w: 612, h: 792 },
@@ -195,6 +195,29 @@ class PdfWriter {
     // alone at the bottom of a page
     this.ensure(52)
     this.gap(10)
+    if (this.tpl.band) {
+      const size = 11
+      const bandH = size * 1.35 + 6
+      this.ensure(bandH)
+      this.page.drawRectangle({
+        x: MARGIN,
+        y: this.y - bandH,
+        width: this.contentW,
+        height: bandH,
+        color: hexToRgb(accentTint(this.tpl.accent)),
+      })
+      this.y -= size * 1.35 + 3
+      this.page.drawText(text, {
+        x: MARGIN + 6,
+        y: this.y,
+        size,
+        font: this.fonts.bold,
+        color: this.accent,
+      })
+      this.y -= 3
+      this.gap(5)
+      return
+    }
     this.text(text, { font: this.fonts.bold, size: 11, color: this.accent })
     if (this.tpl.divider !== 'none') {
       const thickness = this.tpl.divider === 'thick' ? 2 : 0.75

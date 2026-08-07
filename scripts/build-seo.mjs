@@ -156,12 +156,12 @@ const PAGES = [
       'We tested Rezi ourselves: the free tier caps you at 1 resume, 3 PDF downloads, 10 AI generations and 1 template; DOCX is paywalled. HonestCV has none of those limits and no subscription.',
     h1: 'HonestCV vs Rezi: what the free tier actually lets you do',
     intro:
-      'We registered for Rezi and ran the full flow ourselves (August 2026). It is a polished product — the Rezi Score and keyword targeting are genuinely good. But the free tier is tightly rationed: one resume, three PDF downloads, ten AI generations, one template (the other ten are Pro-locked), and DOCX export sits behind a hard paywall. Full access is a subscription at $29/month (or $149 lifetime). HonestCV takes the opposite approach: unlimited resumes and downloads, real text-based PDF and DOCX export, a free ATS match score against any job description you paste, and 12 templates you can switch between freely — with your data staying in your browser instead of an account.',
+      'We registered for Rezi and ran the full flow ourselves (August 2026). It is a polished product — the Rezi Score and keyword targeting are genuinely good. But the free tier is tightly rationed: one resume, three PDF downloads, ten AI generations, one template (the other ten are Pro-locked), and DOCX export sits behind a hard paywall. Full access is a subscription at $29/month (or $149 lifetime). HonestCV takes the opposite approach: unlimited resumes and downloads, real text-based PDF and DOCX export, a free ATS match score against any job description you paste, and 22 templates you can switch between freely — with your data staying in your browser instead of an account.',
     bullets: [
       'No caps: Rezi free tier = 1 resume, 3 PDF downloads, 10 AI generations, 1 of 11 templates; DOCX paywalled',
       'No subscription vs $29/month (or a $149 lifetime plan)',
       'Free ATS match score with matched & missing keywords against any pasted job description',
-      'All 12 ATS-safe single-column templates included — switch any time without retyping',
+      'All 22 ATS-safe single-column templates included — switch any time without retyping',
       'No account needed; your resume stays in your browser',
     ],
   },
@@ -739,6 +739,23 @@ const TEMPLATE_META = {
   slate: { accent: '#475569', serif: false, divider: 'thick', headerAlign: 'left', nameCase: 'normal' },
   corporate: { accent: '#7f1d1d', serif: true, divider: 'thick', headerAlign: 'center', nameCase: 'upper' },
   startup: { accent: '#c2410c', serif: false, divider: 'none', headerAlign: 'left', nameCase: 'normal' },
+  horizon: { accent: '#0e7490', serif: false, divider: 'none', band: true, headerAlign: 'left', nameCase: 'normal' },
+  metro: { accent: '#1e40af', serif: false, divider: 'none', band: true, headerAlign: 'center', nameCase: 'normal' },
+  scholar: { accent: '#713f12', serif: true, divider: 'none', band: true, headerAlign: 'center', nameCase: 'normal' },
+  ink: { accent: '#111827', serif: false, divider: 'none', band: true, headerAlign: 'left', nameCase: 'upper' },
+  coral: { accent: '#be123c', serif: false, divider: 'none', headerAlign: 'center', nameCase: 'normal' },
+  atlas: { accent: '#0c4a6e', serif: true, divider: 'thick', headerAlign: 'left', nameCase: 'normal' },
+  prairie: { accent: '#3f6212', serif: false, divider: 'line', headerAlign: 'center', nameCase: 'normal' },
+  quartz: { accent: '#57534e', serif: true, divider: 'none', headerAlign: 'left', nameCase: 'normal' },
+  ruby: { accent: '#9f1239', serif: true, divider: 'none', band: true, headerAlign: 'center', nameCase: 'normal' },
+  cobalt: { accent: '#312e81', serif: false, divider: 'thick', headerAlign: 'left', nameCase: 'upper' },
+}
+
+/** Light tint of an accent color (mirrors accentTint in src/lib/templates.ts) */
+function tint(hex, alpha = 0.12) {
+  const n = parseInt(hex.slice(1), 16)
+  const mix = (c) => Math.round(c * alpha + 255 * (1 - alpha))
+  return `#${((mix((n >> 16) & 255) << 16) | (mix((n >> 8) & 255) << 8) | mix(n & 255)).toString(16).padStart(6, '0')}`
 }
 
 /** Inline SVG schematic of a template's layout (same idea as TemplateThumb.tsx). */
@@ -757,6 +774,8 @@ function templateThumbSvg(slug, width = 96) {
   parts.push(`<rect x="${cx(subW)}" y="${y}" width="${subW}" height="4" rx="1" fill="#d4d4d4"/>`)
   y += 12
   for (let i = 0; i < 3; i++) {
+    if (m.band)
+      parts.push(`<rect x="8" y="${y - 2}" width="${W - 16}" height="9" rx="1" fill="${tint(m.accent)}"/>`)
     parts.push(`<rect x="10" y="${y}" width="24" height="5" rx="1" fill="${m.accent}"/>`)
     if (m.divider !== 'none')
       parts.push(`<rect x="10" y="${y + 7}" width="${W - 20}" height="${m.divider === 'thick' ? 2 : 1}" fill="${m.accent}"/>`)
@@ -868,6 +887,86 @@ const TEMPLATE_PAGES = [
       'An energetic resume template with an orange accent and no rules — modern, friendly and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Startup template drops divider rules entirely and leads with a warm orange accent for a modern, product-minded feel. Best for product, growth and early-stage startup roles.',
   },
+  {
+    path: '/templates/horizon',
+    name: 'Horizon',
+    title: 'Horizon Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A modern resume template with teal heading bands that make sections easy to scan — real text only, fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Horizon template puts each section heading on a soft teal band so recruiters can jump between sections at a glance — the band is a background behind real text, so parsers read it cleanly. Best for tech, data and modern professional roles.',
+  },
+  {
+    path: '/templates/metro',
+    name: 'Metro',
+    title: 'Metro Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A structured resume template with blue banded headings and a centered header — clean, organized and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Metro template pairs a centered header with blue heading bands for a clean, highly organized look. Best for business analysts, project managers and corporate roles that value structure.',
+  },
+  {
+    path: '/templates/scholar',
+    name: 'Scholar',
+    title: 'Scholar Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A serif resume template with warm banded headings — scholarly, warm and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Scholar template combines classic serif typography with warm banded headings for an approachable academic feel. Best for research, teaching, grant-funded and library roles.',
+  },
+  {
+    path: '/templates/ink',
+    name: 'Ink',
+    title: 'Ink Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A maximum-contrast resume template with near-black heading bands and an uppercase name — striking and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Ink template uses near-black heading bands and an uppercase name for the highest-contrast look in the set — memorable in a printed stack while staying strictly single-column. Best for design, media and brand-forward roles.',
+  },
+  {
+    path: '/templates/coral',
+    name: 'Coral',
+    title: 'Coral Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A friendly resume template with a warm rose accent and no rules — approachable, modern and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Coral template softens the page with a warm rose accent and no divider rules for an approachable, people-first impression. Best for HR, customer success, teaching and community roles.',
+  },
+  {
+    path: '/templates/atlas',
+    name: 'Atlas',
+    title: 'Atlas Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A deep navy serif resume template with strong rules — established, global and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Atlas template projects an established, international feel with deep navy serif headings and strong rules. Best for consulting, supply chain, policy and multinational corporate roles.',
+  },
+  {
+    path: '/templates/prairie',
+    name: 'Prairie',
+    title: 'Prairie Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A calm resume template with an earthy green accent and fine rules — grounded, readable and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Prairie template reads calm and grounded with an earthy green accent and fine rules. Best for healthcare, education, nonprofit and public-sector roles.',
+  },
+  {
+    path: '/templates/quartz',
+    name: 'Quartz',
+    title: 'Quartz Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A quiet gray serif resume template with no rules — understated, refined and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Quartz template lets restrained gray serif typography carry the page with no rules at all — quiet confidence for readers who notice typography. Best for editorial, communications and senior individual-contributor roles.',
+  },
+  {
+    path: '/templates/ruby',
+    name: 'Ruby',
+    title: 'Ruby Resume Template — Free to Use Online | HonestCV',
+    description:
+      'A formal serif resume template with deep red banded headings — confident, traditional and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Ruby template pairs formal serif body text with deep red heading bands — traditional with a confident edge. Best for law, government affairs and executive-adjacent roles.',
+  },
+  {
+    path: '/templates/cobalt',
+    name: 'Cobalt',
+    title: 'Cobalt Resume Template — Free to Use Online | HonestCV',
+    description:
+      'An assertive resume template with indigo accents, thick rules and an uppercase name — modern and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Cobalt template combines indigo accents, thick rules and an uppercase name for an assertive, modern presence. Best for product, sales engineering and go-to-market roles.',
+  },
 ]
 
 function esc(s) {
@@ -950,7 +1049,7 @@ function page(p) {
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:image" content="${SITE}/og.png" />
+<meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd(p.path.startsWith('/vs/') ? [{ name: 'Comparisons', path: '/vs/' }, { name: p.h1, path: p.path }] : [{ name: p.h1, path: p.path }]))}</script>
@@ -1028,7 +1127,7 @@ function legalPage(p) {
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.sections[0][1])}" />
 <meta property="og:url" content="${canonical}" />
-<meta property="og:image" content="${SITE}/og.png" />
+<meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <style>${CSS}</style>
 ${BEACON}${FP_BEACON}
@@ -1095,7 +1194,7 @@ function guidePage(p) {
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
-<meta property="og:image" content="${SITE}/og.png" />
+<meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Guides', path: '/guides/' }, { name: p.h1, path: p.path }]))}</script>
@@ -1143,7 +1242,7 @@ function templatePage(p) {
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
-<meta property="og:image" content="${SITE}/og.png" />
+<meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Templates', path: '/templates/' }, { name: `${p.name} resume template`, path: p.path }]))}</script>
 <style>${CSS}</style>
@@ -1197,7 +1296,7 @@ function hubPage({ pathname, title, description, h1, intro, items }) {
 <meta property="og:title" content="${esc(title)}" />
 <meta property="og:description" content="${esc(description)}" />
 <meta property="og:url" content="${canonical}" />
-<meta property="og:image" content="${SITE}/og.png" />
+<meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <style>${CSS}</style>
 ${BEACON}${FP_BEACON}

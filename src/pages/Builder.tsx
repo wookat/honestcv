@@ -267,7 +267,7 @@ function Section({
 export default function Builder() {
   usePageMeta(
     'Resume Builder — HonestCV',
-    'Build an ATS-friendly resume in your browser: 12 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
+    'Build an ATS-friendly resume in your browser: 22 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
   )
   const [resume, setResume] = useState<Resume>(() => {
     const r = loadResume() ?? emptyResume()
@@ -560,7 +560,12 @@ export default function Builder() {
                 <button
                   type="button"
                   className="text-primary underline"
-                  onClick={() => setResume(sampleResume())}
+                  onClick={() =>
+                    setResume({
+                      ...sampleResume(),
+                      ...(resume ? { templateId: resume.templateId } : {}),
+                    })
+                  }
                 >
                   Load an example resume
                 </button>{' '}
