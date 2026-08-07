@@ -2153,3 +2153,22 @@ connected, no real charges).
   Fully browser-local; regex built from the same keyword set the scorer
   uses, longest-first, with word-boundary guards for tech tokens
   (C++, CI/CD, .NET).
+
+## Competitor Research Round 6 — blocked-site revisits (2026-08)
+
+**Driver: competitor research (five-driver cycle).**
+
+- Teal pricing page: still behind a Cloudflare bot wall ("Sorry, you have
+  been blocked") — remains blocked; /vs/teal claims unchanged, no bypass
+  attempted.
+- Jobscan: app.jobscan.co/plan is publicly accessible (observed). Free tier
+  = 5 resume scans/month + 5 findings; Quarterly $29.98/mo (billed $89.95/3mo,
+  7-day trial auto-bills the quarter); Monthly $49.95/mo. Cancellation policy
+  states paid-feature data is dropped after expiry. Scanner itself remains
+  partially blocked — no claims made about scoring quality.
+
+**Fixes shipped this round**
+
+- New /vs/jobscan comparison page from the observed plan-page evidence
+  (unlimited free local checks vs 5 scans/month; no trial-to-subscription
+  conversion; one-time pricing). Sitemap 56→57, IndexNow pushed.

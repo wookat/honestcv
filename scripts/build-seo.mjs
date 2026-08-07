@@ -255,6 +255,24 @@ const PAGES = [
       'One-time pricing ($9.99/$19.99 when billing opens) vs a $19–$49/month recurring subscription',
     ],
   },
+  {
+    slug: 'vs-jobscan',
+    path: '/vs/jobscan',
+    name: 'HonestCV vs Jobscan',
+    title: 'HonestCV vs Jobscan — Free Scan Limits and Pricing Compared',
+    description:
+      'We checked Jobscan\u2019s public plan page ourselves (August 2026): the free tier allows 5 resume scans per month with 5 findings, and paid plans run $29.98\u2013$49.95/month recurring with a 7-day trial that auto-bills. HonestCV\u2019s ATS checker is unlimited, free and browser-local.',
+    h1: 'HonestCV vs Jobscan: what its own plan page shows',
+    intro:
+      'Jobscan is one of the best-known ATS match tools, and its scan-against-the-job-description concept is genuinely the right idea — it\u2019s the same core workflow our free ATS checker implements. We reviewed Jobscan\u2019s public plan page firsthand (August 2026). What it shows: the free tier is capped at 5 resume scans per month with 5 ATS & recruiter findings; unlimited scans require a paid plan at $49.95/month, or $29.98/month billed quarterly as $89.95 every 3 months; the 7-day free trial converts into a quarterly charge automatically if you don\u2019t cancel in time ("Once your trial ends, you will be billed for the next quarter"), and per its cancellation policy you lose access to paid features and the data associated with them when the subscription expires. We could not fully exercise its scanner (parts of the site block automated-looking traffic), so we make no claims about its scoring quality. HonestCV\u2019s ATS checker is unlimited and free with no account, runs entirely in your browser, and our plans are one-time purchases — currently in beta with a full free trial and no card required.',
+    bullets: [
+      'Unlimited free ATS checks — Jobscan\u2019s free tier is capped at 5 scans per month',
+      'No trial-to-subscription conversion: nothing to cancel, no card required — Jobscan\u2019s 7-day trial auto-bills a quarterly charge',
+      'Your resume never leaves your browser — Jobscan scans server-side on your uploaded resume',
+      'Your data stays yours: browser-local with JSON backup — Jobscan\u2019s policy drops paid-feature data after expiry',
+      'One-time pricing ($9.99/$19.99 when billing opens) vs $29.98\u2013$49.95/month recurring',
+    ],
+  },
 ]
 
 /** Long-tail guide pages: real content, not thin doorway pages */
