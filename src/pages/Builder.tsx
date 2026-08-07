@@ -288,7 +288,7 @@ export default function Builder() {
   const [shareCopied, setShareCopied] = useState(false)
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
   const [freeDlOpen, setFreeDlOpen] = useState(false)
-  const pendingDl = useRef<'pdf' | 'docx' | null>(null)
+  const pendingDl = useRef<'pdf' | 'docx' | 'txt' | null>(null)
   const [variantPick, setVariantPick] = useState<{
     title: string
     candidates: string[]
@@ -305,7 +305,7 @@ export default function Builder() {
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [versionName, setVersionName] = useState('')
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
-  const finalCheckFmt = useRef<'pdf' | 'docx' | null>(null)
+  const finalCheckFmt = useRef<'pdf' | 'docx' | 'txt' | null>(null)
   const freeMode = useFreeMode()
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
@@ -414,7 +414,7 @@ export default function Builder() {
     return issues
   }, [ats, resume])
 
-  const download = async (fmt: 'pdf' | 'docx', skipFinalCheck = false) => {
+  const download = async (fmt: 'pdf' | 'docx' | 'txt', skipFinalCheck = false) => {
     if (!unlocked) {
       if (!freeMode) {
         requireUnlock(
@@ -438,8 +438,9 @@ export default function Builder() {
       const name = (resume.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
       if (fmt === 'pdf')
         await (await import('@/lib/pdf')).downloadResumePdf(resume, `${name}-resume.pdf`)
-      else
+      else if (fmt === 'docx')
         await (await import('@/lib/docx')).downloadResumeDocx(resume, `${name}-resume.docx`)
+      else downloadText(resumeToPlainText(resume), `${name}-resume.txt`)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
         setShareCopied(false)
@@ -520,6 +521,16 @@ export default function Builder() {
               disabled={Boolean(downloading)}
             >
               <Download /> DOCX
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void download('txt')}
+              disabled={Boolean(downloading)}
+              title="Plain-text version — handy for online application forms and ATS paste boxes"
+              className="hidden sm:inline-flex"
+            >
+              <Download /> TXT
             </Button>
           </div>
         }

@@ -201,6 +201,24 @@ const PAGES = [
       'Free ATS match score against any pasted job description built into the editor',
     ],
   },
+  {
+    slug: 'vs-novoresume',
+    path: '/vs/novoresume',
+    name: 'HonestCV vs Novorésumé',
+    title: 'HonestCV vs Novorésumé — Free Limits, Privacy and Pricing Compared',
+    description:
+      'We registered for Novorésumé and ran the full flow ourselves: free plan allows 1 single-page resume with free PDF download; Premium is $21.99/month or $139.99/year (non-recurring). HonestCV differs on privacy, unlimited copies and one-time pricing.',
+    h1: 'HonestCV vs Novorésumé: what we found testing it ourselves',
+    intro:
+      'We created a Novorésumé account and walked its full flow (August 2026). Credit where due: the free Basic plan really does let you download a watermark-free PDF, its pre-download review flags real ATS issues, and Premium ($21.99/month, $39.99/quarter or $139.99/year) is explicitly non-recurring — no auto-renewal trap. The limits are structural: Basic stores exactly one resume, capped at a single page, with no cover letter and only predefined layouts; downloads are gated behind an account with email code verification; and your resume lives on their servers, with the PDF rendered server-side. HonestCV needs no account, keeps your resume in your browser and generates the PDF and DOCX locally, allows unlimited pages and unlimited saved copies, and includes cover letter and interview-prep tools — one-time pricing, currently in beta with a full free trial.',
+    bullets: [
+      'No account or email code needed to download — Novorésumé gates downloads behind a verified account',
+      'Your resume never leaves your browser: local PDF/DOCX generation vs server-side rendering',
+      'Unlimited saved resume copies and pages free — the free Basic plan stores one single-page resume',
+      'DOCX and plain-text export included — Novorésumé exports PDF or TXT only',
+      'One-time pricing ($9.99/$19.99 when billing opens) vs $21.99/month Premium (non-recurring, to its credit)',
+    ],
+  },
 ]
 
 /** Long-tail guide pages: real content, not thin doorway pages */
