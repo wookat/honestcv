@@ -75,6 +75,7 @@ import {
   orderedSectionKeys,
   listResumeVersions,
   resumeToPlainText,
+  resumeToMarkdown,
   sampleResume,
   saveResume,
   saveResumeVersion,
@@ -288,7 +289,7 @@ export default function Builder() {
   const [shareCopied, setShareCopied] = useState(false)
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
   const [freeDlOpen, setFreeDlOpen] = useState(false)
-  const pendingDl = useRef<'pdf' | 'docx' | 'txt' | null>(null)
+  const pendingDl = useRef<'pdf' | 'docx' | 'txt' | 'md' | null>(null)
   const [variantPick, setVariantPick] = useState<{
     title: string
     candidates: string[]
@@ -305,7 +306,7 @@ export default function Builder() {
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [versionName, setVersionName] = useState('')
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
-  const finalCheckFmt = useRef<'pdf' | 'docx' | 'txt' | null>(null)
+  const finalCheckFmt = useRef<'pdf' | 'docx' | 'txt' | 'md' | null>(null)
   const freeMode = useFreeMode()
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
@@ -414,7 +415,7 @@ export default function Builder() {
     return issues
   }, [ats, resume])
 
-  const download = async (fmt: 'pdf' | 'docx' | 'txt', skipFinalCheck = false) => {
+  const download = async (fmt: 'pdf' | 'docx' | 'txt' | 'md', skipFinalCheck = false) => {
     if (!unlocked) {
       if (!freeMode) {
         requireUnlock(
@@ -440,6 +441,8 @@ export default function Builder() {
         await (await import('@/lib/pdf')).downloadResumePdf(resume, `${name}-resume.pdf`)
       else if (fmt === 'docx')
         await (await import('@/lib/docx')).downloadResumeDocx(resume, `${name}-resume.docx`)
+      else if (fmt === 'md')
+        downloadText(resumeToMarkdown(resume), `${name}-resume.md`, 'text/markdown')
       else downloadText(resumeToPlainText(resume), `${name}-resume.txt`)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
@@ -531,6 +534,16 @@ export default function Builder() {
               className="hidden sm:inline-flex"
             >
               <Download /> TXT
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void download('md')}
+              disabled={Boolean(downloading)}
+              title="Markdown version — handy for AI tools, GitHub profiles and quick edits"
+              className="hidden md:inline-flex"
+            >
+              <Download /> MD
             </Button>
           </div>
         }

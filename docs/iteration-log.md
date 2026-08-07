@@ -2172,3 +2172,13 @@ connected, no real charges).
 - New /vs/jobscan comparison page from the observed plan-page evidence
   (unlimited free local checks vs 5 scans/month; no trial-to-subscription
   conversion; one-time pricing). Sitemap 56→57, IndexNow pushed.
+
+## Frontend replication batch — Markdown export (gap G20) (2026-08)
+
+**Driver: competitor research follow-through (Reactive Resume).**
+
+- New MD export button in the builder header: `resumeToMarkdown` flattens
+  the resume (same section order as preview) to Markdown — H1 name+title,
+  H2 sections, H3 entry headers with italic dates, link-formatted project
+  URLs. Useful for AI-tool workflows, GitHub profiles and quick edits;
+  fully browser-local like TXT.
