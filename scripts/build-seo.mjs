@@ -765,6 +765,48 @@ const GUIDES = [
       ['The five-minute audit before applying', 'Open both side by side: titles match · dates match · employers match · headline supports the application · top resume claim appears on the profile · custom URL claimed and listed. Five minutes that protects every application you send.'],
     ],
   },
+  {
+    path: '/guides/resume-for-teens',
+    title: 'Resume for Teens: First Job Resume With No Experience (2026 Guide)',
+    description:
+      'How to write a first-job resume as a teenager: what to put instead of work history, school and volunteer sections that count, availability details, and a structure that works.',
+    h1: 'How to write a resume for your first job as a teen',
+    sections: [
+      ['You have more material than you think', 'A first resume is not an empty work-history form. School coursework, clubs, sports, volunteering, babysitting, lawn care, a family business shift — anything with responsibility and a result counts. The job is to present it in the structure employers expect.'],
+      ['The structure that works', 'Contact info → one-line objective → Education → Activities & Leadership → Volunteer/Informal work → Skills. Experience goes above Education only once you have a formal job to list. One page, single column, standard headings — the same parser-safe rules as any resume.'],
+      ['Write an objective, not a summary', 'This is the one case where an objective beats a summary: you have no track record to summarize. One honest line: "High school junior seeking a part-time cashier role; available weekends and after 3:30pm; reliable, quick to learn a register." Availability up front is a genuine advantage.'],
+      ['Education is your experience section', 'List your school, expected graduation year, GPA if 3.5+, and relevant coursework or projects with concrete outcomes: "Built the scoring spreadsheet used by the debate team for 3 tournaments." Treat strong schoolwork like work.'],
+      ['Informal work absolutely counts', 'Babysitting, mowing lawns, tutoring, reselling, helping in a family shop — list them like jobs, with dates and a quantified line: "Babysat for 3 families, 2022–2024; managed evenings for children aged 2–9, trusted with bedtime routines and meals." Employers read this as reliability.'],
+      ['Clubs, sports and leadership', 'Team captain, section leader, club treasurer, event organizer — each is evidence of showing up and being trusted. One bullet each, with scope: "Organized the club\u2019s bake-sale fundraiser; 12 volunteers, raised $840."'],
+      ['Skills teens actually have', 'List concrete, checkable skills: cash handling, Google Docs/Sheets, Canva, a second language, First Aid/CPR certification, typing speed, social media content. Skip personality claims ("hardworking") — the bullets should prove those.'],
+      ['What to leave off', 'Photo, age or date of birth, full street address (city is enough), middle-school achievements once you\u2019re in high school, and anything invented. Employers of teens check small claims easily — a made-up certification costs the job.'],
+      ['Availability and working papers', 'Many teen jobs are decided on schedule fit. State your availability explicitly, and if your state/country requires working papers or has hour limits for minors, note that you have (or have applied for) them — it saves the manager a follow-up.'],
+      ['Keep the file professional', 'Export a PDF named "Your-Name-Resume.pdf", use an email address based on your name (make a new one if needed), and answer applications from that address. The voicemail on the phone number you list should be set up and sensible.'],
+      ['A worked example', '"Jordan Lee — Springfield, OH · jordan.lee@example.com · (555) 012-3456. Objective: High school senior seeking weekend barista role; available Sat–Sun and weekday evenings. Education: Springfield High, Class of 2027, GPA 3.7. Activities: Yearbook layout editor (led 4-person team, shipped 180-page book on deadline). Volunteer: Library homework helper, 2023–present, ~4 hrs/week. Skills: cash handling (school store), Google Workspace, conversational Spanish." Everything checkable, nothing invented.'],
+      ['Tailor it in five minutes', 'Read the posting, note what it asks for (weekend availability, customer service, teamwork), and make sure your objective and bullets mention your true matching points. Our free builder\u2019s templates and ATS checker work the same for a first resume as for a tenth.'],
+    ],
+  },
+  {
+    path: '/guides/thank-you-email-after-interview',
+    title: 'Thank You Email After an Interview: Timing, Template, and Mistakes (2026)',
+    description:
+      'When to send a post-interview thank-you email, a 5-sentence template that works, how to handle panel interviews and second rounds, and the mistakes that undo a good interview.',
+    h1: 'The thank-you email after an interview',
+    sections: [
+      ['Does it still matter?', 'It rarely wins a job on its own, but it keeps you visible while decisions are made, demonstrates written communication, and gives you one legitimate chance to reinforce your strongest point or repair a fumbled answer. Skipping it costs more than sending it ever could.'],
+      ['Timing: same day, within 24 hours', 'Send it the same business day if the interview ended before mid-afternoon, otherwise the next morning. Later than 48 hours reads as an afterthought; minutes after hanging up reads as a template you had queued.'],
+      ['The 5-sentence structure', 'Sentence 1: thank them, naming the role. Sentence 2: one specific moment from the conversation (proves it isn\u2019t boilerplate). Sentence 3: reinforce your fit with one concrete qualification. Sentence 4 (optional): a brief addition or correction to an answer. Sentence 5: enthusiasm and next-step availability.'],
+      ['A template to adapt', '"Thank you for taking the time to talk about the [role] position today. I especially enjoyed the discussion about [specific topic — the migration project, the team\u2019s hiring plans]. The challenges you described map closely to my experience with [your relevant work, with the real number if it fits naturally]. One thing I\u2019d add to my answer about [topic]: [one-sentence improvement]. I\u2019m very interested in the role and happy to provide anything else you need."'],
+      ['Subject line', '"Thank you — [Role] interview" or a reply in the existing scheduling thread (often best: it keeps context and reaches the right inbox). Never a blank subject or a generic "Following up".'],
+      ['Panel interviews: one email each', 'Send individual notes to each interviewer, varied by what you discussed with them — not one email CC\u2019ing everyone, and not identical texts (they compare). If you only have one address, ask the recruiter to forward your thanks, or send one note naming each person\u2019s topic.'],
+      ['Repairing a weak answer', 'The thank-you note is the accepted channel for a one-sentence recovery: "On reflection, a better example of X is…". Keep it to one sentence — a paragraph of relitigation reads as anxiety, not thoroughness.'],
+      ['Second and third rounds', 'Yes, every round. Later-round notes can be shorter and more specific; by the final round it may be two sentences. Repetition is not a problem — silence after round three while you wrote after round one is noticed.'],
+      ['Mistakes that undo a good interview', 'Typos and a misspelled interviewer name (check the calendar invite), negotiating salary in the thank-you, obvious copy-paste with another company\u2019s name left in, gifts or excessive flattery, and daily follow-ups afterwards. One note, then wait for the stated timeline plus a few days.'],
+      ['If you interviewed by phone or video', 'Identical rules — the medium doesn\u2019t change the etiquette. For recorded one-way video interviews with no human contact, skip it (there is no one to thank) and save your note for the first live conversation.'],
+      ['Following up after silence', 'If their stated timeline passes with no word, one polite follow-up 3–5 business days later: restate interest, ask if the timeline has shifted, offer any further information. Then stop — recruiting delays are usually internal, and persistence past two notes hurts.'],
+      ['Keep the facts straight', 'Everything in the note must match your resume and what you said live — a "15%" in the interview must not become "25%" in the email. The same honesty rule that governs your resume governs every message after it.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */

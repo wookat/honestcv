@@ -2220,3 +2220,10 @@ notes in docs/design-upgrade-round-1.md.**
 - O3 pSEO: two backlog guides shipped — /guides/resume-file-format and
   /guides/linkedin-vs-resume (12 sections each); sitemap 67→69 URLs,
   IndexNow 200.
+
+## Optimization loop O6 (2026-08-08)
+
+- pSEO backlog cleared: /guides/resume-for-teens and
+  /guides/thank-you-email-after-interview (12 sections each); sitemap
+  69→71 URLs, IndexNow 200, both live-verified. ops-weekly backlog
+  refreshed (AI relay unpaused, new candidates queued).
