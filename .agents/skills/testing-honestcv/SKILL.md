@@ -69,6 +69,14 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **Static asset cache pitfall**: after deploys, `/og.png` (and similar public/ assets) can stay stale at the Cloudflare edge (`cf-cache-status: HIT`) even when the JS bundle is fresh — compare live md5 against the branch file; a cache purge may be needed.
 - pSEO expanded: /templates/{horizon,metro,scholar,ink,coral,atlas,prairie,quartz,ruby,cobalt}/ all 200 with SVG layout previews and cross-links. Landing copy says "22" (grep bundle for absence of "All 12").
 
+## PR #126 / E1-E2 (AI Tailor, Resume health report)
+
+- **Code-split pitfall**: Builder is now a separate chunk (`/assets/Builder-*.js`) — grepping the main `index-*.js` bundle for feature strings ("Tailor to this job", "Full health report") finds nothing; fetch the Builder chunk URL from the index bundle's import list instead.
+- **E1 Tailor**: button in "Target job" section, disabled until JD pasted (hint "Paste a job description to enable tailoring"). Dialog → "Get tailoring suggestions" → busy "Analyzing your resume against the JD…" (~30-60s, 1 quota call). Rows: `where` label, original struck-through, emerald suggestion, Accept / Keep original per row + "Accept all remaining"; statuses "Applied to your resume" / "Kept your original". Accept updates editor field AND preview live. Empty resume content → instant inline error "Add a summary or experience bullets first — tailoring rewords your real content." (no quota use). Pitfall: after accepting a row the dialog layout shifts — re-locate buttons before clicking the next row.
+- **E2 Health report**: link under Resume strength card "Full health report — N/100 across 6 checks" → dialog "Resume health report — N/100" with 6 progressbars (Completeness, Quantified impact, Action verbs, Brevity, Buzzword-free, Consistency) + findings + heuristic disclaimer. Score reacts to content (cleared summary/bullets drops it; undo restores). All local, no AI.
+- **Quota counter**: footer "N free AI rewrites left" only renders after at least one AI call in the session state; Tailor decrements it by exactly 1.
+- **CDP emulation stuck pitfall**: `Emulation.clearDeviceMetricsOverride` from a *new* websocket connection may not clear an override set by a closed connection — send `setDeviceMetricsOverride {width:0,height:0,deviceScaleFactor:0,mobile:false}` then `clearDeviceMetricsOverride` on the same connection to restore desktop.
+
 ## Key flows and how to test them (paid mode)
 
 - **Locked vs unlocked**: header shows "Unlock — $9.99 once" when locked; after activation it shows a "Career Bundle" (or plan) badge and PDF/DOCX buttons work.
