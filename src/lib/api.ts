@@ -49,16 +49,14 @@ export async function aiCoverLetter(input: {
   jobDescription: string
   company: string
   role: string
-}): Promise<string> {
-  const data = await post<{ text: string }>('/api/ai/cover-letter', input)
-  return data.text
+}): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/cover-letter', input)
 }
 
 export async function aiInterviewBrief(input: {
   resumeText: string
   jobDescription: string
   role: string
-}): Promise<string> {
-  const data = await post<{ text: string }>('/api/ai/interview-brief', input)
-  return data.text
+}): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-brief', input)
 }

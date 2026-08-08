@@ -199,6 +199,7 @@ app.post('/api/ai/rewrite', async (c) => {
 // Cover letter — Career Bundle (free mode: shares the free AI quota)
 app.post('/api/ai/cover-letter', async (c) => {
   const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
   if (!ent || ent.plan !== 'bundle') {
     if (!freeMode(c.env)) {
       return c.json(
@@ -220,6 +221,7 @@ app.post('/api/ai/cover-letter', async (c) => {
         402
       )
     }
+    freeRemaining = remaining
   }
   const body = await c.req
     .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string }>()
@@ -234,12 +236,13 @@ app.post('/api/ai/cover-letter', async (c) => {
     0.6
   )
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  return c.json({ text: result.text })
+  return c.json({ text: result.text, freeRemaining })
 })
 
 // Interview brief — Career Bundle (free mode: shares the free AI quota)
 app.post('/api/ai/interview-brief', async (c) => {
   const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
   if (!ent || ent.plan !== 'bundle') {
     if (!freeMode(c.env)) {
       return c.json(
@@ -261,6 +264,7 @@ app.post('/api/ai/interview-brief', async (c) => {
         402
       )
     }
+    freeRemaining = remaining
   }
   const body = await c.req
     .json<{ resumeText?: string; jobDescription?: string; role?: string }>()
@@ -275,7 +279,7 @@ app.post('/api/ai/interview-brief', async (c) => {
     0.5
   )
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  return c.json({ text: result.text })
+  return c.json({ text: result.text, freeRemaining })
 })
 
 // Checkout availability: frontend checks before opening Paddle; when disabled

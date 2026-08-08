@@ -18,6 +18,13 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - Standalone `/ats-checker`: check button disabled until resume text ≥30 chars; scoring is client-side.
 - SEO set expanded: /vs/resume-io, /vs/resume-genius, /guides/{ats-friendly-resume,resume-summary-examples,resume-keywords}, /templates/{classic,modern,compact,executive}; sitemap.xml has 18 URLs; IndexNow key at /88d13cb021bb7d759cc09d7b95af03fc.txt.
 
+## AI relay retest recipe (PR #118, glm-5.2 relay)
+
+- Fresh quota: delete `localStorage['honestcv.clientId']` before loading /builder — a new id is generated and the 12-call free quota resets. Quota footer text ("N free AI rewrites left") decrements for summary/bullet rewrites; Cover letter / Interview prep calls did not visibly change the footer count in one run.
+- All three tools verified live: "AI polish summary" → 3-variant dialog (~30–60s); "Cover letter" / "Interview prep" buttons sit below the preview → dialog with Company field / Generate (~30–40s). Clicking Generate with an empty JD returns instantly with: `Paste the job description in "Target job" first — both tools tailor to it.`
+- The "AI polish summary" button appears disabled while the request is in flight — wait, don't reclick.
+- Anti-fabrication check: seed the summary with a vague claim (e.g. "significantly improved checkout conversion"); good output keeps it non-numeric or uses `[add %]`, never invents a figure. Cover letter/interview brief should honestly acknowledge JD gaps (e.g. "have not worked in payments directly").
+
 ## PR #5 features (AI variants, guidance, sub-scores, autosave)
 
 - **AI multi-variant rewrite**: "AI polish summary" / "AI rewrite bullets" send `variants:true` to `/api/ai/rewrite`; a "Pick a summary/rewrite" dialog shows 3 options labeled Concise / Impact-focused / Keyword-focused. Clicking one applies it. "AI clean up skills" stays single-output. One variants call = one quota unit; failed calls do NOT decrement quota.
@@ -61,15 +68,6 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **axe without chromedriver**: `@axe-core/cli` fails (no chromedriver on the box); instead inject axe.min.js (cdnjs) via CDP `Runtime.evaluate` and run `axe.run()` in the live page.
 - **Static asset cache pitfall**: after deploys, `/og.png` (and similar public/ assets) can stay stale at the Cloudflare edge (`cf-cache-status: HIT`) even when the JS bundle is fresh — compare live md5 against the branch file; a cache purge may be needed.
 - pSEO expanded: /templates/{horizon,metro,scholar,ink,coral,atlas,prairie,quartz,ruby,cobalt}/ all 200 with SVG layout previews and cross-links. Landing copy says "22" (grep bundle for absence of "All 12").
-
-## PR #117 / Design upgrade round 2 (filters, export check, empty states)
-
-- **Template filter chips**: landing gallery has All/Serif/Modern sans/Banded headings/Minimal with counts, e.g. "All (22)"; builder picker has the same chips without counts. Selected chip = `aria-pressed=true` inside `[role=group][aria-label="Filter templates by style"]`. Banded = the 5 band templates (Horizon/Metro/Scholar/Ink/Ruby); Serif = 9; Minimal = `divider:none && !band` = 5.
-- **Export success check**: after PDF/DOCX/TXT/MD download the button icon becomes a green `Check` with class `.animate-pop` for 1800ms then reverts. Screenshot within ~1s of the click to catch it. **Reduced-motion check without a second Chrome**: keep a CDP websocket OPEN (emulation resets when the socket closes!), send `Emulation.setEmulatedMedia` with `prefers-reduced-motion: reduce`, trigger a download in the same session, and read `getComputedStyle(document.querySelector('.animate-pop')).animationDuration` — should be `0.01ms` (1e-05s) via the global CSS kill-switch.
-- **Empty-state illustrations**: `/ats-checker` shows a doc+magnifier SVG below the disabled Check button when resume text < 30 chars (disappears at ≥30); builder "Starting fresh?" card (reachable by removing `honestcv.resume`) shows a doc+pencil SVG. Both are `svg[viewBox="0 0 160 100"]` with `aria-hidden=true`.
-- **Deep-link example fix (since PR #116 tail 71c6e21)**: `/builder?template=horizon` + "Load an example resume" now KEEPS the deep-linked template (check `JSON.parse(localStorage['honestcv.resume']).templateId`).
-- **og image renamed to /og2.png** to bust the stale edge cache — og:image meta and live bytes both point at the new dark card now.
-- **CDP emulation state is per-connection**: any `Emulation.*` override (device metrics, emulated media) is silently cleared when your websocket disconnects — do all dependent steps within one open connection, or the page reverts to desktop/no-emulation.
 
 ## Key flows and how to test them (paid mode)
 
