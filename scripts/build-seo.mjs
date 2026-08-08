@@ -1124,10 +1124,27 @@ ul.features li{margin:.4rem 0}
 .cta p{color:var(--muted);font-size:.9375rem}
 .related{margin-top:3rem;border-top:1px solid var(--border);padding-top:1.5rem}
 .related h2{font-size:1rem;margin:0 0 .75rem}
+.toc{margin:1.25rem 0;padding:1rem 1.25rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;font-size:.9rem}
+.toc strong{display:block;margin-bottom:.5rem}
+.toc ol{margin:0;padding-left:1.25rem;columns:2;column-gap:2rem}
+.toc li{margin:.15rem 0;break-inside:avoid}
+.toc a{text-decoration:underline}
+@media (max-width:640px){.toc ol{columns:1}}
+h2[id]{scroll-margin-top:1rem}
 .related ul{list-style:none;padding:0;margin:0;display:grid;gap:.5rem}
 footer.site{border-top:1px solid var(--border)}
 footer.site .in{max-width:72rem;margin:0 auto;padding:1.5rem 1rem;text-align:center;font-size:.75rem;color:var(--muted)}
 `.trim()
+
+/** URL-safe anchor id from a section heading */
+function anchorId(heading) {
+  return heading
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 60)
+}
 
 /** BreadcrumbList JSON-LD: Home → hub → page */
 function breadcrumbLd(crumbs) {
@@ -1334,7 +1351,13 @@ ${BEACON}${FP_BEACON}
 </div></header>
 <main>
 <h1>${esc(p.h1)}</h1>
-${p.sections.map(([h, t]) => `<h2 style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
+<nav class="toc" aria-label="On this page">
+<strong>On this page</strong>
+<ol>
+${p.sections.map(([h]) => `<li><a href="#${anchorId(h)}">${esc(h)}</a></li>`).join('\n')}
+</ol>
+</nav>
+${p.sections.map(([h, t]) => `<h2 id="${anchorId(h)}" style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
 <div class="cta">
 <p>${FREE_MODE ? 'Put this into practice — HonestCV is in beta with a full free trial: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'Put this into practice — the HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
 <a class="btn" href="/builder">Start my free trial</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>

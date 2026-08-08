@@ -2287,3 +2287,15 @@ notes in docs/design-upgrade-round-1.md.**
   /guides/resume-vs-portfolio (12 sections each; honest-negotiation and
   rights/NDA framing consistent with the anti-fabrication line); sitemap
   71→73, IndexNow 200, both live-verified.
+
+## Optimization loop O11-O12 (2026-08-08)
+
+- O11 competitor recheck: Resume.io pricing page re-verified live —
+  $29.95/4 weeks after 7-day trial (matches /vs/resume-io) plus a
+  $49.95/3-month tier; FlowCV still $0/$3/$5 (matches /vs/flowcv);
+  Zety pricing page still bot-walled (claims unchanged, not bypassed).
+- O12 guides UX/SEO: all 27 guide pages now render an "On this page"
+  table of contents with anchor links on every h2 (two-column on
+  desktop, single on mobile) — jump links for readers and anchor
+  sitelink eligibility for search. Verified live: anchors resolve,
+  375px overflow 0, axe A/AA 0.
