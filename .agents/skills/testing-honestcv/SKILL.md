@@ -77,6 +77,14 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **Quota counter**: footer "N free AI rewrites left" only renders after at least one AI call in the session state; Tailor decrements it by exactly 1.
 - **CDP emulation stuck pitfall**: `Emulation.clearDeviceMetricsOverride` from a *new* websocket connection may not clear an override set by a closed connection — send `setDeviceMetricsOverride {width:0,height:0,deviceScaleFactor:0,mobile:false}` then `clearDeviceMetricsOverride` on the same connection to restore desktop.
 
+## PR #127 / U1-U3 (onboarding: landing 3-step, getting-started checklist, New badges)
+
+- **Fresh-user setup**: set `honestcv.qa='1'` first, then clear everything else (`localStorage.clear()` then re-set qa). Onboarding keys: `honestcv.tourDone` (Dismiss), `honestcv.shared` (set on any download), `honestcv.seen.tailor` / `honestcv.seen.health` (badge one-timers). Checklist shows only when BOTH tourDone and shared are absent.
+- **Checklist** (`[data-testid="getting-started"]`, top of /builder editor): 4 steps auto-check — name filled, JD pasted, Tailor button *clicked* (dialog can be closed without an AI call — the click alone sets the step and `honestcv.seen.tailor`), any download completed. Note: step 3 (`tailorUsed`) is React session state and un-checks after reload; steps 1/2/4 persist. Step 4 sets `honestcv.shared`, which also hides the checklist on next load.
+- **Badges**: "New" on Tailor button and "Full health report" link; first click sets the seen key and removes the badge immediately and across reloads.
+- **Fresh-user download gate**: two dialogs before the file lands — beta email gate ("Downloads are included in the beta trial", use qa-beta@zalize.com) then a "Final check before download" quality nudge (click "Download anyway"). Checklist step 4 only checks after the actual download.
+- To re-test the Dismiss flow separately, just remove the onboarding keys and reload — no need for a second browser profile.
+
 ## Key flows and how to test them (paid mode)
 
 - **Locked vs unlocked**: header shows "Unlock — $9.99 once" when locked; after activation it shows a "Career Bundle" (or plan) badge and PDF/DOCX buttons work.

@@ -14,6 +14,7 @@ import {
   GraduationCap,
   GripVertical,
   Lightbulb,
+  ListChecks,
   ListOrdered,
   Loader2,
   Lock,
@@ -301,6 +302,20 @@ export default function Builder() {
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
   const [tailorOpen, setTailorOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
+  const [checklistOpen, setChecklistOpen] = useState(
+    () =>
+      !localStorage.getItem('honestcv.tourDone') && !localStorage.getItem('honestcv.shared')
+  )
+  const [tailorSeen, setTailorSeen] = useState(() =>
+    Boolean(localStorage.getItem('honestcv.seen.tailor'))
+  )
+  const [healthSeen, setHealthSeen] = useState(() =>
+    Boolean(localStorage.getItem('honestcv.seen.health'))
+  )
+  const [tailorUsed, setTailorUsed] = useState(() =>
+    Boolean(localStorage.getItem('honestcv.seen.tailor'))
+  )
+  const [dlDone, setDlDone] = useState(() => Boolean(localStorage.getItem('honestcv.shared')))
   const [freeDlOpen, setFreeDlOpen] = useState(false)
   const pendingDl = useRef<'pdf' | 'docx' | 'txt' | 'md' | null>(null)
   const [variantPick, setVariantPick] = useState<{
@@ -475,6 +490,7 @@ export default function Builder() {
       else if (fmt === 'md')
         downloadText(resumeToMarkdown(resume), `${name}-resume.md`, 'text/markdown')
       else downloadText(resumeToPlainText(resume), `${name}-resume.txt`)
+      setDlDone(true)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
         setShareCopied(false)
@@ -628,6 +644,62 @@ export default function Builder() {
               </div>
             ))}
 
+          {checklistOpen && (
+            <div className="bg-card rounded-lg border p-3" data-testid="getting-started">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  <ListChecks className="text-primary size-4" /> Getting started
+                </span>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground text-xs underline"
+                  onClick={() => {
+                    localStorage.setItem('honestcv.tourDone', '1')
+                    setChecklistOpen(false)
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+              <ol className="mt-2 space-y-1 text-sm">
+                {(
+                  [
+                    [
+                      Boolean(resume.contact.fullName.trim()),
+                      'Add your details — or load the example / import your resume above',
+                    ],
+                    [
+                      Boolean(resume.jobDescription.trim()),
+                      'Paste the job description you\u2019re applying to (Target job below)',
+                    ],
+                    [
+                      tailorUsed,
+                      'Check your ATS match and let AI tailor your bullets to that job',
+                    ],
+                    [dlDone, 'Download your resume as PDF or DOCX'],
+                  ] as [boolean, string][]
+                ).map(([done, label], i) => (
+                  <li key={label} className="flex items-start gap-2">
+                    {done ? (
+                      <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className="text-muted-foreground border-muted-foreground/40 mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px]"
+                      >
+                        {i + 1}
+                      </span>
+                    )}
+                    <span className={done ? 'text-muted-foreground line-through' : ''}>
+                      {label}
+                      {done && <span className="sr-only"> (done)</span>}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
@@ -744,10 +816,19 @@ export default function Builder() {
             )}
             <button
               type="button"
-              className="text-primary mt-2 text-xs underline"
-              onClick={() => setHealthOpen(true)}
+              className="text-primary mt-2 inline-flex items-center gap-1.5 text-xs underline"
+              onClick={() => {
+                localStorage.setItem('honestcv.seen.health', '1')
+                setHealthSeen(true)
+                setHealthOpen(true)
+              }}
             >
               Full health report — {health.score}/100 across {health.dimensions.length} checks
+              {!healthSeen && (
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                  New
+                </Badge>
+              )}
             </button>
           </div>
 
@@ -780,9 +861,19 @@ export default function Builder() {
                 className="h-7 gap-1 text-xs"
                 disabled={!resume.jobDescription.trim()}
                 title="AI rewords your summary and bullets toward this job — review each change before it's applied"
-                onClick={() => setTailorOpen(true)}
+                onClick={() => {
+                  localStorage.setItem('honestcv.seen.tailor', '1')
+                  setTailorSeen(true)
+                  setTailorUsed(true)
+                  setTailorOpen(true)
+                }}
               >
                 <Sparkles className="size-3" /> Tailor to this job
+                {!tailorSeen && (
+                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                    New
+                  </Badge>
+                )}
               </Button>
               {!resume.jobDescription.trim() && (
                 <span className="text-muted-foreground text-xs">
