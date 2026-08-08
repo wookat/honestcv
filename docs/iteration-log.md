@@ -2296,3 +2296,28 @@ explicitly labeled a heuristic, not a hiring prediction.
 
 Verified: typecheck/lint/build green; deployed via wrangler versions workflow;
 full regression by testing agent (golden path, AI success/fallback, 375px, axe).
+
+## Onboarding batch U1-U3 (2026-08-05)
+
+Directive: add restrained user guidance/onboarding across the product.
+
+Competitor patterns consulted (from prior firsthand research, docs/competitor-research-*.md,
+docs/bench-r1/): Enhancv chat-style wizard, Teal 5-step skippable onboarding +
+empty-state next-step guidance, Zety/Resume.io step wizards, Resume Worded
+career-level wizard. Chosen approach: no forced wizard (conflicts with our
+open-editor, no-account model) — landing narrative + a one-time self-checking
+checklist + one-time "New" badges.
+
+- **U1 — Landing "How it works"**: 3-step narrative section after the hero
+  (add experience → tailor to the job → download), static, no JS.
+- **U2 — Builder getting-started checklist**: one-time card (hidden after
+  Dismiss via `honestcv.tourDone`, or for users who have already downloaded,
+  via `honestcv.shared`). Four steps auto-check off from real state (name
+  filled, JD pasted, Tailor opened, download done). No animation; sr-only
+  "(done)" for screen readers.
+- **U3 — New-feature discovery**: one-time "New" badges on the "Tailor to this
+  job" button and the "Full health report" link, cleared on first use via
+  `honestcv.seen.tailor` / `honestcv.seen.health`.
+
+Empty states already covered (builder example/import card, ATS checker example
+score link) — no changes needed there.
