@@ -2212,3 +2212,11 @@ notes in docs/design-upgrade-round-1.md.**
 - Empty-state illustrations: original brand-style SVGs (document+scan on
   /ats-checker empty state, document+pencil on builder "starting fresh"),
   matching the LogoMark palette; aria-hidden, no external assets.
+
+## Optimization loop O2-O3 (2026-08-08)
+
+- O2 performance: React.lazy route-split for /builder and /ats-checker —
+  landing entry JS 504→342 KB (gzip 161→109 KB); live smoke on all routes.
+- O3 pSEO: two backlog guides shipped — /guides/resume-file-format and
+  /guides/linkedin-vs-resume (12 sections each); sitemap 67→69 URLs,
+  IndexNow 200.

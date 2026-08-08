@@ -723,6 +723,48 @@ const GUIDES = [
       ['Mistakes that get emails deleted', 'Forgetting the attachment (re-read before sending), a generic body reused verbatim across companies, emailing from an unprofessional address, attaching an editable file full of tracked changes, and following up within 24 hours. Wait about a week before a single polite follow-up.'],
     ],
   },
+  {
+    path: '/guides/resume-file-format',
+    title: 'Resume File Format: PDF vs DOCX vs Plain Text (Which to Send in 2026)',
+    description:
+      'Which resume file format to send and when: PDF for most applications, DOCX when the portal demands it, plain text for forms — plus file naming, fonts, and the export mistakes that break ATS parsing.',
+    h1: 'Resume file format: PDF vs DOCX vs plain text',
+    sections: [
+      ['The default: text-based PDF', 'PDF locks your layout on every device and every ATS that will ever open it, and modern parsers read text-based PDFs reliably. Unless the posting says otherwise, export PDF. The one hard requirement: the text must be selectable — if you can’t copy a line out of your own PDF, a parser can’t read it either.'],
+      ['When DOCX is the right answer', 'Some agency workflows, government portals and older enterprise ATS explicitly request Word files, and a few portals re-render resumes into their own template from DOCX. When the posting names .doc/.docx, send a real DOCX export — never a PDF renamed to .docx; the extension must match the actual format or the upload fails validation.'],
+      ['When plain text wins', 'Application form fields ("paste your resume here"), some job-board quick-apply flows, and email bodies where attachments are refused. Keep a .txt version with standard headings, hyphen bullets, and one blank line between sections — it pastes cleanly anywhere. HonestCV exports TXT alongside PDF and DOCX for exactly this.'],
+      ['Formats to never send', 'Pages, ODT, RTF, HTML, PNG/JPG screenshots, and Canva/design-tool exports that flatten text into curves. Every one of them either fails to open on the reviewer’s machine or parses as an empty document. If your resume lives in a design tool, re-create it in a text-first editor before applying.'],
+      ['Fonts and embedding', 'Stick to widely available fonts (system fonts or embedded standard faces). A PDF with non-embedded exotic fonts renders as tofu boxes on machines without them; a DOCX with a missing font silently reflows and can push your resume to a second page. Every HonestCV template uses embedded, parser-safe fonts.'],
+      ['File naming', '"Maya-Chen-Resume.pdf": your name, the word resume, nothing else. No dates, versions, or "final_v3 (2)". The filename appears in the recruiter’s ATS and download folder — it should identify you, not your revision history.'],
+      ['File size', 'Keep it under 1–2 MB. Text-based exports are naturally tiny (tens of KB); a multi-megabyte resume almost always means embedded photos or scans — both of which you should remove anyway. Some portals hard-reject uploads over 2 MB.'],
+      ['One column, whatever the format', 'Format choice can’t rescue a layout parsers can’t read. Tables, text boxes and multi-column designs scramble in every format; a clean single-column structure survives PDF, DOCX and plain text alike. Choose structure first, format second.'],
+      ['The renamed-extension trap', 'Renaming resume.pdf to resume.docx (or vice versa) is the single most common upload failure: the portal checks the real file signature, not the name. Always export to the requested format from your editor.'],
+      ['Test what the parser sees', 'Copy-paste your exported file into a plain-text editor. If your sections come out in order, with readable headings, dates and bullets, an ATS will cope. Our free ATS checker parses your actual PDF or DOCX in the browser and shows exactly what was extracted.'],
+      ['Keep all three exports in sync', 'The dangerous state is a PDF that says one thing and a DOCX that says another. Regenerate every format from the same source after each edit — in HonestCV all exports render from the same data, so they can’t drift.'],
+      ['The decision in one line', 'PDF by default · DOCX only when explicitly requested · plain text for paste-in forms · never images or design-tool exports · name the file after yourself · test the parse before you send.'],
+    ],
+  },
+  {
+    path: '/guides/linkedin-vs-resume',
+    title: 'LinkedIn vs Resume: What Goes Where (and the Consistency Checks Recruiters Run)',
+    description:
+      'How your LinkedIn profile and resume should differ, what must match exactly, and the consistency checks recruiters actually run — titles, dates, and the red flags that cost interviews.',
+    h1: 'LinkedIn vs resume: what goes where',
+    sections: [
+      ['Two documents, two jobs', 'Your resume is a targeted pitch for one specific role — one to two pages, tailored per application. Your LinkedIn is a discoverable career record — comprehensive, keyword-rich, written once for many readers. Treating them as copies of each other wastes what each does best.'],
+      ['What must match exactly', 'Job titles, employers, and employment dates. Recruiters routinely open your LinkedIn next to your resume, and mismatched dates or inflated resume titles are among the fastest ways to get filtered out — they read as dishonesty even when they’re sloppiness.'],
+      ['What should differ', 'The resume trims to what the target role needs; LinkedIn can carry every role, project and skill. Resume bullets are tailored and quantified for one posting; the LinkedIn About section is broader and first-person. Recommendations, media and volunteer detail belong on LinkedIn, not squeezed into the resume.'],
+      ['Titles: official vs searchable', 'If your official title was internal jargon ("Member of Technical Staff 4"), keep it on the resume with a standard equivalent in parentheses, and use the same convention on LinkedIn. Never show a different, grander title in one place — that’s the exact mismatch screeners look for.'],
+      ['Dates: month precision, both places', 'Use month + year on both. Year-only dates on one side and months on the other create phantom gaps or overlaps when compared. If you must round anywhere, round identically in both.'],
+      ['The consistency checks recruiters run', 'Title match, date match, employer-name match, and a skim of whether your headline supports the application ("Marketing leader" applying for a data-engineering role raises questions). Some also check that your most impressive resume claim appears somewhere on LinkedIn — a 45% cost cut that exists in only one document invites doubt.'],
+      ['Your headline is not your job title', 'The LinkedIn headline is searchable ad space: "Backend engineer — payments infrastructure, Go/Postgres" outperforms a bare title. But keep it truthful and role-consistent with the jobs section; a puffed-up headline contradicting your experience reads worse than a plain one.'],
+      ['Open-to-work and timing', 'The green banner is visible to everyone including your employer’s recruiters unless you restrict it to recruiters-only mode. Set it before a search burst, not after applications are already out — profile views spike when recruiters cross-check your application.'],
+      ['Keywords work differently', 'Resume keywords target one job description; LinkedIn keywords target recruiter search queries. On LinkedIn, load the Skills section and About with the standard names for what you do (the same spelled-out + acronym rule applies: "search engine optimization (SEO)").'],
+      ['The URL belongs on your resume', 'Claim your custom LinkedIn URL (linkedin.com/in/yourname) and put it in your resume contact line as real text — parsers extract it and recruiters click it. A default URL with random digits looks unclaimed.'],
+      ['Neither replaces the other', '"See my LinkedIn" on a resume reads as unfinished; a bare skeletal LinkedIn under an active application invites doubt. Keep the resume tailored and complete for each application, keep LinkedIn current enough that the cross-check confirms rather than contradicts.'],
+      ['The five-minute audit before applying', 'Open both side by side: titles match · dates match · employers match · headline supports the application · top resume claim appears on the profile · custom URL claimed and listed. Five minutes that protects every application you send.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */
