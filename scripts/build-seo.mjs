@@ -807,6 +807,90 @@ const GUIDES = [
       ['Keep the facts straight', 'Everything in the note must match your resume and what you said live — a "15%" in the interview must not become "25%" in the email. The same honesty rule that governs your resume governs every message after it.'],
     ],
   },
+  {
+    path: '/guides/salary-expectations-in-interviews',
+    title: 'Salary Expectations: How to Answer in Applications and Interviews (2026)',
+    description:
+      'How to handle the salary expectations question on application forms and in interviews: research first, ranges over numbers, deflection scripts that work, and what never to do.',
+    h1: 'How to answer the salary expectations question',
+    sections: [
+      ['Why they ask early', 'Recruiters ask about salary early to screen out mismatches before investing interview time. That is legitimate — but it also means the first number spoken frames the whole negotiation. Your goal in the first conversation is to stay in range without committing to the bottom of yours.'],
+      ['Research before any conversation', 'Look up the role on levels.fyi (tech), Glassdoor, Payscale, and — where employers must publish them — the pay ranges in the posting itself (required in several US states and the EU under pay-transparency rules). Anchor on the range for your level, location, and industry, not on your current salary.'],
+      ['Give a range, not a number', 'A researched range beats a single number: "Based on what I\u2019m seeing for this kind of role in this market, I\u2019m targeting the $X–$Y range, depending on the overall package." Make the bottom of your stated range a number you would genuinely accept — it is what recruiters hear.'],
+      ['The application form field', 'If the form demands a number and accepts text, write "negotiable" or the researched range. If it forces a single integer, enter the midpoint of your researched range rather than 0 or a lowball — many ATSs use the field as a hard filter in both directions.'],
+      ['Deflecting in a first call', 'It is acceptable — once — to turn the question around: "I\u2019d like to understand the full scope of the role first. Could you share the budgeted range for this position?" Many recruiters will answer directly; in pay-transparency jurisdictions they must. If they insist, give your researched range rather than stonewalling twice.'],
+      ['Current salary is not their business', 'In a growing list of places (California, New York, Colorado and others) employers may not ask your salary history at all. Everywhere else you may simply redirect: "I\u2019d prefer to focus on the value of this role — my researched target is $X–$Y." Never inflate your current salary; it is checkable at offer stage.'],
+      ['Total compensation, not base', 'Before naming numbers, know what the package includes: bonus, equity, retirement match, healthcare, remote flexibility, PTO. A $5k lower base with a 15% bonus and better match can be the stronger offer — say "depending on total compensation" so the range flexes.'],
+      ['When the range they name is low', 'Do not argue in the screening call. Note it, finish the conversation, and decide whether the gap is bridgeable ("Is there flexibility for a candidate with X?") or disqualifying. Ending politely at this stage costs nothing; discovering the gap at offer stage costs weeks.'],
+      ['Negotiating the actual offer', 'The offer conversation is separate from the expectations question. Once an offer exists, you have maximum leverage: respond with enthusiasm, ask for time to review, and counter once, specifically, with justification — a competing number, a scope difference, or market data. Vague "can you do better?" underperforms a specific ask.'],
+      ['What never to do', 'Never invent a competing offer (verifiable, and fatal if caught), never inflate current compensation, never accept and keep negotiating, and never open with an ultimatum. The same honesty rule as your resume: everything you claim must survive checking.'],
+      ['Scripts to adapt', 'Form field: "Negotiable — targeting market rate for the role." First call: "I\u2019m targeting $X–$Y depending on total comp — does that fit the budgeted range?" Offer counter: "I\u2019m excited about the role. Given [specific factor], I was expecting closer to $Z — is there room to close that gap?"'],
+      ['Where your resume fits in', 'Strong salary outcomes start before the interview: a resume with quantified, verifiable achievements is what justifies the top of your range. Build the evidence into the bullets — then the negotiation is about which number the evidence supports, not whether you deserve one.'],
+    ],
+  },
+  {
+    path: '/guides/resume-vs-portfolio',
+    title: 'Resume vs Portfolio: What Creative and Technical Roles Actually Need (2026)',
+    description:
+      'When a portfolio matters more than a resume, how the two documents divide the work, portfolio links that survive ATS parsing, and per-field norms for design, writing, and engineering.',
+    h1: 'Resume vs portfolio: how they divide the work',
+    sections: [
+      ['Two documents, two jobs', 'The resume gets you past screening — parsers and recruiters checking structured facts. The portfolio wins the human review — proof you can actually do the work. For creative and many technical roles you need both, and each fails at the other\u2019s job.'],
+      ['Who genuinely needs a portfolio', 'Designers (product, graphic, motion), writers and content marketers, photographers and video editors, front-end developers, architects, illustrators, and increasingly data folks (analysis notebooks, dashboards). If hiring managers in your field open work samples before deciding, you need one.'],
+      ['The resume still comes first', 'Almost every portfolio-heavy role still routes applications through an ATS that parses resumes, not Behance pages. A weak resume means the portfolio never gets opened. Keep the resume complete and parser-safe on its own — never write "see portfolio" in place of real content.'],
+      ['Put the link where parsers find it', 'Your portfolio URL belongs in the resume contact block as real text (yourname.com or behance.net/you), exported as a clickable link. Avoid link shorteners (they look disposable and can rot) and QR codes (parsers ignore images).'],
+      ['Curate hard: 4–8 pieces', 'A portfolio is not an archive. Show your best 4–8 pieces, most relevant first, each with a short case note: the problem, your role, the decision you made, the outcome. Hiring managers spend minutes, not hours — depth on few pieces beats breadth on many.'],
+      ['Tailor the portfolio like the resume', 'Applying for a mobile-app design role? Lead with mobile work. Content role in fintech? Lead with financial writing. The same tailoring logic you apply to resume bullets applies to portfolio ordering — the first two pieces decide whether they keep scrolling.'],
+      ['Formats by field', 'Design: a personal site or Behance/Dribbble with case studies. Writing: a simple page of linked published pieces (or PDFs where rights allow). Development: GitHub with pinned repos plus 1–2 live demos; a README is your case note. Data: notebooks or dashboards with a paragraph of context each.'],
+      ['The case-study skeleton', 'For each piece: one line of context (client/team/constraint), one line on your specific contribution ("my role: interaction design and prototype"), one honest outcome ("shipped to 40k users" only if true and checkable). Claiming solo credit for team work is checkable and fatal — credit collaborators.'],
+      ['Rights and confidentiality', 'Only show work you have the right to show. NDA work can appear as an anonymized case study ("a payments company") with sensitive numbers removed, or be described in the interview instead. Never publish confidential assets to win a job — the employer reading it notices what you would do with theirs.'],
+      ['Keep it fast and reachable', 'A portfolio that loads slowly or 404s is worse than none: test the link from a phone on mobile data, keep images compressed, and re-verify every link each time you send applications. If the domain lapses, update the resume everywhere it is listed.'],
+      ['What stays on the resume', 'Dates, employers, titles, education, skills, quantified outcomes — the checkable skeleton recruiters cross-reference. The portfolio shows how the work looks; the resume proves where and when you did it. Contradictions between the two (different titles, different dates) read as dishonesty.'],
+      ['A quick pre-send audit', 'Resume parses cleanly (test it in our free ATS checker) · portfolio link in the contact block as text · first two pieces match the job · every case note has your role and an honest outcome · all links open from an incognito window · nothing confidential. Then send.'],
+    ],
+  },
+  {
+    path: '/guides/resume-summary-for-freshers',
+    title: 'Resume Summary for Freshers: Examples That Work Without Experience (2026)',
+    description:
+      'How to write a fresher resume summary (or objective) with no work experience: formulas, worked examples by field, what to quantify from college, and cliches to cut.',
+    h1: 'Writing a resume summary as a fresher',
+    sections: [
+      ['Summary or objective?', 'With no work history, a short objective usually beats a summary: state what you studied, what you can do, and what role you want — in that order. Once you have an internship or strong projects, upgrade to a summary that leads with those instead of the degree.'],
+      ['The three-part formula', 'Line 1: who you are ("B.Tech CSE graduate, Class of 2026"). Line 2: your strongest proof — a project, internship, certification, or ranked achievement, with a real number if one exists. Line 3: the role you\u2019re targeting and what you bring to it. Three sentences, 40–60 words, no more.'],
+      ['Lead with proof, not adjectives', '"Hardworking, passionate, motivated fresher" tells the reader nothing checkable. "Built a Flask attendance app used by 3 student clubs" does. Every adjective you delete makes room for one verifiable fact — and verifiable facts are what screeners scan for.'],
+      ['What freshers can quantify', 'CGPA (if strong), project users or data size, hackathon placements, papers or posters, club members led, events organized, certification scores, typing speed, languages. College life produces more numbers than most freshers think — use the real ones, never rounded-up ones.'],
+      ['Engineering example', '"Computer science graduate (2026, CGPA 8.4) with hands-on projects in Python and SQL — including an expense tracker used by 40+ classmates. Completed the Google Data Analytics certificate. Seeking an entry-level data analyst role where I can apply cleaning and visualization skills."'],
+      ['Commerce/business example', '"B.Com graduate (2026) with an accounting internship at a local CA firm — reconciled 3 client ledgers under supervision and built the Excel tracker the office still uses. Tally and advanced Excel certified. Seeking a junior accountant role."'],
+      ['Arts/communication example', '"English literature graduate (2026) and editor of the campus magazine — led a 6-member team through 4 issues and grew Instagram followers from 800 to 2,100. Seeking a content writing role where research and deadline discipline matter."'],
+      ['Match it to each application', 'The objective is the most tailorable line on a fresher resume: mirror the job title exactly ("Seeking a Graduate Trainee \u2013 Operations role…") and name the one or two skills from the posting you genuinely have. A generic objective reads as a mass application.'],
+      ['Cliches to cut', '"Seeking a challenging position in a reputed organization with growth opportunities" says nothing about you and appears on millions of resumes. Also cut: "team player", "quick learner", "dynamic", "go-getter" — unless a bullet elsewhere proves the claim, at which point you don\u2019t need the word.'],
+      ['Where it sits and what follows', 'Contact block → objective/summary → Education (with coursework and CGPA) → Projects → Internships/volunteering → Skills → Achievements. The objective makes a promise; the projects section is where the reader checks it — make sure they agree.'],
+      ['Honesty is a screening criterion', 'Freshers are checked harder, not softer: certificates are verifiable, CGPAs appear on transcripts, and project claims come up in the first interview. Never inflate a number or list a certification you haven\u2019t completed — "in progress" is an acceptable and honest label.'],
+      ['Test the whole resume, not just the summary', 'A good summary on a resume that parses badly still gets filtered. Run the finished resume through our free ATS checker against the actual posting — it shows which keywords the parser found and which are missing, so you can fix gaps honestly before applying.'],
+    ],
+  },
+  {
+    path: '/guides/how-to-list-certifications',
+    title: 'How to List Certifications on a Resume: Format, Order, and What Counts (2026)',
+    description:
+      'Where certifications go on a resume, the exact line format parsers read, in-progress and expired credentials, which certifications matter by field, and what to leave off.',
+    h1: 'How to list certifications on a resume',
+    sections: [
+      ['Why certifications get checked', 'Certifications are among the most verifiable claims on a resume — issuers run public verification pages, and many recruiters check. That cuts both ways: a real credential is strong evidence, and an inflated one is the fastest way to lose an offer.'],
+      ['The line format parsers read', 'One line per credential: name (spelled out, then the acronym), issuer, and date — "AWS Certified Solutions Architect \u2013 Associate (SAA-C03), Amazon Web Services, 2025". Parsers and keyword filters match on the exact certification name, so use the official one, not a nickname.'],
+      ['Where the section goes', 'A dedicated "Certifications" section below Skills works for most people. Lead with it (above Experience) only when the certification is the qualification — nursing licenses, PMP for project-manager roles, CDL for driving jobs. One or two certs? A line inside Education or Skills also parses fine.'],
+      ['Order within the section', 'Most relevant to the target job first, then by recency. The job description tells you the order: if the posting says "Security+ required", that line goes first regardless of date.'],
+      ['Include the ID when asked', 'Some employers and government forms want the credential ID or license number. Otherwise, leave IDs off the resume (they add clutter) but have them ready — and make sure your name on the certificate matches your resume name.'],
+      ['In-progress certifications', 'Listing an in-progress credential is honest if labeled: "CFA Level II candidate — exam scheduled Nov 2026" or "AWS SAA \u2014 in progress, expected Q1 2027". Never list it unlabeled, and never list one you merely intend to start.'],
+      ['Expired and renewed credentials', 'If it expires (PMP, CPR, Security+), show the valid-through date or renewal year. An expired certification can stay only if clearly marked ("CCNA, 2019\u20132022, expired") and only when the underlying skill is still relevant — otherwise cut it.'],
+      ['Which certifications matter by field', 'Tech: cloud (AWS/Azure/GCP), Kubernetes, security (Security+/CISSP). Data: Google Data Analytics, dbt, Databricks. PM: PMP, CSM, PRINCE2. Finance: CPA, CFA, FRM. Healthcare: licenses first, then BLS/ACLS. Trades: OSHA, forklift, welding certs. Marketing: Google Ads/Analytics, HubSpot.'],
+      ['What to leave off', 'Course-completion certificates from watching videos (Udemy/Coursera without a proctored exam) belong under a "Courses" line, not "Certifications", if listed at all. Also cut: internal trainings nobody outside your company recognizes, expired credentials from a decade ago, and memberships that are not credentials.'],
+      ['Keywords: spell it out and abbreviate', 'Recruiters search both "Certified Public Accountant" and "CPA"; ATS keyword filters may match either. Write the full name once with the acronym in parentheses so both queries hit — the same rule as skills.'],
+      ['Free vs paid credentials', 'A free certificate with a real assessment (Google Analytics, HubSpot, freeCodeCamp) beats an expensive one nobody verifies. Choose by what job postings in your target role actually name — search five postings and count which credentials appear.'],
+      ['The honesty line', 'Never list a certification you did not earn, an exam you have not passed, or a license that has lapsed as if current. Verification takes a recruiter under a minute. If your real credentials feel thin, an "in progress" line plus strong project bullets is the honest and effective alternative.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */
@@ -1082,10 +1166,27 @@ ul.features li{margin:.4rem 0}
 .cta p{color:var(--muted);font-size:.9375rem}
 .related{margin-top:3rem;border-top:1px solid var(--border);padding-top:1.5rem}
 .related h2{font-size:1rem;margin:0 0 .75rem}
+.toc{margin:1.25rem 0;padding:1rem 1.25rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;font-size:.9rem}
+.toc strong{display:block;margin-bottom:.5rem}
+.toc ol{margin:0;padding-left:1.25rem;columns:2;column-gap:2rem}
+.toc li{margin:.15rem 0;break-inside:avoid}
+.toc a{text-decoration:underline}
+@media (max-width:640px){.toc ol{columns:1}}
+h2[id]{scroll-margin-top:1rem}
 .related ul{list-style:none;padding:0;margin:0;display:grid;gap:.5rem}
 footer.site{border-top:1px solid var(--border)}
 footer.site .in{max-width:72rem;margin:0 auto;padding:1.5rem 1rem;text-align:center;font-size:.75rem;color:var(--muted)}
 `.trim()
+
+/** URL-safe anchor id from a section heading */
+function anchorId(heading) {
+  return heading
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 60)
+}
 
 /** BreadcrumbList JSON-LD: Home → hub → page */
 function breadcrumbLd(crumbs) {
@@ -1292,7 +1393,13 @@ ${BEACON}${FP_BEACON}
 </div></header>
 <main>
 <h1>${esc(p.h1)}</h1>
-${p.sections.map(([h, t]) => `<h2 style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
+<nav class="toc" aria-label="On this page">
+<strong>On this page</strong>
+<ol>
+${p.sections.map(([h]) => `<li><a href="#${anchorId(h)}">${esc(h)}</a></li>`).join('\n')}
+</ol>
+</nav>
+${p.sections.map(([h, t]) => `<h2 id="${anchorId(h)}" style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
 <div class="cta">
 <p>${FREE_MODE ? 'Put this into practice — HonestCV is in beta with a full free trial: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'Put this into practice — the HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
 <a class="btn" href="/builder">Start my free trial</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>

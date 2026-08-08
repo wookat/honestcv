@@ -2296,3 +2296,52 @@ explicitly labeled a heuristic, not a hiring prediction.
 
 Verified: typecheck/lint/build green; deployed via wrangler versions workflow;
 full regression by testing agent (golden path, AI success/fallback, 375px, axe).
+
+## Optimization loop O9 (2026-08-08)
+
+- Data integrity check after the O-batch merges: first-party beacon
+  verified live (fresh browser context → POST /api/hit 200; QA-flagged
+  context sends nothing). Zero hits since 08-07 is genuinely zero
+  traffic, not a broken beacon.
+- Prod redeployed from clean post-merge main (version 9c69a37c); /api/health ok.
+- CWV re-test (warm CDN, desktop): / TTFB 32ms LCP 188ms CLS 0.016;
+  /builder LCP 136ms; /ats-checker LCP 560ms CLS 0 — all well inside
+  "good" thresholds after the O2 route split.
+
+## Optimization loop O10 (2026-08-08)
+
+- pSEO: /guides/salary-expectations-in-interviews and
+  /guides/resume-vs-portfolio (12 sections each; honest-negotiation and
+  rights/NDA framing consistent with the anti-fabrication line); sitemap
+  71→73, IndexNow 200, both live-verified.
+
+## Optimization loop O11-O12 (2026-08-08)
+
+- O11 competitor recheck: Resume.io pricing page re-verified live —
+  $29.95/4 weeks after 7-day trial (matches /vs/resume-io) plus a
+  $49.95/3-month tier; FlowCV still $0/$3/$5 (matches /vs/flowcv);
+  Zety pricing page still bot-walled (claims unchanged, not bypassed).
+- O12 guides UX/SEO: all 27 guide pages now render an "On this page"
+  table of contents with anchor links on every h2 (two-column on
+  desktop, single on mobile) — jump links for readers and anchor
+  sitelink eligibility for search. Verified live: anchors resolve,
+  375px overflow 0, axe A/AA 0.
+
+## Optimization loop O13 (2026-08-08)
+
+- Regression spot-check: full sitemap sweep 73/73 URLs 200; live AI
+  rewrite spot-check with a fresh client id — honest output (no invented
+  metrics), freeRemaining returned correctly.
+
+## Optimization loop O14 (2026-08-08)
+
+- pSEO: /guides/resume-summary-for-freshers (high-volume fresher query;
+  objective formula + field examples) and /guides/how-to-list-certifications
+  (format, in-progress/expired handling, per-field credentials); sitemap
+  73→75, IndexNow 200, both live-verified. Backlog rotated.
+
+## Optimization loop O15 (2026-08-08)
+
+- Regression: both O14 guides + guides hub at 375px — overflow 0, axe
+  A/AA 0, TOC rendering, hub lists new entries. Batch closed; returning
+  to low-intensity ops unless new signals appear.
