@@ -2373,3 +2373,23 @@ effects, and plain-language explanations of expert output.
 
 Deployed worker version `04c3e758`. Verified live: fonts loaded (`document.fonts`),
 h1 computed family Sora, explainer expands, example score path intact.
+
+## Replication benchmark batch (RB) — 2026-08-05
+
+Boss directive: pick one head-to-head benchmark and replicate to 100%, then optimize
+beyond it. Chose **Resume.io** (guest builder fully walkable without account; Rezi
+gates the editor behind signup). Full first-hand walk-through of landing, template
+chooser, guest editor (wizard steps, resume score chip, Customize → Template/Text/Layout),
+templates/examples/pricing pages at 1440px and 375px.
+
+Output: `docs/replication-benchmark.md` — 13 pages/flows scored, all P0/P1 gaps closed.
+
+**Fix shipped (was the only P0 gap, Customize→Text parity):** user text-size (S/M/L)
+and line-spacing (Compact/Normal/Relaxed) controls in the builder design bar, applied
+uniformly to the live preview, PDF export (size/line-height multipliers in PdfWriter)
+and DOCX export (half-point scaling + `w:spacing` line rule). Combined with the live
+PDF page counter this doubles as a one-page rescue tool.
+
+Deliberate divergences (documented, not defects): no stepped wizard (one-page form +
+sticky preview is faster to edit), no fabricated stats in copy, no per-card format
+badges (all our templates export all formats), no signup gate before download.

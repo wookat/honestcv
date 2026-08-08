@@ -3,7 +3,7 @@
  * PDF/DOCX output. Rendered inside a fixed-aspect "page".
  */
 
-import { type Resume, orderedSectionKeys } from '@/lib/resume'
+import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
 export function ResumePreview({ resume }: { resume: Resume }) {
@@ -41,6 +41,9 @@ export function ResumePreview({ resume }: { resume: Resume }) {
         fontFamily,
         aspectRatio: resume.pageSize === 'a4' ? '210 / 297' : '8.5 / 11',
         overflow: 'hidden',
+        // Mirror the export's text-size and line-spacing settings
+        zoom: fontScaleOf(resume),
+        lineHeight: lineSpacingOf(resume) + 0.1,
       }}
       aria-label="Resume preview"
     >
@@ -81,7 +84,7 @@ function SectionBlock({
     return resume.summary.trim() ? (
       <>
         {heading('Summary')}
-        <p className="text-[11px] leading-relaxed">{resume.summary.trim()}</p>
+        <p className="text-[11px]">{resume.summary.trim()}</p>
       </>
     ) : null
   if (sectionKey === 'experience')
@@ -110,7 +113,7 @@ function SectionBlock({
                   {e.bullets.map(
                     (b, i) =>
                       b.trim() && (
-                        <li key={i} className="flex gap-1.5 text-[11px] leading-snug">
+                        <li key={i} className="flex gap-1.5 text-[11px]">
                           <span style={{ color: tpl.accent }}>•</span>
                           <span>{b.trim()}</span>
                         </li>
@@ -134,7 +137,7 @@ function SectionBlock({
                   {p.link && <span className="font-normal"> — {p.link}</span>}
                 </p>
                 {p.description.trim() && (
-                  <p className="text-[11px] leading-snug">{p.description.trim()}</p>
+                  <p className="text-[11px]">{p.description.trim()}</p>
                 )}
               </div>
           )
@@ -164,7 +167,7 @@ function SectionBlock({
                   )}
                 </div>
                 {e.details.trim() && (
-                  <p className="text-[11px] leading-snug">{e.details.trim()}</p>
+                  <p className="text-[11px]">{e.details.trim()}</p>
                 )}
               </div>
           )
@@ -175,14 +178,14 @@ function SectionBlock({
     return resume.skills.trim() ? (
       <>
         {heading('Skills')}
-        <p className="text-[11px] leading-relaxed">{resume.skills.trim()}</p>
+        <p className="text-[11px]">{resume.skills.trim()}</p>
       </>
     ) : null
   if (sectionKey === 'certifications')
     return resume.certifications.trim() ? (
       <>
         {heading('Certifications')}
-        <p className="text-[11px] leading-relaxed">{resume.certifications.trim()}</p>
+        <p className="text-[11px]">{resume.certifications.trim()}</p>
       </>
     ) : null
   if (sectionKey.startsWith('custom:')) {
@@ -195,7 +198,7 @@ function SectionBlock({
           {s.bullets.map(
             (b, i) =>
               b.trim() && (
-                <li key={i} className="flex gap-1.5 text-[11px] leading-snug">
+                <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
                   <span>{b.trim()}</span>
                 </li>

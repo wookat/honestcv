@@ -7,6 +7,7 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  LineRuleType,
   ExternalHyperlink,
   Packer,
   Paragraph,
@@ -16,7 +17,7 @@ import {
   TextRun,
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
-import { type Resume, orderedSectionKeys } from '@/lib/resume'
+import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
 const FONT_SERIF = 'Georgia'
@@ -33,6 +34,10 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
   const rightTab = pageSize.width - 864 * 2
   const accent = tpl.accent.replace('#', '')
+  const fs = fontScaleOf(resume)
+  const sz = (n: number) => Math.round(n * fs)
+  // docx line spacing: 240 twips = single; scale by the user's line-spacing setting
+  const lineTwips = Math.round(240 * (lineSpacingOf(resume) / 1.35))
   const heading = (text: string) =>
     new Paragraph({
       spacing: { before: 240, after: 80 },
@@ -54,7 +59,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         new TextRun({
           text: tpl.headingCase === 'upper' ? text.toUpperCase() : text,
           bold: true,
-          size: 22,
+          size: sz(22),
           color: accent,
           font,
         }),
@@ -71,7 +76,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
     } = {}
   ) =>
     new Paragraph({
-      spacing: { after: opts.after ?? 60 },
+      spacing: { after: opts.after ?? 60, line: lineTwips, lineRule: LineRuleType.AUTO },
       keepNext: opts.keepNext,
       bullet: opts.bullet ? { level: 0 } : undefined,
       children: [
@@ -79,7 +84,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
           text,
           bold: opts.bold,
           italics: opts.italic,
-          size: 21,
+          size: sz(21),
           font,
         }),
       ],
@@ -98,7 +103,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
     new Paragraph({
       alignment: headerAlignment,
       spacing: { after: 40 },
-      children: [new TextRun({ text: name, bold: true, size: 40, font })],
+      children: [new TextRun({ text: name, bold: true, size: sz(40), font })],
     })
   )
   if (c.title) {
@@ -106,7 +111,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       new Paragraph({
         alignment: headerAlignment,
         spacing: { after: 40 },
-        children: [new TextRun({ text: c.title, size: 24, color: accent, font })],
+        children: [new TextRun({ text: c.title, size: sz(24), color: accent, font })],
       })
     )
   }
@@ -121,14 +126,14 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   if (contactSegments.length > 0) {
     const runs: (TextRun | ExternalHyperlink)[] = []
     contactSegments.forEach((s, i) => {
-      if (i > 0) runs.push(new TextRun({ text: '  |  ', size: 19, font }))
+      if (i > 0) runs.push(new TextRun({ text: '  |  ', size: sz(19), font }))
       runs.push(
         s.url
           ? new ExternalHyperlink({
               link: s.url,
-              children: [new TextRun({ text: s.text, size: 19, font, style: 'Hyperlink' })],
+              children: [new TextRun({ text: s.text, size: sz(19), font, style: 'Hyperlink' })],
             })
-          : new TextRun({ text: s.text, size: 19, font })
+          : new TextRun({ text: s.text, size: sz(19), font })
       )
     })
     children.push(
@@ -154,14 +159,14 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             keepNext: true,
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              new TextRun({ text: e.role || 'Role', bold: true, size: 22, font }),
+              new TextRun({ text: e.role || 'Role', bold: true, size: sz(22), font }),
               new TextRun({
                 text: `  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`,
-                size: 21,
+                size: sz(21),
                 font,
               }),
               ...(dates
-                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: 19, font })]
+                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
                 : []),
             ],
           })
@@ -194,14 +199,14 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             keepNext: true,
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              new TextRun({ text: e.degree || 'Degree', bold: true, size: 21, font }),
+              new TextRun({ text: e.degree || 'Degree', bold: true, size: sz(21), font }),
               new TextRun({
                 text: `  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,
-                size: 21,
+                size: sz(21),
                 font,
               }),
               ...(dates
-                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: 19, font })]
+                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
                 : []),
             ],
           })
