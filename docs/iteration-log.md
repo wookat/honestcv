@@ -2223,6 +2223,14 @@ notes in docs/design-upgrade-round-1.md.**
   `freeRemaining` and the builder footer counter updates for bundle-tool
   calls too (previously only summary polish decremented the display).
 
+## Optimization loop O2-O3 (2026-08-08)
+
+- O2 performance: React.lazy route-split for /builder and /ats-checker —
+  landing entry JS 504→342 KB (gzip 161→109 KB); live smoke on all routes.
+- O3 pSEO: two backlog guides shipped — /guides/resume-file-format and
+  /guides/linkedin-vs-resume (12 sections each); sitemap 67→69 URLs,
+  IndexNow 200.
+
 ## Optimization loop O4 (2026-08-08)
 
 - Security: npm audit highs cleared — pdfjs-dist 6.1.200→6.2.108
@@ -2242,3 +2250,22 @@ notes in docs/design-upgrade-round-1.md.**
   flow works (61/100); analytics — Cloudflare PV/UV still 0, first-party
   hits all internal (google.com referrer ×1), 11 leads all test emails.
   Organic distribution remains the bottleneck (owner side).
+
+## Optimization loop O6 (2026-08-08)
+
+- pSEO backlog cleared: /guides/resume-for-teens and
+  /guides/thank-you-email-after-interview (12 sections each); sitemap
+  69→71 URLs, IndexNow 200, both live-verified. ops-weekly backlog
+  refreshed (AI relay unpaused, new candidates queued).
+
+## Optimization loop O7-O8 (2026-08-08) — verification rounds, no findings
+
+- O7: mobile UX walkthrough of the live AI flows at 375px (builder, cover
+  letter dialog) — zero overflow, dialogs clean. Competitor recheck: Rezi
+  pricing still $29/mo + $149 lifetime (matches /vs/rezi); Teal pricing
+  page still does not render in a real browser (kept blocked, not bypassed).
+- O8: full sitemap sweep 71/71 URLs 200; golden path re-verified after the
+  O4 dependency bumps (sample resume → PDF download, real text layer
+  confirmed via pdftotext).
+- Two consecutive rounds without worthwhile improvements → switching to
+  low-intensity weekly ops per the loop's stop rule.

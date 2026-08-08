@@ -12,11 +12,10 @@ append a dated log entry at the bottom.
   factual, anti-fabrication tone; trailing-slash internal links).
 - `npm run build`, deploy, verify the live page with `curl`.
 
-Backlog candidates:
-- /guides/resume-for-teens (first job / no diploma yet)
-- /guides/linkedin-vs-resume (consistency checks recruiters run)
-- /guides/resume-file-format (PDF vs DOCX vs plain text, per portal)
-- /guides/thank-you-email-after-interview
+Backlog candidates (shipped 2026-08-08: resume-for-teens,
+linkedin-vs-resume, resume-file-format, thank-you-email-after-interview):
+- /guides/salary-expectations-in-interviews
+- /guides/resume-vs-portfolio (creative roles)
 - /templates/ additions if a new template ships
 - /vs/ pages only with directly verified evidence (no inferred pricing)
 
@@ -52,7 +51,8 @@ Backlog candidates:
 ## Paused / owner-side (do not act without instruction)
 
 - Real payments (Paddle/LemonSqueezy abstractions retained, inactive).
-- AI relay (quota depleted; retest rewrite/cover-letter/interview when funded).
+- AI relay: live again since 2026-08-08 (api.aicdks.com, glm-5.2 via
+  Worker secrets) — include one AI rewrite in the weekly spot-check.
 - Social distribution accounts and backlinks.
 - Email provider / double opt-in sending.
 
