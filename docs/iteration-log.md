@@ -2212,3 +2212,13 @@ notes in docs/design-upgrade-round-1.md.**
 - Empty-state illustrations: original brand-style SVGs (document+scan on
   /ats-checker empty state, document+pencil on builder "starting fresh"),
   matching the LogoMark palette; aria-hidden, no external assets.
+
+## Optimization loop O1 (2026-08-08)
+
+- AI relay switched to the owner's new channel (Worker secrets; default
+  model glm-5.2, PR #118). Full AI path retested live in the UI: rewrite
+  variants, cover letter, interview brief — all honest output, no
+  fabricated metrics (recorded run, evidence on PR #118).
+- O1 fix: cover-letter / interview-brief responses now include
+  `freeRemaining` and the builder footer counter updates for bundle-tool
+  calls too (previously only summary polish decremented the display).
