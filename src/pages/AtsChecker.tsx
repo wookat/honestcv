@@ -277,6 +277,30 @@ export default function AtsChecker() {
                 )}
               </div>
 
+              <details className="text-muted-foreground mt-3 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                <summary className="text-foreground cursor-pointer text-sm font-medium">
+                  What do these scores mean?
+                </summary>
+                <ul className="mt-2 space-y-1.5">
+                  <li>
+                    <strong className="text-foreground">Keyword match</strong> — how many of
+                    the job ad&apos;s key terms appear in your resume. Recruiters and ATS
+                    filters search for these exact words, so a low score usually means
+                    you&apos;ll be skipped even if you&apos;re qualified.
+                  </li>
+                  <li>
+                    <strong className="text-foreground">Structure</strong> — whether your
+                    resume has the parts a parser expects: contact info, clear section
+                    headings, dates and bullet points. Fancy layouts often fail here.
+                  </li>
+                  <li>
+                    <strong className="text-foreground">What to do</strong> — add the
+                    missing keywords below <em>only where they&apos;re true of you</em>, keep
+                    the layout simple, then re-check. Aim for 70+.
+                  </li>
+                </ul>
+              </details>
+
               {jd.trim() && (
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>

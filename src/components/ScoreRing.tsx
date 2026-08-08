@@ -45,7 +45,7 @@ export function ScoreRing({ score, size = 84 }: { score: number; size?: number }
           style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1)' }}
         />
       </svg>
-      <span className="absolute text-xl font-bold" style={{ color }}>
+      <span className="tnum absolute text-xl font-bold" style={{ color }}>
         {value}
       </span>
     </span>

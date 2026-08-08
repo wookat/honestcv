@@ -2500,7 +2500,7 @@ function HealthDialog({
               <div className="flex items-center justify-between gap-2 text-sm">
                 <span className="font-medium">{d.label}</span>
                 <span
-                  className={`text-xs font-semibold ${
+                  className={`tnum text-xs font-semibold ${
                     d.score >= 80
                       ? 'text-emerald-600'
                       : d.score >= 50
@@ -2531,6 +2531,7 @@ function HealthDialog({
                 />
               </div>
               <p className="text-muted-foreground mt-1.5 text-xs">{d.summary}</p>
+              <p className="text-muted-foreground/80 mt-1 text-xs italic">{d.plain}</p>
               {d.findings.length > 0 && (
                 <ul className="text-muted-foreground mt-1.5 list-disc space-y-0.5 pl-4 text-xs">
                   {d.findings.map((f) => (

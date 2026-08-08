@@ -1146,6 +1146,8 @@ function esc(s) {
 }
 
 const CSS = `
+@font-face{font-family:'Inter';font-style:normal;font-weight:400 700;font-display:swap;src:url('/fonts/inter-latin.woff2') format('woff2')}
+@font-face{font-family:'Sora';font-style:normal;font-weight:600 800;font-display:swap;src:url('/fonts/sora-latin.woff2') format('woff2')}
 :root{--bg:oklch(0.99 0.002 250);--fg:oklch(0.18 0.02 260);--muted:oklch(0.52 0.02 260);--primary:oklch(0.5 0.18 265);--primary-fg:oklch(0.985 0 0);--border:oklch(0.91 0.01 260);--card:oklch(1 0 0);--accent:oklch(0.94 0.03 265);--radius:0.625rem}
 *{box-sizing:border-box;border-color:var(--border)}
 body{margin:0;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.7}
@@ -1158,7 +1160,8 @@ header.site .brand img{width:1.5rem;height:1.5rem}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border-radius:calc(var(--radius) - 2px);background:var(--primary);color:var(--primary-fg);padding:.55rem 1.1rem;font-size:.9rem;font-weight:500;border:0;cursor:pointer}
 .btn:hover{opacity:.9;text-decoration:none}
 main{max-width:46rem;margin:0 auto;padding:2.5rem 1rem 4rem}
-h1{font-size:2rem;line-height:1.25;letter-spacing:-.01em;margin:.25rem 0 .75rem}
+h1,h2,h3{font-family:'Sora','Inter',system-ui,sans-serif;letter-spacing:-.015em}
+h1{font-size:2rem;line-height:1.25;margin:.25rem 0 .75rem}
 .lede{color:var(--muted);font-size:1.05rem}
 ul.features{padding-left:1.3em}
 ul.features li{margin:.4rem 0}
