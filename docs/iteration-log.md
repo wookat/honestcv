@@ -2269,3 +2269,30 @@ notes in docs/design-upgrade-round-1.md.**
   confirmed via pdftotext).
 - Two consecutive rounds without worthwhile improvements → switching to
   low-intensity weekly ops per the loop's stop rule.
+
+## Evolution batch E1-E2 (2026-08-05)
+
+Directive: no small patches this round — ship 1-2 major differentiating features.
+
+**E1 — AI Tailor (JD-tailored resume, per-line review).** New `POST /api/ai/tailor`:
+one LLM call takes the summary + every experience bullet (id-addressed) plus the
+pasted JD, returns strict-JSON per-item rewrite suggestions. Builder gains a
+"Tailor to this job" button in the Target job section opening a review dialog:
+each suggestion shows original (struck through) vs suggestion, with per-item
+Accept / Keep original and "Accept all remaining". Nothing is applied without
+review; anti-fabrication prompt rules carry over (mirror JD keywords only where
+the fact already exists; bracketed placeholders instead of invented numbers).
+Shares the existing free AI quota and updates the visible counter.
+This is the core paid capability at Rezi/Teal/Jobscan — ours is free during beta,
+reviewable line-by-line, and browser-local-first.
+
+**E2 — Resume health report.** `resumeHealth()` in `src/lib/guidance.ts`:
+six deterministic dimensions (Completeness, Quantified impact, Action verbs,
+Brevity, Buzzword-free, Consistency — tense discipline + unreplaced [placeholders]),
+each 0-100 with concrete findings pointing at the offending bullet. Weighted
+overall score surfaces under the strength meter ("Full health report — N/100");
+dialog renders per-dimension bars + findings. No AI calls, computed locally,
+explicitly labeled a heuristic, not a hiring prediction.
+
+Verified: typecheck/lint/build green; deployed via wrangler versions workflow;
+full regression by testing agent (golden path, AI success/fallback, 375px, axe).

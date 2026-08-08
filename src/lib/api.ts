@@ -44,6 +44,23 @@ export async function aiRewrite(
   return data
 }
 
+export interface TailorItemInput {
+  id: string
+  kind: 'summary' | 'bullet'
+  text: string
+}
+
+export async function aiTailor(input: {
+  items: TailorItemInput[]
+  jobDescription: string
+  role: string
+}): Promise<{ suggestions: { id: string; text: string }[]; freeRemaining: number | null }> {
+  return post<{ suggestions: { id: string; text: string }[]; freeRemaining: number | null }>(
+    '/api/ai/tailor',
+    input
+  )
+}
+
 export async function aiCoverLetter(input: {
   resumeText: string
   jobDescription: string
