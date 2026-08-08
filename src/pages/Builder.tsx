@@ -312,7 +312,9 @@ export default function Builder() {
   const [healthSeen, setHealthSeen] = useState(() =>
     Boolean(localStorage.getItem('honestcv.seen.health'))
   )
-  const [tailorUsed, setTailorUsed] = useState(false)
+  const [tailorUsed, setTailorUsed] = useState(() =>
+    Boolean(localStorage.getItem('honestcv.seen.tailor'))
+  )
   const [dlDone, setDlDone] = useState(() => Boolean(localStorage.getItem('honestcv.shared')))
   const [freeDlOpen, setFreeDlOpen] = useState(false)
   const pendingDl = useRef<'pdf' | 'docx' | 'txt' | 'md' | null>(null)
