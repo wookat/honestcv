@@ -2299,3 +2299,9 @@ notes in docs/design-upgrade-round-1.md.**
   desktop, single on mobile) — jump links for readers and anchor
   sitelink eligibility for search. Verified live: anchors resolve,
   375px overflow 0, axe A/AA 0.
+
+## Optimization loop O13 (2026-08-08)
+
+- Regression spot-check: full sitemap sweep 73/73 URLs 200; live AI
+  rewrite spot-check with a fresh client id — honest output (no invented
+  metrics), freeRemaining returned correctly.
