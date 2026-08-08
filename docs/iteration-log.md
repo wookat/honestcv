@@ -2220,3 +2220,22 @@ notes in docs/design-upgrade-round-1.md.**
 - O3 pSEO: two backlog guides shipped — /guides/resume-file-format and
   /guides/linkedin-vs-resume (12 sections each); sitemap 67→69 URLs,
   IndexNow 200.
+
+## Optimization loop O6 (2026-08-08)
+
+- pSEO backlog cleared: /guides/resume-for-teens and
+  /guides/thank-you-email-after-interview (12 sections each); sitemap
+  69→71 URLs, IndexNow 200, both live-verified. ops-weekly backlog
+  refreshed (AI relay unpaused, new candidates queued).
+
+## Optimization loop O7-O8 (2026-08-08) — verification rounds, no findings
+
+- O7: mobile UX walkthrough of the live AI flows at 375px (builder, cover
+  letter dialog) — zero overflow, dialogs clean. Competitor recheck: Rezi
+  pricing still $29/mo + $149 lifetime (matches /vs/rezi); Teal pricing
+  page still does not render in a real browser (kept blocked, not bypassed).
+- O8: full sitemap sweep 71/71 URLs 200; golden path re-verified after the
+  O4 dependency bumps (sample resume → PDF download, real text layer
+  confirmed via pdftotext).
+- Two consecutive rounds without worthwhile improvements → switching to
+  low-intensity weekly ops per the loop's stop rule.
