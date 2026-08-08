@@ -2224,3 +2224,11 @@ notes in docs/design-upgrade-round-1.md.**
 - Note: `wrangler deploy` began failing on the zone-routes API call
   (Authentication error 10000) while uploads succeed — worked around
   with `wrangler versions upload` + `versions deploy` (route unchanged).
+
+## Optimization loop O5 (2026-08-08)
+
+- UX/data round, no code change needed: landing copy consistent with live
+  AI + beta-free-trial pricing ($9.99/$19.99 shown); ATS example-score
+  flow works (61/100); analytics — Cloudflare PV/UV still 0, first-party
+  hits all internal (google.com referrer ×1), 11 leads all test emails.
+  Organic distribution remains the bottleneck (owner side).
