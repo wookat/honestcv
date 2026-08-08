@@ -2212,3 +2212,15 @@ notes in docs/design-upgrade-round-1.md.**
 - Empty-state illustrations: original brand-style SVGs (document+scan on
   /ats-checker empty state, document+pencil on builder "starting fresh"),
   matching the LogoMark palette; aria-hidden, no external assets.
+
+## Optimization loop O4 (2026-08-08)
+
+- Security: npm audit highs cleared — pdfjs-dist 6.1.200→6.2.108
+  (GHSA-hq66-cqwq-w95j, arbitrary JS on malicious PDF) and hono
+  →4.12.34 (CORS ReDoS + 3 others). Live PDF import re-verified after
+  the pdfjs bump (upload → 1k chars extracted, name parsed).
+- Regression sweep: 375px overflow 0 and axe A/AA 0 violations across
+  /, /builder, /ats-checker and both new guides; FREE_MODE intact.
+- Note: `wrangler deploy` began failing on the zone-routes API call
+  (Authentication error 10000) while uploads succeed — worked around
+  with `wrangler versions upload` + `versions deploy` (route unchanged).
