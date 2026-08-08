@@ -40,6 +40,7 @@ export function SiteFooter() {
           <a className="hover:text-foreground underline" href="/templates/">Resume templates</a>
           <a className="hover:text-foreground underline" href="/vs/livecareer">vs LiveCareer</a>
           <a className="hover:text-foreground underline" href="/resume-builder-one-time-payment">One-time payment resume builders</a>
+          <a className="hover:text-foreground underline" href="/about">About</a>
           <a className="hover:text-foreground underline" href="/terms">Terms &amp; refunds</a>
           <a className="hover:text-foreground underline" href="/privacy">Privacy</a>
         </p>
