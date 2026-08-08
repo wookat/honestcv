@@ -93,13 +93,13 @@ export default function Landing() {
                 'radial-gradient(60% 70% at 30% 20%, oklch(0.5 0.18 265 / 0.10), transparent 70%), radial-gradient(50% 60% at 75% 35%, oklch(0.7 0.15 165 / 0.10), transparent 70%)',
             }}
           />
-          <Badge variant="secondary" className="mb-4 gap-1">
+          <Badge variant="secondary" className="animate-rise mb-4 gap-1">
             <Ban className="size-3" /> No subscriptions. No trial traps. Ever.
           </Badge>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+          <h1 className="animate-rise text-4xl font-bold tracking-tight [--rise-delay:60ms] sm:text-5xl">
             The resume builder you pay for <span className="underline decoration-emerald-500 decoration-4 underline-offset-4">once</span>
           </h1>
-          <p className="text-muted-foreground mx-auto mt-4 max-w-2xl text-lg">
+          <p className="text-muted-foreground animate-rise mx-auto mt-4 max-w-2xl text-lg [--rise-delay:120ms]">
             {freeMode ? (
               <>
                 Build an ATS-friendly resume with AI tailoring and a free match score.
@@ -114,7 +114,7 @@ export default function Landing() {
               </>
             )}
           </p>
-          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <div className="animate-rise mt-6 flex flex-col items-center justify-center gap-3 [--rise-delay:180ms] sm:flex-row">
             <Button asChild size="lg">
               <Link to="/builder">
                 Start your free trial — no sign-up <ArrowRight />
@@ -139,7 +139,10 @@ export default function Landing() {
             What you get
           </h2>
           {FEATURES.map((f) => (
-            <Card key={f.title} className="py-0">
+            <Card
+              key={f.title}
+              className="py-0 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            >
               <CardContent className="p-5">
                 <f.icon className="text-primary mb-2 size-6" />
                 <h3 className="font-semibold">{f.title}</h3>
@@ -165,7 +168,7 @@ export default function Landing() {
                 type="button"
                 aria-pressed={galleryFilter === f.id}
                 onClick={() => setGalleryFilter(f.id)}
-                className={`rounded-full border px-3 py-1 text-xs transition ${
+                className={`min-h-11 rounded-full border px-3.5 py-1 text-xs transition sm:min-h-8 ${
                   galleryFilter === f.id
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'hover:border-primary'
@@ -183,7 +186,7 @@ export default function Landing() {
                 key={t.id}
                 to={`/builder?template=${t.id}`}
                 title={t.description}
-                className="hover:border-primary w-20 rounded-md border p-1.5 transition"
+                className="hover:border-primary w-20 rounded-md border p-1.5 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md"
               >
                 <TemplateThumb t={t} />
                 <span className="mt-1 block truncate text-center text-xs">{t.name}</span>

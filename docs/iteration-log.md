@@ -2345,3 +2345,31 @@ full regression by testing agent (golden path, AI success/fallback, 375px, axe).
 - Regression: both O14 guides + guides hub at 375px — overflow 0, axe
   A/AA 0, TOC rendering, hub lists new entries. Batch closed; returning
   to low-intensity ops unless new signals appear.
+
+## Design system batch D1-D5 — 2026-08-08
+
+Boss directive: deep typography + component upgrade, all-device fit, richer restrained
+effects, and plain-language explanations of expert output.
+
+- **D1 Typography**: self-hosted variable fonts (latin subsets, `font-display: swap`,
+  preloaded): Inter 400–700 for body (previously referenced but never loaded — fell back
+  to system-ui), Sora 600–800 as the display face for h1–h3 across the SPA **and** all
+  static SEO pages (`build-seo.mjs` CSS). Resume preview excluded (`:not([data-resume-preview] *)`)
+  so exports/preview keep template fonts. `.tnum` tabular-nums on score numbers.
+- **D2 Components**: buttons get micro-interaction polish — `active:scale-[0.98]`,
+  hover shadow elevation, outline variant hover border tint; consistent transition set.
+- **D3 All-device**: live walkthrough at 375/768/1024/1440 on `/`, `/ats-checker`,
+  `/builder`, `/about/` — 0px horizontal overflow at every width, axe (WCAG 2A/2AA)
+  0 violations on all four pages. Template filter chips raised to 44px touch height
+  on mobile (`min-h-11 sm:min-h-8`).
+- **D4 Effects**: landing hero staggered rise-in entrance (CSS keyframes, 60ms steps),
+  feature cards + template tiles hover lift; all gated by existing global
+  `prefers-reduced-motion` kill switch. CWV after ship: LCP 244ms, CLS 0.
+- **D5 Plain language (user-mind focus)**: ATS checker results gain a
+  "What do these scores mean?" expander translating Keyword match / Structure into
+  recruiter-behavior terms with a "what to do" action line; each health-report dimension
+  now carries a plain-language "why it matters" line (e.g. quantification: "numbers make
+  claims believable — 'cut costs 18%' beats 'reduced costs'").
+
+Deployed worker version `04c3e758`. Verified live: fonts loaded (`document.fonts`),
+h1 computed family Sora, explainer expands, example score path intact.

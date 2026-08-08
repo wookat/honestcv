@@ -107,6 +107,8 @@ export interface HealthDimension {
   score: number
   /** One-line summary of the dimension state */
   summary: string
+  /** Plain-language "why it matters" for readers new to resume advice */
+  plain: string
   /** Specific findings, worst first */
   findings: string[]
 }
@@ -134,6 +136,7 @@ export function resumeHealth(r: Resume): HealthReport {
   const quantification: HealthDimension = {
     id: 'quantification',
     label: 'Quantified impact',
+    plain: 'Numbers make claims believable — “cut costs 18%” beats “reduced costs” every time.',
     score: quantScore,
     summary:
       bullets.length === 0
@@ -163,6 +166,7 @@ export function resumeHealth(r: Resume): HealthReport {
   const verbs: HealthDimension = {
     id: 'verbs',
     label: 'Action verbs',
+    plain: 'Opening with a strong verb (“Built”, “Led”) reads as achievement; “responsible for” reads as a job description.',
     score: Math.min(100, verbScore),
     summary:
       bullets.length === 0
@@ -189,6 +193,7 @@ export function resumeHealth(r: Resume): HealthReport {
   const brevity: HealthDimension = {
     id: 'brevity',
     label: 'Brevity',
+    plain: 'Recruiters skim each resume in seconds — long bullets get skipped, not read.',
     score: brevityScore,
     summary:
       brevityFindings.length === 0
@@ -205,6 +210,7 @@ export function resumeHealth(r: Resume): HealthReport {
   const buzzwords: HealthDimension = {
     id: 'buzzwords',
     label: 'Buzzword-free',
+    plain: 'Words like “team player” claim a trait without proof — a concrete fact is always stronger.',
     score: Math.max(0, 100 - buzzHits * 20),
     summary:
       buzzHits === 0
@@ -237,6 +243,7 @@ export function resumeHealth(r: Resume): HealthReport {
   const consistency: HealthDimension = {
     id: 'consistency',
     label: 'Consistency',
+    plain: 'Mixed tenses and leftover [placeholders] look careless and can cost an interview.',
     score: Math.max(0, 100 - consistencyFindings.length * 25),
     summary:
       consistencyFindings.length === 0
@@ -250,6 +257,7 @@ export function resumeHealth(r: Resume): HealthReport {
   const completeness: HealthDimension = {
     id: 'completeness',
     label: 'Completeness',
+    plain: 'Empty sections make a resume look unfinished — recruiters move on to the next one.',
     score: strength.score,
     summary:
       strength.missing.length === 0
