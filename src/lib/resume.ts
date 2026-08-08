@@ -64,12 +64,24 @@ export interface Resume {
   accentColor: string
   /** Export paper size: US Letter (US/Canada) or A4 (rest of world) */
   pageSize: 'letter' | 'a4'
+  /** Body text size across preview and exports */
+  fontScale?: 's' | 'm' | 'l'
+  /** Line spacing across preview and exports */
+  lineSpacing?: 'compact' | 'normal' | 'relaxed'
   /** Target role + JD used for tailoring and the ATS score */
   targetRole: string
   jobDescription: string
 }
 
 export const newId = () => Math.random().toString(36).slice(2, 10)
+
+/** Multipliers applied to font sizes in the preview, PDF and DOCX. */
+export const FONT_SCALE = { s: 0.92, m: 1, l: 1.08 } as const
+/** Line-height multipliers applied in the preview, PDF and DOCX. */
+export const LINE_SPACING = { compact: 1.22, normal: 1.35, relaxed: 1.52 } as const
+
+export const fontScaleOf = (r: Resume) => FONT_SCALE[r.fontScale ?? 'm']
+export const lineSpacingOf = (r: Resume) => LINE_SPACING[r.lineSpacing ?? 'normal']
 
 export function emptyResume(): Resume {
   return {
@@ -93,6 +105,8 @@ export function emptyResume(): Resume {
     templateId: 'classic',
     accentColor: '',
     pageSize: 'letter',
+    fontScale: 'm',
+    lineSpacing: 'normal',
     targetRole: '',
     jobDescription: '',
   }

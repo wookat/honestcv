@@ -5,7 +5,7 @@
 
 import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'
 import { downloadBlob } from '@/lib/download'
-import { type Resume, orderedSectionKeys } from '@/lib/resume'
+import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys } from '@/lib/resume'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_SIZES = {
@@ -54,6 +54,10 @@ class PdfWriter {
   pageW: number
   pageH: number
   contentW: number
+  /** Font-size multiplier (user text-size setting) */
+  fs = 1
+  /** Line-height multiplier (user line-spacing setting) */
+  lh = 1.35
 
   constructor(doc: PDFDocument, fonts: Fonts, tpl: TemplateMeta, size: 'letter' | 'a4') {
     this.doc = doc
@@ -87,10 +91,10 @@ class PdfWriter {
     } = {}
   ) {
     const font = opts.font ?? this.fonts.regular
-    const size = opts.size ?? 10
+    const size = (opts.size ?? 10) * this.fs
     const indent = opts.indent ?? 0
     const maxWidth = opts.maxWidth ?? this.contentW - indent
-    const lineHeight = size * 1.35 + (opts.lineGap ?? 0)
+    const lineHeight = size * this.lh + (opts.lineGap ?? 0)
     for (const line of wrapText(text, font, size, maxWidth)) {
       this.ensure(lineHeight)
       const width = font.widthOfTextAtSize(line, size)
@@ -113,19 +117,19 @@ class PdfWriter {
   /** Entry header: bold left text with right-aligned date on the same
    *  baseline; stacks the date on its own line when the two would collide. */
   titleLine(left: string, right: string, opts: { size?: number } = {}) {
-    const size = opts.size ?? 10.5
-    const dateSize = 9
+    const size = (opts.size ?? 10.5) * this.fs
+    const dateSize = 9 * this.fs
     const rightWidth = right ? this.fonts.italic.widthOfTextAtSize(right, dateSize) : 0
     const leftMax = this.contentW - (right ? rightWidth + 12 : 0)
     if (!right || this.fonts.bold.widthOfTextAtSize(left, size) > leftMax) {
-      this.text(left, { font: this.fonts.bold, size })
+      this.text(left, { font: this.fonts.bold, size: size / this.fs })
       if (right) {
         this.gap(1)
-        this.text(right, { font: this.fonts.italic, size: dateSize, color: this.soft })
+        this.text(right, { font: this.fonts.italic, size: dateSize / this.fs, color: this.soft })
       }
       return
     }
-    const lineHeight = size * 1.35
+    const lineHeight = size * this.lh
     this.ensure(lineHeight)
     this.y -= lineHeight
     this.page.drawText(left, {
@@ -151,15 +155,15 @@ class PdfWriter {
     opts: { size?: number; color?: ReturnType<typeof rgb>; center?: boolean } = {}
   ) {
     const font = this.fonts.regular
-    const size = opts.size ?? 9
+    const size = (opts.size ?? 9) * this.fs
     const sep = '  |  '
     const full = segments.map((s) => s.text).join(sep)
     const totalWidth = font.widthOfTextAtSize(full, size)
     if (totalWidth > this.contentW) {
-      this.text(full, { size, color: opts.color, center: opts.center })
+      this.text(full, { size: size / this.fs, color: opts.color, center: opts.center })
       return
     }
-    const lineHeight = size * 1.35
+    const lineHeight = size * this.lh
     this.ensure(lineHeight)
     this.y -= lineHeight
     let x = opts.center ? (this.pageW - totalWidth) / 2 : MARGIN
@@ -196,8 +200,8 @@ class PdfWriter {
     this.ensure(52)
     this.gap(10)
     if (this.tpl.band) {
-      const size = 11
-      const bandH = size * 1.35 + 6
+      const size = 11 * this.fs
+      const bandH = size * this.lh + 6
       this.ensure(bandH)
       this.page.drawRectangle({
         x: MARGIN,
@@ -206,7 +210,7 @@ class PdfWriter {
         height: bandH,
         color: hexToRgb(accentTint(this.tpl.accent)),
       })
-      this.y -= size * 1.35 + 3
+      this.y -= size * this.lh + 3
       this.page.drawText(text, {
         x: MARGIN + 6,
         y: this.y,
@@ -235,11 +239,11 @@ class PdfWriter {
   }
 
   bullet(text: string) {
-    const size = 10
+    const size = 10 * this.fs
     const font = this.fonts.regular
     const indent = 14
     const lines = wrapText(text, font, size, this.contentW - indent)
-    const lineHeight = size * 1.35
+    const lineHeight = size * this.lh
     lines.forEach((line, i) => {
       this.ensure(lineHeight)
       this.y -= lineHeight
@@ -273,6 +277,8 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         italic: await doc.embedFont(StandardFonts.HelveticaOblique),
       }
   const w = new PdfWriter(doc, fonts, tpl, resume.pageSize === 'a4' ? 'a4' : 'letter')
+  w.fs = fontScaleOf(resume)
+  w.lh = lineSpacingOf(resume)
   const c = resume.contact
 
   const centerHeader = tpl.headerAlign !== 'left'

@@ -1626,6 +1626,53 @@ export default function Builder() {
                 </button>
               ))}
             </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Text</span>
+              {(['s', 'm', 'l'] as const).map((scale) => (
+                <button
+                  key={scale}
+                  type="button"
+                  title={`Text size ${scale.toUpperCase()} — applies to preview, PDF and DOCX`}
+                  aria-label={`Text size ${scale === 's' ? 'small' : scale === 'l' ? 'large' : 'medium'}`}
+                  aria-pressed={(resume.fontScale ?? 'm') === scale}
+                  onClick={() => set('fontScale', scale)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.fontScale ?? 'm') === scale
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {scale.toUpperCase()}
+                </button>
+              ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Spacing</span>
+              {(
+                [
+                  ['compact', 'Compact'],
+                  ['normal', 'Normal'],
+                  ['relaxed', 'Relaxed'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${label} line spacing — applies to preview, PDF and DOCX`}
+                  aria-pressed={(resume.lineSpacing ?? 'normal') === value}
+                  onClick={() => set('lineSpacing', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.lineSpacing ?? 'normal') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
           </div>
 
           <Card className="py-0">
