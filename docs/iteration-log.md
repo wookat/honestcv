@@ -2312,3 +2312,9 @@ notes in docs/design-upgrade-round-1.md.**
   objective formula + field examples) and /guides/how-to-list-certifications
   (format, in-progress/expired handling, per-field credentials); sitemap
   73→75, IndexNow 200, both live-verified. Backlog rotated.
+
+## Optimization loop O15 (2026-08-08)
+
+- Regression: both O14 guides + guides hub at 375px — overflow 0, axe
+  A/AA 0, TOC rendering, hub lists new entries. Batch closed; returning
+  to low-intensity ops unless new signals appear.
