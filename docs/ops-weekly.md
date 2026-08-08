@@ -14,8 +14,9 @@ append a dated log entry at the bottom.
 
 Backlog candidates (shipped 2026-08-08: resume-for-teens,
 linkedin-vs-resume, resume-file-format, thank-you-email-after-interview):
-- /guides/salary-expectations-in-interviews
-- /guides/resume-vs-portfolio (creative roles)
+(shipped 2026-08-08: salary-expectations-in-interviews, resume-vs-portfolio)
+- /guides/resume-summary-for-freshers (high-volume query, India/SEA)
+- /guides/how-to-list-certifications
 - /templates/ additions if a new template ships
 - /vs/ pages only with directly verified evidence (no inferred pricing)
 

@@ -2269,3 +2269,21 @@ notes in docs/design-upgrade-round-1.md.**
   confirmed via pdftotext).
 - Two consecutive rounds without worthwhile improvements → switching to
   low-intensity weekly ops per the loop's stop rule.
+
+## Optimization loop O9 (2026-08-08)
+
+- Data integrity check after the O-batch merges: first-party beacon
+  verified live (fresh browser context → POST /api/hit 200; QA-flagged
+  context sends nothing). Zero hits since 08-07 is genuinely zero
+  traffic, not a broken beacon.
+- Prod redeployed from clean post-merge main (version 9c69a37c); /api/health ok.
+- CWV re-test (warm CDN, desktop): / TTFB 32ms LCP 188ms CLS 0.016;
+  /builder LCP 136ms; /ats-checker LCP 560ms CLS 0 — all well inside
+  "good" thresholds after the O2 route split.
+
+## Optimization loop O10 (2026-08-08)
+
+- pSEO: /guides/salary-expectations-in-interviews and
+  /guides/resume-vs-portfolio (12 sections each; honest-negotiation and
+  rights/NDA framing consistent with the anti-fabrication line); sitemap
+  71→73, IndexNow 200, both live-verified.

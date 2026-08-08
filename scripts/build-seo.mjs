@@ -807,6 +807,48 @@ const GUIDES = [
       ['Keep the facts straight', 'Everything in the note must match your resume and what you said live — a "15%" in the interview must not become "25%" in the email. The same honesty rule that governs your resume governs every message after it.'],
     ],
   },
+  {
+    path: '/guides/salary-expectations-in-interviews',
+    title: 'Salary Expectations: How to Answer in Applications and Interviews (2026)',
+    description:
+      'How to handle the salary expectations question on application forms and in interviews: research first, ranges over numbers, deflection scripts that work, and what never to do.',
+    h1: 'How to answer the salary expectations question',
+    sections: [
+      ['Why they ask early', 'Recruiters ask about salary early to screen out mismatches before investing interview time. That is legitimate — but it also means the first number spoken frames the whole negotiation. Your goal in the first conversation is to stay in range without committing to the bottom of yours.'],
+      ['Research before any conversation', 'Look up the role on levels.fyi (tech), Glassdoor, Payscale, and — where employers must publish them — the pay ranges in the posting itself (required in several US states and the EU under pay-transparency rules). Anchor on the range for your level, location, and industry, not on your current salary.'],
+      ['Give a range, not a number', 'A researched range beats a single number: "Based on what I\u2019m seeing for this kind of role in this market, I\u2019m targeting the $X–$Y range, depending on the overall package." Make the bottom of your stated range a number you would genuinely accept — it is what recruiters hear.'],
+      ['The application form field', 'If the form demands a number and accepts text, write "negotiable" or the researched range. If it forces a single integer, enter the midpoint of your researched range rather than 0 or a lowball — many ATSs use the field as a hard filter in both directions.'],
+      ['Deflecting in a first call', 'It is acceptable — once — to turn the question around: "I\u2019d like to understand the full scope of the role first. Could you share the budgeted range for this position?" Many recruiters will answer directly; in pay-transparency jurisdictions they must. If they insist, give your researched range rather than stonewalling twice.'],
+      ['Current salary is not their business', 'In a growing list of places (California, New York, Colorado and others) employers may not ask your salary history at all. Everywhere else you may simply redirect: "I\u2019d prefer to focus on the value of this role — my researched target is $X–$Y." Never inflate your current salary; it is checkable at offer stage.'],
+      ['Total compensation, not base', 'Before naming numbers, know what the package includes: bonus, equity, retirement match, healthcare, remote flexibility, PTO. A $5k lower base with a 15% bonus and better match can be the stronger offer — say "depending on total compensation" so the range flexes.'],
+      ['When the range they name is low', 'Do not argue in the screening call. Note it, finish the conversation, and decide whether the gap is bridgeable ("Is there flexibility for a candidate with X?") or disqualifying. Ending politely at this stage costs nothing; discovering the gap at offer stage costs weeks.'],
+      ['Negotiating the actual offer', 'The offer conversation is separate from the expectations question. Once an offer exists, you have maximum leverage: respond with enthusiasm, ask for time to review, and counter once, specifically, with justification — a competing number, a scope difference, or market data. Vague "can you do better?" underperforms a specific ask.'],
+      ['What never to do', 'Never invent a competing offer (verifiable, and fatal if caught), never inflate current compensation, never accept and keep negotiating, and never open with an ultimatum. The same honesty rule as your resume: everything you claim must survive checking.'],
+      ['Scripts to adapt', 'Form field: "Negotiable — targeting market rate for the role." First call: "I\u2019m targeting $X–$Y depending on total comp — does that fit the budgeted range?" Offer counter: "I\u2019m excited about the role. Given [specific factor], I was expecting closer to $Z — is there room to close that gap?"'],
+      ['Where your resume fits in', 'Strong salary outcomes start before the interview: a resume with quantified, verifiable achievements is what justifies the top of your range. Build the evidence into the bullets — then the negotiation is about which number the evidence supports, not whether you deserve one.'],
+    ],
+  },
+  {
+    path: '/guides/resume-vs-portfolio',
+    title: 'Resume vs Portfolio: What Creative and Technical Roles Actually Need (2026)',
+    description:
+      'When a portfolio matters more than a resume, how the two documents divide the work, portfolio links that survive ATS parsing, and per-field norms for design, writing, and engineering.',
+    h1: 'Resume vs portfolio: how they divide the work',
+    sections: [
+      ['Two documents, two jobs', 'The resume gets you past screening — parsers and recruiters checking structured facts. The portfolio wins the human review — proof you can actually do the work. For creative and many technical roles you need both, and each fails at the other\u2019s job.'],
+      ['Who genuinely needs a portfolio', 'Designers (product, graphic, motion), writers and content marketers, photographers and video editors, front-end developers, architects, illustrators, and increasingly data folks (analysis notebooks, dashboards). If hiring managers in your field open work samples before deciding, you need one.'],
+      ['The resume still comes first', 'Almost every portfolio-heavy role still routes applications through an ATS that parses resumes, not Behance pages. A weak resume means the portfolio never gets opened. Keep the resume complete and parser-safe on its own — never write "see portfolio" in place of real content.'],
+      ['Put the link where parsers find it', 'Your portfolio URL belongs in the resume contact block as real text (yourname.com or behance.net/you), exported as a clickable link. Avoid link shorteners (they look disposable and can rot) and QR codes (parsers ignore images).'],
+      ['Curate hard: 4–8 pieces', 'A portfolio is not an archive. Show your best 4–8 pieces, most relevant first, each with a short case note: the problem, your role, the decision you made, the outcome. Hiring managers spend minutes, not hours — depth on few pieces beats breadth on many.'],
+      ['Tailor the portfolio like the resume', 'Applying for a mobile-app design role? Lead with mobile work. Content role in fintech? Lead with financial writing. The same tailoring logic you apply to resume bullets applies to portfolio ordering — the first two pieces decide whether they keep scrolling.'],
+      ['Formats by field', 'Design: a personal site or Behance/Dribbble with case studies. Writing: a simple page of linked published pieces (or PDFs where rights allow). Development: GitHub with pinned repos plus 1–2 live demos; a README is your case note. Data: notebooks or dashboards with a paragraph of context each.'],
+      ['The case-study skeleton', 'For each piece: one line of context (client/team/constraint), one line on your specific contribution ("my role: interaction design and prototype"), one honest outcome ("shipped to 40k users" only if true and checkable). Claiming solo credit for team work is checkable and fatal — credit collaborators.'],
+      ['Rights and confidentiality', 'Only show work you have the right to show. NDA work can appear as an anonymized case study ("a payments company") with sensitive numbers removed, or be described in the interview instead. Never publish confidential assets to win a job — the employer reading it notices what you would do with theirs.'],
+      ['Keep it fast and reachable', 'A portfolio that loads slowly or 404s is worse than none: test the link from a phone on mobile data, keep images compressed, and re-verify every link each time you send applications. If the domain lapses, update the resume everywhere it is listed.'],
+      ['What stays on the resume', 'Dates, employers, titles, education, skills, quantified outcomes — the checkable skeleton recruiters cross-reference. The portfolio shows how the work looks; the resume proves where and when you did it. Contradictions between the two (different titles, different dates) read as dishonesty.'],
+      ['A quick pre-send audit', 'Resume parses cleanly (test it in our free ATS checker) · portfolio link in the contact block as text · first two pieces match the job · every case note has your role and an honest outcome · all links open from an incognito window · nothing confidential. Then send.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */
