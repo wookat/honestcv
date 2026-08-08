@@ -6,7 +6,10 @@
   "routes": [{ "pattern": "cv.zalize.com", "custom_domain": true }],
   "assets": {
     "binding": "ASSETS",
-    "not_found_handling": "none"
+    "not_found_handling": "none",
+    // Route every request through the Worker so security/caching headers
+    // apply to static assets too (otherwise assets bypass the Worker).
+    "run_worker_first": true
   },
   "kv_namespaces": [
     // Stores licenses / free quotas / leads (namespace HONESTCV_KV)

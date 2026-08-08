@@ -2393,3 +2393,37 @@ PDF page counter this doubles as a one-page rescue tool.
 Deliberate divergences (documented, not defects): no stepped wizard (one-page form +
 sticky preview is faster to edit), no fabricated stats in copy, no per-card format
 badges (all our templates export all formats), no signup gate before download.
+
+## Replication upgrade batch (RB6) — 2026-08-08
+
+Boss directive: (A) prove full page coverage of the benchmark; (B) audit the
+benchmark's technical standards and meet or exceed each one.
+
+**A — Page coverage:** resume.io's declared sitemap 404s (observed), so inventory was
+built by crawling internal links from 6 seed pages: 746 unique paths → 15 page types.
+All 15 accounted for: 11 compared (5 newly walked this batch: ATS checker, AI-builder
+marketing, cover-letter surface, legal, about/contact), 4 deliberate-n/a with reasons
+(blog media, help center, career-suite upsell, affiliates/billing). Coverage 100%.
+
+**B — Tech audit (11 dimensions, black-box only):** rendering, framework, fonts,
+images, asset caching, HTML caching, security headers, structured data, SEO tech,
+performance, a11y. Two were below their standard and are fixed in this batch:
+
+- **Asset caching**: they serve hashed CSS/JS with `max-age=31556952`; we served
+  everything `max-age=0`. Fixed: worker middleware sets `immutable, max-age=1y` on
+  `/assets/*` and 7-day TTL on `/fonts/*`.
+- **Security headers**: they send HSTS/XCTO/XFO/Referrer-Policy/CSP; we sent none.
+  Fixed: same middleware adds all five plus Permissions-Policy; our CSP directives
+  (`frame-ancestors 'self'; object-src 'none'; base-uri 'self'`) are stricter than
+  their `default-src *` allowlist.
+
+Gotcha: `assets.run_worker_first` had no effect until rebuild — the Vite Cloudflare
+plugin emits a redirected `dist/honestcv/wrangler.json`, so wrangler.jsonc changes
+require `npm run build` before upload. Also `wrangler deploy` needs the
+CLOUDFLARE_WORKERS_API_TOKEN (default token fails zone-routes with error 10000).
+
+Performance baseline (same vantage, cold cache): resume.io TTFB 3182ms / LCP 3396ms /
+CLS 0.08 / 921KB vs ours TTFB 30ms / LCP 280ms / CLS 0.0005 / 193KB — exceeded on all.
+Verdict recorded in docs/replication-benchmark.md: coverage 15/15 (100%), technical
+11/11 at-or-above after fixes. Live regression: axe 0 violations (/, /builder), 375px
+no overflow, headers verified on production responses.

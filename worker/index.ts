@@ -128,6 +128,26 @@ async function consumeFreeQuota(c: {
 
 const app = new Hono<{ Bindings: Env }>()
 
+// Security headers on every response; long-lived caching for fingerprinted
+// build assets (self-hosted fonts get a shorter TTL since their names are stable).
+app.use('*', async (c, next) => {
+  await next()
+  // Responses proxied from the assets binding have immutable headers
+  c.res = new Response(c.res.body, c.res)
+  const h = c.res.headers
+  h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  h.set('X-Content-Type-Options', 'nosniff')
+  h.set('X-Frame-Options', 'SAMEORIGIN')
+  h.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  h.set('Content-Security-Policy', "frame-ancestors 'self'; object-src 'none'; base-uri 'self'")
+  if (c.req.path.startsWith('/assets/')) {
+    h.set('Cache-Control', 'public, max-age=31536000, immutable')
+  } else if (c.req.path.startsWith('/fonts/')) {
+    h.set('Cache-Control', 'public, max-age=604800')
+  }
+})
+
 app.use('/api/*', cors())
 
 app.get('/api/health', (c) => {
