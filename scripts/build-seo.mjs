@@ -849,6 +849,48 @@ const GUIDES = [
       ['A quick pre-send audit', 'Resume parses cleanly (test it in our free ATS checker) · portfolio link in the contact block as text · first two pieces match the job · every case note has your role and an honest outcome · all links open from an incognito window · nothing confidential. Then send.'],
     ],
   },
+  {
+    path: '/guides/resume-summary-for-freshers',
+    title: 'Resume Summary for Freshers: Examples That Work Without Experience (2026)',
+    description:
+      'How to write a fresher resume summary (or objective) with no work experience: formulas, worked examples by field, what to quantify from college, and cliches to cut.',
+    h1: 'Writing a resume summary as a fresher',
+    sections: [
+      ['Summary or objective?', 'With no work history, a short objective usually beats a summary: state what you studied, what you can do, and what role you want — in that order. Once you have an internship or strong projects, upgrade to a summary that leads with those instead of the degree.'],
+      ['The three-part formula', 'Line 1: who you are ("B.Tech CSE graduate, Class of 2026"). Line 2: your strongest proof — a project, internship, certification, or ranked achievement, with a real number if one exists. Line 3: the role you\u2019re targeting and what you bring to it. Three sentences, 40–60 words, no more.'],
+      ['Lead with proof, not adjectives', '"Hardworking, passionate, motivated fresher" tells the reader nothing checkable. "Built a Flask attendance app used by 3 student clubs" does. Every adjective you delete makes room for one verifiable fact — and verifiable facts are what screeners scan for.'],
+      ['What freshers can quantify', 'CGPA (if strong), project users or data size, hackathon placements, papers or posters, club members led, events organized, certification scores, typing speed, languages. College life produces more numbers than most freshers think — use the real ones, never rounded-up ones.'],
+      ['Engineering example', '"Computer science graduate (2026, CGPA 8.4) with hands-on projects in Python and SQL — including an expense tracker used by 40+ classmates. Completed the Google Data Analytics certificate. Seeking an entry-level data analyst role where I can apply cleaning and visualization skills."'],
+      ['Commerce/business example', '"B.Com graduate (2026) with an accounting internship at a local CA firm — reconciled 3 client ledgers under supervision and built the Excel tracker the office still uses. Tally and advanced Excel certified. Seeking a junior accountant role."'],
+      ['Arts/communication example', '"English literature graduate (2026) and editor of the campus magazine — led a 6-member team through 4 issues and grew Instagram followers from 800 to 2,100. Seeking a content writing role where research and deadline discipline matter."'],
+      ['Match it to each application', 'The objective is the most tailorable line on a fresher resume: mirror the job title exactly ("Seeking a Graduate Trainee \u2013 Operations role…") and name the one or two skills from the posting you genuinely have. A generic objective reads as a mass application.'],
+      ['Cliches to cut', '"Seeking a challenging position in a reputed organization with growth opportunities" says nothing about you and appears on millions of resumes. Also cut: "team player", "quick learner", "dynamic", "go-getter" — unless a bullet elsewhere proves the claim, at which point you don\u2019t need the word.'],
+      ['Where it sits and what follows', 'Contact block → objective/summary → Education (with coursework and CGPA) → Projects → Internships/volunteering → Skills → Achievements. The objective makes a promise; the projects section is where the reader checks it — make sure they agree.'],
+      ['Honesty is a screening criterion', 'Freshers are checked harder, not softer: certificates are verifiable, CGPAs appear on transcripts, and project claims come up in the first interview. Never inflate a number or list a certification you haven\u2019t completed — "in progress" is an acceptable and honest label.'],
+      ['Test the whole resume, not just the summary', 'A good summary on a resume that parses badly still gets filtered. Run the finished resume through our free ATS checker against the actual posting — it shows which keywords the parser found and which are missing, so you can fix gaps honestly before applying.'],
+    ],
+  },
+  {
+    path: '/guides/how-to-list-certifications',
+    title: 'How to List Certifications on a Resume: Format, Order, and What Counts (2026)',
+    description:
+      'Where certifications go on a resume, the exact line format parsers read, in-progress and expired credentials, which certifications matter by field, and what to leave off.',
+    h1: 'How to list certifications on a resume',
+    sections: [
+      ['Why certifications get checked', 'Certifications are among the most verifiable claims on a resume — issuers run public verification pages, and many recruiters check. That cuts both ways: a real credential is strong evidence, and an inflated one is the fastest way to lose an offer.'],
+      ['The line format parsers read', 'One line per credential: name (spelled out, then the acronym), issuer, and date — "AWS Certified Solutions Architect \u2013 Associate (SAA-C03), Amazon Web Services, 2025". Parsers and keyword filters match on the exact certification name, so use the official one, not a nickname.'],
+      ['Where the section goes', 'A dedicated "Certifications" section below Skills works for most people. Lead with it (above Experience) only when the certification is the qualification — nursing licenses, PMP for project-manager roles, CDL for driving jobs. One or two certs? A line inside Education or Skills also parses fine.'],
+      ['Order within the section', 'Most relevant to the target job first, then by recency. The job description tells you the order: if the posting says "Security+ required", that line goes first regardless of date.'],
+      ['Include the ID when asked', 'Some employers and government forms want the credential ID or license number. Otherwise, leave IDs off the resume (they add clutter) but have them ready — and make sure your name on the certificate matches your resume name.'],
+      ['In-progress certifications', 'Listing an in-progress credential is honest if labeled: "CFA Level II candidate — exam scheduled Nov 2026" or "AWS SAA \u2014 in progress, expected Q1 2027". Never list it unlabeled, and never list one you merely intend to start.'],
+      ['Expired and renewed credentials', 'If it expires (PMP, CPR, Security+), show the valid-through date or renewal year. An expired certification can stay only if clearly marked ("CCNA, 2019\u20132022, expired") and only when the underlying skill is still relevant — otherwise cut it.'],
+      ['Which certifications matter by field', 'Tech: cloud (AWS/Azure/GCP), Kubernetes, security (Security+/CISSP). Data: Google Data Analytics, dbt, Databricks. PM: PMP, CSM, PRINCE2. Finance: CPA, CFA, FRM. Healthcare: licenses first, then BLS/ACLS. Trades: OSHA, forklift, welding certs. Marketing: Google Ads/Analytics, HubSpot.'],
+      ['What to leave off', 'Course-completion certificates from watching videos (Udemy/Coursera without a proctored exam) belong under a "Courses" line, not "Certifications", if listed at all. Also cut: internal trainings nobody outside your company recognizes, expired credentials from a decade ago, and memberships that are not credentials.'],
+      ['Keywords: spell it out and abbreviate', 'Recruiters search both "Certified Public Accountant" and "CPA"; ATS keyword filters may match either. Write the full name once with the acronym in parentheses so both queries hit — the same rule as skills.'],
+      ['Free vs paid credentials', 'A free certificate with a real assessment (Google Analytics, HubSpot, freeCodeCamp) beats an expensive one nobody verifies. Choose by what job postings in your target role actually name — search five postings and count which credentials appear.'],
+      ['The honesty line', 'Never list a certification you did not earn, an exam you have not passed, or a license that has lapsed as if current. Verification takes a recruiter under a minute. If your real credentials feel thin, an "in progress" line plus strong project bullets is the honest and effective alternative.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */

@@ -2305,3 +2305,10 @@ notes in docs/design-upgrade-round-1.md.**
 - Regression spot-check: full sitemap sweep 73/73 URLs 200; live AI
   rewrite spot-check with a fresh client id — honest output (no invented
   metrics), freeRemaining returned correctly.
+
+## Optimization loop O14 (2026-08-08)
+
+- pSEO: /guides/resume-summary-for-freshers (high-volume fresher query;
+  objective formula + field examples) and /guides/how-to-list-certifications
+  (format, in-progress/expired handling, per-field credentials); sitemap
+  73→75, IndexNow 200, both live-verified. Backlog rotated.
