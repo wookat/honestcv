@@ -34,6 +34,8 @@ import {
 } from './lemonsqueezy'
 import {
   type RewriteKind,
+  type TailorItem,
+  buildTailorMessages,
   buildCoverLetterMessages,
   buildInterviewBriefMessages,
   buildRewriteMessages,
@@ -194,6 +196,64 @@ app.post('/api/ai/rewrite', async (c) => {
     if (texts.length < 2) texts = undefined
   }
   return c.json({ text: texts?.[0] ?? result.text, texts, freeRemaining })
+})
+
+// Tailor pass: rewrite summary + bullets toward one JD in a single call,
+// returning per-item suggestions. Shares the free AI quota.
+app.post('/api/ai/tailor', async (c) => {
+  const body = await c.req
+    .json<{ items?: TailorItem[]; jobDescription?: string; role?: string }>()
+    .catch(() => ({}) as Record<string, never>)
+  const jd = body.jobDescription?.trim()
+  const items = (body.items ?? [])
+    .filter(
+      (i): i is TailorItem =>
+        Boolean(i && typeof i.id === 'string' && typeof i.text === 'string' && i.text.trim()) &&
+        (i.kind === 'summary' || i.kind === 'bullet')
+    )
+    .slice(0, 40)
+  if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
+  if (items.length === 0)
+    return c.json({ error: 'Add a summary or experience bullets first — tailoring rewords your real content.' }, 400)
+
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent) {
+    const remaining = await consumeFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error: 'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+
+  const result = await callLlm(c.env, buildTailorMessages(items, jd, body.role ?? ''), 0.4, 3000)
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
+  let suggestions: { id: string; text: string }[] = []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (Array.isArray(parsed)) {
+      const known = new Set(items.map((i) => i.id))
+      suggestions = parsed.filter(
+        (s): s is { id: string; text: string } =>
+          Boolean(
+            s &&
+              typeof (s as { id?: unknown }).id === 'string' &&
+              typeof (s as { text?: unknown }).text === 'string' &&
+              known.has((s as { id: string }).id)
+          )
+      )
+    }
+  } catch {
+    return c.json({ error: 'The AI returned an unexpected format — please try again.' }, 502)
+  }
+  return c.json({ suggestions, freeRemaining })
 })
 
 // Cover letter — Career Bundle (free mode: shares the free AI quota)

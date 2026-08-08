@@ -81,6 +81,196 @@ export function checkBullets(bullets: string[]): { index: number; issues: Bullet
     .filter((r) => r.issues.length > 0)
 }
 
+const STRONG_VERB_SET = new Set(
+  ACTION_VERBS.flatMap((g) => g.verbs.map((v) => v.toLowerCase()))
+)
+
+const BUZZWORDS = [
+  'synergy',
+  'go-getter',
+  'think outside the box',
+  'team player',
+  'hard worker',
+  'detail-oriented',
+  'results-driven',
+  'self-starter',
+  'dynamic',
+  'proactive',
+  'passionate',
+  'motivated',
+]
+
+export interface HealthDimension {
+  id: string
+  label: string
+  /** 0–100 */
+  score: number
+  /** One-line summary of the dimension state */
+  summary: string
+  /** Specific findings, worst first */
+  findings: string[]
+}
+
+export interface HealthReport {
+  /** 0–100 weighted overall */
+  score: number
+  dimensions: HealthDimension[]
+}
+
+/**
+ * Multi-dimension rule-based health report — no AI calls, runs locally.
+ * Complements resumeStrength (completeness) with writing-quality signals.
+ */
+export function resumeHealth(r: Resume): HealthReport {
+  const bullets = r.experience.flatMap((e) =>
+    e.bullets.filter((b) => b.trim()).map((b) => ({ role: e.role || e.company, text: b.trim() }))
+  )
+  const label = (b: { role: string; text: string }) =>
+    `${b.role ? `[${b.role}] ` : ''}"${b.text.length > 60 ? b.text.slice(0, 57) + '…' : b.text}"`
+
+  // 1. Quantification — % of bullets carrying a number
+  const quantified = bullets.filter((b) => /\d/.test(b.text))
+  const quantScore = bullets.length === 0 ? 0 : Math.round((quantified.length / bullets.length) * 100)
+  const quantification: HealthDimension = {
+    id: 'quantification',
+    label: 'Quantified impact',
+    score: quantScore,
+    summary:
+      bullets.length === 0
+        ? 'No experience bullets yet'
+        : `${quantified.length} of ${bullets.length} bullets carry a real number`,
+    findings: bullets
+      .filter((b) => !/\d/.test(b.text))
+      .slice(0, 5)
+      .map((b) => `No number: ${label(b)}`),
+  }
+
+  // 2. Verb strength — bullets opening with a strong action verb
+  const weakOnes = bullets.filter((b) => {
+    const lower = b.text.toLowerCase()
+    return WEAK_OPENERS.some((w) => lower.startsWith(w)) || /^(i|my|we|our)\b/.test(lower)
+  })
+  const strongOnes = bullets.filter((b) => {
+    const first = b.text.split(/\s+/)[0]?.toLowerCase().replace(/[^a-z]/g, '') ?? ''
+    return STRONG_VERB_SET.has(first) || (/^[a-z]+ed$/.test(first) && !weakOnes.includes(b))
+  })
+  const verbScore =
+    bullets.length === 0
+      ? 0
+      : Math.round(
+          Math.max(0, (strongOnes.length - weakOnes.length * 0.5) / bullets.length) * 100
+        )
+  const verbs: HealthDimension = {
+    id: 'verbs',
+    label: 'Action verbs',
+    score: Math.min(100, verbScore),
+    summary:
+      bullets.length === 0
+        ? 'No experience bullets yet'
+        : `${strongOnes.length} of ${bullets.length} bullets open with a strong verb`,
+    findings: weakOnes.slice(0, 5).map((b) => `Weak opener: ${label(b)}`),
+  }
+
+  // 3. Brevity — bullet and summary length discipline
+  const tooLong = bullets.filter((b) => b.text.split(/\s+/).length > 30)
+  const summaryWords = r.summary.trim() ? r.summary.trim().split(/\s+/).length : 0
+  const brevityFindings: string[] = tooLong
+    .slice(0, 4)
+    .map((b) => `${b.text.split(/\s+/).length} words: ${label(b)}`)
+  if (summaryWords > 80) brevityFindings.unshift(`Summary is ${summaryWords} words — aim for under 60`)
+  const brevityScore =
+    bullets.length === 0
+      ? summaryWords > 0 && summaryWords <= 80
+        ? 100
+        : 50
+      : Math.round(
+          Math.max(0, 1 - (tooLong.length + (summaryWords > 80 ? 1 : 0)) / (bullets.length + 1)) * 100
+        )
+  const brevity: HealthDimension = {
+    id: 'brevity',
+    label: 'Brevity',
+    score: brevityScore,
+    summary:
+      brevityFindings.length === 0
+        ? 'Bullets and summary are concise'
+        : `${brevityFindings.length} item${brevityFindings.length === 1 ? ' is' : 's are'} running long`,
+    findings: brevityFindings,
+  }
+
+  // 4. Buzzwords & filler — vague words that carry no evidence
+  const wholeText = [r.summary, ...bullets.map((b) => b.text)].join('\n').toLowerCase()
+  const foundBuzz = BUZZWORDS.filter((w) => wholeText.includes(w))
+  const foundFiller = FILLER_WORDS.filter((w) => new RegExp(`\\b${w}\\b`).test(wholeText))
+  const buzzHits = foundBuzz.length + foundFiller.length
+  const buzzwords: HealthDimension = {
+    id: 'buzzwords',
+    label: 'Buzzword-free',
+    score: Math.max(0, 100 - buzzHits * 20),
+    summary:
+      buzzHits === 0
+        ? 'No empty buzzwords detected'
+        : `${buzzHits} vague term${buzzHits === 1 ? '' : 's'} that a bullet should prove instead`,
+    findings: [...foundBuzz, ...foundFiller].slice(0, 6).map((w) => `Replace "${w}" with a concrete, checkable fact`),
+  }
+
+  // 5. Consistency — tense discipline and unreplaced placeholders
+  const consistencyFindings: string[] = []
+  for (const e of r.experience) {
+    const isCurrent = /present|current/i.test(e.endDate)
+    for (const b of e.bullets) {
+      const first = b.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
+      if (!first) continue
+      if (!isCurrent && e.endDate && /^[a-z]+(s|ing)$/.test(first) && !/^[a-z]+ss$/.test(first)) {
+        consistencyFindings.push(
+          `Past role at ${e.company || 'a previous employer'} uses present tense: "${b.trim().slice(0, 50)}…"`
+        )
+      }
+    }
+  }
+  const placeholders = [r.summary, ...bullets.map((b) => b.text)]
+    .join('\n')
+    .match(/\[[^\]\n]{1,60}\]/g)
+  if (placeholders && placeholders.length > 0)
+    consistencyFindings.unshift(
+      `${placeholders.length} bracket placeholder${placeholders.length === 1 ? '' : 's'} like ${placeholders[0]} still unreplaced`
+    )
+  const consistency: HealthDimension = {
+    id: 'consistency',
+    label: 'Consistency',
+    score: Math.max(0, 100 - consistencyFindings.length * 25),
+    summary:
+      consistencyFindings.length === 0
+        ? 'Tenses and placeholders look clean'
+        : `${consistencyFindings.length} consistency issue${consistencyFindings.length === 1 ? '' : 's'}`,
+    findings: consistencyFindings.slice(0, 5),
+  }
+
+  // 6. Completeness — reuse the strength meter
+  const strength = resumeStrength(r)
+  const completeness: HealthDimension = {
+    id: 'completeness',
+    label: 'Completeness',
+    score: strength.score,
+    summary:
+      strength.missing.length === 0
+        ? 'All core sections filled in'
+        : `${strength.missing.length} section${strength.missing.length === 1 ? '' : 's'} still to fill`,
+    findings: strength.missing.slice(0, 5),
+  }
+
+  const dimensions = [completeness, quantification, verbs, brevity, buzzwords, consistency]
+  const weights: Record<string, number> = {
+    completeness: 0.3,
+    quantification: 0.2,
+    verbs: 0.2,
+    brevity: 0.1,
+    buzzwords: 0.1,
+    consistency: 0.1,
+  }
+  const score = Math.round(dimensions.reduce((s, d) => s + d.score * (weights[d.id] ?? 0), 0))
+  return { score, dimensions }
+}
+
 export interface StrengthResult {
   /** 0–100 completeness score */
   score: number

@@ -51,6 +51,39 @@ export function buildRewriteMessages(
   ]
 }
 
+export interface TailorItem {
+  id: string
+  kind: 'summary' | 'bullet'
+  text: string
+}
+
+/**
+ * Tailor pass: one call that rewrites the summary and each bullet toward a
+ * specific JD, returning strict JSON so the UI can show per-item diffs.
+ */
+export function buildTailorMessages(
+  items: TailorItem[],
+  jobDescription: string,
+  role: string
+): ChatMessage[] {
+  const list = items
+    .map((i) => JSON.stringify({ id: i.id, kind: i.kind, text: i.text.slice(0, 500) }))
+    .join('\n')
+  return [
+    {
+      role: 'system',
+      content: `${SYSTEM_WRITER}
+You are tailoring an existing resume to one specific job description.
+For each input item, decide whether rewording it toward the JD makes it stronger. Mirror the JD's exact keywords and phrasing ONLY where the underlying fact is already in the item's text — never add tools, metrics, scope, or responsibilities the item does not contain.
+Output STRICT JSON only: an array of objects {"id": string, "text": string} for the items you changed. Omit items that are already well-tailored. No markdown fences, no commentary.`,
+    },
+    {
+      role: 'user',
+      content: `Target role: ${role || 'not specified'}\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nResume items (JSON, one per line):\n${list}`,
+    },
+  ]
+}
+
 export function buildCoverLetterMessages(
   resumeText: string,
   jobDescription: string,

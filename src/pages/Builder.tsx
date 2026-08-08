@@ -51,12 +51,20 @@ import { DraftIllustration } from '@/components/Illustrations'
 import { ResumePreview } from '@/components/ResumePreview'
 import {
   PaymentRequiredError,
+  type TailorItemInput,
   aiCoverLetter,
   aiInterviewBrief,
   aiRewrite,
+  aiTailor,
 } from '@/lib/api'
 import { scoreResume } from '@/lib/ats'
-import { ACTION_VERBS, checkBullets, resumeStrength } from '@/lib/guidance'
+import {
+  ACTION_VERBS,
+  type HealthReport,
+  checkBullets,
+  resumeHealth,
+  resumeStrength,
+} from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
@@ -291,6 +299,8 @@ export default function Builder() {
   const [shareOpen, setShareOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
+  const [tailorOpen, setTailorOpen] = useState(false)
+  const [healthOpen, setHealthOpen] = useState(false)
   const [freeDlOpen, setFreeDlOpen] = useState(false)
   const pendingDl = useRef<'pdf' | 'docx' | 'txt' | 'md' | null>(null)
   const [variantPick, setVariantPick] = useState<{
@@ -399,6 +409,23 @@ export default function Builder() {
   }
 
   const strength = useMemo(() => resumeStrength(resume), [resume])
+  const health = useMemo(() => resumeHealth(resume), [resume])
+
+  const applyTailorSuggestion = useCallback((id: string, text: string) => {
+    if (id === 'summary') {
+      setResume((r) => ({ ...r, summary: text }))
+      return
+    }
+    const sep = id.lastIndexOf(':')
+    const expId = id.slice(0, sep)
+    const idx = Number(id.slice(sep + 1))
+    setResume((r) => ({
+      ...r,
+      experience: r.experience.map((e) =>
+        e.id === expId ? { ...e, bullets: e.bullets.map((b, i) => (i === idx ? text : b)) } : e
+      ),
+    }))
+  }, [])
 
   const finalCheckIssues = useMemo(() => {
     const issues: string[] = []
@@ -715,6 +742,13 @@ export default function Builder() {
                 {strength.missing.length > 2 ? ` · +${strength.missing.length - 2} more` : ''}
               </p>
             )}
+            <button
+              type="button"
+              className="text-primary mt-2 text-xs underline"
+              onClick={() => setHealthOpen(true)}
+            >
+              Full health report — {health.score}/100 across {health.dimensions.length} checks
+            </button>
           </div>
 
           <Section title="Target job (powers AI + ATS score)" icon={<Target className="size-4" />}>
@@ -738,6 +772,23 @@ export default function Builder() {
                 value={resume.jobDescription}
                 onChange={(e) => set('jobDescription', e.target.value)}
               />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 gap-1 text-xs"
+                disabled={!resume.jobDescription.trim()}
+                title="AI rewords your summary and bullets toward this job — review each change before it's applied"
+                onClick={() => setTailorOpen(true)}
+              >
+                <Sparkles className="size-3" /> Tailor to this job
+              </Button>
+              {!resume.jobDescription.trim() && (
+                <span className="text-muted-foreground text-xs">
+                  Paste a job description to enable tailoring
+                </span>
+              )}
             </div>
           </Section>
 
@@ -1743,6 +1794,15 @@ export default function Builder() {
         resume={resume}
         onQuota={setFreeLeft}
       />
+      {tailorOpen && (
+        <TailorDialog
+          resume={resume}
+          onClose={() => setTailorOpen(false)}
+          onQuota={setFreeLeft}
+          onApply={applyTailorSuggestion}
+        />
+      )}
+      <HealthDialog open={healthOpen} onClose={() => setHealthOpen(false)} health={health} />
       <Dialog open={variantPick !== null} onOpenChange={(o) => !o && setVariantPick(null)}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
@@ -2232,6 +2292,255 @@ function BundleToolDialog({
             </div>
           </>
         )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+interface TailorSuggestion {
+  id: string
+  original: string
+  suggestion: string
+  where: string
+  status: 'pending' | 'accepted' | 'skipped'
+}
+
+function tailorItemsFrom(resume: Resume): { items: TailorItemInput[]; where: Map<string, string> } {
+  const items: TailorItemInput[] = []
+  const where = new Map<string, string>()
+  if (resume.summary.trim()) {
+    items.push({ id: 'summary', kind: 'summary', text: resume.summary.trim() })
+    where.set('summary', 'Summary')
+  }
+  for (const e of resume.experience) {
+    e.bullets.forEach((b, i) => {
+      if (!b.trim()) return
+      const id = `${e.id}:${i}`
+      items.push({ id, kind: 'bullet', text: b.trim() })
+      where.set(id, [e.role, e.company].filter(Boolean).join(' at ') || 'Experience')
+    })
+  }
+  return { items, where }
+}
+
+/** JD tailoring pass: per-item AI suggestions with review-before-apply. */
+function TailorDialog({
+  resume,
+  onClose,
+  onQuota,
+  onApply,
+}: {
+  resume: Resume
+  onClose: () => void
+  onQuota: (remaining: number) => void
+  onApply: (id: string, text: string) => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [rows, setRows] = useState<TailorSuggestion[] | null>(null)
+
+  const run = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      const { items, where } = tailorItemsFrom(resume)
+      if (items.length === 0) {
+        setError('Add a summary or experience bullets first — tailoring rewords your real content.')
+        return
+      }
+      const { suggestions, freeRemaining } = await aiTailor({
+        items,
+        jobDescription: resume.jobDescription,
+        role: resume.targetRole,
+      })
+      if (freeRemaining !== null) onQuota(freeRemaining)
+      const byId = new Map(items.map((i) => [i.id, i.text]))
+      setRows(
+        suggestions
+          .filter((s) => s.text.trim() && s.text.trim() !== byId.get(s.id))
+          .map((s) => ({
+            id: s.id,
+            original: byId.get(s.id) ?? '',
+            suggestion: s.text.trim(),
+            where: where.get(s.id) ?? '',
+            status: 'pending' as const,
+          }))
+      )
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const decide = (id: string, status: 'accepted' | 'skipped') => {
+    setRows((rs) => rs?.map((r) => (r.id === id ? { ...r, status } : r)) ?? null)
+    if (status === 'accepted') {
+      const row = rows?.find((r) => r.id === id)
+      if (row) onApply(row.id, row.suggestion)
+    }
+  }
+
+  const pending = rows?.filter((r) => r.status === 'pending') ?? []
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Tailor to this job</DialogTitle>
+          <DialogDescription>
+            The AI rewords your summary and bullets toward the pasted job description — it mirrors
+            the JD's keywords only where your text already supports them, and never invents
+            experience. Review each change: nothing is applied until you accept it.
+          </DialogDescription>
+        </DialogHeader>
+        {rows === null && (
+          <Button onClick={() => void run()} disabled={busy}>
+            {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+            {busy ? 'Analyzing your resume against the JD…' : 'Get tailoring suggestions'}
+          </Button>
+        )}
+        {error && <p className="text-destructive text-sm">{error}</p>}
+        {rows !== null && rows.length === 0 && (
+          <p className="text-sm">
+            No changes suggested — your summary and bullets already read well against this job
+            description.
+          </p>
+        )}
+        {rows !== null && rows.length > 0 && (
+          <>
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">
+                {rows.filter((r) => r.status === 'accepted').length} accepted ·{' '}
+                {pending.length} to review
+              </span>
+              {pending.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => pending.forEach((r) => decide(r.id, 'accepted'))}
+                >
+                  Accept all remaining
+                </Button>
+              )}
+            </div>
+            <div className="space-y-3">
+              {rows.map((r) => (
+                <div key={r.id} className="space-y-2 rounded-lg border p-3 text-sm">
+                  <p className="text-muted-foreground text-xs font-medium">{r.where}</p>
+                  <p className="text-muted-foreground line-through decoration-red-300">
+                    {r.original}
+                  </p>
+                  <p className="font-medium text-emerald-800">{r.suggestion}</p>
+                  {r.status === 'pending' ? (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => decide(r.id, 'accepted')}
+                      >
+                        <Check className="size-3" /> Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => decide(r.id, 'skipped')}
+                      >
+                        Keep original
+                      </Button>
+                    </div>
+                  ) : (
+                    <p
+                      className={`text-xs font-medium ${
+                        r.status === 'accepted' ? 'text-emerald-700' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {r.status === 'accepted' ? 'Applied to your resume' : 'Kept your original'}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={onClose}>
+                Done
+              </Button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Rule-based multi-dimension health report — no AI calls, computed locally. */
+function HealthDialog({
+  open,
+  onClose,
+  health,
+}: {
+  open: boolean
+  onClose: () => void
+  health: HealthReport
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Resume health report — {health.score}/100</DialogTitle>
+          <DialogDescription>
+            Six rule-based checks computed in your browser — a writing-quality heuristic, not a
+            hiring prediction. Nothing leaves your device.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          {health.dimensions.map((d) => (
+            <div key={d.id} className="rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-medium">{d.label}</span>
+                <span
+                  className={`text-xs font-semibold ${
+                    d.score >= 80
+                      ? 'text-emerald-600'
+                      : d.score >= 50
+                        ? 'text-amber-600'
+                        : 'text-red-600'
+                  }`}
+                >
+                  {d.score}
+                </span>
+              </div>
+              <div
+                className="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full"
+                role="progressbar"
+                aria-label={d.label}
+                aria-valuenow={d.score}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className={`h-full rounded-full ${
+                    d.score >= 80
+                      ? 'bg-emerald-500'
+                      : d.score >= 50
+                        ? 'bg-amber-500'
+                        : 'bg-red-400'
+                  }`}
+                  style={{ width: `${d.score}%` }}
+                />
+              </div>
+              <p className="text-muted-foreground mt-1.5 text-xs">{d.summary}</p>
+              {d.findings.length > 0 && (
+                <ul className="text-muted-foreground mt-1.5 list-disc space-y-0.5 pl-4 text-xs">
+                  {d.findings.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
       </DialogContent>
     </Dialog>
   )
