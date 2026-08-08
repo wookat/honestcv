@@ -1741,6 +1741,7 @@ export default function Builder() {
         kind={toolOpen}
         onClose={() => setToolOpen(null)}
         resume={resume}
+        onQuota={setFreeLeft}
       />
       <Dialog open={variantPick !== null} onOpenChange={(o) => !o && setVariantPick(null)}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
@@ -2089,10 +2090,12 @@ function BundleToolDialog({
   kind,
   onClose,
   resume,
+  onQuota,
 }: {
   kind: 'cover' | 'interview' | null
   onClose: () => void
   resume: Resume
+  onQuota: (remaining: number) => void
 }) {
   const [company, setCompany] = useState('')
   const [busy, setBusy] = useState(false)
@@ -2116,7 +2119,7 @@ function BundleToolDialog({
         setError('Paste the job description in "Target job" first — both tools tailor to it.')
         return
       }
-      const text =
+      const { text, freeRemaining } =
         kind === 'cover'
           ? await aiCoverLetter({
               resumeText,
@@ -2130,6 +2133,7 @@ function BundleToolDialog({
               role: resume.targetRole,
             })
       setResult(text)
+      if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
       setError((e as Error).message)
     } finally {
