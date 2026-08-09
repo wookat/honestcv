@@ -502,6 +502,8 @@ app.post('/api/hit', async (c) => {
   if (!path.startsWith('/') || path.length > 200 || /[\s<>]/.test(path)) {
     return c.json({ error: 'bad path' }, 400)
   }
+  // Internal QA pages (visited before the honestcv.qa flag is set) never count
+  if (path.startsWith('/qa-')) return c.json({ ok: true })
   if (!/^https?:\/\/[^\s<>"']{1,100}$/.test(ref)) ref = ''
   const day = new Date().toISOString().slice(0, 10)
   await c.env.KV.put(
