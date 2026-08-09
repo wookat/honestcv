@@ -274,6 +274,14 @@ export function FreeDownloadDialog({
           <p className="text-muted-foreground text-xs">
             One email, all downloads — no card, nothing to cancel, unsubscribe anytime.
           </p>
+          <p className="text-muted-foreground text-xs">
+            What we send: occasional HonestCV product updates only (a few per year).
+            Your email is never sold or shared, and your resume never leaves this
+            browser.{' '}
+            <a href="/privacy/" className="underline underline-offset-2">
+              Privacy policy
+            </a>
+          </p>
         </div>
       </DialogContent>
     </Dialog>

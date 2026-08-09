@@ -2427,3 +2427,27 @@ CLS 0.08 / 921KB vs ours TTFB 30ms / LCP 280ms / CLS 0.0005 / 193KB — exceeded
 Verdict recorded in docs/replication-benchmark.md: coverage 15/15 (100%), technical
 11/11 at-or-above after fixes. Live regression: axe 0 violations (/, /builder), 375px
 no overflow, headers verified on production responses.
+
+## Acceptance-review remediation (AC1) — 2026-08-09
+
+External acceptance review scored HonestCV 85/100 (pass, best of 8 products). All
+listed items fixed this batch:
+
+- **P1 — ATS score explainability**: builder ATS card now shows the weighting next to
+  the sub-scores (Keywords ×70% / Structure ×30%) plus a "How this score is
+  calculated" expandable spelling out the keyword-extraction and 6-point checklist
+  rules, that it runs locally, and that 100 = all rules pass, not a hiring guarantee.
+  Same formula item added to the /ats-checker "What do these scores mean?" explainer.
+- **P2① — Email-gate privacy line**: the free-download dialog states exactly what we
+  send (occasional product updates), that the address is never sold/shared, that the
+  resume never leaves the browser, and links the privacy policy.
+- **P2② — Mobile edit/preview switcher**: the floating Preview jump button is replaced
+  by a persistent bottom segmented control (Edit | Preview & score, 44px targets,
+  aria-pressed) that swaps panes on <lg screens instead of scroll-hunting.
+- **P2③ — Themed export by default**: exports were already template-aware (accent
+  headings, bands, dividers, serif/sans); the reviewer saw the monochrome Classic
+  default. The example resume now loads the Modern template so the first PDF visibly
+  matches the styled preview.
+- **Cross-product self-check**: AI Tailor and cover-letter/interview dialogs now set a
+  wait expectation ("usually 10–20 seconds") while generating; error/empty states and
+  quota messaging already inline from earlier rounds.

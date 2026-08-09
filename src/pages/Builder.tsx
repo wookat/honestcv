@@ -13,6 +13,7 @@ import {
   FileUp,
   GraduationCap,
   GripVertical,
+  LayoutTemplate,
   Lightbulb,
   ListOrdered,
   Loader2,
@@ -325,6 +326,8 @@ export default function Builder() {
   const saveState = useDebouncedSave(resume)
   const pdfPages = usePdfPageCount(resume)
   const [templateFilter, setTemplateFilter] = useState('all')
+  /** Which pane is visible on small screens (both show side-by-side on lg+) */
+  const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
   const { undo, canUndo } = useUndo(resume, setResume)
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
@@ -595,10 +598,10 @@ export default function Builder() {
         }
       />
 
-      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 pb-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:pb-6">
         <h1 className="sr-only">Resume builder</h1>
         {/* ---- Left: editor ---- */}
-        <div className="space-y-4">
+        <div className={`space-y-4 ${mobilePane === 'edit' ? '' : 'hidden lg:block'}`}>
           {resume === null ||
             (!resume.contact.fullName && !resume.summary && (
               <div className="rounded-lg border border-dashed p-3 text-center text-sm">
@@ -1517,7 +1520,12 @@ export default function Builder() {
         </div>
 
         {/* ---- Right: preview + ATS ---- */}
-        <div id="preview" className="scroll-mt-16 space-y-4 lg:sticky lg:top-20 lg:self-start">
+        <div
+          id="preview"
+          className={`scroll-mt-16 space-y-4 lg:sticky lg:top-20 lg:self-start ${
+            mobilePane === 'preview' ? '' : 'hidden lg:block'
+          }`}
+        >
           {pdfPages !== null && (
             <p
               className={`text-xs ${pdfPages > 1 ? 'text-amber-700' : 'text-muted-foreground'}`}
@@ -1708,16 +1716,39 @@ export default function Builder() {
                   style={{ width: `${ats.score}%` }}
                 />
               </div>
-              <div className="text-muted-foreground mt-2 flex gap-4 text-xs">
+              <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                 {ats.keywordScore !== null && (
                   <span>
                     Keywords <span className="text-foreground font-medium">{ats.keywordScore}</span>
+                    <span className="text-muted-foreground/70"> ×70%</span>
                   </span>
                 )}
                 <span>
                   Structure <span className="text-foreground font-medium">{ats.structureScore}</span>
+                  {ats.keywordScore !== null && (
+                    <span className="text-muted-foreground/70"> ×30%</span>
+                  )}
                 </span>
               </div>
+              <details className="mt-2 text-xs">
+                <summary className="text-muted-foreground hover:text-foreground cursor-pointer select-none underline-offset-2 hover:underline">
+                  How this score is calculated
+                </summary>
+                <div className="text-muted-foreground mt-1.5 space-y-1.5 rounded-md border p-2.5">
+                  <p>
+                    {ats.keywordScore !== null
+                      ? 'Score = keyword coverage ×70% + structure checks ×30%. Keyword coverage is the share of the job posting\u2019s top keywords (extracted by frequency, stop-words removed) that appear in your resume. Structure is the 6-point checklist below — each check has equal weight.'
+                      : `Without a job description the score is the 6-point structure checklist below — each check has equal weight (${ats.checks.filter((c) => c.pass).length} of ${ats.checks.length} passing). Paste a job description above to add the stricter keyword-coverage half.`}
+                  </p>
+                  <p>
+                    It’s a transparent rule-based check that runs in your browser — it mirrors
+                    what resume parsers and recruiters scan for, but it can’t predict a hiring
+                    decision.
+                    {ats.score === 100 &&
+                      ' A 100 means every rule passes, not that an interview is guaranteed.'}
+                  </p>
+                </div>
+              </details>
               {resume.jobDescription.trim() ? (
                 <div className="mt-3 space-y-2 text-xs">
                   {ats.matched.length > 0 && (
@@ -1812,17 +1843,36 @@ export default function Builder() {
         </div>
       </main>
 
-      <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        className="fixed right-4 bottom-4 z-30 shadow-lg lg:hidden"
-        onClick={() =>
-          document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth' })
-        }
+      {/* Persistent mobile pane switcher — both panes show side-by-side on lg+ */}
+      <div
+        role="group"
+        aria-label="Switch between editing and preview"
+        className="bg-background/95 fixed inset-x-0 bottom-0 z-30 flex justify-center gap-1 border-t p-2 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] backdrop-blur lg:hidden"
       >
-        <FileText className="size-3.5" /> Preview
-      </Button>
+        {(
+          [
+            { pane: 'edit', label: 'Edit', icon: <FileText className="size-4" /> },
+            { pane: 'preview', label: 'Preview & score', icon: <LayoutTemplate className="size-4" /> },
+          ] as const
+        ).map(({ pane, label, icon }) => (
+          <button
+            key={pane}
+            type="button"
+            aria-pressed={mobilePane === pane}
+            className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-md text-sm font-medium transition ${
+              mobilePane === pane
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted'
+            }`}
+            onClick={() => {
+              setMobilePane(pane)
+              window.scrollTo({ top: 0 })
+            }}
+          >
+            {icon} {label}
+          </button>
+        ))}
+      </div>
 
       <SiteFooter />
 
@@ -2296,6 +2346,11 @@ function BundleToolDialog({
             Start from a template
           </Button>
         </div>
+        {busy && (
+          <p className="text-muted-foreground text-xs" role="status">
+            Usually takes 10–20 seconds — the draft appears here for you to edit.
+          </p>
+        )}
         {error && <p className="text-destructive text-sm">{error}</p>}
         {result && (
           <>
@@ -2441,10 +2496,18 @@ function TailorDialog({
           </DialogDescription>
         </DialogHeader>
         {rows === null && (
-          <Button onClick={() => void run()} disabled={busy}>
-            {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
-            {busy ? 'Analyzing your resume against the JD…' : 'Get tailoring suggestions'}
-          </Button>
+          <>
+            <Button onClick={() => void run()} disabled={busy}>
+              {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+              {busy ? 'Analyzing your resume against the JD…' : 'Get tailoring suggestions'}
+            </Button>
+            {busy && (
+              <p className="text-muted-foreground text-xs" role="status">
+                Usually takes 10–20 seconds — every line comes back for your review before
+                anything changes.
+              </p>
+            )}
+          </>
         )}
         {error && <p className="text-destructive text-sm">{error}</p>}
         {rows !== null && rows.length === 0 && (

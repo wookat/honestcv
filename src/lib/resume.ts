@@ -196,6 +196,8 @@ export function sectionLabel(r: Resume, key: string): string {
 export function sampleResume(): Resume {
   return {
     ...emptyResume(),
+    // A visibly themed template so the first export matches the styled preview
+    templateId: 'modern',
     contact: {
       fullName: 'Jordan Reyes',
       title: 'Software Engineer',
