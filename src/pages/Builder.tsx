@@ -613,7 +613,11 @@ export default function Builder() {
                   onClick={() =>
                     setResume({
                       ...sampleResume(),
-                      ...(resume ? { templateId: resume.templateId } : {}),
+                      // Keep a template the user deliberately picked; otherwise
+                      // use the sample's themed default
+                      ...(resume && resume.templateId !== emptyResume().templateId
+                        ? { templateId: resume.templateId }
+                        : {}),
                     })
                   }
                 >
