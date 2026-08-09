@@ -103,6 +103,7 @@ const kvToken = process.env.CLOUDFLARE_WORKERS_API_TOKEN ?? token
       try {
         const rec = JSON.parse(v)
         const p = rec.p ?? '(unknown)'
+        if (p.startsWith('/qa-')) continue // internal QA pages
         byPath.set(p, (byPath.get(p) ?? 0) + 1)
         if (rec.r) byRef.set(rec.r, (byRef.get(rec.r) ?? 0) + 1)
       } catch {
