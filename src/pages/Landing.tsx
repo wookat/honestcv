@@ -133,6 +133,42 @@ export default function Landing() {
           </p>
         </section>
 
+        {/* How it works */}
+        <section aria-labelledby="how-heading" className="mx-auto max-w-5xl px-4 py-8">
+          <h2 id="how-heading" className="text-center text-2xl font-bold">
+            From blank page to sent application in three steps
+          </h2>
+          <ol className="mt-6 grid gap-4 sm:grid-cols-3">
+            {(
+              [
+                [
+                  'Add your experience',
+                  'Type it in, import your existing PDF/DOCX resume, or start from an example. Everything stays in your browser.',
+                ],
+                [
+                  'Tailor it to the job',
+                  'Paste the job description for a free ATS match score, then let the AI reword your real bullets toward it — you approve every change.',
+                ],
+                [
+                  'Download and apply',
+                  'Export a text-based PDF or a real DOCX — ATS-clean, clickable contact links, no watermark.',
+                ],
+              ] as [string, string][]
+            ).map(([title, text], i) => (
+              <li key={title} className="rounded-lg border p-5">
+                <span
+                  aria-hidden
+                  className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-semibold"
+                >
+                  {i + 1}
+                </span>
+                <h3 className="mt-3 font-semibold">{title}</h3>
+                <p className="text-muted-foreground mt-1 text-sm">{text}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
         {/* Features */}
         <section aria-labelledby="features-heading" className="mx-auto grid max-w-5xl gap-4 px-4 py-8 sm:grid-cols-2">
           <h2 id="features-heading" className="sr-only">

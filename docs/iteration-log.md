@@ -2451,3 +2451,51 @@ listed items fixed this batch:
 - **Cross-product self-check**: AI Tailor and cover-letter/interview dialogs now set a
   wait expectation ("usually 10–20 seconds") while generating; error/empty states and
   quota messaging already inline from earlier rounds.
+
+## Onboarding batch U1-U3 (2026-08-05)
+
+Directive: add restrained user guidance/onboarding across the product.
+
+Competitor patterns consulted (from prior firsthand research, docs/competitor-research-*.md,
+docs/bench-r1/): Enhancv chat-style wizard, Teal 5-step skippable onboarding +
+empty-state next-step guidance, Zety/Resume.io step wizards, Resume Worded
+career-level wizard. Chosen approach: no forced wizard (conflicts with our
+open-editor, no-account model) — landing narrative + a one-time self-checking
+checklist + one-time "New" badges.
+
+- **U1 — Landing "How it works"**: 3-step narrative section after the hero
+  (add experience → tailor to the job → download), static, no JS.
+- **U2 — Builder getting-started checklist**: one-time card (hidden after
+  Dismiss via `honestcv.tourDone`, or for users who have already downloaded,
+  via `honestcv.shared`). Four steps auto-check off from real state (name
+  filled, JD pasted, Tailor opened, download done). No animation; sr-only
+  "(done)" for screen readers.
+- **U3 — New-feature discovery**: one-time "New" badges on the "Tailor to this
+  job" button and the "Full health report" link, cleared on first use via
+  `honestcv.seen.tailor` / `honestcv.seen.health`.
+
+Empty states already covered (builder example/import card, ATS checker example
+score link) — no changes needed there.
+
+## Brand & marketing batch BR (2026-08-05)
+
+Directive: comprehensive branding + all non-dev marketing activity.
+
+- **BR-A — Brand system** (`docs/brand/brand-guide.md`): brand story +
+  positioning one-liner, four pillars, naming/tone-of-voice rules with banned
+  words, visual identity spec (logo usage, oklch palette, type, motion), and a
+  per-release consistency checklist.
+- **BR-A④ — Consistency audit fixes**: stale "12 templates" corrected to 22 in
+  llms.txt and the /templates/ hub description; footer gains an About link.
+- **BR-B — Marketing asset packs** (`docs/marketing/`):
+  `directory-submissions.md` (AlternativeTo/SaaSHub/Uneed/TAAFT checklist +
+  paste-ready copy), `social-calendar-14-days.md` (14 days of Reddit/X/HN
+  posts, disclosure-first Reddit strategy), `producthunt-launch-kit.md`
+  (tagline, gallery plan, maker comment, FAQ), `email-lifecycle-templates.md`
+  (double-opt-in confirmation, welcome, day-7 nudge, beta→paid — sending not
+  wired, requires approval).
+- **BR-B⑥ — /about page**: brand story, promises, press kit (boilerplate, logo
+  + OG downloads, naming), Organization JSON-LD; added to sitemap (76 URLs).
+
+Red lines kept: no fake accounts, no fabricated reviews, no emails sent (no
+double-opt-in flow yet), no scraping around bot walls.

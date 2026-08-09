@@ -1369,6 +1369,80 @@ for (const p of LEGAL_PAGES) {
   console.log(`built ${p.path}/index.html`)
 }
 
+// About & press page — brand story + media kit
+function aboutPage() {
+  const canonical = `${SITE}/about`
+  const title = 'About HonestCV — The Resume Builder With No Subscription Traps'
+  const description =
+    'HonestCV is a browser-local resume builder: ATS-safe templates, free ATS match scoring, AI that never invents your experience, and one-time pricing. Our story, plus a press kit.'
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'HonestCV',
+    url: SITE,
+    logo: `${SITE}/favicon.svg`,
+    description,
+  }
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(description)}" />
+<link rel="canonical" href="${canonical}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="HonestCV" />
+<meta property="og:title" content="${esc(title)}" />
+<meta property="og:description" content="${esc(description)}" />
+<meta property="og:url" content="${canonical}" />
+<meta property="og:image" content="${SITE}/og2.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
+<style>${CSS}</style>
+${BEACON}${FP_BEACON}
+</head>
+<body>
+<header class="site"><div class="in">
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="btn" href="/builder">Build my resume free</a>
+</div></header>
+<main>
+<h1>About HonestCV</h1>
+<p class="lede">The resume-builder category monetizes desperation: a ~$2 “trial” that quietly converts into a ~$25/month subscription, free tiers that watermark exports or lock the useful report behind a paywall, and AI writers that invent metrics a candidate never achieved. “Zety charged me” is one of the most-searched complaints in the category. HonestCV is built as the counter-example.</p>
+<h2 style="margin-top:1.5rem;font-size:1.125rem">What we promise</h2>
+<ul class="features">
+<li>Your resume lives in your browser — no account, no resume database</li>
+<li>The ATS match score is free and unlimited, computed locally</li>
+<li>AI polishes your real experience — it never invents employers, dates or metrics</li>
+<li>Real text-based PDF and DOCX export, no watermark</li>
+<li>One-time pricing ($9.99 / $19.99) — no subscription, nothing to cancel. Currently a full beta free trial.</li>
+</ul>
+<h2 style="margin-top:1.5rem;font-size:1.125rem">How we compare</h2>
+<p class="lede" style="font-size:1rem">We sign up for competitors and run their full flows ourselves, then publish dated, first-hand comparisons: <a href="/vs/">HonestCV vs other resume builders</a>. We also publish <a href="/guides/">free resume guides</a> and a shareable <a href="/ats-checker">ATS checker</a>.</p>
+<h2 style="margin-top:1.5rem;font-size:1.125rem">Press kit</h2>
+<p class="lede" style="font-size:1rem">Boilerplate: “HonestCV is a browser-local resume builder for job seekers: 22 ATS-safe templates, a free ATS match score against any pasted job description, per-line AI tailoring that refuses to fabricate facts, and real text-based PDF/DOCX export — with one-time pricing instead of a subscription.”</p>
+<ul class="features">
+<li>Logo (SVG): <a href="/favicon.svg">cv.zalize.com/favicon.svg</a></li>
+<li>Social/OG image: <a href="/og2.png">cv.zalize.com/og2.png</a></li>
+<li>Name: “HonestCV” — one word, capital H and CV</li>
+<li>Contact: reply to any receipt email, or via the parent site zalize.com</li>
+</ul>
+<p class="lede" style="font-size:1rem">Sister products, same promise: <a href="https://qr.zalize.com">HonestQR</a>, <a href="https://pdf.zalize.com">HonestPDF</a>, <a href="https://subsleuth.zalize.com">SubSleuth</a>.</p>
+</main>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/about">About</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+</body>
+</html>`
+}
+
+{
+  const dir = path.join(OUT_DIR, 'about')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(path.join(dir, 'index.html'), aboutPage())
+  console.log('built /about/index.html')
+}
+
 function guidePage(p) {
   const canonical = `${SITE}${p.path}`
   const jsonLd = {
@@ -1570,7 +1644,7 @@ const HUBS = [
     pathname: '/templates/',
     title: 'ATS-Friendly Resume Templates (Free) — HonestCV',
     description:
-      'All 12 HonestCV resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Fully included in the beta free trial — no account, no subscription.',
+      'All 22 HonestCV resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Fully included in the beta free trial — no account, no subscription.',
     h1: 'ATS-friendly resume templates',
     intro:
       'Every HonestCV template follows one rule: strictly single-column real text, the layout ATS parsers read most reliably. Pick a look below — you can switch templates any time without retyping.',
@@ -1613,6 +1687,7 @@ const urls = [
   ...GUIDES.map((p) => `${p.path}/`),
   ...TEMPLATE_PAGES.map((p) => `${p.path}/`),
   ...LEGAL_PAGES.map((p) => `${p.path}/`),
+  '/about/',
 ]
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -1632,7 +1707,7 @@ console.log('built sitemap.xml + robots.txt')
 // llms.txt — a curated site map for AI assistants (https://llmstxt.org)
 const llms = `# HonestCV
 
-> ATS-friendly resume builder with a one-time-payment model ($9.99/$19.99 once; currently in beta with a full free trial of every plan): 12 single-column templates, live preview, free ATS match score against any pasted job description, real text-based PDF and DOCX export. No account — resume data stays in the user's browser (localStorage). No subscription, no auto-renewal, no trial trap.
+> ATS-friendly resume builder with a one-time-payment model ($9.99/$19.99 once; currently in beta with a full free trial of every plan): 22 single-column templates, live preview, free ATS match score against any pasted job description, real text-based PDF and DOCX export. No account — resume data stays in the user's browser (localStorage). No subscription, no auto-renewal, no trial trap.
 
 ## Core tools
 
