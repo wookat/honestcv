@@ -103,13 +103,17 @@ async function callLlm(
     console.error('LLM upstream retryable error', upstream.status)
   }
   if (!upstream) {
-    return { error: 'Could not reach the AI service. Please retry.', status: 502 }
+    return {
+      error:
+        'Could not reach the AI service — please retry in a minute. None of your free AI uses were spent.',
+      status: 502,
+    }
   }
   if (!upstream.ok) {
     const detail = await upstream.text().catch(() => '')
     console.error('LLM upstream error', upstream.status, detail.slice(0, 500))
     return {
-      error: `The AI service returned an error (${upstream.status}). Please retry.`,
+      error: `The AI service is temporarily unavailable (${upstream.status}) — please retry in a minute. None of your free AI uses were spent.`,
       status: 502,
     }
   }

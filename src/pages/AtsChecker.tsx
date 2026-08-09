@@ -136,7 +136,7 @@ export default function AtsChecker() {
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Label htmlFor="resume-text">Your resume (paste or upload)</Label>
               <Button
                 type="button"

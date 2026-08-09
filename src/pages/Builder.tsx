@@ -914,10 +914,17 @@ export default function Builder() {
                   </Badge>
                 )}
               </Button>
-              {!resume.jobDescription.trim() && (
+              {!resume.jobDescription.trim() ? (
                 <span className="text-muted-foreground text-xs">
                   Paste a job description to enable tailoring
                 </span>
+              ) : (
+                freeLeft !== null &&
+                !unlocked && (
+                  <span className="text-muted-foreground text-xs">
+                    {freeLeft} free AI use{freeLeft === 1 ? '' : 's'} left
+                  </span>
+                )
               )}
             </div>
           </Section>
