@@ -28,6 +28,18 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return data
 }
 
+/** Remaining free-AI quota for this client, without consuming any. */
+export async function fetchAiQuota(): Promise<number | null> {
+  try {
+    const res = await fetch('/api/ai/quota', { headers: licenseHeaders() })
+    if (!res.ok) return null
+    const data = (await res.json()) as { freeRemaining: number | null }
+    return data.freeRemaining
+  } catch {
+    return null
+  }
+}
+
 export type RewriteKind = 'bullets' | 'summary' | 'skills'
 
 export async function aiRewrite(

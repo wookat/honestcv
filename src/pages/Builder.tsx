@@ -57,6 +57,7 @@ import {
   aiInterviewBrief,
   aiRewrite,
   aiTailor,
+  fetchAiQuota,
 } from '@/lib/api'
 import { scoreResume } from '@/lib/ats'
 import {
@@ -100,19 +101,40 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
   const t = useRef<number | undefined>(undefined)
   const [state, setState] = useState<'saving' | 'saved'>('saved')
   const first = useRef(true)
+  const pending = useRef<Resume | null>(null)
   useEffect(() => {
     if (first.current) {
       first.current = false
       return
     }
     setState('saving')
+    pending.current = resume
     window.clearTimeout(t.current)
     t.current = window.setTimeout(() => {
       saveResume(resume)
+      pending.current = null
       setState('saved')
     }, 400)
     return () => window.clearTimeout(t.current)
   }, [resume])
+  useEffect(() => {
+    // Flush an in-flight debounced save if the tab is closed or hidden
+    const flush = () => {
+      if (pending.current) {
+        saveResume(pending.current)
+        pending.current = null
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
   return state
 }
 
@@ -341,6 +363,16 @@ export default function Builder() {
 
   const unlocked = Boolean(license)
   const hasBundlePlan = license?.plan === 'bundle'
+  useEffect(() => {
+    if (unlocked) return
+    let cancelled = false
+    void fetchAiQuota().then((n) => {
+      if (!cancelled && n !== null) setFreeLeft((prev) => prev ?? n)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [unlocked])
   const ats = useMemo(
     () => scoreResume(resume, resume.jobDescription),
     [resume]

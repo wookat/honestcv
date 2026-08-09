@@ -150,6 +150,15 @@ app.use('*', async (c, next) => {
 
 app.use('/api/*', cors())
 
+// Remaining free-AI quota for this client (read-only, no consumption)
+app.get('/api/ai/quota', async (c) => {
+  const fp = c.req.header('x-client-id')?.trim()
+  if (!fp || fp.length < 8 || fp.length > 128) return c.json({ freeRemaining: null })
+  const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
+  const used = Number((await c.env.KV.get(quotaKvKey(fp, 'ai'))) ?? '0')
+  return c.json({ freeRemaining: Math.max(limit - used, 0) })
+})
+
 app.get('/api/health', (c) => {
   const configured = Boolean(c.env.LLM_RELAY_BASE_URL && c.env.LLM_RELAY_API_KEY)
   return c.json({ ok: true, llmConfigured: configured })
