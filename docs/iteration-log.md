@@ -2543,3 +2543,19 @@ first pageview was counted.
   nothing).
 - `scripts/analytics.mjs` filters `/qa-*` out of the path breakdown so
   historical KV records don't pollute reports either.
+
+## Iteration I7 (2026-08-05)
+
+Testing agent's I4–I6 regression passed (503 no longer burns quota, golden
+path, 375px + axe all green). Its three P2 polish items fixed:
+
+- AI outage error copy now says the service is "temporarily unavailable …
+  None of your free AI uses were spent" (accurate since I4).
+- "N free AI uses left" hint shown next to the Tailor button once a JD is
+  pasted (was only at the very bottom of the edit column).
+- 375px /ats-checker: resume label row wraps cleanly next to the Upload
+  button (flex-wrap).
+
+Verified on production: failed rewrite returns the new copy, quota stays 12.
+Cover-letter success smoke still pending on the relay outage (api.aicdks.com
+503/429 — boss-side).
