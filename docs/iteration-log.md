@@ -2521,3 +2521,14 @@ in production, and each FAILED call still consumed a free-quota unit
   the relay base URL also errors). This is a relay-account/provider issue —
   escalated to the boss. Cover-letter success + busy-state smoke remains
   pending until the relay is healthy.
+
+## Iteration I5 (2026-08-05)
+
+- **LLM resilience**: `callLlm` now retries once (1s backoff) on upstream
+  429/5xx or network errors before returning the honest failure message.
+  Converts single transient relay hiccups into successes; a persistent outage
+  still fails fast with the same message and (since I4) costs no quota.
+- Relay api.aicdks.com still down at deploy time (503 after retry, quota
+  unchanged at 12 — I4 semantics confirmed again on the new version).
+- Data driver: first-party analytics still ~0 organic (1 google referrer,
+  17 email leads incl. QA); distribution remains boss-side.

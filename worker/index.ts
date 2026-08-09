@@ -82,17 +82,27 @@ async function callLlm(
   if (!baseUrl || !apiKey) {
     return { error: 'The AI service is not configured yet. Please try again later.', status: 503 }
   }
-  let upstream: Response
-  try {
-    upstream = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
-    })
-  } catch {
+  // One automatic retry on transient upstream failures (429/5xx/network)
+  let upstream: Response | null = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 1000))
+    try {
+      upstream = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
+      })
+    } catch {
+      upstream = null
+      continue
+    }
+    if (upstream.ok || (upstream.status !== 429 && upstream.status < 500)) break
+    console.error('LLM upstream retryable error', upstream.status)
+  }
+  if (!upstream) {
     return { error: 'Could not reach the AI service. Please retry.', status: 502 }
   }
   if (!upstream.ok) {
