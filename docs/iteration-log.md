@@ -2499,3 +2499,25 @@ Directive: comprehensive branding + all non-dev marketing activity.
 
 Red lines kept: no fake accounts, no fabricated reviews, no emails sent (no
 double-opt-in flow yet), no scraping around bot walls.
+
+## Iteration I4 (2026-08-05)
+
+Driver: online testing (I1–I3 regression) found cover-letter AI returning 503
+in production, and each FAILED call still consumed a free-quota unit
+(12 → 11 → 10 across two failures).
+
+- **Fix — consume-after-success quota**: all four AI endpoints
+  (`/api/ai/rewrite`, `/api/ai/tailor`, `/api/ai/cover-letter`,
+  `/api/ai/interview`) now *peek* at the remaining quota before calling the
+  LLM (402 when exhausted, unchanged) and consume a unit only after a
+  successful upstream response. Upstream 5xx/429/parse failures cost nothing.
+  A refund-on-failure design was tried first but KV read-after-write raced;
+  consume-after-success is simpler and race-safe for the failure path.
+- **Production verification** (fresh QA client ids, no real payment): quota
+  12 → failed rewrite (503) → still 12. Before the fix the same sequence
+  went 12 → 11.
+- **Upstream outage confirmed**: relay api.aicdks.com returns 429/503 on all
+  attempts over ~5 minutes (worker logs show upstream status; direct probe of
+  the relay base URL also errors). This is a relay-account/provider issue —
+  escalated to the boss. Cover-letter success + busy-state smoke remains
+  pending until the relay is healthy.
