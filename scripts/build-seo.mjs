@@ -891,6 +891,27 @@ const GUIDES = [
       ['The honesty line', 'Never list a certification you did not earn, an exam you have not passed, or a license that has lapsed as if current. Verification takes a recruiter under a minute. If your real credentials feel thin, an "in progress" line plus strong project bullets is the honest and effective alternative.'],
     ],
   },
+  {
+    path: '/guides/volunteer-work-on-resume',
+    title: 'Volunteer Work on a Resume: Where It Goes and How to Write It (2026 Guide)',
+    description:
+      'When volunteer experience belongs on a resume, where to put it, how to write bullets that count, gap coverage, cause-related caution, and examples that pass ATS parsing.',
+    h1: 'How to put volunteer work on your resume',
+    sections: [
+      ['Volunteer work is real experience', 'Hiring managers care about what you did and what changed because of it — not whether a paycheck was attached. Organized a fundraiser, managed a rota of 12 volunteers, built a nonprofit\u2019s website: those are management, operations, and engineering experience. Present them with the same structure as paid work.'],
+      ['When it earns a place', 'Include volunteering when it is recent, relevant to the target role, shows a skill your paid history lacks, or covers a gap. Leave it off when it is a one-off from years ago, duplicates stronger paid bullets, or crowds a page needed for paid experience.'],
+      ['Where it goes: two options', 'A dedicated "Volunteer Experience" section below paid Experience is the default — parsers and recruiters recognize the heading. Fold it into the main Experience section only when it is substantial, ongoing, and directly relevant (common for students, career changers, and returners) — and label the role honestly: "Volunteer Coordinator (volunteer)".'],
+      ['Write bullets like paid work', 'Same formula: action verb + what you did + measurable result. "Coordinated 15 weekly volunteers and cut shift no-shows by 40% with a text-reminder system" beats "Helped at the food bank". If you can\u2019t quantify, name the scope: team size, event size, budget, frequency.'],
+      ['The format parsers read', 'One entry per role: organization, role title, dates (month + year), location if relevant, then bullets. Exactly the structure of a paid entry — ATS parsers map it into the same experience fields, and consistent formatting keeps the whole section machine-readable.'],
+      ['Covering employment gaps', 'Steady volunteering during a gap answers the "what were you doing?" question before it\u2019s asked. List it in the main Experience timeline with real dates so the gap visibly closes — an entry that says "Career break — volunteer bookkeeping, Ridge Community Pantry, 2024\u20132025" reads far better than an unexplained hole.'],
+      ['Skills-first framing for career changers', 'Switching fields? Lead each volunteer bullet with the skill of the target role: a teacher moving to project management writes "Planned and ran a 9-month, 30-event program calendar" rather than "Helped organize school events". The org matters less than the transferable verb.'],
+      ['Leadership roles count double', 'Board member, treasurer, team lead, event chair — unpaid leadership is still leadership. If you managed people, money, or outcomes, say so with numbers: "Treasurer, managed $18K annual budget and quarterly reporting for a 200-member association".'],
+      ['Cause-related caution', 'Political, religious, and advocacy affiliations can trigger bias — conscious or not. Include them when the work is the qualification or the values matter to you in an employer; otherwise you can describe the role generically ("faith-based community organization") or choose neutral entries. It\u2019s your call, but make it deliberately.'],
+      ['Student and first-job resumes', 'With little paid history, volunteering moves up: put it right after Education, before or merged with any part-time work. Tutoring, sports coaching, event stewarding, open-source contributions — each shows reliability and initiative, which is what first-job screeners actually look for.'],
+      ['What to leave off', 'Mandatory school service hours framed as passion, one-day events from five years ago, "member" entries with no activity, and anything you cannot answer follow-up questions about. Every line on the page invites an interview question — keep only the ones you want asked.'],
+      ['The honesty check', 'Label unpaid roles as volunteer positions — letting a screener assume it was employment backfires at reference-check time. Dates, org names, and scope must survive a phone call to the coordinator. Honest framing plus concrete results is exactly what makes volunteer entries persuasive.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */
