@@ -2532,3 +2532,14 @@ in production, and each FAILED call still consumed a free-quota unit
   unchanged at 12 — I4 semantics confirmed again on the new version).
 - Data driver: first-party analytics still ~0 organic (1 google referrer,
   17 email leads incl. QA); distribution remains boss-side.
+
+## Iteration I6 (2026-08-05)
+
+Data driver: `/qa-test` hits (4) showed up in the first-party path report —
+the QA flag page itself is visited *before* `honestcv.qa=1` is set, so its
+first pageview was counted.
+
+- `/api/hit` now drops any `/qa-*` path server-side (returns ok, stores
+  nothing).
+- `scripts/analytics.mjs` filters `/qa-*` out of the path breakdown so
+  historical KV records don't pollute reports either.
