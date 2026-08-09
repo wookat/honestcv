@@ -126,17 +126,17 @@ async function consumeFreeQuota(c: {
   return limit - used - 1
 }
 
-/** Refund one free-AI-quota unit (used when the upstream AI call fails) */
-async function refundFreeQuota(c: {
+/** Peek at the remaining free-AI quota without consuming; -1 when exhausted/invalid */
+async function peekFreeQuota(c: {
   req: { header: (name: string) => string | undefined }
   env: Env
-}): Promise<void> {
+}): Promise<number> {
   const fp = c.req.header('x-client-id')?.trim()
-  if (!fp || fp.length < 8 || fp.length > 128) return
-  const kvKey = quotaKvKey(fp, 'ai')
-  const used = Number((await c.env.KV.get(kvKey)) ?? '0')
-  if (used > 0)
-    await c.env.KV.put(kvKey, String(used - 1), { expirationTtl: 60 * 60 * 24 * 30 })
+  if (!fp || fp.length < 8 || fp.length > 128) return -1
+  const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
+  const used = Number((await c.env.KV.get(quotaKvKey(fp, 'ai'))) ?? '0')
+  if (used >= limit) return -1
+  return limit - used
 }
 
 const app = new Hono<{ Bindings: Env }>()
@@ -201,7 +201,7 @@ app.post('/api/ai/rewrite', async (c) => {
   const ent = await entitlementFromRequest(c)
   let freeRemaining: number | null = null
   if (!ent) {
-    const remaining = await consumeFreeQuota(c)
+    const remaining = await peekFreeQuota(c)
     if (remaining < 0) {
       return c.json(
         {
@@ -228,11 +228,8 @@ app.post('/api/ai/rewrite', async (c) => {
     0.5,
     wantVariants ? 2000 : 1200
   )
-  if (result.error) {
-    // Don't charge the free quota for a failed upstream call
-    if (freeRemaining !== null) await refundFreeQuota(c)
-    return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  }
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
   let texts: string[] | undefined
   if (wantVariants && result.text) {
     texts = result.text
@@ -241,6 +238,7 @@ app.post('/api/ai/rewrite', async (c) => {
       .filter(Boolean)
     if (texts.length < 2) texts = undefined
   }
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ text: texts?.[0] ?? result.text, texts, freeRemaining })
 })
 
@@ -265,7 +263,7 @@ app.post('/api/ai/tailor', async (c) => {
   const ent = await entitlementFromRequest(c)
   let freeRemaining: number | null = null
   if (!ent) {
-    const remaining = await consumeFreeQuota(c)
+    const remaining = await peekFreeQuota(c)
     if (remaining < 0) {
       return c.json(
         {
@@ -279,11 +277,8 @@ app.post('/api/ai/tailor', async (c) => {
   }
 
   const result = await callLlm(c.env, buildTailorMessages(items, jd, body.role ?? ''), 0.4, 3000)
-  if (result.error) {
-    // Don't charge the free quota for a failed upstream call
-    if (freeRemaining !== null) await refundFreeQuota(c)
-    return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  }
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
   const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
   let suggestions: { id: string; text: string }[] = []
   try {
@@ -301,9 +296,9 @@ app.post('/api/ai/tailor', async (c) => {
       )
     }
   } catch {
-    if (freeRemaining !== null) await refundFreeQuota(c)
     return c.json({ error: 'The AI returned an unexpected format — please try again.' }, 502)
   }
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ suggestions, freeRemaining })
 })
 
@@ -321,7 +316,7 @@ app.post('/api/ai/cover-letter', async (c) => {
         402
       )
     }
-    const remaining = await consumeFreeQuota(c)
+    const remaining = await peekFreeQuota(c)
     if (remaining < 0) {
       return c.json(
         {
@@ -346,11 +341,9 @@ app.post('/api/ai/cover-letter', async (c) => {
     buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? ''),
     0.6
   )
-  if (result.error) {
-    // Don't charge the free quota for a failed upstream call
-    if (freeRemaining !== null) await refundFreeQuota(c)
-    return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  }
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ text: result.text, freeRemaining })
 })
 
@@ -368,7 +361,7 @@ app.post('/api/ai/interview-brief', async (c) => {
         402
       )
     }
-    const remaining = await consumeFreeQuota(c)
+    const remaining = await peekFreeQuota(c)
     if (remaining < 0) {
       return c.json(
         {
@@ -393,11 +386,9 @@ app.post('/api/ai/interview-brief', async (c) => {
     buildInterviewBriefMessages(resumeText, jd, body.role ?? ''),
     0.5
   )
-  if (result.error) {
-    // Don't charge the free quota for a failed upstream call
-    if (freeRemaining !== null) await refundFreeQuota(c)
-    return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  }
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ text: result.text, freeRemaining })
 })
 
