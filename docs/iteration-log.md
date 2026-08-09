@@ -2559,3 +2559,19 @@ path, 375px + axe all green). Its three P2 polish items fixed:
 Verified on production: failed rewrite returns the new copy, quota stays 12.
 Cover-letter success smoke still pending on the relay outage (api.aicdks.com
 503/429 — boss-side).
+
+## Iteration I8 (2026-08-05)
+
+Competitor-pattern gap: every major competitor (Zety/Resume.io/Enhancv) has a
+large role-based "resume examples" library — a top pSEO category we lacked.
+
+- New `/examples/` hub + 8 role pages (software engineer, registered nurse,
+  marketing manager, data analyst, project manager, customer service, sales
+  representative, teacher). Each renders a full fictional-but-realistic
+  example resume (summary, quantified bullets, skills, education) with an
+  explicit "fictional example — never copy claims you can't defend" note and
+  3 role-specific tips; Article + BreadcrumbList JSON-LD.
+- SPA footer links Resume examples; sitemap 77 → 86 URLs; llms.txt gains an
+  examples section; IndexNow submitted 86 URLs (HTTP 200).
+- Live verification: /examples/, /examples/software-engineer/,
+  /examples/teacher/ all 200.
