@@ -294,6 +294,13 @@ export default function AtsChecker() {
                     headings, dates and bullet points. Fancy layouts often fail here.
                   </li>
                   <li>
+                    <strong className="text-foreground">How it&apos;s combined</strong> —
+                    overall score = keyword match ×70% + structure ×30% (structure only when
+                    no job ad is pasted). It&apos;s a transparent rule-based check run in your
+                    browser — it mirrors what parsers scan for but can&apos;t predict a hiring
+                    decision.
+                  </li>
+                  <li>
                     <strong className="text-foreground">What to do</strong> — add the
                     missing keywords below <em>only where they&apos;re true of you</em>, keep
                     the layout simple, then re-check. Aim for 70+.
