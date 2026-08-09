@@ -1611,6 +1611,434 @@ ${items.map(({ href, label, blurb, thumb }) => `<li${thumb ? ' style="display:fl
 </html>`
 }
 
+// Role-based example resumes. All people and employers are fictional; every
+// bullet follows the honest formula (action + scope + real-looking result)
+// without invented certifications or degrees a reader could copy blindly.
+const EXAMPLES = [
+  {
+    slug: 'software-engineer',
+    role: 'Software Engineer',
+    description:
+      'A complete software engineer resume example: summary, quantified bullets, skills section and layout that pass ATS parsing — plus what to change for your own experience.',
+    person: {
+      name: 'Alex Rivera',
+      title: 'Software Engineer',
+      location: 'Austin, TX',
+      summary:
+        'Software engineer with 5 years building web services in TypeScript and Go. Led migration of a monolith to services handling 40M requests/day; care about tests, observability, and boring reliability.',
+      experience: [
+        {
+          role: 'Software Engineer II',
+          company: 'Brightpath Logistics',
+          dates: '2023 – Present',
+          bullets: [
+            'Split the shipment-tracking monolith into 6 Go services, cutting p95 latency from 900ms to 210ms',
+            'Introduced contract tests between services, reducing cross-team integration bugs by ~60% per release',
+            'Mentored 2 junior engineers through onboarding and their first production launches',
+          ],
+        },
+        {
+          role: 'Software Engineer',
+          company: 'Cardinal Apps',
+          dates: '2021 – 2023',
+          bullets: [
+            'Built the customer-facing order dashboard (React + TypeScript) used by 12k merchants daily',
+            'Cut CI pipeline time from 24 to 9 minutes by parallelizing test shards and caching dependencies',
+          ],
+        },
+      ],
+      skills: ['TypeScript', 'Go', 'React', 'PostgreSQL', 'Kubernetes', 'CI/CD', 'Observability'],
+      education: 'B.S. Computer Science — University of Texas at Austin, 2020',
+    },
+    tips: [
+      ['Lead with systems, not languages', 'Recruiters skim for scale and ownership signals: requests/day, latency numbers, services owned. Languages belong in the skills block; the bullets should prove you shipped things that mattered.'],
+      ['Quantify honestly', 'Use real numbers from dashboards you actually watched (latency, error rates, build times). If you don\u2019t have a number, describe the before/after state instead of inventing one.'],
+      ['Match the JD\u2019s stack keywords', 'ATS keyword matching is literal: if the posting says "Kubernetes" and your resume says "k8s", spell it out. Paste the JD into the free ATS checker to see exactly what\u2019s missing.'],
+    ],
+  },
+  {
+    slug: 'registered-nurse',
+    role: 'Registered Nurse',
+    description:
+      'A registered nurse resume example with unit scope, patient-load numbers and licensure placement that ATS parsers read correctly — and how to adapt it to your specialty.',
+    person: {
+      name: 'Maya Chen',
+      title: 'Registered Nurse, BSN',
+      location: 'Portland, OR',
+      summary:
+        'Med-surg RN with 4 years of acute-care experience across 30-bed units. Preceptor for new-grad nurses; consistent on-time charting and zero medication errors across the last 3 audit cycles.',
+      experience: [
+        {
+          role: 'Registered Nurse — Med-Surg',
+          company: 'Riverbend Medical Center',
+          dates: '2022 – Present',
+          bullets: [
+            'Manage care for 5–6 acute patients per shift on a 30-bed unit, coordinating with hospitalists and PT/OT',
+            'Precepted 7 new-graduate nurses through 12-week orientations; all passed competency sign-off on schedule',
+            'Led the unit\u2019s fall-prevention huddle pilot, contributing to a 25% drop in falls over two quarters',
+          ],
+        },
+        {
+          role: 'Registered Nurse',
+          company: 'Cascade Community Hospital',
+          dates: '2020 – 2022',
+          bullets: [
+            'Provided post-operative care for orthopedic and general-surgery patients on a 24-bed unit',
+            'Recognized twice by patient-experience surveys for discharge-education clarity',
+          ],
+        },
+      ],
+      skills: ['Acute patient care', 'Epic EHR charting', 'IV therapy', 'Patient education', 'Preceptorship', 'BLS/ACLS'],
+      education: 'BSN — Oregon Health & Science University, 2020 · RN License #: available on request',
+    },
+    tips: [
+      ['Put licensure where parsers find it', 'List RN license state and certifications (BLS, ACLS) in a clearly labeled section — ATS filters for them, and recruiters check them first. Numbers can be "available on request".'],
+      ['Show patient load and unit size', '"Managed 5–6 patients on a 30-bed med-surg unit" tells a nurse manager your acuity comfort zone instantly. It\u2019s the nursing equivalent of engineering scale numbers.'],
+      ['Name the EHR', 'Epic, Cerner, or Meditech experience is a hard keyword in most postings — say which one you charted in.'],
+    ],
+  },
+  {
+    slug: 'marketing-manager',
+    role: 'Marketing Manager',
+    description:
+      'A marketing manager resume example with channel-level results, budget scope and team leadership — structured so ATS parsers and skimming CMOs both get it.',
+    person: {
+      name: 'Jordan Okafor',
+      title: 'Marketing Manager',
+      location: 'Chicago, IL',
+      summary:
+        'Marketing manager with 6 years across demand gen and lifecycle. Own a $1.2M annual budget and a team of 3; grew qualified pipeline 45% year-over-year while cutting cost per MQL by a third.',
+      experience: [
+        {
+          role: 'Marketing Manager',
+          company: 'Halberd Software',
+          dates: '2022 – Present',
+          bullets: [
+            'Own demand generation across paid search, LinkedIn and webinars on a $1.2M budget; pipeline up 45% YoY',
+            'Rebuilt the nurture program (14 emails \u2192 6 behavior-triggered tracks), lifting MQL\u2192SQL conversion from 8% to 13%',
+            'Manage and develop a team of 3 (content, paid, ops); two internal promotions in two years',
+          ],
+        },
+        {
+          role: 'Digital Marketing Specialist',
+          company: 'Northgate Retail Group',
+          dates: '2019 – 2022',
+          bullets: [
+            'Ran paid social for 40 store locations; cut cost per store visit 28% via geo-segmented creative testing',
+            'Launched the loyalty-email program that reached 120k subscribers with a 38% average open rate',
+          ],
+        },
+      ],
+      skills: ['Demand generation', 'Paid search & social', 'Lifecycle/email marketing', 'HubSpot', 'GA4', 'Budget management', 'Team leadership'],
+      education: 'B.A. Communications — DePaul University, 2019',
+    },
+    tips: [
+      ['Anchor every bullet to a funnel metric', 'Pipeline, MQLs, conversion rates, CAC — marketing leaders hire people who talk in the same numbers they report to the board. Vanity metrics (impressions alone) read as junior.'],
+      ['State budget and team size', 'Scope is the fastest seniority signal: "$1.2M budget, team of 3" places you precisely without a single adjective.'],
+      ['Mirror the JD\u2019s channel language', 'If the posting says "ABM" and you\u2019ve done account-based campaigns, use their term. Run the JD through the ATS checker to catch vocabulary gaps.'],
+    ],
+  },
+  {
+    slug: 'data-analyst',
+    role: 'Data Analyst',
+    description:
+      'A data analyst resume example showing SQL/BI impact bullets, stakeholder scope and a clean skills block — with advice for career-switchers into analytics.',
+    person: {
+      name: 'Priya Natarajan',
+      title: 'Data Analyst',
+      location: 'Atlanta, GA',
+      summary:
+        'Data analyst with 3 years turning messy operational data into decisions. Built the executive KPI layer used in weekly leadership reviews; strongest in SQL, dbt and Looker.',
+      experience: [
+        {
+          role: 'Data Analyst',
+          company: 'Meridian Health Partners',
+          dates: '2023 – Present',
+          bullets: [
+            'Built and maintain 40+ dbt models powering the KPI dashboard used in weekly executive reviews',
+            'Identified a claims-coding gap worth $380k/year in missed reimbursements; fix adopted within one quarter',
+            'Cut ad-hoc reporting requests 50% by shipping self-serve Looker explores for operations teams',
+          ],
+        },
+        {
+          role: 'Operations Analyst',
+          company: 'Southline Freight',
+          dates: '2021 – 2023',
+          bullets: [
+            'Automated the daily dispatch report (Python + SQL), saving the ops team ~8 hours per week',
+            'Analyzed route profitability across 200 lanes; recommendations lifted margin 4 points on the worst decile',
+          ],
+        },
+      ],
+      skills: ['SQL', 'dbt', 'Looker', 'Python (pandas)', 'Data modeling', 'Stakeholder reporting', 'A/B test analysis'],
+      education: 'B.S. Industrial Engineering — Georgia Tech, 2021',
+    },
+    tips: [
+      ['Show the decision, not just the dashboard', 'The strongest analyst bullets end with what changed: money recovered, hours saved, a call leadership made. A dashboard nobody acted on isn\u2019t a result.'],
+      ['Name your exact stack', 'SQL flavor, BI tool, transformation layer — postings filter on these literally. "Looker" and "Tableau" are different keywords to an ATS even if the skills transfer.'],
+      ['Career-switchers: mine your old role for analysis', 'An ops or finance background full of spreadsheet decisions is analytics experience — reframe those bullets around data, method and outcome.'],
+    ],
+  },
+  {
+    slug: 'project-manager',
+    role: 'Project Manager',
+    description:
+      'A project manager resume example with delivery metrics, budget/stakeholder scope and certification placement that survives ATS parsing.',
+    person: {
+      name: 'Sam Whitfield',
+      title: 'Project Manager, PMP',
+      location: 'Denver, CO',
+      summary:
+        'Project manager with 7 years delivering software and infrastructure projects up to $4M. 90% on-time delivery across the last 12 projects; comfortable running hybrid agile/waterfall with distributed teams.',
+      experience: [
+        {
+          role: 'Senior Project Manager',
+          company: 'Silverpeak Systems',
+          dates: '2022 – Present',
+          bullets: [
+            'Delivered a $4M warehouse-management rollout across 3 sites, 2 weeks early and 5% under budget',
+            'Run a portfolio of 4 concurrent projects with 25+ contributors across engineering, vendor and client teams',
+            'Introduced risk-burndown reviews that cut late-stage surprises: zero red-status escalations in 18 months',
+          ],
+        },
+        {
+          role: 'Project Manager',
+          company: 'Bluestem Consulting',
+          dates: '2018 – 2022',
+          bullets: [
+            'Managed 15 client implementations end-to-end, averaging 92% on-time milestone completion',
+            'Standardized the kickoff-to-handoff playbook adopted by all 6 PMs in the practice',
+          ],
+        },
+      ],
+      skills: ['Project delivery', 'Agile & waterfall', 'Budget management', 'Risk management', 'Jira / MS Project', 'Stakeholder communication', 'PMP'],
+      education: 'B.S. Business Administration — University of Colorado Boulder, 2017 · PMP (PMI), 2020',
+    },
+    tips: [
+      ['Lead with delivery statistics', 'On-time percentage, budget variance, project value — PMs are hired on track record, and these three numbers are your track record in one line.'],
+      ['Certifications: title line AND education block', 'Put "PMP" after your name at the top (recruiters skim) and in a credentials line (ATS filters). Same for CSM, PRINCE2 or SAFe.'],
+      ['Describe the mess you managed', 'Sites, vendors, distributed contributors — complexity scope separates a coordinator from a senior PM better than any responsibility list.'],
+    ],
+  },
+  {
+    slug: 'customer-service',
+    role: 'Customer Service Representative',
+    description:
+      'A customer service resume example with CSAT numbers, volume handled and promotion evidence — plus how to step it toward team-lead roles.',
+    person: {
+      name: 'Dana Alvarez',
+      title: 'Customer Service Representative',
+      location: 'Phoenix, AZ',
+      summary:
+        'Customer service rep with 4 years across phone, chat and email support. Sustain 96% CSAT on ~60 tickets/day; trusted with escalations and new-hire mentoring.',
+      experience: [
+        {
+          role: 'Senior Customer Service Representative',
+          company: 'Sunbelt Home Warranty',
+          dates: '2023 – Present',
+          bullets: [
+            'Resolve ~60 phone and chat tickets daily with 96% CSAT, 15 points above team average on escalations',
+            'Handle tier-2 billing escalations; recovered 120+ at-risk cancellations in the last year',
+            'Mentor 4 new hires per quarter through their first month of live tickets',
+          ],
+        },
+        {
+          role: 'Customer Service Representative',
+          company: 'Cactus Wireless',
+          dates: '2021 – 2023',
+          bullets: [
+            'Answered 70+ calls/day in a high-volume retail-support queue, maintaining 93% CSAT',
+            'Promoted to the escalation desk after 9 months — fastest on a team of 30',
+          ],
+        },
+      ],
+      skills: ['Phone / chat / email support', 'De-escalation', 'Zendesk', 'Billing systems', 'CSAT & AHT metrics', 'New-hire mentoring'],
+      education: 'A.A. Communication — Phoenix College, 2021',
+    },
+    tips: [
+      ['Metrics exist — use them', 'Support is one of the most-measured jobs there is: CSAT, tickets/day, AHT, QA scores. Pull your real numbers from the dashboard your manager already reads.'],
+      ['Show trust signals', 'Escalation-desk assignments, mentoring, retention saves — these prove you\u2019re the rep managers rely on, which is exactly what the next employer wants.'],
+      ['Name the ticketing system', 'Zendesk, Salesforce Service Cloud, Intercom — it\u2019s a keyword filter and a training-cost signal.'],
+    ],
+  },
+  {
+    slug: 'sales-representative',
+    role: 'Sales Representative',
+    description:
+      'A sales representative resume example with quota attainment, deal size and pipeline numbers — the three figures every sales manager scans for first.',
+    person: {
+      name: 'Marcus Bell',
+      title: 'Sales Representative',
+      location: 'Nashville, TN',
+      summary:
+        'B2B sales rep with 5 years in SaaS and business services. 112% average quota attainment over the last 8 quarters; strongest at outbound prospecting and multi-stakeholder deals.',
+      experience: [
+        {
+          role: 'Account Executive',
+          company: 'Cumberland Software',
+          dates: '2022 – Present',
+          bullets: [
+            'Attained 112% of quota on average across 8 quarters ($850k annual target, mid-market SaaS)',
+            'Closed 41 new logos including the region\u2019s 2 largest deals of 2025 ($95k and $78k ACV)',
+            'Source 60% of own pipeline via outbound; booked-meeting rate consistently top-2 on a 12-rep team',
+          ],
+        },
+        {
+          role: 'Sales Development Representative',
+          company: 'Riverline Payroll',
+          dates: '2020 – 2022',
+          bullets: [
+            'Booked 25+ qualified meetings monthly, 130% of SDR target; promoted to AE in 18 months',
+            'Rebuilt the outbound email sequences, doubling reply rate to 9% team-wide',
+          ],
+        },
+      ],
+      skills: ['Outbound prospecting', 'Discovery & demos', 'Negotiation', 'Salesforce', 'Outreach.io', 'Pipeline management', 'Mid-market SaaS'],
+      education: 'B.B.A. Marketing — Middle Tennessee State University, 2020',
+    },
+    tips: [
+      ['Quota attainment first', 'Percentage of quota over multiple quarters is the single number sales managers screen on. Put it in the summary and repeat it in the bullets with the target size for context.'],
+      ['Deal shape matters', 'ACV, sales cycle, land vs. expand, segment — a rep who closed $80k mid-market deals is a different hire than one closing $2k self-serve. Be precise about yours.'],
+      ['Honesty is checkable', 'Sales claims get verified in backchannel and W-2 conversations. Numbers you can defend in a live deal review are the only ones worth printing.'],
+    ],
+  },
+  {
+    slug: 'teacher',
+    role: 'Teacher',
+    description:
+      'A teacher resume example with class-size scope, measurable learning outcomes and certification placement — adaptable across grade levels and subjects.',
+    person: {
+      name: 'Rachel Nguyen',
+      title: 'High School English Teacher',
+      location: 'Sacramento, CA',
+      summary:
+        'English teacher with 6 years across grades 9–12, including AP Literature. Raised state ELA proficiency 14 points in two years at a Title I school; department tech lead for curriculum tools.',
+      experience: [
+        {
+          role: 'English Teacher (Grades 9–12)',
+          company: 'Del Rio High School',
+          dates: '2021 – Present',
+          bullets: [
+            'Teach 5 sections (~150 students) including AP Literature; AP pass rate rose from 61% to 74% in three years',
+            'Co-led the writing-across-curriculum initiative credited with a 14-point ELA proficiency gain schoolwide',
+            'Serve as department tech lead: trained 11 teachers on the district\u2019s new curriculum platform',
+          ],
+        },
+        {
+          role: 'English Teacher (Grade 9)',
+          company: 'Foothill Middle College',
+          dates: '2019 – 2021',
+          bullets: [
+            'Designed the freshman composition curriculum adopted across all 6 sections',
+            'Ran the after-school writing lab serving 40+ students weekly',
+          ],
+        },
+      ],
+      skills: ['Curriculum design', 'AP Literature', 'Differentiated instruction', 'IEP/504 accommodations', 'Classroom management', 'Ed-tech integration'],
+      education: 'M.A. Education — Sacramento State, 2019 · CA Single Subject Credential (English)',
+    },
+    tips: [
+      ['Outcomes beat duties', 'Every teacher "develops lesson plans" — few can show a proficiency gain, AP pass-rate change, or an adopted curriculum. Lead with the measurable ones you genuinely influenced.'],
+      ['Credential placement', 'State credential and subject authorization go in a labeled line ATS software can parse — districts filter on them before a human reads anything.'],
+      ['Show scope', 'Sections taught, student count, grade span, IEP load — scope numbers let a principal picture you in their master schedule immediately.'],
+    ],
+  },
+]
+
+function examplePage(p) {
+  const canonical = `${SITE}/examples/${p.slug}/`
+  const per = p.person
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: `${p.role} resume example`,
+    description: p.description,
+    url: canonical,
+    mainEntityOfPage: canonical,
+    dateModified: new Date().toISOString().slice(0, 10),
+    author: { '@type': 'Organization', name: 'HonestCV', url: SITE },
+    publisher: { '@type': 'Organization', name: 'HonestCV', url: SITE },
+  }
+  const ei = EXAMPLES.findIndex((e) => e.slug === p.slug)
+  const related = [1, 2, 3]
+    .map((d) => EXAMPLES[(ei + d) % EXAMPLES.length])
+    .map((e) => ({ path: `/examples/${e.slug}/`, title: `${e.role} resume example` }))
+    .concat([{ path: '/guides/', title: 'All resume guides' }])
+  const doc = `
+<div class="exdoc" aria-label="Example resume">
+<p class="exname">${esc(per.name)}</p>
+<p class="exmeta">${esc(per.title)} · ${esc(per.location)}</p>
+<h3>Summary</h3>
+<p>${esc(per.summary)}</p>
+<h3>Experience</h3>
+${per.experience
+  .map(
+    (x) => `<p class="exrole">${esc(x.role)} — ${esc(x.company)} <span>${esc(x.dates)}</span></p>
+<ul>${x.bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>`
+  )
+  .join('\n')}
+<h3>Skills</h3>
+<p>${per.skills.map(esc).join(' · ')}</p>
+<h3>Education</h3>
+<p>${esc(per.education)}</p>
+</div>`
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>${esc(p.role)} Resume Example (2026) — HonestCV</title>
+<meta name="description" content="${esc(p.description)}" />
+<link rel="canonical" href="${canonical}" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="HonestCV" />
+<meta property="og:title" content="${esc(p.role)} Resume Example (2026) — HonestCV" />
+<meta property="og:description" content="${esc(p.description)}" />
+<meta property="og:url" content="${canonical}" />
+<meta property="og:image" content="${SITE}/og2.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
+<script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Resume examples', path: '/examples/' }, { name: `${p.role} resume example`, path: `/examples/${p.slug}` }]))}</script>
+<style>${CSS}
+.exdoc{border:1px solid var(--border);border-radius:10px;padding:1.5rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);margin:1.5rem 0}
+.exdoc .exname{font-size:1.3rem;font-weight:700;margin:0}
+.exdoc .exmeta{color:var(--muted);margin:.15rem 0 1rem;font-size:.9rem}
+.exdoc h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--primary);border-bottom:1px solid var(--border);padding-bottom:.25rem;margin:1.25rem 0 .5rem}
+.exdoc .exrole{font-weight:600;margin:.75rem 0 .25rem}
+.exdoc .exrole span{float:right;color:var(--muted);font-weight:400;font-size:.85rem}
+.exdoc ul{margin:.25rem 0 .5rem 1.1rem;padding:0}
+.exdoc li{margin:.25rem 0}
+</style>
+${BEACON}${FP_BEACON}
+</head>
+<body>
+<header class="site"><div class="in">
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="btn" href="/builder">Build my resume free</a>
+</div></header>
+<main>
+<h1>${esc(p.role)} resume example</h1>
+<p class="lede">${esc(p.description)}</p>
+${doc}
+<p style="color:var(--muted);font-size:.8rem">Fictional example for illustration — names, employers and numbers are invented, but every bullet follows the honest formula: action + scope + verifiable result. Never copy claims you can't defend in an interview.</p>
+${p.tips.map(([h, t]) => `<h2 style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
+<div class="cta">
+<p>${FREE_MODE ? 'Build yours in the same clean, ATS-safe layout — HonestCV is in beta with a full free trial: 22 templates, AI rewrites of your real experience, ATS match score and PDF/DOCX downloads.' : 'Build yours in the same clean, ATS-safe layout — free to try, one-time $9.99 download, no subscription.'}</p>
+<a class="btn" href="/builder">Start my resume</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
+</div>
+<div class="related">
+<h2>More examples</h2>
+<ul>
+${related.map((r) => `<li><a href="${r.path}">${esc(r.title)}</a></li>`).join('\n')}
+</ul>
+</div>
+</main>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+</body>
+</html>`
+}
+
 const HUBS = [
   {
     pathname: '/vs/',
@@ -1638,6 +2066,20 @@ const HUBS = [
       href: `${g.path}/`,
       label: g.title.split(' — ')[0].split(' (')[0],
       blurb: `${g.description.split('. ')[0].replace(/\.$/, '')}.`,
+    })),
+  },
+  {
+    pathname: '/examples/',
+    title: 'Resume Examples by Role (2026) — HonestCV',
+    description:
+      'Complete, honest resume examples by role: software engineer, nurse, marketing manager, data analyst, project manager, customer service, sales, teacher — with tips to adapt each one.',
+    h1: 'Resume examples by role',
+    intro:
+      'Full example resumes — summary, quantified bullets, skills, education — written the way we coach: every claim scoped, measurable and defensible in an interview. Pick your role, then build yours in the same ATS-safe layout.',
+    items: EXAMPLES.map((e) => ({
+      href: `/examples/${e.slug}/`,
+      label: `${e.role} resume example`,
+      blurb: `${e.description.split(' — ')[0].replace(/\.$/, '')}.`,
     })),
   },
   {
@@ -1671,6 +2113,13 @@ for (const p of GUIDES) {
   console.log(`built ${p.path}/index.html`)
 }
 
+for (const p of EXAMPLES) {
+  const dir = path.join(OUT_DIR, `examples/${p.slug}`)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(path.join(dir, 'index.html'), examplePage(p))
+  console.log(`built /examples/${p.slug}/index.html`)
+}
+
 for (const p of TEMPLATE_PAGES) {
   const dir = path.join(OUT_DIR, p.path.slice(1))
   mkdirSync(dir, { recursive: true })
@@ -1685,6 +2134,7 @@ const urls = [
   ...PAGES.map((p) => `${p.path}/`),
   ...HUBS.map((h) => h.pathname),
   ...GUIDES.map((p) => `${p.path}/`),
+  ...EXAMPLES.map((e) => `/examples/${e.slug}/`),
   ...TEMPLATE_PAGES.map((p) => `${p.path}/`),
   ...LEGAL_PAGES.map((p) => `${p.path}/`),
   '/about/',
@@ -1723,6 +2173,10 @@ ${PAGES.filter((p) => p.path.startsWith('/vs/'))
 ## Guides
 
 ${GUIDES.map((g) => `- [${g.title.split(' — ')[0].split(' (')[0]}](${SITE}${g.path}/): ${g.description}`).join('\n')}
+
+## Resume examples
+
+${EXAMPLES.map((e) => `- [${e.role} resume example](${SITE}/examples/${e.slug}/): ${e.description}`).join('\n')}
 
 ## Templates
 

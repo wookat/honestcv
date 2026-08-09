@@ -37,6 +37,7 @@ export function SiteFooter() {
           <Link className="hover:text-foreground underline" to="/ats-checker">Free ATS checker</Link>
           <a className="hover:text-foreground underline" href="/vs/zety">HonestCV vs Zety</a>
           <a className="hover:text-foreground underline" href="/guides/">Resume guides</a>
+          <a className="hover:text-foreground underline" href="/examples/">Resume examples</a>
           <a className="hover:text-foreground underline" href="/templates/">Resume templates</a>
           <a className="hover:text-foreground underline" href="/vs/livecareer">vs LiveCareer</a>
           <a className="hover:text-foreground underline" href="/resume-builder-one-time-payment">One-time payment resume builders</a>
