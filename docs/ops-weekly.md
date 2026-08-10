@@ -15,9 +15,9 @@ append a dated log entry at the bottom.
 Backlog candidates (shipped 2026-08-08: resume-for-teens,
 linkedin-vs-resume, resume-file-format, thank-you-email-after-interview):
 (shipped 2026-08-08: salary-expectations-in-interviews, resume-vs-portfolio,
-resume-summary-for-freshers, how-to-list-certifications)
+resume-summary-for-freshers, how-to-list-certifications; 2026-08-10:
+best-resume-fonts, two-column-resume-ats)
 - /guides/resume-for-part-time-jobs
-- /guides/two-column-resume-ats (myth-busting, links template gallery)
 - /templates/ additions if a new template ships
 - /vs/ pages only with directly verified evidence (no inferred pricing)
 

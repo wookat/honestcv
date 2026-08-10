@@ -575,6 +575,27 @@ const GUIDES = [
     ],
   },
   {
+    path: '/guides/two-column-resume-ats',
+    title: 'Are Two-Column Resumes ATS-Safe? What Actually Breaks Parsing (2026)',
+    description:
+      'Whether two-column resumes survive ATS parsing: how parsers read columns, what actually breaks (text boxes, tables, sidebars), the reading-order test, and when a single column wins.',
+    h1: 'Two-column resumes and the ATS: what actually breaks',
+    sections: [
+      ['The short answer: risky, and rarely worth it', 'Modern parsers handle many two-column layouts — but not all, and you can\u2019t see which ATS a company runs. A single column parses everywhere, reads faster for humans, and costs you nothing. The two-column upside is aesthetic; the downside is your skills section landing in the wrong job\u2019s field.'],
+      ['How parsers actually read a page', 'Parsers extract text in reading order — usually left-to-right, top-to-bottom across the whole page width. A well-built two-column PDF stores text in logical order and parses fine; a layout built from floating text boxes stores it in creation order, and the parser interleaves your sidebar with your work history.'],
+      ['What actually breaks: text boxes, tables, headers', 'The real offenders are the mechanisms design tools use to make columns: text boxes (extracted out of order or skipped), layout tables (cells read across rows, scrambling sections), and content placed in the document header/footer region (many parsers ignore it entirely — a classic spot to lose your phone number).'],
+      ['The reading-order test you can run yourself', 'Open your exported PDF, select all, copy, and paste into a plain-text editor. If sections appear complete and in a sensible order, a parser will see the same. If your skills interleave with job bullets or the sidebar lands mid-employment-history, the ATS sees that too.'],
+      ['Dates and titles in the wrong column', 'ATS parsers map text to fields: employer, title, start/end dates. Two-column layouts that put dates in a left rail separated from the role text break that pairing — the parser can\u2019t tell which date belongs to which job, and your experience timeline arrives scrambled or empty.'],
+      ['Skills sidebars: the most common casualty', 'The typical two-column pattern — skills, education and contact in a narrow sidebar — puts your keyword-densest content in the least reliably parsed region. If the sidebar is a text box, your keyword match score at real employers silently drops to near zero.'],
+      ['"But I applied with one and got the job"', 'Survivorship isn\u2019t evidence: many applications are read by humans first, some ATSs parse columns fine, and referrals bypass parsing entirely. The question isn\u2019t whether two-column ever works — it\u2019s whether the layout is worth a silent failure rate you can\u2019t measure.'],
+      ['When two columns are fine', 'Roles where the resume is reviewed by humans only (small companies, direct-email applications, design portfolios attached as PDF) and print contexts. If you know a human reads first, a clean two-column resume is a taste choice, not a risk.'],
+      ['The hybrid that keeps the look without the risk', 'Want visual structure without parser risk? Use full-width sections with a strong heading hierarchy, a horizontal skills line under the summary, and generous white space. Banded headings give the "designed" feel while keeping one text flow.'],
+      ['What recruiters think of two-column resumes', 'Mixed — some find them scannable, many find sidebars cramped at 9pt. What they agree on: they read top-to-bottom-left-to-right, so anything in a sidebar gets skimmed last or not at all. Your best evidence belongs in the main flow either way.'],
+      ['If you keep two columns, build them right', 'Use real column objects (not text boxes), keep all experience — titles, employers, dates, bullets — in one column, keep contact info out of the header/footer region, export to PDF, and run the copy-paste test before every send.'],
+      ['The single-column rule we build on', 'All 22 HonestCV templates are single-column real text by design — the one layout rule that removes ATS parsing risk entirely. The visual variety comes from typography, accent color and banded headings, not from layout mechanics that parsers trip on.'],
+    ],
+  },
+  {
     path: '/guides/best-resume-fonts',
     title: 'Best Resume Fonts, Sizes and Margins (2026) — What ATS and Recruiters Actually See',
     description:
@@ -3078,7 +3099,7 @@ ${guideLinks.map((r) => `<li><a href="${r.path}">${esc(r.title)}</a></li>`).join
 // Reader-intent grouping for the guides hub (34 flat links are unscannable).
 // Any guide missing here still renders, under "More resume guides".
 const GUIDE_GROUPS = [
-  ['Start here: how resumes get read', ['what-is-an-ats', 'ats-friendly-resume', 'best-resume-format', 'best-resume-fonts', 'resume-file-format', 'how-long-should-a-resume-be', 'resume-vs-cv']],
+  ['Start here: how resumes get read', ['what-is-an-ats', 'ats-friendly-resume', 'best-resume-format', 'best-resume-fonts', 'two-column-resume-ats', 'resume-file-format', 'how-long-should-a-resume-be', 'resume-vs-cv']],
   ['Writing the content', ['resume-summary-examples', 'resume-bullet-points', 'resume-action-verbs', 'resume-keywords', 'skills-for-resume', 'how-to-list-certifications', 'resume-objective-vs-summary']],
   ['Tailoring to a job', ['tailor-resume-to-job', 'remote-job-resume', 'multiple-positions-same-company']],
   ['Your situation', ['resume-with-no-experience', 'new-grad-resume', 'internship-resume', 'career-change-resume', 'employment-gap-resume', 'resume-for-teens', 'resume-summary-for-freshers', 'volunteer-work-on-resume']],
