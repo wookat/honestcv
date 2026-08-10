@@ -3168,3 +3168,15 @@ Data driver (first-party beacon, referrers, leads; last review I36):
   on-site pSEO inventory keeps compounding (112 URLs).
 
 Log-only round.
+
+## Iteration I49 (2026-08-05)
+
+Testing-harness hardening — encode the three scripted-QA pitfalls hit
+this cycle into the testing skill so future sessions don't repeat them:
+
+- QA flag must be set via addInitScript before any goto (unflagged
+  first-pageview beacons polluted analytics in I48's review).
+- /builder and /ats-checker are lazy-loaded: waitForSelector a form
+  control before interacting.
+- At 375px assert builder content via input values, not body text
+  (preview hidden behind the Edit|Preview switcher).
