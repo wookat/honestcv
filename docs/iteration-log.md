@@ -3228,3 +3228,20 @@ Live regression at 375px (QA-flagged via addInitScript, zero AI calls):
   new guide present in the "Start here" group.
 
 No defect found; log-only round.
+
+## Iteration I52 (2026-08-05) — non-PDF export smoke
+
+Production test driver: golden-path check of the four non-PDF export
+formats (PDF is smoked regularly; DOCX/TXT/MD/JSON less so). Clean
+QA-flagged profile, DevOps Engineer example loaded from the empty-state
+picker:
+
+- DOCX: real text — name and MTTR bullet present in document.xml.
+- TXT: correct plain-text layout (name — title / location / SUMMARY…).
+- MD: proper Markdown heading ("# Tomas Lindgren — DevOps Engineer").
+- Backup JSON: parses; contact.fullName round-trips.
+- Harness note: the "Final check before download" nudge intercepts
+  PDF/DOCX/TXT/MD but not Backup; the MD button is labeled "MD", not
+  "Markdown".
+
+No defect found; log-only round.
