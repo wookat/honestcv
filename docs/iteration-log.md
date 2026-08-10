@@ -2870,3 +2870,17 @@ Testing agent, recorded, production worker 6b8d2655 (clean QA profile),
 
 Testing pitfall recorded: clearing honestcv.resume via CDP is undone by
 any open builder tab's autosave — close extra tabs before re-clearing.
+
+## Iteration I29 (2026-08-05)
+
+Visual/consistency driver: /templates/ was the last flat hub (22
+thumbnail rows) after /guides/ (I20) and /examples/ (I27) were grouped.
+
+- Grouped the templates hub into 4 mutually exclusive style headings
+  mirroring the gallery filter chips: Banded headings (5), Serif (7),
+  Minimal (3), Modern sans (7). `groupedTemplateItems()` follows the
+  same validated pattern (throws on unknown slug, ungrouped templates
+  fall into "More templates").
+- Live: 4 group headings render, ItemList still 22 items. Edge
+  propagation took ~45s (first probe returned the old flat page).
+- Deployed version 3c7a1ee8-0ef4-4a57-87f1-b2c5efa2910c.

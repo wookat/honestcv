@@ -2684,6 +2684,37 @@ function groupedExampleItems() {
   return items
 }
 
+// Mutually exclusive style groups, mirroring the gallery filter chips
+// (banded wins over serif; minimal = no divider, no band, sans body).
+const TEMPLATE_GROUPS = [
+  ['Banded headings', ['horizon', 'metro', 'scholar', 'ink', 'ruby']],
+  ['Serif', ['classic', 'executive', 'elegant', 'ivy', 'corporate', 'atlas', 'quartz']],
+  ['Minimal', ['minimal', 'startup', 'coral']],
+  ['Modern sans', ['modern', 'compact', 'bold', 'engineer', 'slate', 'prairie', 'cobalt']],
+]
+
+function groupedTemplateItems() {
+  const item = (t, group) => ({
+    href: `${t.path}/`,
+    label: `${t.name} resume template`,
+    blurb: '',
+    thumb: templateThumbSvg(t.path.split('/').pop(), 72),
+    group,
+  })
+  const bySlug = new Map(TEMPLATE_PAGES.map((t) => [t.path.split('/').pop(), t]))
+  const items = []
+  for (const [group, slugs] of TEMPLATE_GROUPS) {
+    for (const slug of slugs) {
+      const t = bySlug.get(slug)
+      if (!t) throw new Error(`TEMPLATE_GROUPS references unknown template: ${slug}`)
+      bySlug.delete(slug)
+      items.push(item(t, group))
+    }
+  }
+  for (const t of bySlug.values()) items.push(item(t, 'More templates'))
+  return items
+}
+
 const HUBS = [
   {
     pathname: '/vs/',
@@ -2727,12 +2758,7 @@ const HUBS = [
     h1: 'ATS-friendly resume templates',
     intro:
       'Every HonestCV template follows one rule: strictly single-column real text, the layout ATS parsers read most reliably. Pick a look below — you can switch templates any time without retyping.',
-    items: TEMPLATE_PAGES.map((t) => ({
-      href: `${t.path}/`,
-      label: `${t.name} resume template`,
-      blurb: '',
-      thumb: templateThumbSvg(t.path.split('/').pop(), 72),
-    })),
+    items: groupedTemplateItems(),
   },
 ]
 
