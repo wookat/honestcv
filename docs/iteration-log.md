@@ -3059,3 +3059,15 @@ pSEO/content driver — fourth batch of role resume examples (20 → 25):
 - Live: all five new routes 200; sitemap 101 → 106; IndexNow 106 URLs
   → HTTP 200.
 - Deployed version ceeed309-6209-4e55-83d0-44439de1a879.
+
+## Iteration I41 (2026-08-05) — I40 production regression
+
+Live regression of the I40 batch on cv.zalize.com (clean profile,
+QA-flagged, zero AI calls):
+
+- /examples/ hub: 5 sector groups, 25 links, ItemList numberOfItems 25.
+- Builder picker: 5 optgroups in hub sector order (I31 fix holds), 25
+  role options; selecting Bartender loads Jack Moreau into the resume.
+- All five new example routes 200 (verified at deploy time in I40).
+
+No defect found; log-only round.
