@@ -2783,3 +2783,24 @@ Pricing recheck against the live pages (10-round cadence):
 - Jobscan returns 403 to non-browser requests; our /vs/jobscan text is
   already stamped as a firsthand August 2026 check, so it stands.
 - No comparison-page edits needed this round.
+
+## Iteration I24 (2026-08-05) — regression round
+
+Testing agent, recorded, production worker ad00a972 (main ee9d87e),
+0 AI calls:
+
+- I22 picker: clean profile shows all 15 roles; Accountant loads Elena
+  Vasquez with split dates, ATS 83, Modern template, no confirm.
+- I16 after the refactor: confirm text unchanged, Cancel keeps current
+  content, OK replaces, `?example` stripped, reload does not re-prompt.
+- I21: "How to write yours" links resolve; 375px date line wraps below
+  the title (no float overlap), scrollWidth 375.
+- I20: exactly 6 group headings, 34 unique guide links, all 200.
+- I19: photo guide renders 12 sections; TOC anchors jump.
+- I18: ItemList parses — /guides/ 34 items, /examples/ 15.
+- axe A/AA 0 violations on /guides/ and /builder; console clean apart
+  from the known cloudflareinsights block.
+
+Coverage caveat recorded: the picker only renders in the empty state, so
+its confirm-on-non-empty branch is exercised through the shared
+`applyExample()` deep-link path rather than the picker itself.
