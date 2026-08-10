@@ -2535,6 +2535,211 @@ const EXAMPLES = [
       ['Certifications go on top', 'ServSafe and state alcohol-service cards are legal requirements many postings filter on; list them with renewal years so the manager knows you can start tomorrow.'],
     ],
   },
+  {
+    slug: 'operations-manager',
+    role: 'Operations Manager',
+    description:
+      'An operations manager resume example with throughput, cost-per-unit and headcount scope — the P&L-adjacent numbers ops directors screen for before anything else.',
+    person: {
+      name: 'Denise Okafor',
+      title: 'Operations Manager',
+      location: 'Columbus, OH',
+      summary:
+        'Operations manager with 9 years across distribution and light manufacturing. Runs a 3-shift, 85-person site; cut cost per unit 11% in two years while holding 99.2% on-time shipment through a 30% volume increase.',
+      experience: [
+        {
+          role: 'Operations Manager',
+          company: 'Midwest Fulfillment Partners',
+          dates: '2022 – Present',
+          bullets: [
+            'Run a 140,000 sq ft site with 85 associates across 3 shifts; 99.2% on-time shipment through a 30% YoY volume increase',
+            'Cut cost per unit 11% over two years via slotting redesign, wave-picking rollout and overtime rebalancing',
+            'Reduced recordable incidents from 9 to 2 per year by rebuilding the safety-observation program with shift leads',
+          ],
+        },
+        {
+          role: 'Shift Supervisor → Assistant Operations Manager',
+          company: 'Buckeye Packaging Co.',
+          dates: '2017 – 2022',
+          bullets: [
+            'Promoted twice in five years; led a 28-person second shift to the plant\u2019s best scrap rate (1.8% vs 3.1% average)',
+            'Co-led a line-changeover kaizen that cut average changeover time from 45 to 18 minutes',
+          ],
+        },
+      ],
+      skills: ['P&L & cost-per-unit management', 'Multi-shift labor planning', 'Lean / kaizen facilitation', 'WMS & ERP (Manhattan, NetSuite)', 'OSHA compliance & safety programs', 'KPI dashboards & reporting'],
+      education: 'B.S. Business Administration — Ohio State University, 2016 · APICS CPIM, 2021',
+    },
+    tips: [
+      ['Lead with scope, then results', 'Site size, headcount, shifts and volume are the first filter — "85 associates across 3 shifts" places you instantly. Then prove it moved: cost per unit, OTS, incidents.'],
+      ['Cost numbers beat activity lists', '"Cut cost per unit 11%" outranks any paragraph about "overseeing daily operations". If you can\u2019t share absolute dollars, percentages against a named baseline still work.'],
+      ['Safety is a hiring criterion', 'Recordable-incident trends are board-level numbers in ops. A concrete reduction with the mechanism ("safety-observation program") reads as management, not luck.'],
+    ],
+  },
+  {
+    slug: 'mechanical-engineer',
+    role: 'Mechanical Engineer',
+    description:
+      'A mechanical engineer resume example with tolerance-critical design work, cost-down results and DFM collaboration — what engineering managers verify beyond the CAD keyword list.',
+    person: {
+      name: 'Priya Raghavan',
+      title: 'Mechanical Engineer',
+      location: 'Austin, TX',
+      summary:
+        'Mechanical engineer with 6 years in consumer-hardware enclosure and mechanism design. Shipped 4 products at 100k+ annual units; owns design from concept CAD through DFM, tooling release and first-article approval.',
+      experience: [
+        {
+          role: 'Mechanical Engineer II',
+          company: 'Halcyon Devices',
+          dates: '2022 – Present',
+          bullets: [
+            'Own enclosure and hinge design for a 150k-unit/yr smart display; passed 1m drop and 10k-cycle hinge testing on the first tooling shot',
+            'Cut part cost 18% on the flagship product via part consolidation (11 parts to 6) and a resin change validated with mold-flow analysis',
+            'Run weekly DFM reviews with two contract manufacturers; reduced open tooling issues at T1 from 34 to 9 across two programs',
+          ],
+        },
+        {
+          role: 'Mechanical Design Engineer',
+          company: 'Kinetic Labs',
+          dates: '2019 – 2022',
+          bullets: [
+            'Designed sheet-metal and machined structures for lab-automation instruments in SolidWorks with GD&T to ±0.05 mm where required',
+            'Built and maintained tolerance stack-ups that cut first-article rejections by half year over year',
+          ],
+        },
+      ],
+      skills: ['SolidWorks & Creo (surfacing, sheet metal)', 'GD&T & tolerance stack-ups', 'DFM/DFA & tooling release', 'Injection molding & sheet metal', 'FEA & mold-flow analysis', 'Prototyping (SLA/SLS, CNC)'],
+      education: 'B.S. Mechanical Engineering — University of Texas at Austin, 2019 · EIT (Texas), 2019',
+    },
+    tips: [
+      ['Shipped products are the proof', 'Units per year, programs taken from concept to production, first-shot pass rates — hardware managers hire people who have released tooling, and these numbers say you have.'],
+      ['Name tolerances and processes', '"GD&T to ±0.05 mm" and "11 parts to 6" are checkable engineering claims; "proficient in SolidWorks" is not. Tie every tool to a thing it produced.'],
+      ['Cost-downs are engineering wins', 'An 18% part-cost reduction with the mechanism (consolidation, resin change, mold-flow validation) shows judgment — the trait interviews probe hardest.'],
+    ],
+  },
+  {
+    slug: 'dental-assistant',
+    role: 'Dental Assistant',
+    description:
+      'A dental assistant resume example with radiology certification, chairside volume and sterilization compliance — the checkable credentials dental offices screen for first.',
+    person: {
+      name: 'Marisol Vega',
+      title: 'Registered Dental Assistant',
+      location: 'San Antonio, TX',
+      summary:
+        'RDA with 5 years chairside across general and pediatric practices. Supports 2 doctors at 10-14 patients a day, holds Texas RDA and nitrous monitoring certifications, and passed 3 consecutive OSHA/HIPAA audits as sterilization lead.',
+      experience: [
+        {
+          role: 'Registered Dental Assistant',
+          company: 'Alamo Family Dental',
+          dates: '2022 – Present',
+          bullets: [
+            'Chairside for 2 doctors at 10-14 patients daily: four-handed dentistry, digital X-rays (Dexis), impressions and provisional crowns',
+            'Sterilization lead: passed 3 consecutive OSHA/HIPAA audits with zero findings; retrained 4 assistants on instrument-processing flow',
+            'Cut average room-turnover time from 9 to 6 minutes, adding 2 bookable slots a day per operatory',
+          ],
+        },
+        {
+          role: 'Dental Assistant',
+          company: 'Little Smiles Pediatric Dentistry',
+          dates: '2020 – 2022',
+          bullets: [
+            'Assisted pediatric procedures including sealants and stainless-steel crowns for a 30-patient/day practice',
+            'Maintained 98% chart-note same-day completion in Dentrix across a 4-assistant team',
+          ],
+        },
+      ],
+      skills: ['Four-handed chairside assisting', 'Digital radiography (Dexis, RVG)', 'Sterilization & OSHA compliance', 'Dentrix & Eaglesoft charting', 'Impressions & provisional crowns', 'Nitrous oxide monitoring (certified)'],
+      education: 'RDA — Texas State Board of Dental Examiners, 2020 · Dental Assisting Certificate, San Antonio College, 2020 · Nitrous Oxide Monitoring Certification, 2021',
+    },
+    tips: [
+      ['Certifications are the first filter', 'State registration, radiology and nitrous certifications with years — offices verify these against the state board before calling, so make them findable in seconds.'],
+      ['Show volume and the software', 'Patients per day, doctors supported, and the exact systems (Dentrix, Dexis) tell an office manager you can slot into their schedule without a training month.'],
+      ['Compliance wins are quantifiable', 'Clean audit streaks and turnover-time improvements are rare, concrete numbers on assistant resumes — they signal you run the back office, not just sit in it.'],
+    ],
+  },
+  {
+    slug: 'security-guard',
+    role: 'Security Guard',
+    description:
+      'A security guard resume example with license class, incident-response record and post types — the verifiable credentials and calm-under-pressure evidence sites actually hire on.',
+    person: {
+      name: 'Andre Whitfield',
+      title: 'Security Officer',
+      location: 'Atlanta, GA',
+      summary:
+        'Licensed security officer with 6 years across corporate lobbies, distribution yards and event posts. Clean incident-report record over 400+ written reports, de-escalation trained, and trusted with new-guard site onboarding.',
+      experience: [
+        {
+          role: 'Security Officer',
+          company: 'Sentinel Protective Services',
+          dates: '2021 – Present',
+          bullets: [
+            'Anchor officer for a 22-story corporate tower: access control for 2,000+ daily entries, visitor management and camera monitoring across 60+ feeds',
+            'Wrote 400+ incident reports with zero returned for correction; reports used twice as primary documentation in successful insurance claims',
+            'De-escalated 30+ confrontations without physical intervention; completed employer\u2019s verbal de-escalation and first-aid/CPR certifications',
+          ],
+        },
+        {
+          role: 'Security Guard',
+          company: 'Peach State Event Security',
+          dates: '2019 – 2021',
+          bullets: [
+            'Worked crowd and gate posts for 100+ events up to 15,000 attendees; certified for wand and bag-check screening',
+            'Selected to train 12 new guards on post orders, radio protocol and report writing',
+          ],
+        },
+      ],
+      skills: ['Access control & visitor management', 'CCTV monitoring (60+ camera sites)', 'Incident reporting & documentation', 'Verbal de-escalation (certified)', 'First aid / CPR / AED (current)', 'Radio & emergency protocols'],
+      education: 'Georgia Security Guard License (unarmed), renewed 2025 · First Aid/CPR/AED — American Red Cross, current · De-escalation Certification, 2022',
+    },
+    tips: [
+      ['License class and state, up top', 'Armed vs unarmed, state and renewal year are the first three things a security employer checks — put them in the credentials line, not buried in a bullet.'],
+      ['Reports are your work product', 'A clean record across hundreds of incident reports — especially reports later used in claims — proves reliability better than any adjective about being "detail-oriented".'],
+      ['De-escalation beats force', '"30+ confrontations resolved without physical intervention" is the number modern sites hire on; pair it with the certification so it reads as training, not luck.'],
+    ],
+  },
+  {
+    slug: 'bartender',
+    role: 'Bartender',
+    description:
+      'A bartender resume example with drinks-per-hour volume, check averages and inventory results — turning bar work into the sales and cost numbers bar managers actually compare.',
+    person: {
+      name: 'Jack Moreau',
+      title: 'Bartender',
+      location: 'New Orleans, LA',
+      summary:
+        'Bartender with 7 years from high-volume sports bars to a craft cocktail program. Runs a 3-deep Friday bar at 120+ drinks an hour, built a seasonal menu that lifted cocktail sales 22%, and cut pour cost 2 points as inventory lead.',
+      experience: [
+        {
+          role: 'Lead Bartender',
+          company: 'The Cane & Copper',
+          dates: '2022 – Present',
+          bullets: [
+            'Run service for a 16-seat craft bar plus service well at 120+ drinks/hour on peak nights with a $62 average check',
+            'Co-authored two seasonal cocktail menus; signature list lifted cocktail share of sales 22% year over year',
+            'Inventory lead: weekly counts and par rebuilds cut pour cost from 24% to 22% while sales grew',
+          ],
+        },
+        {
+          role: 'Bartender',
+          company: 'Crescent City Taphouse',
+          dates: '2018 – 2022',
+          bullets: [
+            'Poured 3-deep game-day crowds of 300+ guests with two bartenders; zero register variance across 4 years',
+            'Trained 8 new bartenders on builds, POS and responsible-service protocol',
+          ],
+        },
+      ],
+      skills: ['High-volume service (120+ drinks/hr)', 'Classic & craft cocktail builds', 'Inventory & pour-cost management', 'POS (Toast, Micros)', 'Responsible alcohol service (certified)', 'Menu development & costing'],
+      education: 'Louisiana Responsible Vendor Permit, current · BarSmarts Advanced, 2021',
+    },
+    tips: [
+      ['Volume and check average first', 'Drinks per hour, seats, and check average are how bar managers size you up — a "3-deep, 120 drinks/hour" bartender is a different hire than a slow-lounge one, so say which you are.'],
+      ['Pour cost is the manager\u2019s number', 'If you\u2019ve touched inventory, show the before/after pour cost. Two points on a busy bar is real money and instantly separates you from pure service candidates.'],
+      ['Keep the permit current and visible', 'State responsible-service permits are a legal box the manager must tick — list yours with "current" so scheduling you is frictionless.'],
+    ],
+  },
 ]
 
 function examplePage(p) {
@@ -2677,11 +2882,11 @@ function groupedGuideItems() {
 }
 
 const EXAMPLE_GROUPS = [
-  ['Tech & data', ['software-engineer', 'data-analyst', 'product-manager']],
-  ['Business & finance', ['marketing-manager', 'project-manager', 'accountant', 'financial-analyst', 'human-resources', 'sales-representative']],
-  ['Healthcare & education', ['registered-nurse', 'medical-assistant', 'teacher']],
+  ['Tech & data', ['software-engineer', 'data-analyst', 'product-manager', 'mechanical-engineer']],
+  ['Business & finance', ['marketing-manager', 'project-manager', 'operations-manager', 'accountant', 'financial-analyst', 'human-resources', 'sales-representative']],
+  ['Healthcare & education', ['registered-nurse', 'medical-assistant', 'dental-assistant', 'teacher']],
   ['Trades & transport', ['electrician', 'truck-driver', 'warehouse-worker']],
-  ['Customer-facing & office', ['customer-service', 'retail-associate', 'restaurant-server', 'administrative-assistant', 'graphic-designer']],
+  ['Customer-facing & office', ['customer-service', 'retail-associate', 'restaurant-server', 'bartender', 'security-guard', 'administrative-assistant', 'graphic-designer']],
 ]
 
 function groupedExampleItems() {
@@ -2791,7 +2996,7 @@ const HUBS = [
     pathname: '/examples/',
     title: 'Resume Examples by Role (2026) — HonestCV',
     description:
-      '20 complete, honest resume examples by role: software engineer, nurse, accountant, electrician, truck driver, financial analyst, product manager, HR, retail and more — with tips to adapt each one.',
+      '25 complete, honest resume examples by role: software engineer, nurse, accountant, electrician, operations manager, mechanical engineer, bartender, dental assistant and more — with tips to adapt each one.',
     h1: 'Resume examples by role',
     intro:
       'Full example resumes — summary, quantified bullets, skills, education — written the way we coach: every claim scoped, measurable and defensible in an interview. Pick your role, then build yours in the same ATS-safe layout.',

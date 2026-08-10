@@ -3042,3 +3042,20 @@ Live-testing driver, scripted golden-path smoke on cv.zalize.com
   exclusion path still returns 200 without polluting analytics.
 
 No defect found; log-only round.
+
+## Iteration I40 (2026-08-05)
+
+pSEO/content driver — fourth batch of role resume examples (20 → 25):
+
+- New roles: operations-manager (Business & finance),
+  mechanical-engineer (Tech & data), dental-assistant (Healthcare &
+  education), bartender and security-guard (Customer-facing & office).
+- Same schema and honesty bar as I8/I11/I26: quantified,
+  interview-defensible bullets; verifiable licenses/certifications
+  (RDA, state guard license, responsible-vendor permit) called out in
+  tips as the first screening filter for those roles.
+- examples.json now 25 entries (still emitted in hub sector order);
+  hub metadata and landing copy updated 20 → 25.
+- Live: all five new routes 200; sitemap 101 → 106; IndexNow 106 URLs
+  → HTTP 200.
+- Deployed version ceeed309-6209-4e55-83d0-44439de1a879.
