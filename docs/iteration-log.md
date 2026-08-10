@@ -2741,3 +2741,19 @@ Driver: new-user UX walkthrough of /guides/.
 - ItemList JSON-LD still covers all 34 in the displayed order.
 - Deployed version be154942-142b-4135-8e4e-d096fa8e0e8f; live headings
   verified.
+
+## Iteration I21 (2026-08-05)
+
+Drivers: internal-linking audit + visual review of the example pages.
+
+- Example pages linked out to three sibling examples and a bare "All
+  resume guides" link — the reader who just decided "I want a resume
+  like this" had nowhere to learn how to write one. Added a "How to
+  write yours" list pointing at the four guides that actually apply
+  (summary, bullet points, ATS formatting, tailoring), resolved from
+  GUIDES so a renamed slug drops out instead of 404ing.
+- The entry date used `float:right`, which on narrow screens can ride
+  over a long role/company line. Header is now a wrapping flexbox with
+  space-between: same desktop look, dates fall to their own line when
+  they don't fit.
+- Deployed version 34607c9a-7b2c-477f-a776-ac425d9604f0; live verified.
