@@ -2329,6 +2329,15 @@ function examplePage(p) {
   const related = [1, 2, 3]
     .map((d) => EXAMPLES[(ei + d) % EXAMPLES.length])
     .map((e) => ({ path: `/examples/${e.slug}/`, title: `${e.role} resume example` }))
+  const guideLinks = [
+    'resume-summary-examples',
+    'resume-bullet-points',
+    'ats-friendly-resume',
+    'tailor-resume-to-job',
+  ]
+    .map((slug) => GUIDES.find((g) => g.path.endsWith(`/${slug}`)))
+    .filter(Boolean)
+    .map((g) => ({ path: `${g.path}/`, title: g.h1 }))
     .concat([{ path: '/guides/', title: 'All resume guides' }])
   const doc = `
 <div class="exdoc" aria-label="Example resume">
@@ -2371,8 +2380,8 @@ ${per.experience
 .exdoc .exname{font-size:1.3rem;font-weight:700;margin:0}
 .exdoc .exmeta{color:var(--muted);margin:.15rem 0 1rem;font-size:.9rem}
 .exdoc h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--primary);border-bottom:1px solid var(--border);padding-bottom:.25rem;margin:1.25rem 0 .5rem}
-.exdoc .exrole{font-weight:600;margin:.75rem 0 .25rem}
-.exdoc .exrole span{float:right;color:var(--muted);font-weight:400;font-size:.85rem}
+.exdoc .exrole{font-weight:600;margin:.75rem 0 .25rem;display:flex;flex-wrap:wrap;gap:.25rem .75rem;justify-content:space-between}
+.exdoc .exrole span{color:var(--muted);font-weight:400;font-size:.85rem}
 .exdoc ul{margin:.25rem 0 .5rem 1.1rem;padding:0}
 .exdoc li{margin:.25rem 0}
 </style>
@@ -2397,6 +2406,10 @@ ${p.tips.map(([h, t]) => `<h2 style="margin-top:1.75rem;font-size:1.2rem">${esc(
 <h2>More examples</h2>
 <ul>
 ${related.map((r) => `<li><a href="${r.path}">${esc(r.title)}</a></li>`).join('\n')}
+</ul>
+<h2>How to write yours</h2>
+<ul>
+${guideLinks.map((r) => `<li><a href="${r.path}">${esc(r.title)}</a></li>`).join('\n')}
 </ul>
 </div>
 </main>
