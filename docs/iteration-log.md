@@ -3202,3 +3202,18 @@ this cycle into the testing skill so future sessions don't repeat them:
   control before interacting.
 - At 375px assert builder content via input values, not body text
   (preview hidden behind the Edit|Preview switcher).
+
+## Iteration I50 (2026-08-05)
+
+Weekly pSEO — new guide /guides/two-column-resume-ats/ (12 sections):
+how parsers read columns, what actually breaks (text boxes, layout
+tables, header/footer content), the copy-paste reading-order test,
+date/title field pairing, skills-sidebar risk, survivorship caveat,
+when two columns are fine, the safe hybrid, and building columns right
+if you keep them. Clears the last topic from the ops-weekly backlog
+(backlog note updated). Grouped under "Start here: how resumes get
+read".
+
+Live: page 200 with 12 h2 anchors; sitemap 112 → 113; IndexNow 113 URLs
+→ HTTP 200; lint 0 errors (6 pre-existing warnings). Deployed version
+4654459e-d4af-415d-912e-c3091ff88d0a.
