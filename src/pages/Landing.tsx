@@ -232,6 +232,13 @@ export default function Landing() {
               </Link>
             ))}
           </div>
+          <p className="text-muted-foreground mt-6 text-center text-sm">
+            Not sure what to write? Browse{' '}
+            <a className="text-primary underline underline-offset-4" href="/examples/">
+              15 complete resume examples by role
+            </a>{' '}
+            — nurse, engineer, accountant, retail and more.
+          </p>
         </section>
 
         {/* Why one-time */}

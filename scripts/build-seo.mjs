@@ -2362,7 +2362,7 @@ const HUBS = [
     pathname: '/examples/',
     title: 'Resume Examples by Role (2026) — HonestCV',
     description:
-      'Complete, honest resume examples by role: software engineer, nurse, marketing manager, data analyst, project manager, customer service, sales, teacher — with tips to adapt each one.',
+      '15 complete, honest resume examples by role: software engineer, nurse, accountant, marketing manager, data analyst, product manager, HR, retail, warehouse and more — with tips to adapt each one.',
     h1: 'Resume examples by role',
     intro:
       'Full example resumes — summary, quantified bullets, skills, education — written the way we coach: every claim scoped, measurable and defensible in an interview. Pick your role, then build yours in the same ATS-safe layout.',

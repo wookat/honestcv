@@ -2626,3 +2626,15 @@ Internal-linking pass for the new /examples/ library (SEO driver):
 - Deployed fd64e93c; live-verified /guides/resume-keywords/ (2 example
   links) and /templates/atlas/ (1). Relay status changed: 401 invalid
   token at provider (was 429/503) — escalated to boss for key reissue.
+
+## Iteration I13 (2026-08-05)
+
+Examples discoverability from the landing page (UX + internal-link driver):
+
+- Landing template-gallery section now ends with a "Not sure what to
+  write? Browse 15 complete resume examples by role" link to /examples/.
+- /examples/ hub meta description updated to reflect 15 roles.
+- Deployed b5a2e2c9; live-verified hub description and landing bundle.
+- Analytics check (driver 5): still zero organic referrers; first-party
+  hits unchanged pattern; 18 email leads (internal/test). Distribution
+  remains the bottleneck (boss-side).
