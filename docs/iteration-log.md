@@ -3148,3 +3148,23 @@ calls):
   body.innerText (an earlier probe misread this as a load failure).
 
 No defect found; log-only round.
+
+## Iteration I48 (2026-08-05) — analytics review
+
+Data driver (first-party beacon, referrers, leads; last review I36):
+
+- Still zero organic traffic and zero referrers. The handful of hits
+  since 08-07 (5 on 08-10: /examples/bartender/, /vs/, new guide, etc.)
+  line up exactly with this session's own walkthrough probes — a few
+  scripts navigated before setting the honestcv.qa flag, so their first
+  pageview beacon fired unflagged. Not organic traffic; not counted as
+  traction.
+- Harness rule going forward (also noted in the testing skill's
+  spirit): set the QA flag via addInitScript so it's present before the
+  first document loads, not after goto.
+- Email leads unchanged at 18 (test-era).
+- Conclusion unchanged from I36: the bottleneck is off-site
+  distribution (docs/marketing/ packs await owner-executed accounts);
+  on-site pSEO inventory keeps compounding (112 URLs).
+
+Log-only round.
