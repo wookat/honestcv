@@ -3279,3 +3279,17 @@ on production with a clean QA profile:
   optional. Acceptable default.
 
 No defect found; log-only round.
+
+## Iteration I55 (2026-08-05) — CWV recheck
+
+Performance driver (last full check I34; since then: 10 new example
+pages, 2 new guides, hub growth to 113 URLs):
+
+- / — TTFB 43ms, LCP 212ms, CLS 0.0004
+- /guides/how-far-back-should-a-resume-go/ — TTFB 23ms, LCP 88ms,
+  CLS 0.0051
+- /examples/ — TTFB 25ms, LCP 92ms, CLS 0.0107
+
+All well inside the good thresholds (LCP < 2.5s, CLS < 0.1); the only
+console error remains the ad-blocked cloudflareinsights beacon.
+Content growth has not regressed performance. Log-only round.
