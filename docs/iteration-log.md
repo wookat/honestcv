@@ -2981,3 +2981,19 @@ still numberOfItems 12.
 
 Live: 3 h2 groups, 12 links, deployed version
 0da1f0c1-c6e8-435b-9c96-53fc27137b70.
+
+## Iteration I36 (2026-08-05) — data verification round
+
+User/data driver, scripts/analytics.mjs (last 14 days):
+
+- First-party hits unchanged since the last review (84/10/7/9 across
+  four days) — all attributable to internal testing before the /qa-*
+  exclusion; no new organic hits recorded.
+- Top paths still /builder, /, /ats-checker plus a few guide views;
+  referrers: none recorded; email leads: 18 (test-era, not organic).
+- Conclusion unchanged: acquisition is the bottleneck, and it sits in
+  off-site distribution (directories/social/PH launch packs prepared in
+  docs/marketing/, owner-executed). On-site pSEO keeps compounding
+  (101 URLs indexed via IndexNow).
+
+No product change warranted; log-only round.
