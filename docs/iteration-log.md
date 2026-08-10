@@ -3115,3 +3115,20 @@ QA-flagged): paste resume + JD → score.
   textarea selector before filling (first probe raced hydration).
 
 No defect found; log-only round.
+
+## Iteration I45 (2026-08-05)
+
+pSEO/content driver — fifth batch of role resume examples (25 → 30):
+
+- New roles: devops-engineer and ux-designer (Tech & data), paralegal
+  (Business & finance), pharmacy-technician (Healthcare & education),
+  construction-project-manager (Trades & transport).
+- Same honesty bar: DORA-style reliability numbers for DevOps,
+  outcome-over-portfolio framing for UX, zero-rejected-filings record
+  for paralegal, contract values/variance/safety for construction PM,
+  certification-first framing for CPhT.
+- Hub metadata and landing copy updated 25 → 30; examples.json 30
+  entries in sector order.
+- Live: all five new routes 200; sitemap 107 → 112; IndexNow 112 URLs
+  → HTTP 200. Lint unchanged (0 errors, 6 pre-existing warnings).
+- Deployed version 20c848c2-5d4b-4e8e-ac55-f427f4c661ba.
