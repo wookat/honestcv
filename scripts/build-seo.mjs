@@ -1241,7 +1241,7 @@ header.site{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--borde
 header.site .in{max-width:72rem;margin:0 auto;height:3.5rem;display:flex;align-items:center;justify-content:space-between;padding:0 1rem}
 header.site .brand{display:flex;align-items:center;gap:.5rem;font-weight:600;color:var(--fg)}
 header.site .brand img{width:1.5rem;height:1.5rem}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border-radius:calc(var(--radius) - 2px);background:var(--primary);color:var(--primary-fg);padding:.55rem 1.1rem;font-size:.9rem;font-weight:500;border:0;cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border-radius:calc(var(--radius) - 2px);background:var(--primary);color:var(--primary-fg);padding:.55rem 1.1rem;font-size:.9rem;font-weight:500;border:0;cursor:pointer;min-height:44px}
 .btn:hover{opacity:.9;text-decoration:none}
 main{max-width:46rem;margin:0 auto;padding:2.5rem 1rem 4rem}
 h1,h2,h3{font-family:'Sora','Inter',system-ui,sans-serif;letter-spacing:-.015em}
