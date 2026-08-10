@@ -2736,6 +2736,36 @@ function groupedTemplateItems() {
   return items
 }
 
+// Grouped by what the reader is escaping from / comparing against.
+const VS_GROUPS = [
+  ['Trial-to-subscription builders', ['zety', 'livecareer', 'resume-genius']],
+  ['Freemium resume builders', ['resume-io', 'kickresume', 'novoresume', 'enhancv', 'flowcv']],
+  ['AI & ATS-optimization tools', ['rezi', 'teal', 'jobscan', 'resume-worded']],
+]
+
+function groupedVsItems() {
+  const item = (p, group) => ({
+    href: `${p.path}/`,
+    label: p.name,
+    blurb: `${p.description.split('. ')[0].replace(/\.$/, '')}.`,
+    group,
+  })
+  const bySlug = new Map(
+    PAGES.filter((p) => p.path.startsWith('/vs/')).map((p) => [p.path.split('/').pop(), p])
+  )
+  const items = []
+  for (const [group, slugs] of VS_GROUPS) {
+    for (const slug of slugs) {
+      const p = bySlug.get(slug)
+      if (!p) throw new Error(`VS_GROUPS references unknown comparison: ${slug}`)
+      bySlug.delete(slug)
+      items.push(item(p, group))
+    }
+  }
+  for (const p of bySlug.values()) items.push(item(p, 'More comparisons'))
+  return items
+}
+
 const HUBS = [
   {
     pathname: '/vs/',
@@ -2745,11 +2775,7 @@ const HUBS = [
     h1: 'HonestCV vs other resume builders',
     intro:
       'We sign up for competitors and run their full flows ourselves — build a resume, use the AI, check the ATS score, try to export — then document what the free tier actually allows and what the subscription really costs. No secondhand claims.',
-    items: PAGES.filter((p) => p.path.startsWith('/vs/')).map((p) => ({
-      href: `${p.path}/`,
-      label: p.name,
-      blurb: `${p.description.split('. ')[0].replace(/\.$/, '')}.`,
-    })),
+    items: groupedVsItems(),
   },
   {
     pathname: '/guides/',

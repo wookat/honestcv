@@ -2962,3 +2962,22 @@ PerformanceObserver):
 All far inside Google's "good" thresholds (LCP < 2.5s, CLS < 0.1).
 Console on all three pages: only the known cloudflareinsights
 ERR_BLOCKED_BY_CLIENT. No product change needed; log-only round.
+
+## Iteration I35 (2026-08-05)
+
+UX driver — /vs/ was the last flat hub (guides, examples and templates
+hubs are all grouped). Grouped its 12 comparisons by what the reader is
+comparing against:
+
+- Trial-to-subscription builders: Zety, LiveCareer, Resume Genius
+- Freemium resume builders: Resume.io, Kickresume, Novorésumé,
+  Enhancv, FlowCV
+- AI & ATS-optimization tools: Rezi, Teal, Jobscan, Resume Worded
+
+Implementation mirrors GUIDE/TEMPLATE/EXAMPLE groups: VS_GROUPS +
+groupedVsItems() with an unknown-slug throw and a "More comparisons"
+fallback so future /vs/ pages can't silently vanish. ItemList JSON-LD
+still numberOfItems 12.
+
+Live: 3 h2 groups, 12 links, deployed version
+0da1f0c1-c6e8-435b-9c96-53fc27137b70.
