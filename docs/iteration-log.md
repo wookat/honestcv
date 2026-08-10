@@ -3132,3 +3132,19 @@ pSEO/content driver — fifth batch of role resume examples (25 → 30):
 - Live: all five new routes 200; sitemap 107 → 112; IndexNow 112 URLs
   → HTTP 200. Lint unchanged (0 errors, 6 pre-existing warnings).
 - Deployed version 20c848c2-5d4b-4e8e-ac55-f427f4c661ba.
+
+## Iteration I46 (2026-08-05) — I45 production regression
+
+Live regression of the I45 batch (clean profiles, QA-flagged, zero AI
+calls):
+
+- /examples/ hub: 30 example links across the 5 sector groups.
+- /examples/ux-designer/: axe (WCAG 2 A/AA) 0 violations, 0px overflow
+  at 375px.
+- Builder picker: 30 role options; selecting Paralegal loads Rachel
+  Donnelly into the form and preview (desktop).
+- Test-harness note: at 375px the preview pane is hidden behind the
+  Edit|Preview switcher, so assert on form input values, not
+  body.innerText (an earlier probe misread this as a load failure).
+
+No defect found; log-only round.
