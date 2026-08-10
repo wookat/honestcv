@@ -575,6 +575,27 @@ const GUIDES = [
     ],
   },
   {
+    path: '/guides/best-resume-fonts',
+    title: 'Best Resume Fonts, Sizes and Margins (2026) — What ATS and Recruiters Actually See',
+    description:
+      'Which fonts survive ATS parsing and 7-second skims: safe font choices, the 10.5-12pt size window, margin minimums, line spacing, and the styling that quietly breaks parsing.',
+    h1: 'Resume fonts, sizes and margins that actually work',
+    sections: [
+      ['Fonts are a readability decision, not a style one', 'Nobody was ever hired for a font — but candidates are skimmed in ~7 seconds, and a cramped or ornate page loses information in that window. The goal: maximum legibility at a glance, zero parsing risk, no distraction from the content.'],
+      ['Safe choices that never hurt you', 'Sans-serif: Calibri, Arial, Helvetica, Verdana, Lato, Open Sans. Serif: Georgia, Garamond, Cambria, Times New Roman (dated but harmless). All ship with or embed cleanly into PDFs, render identically across systems, and parse as plain text.'],
+      ['Fonts to avoid, and why', 'Script and display fonts (Pacifico, Comic Sans, Papyrus) read as unserious. Ultra-thin weights disappear in print and scans. Obscure downloaded fonts may not embed in your PDF — the receiving system substitutes something else and your layout shifts. Icon fonts for contact symbols parse as garbage characters.'],
+      ['The size window: 10.5–12pt body', 'Below 10.5pt, recruiters strain and printed copies blur; above 12pt, body text looks padded. Name: 18-24pt. Section headings: 12-14pt. If you\u2019re shrinking below 10.5 to fit one page, cut content instead — a readable page beats a complete one.'],
+      ['Margins: 0.5 inch is the floor', '0.75-1 inch reads best; 0.5 inch is the working minimum before pages look wall-to-wall and some printers clip edges. Never fake space with 0.3-inch margins and 9pt text — recruiters recognize the trick instantly, and it reads as "couldn\u2019t prioritize".'],
+      ['Line spacing and white space', '1.0-1.15 line spacing within bullets, a visible gap between sections and entries. White space is what makes a 7-second skim land on the right things — a dense page hides your best bullet as effectively as deleting it.'],
+      ['What the ATS actually sees', 'Parsers read text, not typography: font choice, size and color are invisible to them. What breaks parsing is structure — text converted to images or outlines, icon fonts, and text boxes. Any real text in a standard font parses; the "ATS-safe font list" fear is mostly myth, the structure risk is not.'],
+      ['Bold, italics and color — where they help', 'Bold for names, titles and section headings; italics sparingly for company descriptors; one accent color for headings if you like. All parse fine as real text. What doesn\u2019t: relying on color alone to convey meaning, or highlighting so much that nothing stands out.'],
+      ['Consistency beats beauty', 'One font family (or one serif + one sans pairing), one body size, one date format, one bullet style. Recruiters can\u2019t articulate why a mixed-format resume feels off — but it does, and it reads as carelessness before they\u2019ve read a word.'],
+      ['Print and screen both matter', 'On-site interviewers still print resumes. Check yours at 100% zoom on a laptop and as a physical printout: thin grays vanish on paper, 10pt text that looked fine on a 27-inch monitor doesn\u2019t on A4/Letter. Dark text on white remains the only safe bet.'],
+      ['PDF export is where fonts break', 'Export as PDF with fonts embedded (any mainstream builder or word processor does this by default) and open the file once before sending — a substituted font shows up immediately as shifted layout. If a portal demands DOCX, stick to system fonts so the receiving machine renders what you saw.'],
+      ['Or let the template decide', 'All 22 HonestCV templates use pre-tested font pairings, sizes and margins that pass ATS parsing and print cleanly — with S/M/L text and spacing controls inside the safe ranges, so you can compress to one page without breaking the rules above.'],
+    ],
+  },
+  {
     path: '/guides/how-far-back-should-a-resume-go',
     title: 'How Far Back Should a Resume Go? 10-15 Years, With Exceptions (2026)',
     description:
@@ -2852,7 +2873,7 @@ ${guideLinks.map((r) => `<li><a href="${r.path}">${esc(r.title)}</a></li>`).join
 // Reader-intent grouping for the guides hub (34 flat links are unscannable).
 // Any guide missing here still renders, under "More resume guides".
 const GUIDE_GROUPS = [
-  ['Start here: how resumes get read', ['what-is-an-ats', 'ats-friendly-resume', 'best-resume-format', 'resume-file-format', 'how-long-should-a-resume-be', 'resume-vs-cv']],
+  ['Start here: how resumes get read', ['what-is-an-ats', 'ats-friendly-resume', 'best-resume-format', 'best-resume-fonts', 'resume-file-format', 'how-long-should-a-resume-be', 'resume-vs-cv']],
   ['Writing the content', ['resume-summary-examples', 'resume-bullet-points', 'resume-action-verbs', 'resume-keywords', 'skills-for-resume', 'how-to-list-certifications', 'resume-objective-vs-summary']],
   ['Tailoring to a job', ['tailor-resume-to-job', 'remote-job-resume', 'multiple-positions-same-company']],
   ['Your situation', ['resume-with-no-experience', 'new-grad-resume', 'internship-resume', 'career-change-resume', 'employment-gap-resume', 'resume-for-teens', 'resume-summary-for-freshers', 'volunteer-work-on-resume']],
