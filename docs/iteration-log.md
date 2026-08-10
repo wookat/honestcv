@@ -2707,3 +2707,18 @@ Driver: SEO/structured-data review of the hub pages.
   all four hubs and any future one.
 - Live: examples 15, guides 33, templates 22, vs 12 items.
 - Deployed version 9c5649c5-2231-4ad4-8ec5-5508d53c6aee.
+
+## Iteration I19 (2026-08-05) — weekly pSEO
+
+- New guide /guides/photo-on-resume/ (12 sections): country-by-country
+  norms (US/UK/CA/AU no vs DE/FR/ES/JP/CN common), why US screeners
+  discard photo resumes, posting instructions override norms, genuine
+  occupational exceptions, what parsers do with images, the space cost,
+  specs when a photo is required, LinkedIn as the right venue, what to
+  put in that space instead, other personal details by market, and how
+  HonestCV's text-only templates handle it (DOCX + word processor for
+  photo markets).
+- Sitemap 94 → 95; IndexNow submitted 95 URLs, HTTP 200.
+- Deployed version d2327158-8d4e-44f5-8599-48d03f4e10cc. Live 200 (the
+  URL 404'd for ~1 minute after deploy while the edge propagated —
+  recheck before concluding a deploy failed).

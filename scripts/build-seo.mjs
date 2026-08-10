@@ -933,6 +933,27 @@ const GUIDES = [
       ['The honesty check', 'Every title, every date range, and the word "promoted" must survive an HR verification call. Merging two roles into one senior title, stretching a senior role\u2019s dates over the junior years, or upgrading titles "because that\u2019s what the work really was" are the resume lies that surface fastest.'],
     ],
   },
+  {
+    path: '/guides/photo-on-resume',
+    title: 'Should You Put a Photo on Your Resume? Country-by-Country Rules (2026 Guide)',
+    description:
+      'Where a resume photo helps, where it gets you rejected, why US and UK employers discard photo resumes, what ATS parsers do with images, and what to use instead.',
+    h1: 'Should you put a photo on your resume?',
+    sections: [
+      ['The short answer', 'In the US, Canada, the UK, Ireland, and Australia: no. In much of continental Europe, Latin America, and parts of Asia: often expected. The photo question is not about taste — it is about the discrimination law your reader works under, and getting it wrong costs you the application either way.'],
+      ['Why US and UK employers discard photo resumes', 'Anti-discrimination law makes age, race, and gender a liability in hiring records. Many US recruiters are instructed to reject or redact resumes with photos so the company can prove screening decisions were not based on appearance. The rejection is procedural, not personal — your qualifications never get read.'],
+      ['Where photos are normal', 'German, Austrian, Swiss, French, Spanish, Portuguese, Italian, Belgian, Japanese, Chinese, and many Latin American applications commonly include a professional headshot; German CVs traditionally include one, though the AGG has made it optional. When applying into these markets, omitting the photo can read as an incomplete application.'],
+      ['Check the actual job posting first', 'Country norms lose to the employer\u2019s own instruction. Multinationals in photo countries often run US-style blind screening; some local firms explicitly request a photo. If the posting or portal asks for one, provide it; if it asks for a "blind" or "anonymized" CV, strip your photo and sometimes your name.'],
+      ['Exceptions in every country', 'Acting, modeling, presenting, and some client-facing hospitality roles use headshots as a genuine occupational requirement, and they belong on a comp card or portfolio rather than the resume proper. "Customer-facing" alone is not an exception — a sales resume in Chicago still goes out without a face.'],
+      ['What ATS parsers do with images', 'Nothing useful. Parsers extract text; a photo is a blob they skip at best. The real damage is layout: photos push resumes into two-column and text-box designs, and those are what break parsing. A photo also inflates file size and can trip attachment scanners on older systems.'],
+      ['The space cost', 'A headshot eats 15\u201320% of a first page — roughly four bullets of evidence. On a one-page resume that is the difference between showing your strongest project and cutting it. Even where photos are accepted, ask whether the space buys more than the content it displaces.'],
+      ['If you do include one: the specs', 'Professional headshot, plain background, business attire matching the industry, head and shoulders, eyes level with the camera, recent (within two years), neutral or warm expression. Top-right or top-left of the header, roughly 3.5 × 4.5 cm, compressed to keep the file under 1 MB. No selfies, no crops from group photos, no filters.'],
+      ['LinkedIn is where your face belongs', 'US and UK recruiters look you up anyway, and LinkedIn is the venue built for a photo — no legal exposure for the employer, no space cost for you. A strong headshot there does the entire job a resume photo would, which is why the omission costs you nothing.'],
+      ['What to put in that space instead', 'A three-line professional summary, a metrics band ("8 years · 40M requests/day · 6 engineers mentored"), or a skills row. Anything that answers "why you" outperforms a face — no screener ever advanced a candidate because the photo looked competent.'],
+      ['Other personal details to leave off', 'Same reasoning applies to date of birth, marital status, nationality, religion, and a full street address in US/UK applications, even though several are standard on a German Lebenslauf or a Chinese resume. Match the destination market, not your habit.'],
+      ['How HonestCV handles it', 'Every HonestCV template is text-only and single-column by default — no photo slot, because the market we serve mostly penalizes them and because image-driven layouts are what break ATS parsing. If you are applying into a photo market, export DOCX and add the headshot in your word processor rather than fighting the parser with an image-heavy template.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */
