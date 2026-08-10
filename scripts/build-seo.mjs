@@ -1595,6 +1595,19 @@ ${others.map((t) => `<li><a href="${t.path}/">${esc(t.name)} resume template</a>
 
 function hubPage({ pathname, title, description, h1, intro, items }) {
   const canonical = `${SITE}${pathname}`
+  const itemListLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: h1,
+    url: canonical,
+    numberOfItems: items.length,
+    itemListElement: items.map(({ href, label }, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: label,
+      url: `${SITE}${href}`,
+    })),
+  }
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -1611,6 +1624,7 @@ function hubPage({ pathname, title, description, h1, intro, items }) {
 <meta property="og:url" content="${canonical}" />
 <meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">${JSON.stringify(itemListLd)}</script>
 <style>${CSS}</style>
 ${BEACON}${FP_BEACON}
 </head>

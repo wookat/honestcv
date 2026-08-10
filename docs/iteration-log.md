@@ -2694,3 +2694,16 @@ Regression round (testing agent, recorded, production 949d6fc4):
   details with their own), so no change.
 - Relay still 401 (invalid token) — cover-letter success smoke remains
   blocked; boss notified.
+
+## Iteration I18 (2026-08-05)
+
+Driver: SEO/structured-data review of the hub pages.
+
+- The four hub pages (/examples/, /guides/, /templates/, /vs/) are pure
+  link lists but carried no list markup, so search engines had to infer
+  the collection from HTML alone.
+- `hubPage()` now emits ItemList JSON-LD (name, url, numberOfItems,
+  positioned ListItems) alongside the existing meta — one change covers
+  all four hubs and any future one.
+- Live: examples 15, guides 33, templates 22, vs 12 items.
+- Deployed version 9c5649c5-2231-4ad4-8ec5-5508d53c6aee.
