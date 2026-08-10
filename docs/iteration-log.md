@@ -2804,3 +2804,19 @@ Testing agent, recorded, production worker ad00a972 (main ee9d87e),
 Coverage caveat recorded: the picker only renders in the empty state, so
 its confirm-on-non-empty branch is exercised through the shared
 `applyExample()` deep-link path rather than the picker itself.
+
+## Iteration I25 (2026-08-05)
+
+Driver: testing-agent observation carried since I16.
+
+- Loading a role example put strings like "UNC Charlotte, 2019" in the
+  education *school* field with an empty date, so the graduation year
+  rendered inside the school name. `exampleToResume()` now peels a
+  trailing ", YYYY" into `endDate`:
+
+      /^(.*?),\s*(\d{4})$/ → school "UNC Charlotte", endDate "2019"
+
+  Schools without a trailing year ("State University") and comma-plus-
+  city forms ("Ohio State University, Columbus") are untouched. No date
+  is invented — the year only moves when the source data already has it.
+- Deployed version 6d01fcd7-5d8a-49b4-987d-514a64391d3a.
