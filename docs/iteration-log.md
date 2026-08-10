@@ -2599,3 +2599,18 @@ Competitor revisit (pricing-level; full UX revisit was the RB batch):
 - New-competitor scan: careerflow.ai/pricing 404s (site restructure);
   swooped.co reachable — job-board-first model, not a builder competitor.
   No /vs/ page changes needed this round.
+
+## Iteration I11 (2026-08-05)
+
+Examples library second batch (competitor-gap continuation of I8):
+
+- 7 new role example pages: accountant, administrative-assistant,
+  graphic-designer, human-resources (HR generalist), product-manager,
+  retail-associate, warehouse-worker — 15 roles total on /examples/.
+- Same format: full fictional resume card, disclaimer, 3 honest-writing
+  tips per role, Article + BreadcrumbList JSON-LD, related links, CTAs.
+- Sitemap 86 → 93; llms.txt updated; IndexNow submitted (93 URLs, HTTP 200).
+- Deployed 19ae2499; spot-checked live pages 200. Note: first upload went
+  out with a stale dist (404s on new pages) — rebuilt and redeployed;
+  recipe reminder: always `npm run build` immediately before
+  `wrangler versions upload`.
