@@ -2722,3 +2722,22 @@ Driver: SEO/structured-data review of the hub pages.
 - Deployed version d2327158-8d4e-44f5-8599-48d03f4e10cc. Live 200 (the
   URL 404'd for ~1 minute after deploy while the edge propagated —
   recheck before concluding a deploy failed).
+
+## Iteration I20 (2026-08-05)
+
+Driver: new-user UX walkthrough of /guides/.
+
+- The hub had grown to 34 undifferentiated links — a wall no visitor
+  scans. `hubPage()` items may now carry a `group`; `renderHubItems()`
+  renders one `<h2>` + list per group (first-seen order) and falls back
+  to the old flat list when no item is grouped, so /examples/, /vs/ and
+  /templates/ are unchanged.
+- Guides are grouped by reader intent: how resumes get read / writing
+  the content / tailoring to a job / your situation / what to include
+  and leave off / beyond the resume. `groupedGuideItems()` throws if
+  GUIDE_GROUPS names a guide that doesn't exist, and any guide not
+  listed still renders under "More resume guides" — a new guide can
+  never silently disappear from the hub.
+- ItemList JSON-LD still covers all 34 in the displayed order.
+- Deployed version be154942-142b-4135-8e4e-d096fa8e0e8f; live headings
+  verified.
