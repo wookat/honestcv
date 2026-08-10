@@ -2309,6 +2309,211 @@ const EXAMPLES = [
       ['Cross-training shows flex value', 'Coverage across receiving, picking and loading makes you the associate schedulers protect — say which departments you can run.'],
     ],
   },
+  {
+    slug: 'electrician',
+    role: 'Electrician',
+    description:
+      'An electrician resume example with license class, code compliance and callback rate — what electrical contractors and facilities managers actually verify before an interview.',
+    person: {
+      name: 'Miguel Herrera',
+      title: 'Journeyman Electrician',
+      location: 'Phoenix, AZ',
+      summary:
+        'Licensed journeyman electrician with 7 years across commercial fit-outs and light industrial service. Zero failed inspections in 3 years; runs 2-apprentice crews on tenant-improvement jobs up to 40,000 sq ft.',
+      experience: [
+        {
+          role: 'Journeyman Electrician',
+          company: 'Sunstate Electric Co.',
+          dates: '2022 – Present',
+          bullets: [
+            'Lead electrician on 25+ commercial tenant-improvement jobs; zero failed rough-in or final inspections in 3 years',
+            'Run a 2-apprentice crew: layout, panel schedules, task assignment and QC before every inspection',
+            'Service callback rate under 2% across ~300 service tickets per year, best on a 9-electrician service desk',
+          ],
+        },
+        {
+          role: 'Apprentice → Journeyman Electrician',
+          company: 'Desert Ridge Electrical',
+          dates: '2019 – 2022',
+          bullets: [
+            'Completed 8,000-hour apprenticeship and passed the Arizona journeyman exam on the first attempt',
+            'Wired 60+ residential and small-commercial panels to NEC 2020 with no correction notices',
+          ],
+        },
+      ],
+      skills: ['NEC 2023 code compliance', 'Commercial rough-in & finish', 'Panel & switchgear installation', 'Conduit bending (EMT/rigid)', 'Blueprint & panel-schedule reading', 'Troubleshooting & service calls'],
+      education: 'Journeyman Electrician License (AZ) — Phoenix JATC apprenticeship, 2022 · OSHA 30, 2023',
+    },
+    tips: [
+      ['License first, always', 'State, class and year in the title and top line — journeyman vs. master is the first filter every electrical posting applies, and recruiters verify it.'],
+      ['Inspections are your metric', 'Passed inspections, correction notices and callback rate are the trade\u2019s quality numbers. "Zero failed finals in 3 years" beats any list of duties.'],
+      ['Name the code year', 'NEC 2020 vs. 2023 matters to the estimator reading your resume — cite the code cycle you work to, plus OSHA cards and any manufacturer certs.'],
+    ],
+  },
+  {
+    slug: 'truck-driver',
+    role: 'Truck Driver',
+    description:
+      'A CDL truck driver resume example with license class, endorsements, safety record and on-time rate — the four lines fleet recruiters check before anything else.',
+    person: {
+      name: 'Darnell Whitfield',
+      title: 'CDL-A Truck Driver',
+      location: 'Memphis, TN',
+      summary:
+        'CDL-A driver with 9 years and 800,000+ accident-free miles across OTR and regional dry van. Clean MVR, 99.2% on-time delivery over the last 3 years, Hazmat and tanker endorsed.',
+      experience: [
+        {
+          role: 'Regional Driver (Dry Van)',
+          company: 'Bluff City Freight Lines',
+          dates: '2022 – Present',
+          bullets: [
+            '99.2% on-time delivery across ~480 loads per year on Mid-South regional lanes',
+            'Zero preventable accidents and zero moving violations; clean DOT roadside inspections 11 for 11',
+            'Mentor driver for 6 new CDL graduates on trip planning, ELD compliance and dock procedures',
+          ],
+        },
+        {
+          role: 'OTR Driver',
+          company: 'Interline Carriers',
+          dates: '2017 – 2022',
+          bullets: [
+            'Logged 500,000+ accident-free OTR miles in 48 states with full ELD/HOS compliance',
+            'Ran Hazmat-placarded loads after earning H and N endorsements in 2019',
+          ],
+        },
+      ],
+      skills: ['CDL-A with Hazmat (H) & tanker (N) endorsements', 'ELD & HOS compliance', 'Pre-trip / post-trip inspections', 'Trip planning & fuel optimization', 'Drop-and-hook & live unload', 'DOT regulations'],
+      education: 'CDL-A — Delta Technical College truck driving program, 2017',
+    },
+    tips: [
+      ['License, endorsements, miles, record', 'CDL class, endorsement letters, accident-free miles and MVR status are the whole first screen — put all four above your work history.'],
+      ['Safety numbers are hire/no-hire', 'Preventables, violations and DOT inspection results feed straight into a carrier\u2019s insurance rates. State yours plainly; vague resumes read as hiding something.'],
+      ['On-time rate proves the job', 'Freight is a service-level business. An on-time percentage with load volume ("99.2% across 480 loads/year") is the strongest line a driver can write.'],
+    ],
+  },
+  {
+    slug: 'financial-analyst',
+    role: 'Financial Analyst',
+    description:
+      'A financial analyst resume example with model scope, forecast accuracy and dollars influenced — how FP&A hiring managers separate report-runners from decision-drivers.',
+    person: {
+      name: 'Grace Okafor',
+      title: 'Financial Analyst',
+      location: 'Charlotte, NC',
+      summary:
+        'FP&A analyst with 5 years in retail and logistics. Owns the revenue model for a $220M division, cut forecast error to under 3%, and built the variance pack the CFO presents to the board.',
+      experience: [
+        {
+          role: 'Senior Financial Analyst',
+          company: 'Carolina Retail Group',
+          dates: '2023 – Present',
+          bullets: [
+            'Own revenue and margin forecasting for a $220M division; reduced forecast error from 7% to under 3% by rebuilding the driver-based model',
+            'Built the monthly variance pack (Excel + Power BI) the CFO takes to the board, replacing a 3-day manual process with a half-day refresh',
+            'Modeled the business case for closing 2 underperforming distribution nodes, a decision worth $4.1M in annual savings',
+          ],
+        },
+        {
+          role: 'Financial Analyst',
+          company: 'Piedmont Logistics',
+          dates: '2020 – 2023',
+          bullets: [
+            'Ran annual budget consolidation across 14 cost centers and $85M of spend',
+            'Automated weekly flash reporting in SQL and Excel, saving ~10 analyst-hours per week',
+          ],
+        },
+      ],
+      skills: ['Financial modeling (driver-based)', 'Budgeting & forecasting', 'Variance analysis', 'Excel (advanced) & Power BI', 'SQL', 'Business-case development'],
+      education: 'B.S. Finance — UNC Charlotte, 2020 · CFA Level II candidate, 2026',
+    },
+    tips: [
+      ['Size the money you touch', 'Division revenue, spend consolidated, savings identified — every bullet should carry a dollar figure, because your job is literally to quantify.'],
+      ['Forecast accuracy is your batting average', 'Report the error rate before and after your model changes. "Cut forecast error 7% → 3%" is the single most convincing FP&A line.'],
+      ['Show decisions, not decks', 'Reports are table stakes; name the decision your analysis drove ("closed 2 nodes, $4.1M/yr"). That is what separates analyst from senior analyst.'],
+    ],
+  },
+  {
+    slug: 'medical-assistant',
+    role: 'Medical Assistant',
+    description:
+      'A medical assistant resume example with certification, patient volume and EHR systems — the credentials and clinical evidence outpatient practices screen for.',
+    person: {
+      name: 'Alyssa Trujillo',
+      title: 'Certified Medical Assistant (CMA)',
+      location: 'Albuquerque, NM',
+      summary:
+        'AAMA-certified medical assistant with 5 years in family medicine and cardiology. Rooms 25+ patients a day, maintains 99%+ vitals-documentation accuracy in Epic, and cut patient wait times by 12 minutes as clinic flow lead.',
+      experience: [
+        {
+          role: 'Medical Assistant — Cardiology',
+          company: 'Rio Grande Heart Associates',
+          dates: '2023 – Present',
+          bullets: [
+            'Room and take intake vitals for 25–30 patients daily across 3 cardiologists; 99%+ documentation accuracy on Epic chart audits',
+            'Perform EKGs, Holter hookups and point-of-care INR testing; flagged 2 critical arrhythmia strips that led to same-day admissions',
+            'As clinic flow lead, re-sequenced rooming and pre-visit prep to cut average patient wait time by 12 minutes',
+          ],
+        },
+        {
+          role: 'Medical Assistant — Family Medicine',
+          company: 'Sandia Family Health',
+          dates: '2021 – 2023',
+          bullets: [
+            'Administered immunizations and injections, ran phlebotomy draws and processed in-house labs for a 4-provider practice',
+            'Managed prior authorizations and refill queues, clearing a 200-item backlog in the first 60 days',
+          ],
+        },
+      ],
+      skills: ['Patient intake & vitals', 'EKG & Holter monitoring', 'Phlebotomy & point-of-care testing', 'Epic EHR', 'Immunizations & injections', 'Prior authorizations & refills'],
+      education: 'CMA (AAMA), certified 2021 — Central New Mexico Community College medical assisting program, 2021 · BLS, renewed 2025',
+    },
+    tips: [
+      ['Certification and EHR are the filters', 'CMA/RMA credential (with certifying body and year) plus the EHR you chart in — Epic, Cerner, Athena — are what practice managers search for. Put both in the top third.'],
+      ['Volume proves clinical pace', 'Patients roomed per day, providers supported, draws per shift: outpatient clinics run on throughput, so show you keep up.'],
+      ['List skills as procedures', 'EKGs, injections, phlebotomy, POC testing — name each procedure you are signed off on rather than writing "clinical duties," because postings list them literally.'],
+    ],
+  },
+  {
+    slug: 'restaurant-server',
+    role: 'Restaurant Server',
+    description:
+      'A restaurant server resume example with covers per shift, check average and wine sales — turning service work into the sales numbers restaurant managers hire on.',
+    person: {
+      name: 'Bethany Kim',
+      title: 'Restaurant Server',
+      location: 'Nashville, TN',
+      summary:
+        'Server with 6 years from high-volume casual dining to upscale steakhouse. Handles a 6-table section at 40+ covers a night, holds the highest wine attachment rate on a 14-server floor, and trains new hires on service steps.',
+      experience: [
+        {
+          role: 'Server',
+          company: 'The Hartwell Steakhouse',
+          dates: '2023 – Present',
+          bullets: [
+            'Run a 6-table fine-dining section averaging 40+ covers per night with a $78 check average, 9% above house average',
+            'Highest wine attachment rate of 14 servers for 5 consecutive quarters after completing sommelier-led list training',
+            'Train new servers on steps of service, allergen protocol and POS; 6 of 7 trainees passed their floor test first try',
+          ],
+        },
+        {
+          role: 'Server',
+          company: 'Broadway Biscuit Co.',
+          dates: '2019 – 2023',
+          bullets: [
+            'Turned a 7-table section through 3 seatings on weekend brunch shifts of 250+ covers with sub-2% comp rate',
+            'Consistently top-2 in add-on sales during feature promotions across a 12-server team',
+          ],
+        },
+      ],
+      skills: ['High-volume section management', 'Wine & menu pairing sales', 'POS (Toast, Aloha)', 'Allergen & food-safety protocol', 'New-server training', 'Guest recovery'],
+      education: 'ServSafe Food Handler, renewed 2025 · TABC/ABC alcohol service certification, 2023',
+    },
+    tips: [
+      ['Serving is selling — show the numbers', 'Check average, covers per shift, attachment rate on wine or features: managers can pull these from the POS, and putting them on paper says you think in them.'],
+      ['Volume plus tier tells the story', 'A 250-cover brunch and a fine-dining steakhouse prove different skills — name the volume and the service tier so the reader can place you instantly.'],
+      ['Certifications go on top', 'ServSafe and state alcohol-service cards are legal requirements many postings filter on; list them with renewal years so the manager knows you can start tomorrow.'],
+    ],
+  },
 ]
 
 function examplePage(p) {

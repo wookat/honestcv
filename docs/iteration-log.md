@@ -2820,3 +2820,20 @@ Driver: testing-agent observation carried since I16.
   city forms ("Ohio State University, Columbus") are untouched. No date
   is invented — the year only moves when the source data already has it.
 - Deployed version 6d01fcd7-5d8a-49b4-987d-514a64391d3a.
+
+## Iteration I26 (2026-08-05)
+
+Weekly pSEO — third batch of role examples (15 → 20):
+
+- New roles: electrician, truck-driver, financial-analyst,
+  medical-assistant, restaurant-server — all high-search-volume
+  "resume example" queries in trades, transport, finance, healthcare
+  support and hospitality that the library did not cover.
+- Each follows the house pattern: real-text example with quantified,
+  role-authentic evidence (license class, endorsements, forecast error,
+  patient volume, check average) plus three role-specific tips.
+- Generated pages feed the builder picker and `?example=` deep link
+  automatically via examples.json (now 20 entries).
+- Sitemap 95 → 100 URLs; IndexNow submitted 100 → HTTP 200; all five
+  new pages live 200; /examples/ ItemList numberOfItems now 20.
+- Deployed version 1e01ac89-4594-4860-93d4-834ab73f07b1.
