@@ -3012,3 +3012,18 @@ deep-link into builder, clean profile, QA-flagged):
 - Live after deploy: all example-page CTAs measure 44px; 375px
   scrollWidth still 360.
 - Deployed version f21d4b8e-ede7-4b2d-a217-e1a6ea5b3684.
+
+## Iteration I38 (2026-08-05) — visual review round
+
+Frontend visual driver: full-page 1440px screenshots of /, /examples/
+and /vs/ reviewed against the acceptance-officer polish bar.
+
+- All three pages render clean: grouped hubs read well, landing
+  three-step narrative + 22-template gallery + comparison table intact,
+  no layout defects, no stray unstyled elements.
+- Observation (P3, deliberate): landing gallery filter chips count
+  overlapping style tags (Serif 9, Modern sans 13) while the /templates/
+  hub uses mutually exclusive groups (Serif 7, Modern sans 7) — filters
+  vs. groupings; not user-visible side by side, leaving as is.
+
+No defect found; log-only round.
