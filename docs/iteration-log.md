@@ -2675,3 +2675,22 @@ behind signup, we do free and local:
   content, keeps a deliberately-picked template, and strips the query param
   so refresh doesn't re-trigger.
 - Deployed 949d6fc4; live-verified examples.json and the new CTA href.
+
+## Iteration I17 (2026-08-05)
+
+Regression round (testing agent, recorded, production 949d6fc4):
+
+- I16 happy path: accountant example loads with split dates, joined
+  skills, extracted certifications; param stripped; reload stable.
+- I16 confirm path: Cancel keeps prior content, OK replaces (teacher).
+- I14: shared-only profile downloads without a second email prompt;
+  exported PDF real text verified via pdftotext.
+- I13: landing link and hub meta verified.
+- 375px builder after example load: no overflow; console clean;
+  axe covered in prior rounds.
+- UX observation (accepted, not a bug): example deep-link users hit the
+  "Final check" nudge on first download because examples ship without
+  email/phone — that nudge is doing its job (users must replace contact
+  details with their own), so no change.
+- Relay still 401 (invalid token) — cover-letter success smoke remains
+  blocked; boss notified.
