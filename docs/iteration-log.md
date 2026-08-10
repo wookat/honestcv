@@ -2575,3 +2575,27 @@ large role-based "resume examples" library — a top pSEO category we lacked.
   examples section; IndexNow submitted 86 URLs (HTTP 200).
 - Live verification: /examples/, /examples/software-engineer/,
   /examples/teacher/ all 200.
+
+## Iteration I9 (2026-08-05)
+
+Regression round (testing agent, recorded, production main 239d644):
+
+- I7 quota hint next to Tailor, new outage copy verbatim, quota unchanged
+  (12 before/after a failed call), 375px ats-checker label wrap — all passed.
+- I8 /examples/ hub + role pages: rendering, disclaimer, tips, CTAs, related
+  links, footer link, 375px no overflow, axe A/AA 0 violations (4 scans),
+  console clean — all passed.
+- Cover-letter success smoke still pending (relay down; 1 controlled attempt
+  confirmed the 503 branch only).
+
+## Iteration I10 (2026-08-05)
+
+Competitor revisit (pricing-level; full UX revisit was the RB batch):
+
+- Resume.io $29.95/mo (+$49.95 tier) — matches /vs/resume-io.
+- Rezi $29/mo, $149 lifetime — matches /vs/rezi.
+- Kickresume tiers visible ($8–$120 range) — /vs/kickresume claims hold.
+- FlowCV pricing page is JS-only via curl; last first-hand verification O11.
+- New-competitor scan: careerflow.ai/pricing 404s (site restructure);
+  swooped.co reachable — job-board-first model, not a builder competitor.
+  No /vs/ page changes needed this round.
