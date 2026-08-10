@@ -2896,3 +2896,22 @@ UX driver: the builder's empty-state role picker grew to a flat list of
 - Deep-link path unchanged; only option markup differs.
 - Live: examples.json serves 20 entries with sectors.
 - Deployed version 1773fa78-8f53-44ae-b057-1dec4b30f6f6.
+
+## Iteration I31 (2026-08-05)
+
+Regression-round follow-up: the I30 picker showed sectors in EXAMPLES
+array order (Tech & data → Healthcare & education → …), which differed
+from the /examples/ hub order (cosmetic note from the I29/I30 test).
+
+- examples.json is now emitted in EXAMPLE_GROUPS order (ungrouped roles
+  appended under "More roles"), so the picker's optgroups match the hub
+  exactly: Tech & data → Business & finance → Healthcare & education →
+  Trades & transport → Customer-facing & office.
+- Live: examples.json serves 20 entries in hub order.
+- Deployed version 1f0b1096-2060-4edd-93ac-fc505addb524.
+
+Regression round I29+I30 (testing agent, recorded, worker 1773fa78):
+grouped picker 5 optgroups/20 roles, Electrician loads Miguel Herrera;
+templates hub 4 groups with 22 links all 200, ItemList 22; 375px no
+overflow; axe 0 violations; console clean; 0 AI calls. Evidence on
+PR #162.

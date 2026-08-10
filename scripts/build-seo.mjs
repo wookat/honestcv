@@ -2786,12 +2786,18 @@ for (const p of EXAMPLES) {
 writeFileSync(
   path.join(OUT_DIR, 'examples/examples.json'),
   JSON.stringify(
-    EXAMPLES.map((e) => ({
-      slug: e.slug,
-      role: e.role,
-      sector: EXAMPLE_GROUPS.find(([, slugs]) => slugs.includes(e.slug))?.[0] ?? 'More roles',
-      person: e.person,
-    }))
+    // Emit in EXAMPLE_GROUPS order so the builder picker's optgroups
+    // appear in the same sector order as the /examples/ hub.
+    EXAMPLE_GROUPS.flatMap(([sector, slugs]) =>
+      slugs.map((slug) => {
+        const e = EXAMPLES.find((x) => x.slug === slug)
+        return { slug: e.slug, role: e.role, sector, person: e.person }
+      })
+    ).concat(
+      EXAMPLES.filter((e) => !EXAMPLE_GROUPS.some(([, slugs]) => slugs.includes(e.slug))).map(
+        (e) => ({ slug: e.slug, role: e.role, sector: 'More roles', person: e.person })
+      )
+    )
   )
 )
 console.log('built /examples/examples.json')
