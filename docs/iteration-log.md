@@ -2915,3 +2915,21 @@ grouped picker 5 optgroups/20 roles, Electrician loads Miguel Herrera;
 templates hub 4 groups with 22 links all 200, ItemList 22; 375px no
 overflow; axe 0 violations; console clean; 0 AI calls. Evidence on
 PR #162.
+
+## Iteration I32 (2026-08-05) — competitor revisit (10-round cadence)
+
+Black-box pricing re-verification against our /vs/ claims (curl, no
+bot-wall bypass):
+
+- Rezi: pricing page shows $29/mo and $149 lifetime — matches /vs/rezi.
+- Resume.io: $29.95 (and a $49.95 tier) present — matches /vs/resume-io.
+- FlowCV: pricing page is client-rendered (no $ in HTML); last
+  first-hand verification ($0/$3/$5) stands, /vs/flowcv unchanged.
+- Jobscan: 403 bot wall — not bypassed; /vs/jobscan keeps its
+  re-verified stamp from the last successful check.
+- Teal: still 403; /vs/teal claim unchanged (marked as of last check).
+- New-competitor scan: careerflow.ai /pricing 404s (site restructure);
+  no new head-on resume-builder entrant found worth a /vs/ page this
+  round.
+
+No copy drift found → no code change; log-only round.
