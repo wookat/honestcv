@@ -2614,3 +2614,15 @@ Examples library second batch (competitor-gap continuation of I8):
   out with a stale dist (404s on new pages) — rebuilt and redeployed;
   recipe reminder: always `npm run build` immediately before
   `wrangler versions upload`.
+
+## Iteration I12 (2026-08-05)
+
+Internal-linking pass for the new /examples/ library (SEO driver):
+
+- All 7 static-page footer variants (landing-adjacent, comparison, about,
+  guide, template, hub, example) now include an Examples link.
+- Guide "Keep reading" lists now include "Resume examples by role"
+  alongside the /vs/ hub — every guide links the new category.
+- Deployed fd64e93c; live-verified /guides/resume-keywords/ (2 example
+  links) and /templates/atlas/ (1). Relay status changed: 401 invalid
+  token at provider (was 429/503) — escalated to boss for key reissue.
