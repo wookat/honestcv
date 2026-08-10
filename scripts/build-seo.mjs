@@ -1943,6 +1943,293 @@ const EXAMPLES = [
       ['Show scope', 'Sections taught, student count, grade span, IEP load — scope numbers let a principal picture you in their master schedule immediately.'],
     ],
   },
+  {
+    slug: 'accountant',
+    role: 'Accountant',
+    description:
+      'An accountant resume example with close-cycle metrics, audit outcomes and software keywords — plus where CPA status belongs so both ATS filters and partners see it.',
+    person: {
+      name: 'Elena Vasquez',
+      title: 'Senior Accountant, CPA',
+      location: 'Charlotte, NC',
+      summary:
+        'CPA with 6 years across public audit and corporate accounting. Own the month-end close for a $90M-revenue business; cut close time from 9 to 5 days and cleared two consecutive external audits with zero adjustments.',
+      experience: [
+        {
+          role: 'Senior Accountant',
+          company: 'Piedmont Building Products',
+          dates: '2022 – Present',
+          bullets: [
+            'Own month-end close for a $90M-revenue entity; reduced close from 9 to 5 business days by automating recurring journal entries and reconciliations in NetSuite',
+            'Cleared FY24 and FY25 external audits with zero post-audit adjustments; prepare all PBC schedules',
+            'Built the 13-week cash-flow forecast the CFO now uses in weekly leadership reviews',
+          ],
+        },
+        {
+          role: 'Audit Associate',
+          company: 'Hartwell & Gray CPAs',
+          dates: '2019 – 2022',
+          bullets: [
+            'Executed audit fieldwork for 12–15 clients per year in manufacturing and nonprofit sectors',
+            'Promoted to senior associate in two years; led 3-person fieldwork teams on recurring engagements',
+          ],
+        },
+      ],
+      skills: ['Month-end close', 'GAAP', 'NetSuite', 'Account reconciliation', 'Audit preparation', 'Cash-flow forecasting', 'Excel (power user)'],
+      education: 'B.S. Accounting — UNC Charlotte, 2019 · CPA (North Carolina), 2021',
+    },
+    tips: [
+      ['Close time is your headline number', 'Days-to-close, audit adjustments, entities owned — controllers hire accountants on process reliability, and these numbers prove it faster than any duties list.'],
+      ['CPA in the title line and education', 'ATS filters search "CPA" literally; recruiters skim the name line. Put it in both places, with the state and year in education.'],
+      ['Name the ERP', 'NetSuite, SAP, QuickBooks, Workday — system experience is a hard screening keyword and a training-cost signal.'],
+    ],
+  },
+  {
+    slug: 'administrative-assistant',
+    role: 'Administrative Assistant',
+    description:
+      'An administrative assistant resume example showing executives supported, calendar/travel volume and process wins — the scope numbers office managers actually screen for.',
+    person: {
+      name: 'Tanya Brooks',
+      title: 'Administrative Assistant',
+      location: 'Columbus, OH',
+      summary:
+        'Administrative assistant with 5 years supporting executives and busy offices. Currently support 3 directors — calendars, travel, expenses, board prep — while running front-office operations for a 60-person site.',
+      experience: [
+        {
+          role: 'Administrative Assistant',
+          company: 'Scioto Insurance Group',
+          dates: '2022 – Present',
+          bullets: [
+            'Support 3 directors: manage calendars averaging 40+ meetings/week, book ~6 trips/month, and process expenses with zero policy rejections in two years',
+            'Prepare board-meeting packets quarterly (agendas, minutes, follow-up tracking) for a 9-member board',
+            'Rebuilt the office supply and vendor process, cutting monthly spend 18% without service complaints',
+          ],
+        },
+        {
+          role: 'Front Office Coordinator',
+          company: 'Maple Dental Partners',
+          dates: '2020 – 2022',
+          bullets: [
+            'Ran scheduling and intake for a practice seeing 50+ patients daily across 4 providers',
+            'Cut no-show rate from 12% to 7% by introducing text-reminder workflows',
+          ],
+        },
+      ],
+      skills: ['Executive calendar management', 'Travel & expense coordination', 'Microsoft 365 / Google Workspace', 'Meeting & board prep', 'Vendor management', 'Front-office operations'],
+      education: 'A.A.B. Office Administration — Columbus State Community College, 2020',
+    },
+    tips: [
+      ['Count everything you coordinate', 'Executives supported, meetings per week, trips per month — volume numbers turn "managed calendars" into evidence of capacity.'],
+      ['Show judgment, not just tasks', 'Zero expense rejections, board packets delivered on time, vendor savings — admins are hired for reliability under trust, so surface the outcomes that prove it.'],
+      ['List the exact toolset', 'Microsoft 365 vs Google Workspace, Concur, Zoom admin — postings filter on the stack the office already runs.'],
+    ],
+  },
+  {
+    slug: 'graphic-designer',
+    role: 'Graphic Designer',
+    description:
+      'A graphic designer resume example that balances portfolio links, brand-impact bullets and ATS-safe formatting — creative work, boring layout, on purpose.',
+    person: {
+      name: 'Theo Marsh',
+      title: 'Graphic Designer',
+      location: 'Minneapolis, MN',
+      summary:
+        'Graphic designer with 5 years across brand systems, packaging and digital campaigns. Led the rebrand rollout across 200+ SKUs; portfolio at theomarsh.example.com (12 case studies with before/after metrics).',
+      experience: [
+        {
+          role: 'Graphic Designer',
+          company: 'North Loop Foods',
+          dates: '2022 – Present',
+          bullets: [
+            'Led design execution of the company rebrand across 200+ SKUs, retail displays and the DTC site in 9 months',
+            'Design email and paid-social creative for monthly campaigns; top variant lifted click-through 32% in A/B tests',
+            'Built and documented the Figma component library used by 2 in-house designers and 3 agency partners',
+          ],
+        },
+        {
+          role: 'Junior Designer',
+          company: 'Copperline Studio',
+          dates: '2020 – 2022',
+          bullets: [
+            'Produced brand identities, menus and signage for 20+ hospitality clients from concept to print handoff',
+            'Managed prepress and print-vendor coordination, cutting reprint errors to near zero over two years',
+          ],
+        },
+      ],
+      skills: ['Brand identity', 'Adobe Creative Cloud (Ai/Ps/Id)', 'Figma', 'Packaging & print production', 'Email/social creative', 'Design systems'],
+      education: 'B.F.A. Graphic Design — Minneapolis College of Art and Design, 2020',
+    },
+    tips: [
+      ['The portfolio link is the interview', 'Put the URL in the header and make sure it\u2019s plain clickable text in the exported PDF. The resume\u2019s job is to earn the click; the portfolio closes.'],
+      ['Keep the resume layout ATS-boring', 'Designers are the most tempted to design their resume — and two-column graphic resumes are exactly what parsers mangle. Save the craft for the portfolio; keep the resume single-column real text.'],
+      ['Attach outcomes to creative', 'CTR lifts, SKU counts, rollout timelines — pairing craft with numbers separates senior designers from decorators.'],
+    ],
+  },
+  {
+    slug: 'human-resources',
+    role: 'HR Specialist',
+    description:
+      'A human resources resume example with headcount scope, time-to-fill and retention numbers — plus HRIS keywords that get past the very systems HR runs.',
+    person: {
+      name: 'Whitney Adebayo',
+      title: 'HR Generalist',
+      location: 'Dallas, TX',
+      summary:
+        'HR generalist with 5 years across recruiting, onboarding and employee relations for 200–400-employee companies. Cut time-to-fill 30% and voluntary first-year turnover from 22% to 14%.',
+      experience: [
+        {
+          role: 'HR Generalist',
+          company: 'Lonestar Fulfillment Services',
+          dates: '2022 – Present',
+          bullets: [
+            'Own full-cycle recruiting for ~60 hires/year across warehouse and office roles; cut average time-to-fill from 41 to 29 days',
+            'Redesigned onboarding into a structured 30-day program; voluntary first-year turnover fell from 22% to 14%',
+            'Handle employee-relations cases end-to-end (documentation, investigation, resolution) for a 380-employee site',
+          ],
+        },
+        {
+          role: 'HR Coordinator',
+          company: 'Trinity Med Supply',
+          dates: '2020 – 2022',
+          bullets: [
+            'Administered benefits enrollment and HRIS records (ADP) for 210 employees with zero payroll-impacting errors',
+            'Coordinated 40+ interviews monthly and standardized structured interview scorecards company-wide',
+          ],
+        },
+      ],
+      skills: ['Full-cycle recruiting', 'Onboarding design', 'Employee relations', 'ADP / Workday HRIS', 'Benefits administration', 'Employment-law compliance basics'],
+      education: 'B.B.A. Human Resource Management — University of North Texas, 2020 · SHRM-CP, 2022',
+    },
+    tips: [
+      ['Use the metrics HR already reports', 'Time-to-fill, turnover, hires per year, headcount supported — you report these to leadership; put the same numbers on your own resume.'],
+      ['Certifications are filter keywords', 'SHRM-CP/SCP and PHR are literal ATS filters. List them with years in a credentials line, not buried in prose.'],
+      ['Show the messy work', 'Employee-relations cases handled end-to-end signal trust and discretion — the part of HR that\u2019s hardest to hire for.'],
+    ],
+  },
+  {
+    slug: 'product-manager',
+    role: 'Product Manager',
+    description:
+      'A product manager resume example with outcome-metric bullets, cross-functional scope and discovery evidence — what PM hiring panels actually screen for.',
+    person: {
+      name: 'Devon Silva',
+      title: 'Product Manager',
+      location: 'Seattle, WA',
+      summary:
+        'Product manager with 5 years in B2B SaaS. Own the billing-and-payments area of a $40M-ARR product; shipped the usage-based pricing revamp that lifted net revenue retention from 104% to 112%.',
+      experience: [
+        {
+          role: 'Product Manager',
+          company: 'Rainier Analytics',
+          dates: '2022 – Present',
+          bullets: [
+            'Own billing/payments for a $40M-ARR analytics platform, working with 2 squads (11 engineers, 2 designers)',
+            'Led the usage-based pricing revamp from 40+ customer interviews to GA; NRR rose 104% → 112% in three quarters',
+            'Cut involuntary churn 20% by shipping dunning-flow improvements prioritized from support-ticket analysis',
+          ],
+        },
+        {
+          role: 'Associate Product Manager',
+          company: 'Harborview Software',
+          dates: '2020 – 2022',
+          bullets: [
+            'Shipped the self-serve onboarding flow that raised trial-to-paid conversion from 9% to 14%',
+            'Ran weekly usability tests and maintained the insight repository used across 3 product teams',
+          ],
+        },
+      ],
+      skills: ['Product discovery & interviews', 'Roadmap prioritization', 'Pricing & monetization', 'SQL / product analytics', 'A/B experimentation', 'Cross-functional leadership'],
+      education: 'B.S. Information Systems — University of Washington, 2019',
+    },
+    tips: [
+      ['Bullets end in business outcomes', 'NRR, conversion, churn — PM panels screen for evidence you moved a metric that mattered, not for the features you shipped. Name the metric and the movement.'],
+      ['Show discovery, not just delivery', '"40+ customer interviews to GA" proves you find problems worth solving — the half of the job weak PM resumes skip.'],
+      ['State your surface area', 'Product area, ARR touched, squads and headcount you work with — scope calibrates your level instantly and honestly.'],
+    ],
+  },
+  {
+    slug: 'retail-associate',
+    role: 'Retail Sales Associate',
+    description:
+      'A retail sales associate resume example with sales-per-hour, KPI attainment and promotion evidence — how to make hourly retail work read like the results job it is.',
+    person: {
+      name: 'Jasmine Cole',
+      title: 'Retail Sales Associate',
+      location: 'Tampa, FL',
+      summary:
+        'Retail associate with 4 years in apparel and electronics. Consistently top-3 in sales per hour on a 15-person floor; keyholder trusted with opening/closing and new-hire training.',
+      experience: [
+        {
+          role: 'Sales Associate (Keyholder)',
+          company: 'Bayline Electronics',
+          dates: '2023 – Present',
+          bullets: [
+            'Rank top-3 of 15 associates in sales per hour for 6 straight quarters; 118% of attachment-rate target on accessories and warranties',
+            'Trusted keyholder: open/close the store solo twice weekly, including register reconciliation and deposits',
+            'Train 2–3 new associates per quarter on POS, floor standards and the sales process',
+          ],
+        },
+        {
+          role: 'Sales Associate',
+          company: 'Coastline Apparel',
+          dates: '2021 – 2023',
+          bullets: [
+            'Drove fitting-room conversion 12 points above store average through active outfit-building',
+            'Named employee of the month 4 times across two years for sales and customer-service scores',
+          ],
+        },
+      ],
+      skills: ['Consultative selling', 'POS systems', 'Cash handling & reconciliation', 'Visual merchandising', 'New-hire training', 'Loss-prevention awareness'],
+      education: 'High school diploma — Tampa Bay Tech, 2021',
+    },
+    tips: [
+      ['Retail is measured — use the numbers', 'Sales per hour, attachment rate, conversion, mystery-shop scores: your store already ranks you. Those rankings are your resume.'],
+      ['Keyholder status is a trust signal', 'Opening/closing solo, deposits, register reconciliation — responsibilities that prove reliability matter more than any adjective.'],
+      ['Show the promotion path', 'Trainer, keyholder, employee-of-the-month streaks — evidence you were repeatedly chosen is what gets you the next tier (lead, assistant manager).'],
+    ],
+  },
+  {
+    slug: 'warehouse-worker',
+    role: 'Warehouse Worker',
+    description:
+      'A warehouse worker resume example with pick rates, safety record and equipment certifications — the three things distribution-center recruiters scan for first.',
+    person: {
+      name: 'Luis Herrera',
+      title: 'Warehouse Associate',
+      location: 'Riverside, CA',
+      summary:
+        'Warehouse associate with 5 years in high-volume distribution. Sustain 115% of pick-rate standard with 99.8% accuracy; certified forklift and reach-truck operator with zero safety incidents.',
+      experience: [
+        {
+          role: 'Warehouse Associate II',
+          company: 'Inland Empire Distribution Co.',
+          dates: '2022 – Present',
+          bullets: [
+            'Pick 140+ units/hour (115% of standard) at 99.8% scan accuracy in a 500k sq ft RF-scanning facility',
+            'Certified on sit-down forklift and reach truck; zero safety incidents across 5 years',
+            'Cross-trained in receiving, cycle counts and loading; cover 3 departments during peak season',
+          ],
+        },
+        {
+          role: 'Warehouse Associate',
+          company: 'Pacific Parcel Services',
+          dates: '2020 – 2022',
+          bullets: [
+            'Loaded/unloaded 8–10 trailers per shift while maintaining damage rates under 0.1%',
+            'Selected for the peak-season lead rotation, directing a 6-person temp crew',
+          ],
+        },
+      ],
+      skills: ['RF scanning', 'Forklift & reach truck (certified)', 'Picking/packing/receiving', 'Cycle counting', 'Safety compliance', 'Team lead rotation'],
+      education: 'High school diploma — Riverside Poly, 2019 · OSHA forklift certification, renewed 2025',
+    },
+    tips: [
+      ['Rates, accuracy, safety — in that order', 'Units per hour vs. standard, scan accuracy, incident record: DC recruiters screen on these three lines. Pull real numbers from your labor-management printouts.'],
+      ['Equipment certifications are keywords', 'Forklift, reach truck, cherry picker, pallet jack — name each certification and the year, since postings filter on them literally.'],
+      ['Cross-training shows flex value', 'Coverage across receiving, picking and loading makes you the associate schedulers protect — say which departments you can run.'],
+    ],
+  },
 ]
 
 function examplePage(p) {
