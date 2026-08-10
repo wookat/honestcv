@@ -3082,3 +3082,20 @@ mechanical-engineer), the new how-far-back guide, and the regrouped
 - All five pages: 0 axe violations, 0px horizontal overflow at 375px.
 
 No defect found; log-only round.
+
+## Iteration I43 (2026-08-05)
+
+Content driver — new guide /guides/best-resume-fonts/ (fonts, sizes,
+margins):
+
+- High-volume topic missing from the library; complements
+  best-resume-format and the template pages. 12 sections: safe font
+  lists, the 10.5-12pt window, 0.5in margin floor, spacing, what ATS
+  parsers actually see (structure risk vs. the font-list myth),
+  bold/italic/color rules, print checks, PDF font embedding, and the
+  template tie-in to our S/M/L text & spacing controls.
+- Grouped under "Start here: how resumes get read" (guides hub now 36
+  links).
+- Live 200 with 12 TOC sections; sitemap 106 → 107; IndexNow 107 URLs
+  → HTTP 200.
+- Deployed version a8d29306-745f-440e-82b5-f656466529bf.
