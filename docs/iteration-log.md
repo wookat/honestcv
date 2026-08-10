@@ -3217,3 +3217,14 @@ read".
 Live: page 200 with 12 h2 anchors; sitemap 112 → 113; IndexNow 113 URLs
 → HTTP 200; lint 0 errors (6 pre-existing warnings). Deployed version
 4654459e-d4af-415d-912e-c3091ff88d0a.
+
+## Iteration I51 (2026-08-05) — I50 production regression
+
+Live regression at 375px (QA-flagged via addInitScript, zero AI calls):
+
+- /guides/two-column-resume-ats/: axe (WCAG 2 A/AA) 0 violations, 0px
+  horizontal overflow.
+- /guides/ hub: axe 0 violations, 0px overflow; 37 guide links and the
+  new guide present in the "Start here" group.
+
+No defect found; log-only round.
