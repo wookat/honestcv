@@ -2997,3 +2997,18 @@ User/data driver, scripts/analytics.mjs (last 14 days):
   (101 URLs indexed via IndexNow).
 
 No product change warranted; log-only round.
+
+## Iteration I37 (2026-08-05)
+
+New-user UX walkthrough at 375px (examples hub → example page →
+deep-link into builder, clean profile, QA-flagged):
+
+- Flow works end-to-end: financial-analyst deep link loads the resume
+  (checklist step 1 auto-done, strength 85%), no overflow anywhere, no
+  console errors.
+- Finding: static-page .btn CTAs measured 42px tall — below the 44px
+  touch-target minimum we hold the app to. Fixed with min-height:44px
+  on .btn (all static SEO pages share the stylesheet).
+- Live after deploy: all example-page CTAs measure 44px; 375px
+  scrollWidth still 360.
+- Deployed version f21d4b8e-ede7-4b2d-a217-e1a6ea5b3684.
