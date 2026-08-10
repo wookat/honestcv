@@ -1614,6 +1614,28 @@ ${others.map((t) => `<li><a href="${t.path}/">${esc(t.name)} resume template</a>
 </html>`
 }
 
+/** Flat list, or one list per `group` (in first-seen order) when items are grouped. */
+function renderHubItems(items) {
+  const li = ({ href, label, blurb, thumb }) =>
+    `<li${thumb ? ' style="display:flex;align-items:center;gap:.75rem"' : ''}>${thumb ? `<a href="${href}" style="flex-shrink:0;line-height:0">${thumb}</a>` : ''}<span><a href="${href}">${esc(label)}</a>${blurb ? ` — ${esc(blurb)}` : ''}</span></li>`
+  if (!items.some((i) => i.group)) {
+    return `<ul class="features">\n${items.map(li).join('\n')}\n</ul>`
+  }
+  const groups = []
+  for (const item of items) {
+    const name = item.group ?? 'More'
+    const found = groups.find((g) => g.name === name)
+    if (found) found.items.push(item)
+    else groups.push({ name, items: [item] })
+  }
+  return groups
+    .map(
+      (g) =>
+        `<h2 style="margin-top:2rem;font-size:1.125rem">${esc(g.name)}</h2>\n<ul class="features">\n${g.items.map(li).join('\n')}\n</ul>`
+    )
+    .join('\n')
+}
+
 function hubPage({ pathname, title, description, h1, intro, items }) {
   const canonical = `${SITE}${pathname}`
   const itemListLd = {
@@ -1657,9 +1679,7 @@ ${BEACON}${FP_BEACON}
 <main>
 <h1>${esc(h1)}</h1>
 <p class="lede">${esc(intro)}</p>
-<ul class="features">
-${items.map(({ href, label, blurb, thumb }) => `<li${thumb ? ' style="display:flex;align-items:center;gap:.75rem"' : ''}>${thumb ? `<a href="${href}" style="flex-shrink:0;line-height:0">${thumb}</a>` : ''}<span><a href="${href}">${esc(label)}</a>${blurb ? ` — ${esc(blurb)}` : ''}</span></li>`).join('\n')}
-</ul>
+${renderHubItems(items)}
 <div class="cta">
 <p>${FREE_MODE ? 'HonestCV is in beta with a full free trial: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
 <a class="btn" href="/builder">Start my free trial</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
@@ -2385,6 +2405,38 @@ ${related.map((r) => `<li><a href="${r.path}">${esc(r.title)}</a></li>`).join('\
 </html>`
 }
 
+// Reader-intent grouping for the guides hub (34 flat links are unscannable).
+// Any guide missing here still renders, under "More resume guides".
+const GUIDE_GROUPS = [
+  ['Start here: how resumes get read', ['what-is-an-ats', 'ats-friendly-resume', 'best-resume-format', 'resume-file-format', 'how-long-should-a-resume-be', 'resume-vs-cv']],
+  ['Writing the content', ['resume-summary-examples', 'resume-bullet-points', 'resume-action-verbs', 'resume-keywords', 'skills-for-resume', 'how-to-list-certifications', 'resume-objective-vs-summary']],
+  ['Tailoring to a job', ['tailor-resume-to-job', 'remote-job-resume', 'multiple-positions-same-company']],
+  ['Your situation', ['resume-with-no-experience', 'new-grad-resume', 'internship-resume', 'career-change-resume', 'employment-gap-resume', 'resume-for-teens', 'resume-summary-for-freshers', 'volunteer-work-on-resume']],
+  ['What to include — and leave off', ['references-on-resume', 'hobbies-and-interests-on-resume', 'photo-on-resume', 'common-resume-mistakes']],
+  ['Beyond the resume', ['how-to-write-a-cover-letter', 'how-to-email-a-resume', 'linkedin-vs-resume', 'resume-vs-portfolio', 'thank-you-email-after-interview', 'salary-expectations-in-interviews']],
+]
+
+function groupedGuideItems() {
+  const item = (g, group) => ({
+    href: `${g.path}/`,
+    label: g.title.split(' — ')[0].split(' (')[0],
+    blurb: `${g.description.split('. ')[0].replace(/\.$/, '')}.`,
+    group,
+  })
+  const bySlug = new Map(GUIDES.map((g) => [g.path.split('/').pop(), g]))
+  const items = []
+  for (const [group, slugs] of GUIDE_GROUPS) {
+    for (const slug of slugs) {
+      const g = bySlug.get(slug)
+      if (!g) throw new Error(`GUIDE_GROUPS references unknown guide: ${slug}`)
+      bySlug.delete(slug)
+      items.push(item(g, group))
+    }
+  }
+  for (const g of bySlug.values()) items.push(item(g, 'More resume guides'))
+  return items
+}
+
 const HUBS = [
   {
     pathname: '/vs/',
@@ -2408,11 +2460,7 @@ const HUBS = [
     h1: 'Resume guides',
     intro:
       'Practical, honest resume advice — no fluff, no fabricated-metrics tricks. Each guide is written to be actionable in minutes and pairs with our free in-browser ATS checker.',
-    items: GUIDES.map((g) => ({
-      href: `${g.path}/`,
-      label: g.title.split(' — ')[0].split(' (')[0],
-      blurb: `${g.description.split('. ')[0].replace(/\.$/, '')}.`,
-    })),
+    items: groupedGuideItems(),
   },
   {
     pathname: '/examples/',
