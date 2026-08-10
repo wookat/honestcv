@@ -3027,3 +3027,18 @@ and /vs/ reviewed against the acceptance-officer polish bar.
   vs. groupings; not user-visible side by side, leaving as is.
 
 No defect found; log-only round.
+
+## Iteration I39 (2026-08-05) — production smoke round
+
+Live-testing driver, scripted golden-path smoke on cv.zalize.com
+(QA-flagged, zero AI calls):
+
+- Builder → Ruby template → PDF export: download succeeds and
+  pdftotext confirms real-text output (name/title/summary/headings all
+  extractable) — ATS-safety of exports holds after the recent deploys.
+- /api/health: ok, llmConfigured true (provider itself still 401 —
+  unchanged, no AI smoke claimed).
+- /api/ai/quota responds correctly; /api/hit accepts and the /qa-*
+  exclusion path still returns 200 without polluting analytics.
+
+No defect found; log-only round.
