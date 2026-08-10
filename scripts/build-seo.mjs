@@ -912,6 +912,27 @@ const GUIDES = [
       ['The honesty check', 'Label unpaid roles as volunteer positions — letting a screener assume it was employment backfires at reference-check time. Dates, org names, and scope must survive a phone call to the coordinator. Honest framing plus concrete results is exactly what makes volunteer entries persuasive.'],
     ],
   },
+  {
+    path: '/guides/multiple-positions-same-company',
+    title: 'Multiple Positions at the Same Company on a Resume: Stacked vs Separate (2026 Guide)',
+    description:
+      'How to list promotions and role changes at one employer: stacked entries vs separate entries, what ATS parsers do with each, date math, and bullets that show growth.',
+    h1: 'How to show multiple positions at the same company',
+    sections: [
+      ['Promotions are your best evidence', 'Someone who watched you work chose to give you more responsibility — that is stronger proof than anything you can claim about yourself. The formatting question matters because bad formatting hides the promotion; done right, it is the first thing a screener notices.'],
+      ['The two layouts', 'Stacked: company name once, then each title with its own dates and bullets underneath. Separate: each role is a fully independent entry, company name repeated. Both are legitimate; the choice depends on how different the roles were and how the dates read.'],
+      ['When to stack', 'Stack when the roles are a clear ladder in one function — Associate → Senior → Lead. The single company header makes the climb visually obvious, saves lines, and reads as one continuous tenure ("Meridian Health, 2019–Present") rather than three short stints.'],
+      ['When to separate', 'Use separate entries when the roles were genuinely different jobs (support → engineering, store → corporate), when a gap or boomerang return sits between them, or when only the recent role is relevant and the early one deserves a single line.'],
+      ['What ATS parsers do with each', 'Parsers map entries to (title, company, dates) triples. Stacked layouts parse fine when each title has its own explicit date range on its own line; they break when dates apply only to the company header. Safest pattern: company + total range on the header line, then "Title (dates)" per role beneath.'],
+      ['Get the date math right', 'A stacked entry shows total tenure on the company line and per-role dates under each title. Make them add up — screeners subtract years in their head, and mismatched ranges read as carelessness or worse. Month + year everywhere, no bare years next to month-precise ranges.'],
+      ['Write bullets that show the step up', 'Don\u2019t repeat the same duties under each title. The junior role gets the foundation ("owned weekly reporting for 3 accounts"); the senior role gets scope growth ("inherited the 12-account portfolio, hired and trained 2 analysts"). The delta between bullet sets is the promotion story.'],
+      ['Name the promotion explicitly', 'A bullet like "Promoted to Senior Analyst after 14 months, one review cycle early" removes any ambiguity a parser or a skimming recruiter might have. If the title change was a reorg rather than a promotion, don\u2019t call it one — title inflation fails the reference check.'],
+      ['Lateral moves and reorgs', 'Sideways moves still show trust and range. Frame them by what changed: new product line, new region, new stack. If your title changed only because departments merged, one entry with both titles ("Analyst, Marketing (formerly Insights)") is honest and saves space.'],
+      ['Contract-to-hire and returning employees', 'Converted contractor: one stacked entry, first title marked "(contract)". Boomerang employee: separate entries with honest dates — the return itself is a selling point ("rehired to lead the team I trained in").'],
+      ['How HonestCV handles it', 'In the builder, create one experience entry per role and keep the company name identical — parsers and recruiters both read the repetition correctly. Use the duplicate button on an entry to copy the company details, then change the title, dates, and bullets for the earlier role.'],
+      ['The honesty check', 'Every title, every date range, and the word "promoted" must survive an HR verification call. Merging two roles into one senior title, stretching a senior role\u2019s dates over the junior years, or upgrading titles "because that\u2019s what the work really was" are the resume lies that surface fastest.'],
+    ],
+  },
 ]
 
 /** Visual metadata mirroring src/lib/templates.ts, for schematic thumbnails on static pages */
