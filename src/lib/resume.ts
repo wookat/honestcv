@@ -274,6 +274,8 @@ export function exampleToResume(person: ExamplePerson): Resume {
   // "B.S. X — School, 2019 · Cert A, 2021 · Cert B" → education + certifications
   const [eduPart, ...certParts] = person.education.split(/\s*·\s*/)
   const [degree, schoolPart] = eduPart.split(/\s*—\s*/)
+  // A trailing graduation year belongs in the date field, not the school name
+  const schoolYear = /^(.*?),\s*(\d{4})$/.exec((schoolPart ?? '').trim())
   return {
     ...emptyResume(),
     templateId: 'modern',
@@ -299,11 +301,11 @@ export function exampleToResume(person: ExamplePerson): Resume {
     education: [
       {
         id: newId(),
-        school: (schoolPart ?? '').trim(),
+        school: schoolYear ? schoolYear[1] : (schoolPart ?? '').trim(),
         degree: (degree ?? '').trim(),
         location: '',
         startDate: '',
-        endDate: '',
+        endDate: schoolYear ? schoolYear[2] : '',
         details: '',
       },
     ],
