@@ -2851,3 +2851,22 @@ single scan, same as /guides/ did at 34.
 - Landing example blurb updated 15 → 20 roles.
 - Live: all 5 group headings render on /examples/, ItemList still 20.
 - Deployed version 6b8d2655-4348-4386-ab51-1313a590c99d.
+
+## Iteration I28 (2026-08-05) — regression round
+
+Testing agent, recorded, production worker 6b8d2655 (clean QA profile),
+0 AI calls. All of I25–I27 passed:
+
+- I25: Data Analyst example education shows School "Georgia Tech" with
+  End date "2021"; preview renders the year right-aligned as a date.
+- I26: all five new example pages 200 with the full layout; picker
+  lists exactly 20 roles; /builder?example=electrician confirms then
+  loads Miguel Herrera with the URL stripped.
+- I27: /examples/ shows the 5 sector groups; 20 unique links all 200;
+  ItemList numberOfItems 20; landing blurb says 20 roles.
+- 375px no overflow on /examples/ and builder-with-picker; axe A/AA 0
+  violations on both; console clean apart from the known
+  cloudflareinsights block.
+
+Testing pitfall recorded: clearing honestcv.resume via CDP is undone by
+any open builder tab's autosave — close extra tabs before re-clearing.
