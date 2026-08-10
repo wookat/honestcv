@@ -3260,3 +3260,22 @@ exercised least often; 375/1440 are covered every cycle) of /,
   readable one-line blurbs; beta pricing footnote and footer intact.
 
 No defect found; log-only round.
+
+## Iteration I54 (2026-08-05) — copies & restore UX walkthrough
+
+New-user UX driver: the two flows least exercised in recent cycles,
+on production with a clean QA profile:
+
+- Copies: dialog copy is honest and clear ("Copies live in this
+  browser only", replace-warning before Load); "Save current as copy"
+  snapshots with timestamp + ATS badge (83/100 for the UX Designer
+  example); Load/Delete present.
+- Restore: uploading the I52 backup JSON replaces the editor content
+  correctly (contact.fullName round-trip verified).
+- Only console noise is the known cloudflareinsights beacon block —
+  no real errors.
+- Minor observation (not a defect): a copy saved without typing a name
+  is listed as "Untitled copy"; the name field is available but
+  optional. Acceptable default.
+
+No defect found; log-only round.
