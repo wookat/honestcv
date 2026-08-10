@@ -3149,6 +3149,38 @@ calls):
 
 No defect found; log-only round.
 
+## Iteration I48 (2026-08-05) — analytics review
+
+Data driver (first-party beacon, referrers, leads; last review I36):
+
+- Still zero organic traffic and zero referrers. The handful of hits
+  since 08-07 (5 on 08-10: /examples/bartender/, /vs/, new guide, etc.)
+  line up exactly with this session's own walkthrough probes — a few
+  scripts navigated before setting the honestcv.qa flag, so their first
+  pageview beacon fired unflagged. Not organic traffic; not counted as
+  traction.
+- Harness rule going forward (also noted in the testing skill's
+  spirit): set the QA flag via addInitScript so it's present before the
+  first document loads, not after goto.
+- Email leads unchanged at 18 (test-era).
+- Conclusion unchanged from I36: the bottleneck is off-site
+  distribution (docs/marketing/ packs await owner-executed accounts);
+  on-site pSEO inventory keeps compounding (112 URLs).
+
+Log-only round.
+
+## Iteration I49 (2026-08-05)
+
+Testing-harness hardening — encode the three scripted-QA pitfalls hit
+this cycle into the testing skill so future sessions don't repeat them:
+
+- QA flag must be set via addInitScript before any goto (unflagged
+  first-pageview beacons polluted analytics in I48's review).
+- /builder and /ats-checker are lazy-loaded: waitForSelector a form
+  control before interacting.
+- At 375px assert builder content via input values, not body text
+  (preview hidden behind the Edit|Preview switcher).
+
 ## Iteration I47 (2026-08-05) — competitor deep revisit (10-round cadence)
 
 Pricing-drift audit of all live /vs/ claims against competitors' own
@@ -3169,3 +3201,4 @@ pages (real browser, public pages only; last revisit I32):
 
 No copy drift found; no new head-to-head competitor worth a page this
 cycle. Log-only round.
+||||||| 07cfaa6

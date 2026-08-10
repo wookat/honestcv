@@ -5,6 +5,45 @@ description: How to QA-test HonestCV (cv.zalize.com) end-to-end — free/launch 
 
 # Testing HonestCV
 
+## I11/I12 notes (main d59f861)
+
+- /examples/ now has **15** role pages (added: accountant, administrative-assistant, graphic-designer, human-resources, product-manager, retail-associate, warehouse-worker). Fast validity check from the page console/CDP: fetch /examples/, regex `href="(/examples/[a-z-]+/)"`, HEAD each — expect count 15, all 200.
+- I12: every static-page footer (guides, templates, /vs/, hubs, about, legal) has an "Examples" → /examples/ link, and each guide's "Keep reading" list ends with "Resume examples by role" + "HonestCV vs other resume builders".
+- Pitfall: CDP `Emulation.clearDeviceMetricsOverride` may not visually restore a previously-emulated tab — open a fresh tab (Ctrl+T) to get desktop layout back.
+
+## I29–I30 notes (main 03c69b0, worker 1773fa78)
+
+- I30: builder empty-state role picker `<select id="example-role">` now renders `<optgroup>` per sector — expect exactly 5 optgroups (Tech & data / Healthcare & education / Business & finance / Customer-facing & office / Trades & transport) and 20 role options (+1 placeholder). `examples.json` entries carry a `sector` field. A flat list (0 optgroups) means the change regressed.
+- I29: /templates/ hub is grouped under 4 style h2s — Banded headings (5) / Serif (7) / Minimal (3) / Modern sans (7); link-integrity: regex `href="(/templates/[a-z-]+/)"` → 22 unique, all 200; ItemList JSON-LD numberOfItems 22.
+
+## I25–I27 notes (main dffceec, worker 6b8d2655)
+
+- Examples library is now 20 roles (was 15). `/examples/examples.json` → 20 entries; builder empty-state picker `<select id="example-role">` → 21 options (placeholder + 20). New slugs: electrician, truck-driver, financial-analyst, medical-assistant, restaurant-server.
+- I25 `exampleToResume`: a trailing ", YYYY" in the education school string moves to the education end-date field (e.g. Data Analyst → degree "B.S. Industrial Engineering", school "Georgia Tech", end date "2021"; preview shows the year right-aligned as a date). If school still contains ", 2021" the fix regressed.
+- I27 hub `/examples/` is grouped under 5 h2s (Tech & data / Business & finance / Healthcare & education / Trades & transport / Customer-facing & office); link-integrity: regex `href="(/examples/[a-z-]+/)"` → 20 unique, all 200; ItemList JSON-LD numberOfItems 20. Landing template-gallery blurb: "20 complete resume examples by role".
+- Autosave pitfall: clearing `honestcv.resume` via CDP while a builder tab is open gets re-saved by that tab's autosave — close/reload extra builder tabs first, then clear and reload.
+
+## I18–I22 notes (main ee9d87e)
+
+- I22: the builder empty-state card (clean `honestcv.resume`) now has "Or start from your role:" `<select id="example-role">` with 15 roles; choosing one applies the example via the same `applyExample()` as the `?example=<slug>` deep link (shared confirm/keep-template rules). The picker only exists in the empty state — with content present, test the confirm rule via the deep link instead.
+- I20: /guides/ hub is grouped under 6 `<h2>`s (Start here / Writing the content / Tailoring to a job / Your situation / What to include — and leave off / Beyond the resume); link-integrity check: regex `href="(/guides/[a-z-]+/)"` on the hub HTML → expect 34 unique, all 200.
+- I21: example-page `.exrole` is flex flex-wrap (date wraps below at 375px, no float); each example page has a "How to write yours" list: 4 guides + All resume guides.
+- I18: /guides/ and /examples/ each carry one `application/ld+json` ItemList (34 and 15 items) — verify by parsing the JSON from curl output.
+
+## I13/I14/I16 notes (main 05140fa)
+
+- I16 deep link: every /examples/<slug>/ primary CTA is now `/builder?example=<slug>`. Builder fetches `/examples/examples.json`, maps it via `exampleToResume` (split "2022 – Present" dates, comma-joined skills, degree/school split — the year stays in the school field, certifications from "·" parts). If `contact.fullName || summary` is non-empty a `window.confirm` ("Replace your current resume content with this example? Your saved copies are unaffected.") gates it; the `?example` param is stripped via replaceState so reload never re-triggers. Template preserved only if != classic (same rule as #133).
+- I14 gate: `honestcv.shared='1'` alone (no `honestcv.subscribed`) now skips the email gate on download — only the "Final check before download" quality nudge may appear (that's a different, pre-existing dialog; click "Download anyway").
+- I13: landing template-gallery section ends with "15 complete resume examples by role" → /examples/; hub meta description starts "15 complete, honest resume examples by role…".
+- Note: curl to cv.zalize.com needs a browser-ish UA — plain python urllib gets 403 from Cloudflare; curl works.
+
+## I7/I8 notes (main 239d644)
+
+- Builder quota hint: with no JD the Tailor row shows "Paste a job description to enable tailoring"; once a JD is pasted, locked users see "N free AI uses left" right next to "Tailor to this job" (licensed users see nothing). Toggle by cutting/pasting the JD textarea content.
+- AI outage copy: upstream failure now shows "The AI service is temporarily unavailable (NNN) — please retry in a minute. None of your free AI uses were spent." inside the Tailor dialog; verify `/api/ai/quota` unchanged before/after.
+- 375px /ats-checker: the label "Your resume (paste or upload)" + "Upload PDF / DOCX" button row is `flex flex-wrap` — expect two stacked lines at 375px with scrollWidth 375.
+- /examples/ pages (hub + 8 role pages, e.g. /examples/teacher/) are **static HTML** from `scripts/build-seo.mjs`, not React routes — clicking their internal links does full navigations; footer of React pages has a "Resume examples" link. All examples pages passed axe A/AA and 375px overflow checks; only console noise is the known cloudflareinsights beacon ERR_BLOCKED_BY_CLIENT.
+
 HonestCV is a React 19 + Vite SPA served by a Hono Cloudflare Worker (`honestcv`, repo `~/repos/honestcv`), live at https://cv.zalize.com. Resume state is browser localStorage (`honestcv.resume`); license state is also in localStorage. Clear localStorage to get a fresh locked state.
 
 ## Free/traffic mode (FREE_MODE=true worker var)
@@ -13,7 +52,9 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 
 - Builder header shows a **"Beta free trial"** badge (was "Free during launch" before PR #112) instead of "Unlock — $9.99 once".
 - First PDF/DOCX click (unsubscribed) opens a **"Downloads are included in the beta trial"** email dialog (was "Downloads are free during launch"; button is now "Unlock downloads"). Any valid-looking email works (no verification); it POSTs `/api/leads` with plan `free-download` and stores localStorage key `honestcv.subscribed`. The pending download then starts automatically; subsequent downloads skip the dialog. Clear both `honestcv.license` and `honestcv.subscribed` to re-test the gate.
-- Set `localStorage['honestcv.qa']='1'` before browsing so the site's analytics excludes the QA session.
+- Set `localStorage['honestcv.qa']='1'` before browsing so the site's analytics excludes the QA session. In Playwright, set it with `context.addInitScript(() => localStorage.setItem('honestcv.qa','1'))` BEFORE any `goto` — setting it after the first navigation lets that page's beacon fire unflagged and pollutes first-party analytics.
+- `/builder` and `/ats-checker` are lazy-loaded routes: `waitForSelector` for a form control (`textarea`, `select`, name input) before interacting — filling right after `load` races hydration and silently no-ops.
+- At 375px the builder preview pane is hidden behind the Edit|Preview switcher — assert loaded content via form `input` values, not `body.innerText` (the name lives in the 3rd input; the first two are copy-name/search fields).
 - Bundle tools (Cover letter / Interview prep) open for everyone (no lock icon), consuming the anonymous free AI quota (12 per client per 30 days, sent via `x-client-id`).
 - Standalone `/ats-checker`: check button disabled until resume text ≥30 chars; scoring is client-side.
 - SEO set expanded: /vs/resume-io, /vs/resume-genius, /guides/{ats-friendly-resume,resume-summary-examples,resume-keywords}, /templates/{classic,modern,compact,executive}; sitemap.xml has 18 URLs; IndexNow key at /88d13cb021bb7d759cc09d7b95af03fc.txt.
@@ -74,7 +115,7 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **Code-split pitfall**: Builder is now a separate chunk (`/assets/Builder-*.js`) — grepping the main `index-*.js` bundle for feature strings ("Tailor to this job", "Full health report") finds nothing; fetch the Builder chunk URL from the index bundle's import list instead.
 - **E1 Tailor**: button in "Target job" section, disabled until JD pasted (hint "Paste a job description to enable tailoring"). Dialog → "Get tailoring suggestions" → busy "Analyzing your resume against the JD…" (~30-60s, 1 quota call). Rows: `where` label, original struck-through, emerald suggestion, Accept / Keep original per row + "Accept all remaining"; statuses "Applied to your resume" / "Kept your original". Accept updates editor field AND preview live. Empty resume content → instant inline error "Add a summary or experience bullets first — tailoring rewords your real content." (no quota use). Pitfall: after accepting a row the dialog layout shifts — re-locate buttons before clicking the next row.
 - **E2 Health report**: link under Resume strength card "Full health report — N/100 across 6 checks" → dialog "Resume health report — N/100" with 6 progressbars (Completeness, Quantified impact, Action verbs, Brevity, Buzzword-free, Consistency) + findings + heuristic disclaimer. Score reacts to content (cleared summary/bullets drops it; undo restores). All local, no AI.
-- **Quota counter**: footer "N free AI rewrites left" only renders after at least one AI call in the session state; Tailor decrements it by exactly 1.
+- **Quota counter**: footer "N free AI rewrites left" renders on load (fetched from `GET /api/ai/quota` since I1/PR #135, no consumption); any AI call decrements it by exactly 1.
 - **CDP emulation stuck pitfall**: `Emulation.clearDeviceMetricsOverride` from a *new* websocket connection may not clear an override set by a closed connection — send `setDeviceMetricsOverride {width:0,height:0,deviceScaleFactor:0,mobile:false}` then `clearDeviceMetricsOverride` on the same connection to restore desktop.
 
 ## PR #127 / U1-U3 (onboarding: landing 3-step, getting-started checklist, New badges)
@@ -84,6 +125,45 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **Badges**: "New" on Tailor button and "Full health report" link; first click sets the seen key and removes the badge immediately and across reloads.
 - **Fresh-user download gate**: two dialogs before the file lands — beta email gate ("Downloads are included in the beta trial", use qa-beta@zalize.com) then a "Final check before download" quality nudge (click "Download anyway"). Checklist step 4 only checks after the actual download.
 - To re-test the Dismiss flow separately, just remove the onboarding keys and reload — no need for a second browser profile.
+
+## PR #129 / Design system D1-D5 (fonts, motion, chips, explainers)
+
+- **Fonts**: self-hosted `/fonts/inter-latin.woff2` + `/fonts/sora-latin.woff2` (preloaded in index.html). App h1-h3 → Sora via `h1:not([data-resume-preview] *)` etc.; the resume preview headings must stay template fonts (Classic = Georgia). Check with `document.fonts.check('700 16px Sora')` + computed `fontFamily` on app h1 vs `[data-resume-preview] h2/h3`.
+- **Hero rise-in**: `.animate-rise` on badge/h1/p/CTA with `--rise-delay` 0/60/120/180ms; catch it by hard-reloading and screenshotting immediately (hero appears blank mid-animation).
+- **HOVER PITFALL (environment)**: Tailwind v4 gates all `hover:` variants behind `@media (hover: hover)`, and BOTH the managed Chrome and a plain second Chrome on this box report `hover: none` (matchMedia false) — the blink-settings hoverType flags and CDP `Emulation.setEmulatedMedia` hover features do NOT fix it. Workaround to demo hover styles: patch the stylesheet in-page (test-only): walk `document.styleSheets` CSSMediaRules and set `mediaText='all'` for the `(hover:hover)` rule, then hover normally and read computed `translate`/`boxShadow`. `active:` press styles (e.g. `scale 0.98`) are NOT media-gated and work natively (use mouse_move + left_mouse_down, read `getComputedStyle(el).scale`, then move off the link before mouse_up to avoid navigating).
+- **Mobile chips**: landing/builder filter chips are `min-h-11` (44px) at 375px, `sm:min-h-8` (32px) desktop — measure via CDP device metrics 375x812.
+- **ATS expander**: `/ats-checker` → "see an example score" (0 AI quota) → collapsed `<details>` "What do these scores mean?" under the sub-scores; expands to Keyword match / Structure / What to do ("Aim for 70+").
+- **Health explainers**: each of the 6 dimensions in the health dialog has an italic plain-language line (e.g. Quantified impact → "Numbers make claims believable — “cut costs 18%” beats “reduced costs” every time.").
+- **Download gate**: the beta email gate reappears even with `honestcv.shared=1` set manually — the unlock is keyed separately (enter `qa-beta@zalize.com` once).
+
+## PR #130 / Text size (S/M/L) + Line spacing (Compact/Normal/Relaxed)
+
+- **Controls**: in the builder design bar after Letter/A4. S/M/L buttons have `aria-label="Text size small/medium/large"` + `aria-pressed`; Spacing buttons found by `title` starting with `Compact/Normal/Relaxed` + `aria-pressed` (no aria-label, named by visible text).
+- **Preview check (objective)**: read computed style of `[aria-label="Resume preview"]` — `zoom` = 0.92/1/1.08 and `lineHeight` = 21.12/23.2/25.92px (root em 16px; component adds +0.1 to LINE_SPACING). IMPORTANT: read the style ~1s AFTER clicking — reading synchronously in the same evaluate returns the pre-render value.
+- **Persistence pitfall**: `fontScale`/`lineSpacing` are saved into `honestcv.resume` localStorage with a **debounced autosave (~1-2s)** — reloading immediately after a toggle click loses the last change. Wait 2-3s before F5 when testing persistence.
+- **PDF verification**: pdf-lib output streams don't grep for `Tf` easily; use `pdftotext -bbox` and compare the bounding box of a fixed word (e.g. the name "Jordan") between exports — S should be exactly 0.92× of M (width and height). Compare max `yMax` for line-spacing density, `pdfinfo | grep Pages` for page count.
+- **DOCX verification**: unzip `word/document.xml`; at L/Relaxed expect `w:sz` 21→23 (body), 22→24 (headings), 24→26 (title), 40→43 (name) and `w:spacing w:line="270"` (= round(240×1.52/1.35)); default is line=240 equivalents. `python-docx` (pip install python-docx) parses it for an "opens correctly" check without Word/LibreOffice.
+- **CWV quick check**: PerformanceObserver with `buffered:true` for `largest-contentful-paint` and `layout-shift` injected right after navigation; note results are warm-CDN, not lab-cold numbers.
+
+## PR #132 / ATS explainability, email-gate privacy, mobile pane switcher, themed example
+
+- **ATS weights**: in the Builder ATS card, `×70%`/`×30%` spans render ONLY when a JD is pasted (`ats.keywordScore !== null`); without a JD only `Structure N` shows, no weights. The `<details>` "How this score is calculated" sits under the sub-score row and has two text variants (JD formula vs 6-point checklist); the "A 100 means every rule passes…" sentence appears only at score 100 — the easiest 100 is the no-JD structure-only state with the example resume.
+- **/ats-checker**: "What do these scores mean?" expander (after "see an example score") should list 4 items — Keyword match / Structure / **How it's combined** / What to do.
+- **Email gate privacy**: remove `honestcv.subscribed` then click PDF; the dialog footer must have the "What we send… never sold or shared… never leaves this browser" paragraph + `Privacy policy` link to `/privacy/`. Entering `qa+…@example.com` unlocks and immediately triggers the download.
+- **Mobile pane switcher (375px)**: bottom bar `[aria-label="Switch between editing and preview"]` with Edit / "Preview & score" buttons (`aria-pressed`, min-h 44px); panes toggle via `hidden lg:block` — check `offsetParent` of `main > div` (editor) and `#preview`. Bar is `lg:hidden`; `main` has `pb-20`. The old floating Preview FAB should be gone.
+- **Example template behavior (fixed in PR #133, worker c39f69bd)**: `sampleResume()` sets `templateId:'modern'`; the Builder loader now spreads `...(resume && resume.templateId !== emptyResume().templateId ? { templateId: resume.templateId } : {})`. Expected: fresh/Classic state → example loads as Modern; a deliberately pre-picked non-Classic template (e.g. Startup) is preserved. Verify via `JSON.parse(localStorage['honestcv.resume']).templateId` after loading. (Original bug: the pre-#133 unconditional spread always kept Classic.)
+- **Teal PDF check**: extract content-stream color ops — inflate streams with python `zlib` and regex `([\d.]+ [\d.]+ [\d.]+) (rg|RG)`; Modern teal = `0.0588 0.4627 0.4314` (#0f766e). Monochrome-only ops (0.12/0.35 grays) = untheme bug. `pdftoppm -png` renders a visual proof page.
+- **AI busy line**: Tailor dialog shows `role=status` "Usually takes 10–20 seconds…" while busy — screenshot within the first seconds of the call.
+- **CDP note**: newer QA Chrome rejects websocket Origin — pass `suppress_origin=True` to `websocket.create_connection`. Debug port is in `ps aux | grep remote-debugging-port` (e.g. 29229). Inject axe by fetching axe.min.js locally and sending it via `Runtime.evaluate` (page CSP blocks external script tags from the console).
+
+## PRs #135-#137 / I1 autosave+quota, I2 volunteer guide, I3 onboarding recovery
+
+- **Quota counter (I1b)**: footer shows "N free AI rewrites left" on load before any AI call, fetched from `GET /api/ai/quota` with `x-client-id: localStorage['honestcv.clientId']`. Set a fresh random clientId to get a full quota (limit was 12 in free mode). The GET is read-only — repeated fetches must return the same `freeRemaining`. Fetch it from the page console (`fetch('/api/ai/quota',{headers:{'x-client-id':localStorage.getItem('honestcv.clientId')}})`) rather than curl.
+- **Autosave flush (I1a)**: type a marker in Full name, immediately hide the tab (switch tab) or reload; the marker must survive in `localStorage['honestcv.resume']` — the debounce now flushes on pagehide/visibilitychange-hidden.
+- **⚠️ AI 503 quota-burn pitfall — FIXED by I4 (worker commit 3fc682f)**: pre-I4, failed 503 calls decremented quota (12→11→10). Post-I4, quota is consumed only after a successful upstream call — verified live: one Tailor 503 left `/api/ai/quota` at `freeRemaining:12` and the footer counter unchanged after reload. Recipe: fresh random `honestcv.clientId`, read `/api/ai/quota` from the page console before/after one failed attempt. I5 adds one internal retry on 429/5xx (not directly observable from the UI). If an AI relay outage recurs, 503s are still production incidents; busy-line UI can't be verified while the backend is down.
+- **Checklist step 3 persistence**: post-#137 the Tailor step stays checked after reload (was session-only pre-#135 batch).
+- **Volunteer guide**: `/guides/volunteer-work-on-resume/` — 12 TOC anchors under `nav[aria-label="On this page"]`; anchor click updates the URL hash and jumps; listed on `/guides/` hub; `@media (max-width:640px){.toc ol{columns:1}}`.
+- **/about/**: static page with "About HonestCV" h1, What we promise / How we compare / Press kit; footer "About" link on landing + builder.
 
 ## Key flows and how to test them (paid mode)
 
