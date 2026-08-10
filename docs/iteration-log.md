@@ -3149,6 +3149,28 @@ calls):
 
 No defect found; log-only round.
 
+## Iteration I47 (2026-08-05) — competitor deep revisit (10-round cadence)
+
+Pricing-drift audit of all live /vs/ claims against competitors' own
+pages (real browser, public pages only; last revisit I32):
+
+- Resume.io $29.95 (+$49.95 tier) — matches /vs/resume-io.
+- Rezi $0/$29/$149 lifetime — matches /vs/rezi.
+- Kickresume monthly $24 / annual ~$8-18/mo — inside our "$19-24/month"
+  claim.
+- FlowCV $0/$3/$5 — matches /vs/flowcv.
+- Resume Worded: /pricing now 404s; live pricing is at /get-pro —
+  $49/mo, $33/mo quarterly, $19/mo annual ($229) — matches our
+  "$19-$49/month recurring".
+- Novorésumé: /premium now 404s; /pricing shows $21.99/$39.99/$139.99
+  non-recurring — matches /vs/novoresume.
+- Zety/Jobscan/Teal remain bot-walled — not bypassed, claims unchanged
+  with their re-verified stamps.
+
+No copy drift found; no new head-to-head competitor worth a page this
+cycle. Log-only round.
+||||||| 07cfaa6
+
 ## Iteration I48 (2026-08-05) — analytics review
 
 Data driver (first-party beacon, referrers, leads; last review I36):
