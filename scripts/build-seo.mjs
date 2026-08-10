@@ -575,6 +575,27 @@ const GUIDES = [
     ],
   },
   {
+    path: '/guides/how-far-back-should-a-resume-go',
+    title: 'How Far Back Should a Resume Go? 10-15 Years, With Exceptions (2026)',
+    description:
+      'The 10-15 year rule, when to break it, how to compress older experience into an early-career line, age-signal details to drop, and what recruiters actually check dates for.',
+    h1: 'How far back should your resume go?',
+    sections: [
+      ['The short answer: 10–15 years', 'Recruiters read your last two or three roles closely and skim everything older. Ten years covers most screening questions; fifteen if your strongest, most relevant work sits that far back. Beyond that, older roles cost space that your recent evidence needs — and add age signals you don\u2019t owe anyone.'],
+      ['Why the cutoff exists', 'Screening is a relevance test, not a biography check. A 2008 role rarely predicts 2026 performance: the tools changed, the team is gone, and no reference will be reachable. Every line an old job occupies is a line your current results don\u2019t get.'],
+      ['Relevance beats recency — the real rule', 'The 10-15 window is a proxy for "still relevant". If you\u2019re returning to a field you left, the older in-field role can matter more than a recent out-of-field one — keep the relevant role with bullets and compress the recent detour to a line instead.'],
+      ['How to cut without creating a gap', 'Don\u2019t delete old roles silently — a resume that starts mid-career invites "what came before?" Add a one-line closer under your experience section: "Earlier career: engineering roles at Acme and Initech, 2006–2012." It answers the question in twelve words and zero bullets.'],
+      ['The "Earlier career" line, done right', 'Company names and a year range only — no bullets, no titles unless one is impressive ("including 2 years as team lead"). It exists to complete the timeline, not to be read. One line for all pre-cutoff roles combined.'],
+      ['When to keep an old role in full', 'Keep it when it\u2019s your best evidence for this posting: the brand is a door-opener (Google, a Big 4), the role matches the target job exactly, or it\u2019s the last time you held the title you\u2019re applying back into. Trim it to 2-3 bullets — old roles never outrank recent ones for space.'],
+      ['Education dates: when the year helps and hurts', 'A graduation year within ~15 years is normal and answers a timeline question. Older than that, the year mostly signals age — you may drop it and list the degree alone. New grads: keep the year; it explains a short experience section.'],
+      ['Other age signals to drop with the old roles', 'An AOL/Hotmail address, "25+ years of experience" in the summary, technologies dead a decade (Flash, Lotus Notes), and a two-column skills list padded with them. If you cut the 1990s jobs but keep the 1990s signals, the cut bought nothing.'],
+      ['Senior candidates: depth over span', 'For director/VP applications, scope is your evidence — but scope from your last 2-3 roles. "Led 120 engineers across 4 sites" from 2023 does the work; the same claim from 2009 doesn\u2019t. Let the summary state total span ("15+ years") and the bullets stay recent.'],
+      ['What recruiters actually check dates for', 'Sequence and gaps, not ancient history. They verify your last two employers, look for unexplained recent gaps, and check the current role\u2019s length. Nobody calls your 2007 manager — which is exactly why those bullets are wasted space.'],
+      ['ATS parsers don\u2019t care — but the page does', 'Parsers extract every role regardless of age; there\u2019s no ATS penalty for old jobs. The cost is human: a screener spends the same 7 seconds on a 1-page and a 3-page resume, so the third page mostly dilutes the first.'],
+      ['Trim it mechanically', 'In our builder, delete pre-cutoff roles and paste the "Earlier career" line as the last entry\u2019s detail or a custom section — the live page-count indicator shows what the cut buys you, and the ATS checker confirms your match score against the posting before you send it.'],
+    ],
+  },
+  {
     path: '/guides/common-resume-mistakes',
     title: '12 Common Resume Mistakes That Get You Rejected (2026)',
     description:
@@ -2630,7 +2651,7 @@ const GUIDE_GROUPS = [
   ['Writing the content', ['resume-summary-examples', 'resume-bullet-points', 'resume-action-verbs', 'resume-keywords', 'skills-for-resume', 'how-to-list-certifications', 'resume-objective-vs-summary']],
   ['Tailoring to a job', ['tailor-resume-to-job', 'remote-job-resume', 'multiple-positions-same-company']],
   ['Your situation', ['resume-with-no-experience', 'new-grad-resume', 'internship-resume', 'career-change-resume', 'employment-gap-resume', 'resume-for-teens', 'resume-summary-for-freshers', 'volunteer-work-on-resume']],
-  ['What to include — and leave off', ['references-on-resume', 'hobbies-and-interests-on-resume', 'photo-on-resume', 'common-resume-mistakes']],
+  ['What to include — and leave off', ['references-on-resume', 'hobbies-and-interests-on-resume', 'photo-on-resume', 'how-far-back-should-a-resume-go', 'common-resume-mistakes']],
   ['Beyond the resume', ['how-to-write-a-cover-letter', 'how-to-email-a-resume', 'linkedin-vs-resume', 'resume-vs-portfolio', 'thank-you-email-after-interview', 'salary-expectations-in-interviews']],
 ]
 

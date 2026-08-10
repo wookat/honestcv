@@ -2933,3 +2933,18 @@ bot-wall bypass):
   round.
 
 No copy drift found → no code change; log-only round.
+
+## Iteration I33 (2026-08-05)
+
+Weekly pSEO — new guide /guides/how-far-back-should-a-resume-go/:
+
+- Classic high-volume query missing from the 35-guide library: the
+  10-15 year rule, the "Earlier career" one-liner (cutting without
+  creating a gap), when to keep an old role in full, education-date and
+  age-signal guidance, senior-candidate depth-over-span, what recruiters
+  actually check dates for, and the ATS-vs-human cost distinction.
+- Grouped under "What to include — and leave off" (guides hub now 35
+  links across the same 6 groups).
+- Live 200 with 12 sections/TOC; sitemap 100 → 101; IndexNow 101 URLs
+  → HTTP 200.
+- Deployed version ee99e006-391f-47f7-aa31-16122222352d.
