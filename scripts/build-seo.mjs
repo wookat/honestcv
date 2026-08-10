@@ -2336,7 +2336,7 @@ ${doc}
 ${p.tips.map(([h, t]) => `<h2 style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
 <div class="cta">
 <p>${FREE_MODE ? 'Build yours in the same clean, ATS-safe layout — HonestCV is in beta with a full free trial: 22 templates, AI rewrites of your real experience, ATS match score and PDF/DOCX downloads.' : 'Build yours in the same clean, ATS-safe layout — free to try, one-time $9.99 download, no subscription.'}</p>
-<a class="btn" href="/builder">Start my resume</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
+<a class="btn" href="/builder?example=${p.slug}">Edit this example in the builder</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 <div class="related">
 <h2>More examples</h2>
@@ -2430,6 +2430,12 @@ for (const p of EXAMPLES) {
   writeFileSync(path.join(dir, 'index.html'), examplePage(p))
   console.log(`built /examples/${p.slug}/index.html`)
 }
+// Machine-readable example data so the builder can load one via ?example=<slug>
+writeFileSync(
+  path.join(OUT_DIR, 'examples/examples.json'),
+  JSON.stringify(EXAMPLES.map((e) => ({ slug: e.slug, role: e.role, person: e.person })))
+)
+console.log('built /examples/examples.json')
 
 for (const p of TEMPLATE_PAGES) {
   const dir = path.join(OUT_DIR, p.path.slice(1))
