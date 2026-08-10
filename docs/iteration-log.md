@@ -2884,3 +2884,15 @@ thumbnail rows) after /guides/ (I20) and /examples/ (I27) were grouped.
 - Live: 4 group headings render, ItemList still 22 items. Edge
   propagation took ~45s (first probe returned the old flat page).
 - Deployed version 3c7a1ee8-0ef4-4a57-87f1-b2c5efa2910c.
+
+## Iteration I30 (2026-08-05)
+
+UX driver: the builder's empty-state role picker grew to a flat list of
+20 options — the same scan problem I27 fixed on the hub.
+
+- examples.json entries now carry a `sector` field derived from
+  EXAMPLE_GROUPS (fallback "More roles"), and the picker renders one
+  <optgroup> per sector in first-seen order, matching the hub grouping.
+- Deep-link path unchanged; only option markup differs.
+- Live: examples.json serves 20 entries with sectors.
+- Deployed version 1773fa78-8f53-44ae-b057-1dec4b30f6f6.

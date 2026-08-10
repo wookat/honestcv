@@ -2785,7 +2785,14 @@ for (const p of EXAMPLES) {
 // Machine-readable example data so the builder can load one via ?example=<slug>
 writeFileSync(
   path.join(OUT_DIR, 'examples/examples.json'),
-  JSON.stringify(EXAMPLES.map((e) => ({ slug: e.slug, role: e.role, person: e.person })))
+  JSON.stringify(
+    EXAMPLES.map((e) => ({
+      slug: e.slug,
+      role: e.role,
+      sector: EXAMPLE_GROUPS.find(([, slugs]) => slugs.includes(e.slug))?.[0] ?? 'More roles',
+      person: e.person,
+    }))
+  )
 )
 console.log('built /examples/examples.json')
 
