@@ -2651,3 +2651,11 @@ gate:
     if (!hasSubscribed() && !localStorage.getItem('honestcv.shared'))
 
 Deployed 74f30afb.
+
+## Iteration I15 (2026-08-05)
+
+Weekly pSEO: new 12-section guide /guides/multiple-positions-same-company/
+(promotions/stacked-vs-separate entries — high-volume long-tail with no
+existing coverage on the site; includes ATS parsing guidance and the
+builder's duplicate-entry recipe). Sitemap 93 → 94; IndexNow 94 URLs
+HTTP 200; live page 200. Deployed 8b93e3d3.
