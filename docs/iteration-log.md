@@ -2757,3 +2757,29 @@ Drivers: internal-linking audit + visual review of the example pages.
   space-between: same desktop look, dates fall to their own line when
   they don't fit.
 - Deployed version 34607c9a-7b2c-477f-a776-ac425d9604f0; live verified.
+
+## Iteration I22 (2026-08-05)
+
+Driver: new-user UX walkthrough of an empty builder.
+
+- The empty state offered one generic sample resume; the 15 role
+  examples were only reachable by leaving for /examples/ and coming
+  back. Added a "Or start from your role" select in the empty state
+  that loads any of them in place (44px tall for touch, labelled).
+- Refactored the I16 deep-link effect: examples.json is now fetched once
+  into state and shared by both the picker and the ?example= deep link,
+  with `applyExample()` holding the single confirm-before-replace and
+  keep-chosen-template rule.
+- Deployed version ad00a972-02d3-4cfa-9e24-9136bdcacbe2.
+
+## Iteration I23 (2026-08-05) — competitor revisit
+
+Pricing recheck against the live pages (10-round cadence):
+
+- Resume.io: $29.95 / $49.95 — /vs/resume-io still accurate.
+- Rezi: $29, $99, $149, free tier — /vs/rezi still accurate.
+- Kickresume: $8–$120 band — /vs/kickresume still accurate.
+- Standard Resume: $19 (not currently a comparison page).
+- Jobscan returns 403 to non-browser requests; our /vs/jobscan text is
+  already stamped as a firsthand August 2026 check, so it stands.
+- No comparison-page edits needed this round.
