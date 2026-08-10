@@ -3099,3 +3099,19 @@ margins):
 - Live 200 with 12 TOC sections; sitemap 106 → 107; IndexNow 107 URLs
   → HTTP 200.
 - Deployed version a8d29306-745f-440e-82b5-f656466529bf.
+
+## Iteration I44 (2026-08-05) — ATS checker UX walkthrough
+
+New-user walkthrough of /ats-checker at 375px (clean profile,
+QA-flagged): paste resume + JD → score.
+
+- Full result path works: match score with keyword/structure subscores,
+  "What do these scores mean?" explainer, matched/missing keyword
+  chips (Snowflake, A/B testing correctly flagged missing), highlighted
+  JD, keyword-frequency table, six format checks, and the carry-over
+  CTA into the builder.
+- 0px horizontal overflow at 375px; no console errors.
+- Note for scripted testing: the route is lazy-loaded — wait for the
+  textarea selector before filling (first probe raced hydration).
+
+No defect found; log-only round.
