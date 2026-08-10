@@ -2659,3 +2659,19 @@ Weekly pSEO: new 12-section guide /guides/multiple-positions-same-company/
 existing coverage on the site; includes ATS parsing guidance and the
 builder's duplicate-entry recipe). Sitemap 93 → 94; IndexNow 94 URLs
 HTTP 200; live page 200. Deployed 8b93e3d3.
+
+## Iteration I16 (2026-08-05)
+
+"Edit this example in the builder" — the conversion step competitors gate
+behind signup, we do free and local:
+
+- build-seo.mjs now also emits /examples/examples.json (slug + person data
+  for all 15 roles).
+- Example-page CTA changed from a bare /builder link to
+  /builder?example=<slug>.
+- Builder handles ?example=<slug>: fetches examples.json, converts via new
+  exampleToResume() (dates split, education/certifications split on ·/—,
+  skills joined), asks window.confirm before replacing non-empty user
+  content, keeps a deliberately-picked template, and strips the query param
+  so refresh doesn't re-trigger.
+- Deployed 949d6fc4; live-verified examples.json and the new CTA href.

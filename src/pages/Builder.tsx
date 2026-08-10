@@ -83,6 +83,7 @@ import {
   emptyExperience,
   emptyProject,
   emptyResume,
+  exampleToResume,
   loadResume,
   newId,
   orderedSectionKeys,
@@ -91,6 +92,7 @@ import {
   resumeToMarkdown,
   sampleResume,
   saveResume,
+  type ExamplePerson,
   saveResumeVersion,
   sectionLabel,
 } from '@/lib/resume'
@@ -375,6 +377,43 @@ export default function Builder() {
   const secDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, sectionOrder: reorder(orderedSectionKeys(r), from, to) }))
   )
+
+  // ?example=<slug> deep link from /examples/ pages: load that example's
+  // content — after confirming when it would replace real user content.
+  useEffect(() => {
+    const slug = new URLSearchParams(window.location.search).get('example')
+    if (!slug || !/^[a-z0-9-]+$/.test(slug)) return
+    let cancelled = false
+    void fetch('/examples/examples.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((list: { slug: string; person: ExamplePerson }[] | null) => {
+        if (cancelled) return
+        const entry = list?.find((e) => e.slug === slug)
+        if (!entry) return
+        window.history.replaceState(null, '', window.location.pathname)
+        setResume((cur) => {
+          const hasContent = Boolean(cur.contact.fullName || cur.summary)
+          if (
+            hasContent &&
+            !window.confirm(
+              'Replace your current resume content with this example? Your saved copies are unaffected.'
+            )
+          )
+            return cur
+          return {
+            ...exampleToResume(entry.person),
+            // Keep a template the user deliberately picked
+            ...(cur.templateId !== emptyResume().templateId
+              ? { templateId: cur.templateId }
+              : {}),
+          }
+        })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const unlocked = Boolean(license)
   const hasBundlePlan = license?.plan === 'bundle'
