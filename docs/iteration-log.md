@@ -2837,3 +2837,17 @@ Weekly pSEO — third batch of role examples (15 → 20):
 - Sitemap 95 → 100 URLs; IndexNow submitted 100 → HTTP 200; all five
   new pages live 200; /examples/ ItemList numberOfItems now 20.
 - Deployed version 1e01ac89-4594-4860-93d4-834ab73f07b1.
+
+## Iteration I27 (2026-08-05)
+
+New-user UX driver: at 20 roles the flat /examples/ list outgrew a
+single scan, same as /guides/ did at 34.
+
+- Grouped the examples hub into 5 sector headings via the shared
+  `renderHubItems()` group support from I20: Tech & data, Business &
+  finance, Healthcare & education, Trades & transport, Customer-facing
+  & office. `groupedExampleItems()` throws on unknown slugs and drops
+  ungrouped roles into "More roles" so nothing silently disappears.
+- Landing example blurb updated 15 → 20 roles.
+- Live: all 5 group headings render on /examples/, ItemList still 20.
+- Deployed version 6b8d2655-4348-4386-ab51-1313a590c99d.

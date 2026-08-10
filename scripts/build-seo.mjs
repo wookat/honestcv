@@ -2655,6 +2655,35 @@ function groupedGuideItems() {
   return items
 }
 
+const EXAMPLE_GROUPS = [
+  ['Tech & data', ['software-engineer', 'data-analyst', 'product-manager']],
+  ['Business & finance', ['marketing-manager', 'project-manager', 'accountant', 'financial-analyst', 'human-resources', 'sales-representative']],
+  ['Healthcare & education', ['registered-nurse', 'medical-assistant', 'teacher']],
+  ['Trades & transport', ['electrician', 'truck-driver', 'warehouse-worker']],
+  ['Customer-facing & office', ['customer-service', 'retail-associate', 'restaurant-server', 'administrative-assistant', 'graphic-designer']],
+]
+
+function groupedExampleItems() {
+  const item = (e, group) => ({
+    href: `/examples/${e.slug}/`,
+    label: `${e.role} resume example`,
+    blurb: `${e.description.split(' — ')[0].replace(/\.$/, '')}.`,
+    group,
+  })
+  const bySlug = new Map(EXAMPLES.map((e) => [e.slug, e]))
+  const items = []
+  for (const [group, slugs] of EXAMPLE_GROUPS) {
+    for (const slug of slugs) {
+      const e = bySlug.get(slug)
+      if (!e) throw new Error(`EXAMPLE_GROUPS references unknown example: ${slug}`)
+      bySlug.delete(slug)
+      items.push(item(e, group))
+    }
+  }
+  for (const e of bySlug.values()) items.push(item(e, 'More roles'))
+  return items
+}
+
 const HUBS = [
   {
     pathname: '/vs/',
@@ -2684,15 +2713,11 @@ const HUBS = [
     pathname: '/examples/',
     title: 'Resume Examples by Role (2026) — HonestCV',
     description:
-      '15 complete, honest resume examples by role: software engineer, nurse, accountant, marketing manager, data analyst, product manager, HR, retail, warehouse and more — with tips to adapt each one.',
+      '20 complete, honest resume examples by role: software engineer, nurse, accountant, electrician, truck driver, financial analyst, product manager, HR, retail and more — with tips to adapt each one.',
     h1: 'Resume examples by role',
     intro:
       'Full example resumes — summary, quantified bullets, skills, education — written the way we coach: every claim scoped, measurable and defensible in an interview. Pick your role, then build yours in the same ATS-safe layout.',
-    items: EXAMPLES.map((e) => ({
-      href: `/examples/${e.slug}/`,
-      label: `${e.role} resume example`,
-      blurb: `${e.description.split(' — ')[0].replace(/\.$/, '')}.`,
-    })),
+    items: groupedExampleItems(),
   },
   {
     pathname: '/templates/',
