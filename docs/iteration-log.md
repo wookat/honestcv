@@ -2948,3 +2948,17 @@ Weekly pSEO — new guide /guides/how-far-back-should-a-resume-go/:
 - Live 200 with 12 sections/TOC; sitemap 100 → 101; IndexNow 101 URLs
   → HTTP 200.
 - Deployed version ee99e006-391f-47f7-aa31-16122222352d.
+
+## Iteration I34 (2026-08-05) — CWV verification round
+
+Performance driver, live CDP measurement (cold-ish loads, buffered
+PerformanceObserver):
+
+- /: TTFB 66ms, LCP 232ms, CLS 0.0004
+- /guides/how-far-back-should-a-resume-go/: TTFB 20ms, LCP 92ms,
+  CLS 0.0051
+- /examples/: TTFB 20ms, LCP 76ms, CLS 0.0105
+
+All far inside Google's "good" thresholds (LCP < 2.5s, CLS < 0.1).
+Console on all three pages: only the known cloudflareinsights
+ERR_BLOCKED_BY_CLIENT. No product change needed; log-only round.
