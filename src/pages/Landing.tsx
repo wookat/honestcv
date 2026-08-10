@@ -235,7 +235,7 @@ export default function Landing() {
           <p className="text-muted-foreground mt-6 text-center text-sm">
             Not sure what to write? Browse{' '}
             <a className="text-primary underline underline-offset-4" href="/examples/">
-              25 complete resume examples by role
+              30 complete resume examples by role
             </a>{' '}
             — nurse, engineer, electrician, accountant, retail and more.
           </p>

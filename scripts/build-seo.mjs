@@ -2761,6 +2761,211 @@ const EXAMPLES = [
       ['Keep the permit current and visible', 'State responsible-service permits are a legal box the manager must tick — list yours with "current" so scheduling you is frictionless.'],
     ],
   },
+  {
+    slug: 'devops-engineer',
+    role: 'DevOps Engineer',
+    description:
+      'A DevOps engineer resume example with deploy frequency, MTTR and cost-reduction numbers — the reliability metrics platform teams actually screen for, not a tool list.',
+    person: {
+      name: 'Tomas Lindgren',
+      title: 'DevOps Engineer',
+      location: 'Denver, CO',
+      summary:
+        'DevOps engineer with 7 years building CI/CD and cloud infrastructure for SaaS teams. Took a 40-service platform from weekly to daily deploys, cut MTTR from 90 to 25 minutes, and reduced AWS spend 27% without capacity loss.',
+      experience: [
+        {
+          role: 'Senior DevOps Engineer',
+          company: 'Skyline Software',
+          dates: '2022 – Present',
+          bullets: [
+            'Own CI/CD for 40 microservices (GitHub Actions, ArgoCD on EKS); moved the platform from weekly release trains to 15+ daily deploys with automated rollback',
+            'Cut MTTR from 90 to 25 minutes by rebuilding alerting on SLOs (Prometheus/Grafana) and writing runbooks for the 12 most-paged scenarios',
+            'Reduced AWS spend 27% ($41k/month) via rightsizing, Savings Plans and moving batch workloads to spot instances',
+          ],
+        },
+        {
+          role: 'DevOps Engineer',
+          company: 'Bitfield Systems',
+          dates: '2018 – 2022',
+          bullets: [
+            'Migrated 25 services from EC2/Chef to Kubernetes with Terraform-managed infrastructure, cutting environment-provision time from 2 days to 40 minutes',
+            'Introduced trunk-based development and preview environments, halving average PR-to-production lead time',
+          ],
+        },
+      ],
+      skills: ['Kubernetes (EKS) & Docker', 'Terraform & infrastructure as code', 'CI/CD (GitHub Actions, ArgoCD)', 'Prometheus/Grafana & SLO alerting', 'AWS cost optimization', 'Incident response & runbooks'],
+      education: 'B.S. Computer Science — Colorado State University, 2018 · CKA (Certified Kubernetes Administrator), 2023',
+    },
+    tips: [
+      ['Reliability numbers beat tool lists', 'Every DevOps resume lists Kubernetes and Terraform; almost none show deploy frequency, MTTR or lead time moving. Those DORA-style numbers are what platform leads actually compare.'],
+      ['Cost savings are a hiring trigger', 'A concrete "$41k/month, 27%" with the mechanism (rightsizing, spot) is often the single line that gets the interview — infra cost is a budget-line pain every engineering VP feels.'],
+      ['Tie each tool to an outcome', '"Terraform-managed migration that cut provision time from 2 days to 40 minutes" proves fluency better than a skills-section keyword ever can.'],
+    ],
+  },
+  {
+    slug: 'ux-designer',
+    role: 'UX Designer',
+    description:
+      'A UX designer resume example with task-success, conversion and research evidence — the outcome numbers hiring managers check before they ever open the portfolio.',
+    person: {
+      name: 'Amara Diallo',
+      title: 'UX Designer',
+      location: 'Chicago, IL',
+      summary:
+        'UX designer with 6 years across B2B SaaS and e-commerce. Redesigned an onboarding flow that lifted activation 31%, runs 6-8 usability sessions per quarter, and ships design-system components used by 4 product teams.',
+      experience: [
+        {
+          role: 'Senior UX Designer',
+          company: 'Fieldstone Commerce',
+          dates: '2022 – Present',
+          bullets: [
+            'Redesigned merchant onboarding from 11 steps to 6; activation rose 31% and support tickets on setup fell 44% within one quarter',
+            'Run 6-8 moderated usability sessions per quarter; findings drove a checkout revision that cut cart abandonment 9%',
+            'Built and documented 23 design-system components (Figma) adopted by 4 product teams, cutting design-to-dev handoff questions by half',
+          ],
+        },
+        {
+          role: 'UX Designer',
+          company: 'Meridian Software',
+          dates: '2019 – 2022',
+          bullets: [
+            'Owned UX for a B2B analytics dashboard used by 800 accounts; task-success rate on the top 5 workflows rose from 62% to 88% across three iterations',
+            'Introduced lightweight research ops (participant panel, session templates) that took study setup from 2 weeks to 3 days',
+          ],
+        },
+      ],
+      skills: ['End-to-end product design (Figma)', 'Usability testing & research ops', 'Design systems & documentation', 'Prototyping (Figma, Principle)', 'A/B test design with PMs', 'Accessibility (WCAG 2.1 AA)'],
+      education: 'B.F.A. Design — University of Illinois Chicago, 2019 · Nielsen Norman Group UX Certification, 2021',
+    },
+    tips: [
+      ['Outcomes get the portfolio opened', 'Hiring managers skim the resume to decide whether to open the portfolio — activation, task-success and abandonment numbers are what earn the click, not tool names.'],
+      ['Show research as a habit, not a phase', '"6-8 sessions per quarter" signals continuous discovery; a single "conducted user research" bullet reads as a one-off class project.'],
+      ['Design systems prove collaboration', 'Component counts with adoption ("used by 4 teams") demonstrate you work at organizational scale — the difference between senior and mid in most rubrics.'],
+    ],
+  },
+  {
+    slug: 'paralegal',
+    role: 'Paralegal',
+    description:
+      'A paralegal resume example with caseload volume, filing accuracy and billable support numbers — plus the practice-area specifics law firms filter on first.',
+    person: {
+      name: 'Rachel Donnelly',
+      title: 'Litigation Paralegal',
+      location: 'Philadelphia, PA',
+      summary:
+        'Litigation paralegal with 8 years in insurance defense and commercial litigation. Manages 40-50 active matters, e-files in state and federal courts with zero rejected filings in 3 years, and supports 4 attorneys through discovery and trial.',
+      experience: [
+        {
+          role: 'Senior Litigation Paralegal',
+          company: 'Harmon & Price LLP',
+          dates: '2021 – Present',
+          bullets: [
+            'Manage 40-50 active insurance-defense matters for 4 attorneys: pleadings, discovery responses, deposition scheduling and trial binders',
+            'E-file in PA state courts and ED Pa. federal court with zero rejected filings in 3 years; maintain the firm\u2019s filing-deadline calendar across 200+ dates/quarter',
+            'Built Relativity review workflows for document productions up to 120k documents; cut first-pass review time 30% with search-term reports',
+          ],
+        },
+        {
+          role: 'Paralegal',
+          company: 'Keystone Legal Group',
+          dates: '2016 – 2021',
+          bullets: [
+            'Supported commercial litigation and subrogation matters from intake through settlement; drafted discovery, subpoenas and settlement statements',
+            'Averaged 130+ billable support hours monthly with under 2% write-off rate',
+          ],
+        },
+      ],
+      skills: ['Civil litigation support (state & federal)', 'E-filing (PACFile, ECF)', 'E-discovery (Relativity)', 'Deadline & docket management', 'Legal drafting (pleadings, discovery)', 'Trial preparation & exhibits'],
+      education: 'Paralegal Certificate (ABA-approved) — Villanova University, 2016 · B.A. Political Science — Temple University, 2015 · Notary Public, PA',
+    },
+    tips: [
+      ['Practice area is the first filter', 'Firms hire "insurance defense paralegal", not "paralegal" — name your practice areas in the title and summary so the recruiter\u2019s first scan matches the posting.'],
+      ['Zero-error records are gold', 'Rejected filings and blown deadlines are the risks firms hire against. "Zero rejected filings in 3 years" plus a calendar-volume number is the strongest reliability evidence a paralegal can print.'],
+      ['Billables show your economics', 'Billable support hours and write-off rates tell the hiring partner you understand you\u2019re a revenue role — a framing most paralegal resumes miss entirely.'],
+    ],
+  },
+  {
+    slug: 'construction-project-manager',
+    role: 'Construction Project Manager',
+    description:
+      'A construction project manager resume example with contract values, schedule and budget variance, and safety record — the numbers GCs and owners verify on every hire.',
+    person: {
+      name: 'Victor Salazar',
+      title: 'Construction Project Manager',
+      location: 'Phoenix, AZ',
+      summary:
+        'Construction PM with 11 years delivering commercial ground-up and TI projects to $28M. Closed the last six projects at an average 1.8% under budget with zero lost-time incidents across 400k+ labor hours.',
+      experience: [
+        {
+          role: 'Project Manager',
+          company: 'Sonoran Builders',
+          dates: '2019 – Present',
+          bullets: [
+            'Deliver commercial ground-up projects of $8M-$28M contract value: a 92k sq ft distribution facility finished 3 weeks early and 1.4% under budget',
+            'Closed the last six projects at an average 1.8% under budget; kept owner change-order rate below 4% of contract value through preconstruction scope reviews',
+            'Zero lost-time incidents across 400k+ labor hours; run weekly toolbox talks and subcontractor safety prequalification',
+          ],
+        },
+        {
+          role: 'Assistant Project Manager',
+          company: 'Redrock Commercial Construction',
+          dates: '2014 – 2019',
+          bullets: [
+            'Managed submittals, RFIs and pay applications for TI projects up to $6M; cut average RFI turnaround from 9 to 4 days',
+            'Coordinated 20+ subcontractors per project with look-ahead schedules in Procore and MS Project',
+          ],
+        },
+      ],
+      skills: ['Ground-up & TI delivery to $28M', 'Budgeting & cost control', 'Scheduling (MS Project, look-aheads)', 'Procore & submittal/RFI management', 'Subcontractor management', 'OSHA 30 & site safety programs'],
+      education: 'B.S. Construction Management — Arizona State University, 2014 · OSHA 30, current · CPR/First Aid, current',
+    },
+    tips: [
+      ['Dollar values size you instantly', 'Contract values are how construction hiring reads seniority — "$8M-$28M ground-up" places you on the org chart before the second bullet. Always give the range.'],
+      ['Variance numbers beat "on time and on budget"', 'Everyone claims on-time/on-budget; "average 1.8% under across six projects" and "change orders below 4%" are auditable and therefore believed.'],
+      ['Safety record is a pass/fail check', 'EMR and lost-time history get verified in prequalification. A zero-LTI streak with the labor-hour denominator is the strongest line a field-side PM can carry.'],
+    ],
+  },
+  {
+    slug: 'pharmacy-technician',
+    role: 'Pharmacy Technician',
+    description:
+      'A pharmacy technician resume example with certification, scripts-per-day volume and accuracy record — the checkable credentials retail and hospital pharmacies screen on.',
+    person: {
+      name: 'Kayla Nguyen',
+      title: 'Certified Pharmacy Technician (CPhT)',
+      location: 'Portland, OR',
+      summary:
+        'CPhT with 6 years across high-volume retail and hospital inpatient pharmacy. Fills 350+ scripts per shift at 99.9% scan accuracy, IV-certified with cleanroom experience, and trains new technicians on workflow and insurance resolution.',
+      experience: [
+        {
+          role: 'Pharmacy Technician II',
+          company: 'Providence Medical Center (Inpatient Pharmacy)',
+          dates: '2022 – Present',
+          bullets: [
+            'Prepare unit-dose and IV admixtures (USP 797/800 cleanroom) for a 320-bed hospital; zero compounding errors across 3 annual competency audits',
+            'Manage automated dispensing cabinet (Pyxis) restocks and discrepancies across 14 units, resolving 95% of discrepancies same-shift',
+            'Train 5 new technicians on aseptic technique, Epic Willow workflow and controlled-substance documentation',
+          ],
+        },
+        {
+          role: 'Certified Pharmacy Technician',
+          company: 'Rite Aid',
+          dates: '2018 – 2022',
+          bullets: [
+            'Filled 350+ prescriptions per shift at 99.9% scan-verification accuracy in a store ranked top-10 in the district for volume',
+            'Resolved 30+ insurance rejections daily (prior auths, DUR overrides), cutting patient wait-time complaints 40%',
+          ],
+        },
+      ],
+      skills: ['Sterile compounding (USP 797/800)', 'High-volume retail fill (350+/shift)', 'Pyxis & Epic Willow', 'Insurance adjudication & prior auths', 'Controlled-substance handling', 'Inventory & expiry management'],
+      education: 'CPhT — PTCB, 2018 (current) · Oregon Board of Pharmacy license, current · Sterile Compounding Certificate, 2022',
+    },
+    tips: [
+      ['Certification and license lead', 'PTCB certification and state license are verified before any interview — put both with "current" status in the title line and credentials section, not the bottom.'],
+      ['Volume plus accuracy is the pairing', '350 scripts a shift means nothing without the 99.9%; accuracy means nothing at 40 scripts. Print both numbers together — pharmacists-in-charge read them as one.'],
+      ['Setting-specific skills transfer poorly — name yours', 'Retail (insurance, patient-facing) and hospital (IV, Pyxis, unit-dose) are different jobs. List the systems and standards of the setting you\u2019re applying to, with certificates where they exist.'],
+    ],
+  },
 ]
 
 function examplePage(p) {
@@ -2903,10 +3108,10 @@ function groupedGuideItems() {
 }
 
 const EXAMPLE_GROUPS = [
-  ['Tech & data', ['software-engineer', 'data-analyst', 'product-manager', 'mechanical-engineer']],
-  ['Business & finance', ['marketing-manager', 'project-manager', 'operations-manager', 'accountant', 'financial-analyst', 'human-resources', 'sales-representative']],
-  ['Healthcare & education', ['registered-nurse', 'medical-assistant', 'dental-assistant', 'teacher']],
-  ['Trades & transport', ['electrician', 'truck-driver', 'warehouse-worker']],
+  ['Tech & data', ['software-engineer', 'devops-engineer', 'data-analyst', 'product-manager', 'ux-designer', 'mechanical-engineer']],
+  ['Business & finance', ['marketing-manager', 'project-manager', 'operations-manager', 'accountant', 'financial-analyst', 'human-resources', 'sales-representative', 'paralegal']],
+  ['Healthcare & education', ['registered-nurse', 'medical-assistant', 'dental-assistant', 'pharmacy-technician', 'teacher']],
+  ['Trades & transport', ['electrician', 'construction-project-manager', 'truck-driver', 'warehouse-worker']],
   ['Customer-facing & office', ['customer-service', 'retail-associate', 'restaurant-server', 'bartender', 'security-guard', 'administrative-assistant', 'graphic-designer']],
 ]
 
@@ -3017,7 +3222,7 @@ const HUBS = [
     pathname: '/examples/',
     title: 'Resume Examples by Role (2026) — HonestCV',
     description:
-      '25 complete, honest resume examples by role: software engineer, nurse, accountant, electrician, operations manager, mechanical engineer, bartender, dental assistant and more — with tips to adapt each one.',
+      '30 complete, honest resume examples by role: software engineer, DevOps, UX designer, nurse, paralegal, pharmacy technician, construction PM and more — with tips to adapt each one.',
     h1: 'Resume examples by role',
     intro:
       'Full example resumes — summary, quantified bullets, skills, education — written the way we coach: every claim scoped, measurable and defensible in an interview. Pick your role, then build yours in the same ATS-safe layout.',
