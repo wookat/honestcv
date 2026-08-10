@@ -3071,3 +3071,14 @@ QA-flagged, zero AI calls):
 - All five new example routes 200 (verified at deploy time in I40).
 
 No defect found; log-only round.
+
+## Iteration I42 (2026-08-05) — accessibility regression
+
+Axe (WCAG 2 A/AA) + 375px overflow sweep over pages added or changed
+in I33-I40: /examples/, two new example pages (bartender,
+mechanical-engineer), the new how-far-back guide, and the regrouped
+/vs/ hub.
+
+- All five pages: 0 axe violations, 0px horizontal overflow at 375px.
+
+No defect found; log-only round.
