@@ -504,7 +504,9 @@ export default function Builder() {
         )
         return
       }
-      if (!hasSubscribed()) {
+      // A prior download (honestcv.shared) means the gate was already passed —
+      // don't ask for the email twice.
+      if (!hasSubscribed() && !localStorage.getItem('honestcv.shared')) {
         pendingDl.current = fmt
         setFreeDlOpen(true)
         return

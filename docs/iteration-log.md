@@ -2638,3 +2638,16 @@ Examples discoverability from the landing page (UX + internal-link driver):
 - Analytics check (driver 5): still zero organic referrers; first-party
   hits unchanged pattern; 18 email leads (internal/test). Distribution
   remains the bottleneck (boss-side).
+
+## Iteration I14 (2026-08-05)
+
+Long-standing P2 from the D-batch test pass: the free-download email gate
+(`hasSubscribed()`, honestcv.subscribed) and the post-download share flag
+(honestcv.shared) were separate keys, so a user who had already downloaded
+(shared=1) but whose subscribed key was absent would be asked for their
+email again. `download()` now treats a prior download as having passed the
+gate:
+
+    if (!hasSubscribed() && !localStorage.getItem('honestcv.shared'))
+
+Deployed 74f30afb.
