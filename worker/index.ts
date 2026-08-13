@@ -239,7 +239,7 @@ app.post('/api/ai/rewrite', async (c) => {
     .catch(() => ({}) as Record<string, never>)
   const kind = body.kind as RewriteKind
   if (kind !== 'bullets' && kind !== 'summary' && kind !== 'skills') {
-    return c.json({ error: 'Unknown rewrite kind.' }, 400)
+    return c.json({ error: 'Choose what to rewrite — a summary, bullet points, or skills.' }, 400)
   }
   const text = body.text?.trim()
   if (!text || text.length < 3) {
@@ -347,7 +347,13 @@ app.post('/api/ai/tailor', async (c) => {
       )
     }
   } catch {
-    return c.json({ error: 'The AI returned an unexpected format — please try again.' }, 502)
+    return c.json(
+      {
+        error:
+          'The AI service is having trouble right now — please retry in a minute. None of your free AI uses were spent.',
+      },
+      502
+    )
   }
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ suggestions, freeRemaining })

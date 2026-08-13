@@ -3334,3 +3334,21 @@ blocked onboarding; real payments stay off).
 - Docs/config swept: README, ls-setup runbook, wrangler.jsonc comments,
   .dev.vars.example, testing skill, ops-weekly. Historical docs left
   as-is. No payment was activated.
+
+## Review round 2 (2026-08-05) — LCP, AI error copy
+
+Reviewer re-verify: round-1 fixes accepted (x-client-id abuse re-test
+corrected to pass — per-IP gate holds under 34-id rotation; TBT
+243→0ms). Remaining: LCP ~3.3s flat, misleading Tailor error copy
+under upstream failure, Paddle residue (already removed in the R1
+follow-up before this round landed).
+
+- Fonts: font-display swap → optional (app + static pages). Both
+  fonts are preloaded, so they are nearly always ready at first
+  paint; `optional` removes the swap repaint that re-triggered the
+  LCP candidate ~0.6-2s after FCP on throttled mobile. The LCP
+  element is prerendered hero/section text, so LCP now lands at FCP.
+- Tailor unparsable-AI-output error no longer says "unexpected
+  format" — now "AI service is having trouble … none of your free AI
+  uses were spent" (same copy family as the other failure paths).
+- /api/ai/rewrite invalid-kind 400 copy humanized.

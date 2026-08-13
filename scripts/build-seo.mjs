@@ -1272,8 +1272,8 @@ function esc(s) {
 }
 
 const CSS = `
-@font-face{font-family:'Inter';font-style:normal;font-weight:400 700;font-display:swap;src:url('/fonts/inter-latin.woff2') format('woff2')}
-@font-face{font-family:'Sora';font-style:normal;font-weight:600 800;font-display:swap;src:url('/fonts/sora-latin.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400 700;font-display:optional;src:url('/fonts/inter-latin.woff2') format('woff2')}
+@font-face{font-family:'Sora';font-style:normal;font-weight:600 800;font-display:optional;src:url('/fonts/sora-latin.woff2') format('woff2')}
 :root{--bg:oklch(0.99 0.002 250);--fg:oklch(0.18 0.02 260);--muted:oklch(0.52 0.02 260);--primary:oklch(0.5 0.18 265);--primary-fg:oklch(0.985 0 0);--border:oklch(0.91 0.01 260);--card:oklch(1 0 0);--accent:oklch(0.94 0.03 265);--radius:0.625rem}
 *{box-sizing:border-box;border-color:var(--border)}
 body{margin:0;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.7}
