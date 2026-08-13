@@ -1,16 +1,11 @@
 /**
- * Provider-agnostic checkout: the server picks the active payment provider
- * (Lemon Squeezy hosted overlay via lemon.js, or Paddle overlay). After
- * payment the order/transaction id is exchanged at /api/license/claim.
+ * Lemon Squeezy hosted overlay checkout (via lemon.js) — the sole payment
+ * provider. After payment the order id is exchanged at /api/license/claim.
  */
 
-import { licenseHeaders, type Plan } from '@/lib/license'
-import {
-  openCheckout as openPaddleCheckout,
-  paddleConfigured,
-} from '@/lib/paddle'
+import { licenseHeaders, saveLicense, type LicenseState, type Plan } from '@/lib/license'
 
-export type CheckoutProvider = 'lemonsqueezy' | 'paddle'
+export type CheckoutProvider = 'lemonsqueezy'
 
 export interface BillingStatus {
   checkoutEnabled: boolean
@@ -20,18 +15,60 @@ export interface BillingStatus {
 export async function fetchBillingStatus(): Promise<BillingStatus> {
   try {
     const res = await fetch('/api/billing/status')
-    if (!res.ok) return { checkoutEnabled: false, provider: 'paddle' }
-    const data = (await res.json()) as {
-      checkoutEnabled?: boolean
-      provider?: CheckoutProvider
-    }
+    if (!res.ok) return { checkoutEnabled: false, provider: 'lemonsqueezy' }
+    const data = (await res.json()) as { checkoutEnabled?: boolean }
     return {
       checkoutEnabled: data.checkoutEnabled === true,
-      provider: data.provider === 'lemonsqueezy' ? 'lemonsqueezy' : 'paddle',
+      provider: 'lemonsqueezy',
     }
   } catch {
-    return { checkoutEnabled: false, provider: 'paddle' }
+    return { checkoutEnabled: false, provider: 'lemonsqueezy' }
   }
+}
+
+/** Is the payment channel live? (false → lead capture) */
+export async function fetchCheckoutEnabled(): Promise<boolean> {
+  return (await fetchBillingStatus()).checkoutEnabled
+}
+
+/** Email waitlist while checkout is not yet enabled */
+export async function submitLead(email: string, plan: Plan | 'free-download'): Promise<void> {
+  const res = await fetch('/api/leads', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, plan }),
+  })
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string }
+    throw new Error(data.error || `Something went wrong (${res.status})`)
+  }
+}
+
+/** Claim a license with the order id (idempotent) */
+export async function claimTransaction(transactionId: string): Promise<LicenseState> {
+  const res = await fetch('/api/license/claim', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ transactionId }),
+  })
+  const data = (await res.json()) as {
+    token?: string
+    licenseKey?: string
+    plan?: Plan
+    expiresAt?: number
+    error?: string
+  }
+  if (!res.ok || !data.token || !data.plan || !data.expiresAt) {
+    throw new Error(data.error || `Could not claim your purchase (${res.status})`)
+  }
+  const state: LicenseState = {
+    token: data.token,
+    plan: data.plan,
+    expiresAt: data.expiresAt,
+    licenseKey: data.licenseKey,
+  }
+  saveLicense(state)
+  return state
 }
 
 interface LemonSqueezyJs {
@@ -110,8 +147,8 @@ async function openLemonCheckout(
 }
 
 /**
- * Open the active provider's overlay checkout; calls back with the order /
- * transaction id once payment completes. The promise only means it opened.
+ * Open the overlay checkout; calls back with the order id once payment
+ * completes. The promise only means it opened.
  */
 export async function openCheckout(
   plan: Plan,
@@ -121,11 +158,5 @@ export async function openCheckout(
   if (!status.checkoutEnabled) {
     throw new Error('Checkout is not available yet — please try again soon.')
   }
-  if (status.provider === 'lemonsqueezy') {
-    return openLemonCheckout(plan, onCompleted)
-  }
-  if (!paddleConfigured()) {
-    throw new Error('Checkout is not available yet — please try again soon.')
-  }
-  return openPaddleCheckout(plan, onCompleted)
+  return openLemonCheckout(plan, onCompleted)
 }

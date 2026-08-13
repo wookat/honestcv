@@ -52,7 +52,7 @@ best-resume-fonts, two-column-resume-ats)
 
 ## Paused / owner-side (do not act without instruction)
 
-- Real payments (Paddle/LemonSqueezy abstractions retained, inactive).
+- Real payments (Lemon Squeezy is the sole provider — Paddle removed; inactive until instructed).
 - AI relay: live again since 2026-08-08 (api.aicdks.com, glm-5.2 via
   Worker secrets) — include one AI rewrite in the weekly spot-check.
 - Social distribution accounts and backlinks.

@@ -14,14 +14,14 @@ ATS 匹配分全部免费；$9.99 一次性解锁 PDF/DOCX 下载 + 不限次 AI
 - ATS 匹配分：纯前端计算（关键词匹配 + 结构检查），简历不出浏览器
 - LLM：OpenAI 兼容中转（`LLM_RELAY_BASE_URL` / `LLM_RELAY_API_KEY` / `LLM_MODEL`），
   prompt 明确禁止编造雇主/时间/数据
-- 支付：Paddle Billing overlay checkout + `/api/license/claim`（幂等）+ webhook 验签；
+- 支付：Lemon Squeezy overlay checkout + `/api/license/claim`（幂等）+ webhook 验签；
   `CHECKOUT_ENABLED=false` 时购买按钮降级为邮箱留资（存 KV `lead:*`）
 
 ## 本地开发
 
 ```bash
 npm install
-cp .dev.vars.example .dev.vars   # 填入本地 LLM 中转 / Paddle 等（已 gitignore）
+cp .dev.vars.example .dev.vars   # 填入本地 LLM 中转 / Lemon Squeezy 等（已 gitignore）
 npm run dev                       # vite dev（含 Worker，@cloudflare/vite-plugin）
 npm run lint
 npm run build                     # tsc + vite build + scripts/build-seo.mjs
@@ -34,22 +34,19 @@ npm run build                     # tsc + vite build + scripts/build-seo.mjs
 - 付费（服务端校验 HMAC license token）：
   - `resume`（$9.99）：不限次 AI 改写；前端解锁 PDF/DOCX 下载
   - `bundle`（$19.99）：追加 `/api/ai/cover-letter`、`/api/ai/interview-brief`
-- 购买流程：Paddle overlay → `checkout.completed` → `POST /api/license/claim`
-  （webhook 记录或 Paddle API 校验 price id → plan）→ 下发 `CV-XXXX-…` license key +
+- 购买流程：Lemon Squeezy overlay → `Checkout.Success` → `POST /api/license/claim`
+  （webhook 记录或 LS API 校验 variant id → plan）→ 下发 `CV-XXXX-…` license key +
   签名 token；跨设备用 `POST /api/license/activate` 重新激活
 
 ## 部署
 
 ```bash
 wrangler kv namespace create KV   # 替换 wrangler.jsonc 中的 REPLACE_KV_ID
-wrangler secret put LLM_RELAY_BASE_URL / LLM_RELAY_API_KEY / PADDLE_API_KEY /
-  PADDLE_WEBHOOK_SECRET / PADDLE_PRICE_RESUME_ID / PADDLE_PRICE_BUNDLE_ID /
-  LICENSE_SIGNING_SECRET
+wrangler secret put LLM_RELAY_BASE_URL / LLM_RELAY_API_KEY / LEMONSQUEEZY_API_KEY /
+  LEMONSQUEEZY_WEBHOOK_SECRET / LS_STORE_ID / LS_VARIANT_RESUME_ID /
+  LS_VARIANT_BUNDLE_ID / LICENSE_SIGNING_SECRET
 npm run build && npx wrangler deploy
 ```
-
-前端构建时可注入 `VITE_PADDLE_CLIENT_TOKEN` / `VITE_PADDLE_PRICE_RESUME` /
-`VITE_PADDLE_PRICE_BUNDLE`（token 以 `test_` 开头时自动使用 Paddle sandbox）。
 
 ## SEO
 

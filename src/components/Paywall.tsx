@@ -17,10 +17,14 @@ import {
   type LicenseState,
   type Plan,
 } from '@/lib/license'
-import { claimTransaction, fetchCheckoutEnabled, submitLead } from '@/lib/paddle'
-import { openCheckout } from '@/lib/checkout'
+import {
+  claimTransaction,
+  fetchCheckoutEnabled,
+  openCheckout,
+  submitLead,
+} from '@/lib/checkout'
 
-/** Paddle overlay checkout button: claims the license after payment */
+/** Overlay checkout button: claims the license after payment */
 export function CheckoutButton({
   plan,
   children,

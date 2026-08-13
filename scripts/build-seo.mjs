@@ -1405,7 +1405,7 @@ const LEGAL_PAGES = [
     h1: 'Terms & refund policy',
     sections: [
       ['What you buy', 'HonestCV sells one-time licenses: Single Resume ($9.99) unlocks unlimited AI rewrites plus PDF and DOCX downloads; Career Bundle ($19.99) adds the AI cover letter and interview prep tools. There is no subscription, no auto-renewal, and nothing to cancel — ever.'],
-      ['Payments', 'Payments are processed by our merchant of record (Lemon Squeezy / Paddle), which handles billing, receipts, and applicable taxes. We never see or store your card details.'],
+      ['Payments', 'Payments are processed by our merchant of record (Lemon Squeezy), which handles billing, receipts, and applicable taxes. We never see or store your card details.'],
       ['Refunds', 'Not happy for any reason within 14 days of purchase? Email us with the order number from your receipt and we will refund you in full — no questions, no hoops.'],
       ['License', 'Your license key works in any browser and is valid for 10 years. It covers personal use of your own resumes and cover letters; the documents you create are entirely yours.'],
       ['Fair use', 'AI features are for polishing your own real experience. We may throttle automated or abusive traffic to keep the service fast for everyone.'],
@@ -1418,7 +1418,7 @@ const LEGAL_PAGES = [
     sections: [
       ['Your resume stays in your browser', 'Resume content is stored in your browser\u2019s localStorage. We have no user accounts and no resume database — clearing your browser data deletes your resume from existence.'],
       ['What our servers see', 'AI rewrite requests send only the text you ask to improve (plus the job description you pasted) to generate a response; we do not retain it after responding. Purchases store an order id and license key so your license can be restored.'],
-      ['Payments', 'Checkout is handled by our merchant of record (Lemon Squeezy / Paddle). Your payment details go to them, not us. Their receipt email is your proof of purchase.'],
+      ['Payments', 'Checkout is handled by our merchant of record (Lemon Squeezy). Your payment details go to them, not us. Their receipt email is your proof of purchase.'],
       ['No tracking for sale', 'We do not sell or share personal data. We use no advertising trackers.'],
       ['Contact', 'Questions or data requests: reply to your receipt email or use the contact link in the footer.'],
     ],

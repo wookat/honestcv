@@ -3,16 +3,7 @@ LLM_RELAY_BASE_URL=https://your-relay.example.com/v1
 LLM_RELAY_API_KEY=sk-xxxx
 LLM_MODEL=grok-composer-2.5-fast
 
-# Paddle Billing
-PADDLE_API_KEY=pdl_live_apikey_xxxx
-PADDLE_WEBHOOK_SECRET=pdl_ntfset_xxxx
-# Optional: point at sandbox during testing
-# PADDLE_API_BASE=https://sandbox-api.paddle.com
-# Paddle price ids
-PADDLE_PRICE_RESUME_ID=pri_xxxx
-PADDLE_PRICE_BUNDLE_ID=pri_xxxx
-
-# Lemon Squeezy (active provider when LS_* are all set; otherwise Paddle)
+# Lemon Squeezy (sole payment provider; checkout requires all LS_* set)
 LEMONSQUEEZY_API_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.xxxx
 LEMONSQUEEZY_WEBHOOK_SECRET=random-32-char-secret
 LS_STORE_ID=442392
@@ -22,5 +13,5 @@ LS_VARIANT_BUNDLE_ID=000000
 # HMAC signing key for in-app license tokens (long random string)
 LICENSE_SIGNING_SECRET=change-me-random-secret
 
-# "true" only after Paddle is approved; otherwise buy button collects leads
+# "true" only when the payment channel is live; otherwise buy button collects leads
 CHECKOUT_ENABLED=false

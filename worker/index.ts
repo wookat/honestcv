@@ -4,23 +4,13 @@ import {
   type BillingEnv,
   type LicenseRecord,
   type TokenPayload,
+  generateLicenseKey,
   licenseKvKey,
   newLicenseRecord,
   quotaKvKey,
   signToken,
   verifyToken,
 } from './billing'
-import {
-  PADDLE_PAID_STATUSES,
-  type PaddleEnv,
-  fetchPaddleTransaction,
-  generateLicenseKey,
-  paddleEventKvKey,
-  paddleTransactionInfo,
-  paddleTxKvKey,
-  planFromPriceIds,
-  verifyPaddleSignature,
-} from './paddle'
 import {
   LS_PAID_STATUSES,
   type LsEnv,
@@ -41,11 +31,11 @@ import {
   buildRewriteMessages,
 } from './prompts'
 
-interface Env extends BillingEnv, PaddleEnv, LsEnv {
+interface Env extends BillingEnv, LsEnv {
   LLM_RELAY_BASE_URL?: string
   LLM_RELAY_API_KEY?: string
   LLM_MODEL?: string
-  /** Checkout switch: frontend opens Paddle checkout only when "true" */
+  /** Checkout switch: frontend opens checkout only when "true" */
   CHECKOUT_ENABLED?: string
   /** Launch/traffic mode: downloads free, bundle AI tools share the free quota */
   FREE_MODE?: string
@@ -453,12 +443,11 @@ app.post('/api/ai/interview-brief', async (c) => {
   return c.json({ text: result.text, freeRemaining })
 })
 
-// Checkout availability: frontend checks before opening Paddle; when disabled
-// the buy button degrades to an email waitlist.
+// Checkout availability: frontend checks before opening checkout; when
+// disabled the buy button degrades to an email waitlist.
 app.get('/api/billing/status', (c) => {
-  const enabled = c.env.CHECKOUT_ENABLED === 'true' && !freeMode(c.env)
-  const provider = lsConfigured(c.env) ? 'lemonsqueezy' : 'paddle'
-  return c.json({ checkoutEnabled: enabled, provider, freeMode: freeMode(c.env) })
+  const enabled = c.env.CHECKOUT_ENABLED === 'true' && lsConfigured(c.env) && !freeMode(c.env)
+  return c.json({ checkoutEnabled: enabled, provider: 'lemonsqueezy', freeMode: freeMode(c.env) })
 })
 
 // Create a Lemon Squeezy hosted checkout for a plan (opened as an overlay)
@@ -524,7 +513,7 @@ app.post('/api/billing/ls-webhook', async (c) => {
       const kvKey = lsOrderKvKey(event.data.id)
       const existing = await c.env.KV.get(kvKey)
       if (!existing) {
-        const record: PaddleTxRecord = { transactionId: event.data.id, plan }
+        const record: OrderRecord = { transactionId: event.data.id, plan }
         await c.env.KV.put(kvKey, JSON.stringify(record))
       }
     }
@@ -583,59 +572,14 @@ app.post('/api/leads', async (c) => {
   return c.json({ ok: true })
 })
 
-interface PaddleTxRecord {
+interface OrderRecord {
   transactionId: string
   licenseKey?: string
   plan?: 'resume' | 'bundle'
   claimedAt?: number
 }
 
-// Paddle Billing webhook: verify signature, then record completed transactions
-// in KV so claims don't need the Paddle API.
-app.post('/api/billing/paddle-webhook', async (c) => {
-  const secret = c.env.PADDLE_WEBHOOK_SECRET
-  if (!secret) return c.json({ error: 'webhook not configured' }, 503)
-  const signature = c.req.header('paddle-signature')
-  if (!signature) return c.json({ error: 'missing signature' }, 401)
-  const rawBody = await c.req.text()
-  if (!(await verifyPaddleSignature(secret, rawBody, signature))) {
-    return c.json({ error: 'invalid signature' }, 401)
-  }
-
-  let event: {
-    event_id?: string
-    event_type?: string
-    data?: { id?: string; status?: string; items?: { price?: { id?: string } }[] }
-  }
-  try {
-    event = JSON.parse(rawBody)
-  } catch {
-    return c.json({ error: 'invalid payload' }, 400)
-  }
-
-  // Idempotency: Paddle retries deliveries
-  if (event.event_id) {
-    const seenKey = paddleEventKvKey(event.event_id)
-    if (await c.env.KV.get(seenKey)) return c.json({ ok: true, duplicate: true })
-    await c.env.KV.put(seenKey, '1', { expirationTtl: 60 * 60 * 24 * 7 })
-  }
-
-  if (event.event_type === 'transaction.completed' && event.data?.id) {
-    const info = paddleTransactionInfo(event.data)
-    const plan = planFromPriceIds(c.env, info.priceIds)
-    if (plan) {
-      const kvKey = paddleTxKvKey(info.id)
-      const existing = await c.env.KV.get(kvKey)
-      if (!existing) {
-        const record: PaddleTxRecord = { transactionId: info.id, plan }
-        await c.env.KV.put(kvKey, JSON.stringify(record))
-      }
-    }
-  }
-  return c.json({ ok: true })
-})
-
-// After checkout the frontend claims a license with the transaction_id.
+// After checkout the frontend claims a license with the order id.
 // Idempotent: the same transaction always returns the same license.
 app.post('/api/license/claim', async (c) => {
   const secret = c.env.LICENSE_SIGNING_SECRET
@@ -648,14 +592,12 @@ app.post('/api/license/claim', async (c) => {
     return c.json({ error: 'Invalid transaction id.' }, 400)
   }
 
-  // Lemon Squeezy order ids are numeric; Paddle transaction ids are txn_...
-  const isLsOrder = /^\d+$/.test(txId)
-  const txKvKey = isLsOrder ? lsOrderKvKey(txId) : paddleTxKvKey(txId)
-  let txRecord: PaddleTxRecord | null = null
+  const txKvKey = lsOrderKvKey(txId)
+  let txRecord: OrderRecord | null = null
   const storedTx = await c.env.KV.get(txKvKey)
   if (storedTx) {
     try {
-      txRecord = JSON.parse(storedTx) as PaddleTxRecord
+      txRecord = JSON.parse(storedTx) as OrderRecord
     } catch {
       txRecord = null
     }
@@ -684,9 +626,9 @@ app.post('/api/license/claim', async (c) => {
     }
   }
 
-  // Determine the plan: webhook record first, else verify via the provider API
+  // Determine the plan: webhook record first, else verify via the LS API
   let plan = txRecord?.plan ?? null
-  if (!plan && isLsOrder) {
+  if (!plan) {
     const order = await fetchLsOrder(c.env, txId)
     if (!order) {
       return c.json(
@@ -704,24 +646,6 @@ app.post('/api/license/claim', async (c) => {
     if (!plan) {
       return c.json({ error: 'No HonestCV product found in this order.' }, 404)
     }
-  } else if (!plan) {
-    const tx = await fetchPaddleTransaction(c.env, txId)
-    if (!tx) {
-      return c.json(
-        {
-          error:
-            'Could not verify the order right now — please retry in a minute if you just paid.',
-        },
-        502
-      )
-    }
-    if (!(PADDLE_PAID_STATUSES as readonly string[]).includes(tx.status)) {
-      return c.json({ error: 'This order has not been paid yet.' }, 402)
-    }
-    plan = planFromPriceIds(c.env, tx.priceIds)
-    if (!plan) {
-      return c.json({ error: 'No HonestCV product found in this order.' }, 404)
-    }
   }
 
   const licenseKey = generateLicenseKey()
@@ -730,7 +654,7 @@ app.post('/api/license/claim', async (c) => {
     activatedAt: Date.now(),
   })
   await c.env.KV.put(licenseKvKey(licenseKey), JSON.stringify(record))
-  const claimed: PaddleTxRecord = {
+  const claimed: OrderRecord = {
     transactionId: txId,
     licenseKey,
     plan,

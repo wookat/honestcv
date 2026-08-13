@@ -3316,3 +3316,21 @@ Systemic fixes:
 Dual payment stack convergence (paddle.ts + lemonsqueezy.ts) needs a
 provider decision from the boss; both remain config-gated (webhooks
 503 without secrets). Escalated, not changed.
+
+## Review round 1 follow-up (2026-08-05) — payment stack convergence
+
+Owner decision relayed: keep Lemon Squeezy (config-gated, disabled
+without secrets), delete the Paddle stack (AUP category restrictions
+blocked onboarding; real payments stay off).
+
+- Removed worker/paddle.ts and src/lib/paddle.ts entirely.
+- generateLicenseKey moved to worker/billing.ts (provider-neutral).
+- /api/billing/paddle-webhook route deleted; /api/license/claim now
+  resolves orders via Lemon Squeezy only (PaddleTxRecord → OrderRecord).
+- /api/billing/status reports checkoutEnabled only when LS is fully
+  configured; provider is always "lemonsqueezy".
+- Frontend: claimTransaction/fetchCheckoutEnabled/submitLead folded
+  into src/lib/checkout.ts (single checkout module, one provider).
+- Docs/config swept: README, ls-setup runbook, wrangler.jsonc comments,
+  .dev.vars.example, testing skill, ops-weekly. Historical docs left
+  as-is. No payment was activated.
