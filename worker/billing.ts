@@ -114,3 +114,12 @@ export function newLicenseRecord(
 export const licenseKvKey = (key: string) => `license:${key.trim().toLowerCase()}`
 export const quotaKvKey = (fingerprint: string, item: string) =>
   `quota:${item}:${fingerprint}`
+
+/** Generate an in-house license key (CV-XXXX-XXXX-XXXX-XXXX) */
+export function generateLicenseKey(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  const chars = Array.from(bytes, (b) => alphabet[b % alphabet.length])
+  const groups = [0, 4, 8, 12].map((i) => chars.slice(i, i + 4).join(''))
+  return `CV-${groups.join('-')}`
+}

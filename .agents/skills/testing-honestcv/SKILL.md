@@ -1,6 +1,6 @@
 ---
 name: testing-honestcv
-description: How to QA-test HonestCV (cv.zalize.com) end-to-end — free/launch mode, license activation, downloads, Paddle checkout, AI tools — without ever completing a real payment.
+description: How to QA-test HonestCV (cv.zalize.com) end-to-end — free/launch mode, license activation, downloads, Lemon Squeezy checkout, AI tools — without ever completing a real payment.
 ---
 
 # Testing HonestCV
@@ -10,6 +10,13 @@ description: How to QA-test HonestCV (cv.zalize.com) end-to-end — free/launch 
 - /examples/ now has **15** role pages (added: accountant, administrative-assistant, graphic-designer, human-resources, product-manager, retail-associate, warehouse-worker). Fast validity check from the page console/CDP: fetch /examples/, regex `href="(/examples/[a-z-]+/)"`, HEAD each — expect count 15, all 200.
 - I12: every static-page footer (guides, templates, /vs/, hubs, about, legal) has an "Examples" → /examples/ link, and each guide's "Keep reading" list ends with "Resume examples by role" + "HonestCV vs other resume builders".
 - Pitfall: CDP `Emulation.clearDeviceMetricsOverride` may not visually restore a previously-emulated tab — open a fresh tab (Ctrl+T) to get desktop layout back.
+
+## PR #188 review-round-1 notes (main 00363ae)
+
+- Landing "/" is prerendered at build time (scripts/prerender.mjs): curl of `/` returns ~65KB with landing HTML inside `<div id="root">…`; `/builder`, `/ats-checker` and 404s serve spa.html (~4.7KB, `id="root"></div>` empty). Diffing these curls is the fastest no-flash proof; a 404 route (e.g. /no-such-page) should be HTTP 404 with the same 4.7KB shell. Hydration check: `src/main.tsx` hydrates iff root has a child — verify template-gallery filter chips (e.g. "Serif (9)" → 9 thumbnails) and hero CTAs still work after load.
+- Worker AI abuse gate (`worker/index.ts`): POST /api/ai/* body >60KB → 413; rewrite text >5000 chars → 400 "That text is too long to rewrite in one go — split it up."; per-IP 30/day → 429 code `rate_limited`. IMPORTANT: every unlicensed POST to /api/ai/* increments the shared per-IP KV counter — keep test requests to 1-2 and never trigger the 429 deliberately from a shared box. Neither the gate rejections nor failed upstream calls consume the per-client free quota (`/api/ai/quota` stays unchanged).
+- CORS: OPTIONS /api/* with a foreign Origin returns `access-control-allow-origin: https://cv.zalize.com` (never echoes the foreign origin); localhost origins are echoed.
+- While the AI relay is broken, the builder Tailor flow surfaces "The AI returned an unexpected format — please try again." (not the "temporarily unavailable (NNN)" wording) — quota still unspent.
 
 ## I29–I30 notes (main 03c69b0, worker 1773fa78)
 
@@ -169,7 +176,7 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 
 - **Locked vs unlocked**: header shows "Unlock — $9.99 once" when locked; after activation it shows a "Career Bundle" (or plan) badge and PDF/DOCX buttons work.
 - **License activation**: open the upgrade dialog (click PDF while locked or the Unlock button), use "Already paid? Re-activate with your license key". Seeded test keys (e.g. `CV-QA01-TEST-2026-GATE`) are KV-backed bundle licenses. Activation is instant, no reload needed.
-- **Paddle checkout**: click a buy button → Paddle overlay should open. ⚠️ This is LIVE Paddle — never enter card details. If the overlay shows "Something went wrong", check: `/api/billing/status` (should be `{"checkoutEnabled":true}`), and grep the deployed bundle for the token/price IDs (`curl -s https://cv.zalize.com/assets/index-*.js | grep -oE 'live_\w+|pri_\w+'`). Token/prices present + overlay error usually means the domain isn't approved in the Paddle dashboard or the account/prices aren't active.
+- **Checkout (Lemon Squeezy — sole provider; Paddle was removed)**: click a buy button → LS overlay should open. ⚠️ This is LIVE — never enter card details. If it fails, check `/api/billing/status` (should be `{"checkoutEnabled":true,"provider":"lemonsqueezy"}`); checkout also requires all LS_* Worker secrets to be set.
 - **Downloads**: files land in `~/Downloads`. Verify PDF with `pdftotext file.pdf -` (must extract real text) and DOCX by unzipping `word/document.xml`. Note: clicking PDF opens the PDF in a new Chrome tab AND downloads it — switch back to the builder tab before clicking DOCX.
 - **AI endpoints** (`/api/ai/rewrite`, cover letter, interview prep): relayed to an LLM (model set in wrangler.jsonc `LLM_MODEL`). These are SLOW (~60s for a summary rewrite) and longer generations may fail with a Cloudflare **524 timeout** — retry once, but repeated 524s are a real product issue, not an environment problem. 5 free rewrites per client when locked; 402 → upgrade dialog after exhaustion.
 - **Bundle tools** (Cover letter / Interview prep) require an active bundle license AND a pasted job description in "Target job".

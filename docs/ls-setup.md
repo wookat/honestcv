@@ -1,8 +1,8 @@
 # Lemon Squeezy setup runbook (HonestCV)
 
-HonestCV's worker supports two payment providers. Lemon Squeezy becomes the
-active provider automatically once all `LS_*` secrets below are set; otherwise
-it falls back to Paddle. No code change is needed to switch.
+Lemon Squeezy is HonestCV's sole payment provider (Paddle was removed — AUP
+restrictions blocked onboarding). Checkout activates once all `LS_*` secrets
+below are set and `CHECKOUT_ENABLED=true`.
 
 Store: **rankedby** (id `442392`, https://rankedby.lemonsqueezy.com)
 
@@ -62,7 +62,7 @@ webhook with a live-mode key (same URL/secret is fine).
    falls back to `GET /v1/orders/<id>` (status must be `paid`), then issues a
    `CV-XXXX-XXXX-XXXX-XXXX` license + signed token.
 
-Numeric ids are treated as LS orders; `txn_...` ids as Paddle transactions.
+Order ids are Lemon Squeezy numeric order ids.
 
 ## 5. Test-mode end-to-end check
 
