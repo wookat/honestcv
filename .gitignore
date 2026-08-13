@@ -27,3 +27,4 @@ dist-ssr
 
 node_modules/.tmp
 *.tsbuildinfo
+test-plan-*.md
