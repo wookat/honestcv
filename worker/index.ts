@@ -58,6 +58,13 @@ const freeMode = (env: Env) => env.FREE_MODE === 'true'
 const FREE_AI_REWRITES = 5
 /** Launch mode is more generous while we optimize for traffic */
 const FREE_MODE_AI_CALLS = 12
+/** Hard per-IP daily cap on AI requests: bounds LLM cost even when the
+ * client-reported x-client-id is rotated to mint fresh free quotas. */
+const AI_IP_DAILY_LIMIT = 30
+/** Upper bound on AI request bodies (resume text + JD comfortably fit) */
+const AI_MAX_BODY_BYTES = 60_000
+/** Upper bound on a single rewrite input */
+const AI_MAX_TEXT_CHARS = 5_000
 
 async function entitlementFromRequest(c: {
   req: { header: (name: string) => string | undefined }
@@ -175,7 +182,44 @@ app.use('*', async (c, next) => {
   }
 })
 
-app.use('/api/*', cors())
+app.use(
+  '/api/*',
+  cors({
+    origin: (origin) =>
+      origin === 'https://cv.zalize.com' || /^http:\/\/localhost(:\d+)?$/.test(origin)
+        ? origin
+        : 'https://cv.zalize.com',
+  })
+)
+
+// Abuse gate for all AI endpoints: request-size cap plus a per-IP daily
+// request cap. Licensed users are exempt; the per-client free quota is
+// still checked per endpoint (x-client-id stays a UX dimension only).
+app.use('/api/ai/*', async (c, next) => {
+  if (c.req.method !== 'POST') return next()
+  const length = Number(c.req.header('content-length') ?? '0')
+  if (length > AI_MAX_BODY_BYTES) {
+    return c.json({ error: 'Request too large — trim the pasted text and retry.' }, 413)
+  }
+  const ip = c.req.header('cf-connecting-ip')
+  if (ip && !(await entitlementFromRequest(c))) {
+    const day = new Date().toISOString().slice(0, 10)
+    const key = `rl:ai:${day}:${ip}`
+    const used = Number((await c.env.KV.get(key)) ?? '0')
+    if (used >= AI_IP_DAILY_LIMIT) {
+      return c.json(
+        {
+          error:
+            'Daily AI request limit reached for your network — please try again tomorrow.',
+          code: 'rate_limited',
+        },
+        429
+      )
+    }
+    await c.env.KV.put(key, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+  }
+  return next()
+})
 
 // Remaining free-AI quota for this client (read-only, no consumption)
 app.get('/api/ai/quota', async (c) => {
@@ -210,6 +254,9 @@ app.post('/api/ai/rewrite', async (c) => {
   const text = body.text?.trim()
   if (!text || text.length < 3) {
     return c.json({ error: 'Nothing to rewrite — add some text first.' }, 400)
+  }
+  if (text.length > AI_MAX_TEXT_CHARS) {
+    return c.json({ error: 'That text is too long to rewrite in one go — split it up.' }, 400)
   }
 
   const ent = await entitlementFromRequest(c)
@@ -769,7 +816,9 @@ app.notFound(async (c) => {
   const res = await c.env.ASSETS.fetch(c.req.raw)
   if (res.status !== 404) return res
   const path = c.req.path.length > 1 ? c.req.path.replace(/\/+$/, '') : c.req.path
-  const shell = await c.env.ASSETS.fetch(new Request(new URL('/', c.req.url)))
+  // spa.html is the empty shell (index.html carries the prerendered landing)
+  let shell = await c.env.ASSETS.fetch(new Request(new URL('/spa.html', c.req.url)))
+  if (shell.status !== 200) shell = await c.env.ASSETS.fetch(new Request(new URL('/', c.req.url)))
   return new Response(shell.body, {
     status: SPA_ROUTES.has(path) ? 200 : 404,
     headers: { 'content-type': 'text/html; charset=utf-8' },

@@ -3293,3 +3293,26 @@ pages, 2 new guides, hub growth to 113 URLs):
 All well inside the good thresholds (LCP < 2.5s, CLS < 0.1); the only
 console error remains the ad-blocked cloudflareinsights beacon.
 Content growth has not regressed performance. Log-only round.
+## Review round 1 (2026-08-05) — acceptance-officer findings
+
+Findings relayed: P1 free-AI-quota bypass via client-reported
+x-client-id; P2 CORS wide open on /api/*; P2 mobile TBT 240ms /
+LCP 3.1s; architecture note on dual payment stacks + root-dir
+test-plan clutter.
+
+Systemic fixes:
+- AI abuse gate (one middleware on /api/ai/*): per-IP daily request
+  cap (30, licensed users exempt), 60KB body cap, 5k-char rewrite
+  input cap. x-client-id stays a UX-only quota dimension; the IP cap
+  bounds cost even under client-id rotation.
+- CORS on /api/* restricted to https://cv.zalize.com (+localhost dev).
+- Landing prerendered at build time (vite SSR pass → HTML injected
+  into index.html; empty shell kept as spa.html for /builder,
+  /ats-checker and 404s) so first paint no longer waits on the JS
+  bundle. Root cause of the LCP/TBT finding was the blank SPA shell —
+  the preview/PDF code suspected in the report was already lazy.
+- Root-dir test-plan/test-report files moved to docs/test-plans/.
+
+Dual payment stack convergence (paddle.ts + lemonsqueezy.ts) needs a
+provider decision from the boss; both remain config-gated (webhooks
+503 without secrets). Escalated, not changed.
