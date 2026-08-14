@@ -6,10 +6,24 @@ import NotFound from '@/pages/NotFound'
 const Builder = lazy(() => import('@/pages/Builder'))
 const AtsChecker = lazy(() => import('@/pages/AtsChecker'))
 
+// Mirrors the static skeleton injected into spa.html (scripts/prerender.mjs)
+// so slow connections see a stable form outline until the route chunk lands.
 function RouteFallback() {
   return (
-    <div className="text-muted-foreground flex min-h-svh items-center justify-center text-sm">
-      Loading…
+    <div aria-busy="true" aria-label="Loading" className="mx-auto max-w-6xl animate-pulse p-4">
+      <div className="bg-muted mb-6 h-9 w-40 rounded-md" />
+      <div className="flex gap-8">
+        <div className="min-w-0 flex-1 space-y-4">
+          <div className="bg-muted h-5 w-32 rounded" />
+          <div className="bg-muted h-10 rounded-md" />
+          <div className="bg-muted h-10 rounded-md" />
+          <div className="bg-muted h-24 rounded-md" />
+          <div className="bg-muted h-5 w-32 rounded" />
+          <div className="bg-muted h-10 rounded-md" />
+          <div className="bg-muted h-24 rounded-md" />
+        </div>
+        <div className="bg-muted hidden aspect-[17/22] flex-1 rounded-md md:block" />
+      </div>
     </div>
   )
 }

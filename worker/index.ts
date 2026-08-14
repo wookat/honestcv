@@ -59,14 +59,19 @@ const isQaRequest = (req: Request) => {
 const FREE_AI_REWRITES = 5
 /** Launch mode is more generous while we optimize for traffic */
 const FREE_MODE_AI_CALLS = 12
-/** Hard per-IP daily cap on AI requests: bounds LLM cost even when the
- * client-reported x-client-id is rotated to mint fresh free quotas. */
-const AI_IP_DAILY_LIMIT = 30
+/** Wide per-IP daily backstop on AI requests: bounds single-source floods
+ * without locking out shared exits (CGNAT / campus networks); the narrow
+ * per-client quota and the global breaker are the primary cost gates. */
+const AI_IP_DAILY_LIMIT = 100
 /** Site-wide daily circuit breaker on unlicensed AI calls: caps total LLM
  * spend even against distributed (many-IP) abuse. */
 const AI_GLOBAL_DAILY_LIMIT = 500
-/** Per-IP daily cap on waitlist/subscribe submissions (KV spam bound) */
-const LEADS_IP_DAILY_LIMIT = 10
+/** Waitlist/subscribe limits, three layers: a narrow per-client quota (the
+ * primary gate), a wide per-IP backstop (shared exits / CGNAT put many real
+ * users behind one IP, so this must stay loose), and a global daily breaker. */
+const LEADS_CLIENT_DAILY_LIMIT = 5
+const LEADS_IP_DAILY_LIMIT = 100
+const LEADS_GLOBAL_DAILY_LIMIT = 500
 /** Upper bound on AI request bodies (resume text + JD comfortably fit) */
 const AI_MAX_BODY_BYTES = 60_000
 /** Upper bound on a single rewrite input */
@@ -168,6 +173,47 @@ async function peekFreeQuota(c: {
 
 const app = new Hono<{ Bindings: Env }>()
 
+// Edge-cache successful same-origin GET pages (same pattern as NameChart's
+// cache middleware) so the SPA shells served by the Worker for /builder and
+// /ats-checker get cf-cache hits like the static assets already do.
+// Bump to invalidate edge-cached Worker HTML on deploys that change rendering.
+const CACHE_VER = 2
+
+const etagOf = async (buf: ArrayBuffer) => {
+  const d = await crypto.subtle.digest('SHA-1', buf)
+  return '"' + [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('') + '"'
+}
+const notModified = (res: Response) => {
+  const h = new Headers()
+  for (const k of ['ETag', 'Cache-Control']) {
+    const v = res.headers.get(k)
+    if (v) h.set(k, v)
+  }
+  return new Response(null, { status: 304, headers: h })
+}
+
+app.use('*', async (c, next) => {
+  if (c.req.method !== 'GET') return next()
+  const url = new URL(c.req.url)
+  // Query-string requests are never cached (the key is path-only), so don't serve them from cache either.
+  if (url.pathname.startsWith('/api/') || url.search) return next()
+  const inm = c.req.header('If-None-Match')
+  const key = new Request(url.origin + '/__v' + CACHE_VER + url.pathname, { method: 'GET' })
+  const hit = await caches.default.match(key)
+  if (hit) {
+    if (inm && inm === hit.headers.get('ETag')) return notModified(hit)
+    return new Response(hit.body, hit)
+  }
+  await next()
+  if (c.res.status === 200 && (c.res.headers.get('Cache-Control') || '').includes('s-maxage')) {
+    const buf = await c.res.arrayBuffer()
+    const res = new Response(buf, c.res)
+    res.headers.set('ETag', await etagOf(buf))
+    c.executionCtx.waitUntil(caches.default.put(key, res.clone()))
+    c.res = inm && inm === res.headers.get('ETag') ? notModified(res) : res
+  }
+})
+
 // Security headers on every response; long-lived caching for fingerprinted
 // build assets (self-hosted fonts get a shorter TTL since their names are stable).
 app.use('*', async (c, next) => {
@@ -191,6 +237,13 @@ app.use('*', async (c, next) => {
     h.set('Cache-Control', 'public, max-age=31536000, immutable')
   } else if (c.req.path.startsWith('/fonts/')) {
     h.set('Cache-Control', 'public, max-age=604800')
+  } else if (c.req.method === 'GET' && !c.req.path.startsWith('/api/') && c.res.status === 200) {
+    // Pages: browsers revalidate quickly; the edge holds them for 10 minutes
+    // (s-maxage also opts the response into the cache middleware above).
+    // The zone edge cache sits in front of the Worker and can't be purged
+    // with our API tokens, so s-maxage bounds how long a stale SPA shell
+    // (with previous-deploy asset hashes) survives a deploy.
+    h.set('Cache-Control', 'public, max-age=300, s-maxage=600')
   }
 })
 
@@ -620,16 +673,35 @@ app.post('/api/leads', async (c) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(addr) || addr.length > 254) {
     return c.json({ error: 'Please enter a valid email address.' }, 400)
   }
+  // Three layers: narrow per-client quota, wide per-IP backstop (shared
+  // exits must not lock each other out), and a global daily breaker.
+  const day = new Date().toISOString().slice(0, 10)
+  const ttl = { expirationTtl: 60 * 60 * 24 * 2 }
+  const clientId = c.req.header('x-client-id')?.trim()
+  const gates: { key: string; limit: number }[] = [
+    { key: `rl:leads-global:${day}`, limit: LEADS_GLOBAL_DAILY_LIMIT },
+  ]
+  if (clientId && clientId.length >= 8 && clientId.length <= 128) {
+    gates.push({ key: `rl:leads-client:${day}:${clientId}`, limit: LEADS_CLIENT_DAILY_LIMIT })
+  }
   const ip = c.req.header('cf-connecting-ip')
   if (ip) {
-    const day = new Date().toISOString().slice(0, 10)
-    const rlKey = `rl:leads:${day}:${ip}`
-    const used = Number((await c.env.KV.get(rlKey)) ?? '0')
-    if (used >= LEADS_IP_DAILY_LIMIT) {
-      return c.json({ error: 'Too many submissions from your network today — please try again tomorrow.' }, 429)
-    }
-    await c.env.KV.put(rlKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+    // No client id (scripted callers) → the IP gate tightens to the narrow limit
+    const ipLimit = clientId ? LEADS_IP_DAILY_LIMIT : LEADS_CLIENT_DAILY_LIMIT
+    gates.push({ key: `rl:leads:${day}:${ip}`, limit: ipLimit })
   }
+  const counts = await Promise.all(gates.map((g) => c.env.KV.get(g.key)))
+  for (let i = 0; i < gates.length; i++) {
+    if (Number(counts[i] ?? '0') >= gates[i].limit) {
+      return c.json(
+        { error: 'Too many submissions today — please try again tomorrow.' },
+        429
+      )
+    }
+  }
+  await Promise.all(
+    gates.map((g, i) => c.env.KV.put(g.key, String(Number(counts[i] ?? '0') + 1), ttl))
+  )
   const record = {
     email: addr,
     plan: typeof plan === 'string' ? plan.slice(0, 32) : '',
