@@ -3369,3 +3369,21 @@ call; users can think it hung.
   remaining free-AI count for locked users.
 - LCP ~3.1s accepted as CSR structural ceiling; SSR project awaits a
   go decision — not touched this round.
+
+## Review round 5 (2026-08-14) — SEO audit P1 + funnel export
+
+Reviewer round-5 SEO audit flagged "homepage missing meta description"
+as P1. First-hand check: the tag exists in production HTML but spans
+multiple lines (prettier formatting), so line-based parsers (including
+the audit's) miss it. Fix: meta description and og:description
+flattened to single-line tags in index.html (prettier-ignore), so both
+naive parsers and crawlers see them; content unchanged.
+
+Round-6 prep: docs/analytics-export.md — 30-day funnel export from
+first-party beacon + AI quota/gate counters + leads (aggregates only,
+no PII). Honest gaps recorded: Cloudflare RUM returns 0 rows for the
+window; export/return-visit stages are structurally unmeasurable (no
+event beacon, no user identity by design); 08-06 spike is likely
+internal QA residue. Suggested smallest honest instrumentation
+(ev:<day>:<event> daily counters, no identifiers) if round 6 needs a
+true funnel.
