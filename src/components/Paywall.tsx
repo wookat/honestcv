@@ -250,7 +250,7 @@ export function FreeDownloadDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Mail className="size-5" /> Downloads are included in the beta trial
+            <Mail className="size-5" /> Downloads are free during the beta
           </DialogTitle>
           <DialogDescription>
             No payment, no subscription — just leave an email once and download

@@ -188,7 +188,7 @@ const PAGES = [
       'We tested FlowCV ourselves: a genuinely generous free tier (1 resume, unlimited PDF downloads) with $3–5/month subscriptions on top. HonestCV differs on privacy (browser-local, no account) and one-time pricing.',
     h1: 'HonestCV vs FlowCV: two honest builders, two different trade-offs',
     intro:
-      'We registered for FlowCV and ran the full flow ourselves (August 2026) — and credit where due: it is one of the fairest products in this category. The free plan really is free: one resume, unlimited watermark-free PDF downloads, all templates, and clear auto-renewal disclosure on its cheap paid tiers (Basic $3/month and Pro $5/month, billed yearly). The differences are structural. FlowCV requires an account and a verified email before any download, renders your PDF on its servers (the exported file’s metadata shows server-side Chromium), and caps the free plan at a single resume. HonestCV needs no account, keeps your resume data in your browser and generates the PDF locally on your machine, lets you keep unlimited tailored copies, and charges once instead of a subscription — currently in beta with a full free trial.',
+      'We registered for FlowCV and ran the full flow ourselves (August 2026) — and credit where due: it is one of the fairest products in this category. The free plan really is free: one resume, unlimited watermark-free PDF downloads, all templates, and clear auto-renewal disclosure on its cheap paid tiers (Basic $3/month and Pro $5/month, billed yearly). The differences are structural. FlowCV requires an account and a verified email before any download, renders your PDF on its servers (the exported file’s metadata shows server-side Chromium), and caps the free plan at a single resume. HonestCV needs no account, keeps your resume data in your browser and generates the PDF locally on your machine, lets you keep unlimited tailored copies, and charges once instead of a subscription — currently free during beta.',
     bullets: [
       'No account or email verification needed to download — FlowCV gates every download behind a verified account',
       'Your resume never leaves your browser: local PDF/DOCX generation vs FlowCV’s server-side rendering',
@@ -206,7 +206,7 @@ const PAGES = [
       'We registered for Novorésumé and ran the full flow ourselves: free plan allows 1 single-page resume with free PDF download; Premium is $21.99/month or $139.99/year (non-recurring). HonestCV differs on privacy, unlimited copies and one-time pricing.',
     h1: 'HonestCV vs Novorésumé: what we found testing it ourselves',
     intro:
-      'We created a Novorésumé account and walked its full flow (August 2026). Credit where due: the free Basic plan really does let you download a watermark-free PDF, its pre-download review flags real ATS issues, and Premium ($21.99/month, $39.99/quarter or $139.99/year) is explicitly non-recurring — no auto-renewal trap. The limits are structural: Basic stores exactly one resume, capped at a single page, with no cover letter and only predefined layouts; downloads are gated behind an account with email code verification; and your resume lives on their servers, with the PDF rendered server-side. HonestCV needs no account, keeps your resume in your browser and generates the PDF and DOCX locally, allows unlimited pages and unlimited saved copies, and includes cover letter and interview-prep tools — one-time pricing, currently in beta with a full free trial.',
+      'We created a Novorésumé account and walked its full flow (August 2026). Credit where due: the free Basic plan really does let you download a watermark-free PDF, its pre-download review flags real ATS issues, and Premium ($21.99/month, $39.99/quarter or $139.99/year) is explicitly non-recurring — no auto-renewal trap. The limits are structural: Basic stores exactly one resume, capped at a single page, with no cover letter and only predefined layouts; downloads are gated behind an account with email code verification; and your resume lives on their servers, with the PDF rendered server-side. HonestCV needs no account, keeps your resume in your browser and generates the PDF and DOCX locally, allows unlimited pages and unlimited saved copies, and includes cover letter and interview-prep tools — one-time pricing, currently free during beta.',
     bullets: [
       'No account or email code needed to download — Novorésumé gates downloads behind a verified account',
       'Your resume never leaves your browser: local PDF/DOCX generation vs server-side rendering',
@@ -224,7 +224,7 @@ const PAGES = [
       'We signed up for Enhancv and ran its full flow ourselves: free downloads carry a "Powered by Enhancv" footer, the ATS keyword check is free but full suggestions are paywalled, and Pro runs $16.50–$39/month. HonestCV differs on branding-free exports, privacy and one-time pricing.',
     h1: 'HonestCV vs Enhancv: what we found testing it ourselves',
     intro:
-      'We created an Enhancv account and walked its full flow (August 2026). Credit where due: its guided chat-style onboarding is smooth, the free plan really does export a PDF and a TXT file, and its job-description match check with a per-keyword frequency table is genuinely useful — we liked that pattern enough to build our own version into HonestCV\u2019s free ATS checker. The catches: every free PDF carries a "Powered by Enhancv" branding footer (branding-free export is a paid feature), the resume grade and ATS suggestions are mostly behind an "Unlock Full Report" paywall, saving or downloading requires an account with email code verification, your resume lives on their servers, and Pro is a recurring subscription at $39/month, $23/month billed quarterly, or $16.50/month billed semiannually. HonestCV keeps your resume in your browser, renders PDF/DOCX/TXT locally with no branding at any tier, and shows the whole ATS report free — one-time pricing, currently in beta with a full free trial.',
+      'We created an Enhancv account and walked its full flow (August 2026). Credit where due: its guided chat-style onboarding is smooth, the free plan really does export a PDF and a TXT file, and its job-description match check with a per-keyword frequency table is genuinely useful — we liked that pattern enough to build our own version into HonestCV\u2019s free ATS checker. The catches: every free PDF carries a "Powered by Enhancv" branding footer (branding-free export is a paid feature), the resume grade and ATS suggestions are mostly behind an "Unlock Full Report" paywall, saving or downloading requires an account with email code verification, your resume lives on their servers, and Pro is a recurring subscription at $39/month, $23/month billed quarterly, or $16.50/month billed semiannually. HonestCV keeps your resume in your browser, renders PDF/DOCX/TXT locally with no branding at any tier, and shows the whole ATS report free — one-time pricing, currently free during beta.',
     bullets: [
       'No branding footer on any export — Enhancv\u2019s free PDFs print "Powered by Enhancv" at the bottom',
       'Full ATS report free, including every suggestion — Enhancv paywalls the full report behind Pro',
@@ -242,7 +242,7 @@ const PAGES = [
       'We created a Resume Worded account and ran its full flow ourselves: the free resume score locks several checks behind Pro, the keyword targeting tool is genuinely free, and Pro runs $19–$49/month recurring. HonestCV differs on privacy, a fully free report and one-time pricing.',
     h1: 'HonestCV vs Resume Worded: what we found testing it ourselves',
     intro:
-      'We created a Resume Worded account and walked its full flow (August 2026). Credit where due: its free Targeted Resume tool really does compare your resume to a job description at no charge, with a relevancy score, found/missing keyword counts and a side-by-side view — a genuinely useful free tool. The catches: it is a checker, not a builder (templates are Word/Google Docs downloads); the free resume score locks several checks (Leadership, Communication, Teamwork and more) plus the full report behind Pro; scoring requires an account and your resume is uploaded to their servers; the signup form pre-checks a weekly email subscription; and Pro is a recurring subscription at $49/month, $33/month billed quarterly, or $19/month billed yearly against a $75 strikethrough anchor. HonestCV is a full builder plus checker: your resume stays in your browser, the entire ATS report is free with no locked checks, and no account or email is needed — one-time pricing, currently in beta with a full free trial.',
+      'We created a Resume Worded account and walked its full flow (August 2026). Credit where due: its free Targeted Resume tool really does compare your resume to a job description at no charge, with a relevancy score, found/missing keyword counts and a side-by-side view — a genuinely useful free tool. The catches: it is a checker, not a builder (templates are Word/Google Docs downloads); the free resume score locks several checks (Leadership, Communication, Teamwork and more) plus the full report behind Pro; scoring requires an account and your resume is uploaded to their servers; the signup form pre-checks a weekly email subscription; and Pro is a recurring subscription at $49/month, $33/month billed quarterly, or $19/month billed yearly against a $75 strikethrough anchor. HonestCV is a full builder plus checker: your resume stays in your browser, the entire ATS report is free with no locked checks, and no account or email is needed — one-time pricing, currently free during beta.',
     bullets: [
       'Full builder + checker in one — Resume Worded checks resumes but sends you to Word/Google Docs templates to edit',
       'Every check in the ATS report is free — Resume Worded locks several recruiter checks and the full report behind Pro',
@@ -260,7 +260,7 @@ const PAGES = [
       'We checked Jobscan\u2019s public plan page ourselves (August 2026): the free tier allows 5 resume scans per month with 5 findings, and paid plans run $29.98\u2013$49.95/month recurring with a 7-day trial that auto-bills. HonestCV\u2019s ATS checker is unlimited, free and browser-local.',
     h1: 'HonestCV vs Jobscan: what its own plan page shows',
     intro:
-      'Jobscan is one of the best-known ATS match tools, and its scan-against-the-job-description concept is genuinely the right idea — it\u2019s the same core workflow our free ATS checker implements. We reviewed Jobscan\u2019s public plan page firsthand (August 2026). What it shows: the free tier is capped at 5 resume scans per month with 5 ATS & recruiter findings; unlimited scans require a paid plan at $49.95/month, or $29.98/month billed quarterly as $89.95 every 3 months; the 7-day free trial converts into a quarterly charge automatically if you don\u2019t cancel in time ("Once your trial ends, you will be billed for the next quarter"), and per its cancellation policy you lose access to paid features and the data associated with them when the subscription expires. We could not fully exercise its scanner (parts of the site block automated-looking traffic), so we make no claims about its scoring quality. HonestCV\u2019s ATS checker is unlimited and free with no account, runs entirely in your browser, and our plans are one-time purchases — currently in beta with a full free trial and no card required.',
+      'Jobscan is one of the best-known ATS match tools, and its scan-against-the-job-description concept is genuinely the right idea — it\u2019s the same core workflow our free ATS checker implements. We reviewed Jobscan\u2019s public plan page firsthand (August 2026). What it shows: the free tier is capped at 5 resume scans per month with 5 ATS & recruiter findings; unlimited scans require a paid plan at $49.95/month, or $29.98/month billed quarterly as $89.95 every 3 months; the 7-day free trial converts into a quarterly charge automatically if you don\u2019t cancel in time ("Once your trial ends, you will be billed for the next quarter"), and per its cancellation policy you lose access to paid features and the data associated with them when the subscription expires. We could not fully exercise its scanner (parts of the site block automated-looking traffic), so we make no claims about its scoring quality. HonestCV\u2019s ATS checker is unlimited and free with no account, runs entirely in your browser, and our plans are one-time purchases — currently free during beta with no card required.',
     bullets: [
       'Unlimited free ATS checks — Jobscan\u2019s free tier is capped at 5 scans per month',
       'No trial-to-subscription conversion: nothing to cancel, no card required — Jobscan\u2019s 7-day trial auto-bills a quarterly charge',
@@ -1379,8 +1379,8 @@ ${p.bullets.map((b) => `<li>${esc(b)}</li>`).join('\n')}
 </ul>
 ${p.path.startsWith('/vs/') ? '<p style="color:var(--muted);font-size:.85rem">Competitor pricing and free-tier limits last re-verified against their public pricing pages: August 2026.</p>' : ''}
 <div class="cta">
-<p>${FREE_MODE ? 'Beta free trial: every plan is fully unlocked at no charge while we\u2019re in beta — editor, ATS templates, match score, AI tools and PDF/DOCX downloads. Plans are $9.99/$19.99 one-time when billing opens. No card, no auto-renewal, nothing that renews.' : 'Everything is free to try — editor, ATS templates, live preview, match score. Pay $9.99 exactly once to download. No subscription, no auto-renewal, nothing to cancel.'}</p>
-<a class="btn" href="${p.cta ?? '/builder'}">${esc(p.ctaLabel ?? 'Start your free trial')}</a>
+<p>${FREE_MODE ? 'Free during beta: every plan is fully unlocked at no charge — editor, ATS templates, match score, AI tools and PDF/DOCX downloads. Plans are $9.99/$19.99 one-time when billing opens. No card, no auto-renewal, nothing that renews.' : 'Everything is free to try — editor, ATS templates, live preview, match score. Pay $9.99 exactly once to download. No subscription, no auto-renewal, nothing to cancel.'}</p>
+<a class="btn" href="${p.cta ?? '/builder'}">${esc(p.ctaLabel ?? 'Start free — no sign-up')}</a>
 </div>
 <div class="related">
 <h2>More from HonestCV</h2>
@@ -1518,7 +1518,7 @@ ${FP_BEACON}
 <li>The ATS match score is free and unlimited, computed locally</li>
 <li>AI polishes your real experience — it never invents employers, dates or metrics</li>
 <li>Real text-based PDF and DOCX export, no watermark</li>
-<li>One-time pricing ($9.99 / $19.99) — no subscription, nothing to cancel. Currently a full beta free trial.</li>
+<li>One-time pricing ($9.99 / $19.99) — no subscription, nothing to cancel. Currently free during beta.</li>
 </ul>
 <h2 style="margin-top:1.5rem;font-size:1.125rem">How we compare</h2>
 <p class="lede" style="font-size:1rem">We sign up for competitors and run their full flows ourselves, then publish dated, first-hand comparisons: <a href="/vs/">HonestCV vs other resume builders</a>. We also publish <a href="/guides/">free resume guides</a> and a shareable <a href="/ats-checker">ATS checker</a>.</p>
@@ -1603,8 +1603,8 @@ ${p.sections.map(([h]) => `<li><a href="#${anchorId(h)}">${esc(h)}</a></li>`).jo
 </nav>
 ${p.sections.map(([h, t]) => `<h2 id="${anchorId(h)}" style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
 <div class="cta">
-<p>${FREE_MODE ? 'Put this into practice — HonestCV is in beta with a full free trial: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'Put this into practice — the HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
-<a class="btn" href="/builder">Start my free trial</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
+<p>${FREE_MODE ? 'Put this into practice — HonestCV is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'Put this into practice — the HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
+<a class="btn" href="/builder">Start building free</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 <div class="related">
 <h2>Keep reading</h2>
@@ -1740,8 +1740,8 @@ ${FP_BEACON}
 <p class="lede">${esc(intro)}</p>
 ${renderHubItems(items)}
 <div class="cta">
-<p>${FREE_MODE ? 'HonestCV is in beta with a full free trial: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
-<a class="btn" href="/builder">Start my free trial</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
+<p>${FREE_MODE ? 'HonestCV is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
+<a class="btn" href="/builder">Start building free</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 </main>
 <footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
@@ -3073,7 +3073,7 @@ ${doc}
 <p style="color:var(--muted);font-size:.8rem">Fictional example for illustration — names, employers and numbers are invented, but every bullet follows the honest formula: action + scope + verifiable result. Never copy claims you can't defend in an interview.</p>
 ${p.tips.map(([h, t]) => `<h2 style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
 <div class="cta">
-<p>${FREE_MODE ? 'Build yours in the same clean, ATS-safe layout — HonestCV is in beta with a full free trial: 22 templates, AI rewrites of your real experience, ATS match score and PDF/DOCX downloads.' : 'Build yours in the same clean, ATS-safe layout — free to try, one-time $9.99 download, no subscription.'}</p>
+<p>${FREE_MODE ? 'Build yours in the same clean, ATS-safe layout — HonestCV is free during beta: 22 templates, AI rewrites of your real experience, ATS match score and PDF/DOCX downloads.' : 'Build yours in the same clean, ATS-safe layout — free to try, one-time $9.99 download, no subscription.'}</p>
 <a class="btn" href="/builder?example=${p.slug}">Edit this example in the builder</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 <div class="related">
@@ -3249,7 +3249,7 @@ const HUBS = [
     pathname: '/templates/',
     title: 'ATS-Friendly Resume Templates (Free) — HonestCV',
     description:
-      'All 22 HonestCV resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Fully included in the beta free trial — no account, no subscription.',
+      'All 22 HonestCV resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Fully included free during beta — no account, no subscription.',
     h1: 'ATS-friendly resume templates',
     intro:
       'Every HonestCV template follows one rule: strictly single-column real text, the layout ATS parsers read most reliably. Pick a look below — you can switch templates any time without retyping.',
@@ -3334,7 +3334,7 @@ console.log('built sitemap.xml + robots.txt')
 // llms.txt — a curated site map for AI assistants (https://llmstxt.org)
 const llms = `# HonestCV
 
-> ATS-friendly resume builder with a one-time-payment model ($9.99/$19.99 once; currently in beta with a full free trial of every plan): 22 single-column templates, live preview, free ATS match score against any pasted job description, real text-based PDF and DOCX export. No account — resume data stays in the user's browser (localStorage). No subscription, no auto-renewal, no trial trap.
+> ATS-friendly resume builder with a one-time-payment model ($9.99/$19.99 once; every plan currently free during beta): 22 single-column templates, live preview, free ATS match score against any pasted job description, real text-based PDF and DOCX export. No account — resume data stays in the user's browser (localStorage). No subscription, no auto-renewal, no trial trap.
 
 ## Core tools
 
