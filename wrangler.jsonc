@@ -11,6 +11,8 @@
     // apply to static assets too (otherwise assets bypass the Worker).
     "run_worker_first": true
   },
+  // Weekly IndexNow full push (worker/index.ts scheduled handler)
+  "triggers": { "crons": ["0 9 * * 1"] },
   "kv_namespaces": [
     // Stores licenses / free quotas / leads (namespace HONESTCV_KV)
     { "binding": "KV", "id": "580004279c364a678ad3eeaf4f604425" }

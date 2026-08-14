@@ -72,6 +72,7 @@ import { parseResumeText } from '@/lib/importText'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText } from '@/lib/download'
+import { trackEvent } from '@/lib/track'
 
 import {
   type ExperienceItem,
@@ -319,6 +320,7 @@ export default function Builder() {
     'Resume Builder — HonestCV',
     'Build an ATS-friendly resume in your browser: 22 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
   )
+  useEffect(() => trackEvent('builder-start'), [])
   const [resume, setResume] = useState<Resume>(() => {
     const r = loadResume() ?? emptyResume()
     // ?template=<id> deep link from the landing gallery / static template pages

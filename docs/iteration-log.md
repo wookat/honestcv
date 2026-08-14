@@ -3387,3 +3387,30 @@ event beacon, no user identity by design); 08-06 spike is likely
 internal QA residue. Suggested smallest honest instrumentation
 (ev:<day>:<event> daily counters, no identifiers) if round 6 needs a
 true funnel.
+
+## Review round 6 (2026-08-14) — analytics truth source + IndexNow cron
+
+- RUM 0-rows root cause (first-hand): the zalize.com Web Analytics zone
+  ruleset is disabled (rows for sibling hosts stop 08-06), and even
+  before that cv.zalize.com produced zero rows despite the manual
+  snippet on every page; our own QA browsers additionally block
+  static.cloudflareinsights.com (ERR_BLOCKED_BY_CLIENT). Broken
+  monitoring is worse than none → removed the CF beacon from
+  index.html and build-seo.mjs, and removed the RUM GraphQL section
+  from scripts/analytics.mjs. First-party beacon + funnel counters are
+  now the single source of truth (one entity deleted, none added).
+- Minimal honest funnel (reviewer-approved): `ev:<day>:<event>` daily
+  counters (builder-start / export / ai-use / return), sent at most
+  once per browser per day via localStorage day stamps; `return` is
+  derived from localStorage first-seen age >24h. No identifiers leave
+  the browser. One client module (src/lib/track.ts), one Worker route
+  (POST /api/ev), hooks: Builder mount, downloadBlob, successful
+  /api/ai/* POST, main.tsx visit.
+- Unified QA marking: Worker drops `/api/hit` + `/api/ev` when header
+  `x-qa: 1` or UA contains "headless"; real-browser QA keeps the
+  honestcv.qa localStorage flag. Convention recorded in the testing
+  skill.
+- IndexNow cron (Shelfmark pattern): Worker scheduled handler
+  (`0 9 * * 1`) fetches our sitemap and full-pushes all URLs to
+  api.indexnow.org with the existing key file; deploy-time incremental
+  pushes stay in scripts/indexnow.mjs.

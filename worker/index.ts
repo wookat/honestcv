@@ -44,6 +44,13 @@ interface Env extends BillingEnv, LsEnv {
 
 const freeMode = (env: Env) => env.FREE_MODE === 'true'
 
+/** Unified QA-traffic marker: scripted probes send `x-qa: 1`, and headless
+ * browsers are never real visitors. Marked requests are accepted but not
+ * counted in first-party analytics. */
+const isQaRequest = (req: Request) =>
+  req.headers.get('x-qa') === '1' ||
+  (req.headers.get('user-agent') ?? '').toLowerCase().includes('headless')
+
 /** Free users: AI rewrites per client per 30 days (paid = unlimited) */
 const FREE_AI_REWRITES = 5
 /** Launch mode is more generous while we optimize for traffic */
@@ -549,7 +556,7 @@ app.post('/api/hit', async (c) => {
     return c.json({ error: 'bad path' }, 400)
   }
   // Internal QA pages (visited before the honestcv.qa flag is set) never count
-  if (path.startsWith('/qa-')) return c.json({ ok: true })
+  if (path.startsWith('/qa-') || isQaRequest(c.req.raw)) return c.json({ ok: true })
   if (!/^https?:\/\/[^\s<>"']{1,100}$/.test(ref)) ref = ''
   const day = new Date().toISOString().slice(0, 10)
   await c.env.KV.put(
@@ -557,6 +564,22 @@ app.post('/api/hit', async (c) => {
     JSON.stringify(ref ? { p: path, r: ref } : { p: path }),
     { expirationTtl: 60 * 60 * 24 * 90 }
   )
+  return c.json({ ok: true })
+})
+
+// Daily funnel counters — aggregate counts only (ev:<day>:<event>), no user
+// identifiers. The client sends each event at most once per browser per day.
+const FUNNEL_EVENTS = new Set(['builder-start', 'export', 'ai-use', 'return'])
+app.post('/api/ev', async (c) => {
+  if (isQaRequest(c.req.raw)) return c.json({ ok: true })
+  const { e } = await c.req.json<{ e?: string }>().catch(() => ({ e: undefined }))
+  if (typeof e !== 'string' || !FUNNEL_EVENTS.has(e)) {
+    return c.json({ error: 'bad event' }, 400)
+  }
+  const day = new Date().toISOString().slice(0, 10)
+  const key = `ev:${day}:${e}`
+  const current = Number((await c.env.KV.get(key)) ?? '0')
+  await c.env.KV.put(key, String(current + 1), { expirationTtl: 60 * 60 * 24 * 400 })
   return c.json({ ok: true })
 })
 
@@ -755,4 +778,31 @@ app.notFound(async (c) => {
   })
 })
 
-export default app
+// Weekly IndexNow full push (same pattern as Shelfmark's runIndexNow cron):
+// read our own sitemap and submit every URL. Incremental pushes still happen
+// at deploy time via scripts/indexnow.mjs.
+const INDEXNOW_KEY = '88d13cb021bb7d759cc09d7b95af03fc'
+async function runIndexNow(): Promise<void> {
+  const site = 'https://cv.zalize.com'
+  const res = await fetch(`${site}/sitemap.xml?v=${Date.now()}`)
+  if (!res.ok) return
+  const xml = await res.text()
+  const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1])
+  if (urls.length === 0) return
+  await fetch('https://api.indexnow.org/indexnow', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({
+      host: 'cv.zalize.com',
+      key: INDEXNOW_KEY,
+      keyLocation: `${site}/${INDEXNOW_KEY}.txt`,
+      urlList: urls.slice(0, 8000),
+    }),
+  })
+}
+
+export default {
+  fetch: app.fetch,
+  scheduled: (_event: ScheduledEvent, _env: Env, ctx: ExecutionContext) =>
+    ctx.waitUntil(runIndexNow()),
+}
