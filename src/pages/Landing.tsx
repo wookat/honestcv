@@ -66,7 +66,7 @@ const COMPARISON: [string, string, string][] = [
 export default function Landing() {
   usePageMeta(
     'HonestCV — One-Time Payment Resume Builder. No Subscriptions, Ever.',
-    'HonestCV: the resume builder you pay for once — currently in beta with a full free trial of every plan. ATS-friendly templates, free ATS match score, AI rewrites, real PDF & DOCX export. No subscription, no auto-renewal, no trial trap.'
+    'HonestCV: the resume builder you pay for once — every plan is free during beta. ATS-friendly templates, free ATS match score, AI rewrites, real PDF & DOCX export. No subscription, no auto-renewal, no trial trap.'
   )
   const freeMode = useFreeMode()
   const [galleryFilter, setGalleryFilter] = useState('all')
@@ -103,7 +103,7 @@ export default function Landing() {
             {freeMode ? (
               <>
                 Build an ATS-friendly resume with AI tailoring and a free match score.
-                <strong> We&apos;re in beta: every plan is a full free trial</strong> — no card, no
+                <strong> Every plan is free during beta</strong> — no card, no
                 auto-renewal, nothing that renews.
               </>
             ) : (
@@ -117,7 +117,7 @@ export default function Landing() {
           <div className="animate-rise mt-6 flex flex-col items-center justify-center gap-3 [--rise-delay:180ms] sm:flex-row">
             <Button asChild size="lg">
               <Link to="/builder">
-                Start your free trial — no sign-up <ArrowRight />
+                Start free — no sign-up <ArrowRight />
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
@@ -128,7 +128,7 @@ export default function Landing() {
           </div>
           <p className="text-muted-foreground mt-3 text-sm">
             {freeMode
-              ? 'Beta free trial: editor, templates, ATS score, AI tools and downloads — all included.'
+              ? 'Free during beta: editor, templates, ATS score, AI tools and downloads — all included.'
               : 'Editing, templates & ATS score are free. Pay only to download.'}
           </p>
         </section>
@@ -296,11 +296,11 @@ export default function Landing() {
         <section className="mx-auto max-w-4xl px-4 py-12">
           <h2 className="text-center text-2xl font-bold">Simple, honest pricing</h2>
           <p className="text-muted-foreground mt-2 text-center text-sm">
-            Pay once, never a subscription. Both plans are in a full free trial while we&apos;re in beta.
+            Pay once, never a subscription. Both plans are free during beta.
           </p>
           {freeMode && (
             <div className="mx-auto mt-4 max-w-xl rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-900">
-              <strong>Beta free trial:</strong> both plans below are fully unlocked at no
+              <strong>Free during beta:</strong> both plans below are fully unlocked at no
               charge while we're in beta — downloads included. When billing opens they'll
               stay one-time, never a subscription.
             </div>
@@ -322,7 +322,7 @@ export default function Landing() {
                   <li>· Edit and re-download forever</li>
                 </ul>
                 <Button asChild className="mt-4 w-full" variant="outline">
-                  <Link to="/builder">Start free trial</Link>
+                  <Link to="/builder">Start free</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -342,7 +342,7 @@ export default function Landing() {
                   <li>· All future features included</li>
                 </ul>
                 <Button asChild className="mt-4 w-full">
-                  <Link to="/builder">Start free trial</Link>
+                  <Link to="/builder">Start free</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -350,7 +350,7 @@ export default function Landing() {
           <p className="text-muted-foreground mt-4 text-center text-xs">
             <Lock className="mr-1 inline size-3" />
             {freeMode
-              ? 'No payment is collected during the beta trial — no card on file, nothing that renews.'
+              ? 'No payment is collected during the beta — no card on file, nothing that renews.'
               : 'Payments processed by our merchant of record. 7-day money-back guarantee — email support@zalize.com. Your card is never stored for recurring billing.'}
           </p>
         </section>
@@ -363,11 +363,11 @@ export default function Landing() {
               [
                 'Is it really one payment?',
                 freeMode
-                  ? 'Yes — and during the beta the trial covers everything at no charge. When billing opens, $9.99 (or $19.99 for the bundle) will be charged exactly once. Never a subscription, never a stored card.'
+                  ? 'Yes — and everything is free during the beta. When billing opens, $9.99 (or $19.99 for the bundle) will be charged exactly once. Never a subscription, never a stored card.'
                   : 'Yes. $9.99 (or $19.99 for the bundle) is charged exactly once. There is no plan to cancel because there is no plan — we never store your card for recurring billing.',
               ],
               [
-                'What does the beta free trial include?',
+                'What does “free during beta” include?',
                 freeMode
                   ? 'Everything in both plans: the full editor, all 22 templates, the live preview, the ATS match score, AI tools, and PDF/DOCX downloads. We only ask for an email before your first download.'
                   : 'The full editor, all templates, the live preview, the ATS match score against any job description, and 5 AI rewrites. You pay only to download PDF/DOCX and for unlimited AI.',
@@ -383,7 +383,7 @@ export default function Landing() {
               [
                 'What if I need it on another device?',
                 freeMode
-                  ? 'During the beta trial, downloads work on every device. Resume content lives in each browser — export a PDF/DOCX or paste your text to move it between devices.'
+                  ? 'During the beta, downloads work on every device. Resume content lives in each browser — export a PDF/DOCX or paste your text to move it between devices.'
                   : 'Your purchase comes with a license key — enter it on any device to unlock downloads there. Resume content itself stays on each device.',
               ],
             ].map(([q, a]) => (
@@ -400,7 +400,7 @@ export default function Landing() {
           <h2 className="text-2xl font-bold">Your next job shouldn&apos;t cost a subscription</h2>
           <Button asChild size="lg" className="mt-5">
             <Link to="/builder">
-              Start my free trial <ArrowRight />
+              Start building free <ArrowRight />
             </Link>
           </Button>
         </section>
