@@ -300,6 +300,20 @@ function Section({
   )
 }
 
+/** Elapsed-time wait hint shown while an AI call is in flight */
+function AiWaitHint() {
+  const [seconds, setSeconds] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setSeconds((s) => s + 1), 1000)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <p role="status" className="text-muted-foreground text-xs">
+      Rewriting… usually takes 15–40 seconds ({seconds}s)
+    </p>
+  )
+}
+
 export default function Builder() {
   usePageMeta(
     'Resume Builder — HonestCV',
@@ -601,6 +615,11 @@ export default function Builder() {
         onClick={onClick}
         disabled={Boolean(aiBusy) || disabled}
         className="h-7 gap-1 text-xs"
+        title={
+          !unlocked && freeLeft !== null
+            ? `${freeLeft} free AI use${freeLeft === 1 ? '' : 's'} left`
+            : undefined
+        }
       >
         {aiBusy === tag ? (
           <Loader2 className="size-3 animate-spin" />
@@ -609,6 +628,7 @@ export default function Builder() {
         )}
         {label}
       </Button>
+      {aiBusy === tag && <AiWaitHint />}
       {aiError && aiErrorTag === tag && (
         <p className="text-destructive text-xs">{aiError}</p>
       )}
@@ -2560,7 +2580,7 @@ function BundleToolDialog({
         </div>
         {busy && (
           <p className="text-muted-foreground text-xs" role="status">
-            Usually takes 10–20 seconds — the draft appears here for you to edit.
+            Usually takes 15–40 seconds — the draft appears here for you to edit.
           </p>
         )}
         {error && <p className="text-destructive text-sm">{error}</p>}
@@ -2715,7 +2735,7 @@ function TailorDialog({
             </Button>
             {busy && (
               <p className="text-muted-foreground text-xs" role="status">
-                Usually takes 10–20 seconds — every line comes back for your review before
+                Usually takes 15–40 seconds — every line comes back for your review before
                 anything changes.
               </p>
             )}

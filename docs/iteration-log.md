@@ -3352,3 +3352,20 @@ follow-up before this round landed).
   format" — now "AI service is having trouble … none of your free AI
   uses were spent" (same copy family as the other failure paths).
 - /api/ai/rewrite invalid-kind 400 copy humanized.
+
+## Review round 3 (2026-08-05) — AI wait experience
+
+Reviewer round 2 accepted (AI smoke passed in their run too). Round-3
+P2: inline "AI polish" buttons only showed a spinner for the ~35s
+call; users can think it hung.
+
+- AiWaitHint (one small component): while any inline AI button's call
+  is in flight it shows "Rewriting… usually takes 15–40 seconds (Ns)"
+  with a live elapsed counter, role=status. Rendered from the shared
+  aiButton helper, so all inline AI buttons get it at once.
+- Cover-letter and Tailor dialog wait copy updated 10–20s → 15–40s to
+  match observed latency.
+- Reviewer suggestion adopted: AI buttons' tooltip (title) shows the
+  remaining free-AI count for locked users.
+- LCP ~3.1s accepted as CSR structural ceiling; SSR project awaits a
+  go decision — not touched this round.
