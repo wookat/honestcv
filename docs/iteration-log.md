@@ -3414,3 +3414,26 @@ true funnel.
   (`0 9 * * 1`) fetches our sitemap and full-pushes all URLs to
   api.indexnow.org with the existing key file; deploy-time incremental
   pushes stay in scripts/indexnow.mjs.
+
+## Review round 7 (2026-08-14) — security re-scan (CSP + horizontal matrix)
+
+Horizontal matrix self-check (AI / email / admin / CSP / rate-limit key
+dimensions / beacon forgery):
+- CSP tightened from frame-ancestors-only to a full policy
+  (default-src/script-src 'self', style-src 'self' 'unsafe-inline',
+  img-src data: blob:, worker-src blob:, form-action 'self'). The
+  inline first-party beacon moved to /t.js (public asset) so no page
+  needs inline scripts — index.html and all static SEO pages reference
+  the same file.
+- AI endpoints: added a site-wide daily circuit breaker
+  (rl:ai-global:<day>, 500 unlicensed calls/day, honest 429 copy) on
+  top of the existing per-IP 30/day gate — bounds spend against
+  distributed many-IP abuse.
+- Email/leads endpoint: /api/leads was unlimited → per-IP 10/day
+  (rl:leads:<day>:<ip>), bounding KV spam. HonestCV sends no email
+  itself, so no Resend-side gate applies.
+- Admin endpoints: none exist on this line (verified route list).
+- Beacon forgery (P2-4): accepted as unfixable-by-signature per the
+  report; source-side mitigation added — /api/hit + /api/ev drop
+  empty-UA requests and bot/CLI UAs, on top of the round-6 x-qa
+  header + headless drop.

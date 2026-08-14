@@ -47,9 +47,13 @@ const freeMode = (env: Env) => env.FREE_MODE === 'true'
 /** Unified QA-traffic marker: scripted probes send `x-qa: 1`, and headless
  * browsers are never real visitors. Marked requests are accepted but not
  * counted in first-party analytics. */
-const isQaRequest = (req: Request) =>
-  req.headers.get('x-qa') === '1' ||
-  (req.headers.get('user-agent') ?? '').toLowerCase().includes('headless')
+const isQaRequest = (req: Request) => {
+  if (req.headers.get('x-qa') === '1') return true
+  const ua = (req.headers.get('user-agent') ?? '').toLowerCase()
+  // Beacon counts can't be made forgery-proof; at least drop headless
+  // browsers, obvious bots and bare HTTP clients (no UA) at the source.
+  return ua === '' || /headless|bot|crawl|spider|curl|wget|python|node-fetch|go-http/.test(ua)
+}
 
 /** Free users: AI rewrites per client per 30 days (paid = unlimited) */
 const FREE_AI_REWRITES = 5
@@ -58,6 +62,11 @@ const FREE_MODE_AI_CALLS = 12
 /** Hard per-IP daily cap on AI requests: bounds LLM cost even when the
  * client-reported x-client-id is rotated to mint fresh free quotas. */
 const AI_IP_DAILY_LIMIT = 30
+/** Site-wide daily circuit breaker on unlicensed AI calls: caps total LLM
+ * spend even against distributed (many-IP) abuse. */
+const AI_GLOBAL_DAILY_LIMIT = 500
+/** Per-IP daily cap on waitlist/subscribe submissions (KV spam bound) */
+const LEADS_IP_DAILY_LIMIT = 10
 /** Upper bound on AI request bodies (resume text + JD comfortably fit) */
 const AI_MAX_BODY_BYTES = 60_000
 /** Upper bound on a single rewrite input */
@@ -171,7 +180,13 @@ app.use('*', async (c, next) => {
   h.set('X-Frame-Options', 'SAMEORIGIN')
   h.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-  h.set('Content-Security-Policy', "frame-ancestors 'self'; object-src 'none'; base-uri 'self'")
+  h.set(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; " +
+      "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; " +
+      "form-action 'self'; frame-ancestors 'self'"
+  )
   if (c.req.path.startsWith('/assets/')) {
     h.set('Cache-Control', 'public, max-age=31536000, immutable')
   } else if (c.req.path.startsWith('/fonts/')) {
@@ -213,7 +228,20 @@ app.use('/api/ai/*', async (c, next) => {
         429
       )
     }
+    const globalKey = `rl:ai-global:${day}`
+    const globalUsed = Number((await c.env.KV.get(globalKey)) ?? '0')
+    if (globalUsed >= AI_GLOBAL_DAILY_LIMIT) {
+      return c.json(
+        {
+          error:
+            'The free AI tier is at capacity for today — please try again tomorrow. None of your free AI uses were spent.',
+          code: 'rate_limited',
+        },
+        429
+      )
+    }
     await c.env.KV.put(key, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+    await c.env.KV.put(globalKey, String(globalUsed + 1), { expirationTtl: 60 * 60 * 24 * 2 })
   }
   return next()
 })
@@ -591,6 +619,16 @@ app.post('/api/leads', async (c) => {
   const addr = email?.trim().toLowerCase() ?? ''
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(addr) || addr.length > 254) {
     return c.json({ error: 'Please enter a valid email address.' }, 400)
+  }
+  const ip = c.req.header('cf-connecting-ip')
+  if (ip) {
+    const day = new Date().toISOString().slice(0, 10)
+    const rlKey = `rl:leads:${day}:${ip}`
+    const used = Number((await c.env.KV.get(rlKey)) ?? '0')
+    if (used >= LEADS_IP_DAILY_LIMIT) {
+      return c.json({ error: 'Too many submissions from your network today — please try again tomorrow.' }, 429)
+    }
+    await c.env.KV.put(rlKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
   }
   const record = {
     email: addr,
