@@ -10,9 +10,9 @@ const SITE = 'https://cv.zalize.com'
 const OUT_DIR = path.resolve(import.meta.dirname, '../dist/client')
 // Launch/traffic mode: static pages advertise free downloads instead of pricing
 const FREE_MODE = process.env.VITE_FREE_MODE !== 'false'
-// First-party pageview beacon (the sole pageview source; path only, no PII)
-const FP_BEACON =
-  '<script>try{if(localStorage.getItem("honestcv.qa")==="1")throw 0;var r="";if(document.referrer){var o=new URL(document.referrer).origin;if(o!==location.origin)r=o}navigator.sendBeacon("/api/hit",JSON.stringify({p:location.pathname,r:r}))}catch(e){}</script>'
+// First-party pageview beacon (the sole pageview source; path only, no PII).
+// External file so the strict CSP (script-src 'self') needs no inline scripts.
+const FP_BEACON = '<script defer src="/t.js"></script>'
 
 const PAGES = [
   {

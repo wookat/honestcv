@@ -8,7 +8,7 @@ description: How to QA-test HonestCV (cv.zalize.com) end-to-end — free/launch 
 ## QA traffic marking (unified convention)
 
 - Real-browser QA: set `localStorage['honestcv.qa']='1'` via `context.addInitScript()` BEFORE the first `goto` — this suppresses the first-party `/api/hit` pageview beacon and all `/api/ev` funnel events client-side.
-- Scripted probes (curl/fetch): send header `x-qa: 1` on any request that could hit `/api/hit` or `/api/ev`. The Worker also drops requests whose User-Agent contains "headless". Marked traffic is accepted (no behavior change) but never counted in first-party analytics.
+- Scripted probes (curl/fetch): send header `x-qa: 1` on any request that could hit `/api/hit` or `/api/ev`. The Worker also drops empty-UA requests and UAs matching /headless|bot|crawl|spider|curl|wget|python|node-fetch|go-http/. Marked traffic is accepted (no behavior change) but never counted in first-party analytics.
 - Funnel events are `ev:<day>:<event>` daily counters (builder-start / export / ai-use / return), at most one per browser per day — no user identifiers. Cloudflare Web Analytics (RUM) was removed for this host; the first-party beacon is the only pageview source.
 
 ## I11/I12 notes (main d59f861)
