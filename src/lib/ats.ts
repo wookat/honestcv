@@ -148,12 +148,14 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     },
     {
       label: 'Standard section headings',
-      pass: /experience/.test(resumeText) && /education/.test(resumeText),
+      pass:
+        /^\s*(work |professional |employment )?experience\s*:?\s*$/m.test(resumeText) &&
+        /^\s*education\s*:?\s*$/m.test(resumeText),
       hint: 'Use standard headings like "Experience" and "Education" so parsers find them.',
     },
     {
       label: 'Skills section present',
-      pass: /skills/.test(resumeText),
+      pass: /^\s*(technical |core |key )?skills\s*:?\s*$/m.test(resumeText) || /skills:/.test(resumeText),
       hint: 'A dedicated skills list is the easiest keyword match for ATS.',
     },
     {
