@@ -35,7 +35,7 @@ export async function fetchCheckoutEnabled(): Promise<boolean> {
 export async function submitLead(email: string, plan: Plan | 'free-download'): Promise<void> {
   const res = await fetch('/api/leads', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...licenseHeaders() },
     body: JSON.stringify({ email, plan }),
   })
   if (!res.ok) {

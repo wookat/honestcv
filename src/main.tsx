@@ -16,9 +16,11 @@ const app = (
   </StrictMode>
 )
 
-// The landing route ships prerendered HTML; other routes get an empty shell.
-if (container.firstElementChild) {
-  hydrateRoot(container, app)
-} else {
+// The landing route ships prerendered HTML to hydrate; the SPA shell carries
+// only a static loading skeleton, which is cleared and client-rendered.
+if (container.querySelector('[aria-busy]') || !container.firstElementChild) {
+  container.replaceChildren()
   createRoot(container).render(app)
+} else {
+  hydrateRoot(container, app)
 }

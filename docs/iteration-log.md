@@ -3437,3 +3437,36 @@ dimensions / beacon forgery):
   report; source-side mitigation added — /api/hit + /api/ev drop
   empty-UA requests and bot/CLI UAs, on top of the round-6 x-qa
   header + headless drop.
+
+## Review round 8 (2026-08-14) — performance deep-dive
+
+First-hand check before edits: static pages ( /, /guides/, /sitemap.xml,
+/t.js ) already show cf-cache-status HIT — the assets binding is edge-
+cached natively. The real gap was only the Worker-generated SPA shells
+(/builder, /ats-checker), which had no cf-cache-status at all.
+
+- Edge cache: adopted NameChart's cache middleware pattern
+  (caches.default keyed on /__v<CACHE_VER><path>, ETag + 304, path-only
+  key so query-string requests bypass, opt-in via s-maxage). Pages now
+  send `public, max-age=300, s-maxage=600`; /api/* and non-GET are
+  never cached; the only stateful responses live under /api/*. Found
+  during verification: the zone edge cache (URL-keyed, honors s-maxage,
+  not purgeable with our API tokens) sits in front of the Worker, so
+  s-maxage is capped at 600s to bound how long a stale SPA shell
+  survives a deploy. A first deploy also surfaced a hydration bug: the
+  static skeleton made main.tsx pick hydrateRoot; fixed by detecting
+  the skeleton (aria-busy) and client-rendering instead.
+- /builder 3G LCP 6.55s + text-only "Loading...": spa.html now ships a
+  static inline-styled form skeleton inside #root (visible before any
+  JS arrives; RouteFallback mirrors it so there is no flash when React
+  mounts), plus a modulepreload for the Builder chunk so the core
+  conversion route downloads in parallel with the main bundle instead
+  of after it.
+- Rate limits redesigned to the three-layer model (wide IP backstop +
+  narrow per-client quota + global daily breaker) after the reviewer
+  was locked out of /api/leads on first visit via a shared exit IP:
+  leads = 5/day per client id + 100/day per IP (tightens to 5 when no
+  client id) + 500/day global; AI per-IP backstop widened 30 → 100/day
+  (narrow per-client quota and 500/day global breaker unchanged).
+- Analytics export doc now states explicitly that beacon counts are
+  not forgery-proof and must be treated as directional.

@@ -68,6 +68,11 @@ External referrers recorded: none.
    first-visit → return-visit linkage does not exist.
 4. AI quota counters are lifetime (no per-day dimension) and count
    successful calls only (failures don't consume quota).
+5. **Beacon counts are not forgery-proof**: `/api/hit` and `/api/ev`
+   accept unauthenticated requests by design (no cookies, no identity).
+   Obvious automation (empty UA, bot/CLI UA, `x-qa` header) is dropped at
+   the source, but a browser-like client can still inflate counts. Treat
+   pageview/funnel numbers as directional, never as hard metrics.
 
 ## If round 6 needs a true retention funnel
 
