@@ -1,6 +1,7 @@
 /** Worker API helpers for the AI features. */
 
 import { licenseHeaders } from '@/lib/license'
+import { trackEvent } from '@/lib/track'
 
 export class PaymentRequiredError extends Error {
   constructor(message: string) {
@@ -25,6 +26,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     }
     throw new Error(data.error || `Request failed (${res.status})`)
   }
+  if (path.startsWith('/api/ai/')) trackEvent('ai-use')
   return data
 }
 

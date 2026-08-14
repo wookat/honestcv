@@ -5,6 +5,12 @@ description: How to QA-test HonestCV (cv.zalize.com) end-to-end — free/launch 
 
 # Testing HonestCV
 
+## QA traffic marking (unified convention)
+
+- Real-browser QA: set `localStorage['honestcv.qa']='1'` via `context.addInitScript()` BEFORE the first `goto` — this suppresses the first-party `/api/hit` pageview beacon and all `/api/ev` funnel events client-side.
+- Scripted probes (curl/fetch): send header `x-qa: 1` on any request that could hit `/api/hit` or `/api/ev`. The Worker also drops requests whose User-Agent contains "headless". Marked traffic is accepted (no behavior change) but never counted in first-party analytics.
+- Funnel events are `ev:<day>:<event>` daily counters (builder-start / export / ai-use / return), at most one per browser per day — no user identifiers. Cloudflare Web Analytics (RUM) was removed for this host; the first-party beacon is the only pageview source.
+
 ## I11/I12 notes (main d59f861)
 
 - /examples/ now has **15** role pages (added: accountant, administrative-assistant, graphic-designer, human-resources, product-manager, retail-associate, warehouse-worker). Fast validity check from the page console/CDP: fetch /examples/, regex `href="(/examples/[a-z-]+/)"`, HEAD each — expect count 15, all 200.
@@ -17,6 +23,13 @@ description: How to QA-test HonestCV (cv.zalize.com) end-to-end — free/launch 
 - Worker AI abuse gate (`worker/index.ts`): POST /api/ai/* body >60KB → 413; rewrite text >5000 chars → 400 "That text is too long to rewrite in one go — split it up."; per-IP 30/day → 429 code `rate_limited`. IMPORTANT: every unlicensed POST to /api/ai/* increments the shared per-IP KV counter — keep test requests to 1-2 and never trigger the 429 deliberately from a shared box. Neither the gate rejections nor failed upstream calls consume the per-client free quota (`/api/ai/quota` stays unchanged).
 - CORS: OPTIONS /api/* with a foreign Origin returns `access-control-allow-origin: https://cv.zalize.com` (never echoes the foreign origin); localhost origins are echoed.
 - While the AI relay is broken, the builder Tailor flow surfaces "The AI returned an unexpected format — please try again." (not the "temporarily unavailable (NNN)" wording) — quota still unspent.
+
+## PR #191 notes (main 5bbd1e0, version 25515d64)
+
+- AI relay is LIVE again (Oct/relay fix): "AI polish summary" returns the 3-variant "Pick a summary" modal, and Tailor returns per-line suggestions. Each successful call decrements the free quota by 1 (footer + button `title` + "N free AI uses left" labels all update). Calls can complete in ~2–4s, much faster than the 15–40s copy — grab the wait-hint screenshot within ~1s of clicking.
+- Inline AI buttons render `<p role="status">Rewriting… usually takes 15–40 seconds (Ns)</p>` next to the clicked button while busy, and all AI buttons disable while any call is in flight. Locked users get `title="N free AI uses left"` on every AI button (native tooltip appears after ~2s hover).
+- Tailor/bundle dialogs show "Usually takes 15–40 seconds — …" only during the busy state (after clicking "Get tailoring suggestions"), not in the idle dialog.
+- Chrome's CDP remote-debugging port on this box is NOT always 9222 — discover it with `ps aux | grep -o 'remote-debugging-port=[0-9]*'` (seen: 29229). `requests` may be missing; use `urllib.request` + `websocket.create_connection(..., suppress_origin=True)`.
 
 ## I29–I30 notes (main 03c69b0, worker 1773fa78)
 

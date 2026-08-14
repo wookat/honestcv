@@ -1,13 +1,12 @@
 /**
- * Traffic report for cv.zalize.com from Cloudflare Web Analytics (RUM).
- * The zalize.com zone has Web Analytics auto-install enabled, so pageloads on
- * cv.zalize.com are collected without a manual beacon snippet.
+ * Traffic report for cv.zalize.com from first-party analytics in KV.
+ * (Cloudflare Web Analytics/RUM produced zero rows for this host and its
+ * beacon was removed — the first-party /api/hit beacon plus ev:* funnel
+ * counters are the single source of truth.)
  *
- * Usage: CLOUDFLARE_API_TOKEN=<token with Account Analytics read> node scripts/analytics.mjs [days]
- * Prints per-day PV (pageloads) + UV (visits) and top paths.
+ * Usage: CLOUDFLARE_API_TOKEN=<token> node scripts/analytics.mjs [days]
  */
 const ACCOUNT = 'ddff52d24ee44e21a021c15eaffcc86d'
-const HOST = 'cv.zalize.com'
 const token = process.env.CLOUDFLARE_API_TOKEN
 if (!token) throw new Error('Set CLOUDFLARE_API_TOKEN')
 
@@ -16,44 +15,50 @@ const end = new Date()
 const start = new Date(end.getTime() - days * 86400_000)
 const d = (x) => x.toISOString().slice(0, 10)
 
-const query = `query($acc:String!,$start:Date!,$end:Date!){
-  viewer{accounts(filter:{accountTag:$acc}){
-    byDay:rumPageloadEventsAdaptiveGroups(limit:100,filter:{date_geq:$start,date_leq:$end,requestHost:"${HOST}"},orderBy:[date_ASC]){
-      count sum{visits} dimensions{date}
-    }
-    byPath:rumPageloadEventsAdaptiveGroups(limit:25,filter:{date_geq:$start,date_leq:$end,requestHost:"${HOST}"},orderBy:[count_DESC]){
-      count sum{visits} dimensions{requestPath}
-    }
-  }}
-}`
-
-const res = await fetch('https://api.cloudflare.com/client/v4/graphql', {
-  method: 'POST',
-  headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-  body: JSON.stringify({ query, variables: { acc: ACCOUNT, start: d(start), end: d(end) } }),
-})
-const body = await res.json()
-if (body.errors) throw new Error(JSON.stringify(body.errors))
-const acc = body.data.viewer.accounts[0]
-
-let pv = 0
-let uv = 0
-console.log(`\n${HOST} — last ${days} days\n`)
-console.log('date        PV    UV')
-for (const row of acc.byDay) {
-  pv += row.count
-  uv += row.sum.visits
-  console.log(`${row.dimensions.date}  ${String(row.count).padStart(4)}  ${String(row.sum.visits).padStart(4)}`)
-}
-console.log(`TOTAL       ${String(pv).padStart(4)}  ${String(uv).padStart(4)}\n`)
-console.log('top paths (PV / UV):')
-for (const row of acc.byPath) {
-  console.log(`  ${row.dimensions.requestPath}  ${row.count} / ${row.sum.visits}`)
-}
+console.log(`\ncv.zalize.com — last ${days} days (first-party)\n`)
 
 // Email leads collected in KV (waitlist + free-download subscribes)
 const KV_ID = '580004279c364a678ad3eeaf4f604425'
 const kvToken = process.env.CLOUDFLARE_WORKERS_API_TOKEN ?? token
+
+// Daily funnel counters (ev:<day>:<event>) — distinct browsers per day
+{
+  let cur = ''
+  const rows = []
+  do {
+    const url = new URL(
+      `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/storage/kv/namespaces/${KV_ID}/keys`
+    )
+    url.searchParams.set('prefix', 'ev:')
+    url.searchParams.set('limit', '1000')
+    if (cur) url.searchParams.set('cursor', cur)
+    const kv = await (
+      await fetch(url, { headers: { authorization: `Bearer ${kvToken}` } })
+    ).json()
+    if (!kv.success) {
+      console.log(`funnel events: unavailable (${JSON.stringify(kv.errors)})`)
+      break
+    }
+    rows.push(...kv.result.map((k) => k.name))
+    cur = kv.result_info?.cursor ?? ''
+  } while (cur)
+  const inRange = rows.filter((k) => k.split(':')[1] >= d(start))
+  if (inRange.length === 0) {
+    console.log('funnel events: none yet')
+  } else {
+    console.log('funnel events (day event count — distinct browsers/day):')
+    for (const key of inRange.sort()) {
+      const [, day, event] = key.split(':')
+      const n = await (
+        await fetch(
+          `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/storage/kv/namespaces/${KV_ID}/values/${encodeURIComponent(key)}`,
+          { headers: { authorization: `Bearer ${kvToken}` } }
+        )
+      ).text()
+      console.log(`  ${day}  ${event}  ${n}`)
+    }
+  }
+}
 
 // First-party pageview hits (adblock-proof /api/hit beacon), keyed hit:<day>:<ts>
 {

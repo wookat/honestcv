@@ -10,11 +10,7 @@ const SITE = 'https://cv.zalize.com'
 const OUT_DIR = path.resolve(import.meta.dirname, '../dist/client')
 // Launch/traffic mode: static pages advertise free downloads instead of pricing
 const FREE_MODE = process.env.VITE_FREE_MODE !== 'false'
-// Cloudflare Web Analytics beacon — zone auto-injection does not fire on Worker
-// custom domains, so every static page includes it explicitly.
-const BEACON =
-  '<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=\'{"token": "d3ace0c72c2f4a6f8b96f1e7f8fd4dac"}\'></script>'
-// First-party pageview beacon (adblock-proof fallback; path only, no PII)
+// First-party pageview beacon (the sole pageview source; path only, no PII)
 const FP_BEACON =
   '<script>try{if(localStorage.getItem("honestcv.qa")==="1")throw 0;var r="";if(document.referrer){var o=new URL(document.referrer).origin;if(o!==location.origin)r=o}navigator.sendBeacon("/api/hit",JSON.stringify({p:location.pathname,r:r}))}catch(e){}</script>'
 
@@ -1368,7 +1364,7 @@ function page(p) {
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd(p.path.startsWith('/vs/') ? [{ name: 'Comparisons', path: '/vs/' }, { name: p.h1, path: p.path }] : [{ name: p.h1, path: p.path }]))}</script>
 <style>${CSS}</style>
-${BEACON}${FP_BEACON}
+${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -1444,7 +1440,7 @@ function legalPage(p) {
 <meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <style>${CSS}</style>
-${BEACON}${FP_BEACON}
+${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -1506,7 +1502,7 @@ function aboutPage() {
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <style>${CSS}</style>
-${BEACON}${FP_BEACON}
+${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -1590,7 +1586,7 @@ function guidePage(p) {
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Guides', path: '/guides/' }, { name: p.h1, path: p.path }]))}</script>
 <style>${CSS}</style>
-${BEACON}${FP_BEACON}
+${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -1643,7 +1639,7 @@ function templatePage(p) {
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Templates', path: '/templates/' }, { name: `${p.name} resume template`, path: p.path }]))}</script>
 <style>${CSS}</style>
-${BEACON}${FP_BEACON}
+${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -1732,7 +1728,7 @@ function hubPage({ pathname, title, description, h1, intro, items }) {
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(itemListLd)}</script>
 <style>${CSS}</style>
-${BEACON}${FP_BEACON}
+${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -3063,7 +3059,7 @@ ${per.experience
 .exdoc ul{margin:.25rem 0 .5rem 1.1rem;padding:0}
 .exdoc li{margin:.25rem 0}
 </style>
-${BEACON}${FP_BEACON}
+${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">

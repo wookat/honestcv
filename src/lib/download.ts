@@ -1,3 +1,5 @@
+import { trackEvent } from '@/lib/track'
+
 /** Trigger a browser download of text content */
 export function downloadText(content: string, filename: string, mime = 'text/plain') {
   const blob = new Blob([content], { type: `${mime};charset=utf-8` })
@@ -13,4 +15,5 @@ export function downloadBlob(blob: Blob, filename: string) {
   a.click()
   a.remove()
   URL.revokeObjectURL(url)
+  trackEvent('export')
 }
