@@ -69,6 +69,7 @@ import {
   resumeStrength,
 } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
+import { parseShareId, fetchResumeProfile, resumeFromProfile } from '@/lib/resumeCenter'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText } from '@/lib/download'
@@ -368,6 +369,8 @@ export default function Builder() {
   const [importText, setImportText] = useState('')
   const [importBusy, setImportBusy] = useState(false)
   const [importError, setImportError] = useState('')
+  const [rcInput, setRcInput] = useState('')
+  const [rcBusy, setRcBusy] = useState(false)
   const importFileRef = useRef<HTMLInputElement>(null)
   const backupFileRef = useRef<HTMLInputElement>(null)
   const [restoreError, setRestoreError] = useState('')
@@ -2341,6 +2344,42 @@ export default function Builder() {
                   .finally(() => setImportBusy(false))
               }}
             />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground text-xs">or pull from Resume Center:</span>
+            <input
+              className="border-input bg-background h-8 min-w-0 flex-1 rounded-md border px-2 text-xs"
+              placeholder="Share link or share ID"
+              value={rcInput}
+              onChange={(e) => setRcInput(e.target.value)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={rcBusy || !rcInput.trim()}
+              onClick={() => {
+                const shareId = parseShareId(rcInput)
+                if (!shareId) {
+                  setImportError('Paste a Resume Center share link or share ID.')
+                  return
+                }
+                setRcBusy(true)
+                setImportError('')
+                fetchResumeProfile(shareId)
+                  .then((rp) => {
+                    setResume(resumeFromProfile(rp))
+                    setImportOpen(false)
+                    setRcInput('')
+                  })
+                  .catch((err: unknown) =>
+                    setImportError(err instanceof Error ? err.message : 'Import failed.')
+                  )
+                  .finally(() => setRcBusy(false))
+              }}
+            >
+              {rcBusy ? 'Importing…' : 'Import'}
+            </Button>
           </div>
           {importError && <p className="text-destructive text-sm">{importError}</p>}
           <Textarea
