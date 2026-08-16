@@ -16,8 +16,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { useFreeMode } from '@/components/Paywall'
+import { ResumePreview } from '@/components/ResumePreview'
 import { TemplateThumb } from '@/components/TemplateThumb'
+import { sampleResume } from '@/lib/resume'
 import { TEMPLATES, TEMPLATE_FILTERS } from '@/lib/templates'
+
+const HERO_RESUME = sampleResume()
 
 const FEATURES = [
   {
@@ -84,7 +88,7 @@ export default function Landing() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="relative mx-auto max-w-4xl px-4 pt-16 pb-12 text-center">
+        <section className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 pt-16 pb-12 text-center lg:grid-cols-[1fr_auto] lg:text-left">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-x-0 -top-14 -z-10 mx-auto h-[420px] max-w-5xl"
@@ -93,13 +97,14 @@ export default function Landing() {
                 'radial-gradient(60% 70% at 30% 20%, oklch(0.5 0.18 265 / 0.10), transparent 70%), radial-gradient(50% 60% at 75% 35%, oklch(0.7 0.15 165 / 0.10), transparent 70%)',
             }}
           />
+          <div>
           <Badge variant="secondary" className="animate-rise mb-4 gap-1">
             <Ban className="size-3" /> No subscriptions. No trial traps. Ever.
           </Badge>
           <h1 className="animate-rise text-4xl font-bold tracking-tight [--rise-delay:60ms] sm:text-5xl">
             The resume builder you pay for <span className="underline decoration-emerald-500 decoration-4 underline-offset-4">once</span>
           </h1>
-          <p className="text-muted-foreground animate-rise mx-auto mt-4 max-w-2xl text-lg [--rise-delay:120ms]">
+          <p className="text-muted-foreground animate-rise mx-auto mt-4 max-w-2xl text-lg [--rise-delay:120ms] lg:mx-0">
             {freeMode ? (
               <>
                 Build an ATS-friendly resume with AI tailoring and a free match score.
@@ -114,7 +119,7 @@ export default function Landing() {
               </>
             )}
           </p>
-          <div className="animate-rise mt-6 flex flex-col items-center justify-center gap-3 [--rise-delay:180ms] sm:flex-row">
+          <div className="animate-rise mt-6 flex flex-col items-center justify-center gap-3 [--rise-delay:180ms] sm:flex-row lg:justify-start">
             <Button asChild size="lg">
               <Link to="/builder">
                 Start free — no sign-up <ArrowRight />
@@ -131,6 +136,22 @@ export default function Landing() {
               ? 'Free during beta: editor, templates, ATS score, AI tools and downloads — all included.'
               : 'Editing, templates & ATS score are free. Pay only to download.'}
           </p>
+          </div>
+          <div
+            aria-hidden
+            className="animate-rise relative hidden h-[440px] w-[420px] [--rise-delay:240ms] lg:block"
+            style={{
+              maskImage: 'linear-gradient(to bottom, black 72%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, black 72%, transparent 100%)',
+            }}
+          >
+            <div className="absolute top-8 right-0 w-[330px] rotate-3 opacity-70">
+              <ResumePreview resume={{ ...HERO_RESUME, templateId: 'ruby' }} />
+            </div>
+            <div className="absolute top-0 left-0 w-[330px] -rotate-2 shadow-lg">
+              <ResumePreview resume={HERO_RESUME} />
+            </div>
+          </div>
         </section>
 
         {/* How it works */}
@@ -155,7 +176,15 @@ export default function Landing() {
                 ],
               ] as [string, string][]
             ).map(([title, text], i) => (
-              <li key={title} className="rounded-lg border p-5">
+              <li
+                key={title}
+                className={`relative rounded-lg border p-5 ${i === 1 ? 'border-primary/50 shadow-sm' : ''}`}
+              >
+                {i === 1 && (
+                  <Badge className="absolute -top-2.5 right-4 gap-1">
+                    <Sparkles className="size-3" /> The honest difference
+                  </Badge>
+                )}
                 <span
                   aria-hidden
                   className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full text-sm font-semibold"
