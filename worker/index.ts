@@ -229,7 +229,7 @@ app.use('*', async (c, next) => {
   h.set(
     'Content-Security-Policy',
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; " +
+      "img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://resume-forge.wookat520.workers.dev; " +
       "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; " +
       "form-action 'self'; frame-ancestors 'self'"
   )
