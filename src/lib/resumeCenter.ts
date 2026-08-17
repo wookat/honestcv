@@ -57,10 +57,10 @@ export function isResumeProfileV1(input: unknown): input is ResumeProfileV1 {
   return p.schemaVersion === 1 && typeof p.basics === 'object' && p.basics !== null
 }
 
-/** Accepts a share URL (…/s/:id or …/api/export/:id) or a bare share id. */
+/** Accepts a share URL (…/share/:id, …/s/:id or …/api/export/:id) or a bare share id. */
 export function parseShareId(raw: string): string | null {
   const t = raw.trim()
-  const m = t.match(/(?:\/s\/|\/api\/export\/)([A-Za-z0-9-]+)/)
+  const m = t.match(/(?:\/share\/|\/s\/|\/api\/export\/)([A-Za-z0-9-]+)/)
   if (m) return m[1]
   if (/^[A-Za-z0-9-]{4,64}$/.test(t)) return t
   return null
