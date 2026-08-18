@@ -33,6 +33,13 @@ export function SiteFooter() {
           subscriptions, no auto-renewals, no trial traps.
         </p>
         <p>No account needed. Your resume stays in your browser — we never store it.</p>
+        <p>
+          Our promise: no paywall tricks · no ads, no spam calls · your data is yours ·
+          honest AI —{' '}
+          <a className="hover:text-foreground underline" href="https://career.zalize.com/promise/#en" target="_blank" rel="noreferrer">
+            learn more
+          </a>
+        </p>
         <p className="space-x-3">
           <Link className="hover:text-foreground underline" to="/ats-checker">Free ATS checker</Link>
           <a className="hover:text-foreground underline" href="/vs/zety">HonestCV vs Zety</a>
