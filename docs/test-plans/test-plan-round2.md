@@ -1,4 +1,4 @@
-# HonestCV Round 2 (PR #6) — Live Test Plan (cv.zalize.com)
+# RezUp Round 2 (PR #6) — Live Test Plan (cv.zalize.com)
 
 Recorded browser run on live site. NO AI calls (relay out of credit). No Paddle.
 Code evidence: src/pages/Builder.tsx (useUndo ~L90, Undo2 header button, ArrowUp/Down on Experience role header & Education row, Import dialog ~L1082, ACCENT_CHOICES swatches after template buttons, finalCheckIssues + "Final check before download" dialog), src/lib/importText.ts, src/lib/templates.ts resolveTemplate() → pdf.ts uses accentColor.

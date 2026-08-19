@@ -1,4 +1,4 @@
-# Weekly Ops Checklist — HonestCV (cv.zalize.com)
+# Weekly Ops Checklist — RezUp (cv.zalize.com)
 
 Low-intensity maintenance mode after the 100-round iteration loop
 (see `docs/iteration-log.md`). Run this checklist once per week and

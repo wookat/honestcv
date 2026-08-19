@@ -69,7 +69,7 @@ function segmentJd(jd: string, matched: string[], missing: string[]): JdSegment[
 
 export default function AtsChecker() {
   usePageMeta(
-    'Free ATS Resume Checker — Instant Match Score | HonestCV',
+    'Free ATS Resume Checker — Instant Match Score | RezUp',
     'Paste your resume and a job description to get an instant ATS match score, missing keywords and format checks. 100% free, no sign-up — runs entirely in your browser.'
   )
   const [resumeText, setResumeText] = useState('')
@@ -434,7 +434,7 @@ export default function AtsChecker() {
 
               <div className="bg-muted/50 mt-6 rounded-lg border p-4 text-center">
                 <p className="text-sm font-medium">
-                  Fix the gaps in minutes with the free HonestCV builder
+                  Fix the gaps in minutes with the free RezUp builder
                 </p>
                 <p className="text-muted-foreground mt-1 text-sm">
                   AI rewrites your bullets toward this exact job, live ATS score as you

@@ -27,11 +27,11 @@ AI Tailor diff screenshot, a template-gallery grid, `og2.png` as fallback.
 
 ## D1 — X launch thread
 
-1/ I built HonestCV because the resume-builder industry runs on a trick: a
+1/ I built RezUp because the resume-builder industry runs on a trick: a
 $2 "trial" that quietly becomes ~$25/month. "zety charged me" is one of the
 most-searched complaints in the category.
 
-2/ HonestCV is the opposite, by design:
+2/ RezUp is the opposite, by design:
 - resume lives in YOUR browser (no account, no database)
 - ATS match score vs any job posting — fully free
 - real text-based PDF/DOCX, no watermark
@@ -48,9 +48,9 @@ Builder: https://cv.zalize.com — feedback very welcome, it's a beta.
 
 ## D3 — Show HN
 
-**Title:** Show HN: HonestCV – resume builder that runs in your browser, no accounts
+**Title:** Show HN: RezUp – resume builder that runs in your browser, no accounts
 **Text:** I got annoyed that the big resume builders are subscription traps
-($2 trial → ~$25/mo) and their AI invents metrics. HonestCV keeps your resume
+($2 trial → ~$25/mo) and their AI invents metrics. RezUp keeps your resume
 in localStorage (no accounts/database), scores it against a pasted job
 description locally, and the AI tailoring is constrained to never fabricate —
 gaps become placeholders you fill. Real text PDF/DOCX export. One-time pricing,
@@ -70,13 +70,13 @@ We ran the AI rewriter of a well-known resume tool on a bullet with no
 numbers. It confidently added "50+ components" and "in six months" — facts
 that don't exist. If an interviewer probes those, you're done. AI should
 polish your real experience, not write fiction. That's the constraint we built
-into HonestCV's AI Tailor.
+into RezUp's AI Tailor.
 
 ## D9 — Privacy (X)
 
 Your resume is one of the most personal documents you own: name, address,
 whole work history. Most builders store it in their database attached to an
-account. HonestCV keeps it in your browser's localStorage — we literally have
+account. RezUp keeps it in your browser's localStorage — we literally have
 no copy. Export/backup as JSON any time.
 
 ## D10 — Pricing breakdown (X)
@@ -86,7 +86,7 @@ What resume builders actually cost (checked first-hand, Aug 2026):
 - Resume.io: $2.95 trial → $29.95/mo
 - Jobscan: $29.98–49.95/mo, trial auto-converts to a quarterly charge
 - Rezi: $29/mo
-- HonestCV: $9.99 once (free during beta)
+- RezUp: $9.99 once (free during beta)
 Receipts on our comparison pages: https://cv.zalize.com/vs/
 
 ## Reddit strategy (D2/D5/D8/D11)

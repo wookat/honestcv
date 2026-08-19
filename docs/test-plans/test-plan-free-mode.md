@@ -1,4 +1,4 @@
-# HonestCV Free/Traffic Mode Test Plan (PR #3, live at cv.zalize.com)
+# RezUp Free/Traffic Mode Test Plan (PR #3, live at cv.zalize.com)
 
 Precondition: clear localStorage (removes old bundle license + subscribed flag) so free-mode gating is observable. Recorded browser run.
 

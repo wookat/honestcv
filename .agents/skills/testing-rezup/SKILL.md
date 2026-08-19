@@ -1,9 +1,9 @@
 ---
-name: testing-honestcv
-description: How to QA-test HonestCV (cv.zalize.com) end-to-end — free/launch mode, license activation, downloads, Lemon Squeezy checkout, AI tools — without ever completing a real payment.
+name: testing-rezup
+description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mode, license activation, downloads, Lemon Squeezy checkout, AI tools — without ever completing a real payment.
 ---
 
-# Testing HonestCV
+# Testing RezUp
 
 ## QA traffic marking (unified convention)
 
@@ -14,7 +14,7 @@ description: How to QA-test HonestCV (cv.zalize.com) end-to-end — free/launch 
 ## I11/I12 notes (main d59f861)
 
 - /examples/ now has **15** role pages (added: accountant, administrative-assistant, graphic-designer, human-resources, product-manager, retail-associate, warehouse-worker). Fast validity check from the page console/CDP: fetch /examples/, regex `href="(/examples/[a-z-]+/)"`, HEAD each — expect count 15, all 200.
-- I12: every static-page footer (guides, templates, /vs/, hubs, about, legal) has an "Examples" → /examples/ link, and each guide's "Keep reading" list ends with "Resume examples by role" + "HonestCV vs other resume builders".
+- I12: every static-page footer (guides, templates, /vs/, hubs, about, legal) has an "Examples" → /examples/ link, and each guide's "Keep reading" list ends with "Resume examples by role" + "RezUp vs other resume builders".
 - Pitfall: CDP `Emulation.clearDeviceMetricsOverride` may not visually restore a previously-emulated tab — open a fresh tab (Ctrl+T) to get desktop layout back.
 
 ## PR #188 review-round-1 notes (main 00363ae)
@@ -64,7 +64,7 @@ description: How to QA-test HonestCV (cv.zalize.com) end-to-end — free/launch 
 - 375px /ats-checker: the label "Your resume (paste or upload)" + "Upload PDF / DOCX" button row is `flex flex-wrap` — expect two stacked lines at 375px with scrollWidth 375.
 - /examples/ pages (hub + 8 role pages, e.g. /examples/teacher/) are **static HTML** from `scripts/build-seo.mjs`, not React routes — clicking their internal links does full navigations; footer of React pages has a "Resume examples" link. All examples pages passed axe A/AA and 375px overflow checks; only console noise is the known cloudflareinsights beacon ERR_BLOCKED_BY_CLIENT.
 
-HonestCV is a React 19 + Vite SPA served by a Hono Cloudflare Worker (`honestcv`, repo `~/repos/honestcv`), live at https://cv.zalize.com. Resume state is browser localStorage (`honestcv.resume`); license state is also in localStorage. Clear localStorage to get a fresh locked state.
+RezUp is a React 19 + Vite SPA served by a Hono Cloudflare Worker (`honestcv`, repo `~/repos/honestcv`), live at https://cv.zalize.com. Resume state is browser localStorage (`honestcv.resume`); license state is also in localStorage. Clear localStorage to get a fresh locked state.
 
 ## Free/traffic mode (FREE_MODE=true worker var)
 
@@ -183,7 +183,7 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **⚠️ AI 503 quota-burn pitfall — FIXED by I4 (worker commit 3fc682f)**: pre-I4, failed 503 calls decremented quota (12→11→10). Post-I4, quota is consumed only after a successful upstream call — verified live: one Tailor 503 left `/api/ai/quota` at `freeRemaining:12` and the footer counter unchanged after reload. Recipe: fresh random `honestcv.clientId`, read `/api/ai/quota` from the page console before/after one failed attempt. I5 adds one internal retry on 429/5xx (not directly observable from the UI). If an AI relay outage recurs, 503s are still production incidents; busy-line UI can't be verified while the backend is down.
 - **Checklist step 3 persistence**: post-#137 the Tailor step stays checked after reload (was session-only pre-#135 batch).
 - **Volunteer guide**: `/guides/volunteer-work-on-resume/` — 12 TOC anchors under `nav[aria-label="On this page"]`; anchor click updates the URL hash and jumps; listed on `/guides/` hub; `@media (max-width:640px){.toc ol{columns:1}}`.
-- **/about/**: static page with "About HonestCV" h1, What we promise / How we compare / Press kit; footer "About" link on landing + builder.
+- **/about/**: static page with "About RezUp" h1, What we promise / How we compare / Press kit; footer "About" link on landing + builder.
 
 ## Key flows and how to test them (paid mode)
 

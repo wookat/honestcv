@@ -1,28 +1,22 @@
-/** HonestCV brand mark: document with a verified check (matches favicon.svg). */
+/** RezUp brand mark (Zalize family syntax v2, matches favicon.svg). */
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden>
-      <rect width="32" height="32" rx="7" fill="oklch(0.5 0.18 265)" />
-      <path
-        d="M10 6.5h8.5L23 11v14.5a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1v-18a1 1 0 0 1 1-1z"
-        fill="white"
-      />
-      <path d="M18.5 6.5V11H23z" fill="#c7d2fe" />
-      <path
-        d="M12 15h8M12 18.5h8M12 22h5"
-        stroke="#a5b4fc"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <circle cx="22" cy="22.5" r="6" fill="#059669" />
-      <path
-        d="M19.5 22.6l1.8 1.8 3.2-3.6"
-        fill="none"
-        stroke="white"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg viewBox="0 0 96 96" className={className} aria-hidden>
+      <defs>
+        <linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#12A990" />
+          <stop offset="1" stopColor="#0A6E63" />
+        </linearGradient>
+        <linearGradient id="logo-l" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#5EE0C8" />
+          <stop offset="1" stopColor="#1FBFA4" />
+        </linearGradient>
+      </defs>
+      <rect width="96" height="96" rx="24" fill="#fff" />
+      <rect x=".5" y=".5" width="95" height="95" rx="23.5" fill="none" stroke="#E4E7EC" />
+      <path d="M42 12C24 21 14 36 14 54c0 15 11 27 28 29V12z" fill="url(#logo-g)" opacity=".6" />
+      <path d="M54 12c18 9 28 24 28 42 0 15-11 27-28 29V12z" fill="url(#logo-g)" />
+      <circle cx="48" cy="48" r="8.5" fill="url(#logo-l)" />
     </svg>
   )
 }

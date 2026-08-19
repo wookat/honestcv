@@ -17,14 +17,14 @@ prepared here for the boss to submit (est. 5 min each).
 
 ## Generic listing copy (paste as-is)
 
-- **Name:** HonestCV
+- **Name:** RezUp
 - **URL:** https://cv.zalize.com
 - **Tagline (≤60):** The resume builder with no subscription traps
 - **Category:** Career / Resume builder / Job search tools
 - **Short description (≤160):** Honest resume builder: ATS-safe templates, free
   ATS match scoring, AI that never invents your experience, one-time pricing —
   no subscription.
-- **Long description:** HonestCV is a browser-local resume builder for job
+- **Long description:** RezUp is a browser-local resume builder for job
   seekers. 22 ATS-safe templates, a free ATS match score against any pasted job
   description, per-line AI tailoring that refuses to fabricate facts, and real
   text-based PDF/DOCX export. No accounts — your resume stays in your browser.

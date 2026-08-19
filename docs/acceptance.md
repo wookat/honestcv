@@ -1,4 +1,4 @@
-# HonestCV 验收包（2026-08-05）
+# RezUp 验收包（2026-08-05）
 
 线上地址：https://cv.zalize.com ｜ 仓库：https://github.com/wookat/honestcv
 
@@ -26,7 +26,7 @@
 
 ## 3. 竞品对照（同价位）
 
-| | HonestCV $9.99/$19.99 一次性 | WolfResume $7.99 | Resumello $19.99 lifetime | Zety ~$24.95/月 |
+| | RezUp $9.99/$19.99 一次性 | WolfResume $7.99 | Resumello $19.99 lifetime | Zety ~$24.95/月 |
 | --- | --- | --- | --- | --- |
 | 订阅陷阱 | 无 | 无 | 无 | 有（品类最高频投诉） |
 | 免费 ATS 匹配分（按 JD） | ✅ 付费前免费展示 | ✗ | ✗ | 部分（诱导付费） |

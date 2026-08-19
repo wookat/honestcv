@@ -71,7 +71,7 @@ verified email, completed the full free flow including a real PDF download.
   (X11; Linux x86_64) … / FlowCV` → server-side **headless-Chromium
   print-to-PDF**. Real text layer (pdftotext extracts cleanly). 27 KB for a
   1-entry resume.
-- Note: HonestCV generates PDFs client-side with pdf-lib — stronger privacy
+- Note: RezUp generates PDFs client-side with pdf-lib — stronger privacy
   story (resume never leaves the browser), a differentiator to keep.
 
 ### Observations / cautions
@@ -124,7 +124,7 @@ verified email, completed the full free flow including a real PDF download.
 
 ---
 
-## Cross-competitor synthesis → HonestCV gaps (P0/P1/P2)
+## Cross-competitor synthesis → RezUp gaps (P0/P1/P2)
 
 Recurring winners across FlowCV + prior benchmarks (Zety/Resume.io/Rezi/
 Kickresume) — integrated, not copied from any single product:

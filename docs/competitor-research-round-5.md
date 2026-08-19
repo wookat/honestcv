@@ -6,7 +6,7 @@ Evidence categories: **observed**, **claim**, **inference**, **blocked**.
 Reactive Resume (rxresu.me) is the leading free/open-source resume builder
 (~40k GitHub stars shown live in its header — observed). It is the strongest
 "truly free" alternative in the category and the closest philosophical
-neighbor to HonestCV, so its free UX is the bar for anything we call free.
+neighbor to RezUp, so its free UX is the bar for anything we call free.
 
 ## Flow walked (observed)
 Landing → register (name/username/email/password; social login via Google/
@@ -33,7 +33,7 @@ GitHub/LinkedIn/Passkey) → email verification explicitly **optional**
 ### Account/privacy model (observed/inference)
 - Requires an account; resumes are stored server-side (public slug URLs
   imply server rendering/storage). Privacy model is "trust the open-source
-  operator", not local-first. HonestCV's browser-local storage remains a
+  operator", not local-first. RezUp's browser-local storage remains a
   structural difference even against the best free competitor.
 
 ### Tech notes (observed/inference)
@@ -43,7 +43,7 @@ GitHub/LinkedIn/Passkey) → email verification explicitly **optional**
 
 ## Adoptable ideas → gaps
 - **G19 (adopted this round): template capability tags.** Added short fit
-  tags to every HonestCV template; shown under each thumbnail on the landing
+  tags to every RezUp template; shown under each thumbnail on the landing
   gallery and as a description line under the picker in the builder.
 - **G20 (candidate, P2): Markdown export** — trivial with our data model,
   useful for AI-tool workflows (Reactive Resume markets it exactly that way).
@@ -55,7 +55,7 @@ GitHub/LinkedIn/Passkey) → email verification explicitly **optional**
 ## Honest assessment
 Reactive Resume is the most genuinely free product tested so far: no
 branding, no paywalls, optional email verification, MIT-licensed. Its
-weaknesses vs HonestCV: requires an account, stores resumes server-side,
+weaknesses vs RezUp: requires an account, stores resumes server-side,
 no ATS/JD matching at all, and no guidance content. Our differentiators
 against it are local-first privacy, the free ATS checker, and guides —
 not price. AI features ("Agents") were not exercised (blocked/untested).

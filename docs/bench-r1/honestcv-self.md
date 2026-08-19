@@ -1,4 +1,4 @@
-# HonestCV 自评（R1 基线，同一六维度）
+# RezUp 自评（R1 基线，同一六维度）
 
 a. 模板质量 (2/5)：4 套单栏 ATS 模板（classic/modern/compact/executive），排版正确但视觉朴素；无头像/配色自定义；无分页精细控制；竞品普遍 20-40+ 模板 + 颜色/字体自定义。
 b. 编辑器交互 (3/5)：实时预览、自动保存(localStorage)、分节编辑齐全；无拖拽排序、无 undo、无自定义分节、无 LinkedIn/PDF 导入；移动端可用。

@@ -17,7 +17,7 @@ Method: registered a real account with a custom-domain mailbox
   (summary, 5 experience bullets, skills, strengths) in ~20 s.
 - **Key finding: the AI draft is fully fabricated.** From "Jordan Blake / Marketing
   Manager" it invented "led a team of 10", "35% traffic increase", "boosted online sales
-  by 20%", "open rates by 25%" — all fictional metrics presented as fact. HonestCV's
+  by 20%", "open rates by 25%" — all fictional metrics presented as fact. RezUp's
   anti-fabrication prompt (facts only from user input, `[add %]` placeholders) is a real,
   demonstrable differentiator ("honest" brand narrative writes itself).
 - Aggressive upsell from minute one: Intercom popup "24 HOURS ONLY 20% OFF", countdown
@@ -30,7 +30,7 @@ Method: registered a real account with a custom-domain mailbox
 - Default AI-generated doc silently uses **3 Premium features** (Sharp template, IBM Plex
   Serif font, Skills/Strengths sections) — the free user is placed on premium content and
   told at download time. Dark-pattern-ish but effective monetization.
-- Undo/redo present; autosave with "Saved" indicator (parity with HonestCV R2).
+- Undo/redo present; autosave with "Saved" indicator (parity with RezUp R2).
 
 ### ATS scoring
 - "Improve" tab shows ATS Score 89/100 with sub-metrics: **Design 100 / Structure 77 /
@@ -38,7 +38,7 @@ Method: registered a real account with a custom-domain mailbox
 - Anything past the headline numbers ("more in-depth resume feedback", ATS Analytics) is
   Premium-gated.
 - Note the scoring is generous: a fully AI-fabricated resume with no JD scores 89.
-  HonestCV's structure+keyword decomposition (now shown in-app and on /ats-checker) is
+  RezUp's structure+keyword decomposition (now shown in-app and on /ats-checker) is
   comparable in transparency to Kickresume's free tier.
 
 ### Export / paywall
@@ -49,7 +49,7 @@ Method: registered a real account with a custom-domain mailbox
   real applications.
 - Pricing (perpetual "20% off limited time" banner): Monthly $19.20 (list $24),
   Quarterly $14.40/mo, Yearly $6.40/mo — subscription only, no one-time tier.
-- HonestCV free-mode comparison: we give real, unwatermarked PDF + DOCX for an email —
+- RezUp free-mode comparison: we give real, unwatermarked PDF + DOCX for an email —
   strictly more generous than Kickresume free, and the eventual $9.99 one-time price
   undercuts their monthly.
 

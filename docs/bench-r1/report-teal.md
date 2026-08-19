@@ -1,4 +1,4 @@
-# 竞品对标报告：Teal（tealhq.com） vs HonestCV（cv.zalize.com）
+# 竞品对标报告：Teal（tealhq.com） vs RezUp（cv.zalize.com）
 
 - 调研角色：UX 研究员 + 竞品分析师（Company OS）
 - 调研日期：2026-08-05
@@ -9,7 +9,7 @@
 
 Teal 是「求职全流程平台」而非单纯简历生成器：简历 Builder 只是其 Home 仪表盘（求职目标、申请漏斗、Job Tracker、日程）中的一个模块。免费层功能完整度高（无限简历、PDF 导出无水印、10 个模板、10 次 AI bullet 额度），商业模式为纯订阅（$13/周 起，无一次性买断），付费点集中在「无限 AI + Analyzer 建议详情 + 完整关键词列表 + 高级模板」。整体打磨程度高，但也存在明显的按周计费、预选月付、导出后弹窗升级等增长套路。
 
-对 HonestCV 的核心启示：Teal 免费层就能完成「可投递的简历」，它赚钱靠的是「优化建议的深度」而不是「基础功能解锁」。HonestCV 的一次性付费/免费模式在定价诚意上有差异化空间，但编辑器交互深度（逐条 bullet 实时质量检查、Coach Me 引导式改写、JD 关键词逐词比对）目前是明显差距。
+对 RezUp 的核心启示：Teal 免费层就能完成「可投递的简历」，它赚钱靠的是「优化建议的深度」而不是「基础功能解锁」。RezUp 的一次性付费/免费模式在定价诚意上有差异化空间，但编辑器交互深度（逐条 bullet 实时质量检查、Coach Me 引导式改写、JD 关键词逐词比对）目前是明显差距。
 
 ### 注册流程实录
 - 邮箱+密码注册**无需邮箱验证**即可进入产品（临时邮箱域名未被屏蔽），支持 Google 登录。
@@ -44,7 +44,7 @@ Teal 是「求职全流程平台」而非单纯简历生成器：简历 Builder 
   2. "Managed project timelines and resources, achieving a Y% increase in team productivity through effective delegation and communication."
   3. "Fostered a culture of innovation by implementing agile methodologies, resulting in improved project outcomes and team engagement."
   — 结构好（动词开头+量化+结果），但**留 X/Y 占位符**要求用户回填，且有编造风险（"6 months" 无出处）。
-- Coach Me 模式（截图 08-10）：先问「这条职责里你真正做过什么」（从上下文提取选项：Team management/Project coordination…），再生成具体版本，如 "Increased team productivity by 30% within 6 months by implementing agile methodologies and regular feedback sessions."——引导式收集事实的思路好，但**数字（30%、20%）仍是 AI 虚构**，与 HonestCV 的「诚实、防幻觉」定位正好相反，是可攻击点。
+- Coach Me 模式（截图 08-10）：先问「这条职责里你真正做过什么」（从上下文提取选项：Team management/Project coordination…），再生成具体版本，如 "Increased team productivity by 30% within 6 months by implementing agile methodologies and regular feedback sessions."——引导式收集事实的思路好，但**数字（30%、20%）仍是 AI 虚构**，与 RezUp 的「诚实、防幻觉」定位正好相反，是可攻击点。
 - 另有 Keywords（结合 JD 关键词）与 Custom Prompt 模式。免费额度：bullet 改写 10 次、专业总结 2 次、Cover Letter 2 次（定价页，截图 28），额度剩余数直接显示在 Regenerate 按钮上。
 - Cover Letter 生成（免费 2 次，截图 16）：能正确引用简历里的公司名、30%、40%、2M requests 等事实，质量高。
 
@@ -53,7 +53,7 @@ Teal 是「求职全流程平台」而非单纯简历生成器：简历 Builder 
 - **Analyzer（不要求 JD）**：整体分 58%，分三类——Resume Structure（4 issues）、Measurable Results（5 issues）、Keyword Usage（1 issue），共 10 条建议。但**建议内容全部打码模糊化**，解锁需 Teal+（截图 12）——免费只告诉你「有问题」，不告诉你「是什么问题」。
 - **Job Matcher（要求粘贴 JD**，或从 Job Tracker 选）：输入虚构 Senior SWE JD 后得 41% Match Score，Hard Skills 9/21 逐词比对（✓FastAPI ✓Docker ✓AWS ✗GraphQL APIs ✗Django），Soft Skills 0/2；但免费只显示 5 个关键词，其余 18 个模糊化 + 「Upgrade to Teal+」横幅（截图 14）。
 - 算分逻辑可反推为：硬技能/软技能关键词覆盖率为主 + 结构与量化指标检查。修改简历后分数实时重算（列表页显示 Match: 29%→41% 的变化）。
-- 扣分：免费层「给分不给方案」，评分变成付费漏斗而非工具本身。这正是 HonestCV「免费给完整 ATS 反馈」可以正面打的点。
+- 扣分：免费层「给分不给方案」，评分变成付费漏斗而非工具本身。这正是 RezUp「免费给完整 ATS 反馈」可以正面打的点。
 
 ### e. 付费墙设计 — 3/5（商业上聪明，用户体验上有套路）
 证据：截图 12、13、14、23、28、29
@@ -76,25 +76,25 @@ Teal 是「求职全流程平台」而非单纯简历生成器：简历 Builder 
 
 ---
 
-## HonestCV 若要比肩需要做什么
+## RezUp 若要比肩需要做什么
 
 ### P0（不做就明显落后的核心体验）
 1. **逐条 bullet 实时质量检查**（拼写/动词开头/量化指标/长度仪表）：Teal 免费层最强粘性功能，纯规则+词表即可实现大半，不依赖 LLM，成本低。
-2. **JD 关键词逐词比对的 ATS 匹配**：粘贴 JD → 硬/软技能抽取 → ✓/✗ 逐词展示 + 覆盖率分数。HonestCV 已有 ATS 匹配分，需把「分数」升级为「逐词证据」，且**免费全量给出**（Teal 免费只给 5 个词，这是我们最容易赢的点）。
-3. **内容与显示分离（勾选框控制显隐）**：一份主简历派生多个投递版本，Teal 的核心工作流；HonestCV 目前单份编辑模式撑不起「一人投多岗」的真实场景。
-4. **AI 改写多候选 + 不编造数字**：一次给 3 条候选让用户选（Teal 模式），但把「X/Y 占位符/虚构 30%」改为显式「[请填入真实数字]」占位并禁止 AI 生成无出处数字——把 Teal 的幻觉弱点变成 HonestCV 的「Honest」卖点。
-5. **粘贴文本/LinkedIn 导入解析**：Teal 粘贴纯文本解析准确度高，是新用户 3 分钟内见到成品的关键。HonestCV 若仍需逐字段手填，激活漏斗必输。
+2. **JD 关键词逐词比对的 ATS 匹配**：粘贴 JD → 硬/软技能抽取 → ✓/✗ 逐词展示 + 覆盖率分数。RezUp 已有 ATS 匹配分，需把「分数」升级为「逐词证据」，且**免费全量给出**（Teal 免费只给 5 个词，这是我们最容易赢的点）。
+3. **内容与显示分离（勾选框控制显隐）**：一份主简历派生多个投递版本，Teal 的核心工作流；RezUp 目前单份编辑模式撑不起「一人投多岗」的真实场景。
+4. **AI 改写多候选 + 不编造数字**：一次给 3 条候选让用户选（Teal 模式），但把「X/Y 占位符/虚构 30%」改为显式「[请填入真实数字]」占位并禁止 AI 生成无出处数字——把 Teal 的幻觉弱点变成 RezUp 的「Honest」卖点。
+5. **粘贴文本/LinkedIn 导入解析**：Teal 粘贴纯文本解析准确度高，是新用户 3 分钟内见到成品的关键。RezUp 若仍需逐字段手填，激活漏斗必输。
 
 ### P1（补齐后达到同一梯队）
 1. Coach Me 式引导改写（先问事实再生成），差异化做成「只用你提供的事实」。
 2. 导出前 Final Check 清单（拼写/重复动词/缺失字段/邮箱格式）。
-3. 移动端窄屏完整可编辑（Teal 420px 下全功能可用，HonestCV 需对齐；老板已有移动端硬指标）。
+3. 移动端窄屏完整可编辑（Teal 420px 下全功能可用，RezUp 需对齐；老板已有移动端硬指标）。
 4. 拖拽排序 + 撤销（做全局 undo 即超越 Teal——它没有）。
 5. Cover Letter 生成（复用简历事实，Teal 免费 2 次，我们可更慷慨）。
 6. 模板样式控制面板：字体/行高/强调色/日期格式/对齐（Teal 全免费，我们至少给 2-3 个维度）。
 
 ### P2（锦上添花/长线）
-1. 求职跟踪看板（Teal 的主场，非 HonestCV 定位内，除非转型全流程平台，暂不建议跟进）。
+1. 求职跟踪看板（Teal 的主场，非 RezUp 定位内，除非转型全流程平台，暂不建议跟进）。
 2. 模板库扩容至 15+ 款并按风格/栏数筛选。
 3. 邮件模板、目标薪资、求职目标仪表盘等外围功能。
 4. 定价页对比表（Free vs Paid 逐项打勾，Teal 的转化页做法值得抄——但用「一次性付费 vs 订阅制」做对比主轴，直接标注「Teal: $13/周起订阅」作锚点）。

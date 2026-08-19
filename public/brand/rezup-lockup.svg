@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 234 72" role="img" aria-label="RezUp">
+  <defs>
+    <linearGradient id="G-lcv" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#12A990"/><stop offset="1" stop-color="#0A6E63"/></linearGradient>
+    <linearGradient id="L-lcv" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5EE0C8"/><stop offset="1" stop-color="#1FBFA4"/></linearGradient>
+  </defs>
+  <g transform="translate(0,4) scale(.6667)">
+  <path d="M42 12C24 21 14 36 14 54c0 15 11 27 28 29V12z" fill="url(#G-lcv)" opacity=".6"/>
+  <path d="M54 12c18 9 28 24 28 42 0 15-11 27-28 29V12z" fill="url(#G-lcv)"/>
+  <circle cx="48" cy="48" r="8.5" fill="url(#L-lcv)"/>
+  </g>
+  <text x="72" y="47" font-family="Inter,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif" font-size="30" font-weight="700" fill="#101828">RezUp</text>
+</svg>

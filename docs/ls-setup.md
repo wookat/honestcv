@@ -1,6 +1,6 @@
-# Lemon Squeezy setup runbook (HonestCV)
+# Lemon Squeezy setup runbook (RezUp)
 
-Lemon Squeezy is HonestCV's sole payment provider (Paddle was removed — AUP
+Lemon Squeezy is RezUp's sole payment provider (Paddle was removed — AUP
 restrictions blocked onboarding). Checkout activates once all `LS_*` secrets
 below are set and `CHECKOUT_ENABLED=true`.
 
@@ -12,13 +12,13 @@ In https://app.lemonsqueezy.com/products → New product, under store `rankedby`
 
 | Product | Price | Type | Notes |
 | --- | --- | --- | --- |
-| HonestCV Single Resume | $9.99 | Single payment | Unlimited AI rewrites + PDF/DOCX download for one resume |
-| HonestCV Career Bundle | $19.99 | Single payment | Everything in Single Resume + AI cover letter + interview prep |
+| RezUp Single Resume | $9.99 | Single payment | Unlimited AI rewrites + PDF/DOCX download for one resume |
+| RezUp Career Bundle | $19.99 | Single payment | Everything in Single Resume + AI cover letter + interview prep |
 
 For each product:
 - Pricing: **Single payment** (one-time; NOT subscription).
-- Generate license keys: **off** (HonestCV issues its own `CV-XXXX-...` keys).
-- Confirmation/receipt text (optional): "Return to the HonestCV tab — your
+- Generate license keys: **off** (RezUp issues its own `CV-XXXX-...` keys).
+- Confirmation/receipt text (optional): "Return to the RezUp tab — your
   download unlocks automatically. Keep this email: the order number can restore
   your license anytime."
 

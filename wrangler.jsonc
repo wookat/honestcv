@@ -1,5 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Worker name stays "honestcv" (brand is now RezUp): renaming the Worker
+  // would detach the existing secrets / custom domain / KV history.
   "name": "honestcv",
   "compatibility_date": "2026-07-01",
   "main": "worker/index.ts",

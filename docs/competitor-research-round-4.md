@@ -72,7 +72,7 @@ PDF/DOCX, get scored feedback, and re-upload after editing elsewhere. Its
   animation). Marketing claims "designed by top recruiters" and "AI-powered"
   (claims; scoring internals not observable).
 
-## Adoptable ideas → HonestCV gaps
+## Adoptable ideas → RezUp gaps
 - **G16 (adopted this round): verdict narrative under the score.** A one-line
   plain-English interpretation ("Great match… / Needs work…") in the ATS
   checker so the number has meaning. Rule-based, honest thresholds.

@@ -52,7 +52,7 @@ Date: 2026-08-07. Method: ordinary public browsing + real account registration
 - Marketing pages: Next.js (`_next` assets). Editor v2 is a separate React app
   (react-aria ids in DOM). PDF rendering server-side (see metadata above).
 
-## Adoptable ideas → HonestCV gaps
+## Adoptable ideas → RezUp gaps
 - **G9 (adopted this round): plain-text (.txt) export.** Cheap, ATS-safe, useful for
   paste-into-form applications. We already had `resumeToPlainText`.
 - **G10: pre-download issue review.** We already gate downloads on Final Check —

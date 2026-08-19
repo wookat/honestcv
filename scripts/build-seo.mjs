@@ -18,16 +18,16 @@ const PAGES = [
   {
     slug: 'vs-zety',
     path: '/vs/zety',
-    name: 'HonestCV vs Zety',
-    title: 'HonestCV vs Zety — One-Time $9.99 vs a $25.95/4-Week Subscription',
+    name: 'RezUp vs Zety',
+    title: 'RezUp vs Zety — One-Time $9.99 vs a $25.95/4-Week Subscription',
     description:
-      'Comparing HonestCV and Zety: Zety’s $2.70 trial auto-renews at ~$25.95 every 4 weeks. HonestCV charges $9.99 once — no subscription, no stored card, no cancellation maze.',
-    h1: 'HonestCV vs Zety: pay once, or pay every four weeks?',
+      'Comparing RezUp and Zety: Zety’s $2.70 trial auto-renews at ~$25.95 every 4 weeks. RezUp charges $9.99 once — no subscription, no stored card, no cancellation maze.',
+    h1: 'RezUp vs Zety: pay once, or pay every four weeks?',
     intro:
-      'Zety is a polished resume builder — but its pricing is built around a small “trial” fee that automatically converts into a recurring charge of roughly $25.95 every four weeks until you cancel. “Zety charged me” is one of the most-searched complaints in this category. HonestCV takes the opposite approach: everything is free to try, downloading costs $9.99 exactly once, and we never store your card for recurring billing.',
+      'Zety is a polished resume builder — but its pricing is built around a small “trial” fee that automatically converts into a recurring charge of roughly $25.95 every four weeks until you cancel. “Zety charged me” is one of the most-searched complaints in this category. RezUp takes the opposite approach: everything is free to try, downloading costs $9.99 exactly once, and we never store your card for recurring billing.',
     bullets: [
-      'HonestCV: $9.99 one-time. Zety: ~$2.70 trial that auto-renews at ~$25.95 / 4 weeks',
-      'HonestCV never stores your card for recurring charges — there is nothing to cancel',
+      'RezUp: $9.99 one-time. Zety: ~$2.70 trial that auto-renews at ~$25.95 / 4 weeks',
+      'RezUp never stores your card for recurring charges — there is nothing to cancel',
       'Free ATS match score before you pay; Zety keeps scoring behind the paywall',
       'No account required — your resume stays in your browser, not on our servers',
       'Real text-based PDF and genuine DOCX export, no watermark',
@@ -36,13 +36,13 @@ const PAGES = [
   {
     slug: 'vs-livecareer',
     path: '/vs/livecareer',
-    name: 'HonestCV vs LiveCareer',
-    title: 'HonestCV vs LiveCareer — $9.99 Once vs Auto-Renewing Subscription',
+    name: 'RezUp vs LiveCareer',
+    title: 'RezUp vs LiveCareer — $9.99 Once vs Auto-Renewing Subscription',
     description:
-      'LiveCareer uses the same trial-to-subscription model as Zety. HonestCV is a one-time $9.99 purchase: ATS templates, AI rewrites, PDF/DOCX export — and nothing to cancel.',
-    h1: 'HonestCV vs LiveCareer: no trial traps here',
+      'LiveCareer uses the same trial-to-subscription model as Zety. RezUp is a one-time $9.99 purchase: ATS templates, AI rewrites, PDF/DOCX export — and nothing to cancel.',
+    h1: 'RezUp vs LiveCareer: no trial traps here',
     intro:
-      'LiveCareer (from the same company family as Zety) offers a cheap 14-day trial that converts to a recurring subscription unless you cancel in time. If you only need a resume for a few weeks of job hunting, a subscription makes no sense. HonestCV charges $9.99 exactly once, and every trust feature — the ATS score, the live preview, the editor — is free before you pay.',
+      'LiveCareer (from the same company family as Zety) offers a cheap 14-day trial that converts to a recurring subscription unless you cancel in time. If you only need a resume for a few weeks of job hunting, a subscription makes no sense. RezUp charges $9.99 exactly once, and every trust feature — the ATS score, the live preview, the editor — is free before you pay.',
     bullets: [
       'One-time $9.99 vs a recurring subscription you must remember to cancel',
       'Free ATS match score against any pasted job description',
@@ -55,12 +55,12 @@ const PAGES = [
     slug: 'one-time-payment',
     path: '/resume-builder-one-time-payment',
     name: 'One-Time Payment Resume Builder',
-    title: 'Resume Builder With One-Time Payment (No Subscription) — HonestCV',
+    title: 'Resume Builder With One-Time Payment (No Subscription) — RezUp',
     description:
-      'Looking for a resume builder without a subscription? HonestCV is $9.99 one-time: ATS-friendly templates, free match score, AI rewrites, PDF & DOCX downloads. No auto-renewal, ever.',
+      'Looking for a resume builder without a subscription? RezUp is $9.99 one-time: ATS-friendly templates, free match score, AI rewrites, PDF & DOCX downloads. No auto-renewal, ever.',
     h1: 'A resume builder with a one-time payment — no subscription',
     intro:
-      'Most big resume builders (Zety, LiveCareer, ResumeGenius…) run on trial-to-subscription pricing: a couple of dollars up front, then ~$24–26 every four weeks until you cancel. If you searched “resume builder one time payment”, you already know why that’s a problem. HonestCV is exactly what it says: build free, pay $9.99 once to download, own it forever.',
+      'Most big resume builders (Zety, LiveCareer, ResumeGenius…) run on trial-to-subscription pricing: a couple of dollars up front, then ~$24–26 every four weeks until you cancel. If you searched “resume builder one time payment”, you already know why that’s a problem. RezUp is exactly what it says: build free, pay $9.99 once to download, own it forever.',
     bullets: [
       '$9.99 one-time for unlimited PDF + DOCX downloads and AI rewrites',
       '$19.99 Career Bundle adds AI cover letters and interview prep — still one-time',
@@ -75,7 +75,7 @@ const PAGES = [
     name: 'Free ATS Resume Checker',
     title: 'Free ATS Resume Checker — Match Score Against Any Job Description',
     description:
-      'Check your resume against any job description for free. HonestCV computes an ATS keyword match score in your browser — no upload, no account, no email required.',
+      'Check your resume against any job description for free. RezUp computes an ATS keyword match score in your browser — no upload, no account, no email required.',
     h1: 'Check your ATS match score — free, no upload',
     intro:
       'Paste a job description and see instantly which keywords your resume matches and which are missing, plus structural checks ATS parsers care about (contact info, quantified bullets, standard sections). It all runs in your browser — your resume is never uploaded, and you don’t need an account or email to see your full score.',
@@ -92,13 +92,13 @@ const PAGES = [
   {
     slug: 'vs-resumeio',
     path: '/vs/resume-io',
-    name: 'HonestCV vs Resume.io',
-    title: 'HonestCV vs Resume.io — One-Time Purchase vs a Recurring Subscription',
+    name: 'RezUp vs Resume.io',
+    title: 'RezUp vs Resume.io — One-Time Purchase vs a Recurring Subscription',
     description:
-      'Resume.io charges a small trial fee that converts to a recurring subscription. HonestCV is a one-time purchase: ATS templates, AI rewrites, free match score, PDF/DOCX export.',
-    h1: 'HonestCV vs Resume.io: buy your resume, don’t rent it',
+      'Resume.io charges a small trial fee that converts to a recurring subscription. RezUp is a one-time purchase: ATS templates, AI rewrites, free match score, PDF/DOCX export.',
+    h1: 'RezUp vs Resume.io: buy your resume, don’t rent it',
     intro:
-      'Resume.io is one of the most popular resume builders, and like most of the category it monetizes through a low-cost 7-day trial that automatically converts into a recurring subscription (its pricing page currently lists $29.95/month) unless you cancel in time. If you only need a resume for a few weeks of applications, that pricing model works against you. HonestCV is the opposite: the editor, templates and ATS match score are free, and downloading is a one-time purchase — there is never anything to cancel.',
+      'Resume.io is one of the most popular resume builders, and like most of the category it monetizes through a low-cost 7-day trial that automatically converts into a recurring subscription (its pricing page currently lists $29.95/month) unless you cancel in time. If you only need a resume for a few weeks of applications, that pricing model works against you. RezUp is the opposite: the editor, templates and ATS match score are free, and downloading is a one-time purchase — there is never anything to cancel.',
     bullets: [
       'One-time purchase vs a ~$29.95/month auto-renewing subscription',
       'Free ATS match score against any pasted job description — before paying anything',
@@ -110,13 +110,13 @@ const PAGES = [
   {
     slug: 'vs-resumegenius',
     path: '/vs/resume-genius',
-    name: 'HonestCV vs Resume Genius',
-    title: 'HonestCV vs Resume Genius — No 14-Day Trial That Auto-Renews',
+    name: 'RezUp vs Resume Genius',
+    title: 'RezUp vs Resume Genius — No 14-Day Trial That Auto-Renews',
     description:
-      'Resume Genius uses a 14-day trial that converts to ~$23.95 every 4 weeks. HonestCV has no subscription at all: build free, download with a single one-time purchase.',
-    h1: 'HonestCV vs Resume Genius: skip the trial-to-subscription funnel',
+      'Resume Genius uses a 14-day trial that converts to ~$23.95 every 4 weeks. RezUp has no subscription at all: build free, download with a single one-time purchase.',
+    h1: 'RezUp vs Resume Genius: skip the trial-to-subscription funnel',
     intro:
-      'Resume Genius advertises a 14-day full-access trial for a couple of dollars — and if you don’t cancel in time, it converts to roughly $23.95 every four weeks. Thousands of “resume genius charged me” complaints exist for exactly this reason. HonestCV never takes your card for a trial: everything except downloading is free forever, and downloading is one single payment with nothing to cancel afterwards.',
+      'Resume Genius advertises a 14-day full-access trial for a couple of dollars — and if you don’t cancel in time, it converts to roughly $23.95 every four weeks. Thousands of “resume genius charged me” complaints exist for exactly this reason. RezUp never takes your card for a trial: everything except downloading is free forever, and downloading is one single payment with nothing to cancel afterwards.',
     bullets: [
       'No trial, no auto-renewal, no stored card — one payment and you own it',
       'ATS keyword match score is free, before you decide to pay',
@@ -128,15 +128,15 @@ const PAGES = [
   {
     slug: 'vs-kickresume',
     path: '/vs/kickresume',
-    name: 'HonestCV vs Kickresume',
-    title: 'HonestCV vs Kickresume — Free Real PDF Export vs a PNG Preview',
+    name: 'RezUp vs Kickresume',
+    title: 'RezUp vs Kickresume — Free Real PDF Export vs a PNG Preview',
     description:
-      'We tested Kickresume ourselves: the free tier only exports a PNG of your first page, and full access runs ~$19–24/month. HonestCV gives you real PDF & DOCX downloads with no subscription.',
-    h1: 'HonestCV vs Kickresume: a real PDF beats a PNG preview',
+      'We tested Kickresume ourselves: the free tier only exports a PNG of your first page, and full access runs ~$19–24/month. RezUp gives you real PDF & DOCX downloads with no subscription.',
+    h1: 'RezUp vs Kickresume: a real PDF beats a PNG preview',
     intro:
-      'We signed up for Kickresume and ran the full flow ourselves (August 2026). The editor is slick, but the free tier will not give you a usable resume: PDF download is locked, and the only free export is a PNG image of your first page — which ATS systems cannot parse. Full access is a subscription at roughly $19–24 per month. We also found its AI writer happily invents metrics (percentages and dollar figures) it cannot know about you. HonestCV exports real, text-based PDF and DOCX files, scores your resume against the actual job description for free, and its AI never fabricates facts — it marks gaps for you to fill instead.',
+      'We signed up for Kickresume and ran the full flow ourselves (August 2026). The editor is slick, but the free tier will not give you a usable resume: PDF download is locked, and the only free export is a PNG image of your first page — which ATS systems cannot parse. Full access is a subscription at roughly $19–24 per month. We also found its AI writer happily invents metrics (percentages and dollar figures) it cannot know about you. RezUp exports real, text-based PDF and DOCX files, scores your resume against the actual job description for free, and its AI never fabricates facts — it marks gaps for you to fill instead.',
     bullets: [
-      'HonestCV: real text-based PDF + DOCX export. Kickresume free tier: PNG image of page one only',
+      'RezUp: real text-based PDF + DOCX export. Kickresume free tier: PNG image of page one only',
       'No subscription vs ~$19–24/month for full access',
       'Free ATS match score against any pasted job description',
       'AI that never invents employers, dates or metrics — Kickresume’s AI generated fictional “35%” style achievements in our test',
@@ -146,13 +146,13 @@ const PAGES = [
   {
     slug: 'vs-rezi',
     path: '/vs/rezi',
-    name: 'HonestCV vs Rezi',
-    title: 'HonestCV vs Rezi — Free ATS Scoring Without the Free-Tier Limits',
+    name: 'RezUp vs Rezi',
+    title: 'RezUp vs Rezi — Free ATS Scoring Without the Free-Tier Limits',
     description:
-      'We tested Rezi ourselves: the free tier caps you at 1 resume, 3 PDF downloads, 10 AI generations and 1 template; DOCX is paywalled. HonestCV has none of those limits and no subscription.',
-    h1: 'HonestCV vs Rezi: what the free tier actually lets you do',
+      'We tested Rezi ourselves: the free tier caps you at 1 resume, 3 PDF downloads, 10 AI generations and 1 template; DOCX is paywalled. RezUp has none of those limits and no subscription.',
+    h1: 'RezUp vs Rezi: what the free tier actually lets you do',
     intro:
-      'We registered for Rezi and ran the full flow ourselves (August 2026). It is a polished product — the Rezi Score and keyword targeting are genuinely good. But the free tier is tightly rationed: one resume, three PDF downloads, ten AI generations, one template (the other ten are Pro-locked), and DOCX export sits behind a hard paywall. Full access is a subscription at $29/month (or $149 lifetime). HonestCV takes the opposite approach: unlimited resumes and downloads, real text-based PDF and DOCX export, a free ATS match score against any job description you paste, and 22 templates you can switch between freely — with your data staying in your browser instead of an account.',
+      'We registered for Rezi and ran the full flow ourselves (August 2026). It is a polished product — the Rezi Score and keyword targeting are genuinely good. But the free tier is tightly rationed: one resume, three PDF downloads, ten AI generations, one template (the other ten are Pro-locked), and DOCX export sits behind a hard paywall. Full access is a subscription at $29/month (or $149 lifetime). RezUp takes the opposite approach: unlimited resumes and downloads, real text-based PDF and DOCX export, a free ATS match score against any job description you paste, and 22 templates you can switch between freely — with your data staying in your browser instead of an account.',
     bullets: [
       'No caps: Rezi free tier = 1 resume, 3 PDF downloads, 10 AI generations, 1 of 11 templates; DOCX paywalled',
       'No subscription vs $29/month (or a $149 lifetime plan)',
@@ -164,13 +164,13 @@ const PAGES = [
   {
     slug: 'vs-teal',
     path: '/vs/teal',
-    name: 'HonestCV vs Teal',
-    title: 'HonestCV vs Teal — A Focused Resume Builder vs $13/week Upsells',
+    name: 'RezUp vs Teal',
+    title: 'RezUp vs Teal — A Focused Resume Builder vs $13/week Upsells',
     description:
-      'We tested Teal ourselves: a capable free tier inside a job-search platform, monetized by weekly-billed subscriptions (~$13/week) and paywalled optimization details. HonestCV is a focused, no-subscription resume builder.',
-    h1: 'HonestCV vs Teal: focused resume building vs a weekly-billed platform',
+      'We tested Teal ourselves: a capable free tier inside a job-search platform, monetized by weekly-billed subscriptions (~$13/week) and paywalled optimization details. RezUp is a focused, no-subscription resume builder.',
+    h1: 'RezUp vs Teal: focused resume building vs a weekly-billed platform',
     intro:
-      'We registered for Teal and ran the full flow ourselves (August 2026). Credit where due: Teal’s free tier is one of the most generous — unlimited resumes, watermark-free PDF export, ten templates. But it is a whole job-search platform, and its business model is a subscription billed from about $13 per week, with the monthly plan pre-selected at checkout and the useful depth (analyzer suggestion details, the full keyword comparison list, unlimited AI) locked behind it. In our test its AI also invented a fictional “30%” metric the resume never contained. HonestCV is deliberately narrower: just an honest resume builder with free ATS scoring including the full missing-keyword list, AI that refuses to fabricate facts, real PDF and DOCX export, and no subscription of any kind.',
+      'We registered for Teal and ran the full flow ourselves (August 2026). Credit where due: Teal’s free tier is one of the most generous — unlimited resumes, watermark-free PDF export, ten templates. But it is a whole job-search platform, and its business model is a subscription billed from about $13 per week, with the monthly plan pre-selected at checkout and the useful depth (analyzer suggestion details, the full keyword comparison list, unlimited AI) locked behind it. In our test its AI also invented a fictional “30%” metric the resume never contained. RezUp is deliberately narrower: just an honest resume builder with free ATS scoring including the full missing-keyword list, AI that refuses to fabricate facts, real PDF and DOCX export, and no subscription of any kind.',
     bullets: [
       'No subscription vs ~$13/week billing (monthly plan pre-selected at checkout)',
       'Full ATS keyword comparison free — Teal locks the complete missing-keyword list behind Teal+',
@@ -182,13 +182,13 @@ const PAGES = [
   {
     slug: 'vs-flowcv',
     path: '/vs/flowcv',
-    name: 'HonestCV vs FlowCV',
-    title: 'HonestCV vs FlowCV — One-Time Pricing and Browser-Local Privacy',
+    name: 'RezUp vs FlowCV',
+    title: 'RezUp vs FlowCV — One-Time Pricing and Browser-Local Privacy',
     description:
-      'We tested FlowCV ourselves: a genuinely generous free tier (1 resume, unlimited PDF downloads) with $3–5/month subscriptions on top. HonestCV differs on privacy (browser-local, no account) and one-time pricing.',
-    h1: 'HonestCV vs FlowCV: two honest builders, two different trade-offs',
+      'We tested FlowCV ourselves: a genuinely generous free tier (1 resume, unlimited PDF downloads) with $3–5/month subscriptions on top. RezUp differs on privacy (browser-local, no account) and one-time pricing.',
+    h1: 'RezUp vs FlowCV: two honest builders, two different trade-offs',
     intro:
-      'We registered for FlowCV and ran the full flow ourselves (August 2026) — and credit where due: it is one of the fairest products in this category. The free plan really is free: one resume, unlimited watermark-free PDF downloads, all templates, and clear auto-renewal disclosure on its cheap paid tiers (Basic $3/month and Pro $5/month, billed yearly). The differences are structural. FlowCV requires an account and a verified email before any download, renders your PDF on its servers (the exported file’s metadata shows server-side Chromium), and caps the free plan at a single resume. HonestCV needs no account, keeps your resume data in your browser and generates the PDF locally on your machine, lets you keep unlimited tailored copies, and charges once instead of a subscription — currently free during beta.',
+      'We registered for FlowCV and ran the full flow ourselves (August 2026) — and credit where due: it is one of the fairest products in this category. The free plan really is free: one resume, unlimited watermark-free PDF downloads, all templates, and clear auto-renewal disclosure on its cheap paid tiers (Basic $3/month and Pro $5/month, billed yearly). The differences are structural. FlowCV requires an account and a verified email before any download, renders your PDF on its servers (the exported file’s metadata shows server-side Chromium), and caps the free plan at a single resume. RezUp needs no account, keeps your resume data in your browser and generates the PDF locally on your machine, lets you keep unlimited tailored copies, and charges once instead of a subscription — currently free during beta.',
     bullets: [
       'No account or email verification needed to download — FlowCV gates every download behind a verified account',
       'Your resume never leaves your browser: local PDF/DOCX generation vs FlowCV’s server-side rendering',
@@ -200,13 +200,13 @@ const PAGES = [
   {
     slug: 'vs-novoresume',
     path: '/vs/novoresume',
-    name: 'HonestCV vs Novorésumé',
-    title: 'HonestCV vs Novorésumé — Free Limits, Privacy and Pricing Compared',
+    name: 'RezUp vs Novorésumé',
+    title: 'RezUp vs Novorésumé — Free Limits, Privacy and Pricing Compared',
     description:
-      'We registered for Novorésumé and ran the full flow ourselves: free plan allows 1 single-page resume with free PDF download; Premium is $21.99/month or $139.99/year (non-recurring). HonestCV differs on privacy, unlimited copies and one-time pricing.',
-    h1: 'HonestCV vs Novorésumé: what we found testing it ourselves',
+      'We registered for Novorésumé and ran the full flow ourselves: free plan allows 1 single-page resume with free PDF download; Premium is $21.99/month or $139.99/year (non-recurring). RezUp differs on privacy, unlimited copies and one-time pricing.',
+    h1: 'RezUp vs Novorésumé: what we found testing it ourselves',
     intro:
-      'We created a Novorésumé account and walked its full flow (August 2026). Credit where due: the free Basic plan really does let you download a watermark-free PDF, its pre-download review flags real ATS issues, and Premium ($21.99/month, $39.99/quarter or $139.99/year) is explicitly non-recurring — no auto-renewal trap. The limits are structural: Basic stores exactly one resume, capped at a single page, with no cover letter and only predefined layouts; downloads are gated behind an account with email code verification; and your resume lives on their servers, with the PDF rendered server-side. HonestCV needs no account, keeps your resume in your browser and generates the PDF and DOCX locally, allows unlimited pages and unlimited saved copies, and includes cover letter and interview-prep tools — one-time pricing, currently free during beta.',
+      'We created a Novorésumé account and walked its full flow (August 2026). Credit where due: the free Basic plan really does let you download a watermark-free PDF, its pre-download review flags real ATS issues, and Premium ($21.99/month, $39.99/quarter or $139.99/year) is explicitly non-recurring — no auto-renewal trap. The limits are structural: Basic stores exactly one resume, capped at a single page, with no cover letter and only predefined layouts; downloads are gated behind an account with email code verification; and your resume lives on their servers, with the PDF rendered server-side. RezUp needs no account, keeps your resume in your browser and generates the PDF and DOCX locally, allows unlimited pages and unlimited saved copies, and includes cover letter and interview-prep tools — one-time pricing, currently free during beta.',
     bullets: [
       'No account or email code needed to download — Novorésumé gates downloads behind a verified account',
       'Your resume never leaves your browser: local PDF/DOCX generation vs server-side rendering',
@@ -218,13 +218,13 @@ const PAGES = [
   {
     slug: 'vs-enhancv',
     path: '/vs/enhancv',
-    name: 'HonestCV vs Enhancv',
-    title: 'HonestCV vs Enhancv — Branding, Privacy and Pricing Compared',
+    name: 'RezUp vs Enhancv',
+    title: 'RezUp vs Enhancv — Branding, Privacy and Pricing Compared',
     description:
-      'We signed up for Enhancv and ran its full flow ourselves: free downloads carry a "Powered by Enhancv" footer, the ATS keyword check is free but full suggestions are paywalled, and Pro runs $16.50–$39/month. HonestCV differs on branding-free exports, privacy and one-time pricing.',
-    h1: 'HonestCV vs Enhancv: what we found testing it ourselves',
+      'We signed up for Enhancv and ran its full flow ourselves: free downloads carry a "Powered by Enhancv" footer, the ATS keyword check is free but full suggestions are paywalled, and Pro runs $16.50–$39/month. RezUp differs on branding-free exports, privacy and one-time pricing.',
+    h1: 'RezUp vs Enhancv: what we found testing it ourselves',
     intro:
-      'We created an Enhancv account and walked its full flow (August 2026). Credit where due: its guided chat-style onboarding is smooth, the free plan really does export a PDF and a TXT file, and its job-description match check with a per-keyword frequency table is genuinely useful — we liked that pattern enough to build our own version into HonestCV\u2019s free ATS checker. The catches: every free PDF carries a "Powered by Enhancv" branding footer (branding-free export is a paid feature), the resume grade and ATS suggestions are mostly behind an "Unlock Full Report" paywall, saving or downloading requires an account with email code verification, your resume lives on their servers, and Pro is a recurring subscription at $39/month, $23/month billed quarterly, or $16.50/month billed semiannually. HonestCV keeps your resume in your browser, renders PDF/DOCX/TXT locally with no branding at any tier, and shows the whole ATS report free — one-time pricing, currently free during beta.',
+      'We created an Enhancv account and walked its full flow (August 2026). Credit where due: its guided chat-style onboarding is smooth, the free plan really does export a PDF and a TXT file, and its job-description match check with a per-keyword frequency table is genuinely useful — we liked that pattern enough to build our own version into RezUp\u2019s free ATS checker. The catches: every free PDF carries a "Powered by Enhancv" branding footer (branding-free export is a paid feature), the resume grade and ATS suggestions are mostly behind an "Unlock Full Report" paywall, saving or downloading requires an account with email code verification, your resume lives on their servers, and Pro is a recurring subscription at $39/month, $23/month billed quarterly, or $16.50/month billed semiannually. RezUp keeps your resume in your browser, renders PDF/DOCX/TXT locally with no branding at any tier, and shows the whole ATS report free — one-time pricing, currently free during beta.',
     bullets: [
       'No branding footer on any export — Enhancv\u2019s free PDFs print "Powered by Enhancv" at the bottom',
       'Full ATS report free, including every suggestion — Enhancv paywalls the full report behind Pro',
@@ -236,13 +236,13 @@ const PAGES = [
   {
     slug: 'vs-resume-worded',
     path: '/vs/resume-worded',
-    name: 'HonestCV vs Resume Worded',
-    title: 'HonestCV vs Resume Worded — Free Limits, Privacy and Pricing Compared',
+    name: 'RezUp vs Resume Worded',
+    title: 'RezUp vs Resume Worded — Free Limits, Privacy and Pricing Compared',
     description:
-      'We created a Resume Worded account and ran its full flow ourselves: the free resume score locks several checks behind Pro, the keyword targeting tool is genuinely free, and Pro runs $19–$49/month recurring. HonestCV differs on privacy, a fully free report and one-time pricing.',
-    h1: 'HonestCV vs Resume Worded: what we found testing it ourselves',
+      'We created a Resume Worded account and ran its full flow ourselves: the free resume score locks several checks behind Pro, the keyword targeting tool is genuinely free, and Pro runs $19–$49/month recurring. RezUp differs on privacy, a fully free report and one-time pricing.',
+    h1: 'RezUp vs Resume Worded: what we found testing it ourselves',
     intro:
-      'We created a Resume Worded account and walked its full flow (August 2026). Credit where due: its free Targeted Resume tool really does compare your resume to a job description at no charge, with a relevancy score, found/missing keyword counts and a side-by-side view — a genuinely useful free tool. The catches: it is a checker, not a builder (templates are Word/Google Docs downloads); the free resume score locks several checks (Leadership, Communication, Teamwork and more) plus the full report behind Pro; scoring requires an account and your resume is uploaded to their servers; the signup form pre-checks a weekly email subscription; and Pro is a recurring subscription at $49/month, $33/month billed quarterly, or $19/month billed yearly against a $75 strikethrough anchor. HonestCV is a full builder plus checker: your resume stays in your browser, the entire ATS report is free with no locked checks, and no account or email is needed — one-time pricing, currently free during beta.',
+      'We created a Resume Worded account and walked its full flow (August 2026). Credit where due: its free Targeted Resume tool really does compare your resume to a job description at no charge, with a relevancy score, found/missing keyword counts and a side-by-side view — a genuinely useful free tool. The catches: it is a checker, not a builder (templates are Word/Google Docs downloads); the free resume score locks several checks (Leadership, Communication, Teamwork and more) plus the full report behind Pro; scoring requires an account and your resume is uploaded to their servers; the signup form pre-checks a weekly email subscription; and Pro is a recurring subscription at $49/month, $33/month billed quarterly, or $19/month billed yearly against a $75 strikethrough anchor. RezUp is a full builder plus checker: your resume stays in your browser, the entire ATS report is free with no locked checks, and no account or email is needed — one-time pricing, currently free during beta.',
     bullets: [
       'Full builder + checker in one — Resume Worded checks resumes but sends you to Word/Google Docs templates to edit',
       'Every check in the ATS report is free — Resume Worded locks several recruiter checks and the full report behind Pro',
@@ -254,13 +254,13 @@ const PAGES = [
   {
     slug: 'vs-jobscan',
     path: '/vs/jobscan',
-    name: 'HonestCV vs Jobscan',
-    title: 'HonestCV vs Jobscan — Free Scan Limits and Pricing Compared',
+    name: 'RezUp vs Jobscan',
+    title: 'RezUp vs Jobscan — Free Scan Limits and Pricing Compared',
     description:
-      'We checked Jobscan\u2019s public plan page ourselves (August 2026): the free tier allows 5 resume scans per month with 5 findings, and paid plans run $29.98\u2013$49.95/month recurring with a 7-day trial that auto-bills. HonestCV\u2019s ATS checker is unlimited, free and browser-local.',
-    h1: 'HonestCV vs Jobscan: what its own plan page shows',
+      'We checked Jobscan\u2019s public plan page ourselves (August 2026): the free tier allows 5 resume scans per month with 5 findings, and paid plans run $29.98\u2013$49.95/month recurring with a 7-day trial that auto-bills. RezUp\u2019s ATS checker is unlimited, free and browser-local.',
+    h1: 'RezUp vs Jobscan: what its own plan page shows',
     intro:
-      'Jobscan is one of the best-known ATS match tools, and its scan-against-the-job-description concept is genuinely the right idea — it\u2019s the same core workflow our free ATS checker implements. We reviewed Jobscan\u2019s public plan page firsthand (August 2026). What it shows: the free tier is capped at 5 resume scans per month with 5 ATS & recruiter findings; unlimited scans require a paid plan at $49.95/month, or $29.98/month billed quarterly as $89.95 every 3 months; the 7-day free trial converts into a quarterly charge automatically if you don\u2019t cancel in time ("Once your trial ends, you will be billed for the next quarter"), and per its cancellation policy you lose access to paid features and the data associated with them when the subscription expires. We could not fully exercise its scanner (parts of the site block automated-looking traffic), so we make no claims about its scoring quality. HonestCV\u2019s ATS checker is unlimited and free with no account, runs entirely in your browser, and our plans are one-time purchases — currently free during beta with no card required.',
+      'Jobscan is one of the best-known ATS match tools, and its scan-against-the-job-description concept is genuinely the right idea — it\u2019s the same core workflow our free ATS checker implements. We reviewed Jobscan\u2019s public plan page firsthand (August 2026). What it shows: the free tier is capped at 5 resume scans per month with 5 ATS & recruiter findings; unlimited scans require a paid plan at $49.95/month, or $29.98/month billed quarterly as $89.95 every 3 months; the 7-day free trial converts into a quarterly charge automatically if you don\u2019t cancel in time ("Once your trial ends, you will be billed for the next quarter"), and per its cancellation policy you lose access to paid features and the data associated with them when the subscription expires. We could not fully exercise its scanner (parts of the site block automated-looking traffic), so we make no claims about its scoring quality. RezUp\u2019s ATS checker is unlimited and free with no account, runs entirely in your browser, and our plans are one-time purchases — currently free during beta with no card required.',
     bullets: [
       'Unlimited free ATS checks — Jobscan\u2019s free tier is capped at 5 scans per month',
       'No trial-to-subscription conversion: nothing to cancel, no card required — Jobscan\u2019s 7-day trial auto-bills a quarterly charge',
@@ -280,7 +280,7 @@ const GUIDES = [
       'A practical checklist for getting your resume through Applicant Tracking Systems: layout rules, keyword matching, section headings, file formats, and what to avoid.',
     h1: 'How to make your resume ATS-friendly (2026 checklist)',
     sections: [
-      ['Use a single-column layout', 'ATS parsers read top-to-bottom, left-to-right. Multi-column layouts, text boxes, tables and graphics frequently scramble the parse order or get dropped entirely. A clean single-column layout with clear headings is the safest format — it’s why every HonestCV template is single-column.'],
+      ['Use a single-column layout', 'ATS parsers read top-to-bottom, left-to-right. Multi-column layouts, text boxes, tables and graphics frequently scramble the parse order or get dropped entirely. A clean single-column layout with clear headings is the safest format — it’s why every RezUp template is single-column.'],
       ['Keep section headings standard', 'Parsers look for headings like “Experience”, “Education” and “Skills”. Creative headings (“My journey”, “What I bring”) can cause whole sections to be misfiled or skipped. Boring headings win.'],
       ['Mirror the job description’s keywords', 'Most ATS screening is keyword matching against the job posting. Paste the posting next to your resume and make sure the concrete skills and tools it names appear in yours — in the same wording. A free checker like our ATS match score shows exactly which keywords are missing.'],
       ['Export as real text, not an image', 'Your PDF must contain selectable text. Screenshots, scanned documents, or design-tool exports that flatten text to outlines are unreadable to parsers. Test: if you can’t select and copy text in your PDF, neither can the ATS.'],
@@ -306,7 +306,7 @@ const GUIDES = [
       ['Marketer example', '“Growth marketer with 4 years in B2B SaaS. Built an SEO program that grew organic signups from 200 to 2,400/month and cut CAC 38%. Seeking to own full-funnel growth at an early-stage product.”'],
       ['Career changer example', '“Former teacher transitioning to UX research after a one-year intensive program and three shipped client studies. Ran usability tests with 40+ participants; findings drove a 25% task-completion improvement. Aiming to bring classroom-honed user empathy to a product research team.”'],
       ['Mistakes that get summaries skipped', 'Buzzword strings with no evidence (“results-driven team player”), first person pronouns everywhere, restating your whole career, and one generic summary used for every application. Recruiters spend ~7 seconds here — make each word earn its place.'],
-      ['Let AI polish, not fabricate', 'An AI rewrite should tighten your real accomplishments, not invent new ones — fabricated metrics fall apart in interviews. HonestCV’s AI is explicitly constrained to never invent employers, dates, degrees or numbers.'],
+      ['Let AI polish, not fabricate', 'An AI rewrite should tighten your real accomplishments, not invent new ones — fabricated metrics fall apart in interviews. RezUp’s AI is explicitly constrained to never invent employers, dates, degrees or numbers.'],
       ['New grad example', '“Computer science graduate (May 2026) with three internships across fintech and healthtech. Built a claims-triage prototype during my capstone that the sponsor deployed to 200 internal users. Seeking a backend role where I can own services end to end.” No years-of-experience claim — internships and the capstone do the work.'],
       ['Manager example', '“Engineering manager leading a 9-person platform team for 3 years, after 5 as an SRE. Cut incident volume 60% by rebuilding the on-call and postmortem process; retained every senior engineer through two reorgs. Looking to scale reliability practices across a multi-team org.” Management summaries prove scope (team size, tenure) and people outcomes, not just technical ones.'],
       ['Sales example', '“Enterprise AE with 7 years selling data infrastructure, the last 3 at 120–140% of quota. Landed 11 new logos including two Fortune 500 accounts; average deal size $280k. Aiming to open a new territory for a technical product.” Sales summaries live on quota attainment, deal size and logo quality.'],
@@ -588,7 +588,7 @@ const GUIDES = [
       ['The hybrid that keeps the look without the risk', 'Want visual structure without parser risk? Use full-width sections with a strong heading hierarchy, a horizontal skills line under the summary, and generous white space. Banded headings give the "designed" feel while keeping one text flow.'],
       ['What recruiters think of two-column resumes', 'Mixed — some find them scannable, many find sidebars cramped at 9pt. What they agree on: they read top-to-bottom-left-to-right, so anything in a sidebar gets skimmed last or not at all. Your best evidence belongs in the main flow either way.'],
       ['If you keep two columns, build them right', 'Use real column objects (not text boxes), keep all experience — titles, employers, dates, bullets — in one column, keep contact info out of the header/footer region, export to PDF, and run the copy-paste test before every send.'],
-      ['The single-column rule we build on', 'All 22 HonestCV templates are single-column real text by design — the one layout rule that removes ATS parsing risk entirely. The visual variety comes from typography, accent color and banded headings, not from layout mechanics that parsers trip on.'],
+      ['The single-column rule we build on', 'All 22 RezUp templates are single-column real text by design — the one layout rule that removes ATS parsing risk entirely. The visual variety comes from typography, accent color and banded headings, not from layout mechanics that parsers trip on.'],
     ],
   },
   {
@@ -609,7 +609,7 @@ const GUIDES = [
       ['Consistency beats beauty', 'One font family (or one serif + one sans pairing), one body size, one date format, one bullet style. Recruiters can\u2019t articulate why a mixed-format resume feels off — but it does, and it reads as carelessness before they\u2019ve read a word.'],
       ['Print and screen both matter', 'On-site interviewers still print resumes. Check yours at 100% zoom on a laptop and as a physical printout: thin grays vanish on paper, 10pt text that looked fine on a 27-inch monitor doesn\u2019t on A4/Letter. Dark text on white remains the only safe bet.'],
       ['PDF export is where fonts break', 'Export as PDF with fonts embedded (any mainstream builder or word processor does this by default) and open the file once before sending — a substituted font shows up immediately as shifted layout. If a portal demands DOCX, stick to system fonts so the receiving machine renders what you saw.'],
-      ['Or let the template decide', 'All 22 HonestCV templates use pre-tested font pairings, sizes and margins that pass ATS parsing and print cleanly — with S/M/L text and spacing controls inside the safe ranges, so you can compress to one page without breaking the rules above.'],
+      ['Or let the template decide', 'All 22 RezUp templates use pre-tested font pairings, sizes and margins that pass ATS parsing and print cleanly — with S/M/L text and spacing controls inside the safe ranges, so you can compress to one page without breaking the rules above.'],
     ],
   },
   {
@@ -757,7 +757,7 @@ const GUIDES = [
       ['When they genuinely help', 'Three cases: you are early-career and the page is thin; the interest demonstrates a job-relevant capability (a marathon for discipline-heavy roles, open-source contributions for engineering, a 10k-follower channel for marketing); or the employer signals culture fit matters (startups, mission-driven orgs, roles naming the interest).'],
       ['Pick interests with evidence, not adjectives', 'Treat an interest like a bullet: concrete and verifiable. “Chess — competitive player, 1800 rating” or “Volunteer tax preparer, 3 seasons” beats “strategy games” and “volunteering”. If you cannot attach a fact, it is filler.'],
       ['Interests that backfire', 'Anything polarizing (politics, religion — unless applying to an aligned organization), anything risky-sounding for the role, and long lists of passive consumption (watching series, browsing social media). One or two strong items maximum.'],
-      ['How to format the section', 'One line at the very bottom, labeled “Interests”, comma-separated. Never above skills or experience, never with icons or graphics that break ATS parsing. In HonestCV, a one-line custom section keeps it parseable in both the PDF and DOCX export.'],
+      ['How to format the section', 'One line at the very bottom, labeled “Interests”, comma-separated. Never above skills or experience, never with icons or graphics that break ATS parsing. In RezUp, a one-line custom section keeps it parseable in both the PDF and DOCX export.'],
       ['The test before you keep it', 'Ask: would a hiring manager reading only this line learn something that helps them say yes? If not, cut it and let your experience do the talking.'],
       ['Hobbies vs interests vs activities', 'Recruiters read them the same way, but “Activities” earns its place most often: it implies participation with outcomes (club leadership, organized events, competitions) rather than passive preference. If your items are genuinely activities, label them that.'],
       ['Interests by industry', 'Conservative fields (law, banking, government) expect none — cut the section. Creative and consumer-facing fields tolerate one strong line. Early-stage startups sometimes read interests as culture signal; check whether the posting or careers page mentions any.'],
@@ -791,15 +791,15 @@ const GUIDES = [
     sections: [
       ['The default: text-based PDF', 'PDF locks your layout on every device and every ATS that will ever open it, and modern parsers read text-based PDFs reliably. Unless the posting says otherwise, export PDF. The one hard requirement: the text must be selectable — if you can’t copy a line out of your own PDF, a parser can’t read it either.'],
       ['When DOCX is the right answer', 'Some agency workflows, government portals and older enterprise ATS explicitly request Word files, and a few portals re-render resumes into their own template from DOCX. When the posting names .doc/.docx, send a real DOCX export — never a PDF renamed to .docx; the extension must match the actual format or the upload fails validation.'],
-      ['When plain text wins', 'Application form fields ("paste your resume here"), some job-board quick-apply flows, and email bodies where attachments are refused. Keep a .txt version with standard headings, hyphen bullets, and one blank line between sections — it pastes cleanly anywhere. HonestCV exports TXT alongside PDF and DOCX for exactly this.'],
+      ['When plain text wins', 'Application form fields ("paste your resume here"), some job-board quick-apply flows, and email bodies where attachments are refused. Keep a .txt version with standard headings, hyphen bullets, and one blank line between sections — it pastes cleanly anywhere. RezUp exports TXT alongside PDF and DOCX for exactly this.'],
       ['Formats to never send', 'Pages, ODT, RTF, HTML, PNG/JPG screenshots, and Canva/design-tool exports that flatten text into curves. Every one of them either fails to open on the reviewer’s machine or parses as an empty document. If your resume lives in a design tool, re-create it in a text-first editor before applying.'],
-      ['Fonts and embedding', 'Stick to widely available fonts (system fonts or embedded standard faces). A PDF with non-embedded exotic fonts renders as tofu boxes on machines without them; a DOCX with a missing font silently reflows and can push your resume to a second page. Every HonestCV template uses embedded, parser-safe fonts.'],
+      ['Fonts and embedding', 'Stick to widely available fonts (system fonts or embedded standard faces). A PDF with non-embedded exotic fonts renders as tofu boxes on machines without them; a DOCX with a missing font silently reflows and can push your resume to a second page. Every RezUp template uses embedded, parser-safe fonts.'],
       ['File naming', '"Maya-Chen-Resume.pdf": your name, the word resume, nothing else. No dates, versions, or "final_v3 (2)". The filename appears in the recruiter’s ATS and download folder — it should identify you, not your revision history.'],
       ['File size', 'Keep it under 1–2 MB. Text-based exports are naturally tiny (tens of KB); a multi-megabyte resume almost always means embedded photos or scans — both of which you should remove anyway. Some portals hard-reject uploads over 2 MB.'],
       ['One column, whatever the format', 'Format choice can’t rescue a layout parsers can’t read. Tables, text boxes and multi-column designs scramble in every format; a clean single-column structure survives PDF, DOCX and plain text alike. Choose structure first, format second.'],
       ['The renamed-extension trap', 'Renaming resume.pdf to resume.docx (or vice versa) is the single most common upload failure: the portal checks the real file signature, not the name. Always export to the requested format from your editor.'],
       ['Test what the parser sees', 'Copy-paste your exported file into a plain-text editor. If your sections come out in order, with readable headings, dates and bullets, an ATS will cope. Our free ATS checker parses your actual PDF or DOCX in the browser and shows exactly what was extracted.'],
-      ['Keep all three exports in sync', 'The dangerous state is a PDF that says one thing and a DOCX that says another. Regenerate every format from the same source after each edit — in HonestCV all exports render from the same data, so they can’t drift.'],
+      ['Keep all three exports in sync', 'The dangerous state is a PDF that says one thing and a DOCX that says another. Regenerate every format from the same source after each edit — in RezUp all exports render from the same data, so they can’t drift.'],
       ['The decision in one line', 'PDF by default · DOCX only when explicitly requested · plain text for paste-in forms · never images or design-tool exports · name the file after yourself · test the parse before you send.'],
     ],
   },
@@ -988,7 +988,7 @@ const GUIDES = [
       ['Name the promotion explicitly', 'A bullet like "Promoted to Senior Analyst after 14 months, one review cycle early" removes any ambiguity a parser or a skimming recruiter might have. If the title change was a reorg rather than a promotion, don\u2019t call it one — title inflation fails the reference check.'],
       ['Lateral moves and reorgs', 'Sideways moves still show trust and range. Frame them by what changed: new product line, new region, new stack. If your title changed only because departments merged, one entry with both titles ("Analyst, Marketing (formerly Insights)") is honest and saves space.'],
       ['Contract-to-hire and returning employees', 'Converted contractor: one stacked entry, first title marked "(contract)". Boomerang employee: separate entries with honest dates — the return itself is a selling point ("rehired to lead the team I trained in").'],
-      ['How HonestCV handles it', 'In the builder, create one experience entry per role and keep the company name identical — parsers and recruiters both read the repetition correctly. Use the duplicate button on an entry to copy the company details, then change the title, dates, and bullets for the earlier role.'],
+      ['How RezUp handles it', 'In the builder, create one experience entry per role and keep the company name identical — parsers and recruiters both read the repetition correctly. Use the duplicate button on an entry to copy the company details, then change the title, dates, and bullets for the earlier role.'],
       ['The honesty check', 'Every title, every date range, and the word "promoted" must survive an HR verification call. Merging two roles into one senior title, stretching a senior role\u2019s dates over the junior years, or upgrading titles "because that\u2019s what the work really was" are the resume lies that surface fastest.'],
     ],
   },
@@ -1010,7 +1010,7 @@ const GUIDES = [
       ['LinkedIn is where your face belongs', 'US and UK recruiters look you up anyway, and LinkedIn is the venue built for a photo — no legal exposure for the employer, no space cost for you. A strong headshot there does the entire job a resume photo would, which is why the omission costs you nothing.'],
       ['What to put in that space instead', 'A three-line professional summary, a metrics band ("8 years · 40M requests/day · 6 engineers mentored"), or a skills row. Anything that answers "why you" outperforms a face — no screener ever advanced a candidate because the photo looked competent.'],
       ['Other personal details to leave off', 'Same reasoning applies to date of birth, marital status, nationality, religion, and a full street address in US/UK applications, even though several are standard on a German Lebenslauf or a Chinese resume. Match the destination market, not your habit.'],
-      ['How HonestCV handles it', 'Every HonestCV template is text-only and single-column by default — no photo slot, because the market we serve mostly penalizes them and because image-driven layouts are what break ATS parsing. If you are applying into a photo market, export DOCX and add the headshot in your word processor rather than fighting the parser with an image-heavy template.'],
+      ['How RezUp handles it', 'Every RezUp template is text-only and single-column by default — no photo slot, because the market we serve mostly penalizes them and because image-driven layouts are what break ATS parsing. If you are applying into a photo market, export DOCX and add the headshot in your word processor rather than fighting the parser with an image-heavy template.'],
     ],
   },
 ]
@@ -1084,7 +1084,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/classic',
     name: 'Classic',
-    title: 'Classic ATS Resume Template — Free to Use Online | HonestCV',
+    title: 'Classic ATS Resume Template — Free to Use Online | RezUp',
     description:
       'A timeless single-column resume template with serif headings — the safest format for ATS parsers and conservative industries. Use it free in your browser.',
     blurb: 'The Classic template uses a traditional serif-accented layout that reads instantly to both ATS parsers and human recruiters. Best for finance, law, government, and any conservative industry where familiarity signals professionalism.',
@@ -1092,7 +1092,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/modern',
     name: 'Modern',
-    title: 'Modern ATS Resume Template — Free to Use Online | HonestCV',
+    title: 'Modern ATS Resume Template — Free to Use Online | RezUp',
     description:
       'A clean modern resume template with an accent color and clear hierarchy — still strictly single-column and ATS-safe. Use it free in your browser.',
     blurb: 'The Modern template adds a restrained accent color and contemporary typography while staying strictly single-column. Best for tech, product, marketing and startup roles where a current look matters.',
@@ -1100,7 +1100,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/compact',
     name: 'Compact',
-    title: 'Compact One-Page Resume Template — Free to Use Online | HonestCV',
+    title: 'Compact One-Page Resume Template — Free to Use Online | RezUp',
     description:
       'A space-efficient resume template that fits more experience on one page without sacrificing ATS readability. Use it free in your browser.',
     blurb: 'The Compact template tightens spacing and type size to fit senior-level experience on a single page — without tables or columns that break parsers. Best for experienced candidates told their resume is “too long”.',
@@ -1108,7 +1108,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/executive',
     name: 'Executive',
-    title: 'Executive Resume Template — Free to Use Online | HonestCV',
+    title: 'Executive Resume Template — Free to Use Online | RezUp',
     description:
       'An authoritative resume template with strong headings for leadership roles — single-column and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Executive template uses commanding headings and generous whitespace to frame leadership scope and outcomes. Best for director, VP and C-level applications where gravitas counts.',
@@ -1116,7 +1116,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/minimal',
     name: 'Minimal',
-    title: 'Minimal ATS Resume Template — Free to Use Online | HonestCV',
+    title: 'Minimal ATS Resume Template — Free to Use Online | RezUp',
     description:
       'A whitespace-first, left-aligned resume template with no dividers — quiet, modern and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Minimal template strips away rules and ornament, letting a left-aligned header and clean typography carry the design. Best for design, product and modern tech roles where restraint reads as confidence.',
@@ -1124,7 +1124,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/bold',
     name: 'Bold',
-    title: 'Bold ATS Resume Template — Free to Use Online | HonestCV',
+    title: 'Bold ATS Resume Template — Free to Use Online | RezUp',
     description:
       'A high-contrast resume template with strong headings and thick rules — memorable but still single-column and ATS-safe. Use it free in your browser.',
     blurb: 'The Bold template pairs an uppercase name with thick section rules so your resume stands out in a printed stack — while staying strictly single-column for parsers. Best for sales, marketing and client-facing roles.',
@@ -1132,7 +1132,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/elegant',
     name: 'Elegant',
-    title: 'Elegant Serif Resume Template — Free to Use Online | HonestCV',
+    title: 'Elegant Serif Resume Template — Free to Use Online | RezUp',
     description:
       'A refined serif resume template with a left-aligned header and fine rules — polished, formal and ATS-parseable. Use it free in your browser.',
     blurb: 'The Elegant template combines refined serif typography with a left-aligned header and fine dividers for a polished, formal impression. Best for consulting, academia, publishing and client advisory roles.',
@@ -1140,7 +1140,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/engineer',
     name: 'Engineer',
-    title: 'Engineer Resume Template — Free to Use Online | HonestCV',
+    title: 'Engineer Resume Template — Free to Use Online | RezUp',
     description:
       'A no-nonsense sans-serif resume template built for technical resumes — dense, scannable and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Engineer template is built for technical resumes: a compact left-aligned header, clear section rules and typography that keeps dense skill lists scannable. Best for software, data, DevOps and hardware roles.',
@@ -1148,7 +1148,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/ivy',
     name: 'Ivy',
-    title: 'Ivy Academic Resume Template — Free to Use Online | HonestCV',
+    title: 'Ivy Academic Resume Template — Free to Use Online | RezUp',
     description:
       'An academic serif resume template in deep green — polished, traditional and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Ivy template pairs classic serif typography with a deep green accent for a scholarly, high-trust impression. Best for consulting, graduate-school applications, research and policy roles.',
@@ -1156,7 +1156,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/slate',
     name: 'Slate',
-    title: 'Slate Resume Template — Free to Use Online | HonestCV',
+    title: 'Slate Resume Template — Free to Use Online | RezUp',
     description:
       'A cool gray sans-serif resume template with strong section rules — calm, modern and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Slate template uses a muted gray palette and thick rules to read as calm and confident without shouting. Best for operations, program management and enterprise roles.',
@@ -1164,7 +1164,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/corporate',
     name: 'Corporate',
-    title: 'Corporate Resume Template — Free to Use Online | HonestCV',
+    title: 'Corporate Resume Template — Free to Use Online | RezUp',
     description:
       'A formal serif resume template with a commanding uppercase name — built for finance and law, fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Corporate template centers an uppercase name over formal serif body text with strong rules — the traditional look banking, law and accounting recruiters expect, in a parser-safe single column.',
@@ -1172,7 +1172,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/startup',
     name: 'Startup',
-    title: 'Startup Resume Template — Free to Use Online | HonestCV',
+    title: 'Startup Resume Template — Free to Use Online | RezUp',
     description:
       'An energetic resume template with an orange accent and no rules — modern, friendly and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Startup template drops divider rules entirely and leads with a warm orange accent for a modern, product-minded feel. Best for product, growth and early-stage startup roles.',
@@ -1180,7 +1180,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/horizon',
     name: 'Horizon',
-    title: 'Horizon Resume Template — Free to Use Online | HonestCV',
+    title: 'Horizon Resume Template — Free to Use Online | RezUp',
     description:
       'A modern resume template with teal heading bands that make sections easy to scan — real text only, fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Horizon template puts each section heading on a soft teal band so recruiters can jump between sections at a glance — the band is a background behind real text, so parsers read it cleanly. Best for tech, data and modern professional roles.',
@@ -1188,7 +1188,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/metro',
     name: 'Metro',
-    title: 'Metro Resume Template — Free to Use Online | HonestCV',
+    title: 'Metro Resume Template — Free to Use Online | RezUp',
     description:
       'A structured resume template with blue banded headings and a centered header — clean, organized and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Metro template pairs a centered header with blue heading bands for a clean, highly organized look. Best for business analysts, project managers and corporate roles that value structure.',
@@ -1196,7 +1196,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/scholar',
     name: 'Scholar',
-    title: 'Scholar Resume Template — Free to Use Online | HonestCV',
+    title: 'Scholar Resume Template — Free to Use Online | RezUp',
     description:
       'A serif resume template with warm banded headings — scholarly, warm and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Scholar template combines classic serif typography with warm banded headings for an approachable academic feel. Best for research, teaching, grant-funded and library roles.',
@@ -1204,7 +1204,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/ink',
     name: 'Ink',
-    title: 'Ink Resume Template — Free to Use Online | HonestCV',
+    title: 'Ink Resume Template — Free to Use Online | RezUp',
     description:
       'A maximum-contrast resume template with near-black heading bands and an uppercase name — striking and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Ink template uses near-black heading bands and an uppercase name for the highest-contrast look in the set — memorable in a printed stack while staying strictly single-column. Best for design, media and brand-forward roles.',
@@ -1212,7 +1212,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/coral',
     name: 'Coral',
-    title: 'Coral Resume Template — Free to Use Online | HonestCV',
+    title: 'Coral Resume Template — Free to Use Online | RezUp',
     description:
       'A friendly resume template with a warm rose accent and no rules — approachable, modern and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Coral template softens the page with a warm rose accent and no divider rules for an approachable, people-first impression. Best for HR, customer success, teaching and community roles.',
@@ -1220,7 +1220,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/atlas',
     name: 'Atlas',
-    title: 'Atlas Resume Template — Free to Use Online | HonestCV',
+    title: 'Atlas Resume Template — Free to Use Online | RezUp',
     description:
       'A deep navy serif resume template with strong rules — established, global and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Atlas template projects an established, international feel with deep navy serif headings and strong rules. Best for consulting, supply chain, policy and multinational corporate roles.',
@@ -1228,7 +1228,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/prairie',
     name: 'Prairie',
-    title: 'Prairie Resume Template — Free to Use Online | HonestCV',
+    title: 'Prairie Resume Template — Free to Use Online | RezUp',
     description:
       'A calm resume template with an earthy green accent and fine rules — grounded, readable and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Prairie template reads calm and grounded with an earthy green accent and fine rules. Best for healthcare, education, nonprofit and public-sector roles.',
@@ -1236,7 +1236,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/quartz',
     name: 'Quartz',
-    title: 'Quartz Resume Template — Free to Use Online | HonestCV',
+    title: 'Quartz Resume Template — Free to Use Online | RezUp',
     description:
       'A quiet gray serif resume template with no rules — understated, refined and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Quartz template lets restrained gray serif typography carry the page with no rules at all — quiet confidence for readers who notice typography. Best for editorial, communications and senior individual-contributor roles.',
@@ -1244,7 +1244,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/ruby',
     name: 'Ruby',
-    title: 'Ruby Resume Template — Free to Use Online | HonestCV',
+    title: 'Ruby Resume Template — Free to Use Online | RezUp',
     description:
       'A formal serif resume template with deep red banded headings — confident, traditional and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Ruby template pairs formal serif body text with deep red heading bands — traditional with a confident edge. Best for law, government affairs and executive-adjacent roles.',
@@ -1252,7 +1252,7 @@ const TEMPLATE_PAGES = [
   {
     path: '/templates/cobalt',
     name: 'Cobalt',
-    title: 'Cobalt Resume Template — Free to Use Online | HonestCV',
+    title: 'Cobalt Resume Template — Free to Use Online | RezUp',
     description:
       'An assertive resume template with indigo accents, thick rules and an uppercase name — modern and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Cobalt template combines indigo accents, thick rules and an uppercase name for an assertive, modern presence. Best for product, sales engineering and go-to-market roles.',
@@ -1332,7 +1332,7 @@ function page(p) {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
-    name: 'HonestCV',
+    name: 'RezUp',
     url: canonical,
     applicationCategory: 'BusinessApplication',
     description: p.description,
@@ -1354,7 +1354,7 @@ function page(p) {
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="HonestCV" />
+<meta property="og:site_name" content="RezUp" />
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
@@ -1368,7 +1368,7 @@ ${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
-<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
@@ -1383,13 +1383,13 @@ ${p.path.startsWith('/vs/') ? '<p style="color:var(--muted);font-size:.85rem">Co
 <a class="btn" href="${p.cta ?? '/builder'}">${esc(p.ctaLabel ?? 'Start free — no sign-up')}</a>
 </div>
 <div class="related">
-<h2>More from HonestCV</h2>
+<h2>More from RezUp</h2>
 <ul>
 ${related.map((r) => `<li><a href="${r.path}">${esc(r.title.split(' — ')[0])}</a></li>`).join('\n')}
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · Pay once, own it forever. Your resume stays in your browser. · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · Pay once, own it forever. Your resume stays in your browser. · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -1397,10 +1397,10 @@ ${related.map((r) => `<li><a href="${r.path}">${esc(r.title.split(' — ')[0])}<
 const LEGAL_PAGES = [
   {
     path: '/terms',
-    title: 'Terms & Refunds — HonestCV',
+    title: 'Terms & Refunds — RezUp',
     h1: 'Terms & refund policy',
     sections: [
-      ['What you buy', 'HonestCV sells one-time licenses: Single Resume ($9.99) unlocks unlimited AI rewrites plus PDF and DOCX downloads; Career Bundle ($19.99) adds the AI cover letter and interview prep tools. There is no subscription, no auto-renewal, and nothing to cancel — ever.'],
+      ['What you buy', 'RezUp sells one-time licenses: Single Resume ($9.99) unlocks unlimited AI rewrites plus PDF and DOCX downloads; Career Bundle ($19.99) adds the AI cover letter and interview prep tools. There is no subscription, no auto-renewal, and nothing to cancel — ever.'],
       ['Payments', 'Payments are processed by our merchant of record (Lemon Squeezy), which handles billing, receipts, and applicable taxes. We never see or store your card details.'],
       ['Refunds', 'Not happy for any reason within 14 days of purchase? Email us with the order number from your receipt and we will refund you in full — no questions, no hoops.'],
       ['License', 'Your license key works in any browser and is valid for 10 years. It covers personal use of your own resumes and cover letters; the documents you create are entirely yours.'],
@@ -1409,7 +1409,7 @@ const LEGAL_PAGES = [
   },
   {
     path: '/privacy',
-    title: 'Privacy — HonestCV',
+    title: 'Privacy — RezUp',
     h1: 'Privacy policy',
     sections: [
       ['Your resume stays in your browser', 'Resume content is stored in your browser\u2019s localStorage. We have no user accounts and no resume database — clearing your browser data deletes your resume from existence.'],
@@ -1433,7 +1433,7 @@ function legalPage(p) {
 <meta name="description" content="${esc(p.sections[0][1])}" />
 <link rel="canonical" href="${canonical}" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="HonestCV" />
+<meta property="og:site_name" content="RezUp" />
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.sections[0][1])}" />
 <meta property="og:url" content="${canonical}" />
@@ -1444,14 +1444,14 @@ ${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
-<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
 <h1>${esc(p.h1)}</h1>
 ${p.sections.map(([h, t]) => `<h2 style="margin-top:1.5rem;font-size:1.125rem">${esc(h)}</h2>\n<p class="lede" style="font-size:1rem">${esc(t)}</p>`).join('\n')}
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -1473,13 +1473,13 @@ for (const p of LEGAL_PAGES) {
 // About & press page — brand story + media kit
 function aboutPage() {
   const canonical = `${SITE}/about`
-  const title = 'About HonestCV — The Resume Builder With No Subscription Traps'
+  const title = 'About RezUp — The Resume Builder With No Subscription Traps'
   const description =
-    'HonestCV is a browser-local resume builder: ATS-safe templates, free ATS match scoring, AI that never invents your experience, and one-time pricing. Our story, plus a press kit.'
+    'RezUp is a browser-local resume builder: ATS-safe templates, free ATS match scoring, AI that never invents your experience, and one-time pricing. Our story, plus a press kit.'
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'HonestCV',
+    name: 'RezUp',
     url: SITE,
     logo: `${SITE}/favicon.svg`,
     description,
@@ -1494,7 +1494,7 @@ function aboutPage() {
 <meta name="description" content="${esc(description)}" />
 <link rel="canonical" href="${canonical}" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="HonestCV" />
+<meta property="og:site_name" content="RezUp" />
 <meta property="og:title" content="${esc(title)}" />
 <meta property="og:description" content="${esc(description)}" />
 <meta property="og:url" content="${canonical}" />
@@ -1506,12 +1506,12 @@ ${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
-<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
-<h1>About HonestCV</h1>
-<p class="lede">The resume-builder category monetizes desperation: a ~$2 “trial” that quietly converts into a ~$25/month subscription, free tiers that watermark exports or lock the useful report behind a paywall, and AI writers that invent metrics a candidate never achieved. “Zety charged me” is one of the most-searched complaints in the category. HonestCV is built as the counter-example.</p>
+<h1>About RezUp</h1>
+<p class="lede">The resume-builder category monetizes desperation: a ~$2 “trial” that quietly converts into a ~$25/month subscription, free tiers that watermark exports or lock the useful report behind a paywall, and AI writers that invent metrics a candidate never achieved. “Zety charged me” is one of the most-searched complaints in the category. RezUp is built as the counter-example.</p>
 <h2 style="margin-top:1.5rem;font-size:1.125rem">What we promise</h2>
 <ul class="features">
 <li>Your resume lives in your browser — no account, no resume database</li>
@@ -1521,18 +1521,18 @@ ${FP_BEACON}
 <li>One-time pricing ($9.99 / $19.99) — no subscription, nothing to cancel. Currently free during beta.</li>
 </ul>
 <h2 style="margin-top:1.5rem;font-size:1.125rem">How we compare</h2>
-<p class="lede" style="font-size:1rem">We sign up for competitors and run their full flows ourselves, then publish dated, first-hand comparisons: <a href="/vs/">HonestCV vs other resume builders</a>. We also publish <a href="/guides/">free resume guides</a> and a shareable <a href="/ats-checker">ATS checker</a>.</p>
+<p class="lede" style="font-size:1rem">We sign up for competitors and run their full flows ourselves, then publish dated, first-hand comparisons: <a href="/vs/">RezUp vs other resume builders</a>. We also publish <a href="/guides/">free resume guides</a> and a shareable <a href="/ats-checker">ATS checker</a>.</p>
 <h2 style="margin-top:1.5rem;font-size:1.125rem">Press kit</h2>
-<p class="lede" style="font-size:1rem">Boilerplate: “HonestCV is a browser-local resume builder for job seekers: 22 ATS-safe templates, a free ATS match score against any pasted job description, per-line AI tailoring that refuses to fabricate facts, and real text-based PDF/DOCX export — with one-time pricing instead of a subscription.”</p>
+<p class="lede" style="font-size:1rem">Boilerplate: “RezUp is a browser-local resume builder for job seekers: 22 ATS-safe templates, a free ATS match score against any pasted job description, per-line AI tailoring that refuses to fabricate facts, and real text-based PDF/DOCX export — with one-time pricing instead of a subscription.”</p>
 <ul class="features">
 <li>Logo (SVG): <a href="/favicon.svg">cv.zalize.com/favicon.svg</a></li>
 <li>Social/OG image: <a href="/og2.png">cv.zalize.com/og2.png</a></li>
-<li>Name: “HonestCV” — one word, capital H and CV</li>
+<li>Name: “RezUp” — one word, capital H and CV</li>
 <li>Contact: reply to any receipt email, or via the parent site zalize.com</li>
 </ul>
 <p class="lede" style="font-size:1rem">Sister products, same promise: <a href="https://qr.zalize.com">HonestQR</a>, <a href="https://pdf.zalize.com">HonestPDF</a>, <a href="https://subsleuth.zalize.com">SubSleuth</a>.</p>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/about">About</a> · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/about">About</a> · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -1554,8 +1554,8 @@ function guidePage(p) {
     url: canonical,
     mainEntityOfPage: canonical,
     dateModified: new Date().toISOString().slice(0, 10),
-    author: { '@type': 'Organization', name: 'HonestCV', url: SITE },
-    publisher: { '@type': 'Organization', name: 'HonestCV', url: SITE },
+    author: { '@type': 'Organization', name: 'RezUp', url: SITE },
+    publisher: { '@type': 'Organization', name: 'RezUp', url: SITE },
   }
   // 4 neighbouring guides (wrap-around) + comparisons hub — a focused list
   // of direct links (trailing slash avoids a 307 per click/crawl)
@@ -1565,7 +1565,7 @@ function guidePage(p) {
     .map((g) => ({ path: `${g.path}/`, title: g.title }))
     .concat([
       { path: '/examples/', title: 'Resume examples by role' },
-      { path: '/vs/', title: 'HonestCV vs other resume builders' },
+      { path: '/vs/', title: 'RezUp vs other resume builders' },
     ])
   return `<!doctype html>
 <html lang="en">
@@ -1577,7 +1577,7 @@ function guidePage(p) {
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="HonestCV" />
+<meta property="og:site_name" content="RezUp" />
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
@@ -1590,7 +1590,7 @@ ${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
-<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
@@ -1603,7 +1603,7 @@ ${p.sections.map(([h]) => `<li><a href="#${anchorId(h)}">${esc(h)}</a></li>`).jo
 </nav>
 ${p.sections.map(([h, t]) => `<h2 id="${anchorId(h)}" style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
 <div class="cta">
-<p>${FREE_MODE ? 'Put this into practice — HonestCV is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'Put this into practice — the HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
+<p>${FREE_MODE ? 'Put this into practice — RezUp is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'Put this into practice — the RezUp builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
 <a class="btn" href="/builder">Start building free</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 <div class="related">
@@ -1613,7 +1613,7 @@ ${related.map((r) => `<li><a href="${r.path}">${esc(r.title.split(' — ')[0])}<
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -1631,7 +1631,7 @@ function templatePage(p) {
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="HonestCV" />
+<meta property="og:site_name" content="RezUp" />
 <meta property="og:title" content="${esc(p.title)}" />
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
@@ -1643,7 +1643,7 @@ ${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
-<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 <a class="btn" href="/builder?template=${p.path.split('/').pop()}">Use this template free</a>
 </div></header>
 <main>
@@ -1668,7 +1668,7 @@ ${others.map((t) => `<li><a href="${t.path}/">${esc(t.name)} resume template</a>
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -1720,7 +1720,7 @@ function hubPage({ pathname, title, description, h1, intro, items }) {
 <meta name="description" content="${esc(description)}" />
 <link rel="canonical" href="${canonical}" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="HonestCV" />
+<meta property="og:site_name" content="RezUp" />
 <meta property="og:title" content="${esc(title)}" />
 <meta property="og:description" content="${esc(description)}" />
 <meta property="og:url" content="${canonical}" />
@@ -1732,7 +1732,7 @@ ${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
-<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
@@ -1740,11 +1740,11 @@ ${FP_BEACON}
 <p class="lede">${esc(intro)}</p>
 ${renderHubItems(items)}
 <div class="cta">
-<p>${FREE_MODE ? 'HonestCV is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The HonestCV builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
+<p>${FREE_MODE ? 'RezUp is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The RezUp builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
 <a class="btn" href="/builder">Start building free</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -2996,8 +2996,8 @@ function examplePage(p) {
     url: canonical,
     mainEntityOfPage: canonical,
     dateModified: new Date().toISOString().slice(0, 10),
-    author: { '@type': 'Organization', name: 'HonestCV', url: SITE },
-    publisher: { '@type': 'Organization', name: 'HonestCV', url: SITE },
+    author: { '@type': 'Organization', name: 'RezUp', url: SITE },
+    publisher: { '@type': 'Organization', name: 'RezUp', url: SITE },
   }
   const ei = EXAMPLES.findIndex((e) => e.slug === p.slug)
   const related = [1, 2, 3]
@@ -3037,12 +3037,12 @@ ${per.experience
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>${esc(p.role)} Resume Example (2026) — HonestCV</title>
+<title>${esc(p.role)} Resume Example (2026) — RezUp</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="HonestCV" />
-<meta property="og:title" content="${esc(p.role)} Resume Example (2026) — HonestCV" />
+<meta property="og:site_name" content="RezUp" />
+<meta property="og:title" content="${esc(p.role)} Resume Example (2026) — RezUp" />
 <meta property="og:description" content="${esc(p.description)}" />
 <meta property="og:url" content="${canonical}" />
 <meta property="og:image" content="${SITE}/og2.png" />
@@ -3063,7 +3063,7 @@ ${FP_BEACON}
 </head>
 <body>
 <header class="site"><div class="in">
-<a class="brand" href="/"><img src="/favicon.svg" alt="" />HonestCV</a>
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
@@ -3073,7 +3073,7 @@ ${doc}
 <p style="color:var(--muted);font-size:.8rem">Fictional example for illustration — names, employers and numbers are invented, but every bullet follows the honest formula: action + scope + verifiable result. Never copy claims you can't defend in an interview.</p>
 ${p.tips.map(([h, t]) => `<h2 style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
 <div class="cta">
-<p>${FREE_MODE ? 'Build yours in the same clean, ATS-safe layout — HonestCV is free during beta: 22 templates, AI rewrites of your real experience, ATS match score and PDF/DOCX downloads.' : 'Build yours in the same clean, ATS-safe layout — free to try, one-time $9.99 download, no subscription.'}</p>
+<p>${FREE_MODE ? 'Build yours in the same clean, ATS-safe layout — RezUp is free during beta: 22 templates, AI rewrites of your real experience, ATS match score and PDF/DOCX downloads.' : 'Build yours in the same clean, ATS-safe layout — free to try, one-time $9.99 download, no subscription.'}</p>
 <a class="btn" href="/builder?example=${p.slug}">Edit this example in the builder</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 <div class="related">
@@ -3087,7 +3087,7 @@ ${guideLinks.map((r) => `<li><a href="${r.path}">${esc(r.title)}</a></li>`).join
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} HonestCV · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -3217,17 +3217,17 @@ function groupedVsItems() {
 const HUBS = [
   {
     pathname: '/vs/',
-    title: 'HonestCV vs Other Resume Builders — First-Hand Comparisons',
+    title: 'RezUp vs Other Resume Builders — First-Hand Comparisons',
     description:
-      'How HonestCV compares to Zety, Resume.io, Rezi, Teal, Kickresume and other resume builders — based on our own first-hand tests, with pricing and free-tier limits documented.',
-    h1: 'HonestCV vs other resume builders',
+      'How RezUp compares to Zety, Resume.io, Rezi, Teal, Kickresume and other resume builders — based on our own first-hand tests, with pricing and free-tier limits documented.',
+    h1: 'RezUp vs other resume builders',
     intro:
       'We sign up for competitors and run their full flows ourselves — build a resume, use the AI, check the ATS score, try to export — then document what the free tier actually allows and what the subscription really costs. No secondhand claims.',
     items: groupedVsItems(),
   },
   {
     pathname: '/guides/',
-    title: 'Resume Guides — Honest, Practical Advice for 2026 | HonestCV',
+    title: 'Resume Guides — Practical Advice for 2026 | RezUp',
     description:
       'Free resume guides: ATS formatting, keywords, summaries, action verbs, employment gaps, tailoring to job descriptions, remote-job resumes and more.',
     h1: 'Resume guides',
@@ -3237,7 +3237,7 @@ const HUBS = [
   },
   {
     pathname: '/examples/',
-    title: 'Resume Examples by Role (2026) — HonestCV',
+    title: 'Resume Examples by Role (2026) — RezUp',
     description:
       '30 complete, honest resume examples by role: software engineer, DevOps, UX designer, nurse, paralegal, pharmacy technician, construction PM and more — with tips to adapt each one.',
     h1: 'Resume examples by role',
@@ -3247,12 +3247,12 @@ const HUBS = [
   },
   {
     pathname: '/templates/',
-    title: 'ATS-Friendly Resume Templates (Free) — HonestCV',
+    title: 'ATS-Friendly Resume Templates (Free) — RezUp',
     description:
-      'All 22 HonestCV resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Fully included free during beta — no account, no subscription.',
+      'All 22 RezUp resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Fully included free during beta — no account, no subscription.',
     h1: 'ATS-friendly resume templates',
     intro:
-      'Every HonestCV template follows one rule: strictly single-column real text, the layout ATS parsers read most reliably. Pick a look below — you can switch templates any time without retyping.',
+      'Every RezUp template follows one rule: strictly single-column real text, the layout ATS parsers read most reliably. Pick a look below — you can switch templates any time without retyping.',
     items: groupedTemplateItems(),
   },
 ]
@@ -3332,7 +3332,7 @@ writeFileSync(
 console.log('built sitemap.xml + robots.txt')
 
 // llms.txt — a curated site map for AI assistants (https://llmstxt.org)
-const llms = `# HonestCV
+const llms = `# RezUp
 
 > ATS-friendly resume builder with a one-time-payment model ($9.99/$19.99 once; every plan currently free during beta): 22 single-column templates, live preview, free ATS match score against any pasted job description, real text-based PDF and DOCX export. No account — resume data stays in the user's browser (localStorage). No subscription, no auto-renewal, no trial trap.
 
