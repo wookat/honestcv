@@ -1,4 +1,4 @@
-# HonestCV Round 3 (PR #8, version 4c106ab1) — Live Test Plan
+# RezUp Round 3 (PR #8, version 4c106ab1) — Live Test Plan
 
 Live at cv.zalize.com; hard refresh first (stale-bundle pitfall). NO AI buttons. Recorded run.
 Code evidence: src/lib/templates.ts (8 TEMPLATES; minimal/bold/elegant/engineer have headerAlign:'left'; bold nameCase:'upper', accent #1d4ed8, divider 'thick'), ResumePreview.tsx L39-44 (text-left + toUpperCase), pdf.ts/docx.ts honor same flags, AtsChecker.tsx L111-131 (Keyword match X/100 when keywordScore!==null, Structure Y/100 always, hint when no JD), scripts/build-seo.mjs (+4 /templates pages).

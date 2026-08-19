@@ -10,7 +10,7 @@ Code evidence (135ef4c): Paywall.tsx L274+ (privacy paragraph + /privacy/ link),
 - /ats-checker: "see an example score" → expand "What do these scores mean?" → new li "How it's combined — overall score = keyword match ×70% + structure ×30%…". Fail: only 3 items (Keyword match/Structure/What to do).
 
 ## 2. P2① email-gate privacy (Builder → PDF without honestcv.subscribed)
-- Remove `honestcv.subscribed` from localStorage, click PDF. Dialog shows existing "One email, all downloads…" AND new paragraph "What we send: occasional HonestCV product updates only (a few per year). Your email is never sold or shared, and your resume never leaves this browser." with underlined "Privacy policy" link → href /privacy/ and clicking it opens the privacy page (200, heading visible). Fail: only the old single footer paragraph.
+- Remove `honestcv.subscribed` from localStorage, click PDF. Dialog shows existing "One email, all downloads…" AND new paragraph "What we send: occasional RezUp product updates only (a few per year). Your email is never sold or shared, and your resume never leaves this browser." with underlined "Privacy policy" link → href /privacy/ and clicking it opens the privacy page (200, heading visible). Fail: only the old single footer paragraph.
 
 ## 3. P2② mobile pane switcher (375×812 CDP)
 - /builder at 375px: NO floating "Preview" button bottom-right. Instead fixed bottom bar (role=group aria-label "Switch between editing and preview") with buttons "Edit" (aria-pressed=true initially) and "Preview & score" (false); each ≥44px tall. Editor pane visible, preview pane hidden (offsetParent null / display none).

@@ -318,7 +318,7 @@ function AiWaitHint() {
 
 export default function Builder() {
   usePageMeta(
-    'Resume Builder — HonestCV',
+    'Resume Builder — RezUp',
     'Build an ATS-friendly resume in your browser: 22 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
   )
   useEffect(() => trackEvent('builder-start'), [])
@@ -864,7 +864,7 @@ export default function Builder() {
                   .toLowerCase()
                 downloadText(
                   JSON.stringify(resume, null, 2),
-                  `${name}-honestcv-backup.json`,
+                  `${name}-rezup-backup.json`,
                   'application/json'
                 )
               }}
@@ -908,13 +908,13 @@ export default function Builder() {
                   try {
                     const parsed = JSON.parse(raw) as Resume
                     if (!parsed.contact || !Array.isArray(parsed.experience)) {
-                      setRestoreError('That file is not a HonestCV backup.')
+                      setRestoreError('That file is not a RezUp backup.')
                       return
                     }
                     setRestoreError('')
                     setResume({ ...emptyResume(), ...parsed })
                   } catch {
-                    setRestoreError('That file is not a HonestCV backup.')
+                    setRestoreError('That file is not a RezUp backup.')
                   }
                 })
               }}
@@ -2259,7 +2259,7 @@ export default function Builder() {
           <DialogHeader>
             <DialogTitle>Resume downloaded — good luck out there</DialogTitle>
             <DialogDescription>
-              If HonestCV helped, pass the free ATS checker to a friend who's job
+              If RezUp helped, pass the free ATS checker to a friend who's job
               hunting. No signup, no subscription trap — just a match score.
             </DialogDescription>
           </DialogHeader>

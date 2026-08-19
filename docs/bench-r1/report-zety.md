@@ -1,4 +1,4 @@
-# 竞品深度体验报告：Zety（zety.com）vs HonestCV（cv.zalize.com）
+# 竞品深度体验报告：Zety（zety.com）vs RezUp（cv.zalize.com）
 
 - 体验日期：2026-08-05（UTC）
 - 体验方式：真实浏览器全流程操作（虚构 Software Engineer「Alex Chen」简历），mail.tm 临时邮箱注册真实账号，走到付款页为止（未真实付款）
@@ -9,7 +9,7 @@
 
 Zety 是 Bold/Works Limited 系（同家族还有 LiveCareer、ResumeLab 等）的头部简历生成器。核心体验是一条打磨了多年的「向导式漏斗」：经验年限 → 模板选择 → 分步表单（联系方式/工作/教育/技能/摘要）→ Tips & fixes → 最终编辑器 → 下载付费墙。整体感受：**流程转化设计（含 AI 辅助）是业界顶级水平，但商业模式建立在争议性极强的「$1.95 试用 → 自动续费 $25.95/4周」订阅暗坑上**。免费用户唯一能拿走的是无格式 .txt 文件。
 
-对 HonestCV 的一句话结论：Zety 的强项是「引导 + 内容代写」，弱项是「诚实定价 + 导出自由」。HonestCV 一次性付费/免费模式在信任维度上有天然优势，需要补齐的是引导式体验和 AI 内容质量（详见 P0/P1/P2 清单）。
+对 RezUp 的一句话结论：Zety 的强项是「引导 + 内容代写」，弱项是「诚实定价 + 导出自由」。RezUp 一次性付费/免费模式在信任维度上有天然优势，需要补齐的是引导式体验和 AI 内容质量（详见 P0/P1/P2 清单）。
 
 ## 二、六维度评分
 
@@ -41,7 +41,7 @@ Zety 是 Bold/Works Limited 系（同家族还有 LiveCareer、ResumeLab 等）�
   1. **Tips & fixes**（prefinalize 页）：按 Best practices / Spelling and grammar / Missing details 三类给出建议，如 "List 6-12 skills"、加行业关键技能、重排技能顺序，一键 Add/Accept。（截图 17、18、22）
   2. **Resume Score**（最终编辑器右下角）：0-100 分（本次 73 分），文案 "Resume above 70 tend to land more interviews"，展开后按 section 列出扣分点（Education 1 条、Work History 2 条）。（截图 21、22）
 - 评价：本质是**完整度/最佳实践启发式检查**，不是真正的 JD 匹配——**全程未要求上传 JD**，也不展示关键词覆盖分析。"SmartApply™/ResumeCheck 帮你打败 ATS" 更多是营销话术（声称检查 30+ 项）。（截图 19）
-- HonestCV 的 ATS 匹配分若基于 JD 关键词对比，在这个维度上已经比 Zety 更实质。
+- RezUp 的 ATS 匹配分若基于 JD 关键词对比，在这个维度上已经比 Zety 更实质。
 
 ### e. 付费墙设计 — 2/5（体验分；作为转化机器可打 5/5）
 - 触发链路：全部内容填完（沉没成本最大化）→ "Your perfect resume is ready!" 强制注册（截图 24、25）→ 点 Download 直接跳付款页。
@@ -63,12 +63,12 @@ Zety 是 Bold/Works Limited 系（同家族还有 LiveCareer、ResumeLab 等）�
 - 无障碍：拖拽有 aria 播报、表单 label 完整、键盘可达——明显投入过。
 - 扣分：营销弹窗密度极高（几乎每步一个 nudge：Add another role / 304,000 job seekers 横幅 / 订阅弹窗），窄屏降级明显。
 
-## 三、HonestCV 若要比肩需要做什么
+## 三、RezUp 若要比肩需要做什么
 
 ### P0（不做就明显落后的核心体验）
-1. **引导式分步向导 + 实时预览**：Zety 的最大优势是"不让用户面对空白页"。HonestCV 需要 Contact→Experience→Education→Skills→Summary 的分步流程，右侧实时渲染，含完成度进度条。
+1. **引导式分步向导 + 实时预览**：Zety 的最大优势是"不让用户面对空白页"。RezUp 需要 Contact→Experience→Education→Skills→Summary 的分步流程，右侧实时渲染，含完成度进度条。
 2. **AI 改写的「多方案单选」交互**：不要只给一个改写结果；提供 2-3 组不同意图（精简/强化影响/突出成果）×每组多条，用户单选替换。同时**做 Zety 没做的：主动提示补量化数字**（如"加一个百分比或金额会更有力"）。
-3. **预写内容库（bullet/摘要示例按职位检索）**：Zety 靠海量 pre-written examples 让小白 10 分钟出简历。HonestCV 至少要为主流职位提供可一键插入的示例 bullet 和技能清单（用 LLM 实时生成也行，但要有"按职位搜索"入口）。
+3. **预写内容库（bullet/摘要示例按职位检索）**：Zety 靠海量 pre-written examples 让小白 10 分钟出简历。RezUp 至少要为主流职位提供可一键插入的示例 bullet 和技能清单（用 LLM 实时生成也行，但要有"按职位搜索"入口）。
 4. **分级 Tips & fixes 检查器**：完整度/最佳实践/拼写三类问题分级列出，一键修复（加技能、重排、补章节）。这与现有 ATS 匹配分互补且成本低。
 5. **把「诚实定价」做成武器**：在导出/定价页明示"一次付费、无订阅、无自动续费"，直接对比竞品 $25.95/4 周的暗坑（不点名或点名均可）。这是 Zety 用户最大的痛点（Trustpilot/Reddit 上大量 "$1.95 变 $25.95" 投诉）。
 
@@ -76,7 +76,7 @@ Zety 是 Bold/Works Limited 系（同家族还有 LiveCareer、ResumeLab 等）�
 6. 模板配色/字体/间距自定义（每模板 5-8 配色 + 3 档字号 + 间距滑杆），保持 ATS 安全的前提下给个性化空间。
 7. 分节拖拽排序 + 悬停内联编辑/重命名/删除 + 明示自动保存状态（"Saved" 指示器）。
 8. AI 摘要生成：按已填经历/技能生成 3 个不同角度的摘要供选择。
-9. 移动端编辑器完整适配（Zety 在这里是弱项，可反超：HonestCV 验收标准本就要求移动端）。
+9. 移动端编辑器完整适配（Zety 在这里是弱项，可反超：RezUp 验收标准本就要求移动端）。
 10. 导出前诊断报告页（相当于 Zety 的 prefinalize），把 ATS 分数、缺失项、修复建议汇总为一页，提升导出仪式感与信任。
 
 ### P2（锦上添花/差异化）

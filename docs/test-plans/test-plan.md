@@ -1,9 +1,9 @@
-# HonestCV Live Test Plan (https://cv.zalize.com)
+# RezUp Live Test Plan (https://cv.zalize.com)
 
 All tests against live site in Chrome, recorded. localStorage cleared first.
 
 ## 1. Landing + CTA
-- Open `/`. Pass: hero renders with one-time-payment messaging, title "HonestCV — One-Time Payment Resume Builder...". Click primary CTA → URL becomes `/builder`.
+- Open `/`. Pass: hero renders with one-time-payment messaging, title "RezUp — One-Time Payment Resume Builder...". Click primary CTA → URL becomes `/builder`.
 
 ## 2. Builder: sample data, editing, live preview, templates
 - Click "Load an example resume" link. Pass: editor fields fill (name Jordan Reyes-like sample) and right preview shows same content.

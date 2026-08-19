@@ -6,11 +6,11 @@ launch as "beta free trial" honestly, or after payments are live).
 
 ## Listing
 
-- **Name:** HonestCV
+- **Name:** RezUp
 - **Tagline (≤60):** The resume builder with no subscription traps
 - **Topics:** Career, Productivity, Artificial Intelligence
 - **Links:** https://cv.zalize.com · free ATS checker https://cv.zalize.com/ats-checker
-- **Description:** HonestCV is a browser-local resume builder: 22 ATS-safe
+- **Description:** RezUp is a browser-local resume builder: 22 ATS-safe
   templates, a free ATS match score against any pasted job description,
   per-line AI tailoring that never invents your experience, and real text
   PDF/DOCX export. No account — your resume stays in your browser. No
@@ -26,12 +26,12 @@ launch as "beta free trial" honestly, or after payments are live).
 
 ## Maker comment (post immediately after launch)
 
-Hi PH! I built HonestCV after reading one too many "…charged me $25 and I
+Hi PH! I built RezUp after reading one too many "…charged me $25 and I
 can't cancel" stories about the big resume builders. The category's standard
 playbook is a ~$2 trial that auto-converts to ~$25/month, plus AI writers that
 invent metrics you never achieved.
 
-HonestCV's rules are simple:
+RezUp's rules are simple:
 - Your resume never leaves your browser (localStorage, no accounts, no database)
 - The ATS match score is free, unlimited, and computed locally
 - The AI polishes your real experience — vague input becomes a [placeholder],

@@ -1,6 +1,6 @@
-# HonestCV
+# RezUp（原 HonestCV）
 
-一次性付费简历生成器（英文/海外市场）。反订阅陷阱是品牌主叙事：编辑器、模板、实时预览、
+AI 简历生成器（英文/海外市场），主打「快、ATS 友好、拿 offer」。一次性付费、反订阅陷阱作为定价卖点保留：编辑器、模板、实时预览、
 ATS 匹配分全部免费；$9.99 一次性解锁 PDF/DOCX 下载 + 不限次 AI 改写；$19.99 Career Bundle
 追加 AI cover letter + 面试准备。免注册，简历数据存 localStorage。
 

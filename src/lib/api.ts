@@ -22,7 +22,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   }
   if (!res.ok) {
     if (res.status === 402 || data.code === 'payment_required') {
-      throw new PaymentRequiredError(data.error || 'Unlock HonestCV to continue.')
+      throw new PaymentRequiredError(data.error || 'Unlock RezUp to continue.')
     }
     throw new Error(data.error || `Request failed (${res.status})`)
   }

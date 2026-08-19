@@ -20,7 +20,7 @@ fonts, trademarks, or verbatim copy is reproduced.
 
 ## Page/flow comparison
 
-| # | Resume.io page/flow (observed) | Pattern observed | HonestCV today | Score | Gap / priority |
+| # | Resume.io page/flow (observed) | Pattern observed | RezUp today | Score | Gap / priority |
 |---|---|---|---|---|---|
 | 1 | Landing hero | Benefit-led H1, dual CTAs (Create / Upload), trust strip, product mock with score badge | Landing hero with dual CTAs (Build / Check ATS score), 3-step narrative, template gallery | 95% | We don't show fabricated stats (deliberate); trust strip = honest positioning instead. No gap to fix. |
 | 2 | Template chooser | Category filter chips (All/Word/Simple/Picture/ATS/Two-column…), large previews, PDF/DOCX badges, color swatches per card, hover "Use this template", Skip | Style filter chips (All/Serif/Modern sans/Banded/Minimal), 22 thumbs, accent swatches in builder, deep links | 90% | No per-card export-format badges (all our templates export PDF+DOCX+TXT+MD equally, so the badge carries no signal). P2, skipped as noise. |
@@ -48,7 +48,7 @@ pages (landing, templates, examples, pricing, cover-letter templates, blog): **7
 resume.io paths**, collapsing into **15 page types**. Every type is now either compared in
 the table above/below or marked deliberate-n/a with a reason.
 
-| # | Resume.io page type (paths) | HonestCV counterpart | Status |
+| # | Resume.io page type (paths) | RezUp counterpart | Status |
 |---|---|---|---|
 | 1 | Landing `/` | `/` | Compared (row 1) |
 | 2 | Templates marketing `/resume-templates` | `/templates/` hub + 22 pSEO pages | Compared (row 11) |
@@ -71,7 +71,7 @@ deliberate-n/a with stated reasons. No unexamined page type remains.**
 
 Additional rows from this batch's walk (screenshots: `/home/ubuntu/rio-capture/coverage/*.png`):
 
-| # | Resume.io page/flow (observed) | Pattern observed | HonestCV today | Score | Gap / priority |
+| # | Resume.io page/flow (observed) | Pattern observed | RezUp today | Score | Gap / priority |
 |---|---|---|---|---|---|
 | 14 | ATS checker page | Upload → score + grade + feedback; FAQ section; FAQPage JSON-LD | /ats-checker: paste/upload → score + sub-scores + keyword table + JD highlighting, shareable | 100% | Ours adds JD keyword-frequency comparison; theirs requires upload only. |
 | 15 | AI builder marketing page | "How it works" 3 steps + template grid + FAQ | AI Tailor + rewrites presented in landing feature grid and in-product New badges | 90% | No dedicated /ai landing page — P2 pSEO candidate, low priority while organic traffic is 0. |
@@ -84,7 +84,7 @@ Additional rows from this batch's walk (screenshots: `/home/ubuntu/rio-capture/c
 Black-box observation only (response headers, public HTML/CSS/JS, real-browser
 PerformanceObserver from the same vantage, cold cache via CDP `setCacheDisabled`).
 
-| Dimension | Resume.io (observed) | HonestCV (before) | HonestCV (after this batch) | Verdict |
+| Dimension | Resume.io (observed) | RezUp (before) | RezUp (after this batch) | Verdict |
 |---|---|---|---|---|
 | Rendering | Marketing pages server-rendered (267 KB content HTML); app is CSR SPA | SEO pages (76 URLs) prerendered static; landing + app CSR SPA | unchanged | **Met differently**: their SSR goal (fast first paint + crawlability) is achieved by our SSG for all SEO pages + 4.7 KB shell with LCP 280 ms vs their 3396 ms |
 | Framework/build | Custom bundle (webpack refs), hashed asset names | React 19 + Vite, hashed asset names | unchanged | Met |

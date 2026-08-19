@@ -1,8 +1,8 @@
-# 竞品深度体验报告：Resume.io（对标 HonestCV）
+# 竞品深度体验报告：Resume.io（对标 RezUp）
 
 日期：2026-08-05 ｜ 方法：真实浏览器操作 + 真实注册（mail.tm 临时邮箱）＋全程截图
 测试账号：虚构 Software Engineer「Ethan Caldwell」；简历 ID 79205271
-HonestCV 参照：https://cv.zalize.com（一次性付费/当前免费；ATS 单栏模板 + AI 改写 + ATS 匹配分 + PDF/DOCX 导出）
+RezUp 参照：https://cv.zalize.com（一次性付费/当前免费；ATS 单栏模板 + AI 改写 + ATS 匹配分 + PDF/DOCX 导出）
 
 ## 概述
 
@@ -10,7 +10,7 @@ Resume.io（careerio 旗下）已不是单纯的简历生成器，而是一个�
 
 体验完成度：注册、编辑器全流程、AI 改写、AI Review、Tailor、导出、付费墙、免费模板 PDF 导出、窄窗口移动端均已真实走完。**未体验**：真实付款（按要求不付款）、付费后的取消流程（无法进入）、独立 ATS Checker 的上传打分（被免费版「仅 1 份简历」限额挡住，见 5.4）。
 
-一句话结论：Resume.io 的核心壁垒是编辑器打磨 + AI 集成深度 + 求职闭环，弱点是激进的订阅暗黑模式和被阉割的免费层——这正是 HonestCV「一次性付费、诚实定价」定位可以正面攻击的点。
+一句话结论：Resume.io 的核心壁垒是编辑器打磨 + AI 集成深度 + 求职闭环，弱点是激进的订阅暗黑模式和被阉割的免费层——这正是 RezUp「一次性付费、诚实定价」定位可以正面攻击的点。
 
 ---
 
@@ -56,7 +56,7 @@ Resume.io（careerio 旗下）已不是单纯的简历生成器，而是一个�
 
 - 优点：语言质量高、动词有力、结构专业；控件完善（Regenerate / Apply / 自由指令 / Shorter / More impact-driven / Humanize 快捷 chips / 语音输入）；应用前有覆写警告。
 - **严重问题：大量幻觉。** 输入只说「管理团队、做项目」，输出捏造了微服务、CI/CD、数据管道、指导工程师等完全不存在的具体经历。它利用了简历上下文（职位 = Software Engineer @ 分析公司）来「合理编造」。对求职者是事实性风险，直接 Apply 会生成不真实的简历。
-- 扣分点即在幻觉与忠实度上：改写≠扩写捏造。HonestCV 若坚持「honest」定位，忠实改写反而是差异化。
+- 扣分点即在幻觉与忠实度上：改写≠扩写捏造。RezUp 若坚持「honest」定位，忠实改写反而是差异化。
 
 ### 4. ATS 评分 / 检查 —— 4/5
 
@@ -80,7 +80,7 @@ Resume.io（careerio 旗下）已不是单纯的简历生成器，而是一个�
   - 5 个免费模板可免费导出 PDF（与定价页宣称「free = TXT only」不一致，算隐藏福利）；
   - 免费模板下大量功能被锁：Accomplishments、Power Statement、Header & Footer、LinkedIn 字段、Conferences/Volunteering/Awards/Affiliations/Licenses 章节、字体选择、纸张格式（`22-free-template-locked-sections.png`）。
 - 暗黑模式清单：① 低价试用默认预选 + 10 倍价自动续费；② 社会证明施压文案；③ 干净 ATS 模板全部收费、免费模板刻意「难看」；④ 免费下载唯一体面路径（TXT）藏在下拉第三项；⑤ 编辑完成后才告知导出收费（沉没成本）。
-- 客观说：披露文字是有的（小字标明 auto-renews），不算欺诈，但整体设计明显利用用户惯性。这是 HonestCV 最大的差异化空间。
+- 客观说：披露文字是有的（小字标明 auto-renews），不算欺诈，但整体设计明显利用用户惯性。这是 RezUp 最大的差异化空间。
 
 ### 6. 性能与打磨 —— 4.5/5
 
@@ -94,7 +94,7 @@ Resume.io（careerio 旗下）已不是单纯的简历生成器，而是一个�
 
 ---
 
-## HonestCV 若要比肩需要做什么
+## RezUp 若要比肩需要做什么
 
 ### P0（不做就明显落后的核心体验）
 1. **实时分页预览**：逐键更新的 A4 预览 + 页码导航，这是 Resume.io 编辑体验的地基。
@@ -110,7 +110,7 @@ Resume.io（careerio 旗下）已不是单纯的简历生成器，而是一个�
 3. **章节级拖拽排序** + 可增删的附加章节（语言、证书、志愿、自定义）。
 4. **预制短语库**（按职位过滤）+ 每节 recruiter tip 字数引导。
 5. **布局微调**：行距/字号/边距滑杆、日期格式、A4/Letter——Resume.io 的 Layout 面板是很好的范本。
-6. **导出 DOCX 的模板覆盖率**：Resume.io 只有 ~40% 模板支持 DOCX，HonestCV 全模板双格式即是优势。
+6. **导出 DOCX 的模板覆盖率**：Resume.io 只有 ~40% 模板支持 DOCX，RezUp 全模板双格式即是优势。
 
 ### P2（锦上添花）
 1. 求职信生成（与简历数据联动）。

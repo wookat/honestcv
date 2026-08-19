@@ -1,13 +1,13 @@
-# HonestCV Brand Guide
+# RezUp Brand Guide
 
 Version 1.0 — 2026-08. Owner: product. Applies to the site (cv.zalize.com), all
 static SEO pages, marketing assets in `docs/marketing/`, and anything published
-under the HonestCV name.
+under the RezUp name.
 
 ## 1. Brand story & positioning
 
 **One-liner (for job seekers):**
-"HonestCV is the resume builder that never traps you: build free in your
+"RezUp is the resume builder that never traps you: build free in your
 browser, check your ATS match for free, and when you pay — you pay once."
 
 **Story.** The resume-builder category monetizes desperation. The biggest
@@ -18,14 +18,14 @@ paywall, or export a PNG that ATS systems cannot read. And AI writers happily
 invent metrics ("increased revenue 30%") a candidate never achieved — a lie the
 candidate must then defend in an interview.
 
-HonestCV is built as the counter-example: everything runs in your browser (no
+RezUp is built as the counter-example: everything runs in your browser (no
 account, no resume database), the ATS score is fully free, exports are real
 text-based PDF/DOCX with no watermark, AI refuses to fabricate facts, and
 pricing is a visible one-time purchase — currently in a beta free trial while
 payments are off.
 
 **Positioning statement.** For active job seekers who need an ATS-safe resume
-tailored to real postings, HonestCV is the honest resume builder: transparent
+tailored to real postings, RezUp is the honest resume builder: transparent
 one-time pricing, private-by-architecture, and AI that never invents your
 experience — unlike subscription-trap builders (Zety, LiveCareer, Resume.io)
 and fabrication-prone AI writers.
@@ -40,8 +40,8 @@ and fabrication-prone AI writers.
 
 ## 2. Naming & copy standards
 
-- **Product name:** `HonestCV` — one word, capital H and CV. Never "Honest CV",
-  "HonestCv", "honestcv" in prose (lowercase ok in URLs/code).
+- **Product name:** `RezUp` (formerly HonestCV) — one word, capital R and U.
+  Never "Rez Up", "Rezup", "rezup" in prose (lowercase ok in URLs/code).
 - **Feature names (canonical):** ATS checker (lowercase c), AI Tailor, Resume
   health report, Getting started checklist, Copies (named resume copies),
   Career Bundle, Single Resume.
@@ -72,7 +72,7 @@ anytime" as a lure), superlatives we cannot evidence.
 
 **Logo.** The brand mark is a rounded-square indigo document with a green
 verified check (`public/favicon.svg`, `src/components/Logo.tsx`). Usage:
-- Always pair with the wordmark "HonestCV" in headers; mark-only is fine for
+- Always pair with the wordmark "RezUp" in headers; mark-only is fine for
   favicons/avatars.
 - Don't recolor, rotate, add effects, or place on low-contrast backgrounds.
 - Minimum size 16px; keep clear space of ≥25% of the mark's width.
@@ -98,16 +98,16 @@ photos, no fake screenshots, no fabricated testimonials. OG card: `public/og2.pn
 
 ## 4. Boilerplate (canonical descriptions)
 
-- **Short (≤160 chars):** "HonestCV is an honest resume builder: ATS-safe
+- **Short (≤160 chars):** "RezUp is an honest resume builder: ATS-safe
   templates, free ATS match scoring, AI that never invents your experience,
   and one-time pricing — no subscription."
-- **Long:** "HonestCV is a browser-local resume builder for job seekers. It
+- **Long:** "RezUp is a browser-local resume builder for job seekers. It
   offers 22 ATS-safe templates, a free ATS match score against any pasted job
   description, per-line AI tailoring that refuses to fabricate facts, and real
   text-based PDF/DOCX export. There are no accounts — resumes stay in the
   user's browser — and no subscriptions: plans are one-time purchases
   ($9.99 Single Resume / $19.99 Career Bundle), currently in a beta free
-  trial. HonestCV is a reaction to the trial-trap pricing and
+  trial. RezUp is a reaction to the trial-trap pricing and
   metric-inventing AI common in this category."
 
 ## 5. Consistency checklist (audit before each release batch)
@@ -117,4 +117,4 @@ photos, no fake screenshots, no fabricated testimonials. OG card: `public/og2.pn
 - [ ] Template/feature counts in copy match reality (llms.txt, hubs, landing)
 - [ ] No banned words (grep: "free forever", "beat the ATS", "guaranteed")
 - [ ] OG image referenced is the current versioned filename
-- [ ] Email templates sign off as "The HonestCV team" with double-opt-in note
+- [ ] Email templates sign off as "The RezUp team" with double-opt-in note

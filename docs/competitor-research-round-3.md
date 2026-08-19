@@ -74,7 +74,7 @@ Chat-style guided wizard, one question per screen:
   app; amplitude analytics ids in URLs; template previews served from
   cdn.enhancv.com (inference: CDN-cached static previews).
 
-## Adoptable ideas → HonestCV gaps
+## Adoptable ideas → RezUp gaps
 - **G12 (adopted this round): per-keyword frequency table** in the ATS
   checker — Keyword | In resume | In job ad counts, missing first. Ours is
   browser-local, rule-based and fully free (Enhancv paywalls the full list).

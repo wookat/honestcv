@@ -16,7 +16,8 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2 font-semibold">
           <LogoMark className="size-6" />
-          HonestCV
+          RezUp
+          <span className="text-muted-foreground text-xs font-normal">by Zalize</span>
         </Link>
         {action}
       </div>
@@ -29,13 +30,13 @@ export function SiteFooter() {
     <footer className="border-t">
       <div className="text-muted-foreground mx-auto max-w-6xl space-y-2 px-4 py-6 text-center text-xs">
         <p>
-          © {new Date().getFullYear()} HonestCV · Pay once, own it forever. No
-          subscriptions, no auto-renewals, no trial traps.
+          © {new Date().getFullYear()} RezUp · part of Zalize · Pay once, own it
+          forever. No subscriptions, no auto-renewals, no trial traps.
         </p>
         <p>No account needed. Your resume stays in your browser — we never store it.</p>
         <p className="space-x-3">
           <Link className="hover:text-foreground underline" to="/ats-checker">Free ATS checker</Link>
-          <a className="hover:text-foreground underline" href="/vs/zety">HonestCV vs Zety</a>
+          <a className="hover:text-foreground underline" href="/vs/zety">RezUp vs Zety</a>
           <a className="hover:text-foreground underline" href="/guides/">Resume guides</a>
           <a className="hover:text-foreground underline" href="/examples/">Resume examples</a>
           <a className="hover:text-foreground underline" href="/templates/">Resume templates</a>
@@ -49,7 +50,7 @@ export function SiteFooter() {
           <a className="hover:text-foreground underline" href="https://qr.zalize.com">HonestQR</a>
           <a className="hover:text-foreground underline" href="https://pdf.zalize.com">HonestPDF</a>
           <a className="hover:text-foreground underline" href="https://subsleuth.zalize.com">SubSleuth</a>
-          <span>— more honest tools, same promise</span>
+          <span>— more tools from Zalize</span>
         </p>
       </div>
     </footer>

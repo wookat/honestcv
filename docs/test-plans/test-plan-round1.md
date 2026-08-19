@@ -1,4 +1,4 @@
-# HonestCV Benchmark Round 1 (PR #5) — Live Test Plan (cv.zalize.com)
+# RezUp Benchmark Round 1 (PR #5) — Live Test Plan (cv.zalize.com)
 
 Recorded browser run against live site. localStorage cleared for fresh subscribe gate. AI budget: max 2 calls (quota 12/30d per client).
 

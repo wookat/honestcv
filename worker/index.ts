@@ -346,7 +346,7 @@ app.post('/api/ai/rewrite', async (c) => {
         {
           error: freeMode(c.env)
             ? 'You have used all free AI calls for now — they reset within 30 days. Downloads stay free.'
-            : 'Free AI rewrites are used up. Unlock HonestCV once ($9.99) for unlimited AI rewrites plus PDF/DOCX downloads.',
+            : 'Free AI rewrites are used up. Unlock RezUp once ($9.99) for unlimited AI rewrites plus PDF/DOCX downloads.',
           code: 'payment_required',
         },
         402
@@ -783,7 +783,7 @@ app.post('/api/license/claim', async (c) => {
     }
     plan = planFromVariantId(c.env, order.variantId)
     if (!plan) {
-      return c.json({ error: 'No HonestCV product found in this order.' }, 404)
+      return c.json({ error: 'No RezUp product found in this order.' }, 404)
     }
   }
 

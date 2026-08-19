@@ -5,7 +5,7 @@ import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 
 export default function NotFound() {
   usePageMeta(
-    'Page not found — HonestCV',
+    'Page not found — RezUp',
     'That page does not exist. Build an ATS-friendly resume or check your ATS match score for free.'
   )
   return (
@@ -41,7 +41,7 @@ export default function NotFound() {
           </li>
           <li>
             <a className="hover:text-foreground underline underline-offset-2" href="/vs/">
-              HonestCV vs other builders
+              RezUp vs other builders
             </a>
           </li>
         </ul>

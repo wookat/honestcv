@@ -41,7 +41,7 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 | # | Driver | Finding | Priority |
 |---|--------|---------|----------|
-| 1 | Competitor research | Zety/Resume.io/Rezi/Teal all support uploading an existing resume file; HonestCV only accepted pasted text — the biggest onboarding friction for users with an existing PDF/DOCX resume | P1 |
+| 1 | Competitor research | Zety/Resume.io/Rezi/Teal all support uploading an existing resume file; RezUp only accepted pasted text — the biggest onboarding friction for users with an existing PDF/DOCX resume | P1 |
 | 2 | UX walkthrough | `/ats-checker` also required manual paste; the shareable checker is the top-of-funnel page, so upload matters most there | P1 |
 
 **Fixes shipped** (worker version `19f90b94`)
@@ -840,7 +840,7 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - One-time post-download share dialog (per-browser `honestcv.shared` flag):
   copy-link for `/ats-checker` plus X and LinkedIn share intents. Framing
-  stays honest — "if HonestCV helped, pass the free ATS checker to a friend".
+  stays honest — "if RezUp helped, pass the free ATS checker to a friend".
 
 **Verification (live)**
 
@@ -907,7 +907,7 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 - Backup downloads valid JSON; overwriting the name and restoring the file
   brings the original back; a junk JSON file shows "That file is not a
-  HonestCV backup."
+  RezUp backup."
 
 ## Round 45 — 2026-08-06
 
@@ -934,7 +934,7 @@ frontend/visual & accessibility analysis, competitor research, user/data analyti
 
 | # | Driver | Finding | Priority |
 |---|--------|---------|----------|
-| 1 | Competitor gap (Zety/Resume.io both offer multiple documents) | HonestCV held exactly one resume — yet our core pitch is tailoring per job description. Users tailoring for job B destroyed their version for job A | P1 |
+| 1 | Competitor gap (Zety/Resume.io both offer multiple documents) | RezUp held exactly one resume — yet our core pitch is tailoring per job description. Users tailoring for job B destroyed their version for job A | P1 |
 
 **Fixes shipped** (worker version `cd989255`)
 
@@ -2430,7 +2430,7 @@ no overflow, headers verified on production responses.
 
 ## Acceptance-review remediation (AC1) — 2026-08-09
 
-External acceptance review scored HonestCV 85/100 (pass, best of 8 products). All
+External acceptance review scored RezUp 85/100 (pass, best of 8 products). All
 listed items fixed this batch:
 
 - **P1 — ATS score explainability**: builder ATS card now shows the weighting next to
@@ -2716,7 +2716,7 @@ Driver: SEO/structured-data review of the hub pages.
   occupational exceptions, what parsers do with images, the space cost,
   specs when a photo is required, LinkedIn as the right venue, what to
   put in that space instead, other personal details by market, and how
-  HonestCV's text-only templates handle it (DOCX + word processor for
+  RezUp's text-only templates handle it (DOCX + word processor for
   photo markets).
 - Sitemap 94 → 95; IndexNow submitted 95 URLs, HTTP 200.
 - Deployed version d2327158-8d4e-44f5-8599-48d03f4e10cc. Live 200 (the
@@ -3430,7 +3430,7 @@ dimensions / beacon forgery):
   top of the existing per-IP 30/day gate — bounds spend against
   distributed many-IP abuse.
 - Email/leads endpoint: /api/leads was unlimited → per-IP 10/day
-  (rl:leads:<day>:<ip>), bounding KV spam. HonestCV sends no email
+  (rl:leads:<day>:<ip>), bounding KV spam. RezUp sends no email
   itself, so no Resend-side gate applies.
 - Admin endpoints: none exist on this line (verified route list).
 - Beacon forgery (P2-4): accepted as unfixable-by-signature per the

@@ -4,23 +4,23 @@ Constraint: only send to addresses that completed **double opt-in** (current
 download gate collects an email; a confirmation step must be added before any
 campaign sends). No email sending is wired up yet — these are ready for when
 Resend (or similar) is provisioned. Every email includes an unsubscribe link.
-Sign-off: "— The HonestCV team".
+Sign-off: "— The RezUp team".
 
 ## 1. Opt-in confirmation (transactional, sent on signup)
 
-**Subject:** Confirm your email for HonestCV
+**Subject:** Confirm your email for RezUp
 
-You (or someone) asked to get HonestCV updates at this address while
+You (or someone) asked to get RezUp updates at this address while
 downloading a resume. Click to confirm — otherwise we'll never email you:
 
 [Confirm my email]
 
 We only send occasional product updates and job-search tips. No daily drip,
-no "your resume is failing!!" scare emails. — The HonestCV team
+no "your resume is failing!!" scare emails. — The RezUp team
 
 ## 2. Welcome (after confirmation)
 
-**Subject:** Welcome — here's the 3-step way to use HonestCV
+**Subject:** Welcome — here's the 3-step way to use RezUp
 
 Thanks for confirming. The fastest path to a sent application:
 
@@ -35,7 +35,7 @@ database, and our AI never invents facts about you.
 
 [Open the builder] · [Check my ATS score free]
 
-— The HonestCV team · [Unsubscribe]
+— The RezUp team · [Unsubscribe]
 
 ## 3. Return visit / value nudge (day ~7, one email only)
 
@@ -49,11 +49,11 @@ terms your resume covers and which it's missing:
 https://cv.zalize.com/ats-checker — no signup, nothing uploaded.
 
 If it's been a while: your resume is still right where you left it, in your
-browser. — The HonestCV team · [Unsubscribe]
+browser. — The RezUp team · [Unsubscribe]
 
 ## 4. Beta → paid transition (send ONCE when payments go live; requires boss approval)
 
-**Subject:** HonestCV beta is ending — what changes (and what doesn't)
+**Subject:** RezUp beta is ending — what changes (and what doesn't)
 
 During beta everything was free. From [date], downloads become a one-time
 purchase: Single Resume $9.99, Career Bundle $19.99. Once — not per month.
@@ -64,4 +64,4 @@ auto-renewals, stored cards, "cancel by phone" mazes.
 
 As a beta user, [grandfather offer — decide before sending].
 
-— The HonestCV team · [Unsubscribe]
+— The RezUp team · [Unsubscribe]

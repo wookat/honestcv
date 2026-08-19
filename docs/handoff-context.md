@@ -3,7 +3,7 @@
 > 按 company-os/templates/handoff-context.md 维护，每次里程碑后更新。
 
 ## 项目目标
-HonestCV——面向海外求职者的英文简历产品（ATS 友好、诚实简历理念），属「上岸 Zalize」求职校招线，保留海外独立品牌（part of Zalize 背书）。当前阶段：上线运营（FREE_MODE 开启，付费待 Lemon Squeezy 全配置）。
+RezUp——面向海外求职者的英文简历产品（ATS 友好、诚实简历理念），属「上岸 Zalize」求职校招线，保留海外独立品牌（part of Zalize 背书）。当前阶段：上线运营（FREE_MODE 开启，付费待 Lemon Squeezy 全配置）。
 
 ## 代码与数据位置
 - 仓库：`https://github.com/wookat/honestcv`（默认分支 `main`）

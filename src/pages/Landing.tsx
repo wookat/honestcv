@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import {
   ArrowRight,
   BadgeCheck,
-  Ban,
   Copy,
   FileDown,
   Lock,
@@ -69,8 +68,8 @@ const COMPARISON: [string, string, string][] = [
 
 export default function Landing() {
   usePageMeta(
-    'HonestCV — One-Time Payment Resume Builder. No Subscriptions, Ever.',
-    'HonestCV: the resume builder you pay for once — every plan is free during beta. ATS-friendly templates, free ATS match score, AI rewrites, real PDF & DOCX export. No subscription, no auto-renewal, no trial trap.'
+    'RezUp — AI Resume Builder. ATS-Friendly Resumes in Minutes.',
+    'RezUp: the AI resume builder that gets you interviews faster — free during beta. ATS-friendly templates, free ATS match score, AI rewrites, real PDF & DOCX export. Pay once if you ever pay; never a subscription.'
   )
   const freeMode = useFreeMode()
   const [galleryFilter, setGalleryFilter] = useState('all')
@@ -99,23 +98,23 @@ export default function Landing() {
           />
           <div>
           <Badge variant="secondary" className="animate-rise mb-4 gap-1">
-            <Ban className="size-3" /> No subscriptions. No trial traps. Ever.
+            <Sparkles className="size-3" /> AI-powered. ATS-friendly. Free during beta.
           </Badge>
           <h1 className="animate-rise text-4xl font-bold tracking-tight [--rise-delay:60ms] sm:text-5xl">
-            The resume builder you pay for <span className="underline decoration-emerald-500 decoration-4 underline-offset-4">once</span>
+            The AI resume builder that gets you <span className="underline decoration-emerald-500 decoration-4 underline-offset-4">interviews</span>
           </h1>
           <p className="text-muted-foreground animate-rise mx-auto mt-4 max-w-2xl text-lg [--rise-delay:120ms] lg:mx-0">
             {freeMode ? (
               <>
-                Build an ATS-friendly resume with AI tailoring and a free match score.
-                <strong> Every plan is free during beta</strong> — no card, no
-                auto-renewal, nothing that renews.
+                Build an ATS-friendly resume in minutes with AI tailoring and a free
+                match score. <strong>Every plan is free during beta</strong> — no card,
+                no auto-renewal, nothing that renews.
               </>
             ) : (
               <>
-                Build an ATS-friendly resume with AI tailoring and a free match score.
-                Pay <strong>$9.99 one time</strong> to download — not $25.95 every four
-                weeks until you remember to cancel.
+                Build an ATS-friendly resume in minutes with AI tailoring and a free
+                match score. Pay <strong>$9.99 one time</strong> to download — not
+                $25.95 every four weeks until you remember to cancel.
               </>
             )}
           </p>
@@ -182,7 +181,7 @@ export default function Landing() {
               >
                 {i === 1 && (
                   <Badge className="absolute -top-2.5 right-4 gap-1">
-                    <Sparkles className="size-3" /> The honest difference
+                    <Sparkles className="size-3" /> The RezUp difference
                   </Badge>
                 )}
                 <span
@@ -220,7 +219,7 @@ export default function Landing() {
         {/* Templates gallery */}
         <section aria-labelledby="templates-heading" className="mx-auto max-w-5xl px-4 py-10">
           <h2 id="templates-heading" className="text-center text-2xl font-bold">
-            22 ATS-safe templates, one honest layout rule
+            22 ATS-safe templates, one layout rule
           </h2>
           <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-center text-sm">
             Every template is single-column real text — the format ATS parsers read
@@ -297,7 +296,7 @@ export default function Landing() {
                     <th className="py-2 pr-4 text-left font-medium">
                       <span className="sr-only">Feature</span>
                     </th>
-                    <th className="text-primary py-2 pr-4 text-left font-semibold">HonestCV</th>
+                    <th className="text-primary py-2 pr-4 text-left font-semibold">RezUp</th>
                     <th className="text-muted-foreground py-2 text-left font-medium">
                       Typical subscription builder
                     </th>
@@ -323,7 +322,7 @@ export default function Landing() {
 
         {/* Pricing */}
         <section className="mx-auto max-w-4xl px-4 py-12">
-          <h2 className="text-center text-2xl font-bold">Simple, honest pricing</h2>
+          <h2 className="text-center text-2xl font-bold">Simple pricing</h2>
           <p className="text-muted-foreground mt-2 text-center text-sm">
             Pay once, never a subscription. Both plans are free during beta.
           </p>
@@ -387,7 +386,7 @@ export default function Landing() {
         {/* FAQ */}
         <section className="bg-muted/40 border-t">
           <div className="mx-auto max-w-3xl space-y-5 px-4 py-12">
-            <h2 className="text-center text-2xl font-bold">Honest answers</h2>
+            <h2 className="text-center text-2xl font-bold">Frequently asked questions</h2>
             {[
               [
                 'Is it really one payment?',

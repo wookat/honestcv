@@ -1,4 +1,4 @@
-# Rezi (rezi.ai) 竞品深度体验报告 — 对标 HonestCV
+# Rezi (rezi.ai) 竞品深度体验报告 — 对标 RezUp
 
 日期：2026-08-05 ｜ 方式：真实注册账号 + 全流程浏览器实测（mail.tm 临时邮箱 alexcarterdev9127@web-library.net 成功收到验证码并激活，未被屏蔽）｜ 虚构简历：Alex Carter, Software Engineer（含目标 JD 定向）
 
@@ -6,12 +6,12 @@
 
 Rezi 是订阅制 AI 简历生成器（免费层 + Pro $29/mo / 季度 $19/mo / Lifetime $149），核心卖点是「Rezi Score」实时评分 + AI 写作 + JD 关键词定向。实测走通了注册 → 建简历（Targeted 模式粘贴 JD）→ 编辑五个分节 → AI 补写 bullet / AI Summary → Rezi Score / Keyword Targeting → 免费下载 PDF → DOCX 撞硬付费墙的完整链路。整体打磨度高，付费墙策略是「功能可见但降级/加锁」而非一刀切。
 
-总评：产品体验成熟（约 4/5），但免费层限制极多（1 份简历、3 次 PDF、10 次 AI 生成、1 个模板），这是 HonestCV「一次性付费/免费」定位可直接攻击的软肋。
+总评：产品体验成熟（约 4/5），但免费层限制极多（1 份简历、3 次 PDF、10 次 AI 生成、1 个模板），这是 RezUp「一次性付费/免费」定位可直接攻击的软肋。
 
 ## 六维度评分
 
 ### a. 模板质量 — 3.5/5
-- 模板库共 **11 个**（Standard / Compact / Modern / Harvard / Jake's Resume / Bold / Alternative / Highlight / Highlight Compact / Dev / Dev Compact），全部为 **ATS 单栏**风格，无双栏花哨模板（与 HonestCV 定位相同）。
+- 模板库共 **11 个**（Standard / Compact / Modern / Harvard / Jake's Resume / Bold / Alternative / Highlight / Highlight Compact / Dev / Dev Compact），全部为 **ATS 单栏**风格，无双栏花哨模板（与 RezUp 定位相同）。
 - **免费仅 1 个**（Rezi Standard Format），其余 10 个全部 PRO 加锁（证据：22、23）。
 - 排版控件完善：字体（Merriweather 等）、字号、行距、段距、Letter/A4、分页「Break」标记、Auto-adjust 一键压缩到一页（证据：19）。
 - 导出 PDF 观感干净、无水印、文本可复制、单页排版正确（证据：25、rezi-export.pdf）。扣分点：免费只有一种版式，字体偏小（默认 9pt）。
@@ -35,7 +35,7 @@ Rezi 是订阅制 AI 简历生成器（免费层 + Pro $29/mo / 季度 $19/mo / 
 - **Rezi Score 0-100** 常驻右侧，随内容增加实时涨分（实测 40 → 45 → 57 → 62），分五个子维度：Content 54 / Format 56 / Optimization 100 / Best Practices 74 / Application Ready 62，还有「与其他用户对比」的百分位直方图（证据：21）。
 - 建议具体可执行：bullet 未加句号、简历只有 0.47 页、总词数 120（建议 400-800）、Summary 过长（建议约 30 词）；每条附文档链接。但 Personal pronouns / Buzzwords / Passive voice / Filler words 详情 PRO 锁定。
 - **JD 不强制但深度集成**：创建时可选 Targeted Resume 粘贴 JD；之后 AI Keyword Targeting 自动比对——已命中 React / REST APIs / JavaScript / PostgreSQL，缺失 Node.js 时直接给「Yes - Add Bullet Point」一键生成含该关键词的 bullet；其余 10 个缺失关键词**文字乱码模糊化 + PRO 锁**（证据：20）。
-- 这套「分数 + 子维度 + 一键修复 + 关键词 gap」闭环是 HonestCV ATS 匹配分最该对标的形态。
+- 这套「分数 + 子维度 + 一键修复 + 关键词 gap」闭环是 RezUp ATS 匹配分最该对标的形态。
 
 ### e. 付费墙设计 — 3.5/5（体验角度；商业上激进）
 - 免费层（pricing 页明示，证据：30）：1 份简历、3 次 PDF 下载、10 次 AI 生成、1 个模板、1 次 AI Interview；Rezi Score / Keyword Targeting / 内容诊断均为 Limited。
@@ -49,17 +49,17 @@ Rezi 是订阅制 AI 简历生成器（免费层 + Pro $29/mo / 季度 $19/mo / 
 - 保存/校验反馈即时（toast、实时诊断、公司名确认）。
 - 小毛病：日期控件打字容错差、contenteditable 偶发吞首字符、部分文案组件（"Downloads left" 藏在二级菜单）不够醒目。
 
-## HonestCV 若要比肩需要做什么
+## RezUp 若要比肩需要做什么
 
 ### P0（不做就明显落后）
 1. **常驻实时 ATS 分数 + 子维度拆解**：不只给一个总分，学 Rezi 拆 Content/Format/Optimization/Best Practices，每条建议给「怎么改」并可点击跳转对应位置；分数随编辑实时变动是留存钩子。
-2. **JD 关键词 gap 一键修复**：已命中/缺失关键词清单 + 「为缺失关键词生成一条 bullet」按钮。Rezi 把缺失关键词锁在 PRO，HonestCV 免费全开就是最直接的差异化打点。
-3. **AI 改写要重写而非续写**：Rezi 保留 "Responsible for" 弱开头是明显短板。HonestCV 应输出强动词开头 + 量化占位（如 "Led a X-person team..."），一次给 2-3 个候选。
-4. **免费导出无阉割**：Rezi 免费限 3 次 PDF、DOCX 完全锁死。HonestCV 的 PDF/DOCX 无限免费导出必须在落地页和编辑器里大声说出来。
+2. **JD 关键词 gap 一键修复**：已命中/缺失关键词清单 + 「为缺失关键词生成一条 bullet」按钮。Rezi 把缺失关键词锁在 PRO，RezUp 免费全开就是最直接的差异化打点。
+3. **AI 改写要重写而非续写**：Rezi 保留 "Responsible for" 弱开头是明显短板。RezUp 应输出强动词开头 + 量化占位（如 "Led a X-person team..."），一次给 2-3 个候选。
+4. **免费导出无阉割**：Rezi 免费限 3 次 PDF、DOCX 完全锁死。RezUp 的 PDF/DOCX 无限免费导出必须在落地页和编辑器里大声说出来。
 5. **自动保存 + 未保存挽留 + 即时反馈 toast**：这是 Rezi 打磨感的基础盘。
 
 ### P1（重要提升）
-6. 编辑器全程实时预览（Rezi 要到最后一步才能看整页，这是它的弱点，HonestCV 可以做得更好）。
+6. 编辑器全程实时预览（Rezi 要到最后一步才能看整页，这是它的弱点，RezUp 可以做得更好）。
 7. 日期用日历/下拉控件并支持直接打字容错（Rezi 在此翻车）。
 8. Auto-adjust 一键压缩到一页 + 分页 Break 可视化。
 9. AI Summary 生成时自动带入简历上下文与目标 JD（Rezi 此功能体验最好，值得抄）。
@@ -69,7 +69,7 @@ Rezi 是订阅制 AI 简历生成器（免费层 + Pro $29/mo / 季度 $19/mo / 
 ### P2（打磨/差异化）
 12. 「与其他用户对比」百分位图，增强分数可信度。
 13. 每分节教学视频或内嵌最佳实践提示。
-14. 模板库按 Simple/Modern/Compact 分类筛选；HonestCV 可强调「全部模板免费」。
+14. 模板库按 Simple/Modern/Compact 分类筛选；RezUp 可强调「全部模板免费」。
 15. 简历上传导入（PDF/DOCX 解析回填）与 LinkedIn 导入。
 16. 定价页透明对比表（Rezi 的 Compare all features 表做得清楚，反而是信任加分项）。
 

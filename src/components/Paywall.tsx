@@ -255,7 +255,7 @@ export function FreeDownloadDialog({
           <DialogDescription>
             No payment, no subscription — just leave an email once and download
             PDF/DOCX at no charge while we're in beta. We'll only email you about
-            HonestCV updates.
+            RezUp updates.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -279,7 +279,7 @@ export function FreeDownloadDialog({
             One email, all downloads — no card, nothing to cancel, unsubscribe anytime.
           </p>
           <p className="text-muted-foreground text-xs">
-            What we send: occasional HonestCV product updates only (a few per year).
+            What we send: occasional RezUp product updates only (a few per year).
             Your email is never sold or shared, and your resume never leaves this
             browser.{' '}
             <a href="/privacy/" className="underline underline-offset-2">
