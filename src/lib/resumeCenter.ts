@@ -5,7 +5,7 @@
  */
 import { newId, emptyResume, type Resume } from './resume'
 
-export const RESUME_CENTER_API = 'https://resume-forge.wookat520.workers.dev'
+export const RESUME_CENTER_API = 'https://resume.zalize.com'
 
 interface RCEducation {
   school?: string
