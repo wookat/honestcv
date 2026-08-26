@@ -136,6 +136,7 @@ export default function AtsChecker() {
             <Button
               type="button"
               variant="outline"
+              className="min-h-10 sm:min-h-9"
               onClick={() => {
                 setResumeText(EXAMPLE_RESUME)
                 setJd(EXAMPLE_JD)
@@ -155,7 +156,7 @@ export default function AtsChecker() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-7 gap-1 text-xs"
+                className="h-10 gap-1 text-xs sm:h-7"
                 disabled={fileBusy}
                 onClick={() => fileRef.current?.click()}
               >
@@ -234,7 +235,7 @@ export default function AtsChecker() {
               Paste your resume text to enable the check, or{' '}
               <button
                 type="button"
-                className="hover:text-foreground underline underline-offset-2"
+                className="hover:text-foreground relative -my-3 inline-flex items-center py-3 underline underline-offset-2 sm:my-0 sm:py-0"
                 onClick={() => {
                   setResumeText(EXAMPLE_RESUME)
                   setJd(EXAMPLE_JD)

@@ -390,7 +390,7 @@ export default function Landing() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Career Bundle</h3>
-                  <Badge className="bg-emerald-500 text-white">Best value</Badge>
+                  <Badge className="bg-emerald-700 text-white">Best value</Badge>
                 </div>
                 <p className="mt-3 text-[2.75rem] leading-none font-bold tracking-tight">
                   $19.99 <span className="text-sm font-normal text-neutral-400">once, forever</span>
@@ -448,7 +448,7 @@ export default function Landing() {
                     <th className="bg-white/5 px-3 py-2.5 text-left font-semibold text-emerald-400">
                       RezUp
                     </th>
-                    <th className="py-2.5 pl-3 text-left font-medium text-neutral-500">
+                    <th className="py-2.5 pl-3 text-left font-medium text-neutral-400">
                       Typical subscription builder
                     </th>
                   </tr>
@@ -462,7 +462,7 @@ export default function Landing() {
                           <BadgeCheck className="size-4 shrink-0" /> {us}
                         </span>
                       </td>
-                      <td className="py-3 pl-3 text-neutral-500">{them}</td>
+                      <td className="py-3 pl-3 text-neutral-400">{them}</td>
                     </tr>
                   ))}
                 </tbody>
