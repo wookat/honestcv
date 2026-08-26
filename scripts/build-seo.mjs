@@ -1695,7 +1695,7 @@ function renderHubItems(items) {
     .join('\n')
 }
 
-function hubPage({ pathname, title, description, h1, intro, items }) {
+function hubPage({ pathname, title, description, h1, intro, items, bodyHtml, extraCss, mainStyle }) {
   const canonical = `${SITE}${pathname}`
   const itemListLd = {
     '@context': 'https://schema.org',
@@ -1727,7 +1727,7 @@ function hubPage({ pathname, title, description, h1, intro, items }) {
 <meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(itemListLd)}</script>
-<style>${CSS}</style>
+<style>${CSS}${extraCss ?? ''}</style>
 ${FP_BEACON}
 </head>
 <body>
@@ -1735,10 +1735,10 @@ ${FP_BEACON}
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main${mainStyle ? ` style="${mainStyle}"` : ''}>
 <h1>${esc(h1)}</h1>
 <p class="lede">${esc(intro)}</p>
-${renderHubItems(items)}
+${bodyHtml ?? renderHubItems(items)}
 <div class="cta">
 <p>${FREE_MODE ? 'RezUp is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The RezUp builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
 <a class="btn" href="/builder">Start building free</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
@@ -3132,11 +3132,15 @@ const EXAMPLE_GROUPS = [
   ['Customer-facing & office', ['customer-service', 'retail-associate', 'restaurant-server', 'bartender', 'security-guard', 'administrative-assistant', 'graphic-designer']],
 ]
 
+const EXAMPLE_THUMB_SLUGS = ['modern', 'classic', 'minimal', 'engineer', 'elegant', 'compact']
+let exampleThumbIdx = 0
+
 function groupedExampleItems() {
   const item = (e, group) => ({
     href: `/examples/${e.slug}/`,
     label: `${e.role} resume example`,
     blurb: `${e.description.split(' — ')[0].replace(/\.$/, '')}.`,
+    thumb: templateThumbSvg(EXAMPLE_THUMB_SLUGS[exampleThumbIdx++ % EXAMPLE_THUMB_SLUGS.length], 56),
     group,
   })
   const bySlug = new Map(EXAMPLES.map((e) => [e.slug, e]))
@@ -3182,6 +3186,66 @@ function groupedTemplateItems() {
   }
   for (const t of bySlug.values()) items.push(item(t, 'More templates'))
   return items
+}
+
+// Curated hub groups (use-case first), each template appears exactly once.
+const TEMPLATE_CURATED = [
+  [
+    'Recruiter picks',
+    'Safe, familiar layouts that read instantly — strong defaults for any industry.',
+    ['classic', 'modern', 'minimal', 'executive', 'ivy'],
+  ],
+  [
+    'Tech & startup roles',
+    'Contemporary, engineering-flavored looks for product, dev and startup applications.',
+    ['engineer', 'startup', 'slate', 'cobalt', 'metro', 'bold'],
+  ],
+  [
+    'High-density for experienced candidates',
+    'Layouts tuned to fit long careers onto one page without shrinking below readable.',
+    ['compact', 'atlas', 'corporate', 'scholar', 'horizon'],
+  ],
+  [
+    'Distinctive accents',
+    'A touch more personality — still strictly single-column and ATS-safe.',
+    ['elegant', 'ruby', 'ink', 'coral', 'quartz', 'prairie'],
+  ],
+]
+
+const TPL_HUB_CSS = `
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.25rem;margin-top:1rem}
+.tpl-card{border:1px solid var(--border);background:var(--card);border-radius:var(--radius);padding:1rem;display:flex;flex-direction:column;transition:box-shadow .2s cubic-bezier(0.165,0.84,0.44,1),transform .2s cubic-bezier(0.165,0.84,0.44,1)}
+.tpl-card:hover{box-shadow:0 8px 24px rgb(0 0 0/.08);transform:translateY(-2px)}
+.tpl-card svg{width:100%;height:auto;display:block}
+.tpl-card h3{margin:.75rem 0 .25rem;font-size:1rem}
+.tpl-card p{margin:0;color:var(--muted);font-size:.85rem;flex:1}
+.tpl-cta{display:inline-flex;align-items:center;min-height:44px;margin-top:.25rem;font-weight:500;font-size:.9rem}
+.tpl-group-lede{color:var(--muted);margin:-.25rem 0 0;font-size:.95rem}
+`
+
+/** Card-grid body for the /templates/ hub: big previews + direct builder CTA. */
+function templateCardsHtml() {
+  const bySlug = new Map(TEMPLATE_PAGES.map((t) => [t.path.split('/').pop(), t]))
+  const seen = new Set()
+  const sections = TEMPLATE_CURATED.map(([group, tagline, slugs]) => {
+    const cards = slugs
+      .map((slug) => {
+        const t = bySlug.get(slug)
+        if (!t) throw new Error(`TEMPLATE_CURATED references unknown template: ${slug}`)
+        seen.add(slug)
+        return `<div class="tpl-card">
+<a href="${t.path}/" aria-label="${esc(t.name)} resume template details" style="line-height:0">${templateThumbSvg(slug, '100%')}</a>
+<h3><a href="${t.path}/" style="color:inherit;text-decoration:none">${esc(t.name)}</a></h3>
+<p>${esc(t.description.split(' — ')[0].replace(/\.$/, ''))}.</p>
+<a class="tpl-cta" href="/builder?template=${slug}">Use this template →</a>
+</div>`
+      })
+      .join('\n')
+    return `<h2 style="margin-top:2.5rem">${esc(group)}</h2>\n<p class="tpl-group-lede">${esc(tagline)}</p>\n<div class="tpl-grid">\n${cards}\n</div>`
+  })
+  const missing = TEMPLATE_PAGES.filter((t) => !seen.has(t.path.split('/').pop()))
+  if (missing.length) throw new Error(`TEMPLATE_CURATED missing templates: ${missing.map((t) => t.name).join(', ')}`)
+  return sections.join('\n')
 }
 
 // Grouped by what the reader is escaping from / comparing against.
@@ -3254,6 +3318,9 @@ const HUBS = [
     intro:
       'Every RezUp template follows one rule: strictly single-column real text, the layout ATS parsers read most reliably. Pick a look below — you can switch templates any time without retyping.',
     items: groupedTemplateItems(),
+    bodyHtml: templateCardsHtml(),
+    extraCss: TPL_HUB_CSS,
+    mainStyle: 'max-width:72rem',
   },
 ]
 
@@ -3304,10 +3371,219 @@ for (const p of TEMPLATE_PAGES) {
   console.log(`built ${p.path}/index.html`)
 }
 
+// ---- Standalone /pricing/ page: plan cards + full comparison + pricing FAQ ----
+const PRICING_FAQ = [
+  [
+    'Is it really one payment?',
+    'Yes. $9.99 (or $19.99 for the Career Bundle) is charged exactly once. There is no plan to cancel because there is no plan — we never store your card for recurring billing. During the beta, everything is free.',
+  ],
+  [
+    'What is free before I pay anything?',
+    'The full editor, all 22 ATS-safe templates, the live preview, the ATS match score against any pasted job description, and 5 AI rewrites. You only ever pay to download and for unlimited AI.',
+  ],
+  [
+    'What does the Career Bundle add?',
+    'Everything in Single Resume, plus AI cover letters tailored to each job posting, an interview prep brief (likely questions, STAR stories, gaps to expect), and all future features.',
+  ],
+  [
+    'Is there a refund policy?',
+    'Yes — a 7-day money-back guarantee. Email support@zalize.com and we refund the one-time payment, no questions asked.',
+  ],
+  [
+    'Why not a subscription like everyone else?',
+    'A resume is something you need for a few weeks, a couple of times a decade. Subscription builders profit from you forgetting to cancel; we would rather charge a fair price once.',
+  ],
+]
+
+function pricingPage() {
+  const canonical = `${SITE}/pricing/`
+  const faqLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: PRICING_FAQ.map(([q, a]) => ({
+      '@type': 'Question',
+      name: q,
+      acceptedAnswer: { '@type': 'Answer', text: a },
+    })),
+  }
+  const planCard = (name, price, tagline, features, dark) => `
+<div style="border:1px solid ${dark ? 'transparent' : 'var(--border)'};border-radius:var(--radius);padding:1.5rem;${dark ? 'background:#0a0a0a;color:#fff;box-shadow:0 12px 32px rgb(0 0 0/.18)' : 'background:var(--card)'}">
+<p style="margin:0;display:flex;justify-content:space-between;align-items:center"><strong>${name}</strong>${dark ? '<span style="background:#10b981;color:#fff;border-radius:999px;padding:.15rem .6rem;font-size:.75rem;font-weight:600">Best value</span>' : '<span style="border:1px solid var(--border);border-radius:999px;padding:.15rem .6rem;font-size:.75rem">One-time</span>'}</p>
+<p style="margin:.75rem 0 0;font-size:2.75rem;font-weight:700;letter-spacing:-.02em;line-height:1">${price} <span style="font-size:.85rem;font-weight:400;${dark ? 'color:#a3a3a3' : 'color:var(--muted)'}">once, forever</span></p>
+<ul style="margin:1rem 0 0;padding:0;list-style:none;${dark ? 'color:#d4d4d4' : 'color:var(--muted)'};font-size:.9rem">
+${features.map((f) => `<li style="margin:.4rem 0">· ${esc(f)}</li>`).join('\n')}
+</ul>
+<a class="btn" href="/builder" style="margin-top:1.25rem;width:100%;${dark ? 'background:#fff;color:#0a0a0a' : ''}">Start free</a>
+<p style="margin:.5rem 0 0;font-size:.8rem;${dark ? 'color:#a3a3a3' : 'color:var(--muted)'}">${esc(tagline)}</p>
+</div>`
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>RezUp Pricing — $9.99 Once, Never a Subscription</title>
+<meta name="description" content="RezUp pricing: everything free during beta. When billing opens: Single Resume $9.99 one-time, Career Bundle $19.99 one-time. No subscription, no stored card, nothing to cancel." />
+<link rel="canonical" href="${canonical}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="RezUp" />
+<meta property="og:title" content="RezUp Pricing — $9.99 Once, Never a Subscription" />
+<meta property="og:description" content="Single Resume $9.99 one-time, Career Bundle $19.99 one-time. Free during beta. No subscription, ever." />
+<meta property="og:url" content="${canonical}" />
+<meta property="og:image" content="${SITE}/og2.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">${JSON.stringify(faqLd)}</script>
+<script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Pricing', path: '/pricing/' }]))}</script>
+<style>${CSS}
+.price-grid{display:grid;gap:1.25rem;margin-top:1.5rem}
+@media(min-width:640px){.price-grid{grid-template-columns:1fr 1fr}}
+table.cmp{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:1rem}
+table.cmp th,table.cmp td{padding:.6rem .5rem;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+table.cmp th:nth-child(2),table.cmp td:nth-child(2){background:oklch(0.5 0.18 265 / 0.06)}
+table.cmp td:nth-child(2){color:#047857;font-weight:500}
+table.cmp td:nth-child(3){color:var(--muted)}
+.faq h3{margin:1.25rem 0 .25rem;font-size:1rem}
+.faq p{margin:0;color:var(--muted);font-size:.9375rem}
+</style>
+${FP_BEACON}
+</head>
+<body>
+<header class="site"><div class="in">
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+<a class="btn" href="/builder">Build my resume free</a>
+</div></header>
+<main>
+<h1>Simple pricing: pay once, or pay nothing</h1>
+<p class="lede">${FREE_MODE ? 'Every plan is free during beta — no card, no auto-renewal, nothing that renews. When billing opens, prices below are one-time.' : 'Everything is free to try. Pay exactly once to download — never a subscription.'}</p>
+<div class="price-grid">
+${planCard('Single Resume', '$9.99', 'Everything you need to apply: unlimited exports of one polished, tailored resume.', ['Unlimited PDF + DOCX downloads, no watermark', 'Unlimited AI rewrites & job-targeted tailoring', 'All 22 ATS-friendly templates', 'Edit and re-download forever'], false)}
+${planCard('Career Bundle', '$19.99', 'The full job-hunt kit: resume, cover letters and interview prep in one purchase.', ['Everything in Single Resume', 'AI cover letters tailored to each job posting', 'Interview prep brief: likely questions, STAR stories, gaps', 'All future features included'], true)}
+</div>
+<h2 style="margin-top:3rem">What you get, next to a typical subscription builder</h2>
+<div style="overflow-x:auto" tabindex="0" role="region" aria-label="Feature comparison">
+<table class="cmp">
+<thead><tr><th><span style="position:absolute;clip:rect(0 0 0 0)">Feature</span></th><th>RezUp</th><th>Typical subscription builder</th></tr></thead>
+<tbody>
+<tr><td>Cost to download your resume</td><td>$9.99 once</td><td>$1.95–$2.95 “trial” → $25.95–$29.95 every 4 weeks</td></tr>
+<tr><td>Cost over a 6-month job search</td><td>$9.99</td><td>$150–$180</td></tr>
+<tr><td>AI rewriting</td><td>Never invents facts — marks gaps with [add %]</td><td>Often fabricates metrics and experience</td></tr>
+<tr><td>Auto-renews / recurring charges</td><td>Never</td><td>Yes — cancellation buried in menus</td></tr>
+<tr><td>ATS match score</td><td>Free, before paying</td><td>Behind the paywall</td></tr>
+<tr><td>Card stored after purchase</td><td>No</td><td>Yes, and charged again</td></tr>
+<tr><td>Account required</td><td>No</td><td>Yes</td></tr>
+<tr><td>Your resume data</td><td>Stays in your browser</td><td>Stored on their servers</td></tr>
+</tbody>
+</table>
+</div>
+<h2 style="margin-top:3rem">Pricing FAQ</h2>
+<div class="faq">
+${PRICING_FAQ.map(([q, a]) => `<h3>${esc(q)}</h3>\n<p>${esc(a)}</p>`).join('\n')}
+</div>
+<div class="cta">
+<p>${FREE_MODE ? 'Free during beta: editor, templates, ATS score, AI tools and downloads — all included.' : 'Free to try. $9.99 exactly once to download. Nothing to cancel, ever.'}</p>
+<a class="btn" href="/builder">Start building free</a>
+</div>
+</main>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+</body>
+</html>`
+}
+
+mkdirSync(path.join(OUT_DIR, 'pricing'), { recursive: true })
+writeFileSync(path.join(OUT_DIR, 'pricing/index.html'), pricingPage())
+console.log('built /pricing/index.html')
+
+// ---- Standalone /ai/ page: the four AI abilities, one section each ----
+const AI_SECTIONS = [
+  {
+    id: 'tailor',
+    name: 'Tailor to any job posting',
+    copy: 'Paste the job description and RezUp\u2019s AI rewrites your real bullets toward it \u2014 mirroring the posting\u2019s language without inventing employers, dates or metrics. You review and approve every suggested line before it lands in your resume.',
+    svg: '<svg viewBox="0 0 200 120" role="img" aria-label="Tailoring suggestions illustration" style="width:100%;max-width:320px"><rect x="4" y="8" width="90" height="104" rx="6" fill="#fff" stroke="#e2e8f0"/><rect x="12" y="18" width="60" height="6" rx="2" fill="#cbd5e1"/><rect x="12" y="32" width="74" height="4" rx="2" fill="#e2e8f0"/><rect x="12" y="42" width="66" height="4" rx="2" fill="#e2e8f0"/><rect x="12" y="52" width="70" height="4" rx="2" fill="#e2e8f0"/><rect x="106" y="20" width="90" height="26" rx="6" fill="oklch(0.5 0.18 265 / 0.08)" stroke="oklch(0.5 0.18 265 / 0.3)"/><rect x="114" y="28" width="60" height="4" rx="2" fill="oklch(0.5 0.18 265 / 0.5)"/><rect x="114" y="36" width="48" height="4" rx="2" fill="oklch(0.5 0.18 265 / 0.35)"/><rect x="106" y="54" width="90" height="26" rx="6" fill="#ecfdf5" stroke="#a7f3d0"/><rect x="114" y="62" width="56" height="4" rx="2" fill="#34d399"/><rect x="114" y="70" width="44" height="4" rx="2" fill="#6ee7b7"/><path d="M94 60h12" stroke="#94a3b8" stroke-width="2" marker-end="none"/></svg>',
+  },
+  {
+    id: 'score',
+    name: 'Free ATS match score',
+    copy: 'A transparent, rule-based score computed entirely in your browser: keyword coverage against the posting\u2019s top terms plus a 6-point structure checklist. See matched and missing keywords \u2014 free, before you ever pay.',
+    svg: '<svg viewBox="0 0 200 120" role="img" aria-label="Score ring illustration" style="width:100%;max-width:320px"><circle cx="100" cy="60" r="38" fill="none" stroke="#e2e8f0" stroke-width="9"/><circle cx="100" cy="60" r="38" fill="none" stroke="#059669" stroke-width="9" stroke-linecap="round" stroke-dasharray="239" stroke-dashoffset="33" transform="rotate(-90 100 60)"/><text x="100" y="68" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="24" font-weight="700" fill="#059669">86</text></svg>',
+  },
+  {
+    id: 'rewrite',
+    name: 'Honest AI rewriting',
+    copy: 'Bullet and summary rewrites that sharpen what you actually did. Where a number would help, the AI marks the gap with [add %] instead of fabricating one \u2014 because an invented metric can cost you the offer in the interview.',
+    svg: '<svg viewBox="0 0 200 120" role="img" aria-label="Rewrite illustration" style="width:100%;max-width:320px"><rect x="10" y="26" width="180" height="20" rx="5" fill="#f8fafc" stroke="#e2e8f0"/><rect x="18" y="33" width="120" height="6" rx="2" fill="#cbd5e1"/><rect x="10" y="66" width="180" height="20" rx="5" fill="#ecfdf5" stroke="#a7f3d0"/><rect x="18" y="73" width="140" height="6" rx="2" fill="#34d399"/><path d="M100 50v10" stroke="#94a3b8" stroke-width="2"/><path d="M96 56l4 6 4-6" fill="none" stroke="#94a3b8" stroke-width="2"/></svg>',
+  },
+  {
+    id: 'cover-letter',
+    name: 'Cover letters & interview prep',
+    copy: 'The Career Bundle adds an AI cover letter written from your resume and the specific posting, plus an interview brief: the questions this job is likely to ask, STAR stories drawn from your real experience, and the gaps to prepare for.',
+    svg: '<svg viewBox="0 0 200 120" role="img" aria-label="Cover letter illustration" style="width:100%;max-width:320px"><rect x="30" y="10" width="80" height="100" rx="6" fill="#fff" stroke="#e2e8f0"/><rect x="40" y="22" width="40" height="6" rx="2" fill="#cbd5e1"/><rect x="40" y="36" width="60" height="4" rx="2" fill="#e2e8f0"/><rect x="40" y="46" width="56" height="4" rx="2" fill="#e2e8f0"/><rect x="40" y="56" width="60" height="4" rx="2" fill="#e2e8f0"/><rect x="40" y="66" width="48" height="4" rx="2" fill="#e2e8f0"/><rect x="120" y="34" width="56" height="52" rx="8" fill="oklch(0.5 0.18 265 / 0.08)" stroke="oklch(0.5 0.18 265 / 0.3)"/><rect x="128" y="44" width="40" height="4" rx="2" fill="oklch(0.5 0.18 265 / 0.5)"/><rect x="128" y="54" width="34" height="4" rx="2" fill="oklch(0.5 0.18 265 / 0.35)"/><rect x="128" y="64" width="38" height="4" rx="2" fill="oklch(0.5 0.18 265 / 0.35)"/></svg>',
+  },
+]
+
+function aiPage() {
+  const canonical = `${SITE}/ai/`
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>AI Resume Tools — Tailoring, Scoring, Rewriting | RezUp</title>
+<meta name="description" content="RezUp's AI toolkit: job-targeted tailoring, a free in-browser ATS match score, honest bullet rewriting that never invents facts, and AI cover letters with interview prep." />
+<link rel="canonical" href="${canonical}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="RezUp" />
+<meta property="og:title" content="AI Resume Tools — Tailoring, Scoring, Rewriting | RezUp" />
+<meta property="og:description" content="Job-targeted tailoring, free ATS scoring, honest AI rewriting and cover letters — RezUp's AI toolkit, free during beta." />
+<meta property="og:url" content="${canonical}" />
+<meta property="og:image" content="${SITE}/og2.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'AI resume tools', path: '/ai/' }]))}</script>
+<style>${CSS}
+.ai-row{display:grid;gap:1.5rem;align-items:center;margin-top:3.5rem}
+@media(min-width:640px){.ai-row{grid-template-columns:1fr 1fr}.ai-row.flip .ai-art{order:2}}
+.ai-art{background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;display:flex;justify-content:center}
+.ai-row h2{margin:0 0 .5rem}
+.ai-row p{margin:0;color:var(--muted)}
+.ai-kicker{color:var(--primary);font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:0 0 .35rem}
+</style>
+${FP_BEACON}
+</head>
+<body>
+<header class="site"><div class="in">
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+<a class="btn" href="/builder">Build my resume free</a>
+</div></header>
+<main style="max-width:56rem">
+<h1>AI that gets you the interview — honestly</h1>
+<p class="lede">Four AI abilities built into the RezUp builder. All of them work on your real experience: the AI sharpens what you did, and refuses to invent what you didn't.</p>
+${AI_SECTIONS.map(
+    (s, i) => `<section id="${s.id}" class="ai-row${i % 2 ? ' flip' : ''}">
+<div class="ai-art" aria-hidden="true">${s.svg}</div>
+<div><p class="ai-kicker">Ability ${i + 1}</p><h2>${esc(s.name)}</h2><p>${esc(s.copy)}</p></div>
+</section>`
+  ).join('\n')}
+<div class="cta" style="margin-top:3.5rem">
+<p>${FREE_MODE ? 'Every AI tool is free during beta — no card, no account, nothing that renews.' : 'Try the AI free (5 rewrites included). Unlimited AI is a one-time $9.99 — never a subscription.'}</p>
+<a class="btn" href="/builder">Try the AI builder free</a>
+</div>
+</main>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+</body>
+</html>`
+}
+
+mkdirSync(path.join(OUT_DIR, 'ai'), { recursive: true })
+writeFileSync(path.join(OUT_DIR, 'ai/index.html'), aiPage())
+console.log('built /ai/index.html')
+
 const urls = [
   '/',
   '/builder',
   '/ats-checker',
+  '/pricing/',
+  '/ai/',
   ...PAGES.map((p) => `${p.path}/`),
   ...HUBS.map((h) => h.pathname),
   ...GUIDES.map((p) => `${p.path}/`),

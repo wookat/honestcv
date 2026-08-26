@@ -51,6 +51,7 @@ import {
 } from '@/components/Paywall'
 import { DraftIllustration } from '@/components/Illustrations'
 import { ResumePreview } from '@/components/ResumePreview'
+import { ScoreRing } from '@/components/ScoreRing'
 import {
   PaymentRequiredError,
   type TailorItemInput,
@@ -1922,36 +1923,14 @@ export default function Builder() {
 
           <Card className="py-0">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <p className="font-medium">
                   ATS match score{' '}
                   <span className="text-muted-foreground text-xs font-normal">
                     — free, computed in your browser
                   </span>
                 </p>
-                <span
-                  className={`text-2xl font-bold ${
-                    ats.score >= 75
-                      ? 'text-green-600'
-                      : ats.score >= 50
-                        ? 'text-amber-600'
-                        : 'text-red-600'
-                  }`}
-                >
-                  {ats.score}
-                </span>
-              </div>
-              <div className="bg-muted mt-2 h-2 overflow-hidden rounded-full">
-                <div
-                  className={`h-full transition-all ${
-                    ats.score >= 75
-                      ? 'bg-green-600'
-                      : ats.score >= 50
-                        ? 'bg-amber-500'
-                        : 'bg-red-500'
-                  }`}
-                  style={{ width: `${ats.score}%` }}
-                />
+                <ScoreRing score={ats.score} size={72} />
               </div>
               <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                 {ats.keywordScore !== null && (
@@ -1989,12 +1968,21 @@ export default function Builder() {
               {resume.jobDescription.trim() ? (
                 <div className="mt-3 space-y-2 text-xs">
                   {ats.matched.length > 0 && (
-                    <p>
+                    <div>
                       <span className="font-medium text-green-700">
-                        Matched ({ats.matched.length}):
-                      </span>{' '}
-                      {ats.matched.join(', ')}
-                    </p>
+                        Matched ({ats.matched.length})
+                      </span>
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {ats.matched.map((kw) => (
+                          <span
+                            key={kw}
+                            className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-green-800"
+                          >
+                            <span aria-hidden className="text-green-600">✓</span> {kw}
+                          </span>
+                        ))}
+                      </span>
+                    </div>
                   )}
                   {ats.missing.length > 0 && (
                     <div>
@@ -2047,7 +2035,11 @@ export default function Builder() {
             </CardContent>
           </Card>
 
-          <ResumePreview resume={resume} />
+          <div className="rounded-lg border bg-slate-100/90 p-3 sm:p-6 dark:bg-slate-900/40">
+            <div className="shadow-lg">
+              <ResumePreview resume={resume} />
+            </div>
+          </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
             <Button
