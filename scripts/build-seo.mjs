@@ -3408,7 +3408,7 @@ function pricingPage() {
   }
   const planCard = (name, price, tagline, features, dark) => `
 <div style="border:1px solid ${dark ? 'transparent' : 'var(--border)'};border-radius:var(--radius);padding:1.5rem;${dark ? 'background:#0a0a0a;color:#fff;box-shadow:0 12px 32px rgb(0 0 0/.18)' : 'background:var(--card)'}">
-<p style="margin:0;display:flex;justify-content:space-between;align-items:center"><strong>${name}</strong>${dark ? '<span style="background:#10b981;color:#fff;border-radius:999px;padding:.15rem .6rem;font-size:.75rem;font-weight:600">Best value</span>' : '<span style="border:1px solid var(--border);border-radius:999px;padding:.15rem .6rem;font-size:.75rem">One-time</span>'}</p>
+<p style="margin:0;display:flex;justify-content:space-between;align-items:center"><strong>${name}</strong>${dark ? '<span style="background:#047857;color:#fff;border-radius:999px;padding:.15rem .6rem;font-size:.75rem;font-weight:600">Best value</span>' : '<span style="border:1px solid var(--border);border-radius:999px;padding:.15rem .6rem;font-size:.75rem">One-time</span>'}</p>
 <p style="margin:.75rem 0 0;font-size:2.75rem;font-weight:700;letter-spacing:-.02em;line-height:1">${price} <span style="font-size:.85rem;font-weight:400;${dark ? 'color:#a3a3a3' : 'color:var(--muted)'}">once, forever</span></p>
 <ul style="margin:1rem 0 0;padding:0;list-style:none;${dark ? 'color:#d4d4d4' : 'color:var(--muted)'};font-size:.9rem">
 ${features.map((f) => `<li style="margin:.4rem 0">· ${esc(f)}</li>`).join('\n')}

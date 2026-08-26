@@ -288,7 +288,7 @@ function Section({
       <CardContent className="p-4">
         <button
           type="button"
-          className="flex w-full items-center justify-between text-left font-medium"
+          className="flex min-h-10 w-full items-center justify-between text-left font-medium sm:min-h-0"
           onClick={() => setOpen((o) => !o)}
         >
           <span className="flex items-center gap-2">
@@ -622,7 +622,7 @@ export default function Builder() {
         size="sm"
         onClick={onClick}
         disabled={Boolean(aiBusy) || disabled}
-        className="h-7 gap-1 text-xs"
+        className="h-10 gap-1 text-xs sm:h-7"
         title={
           !unlocked && freeLeft !== null
             ? `${freeLeft} free AI use${freeLeft === 1 ? '' : 's'} left`
@@ -734,7 +734,7 @@ export default function Builder() {
                 Starting fresh?{' '}
                 <button
                   type="button"
-                  className="text-primary underline"
+                  className="text-primary relative -my-3 inline-flex items-center py-3 underline sm:my-0 sm:py-0"
                   onClick={() =>
                     setResume({
                       ...sampleResume(),
@@ -751,7 +751,7 @@ export default function Builder() {
                 to see how it works, or{' '}
                 <button
                   type="button"
-                  className="text-primary underline"
+                  className="text-primary relative -my-3 inline-flex items-center py-3 underline sm:my-0 sm:py-0"
                   onClick={() => setImportOpen(true)}
                 >
                   import your existing resume (PDF/DOCX/text)
@@ -797,7 +797,7 @@ export default function Builder() {
                 </span>
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-foreground text-xs underline"
+                  className="text-muted-foreground hover:text-foreground relative -my-3 inline-flex items-center py-3 text-xs underline sm:my-0 sm:py-0"
                   onClick={() => {
                     localStorage.setItem('honestcv.tourDone', '1')
                     setChecklistOpen(false)
@@ -850,7 +850,7 @@ export default function Builder() {
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 gap-1 text-xs"
+              className="h-10 gap-1 text-xs sm:h-7"
               onClick={() => setImportOpen(true)}
             >
               <FileUp className="size-3" /> Import resume (PDF/DOCX/text)
@@ -859,7 +859,7 @@ export default function Builder() {
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 gap-1 text-xs"
+              className="h-10 gap-1 text-xs sm:h-7"
               title="Save a .json backup of this resume — everything lives in this browser only"
               onClick={() => {
                 const name = (resume.contact.fullName || 'resume')
@@ -878,7 +878,7 @@ export default function Builder() {
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 gap-1 text-xs"
+              className="h-10 gap-1 text-xs sm:h-7"
               title="Restore a resume from a .json backup"
               onClick={() => backupFileRef.current?.click()}
             >
@@ -888,7 +888,7 @@ export default function Builder() {
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 gap-1 text-xs"
+              className="h-10 gap-1 text-xs sm:h-7"
               title="Save and switch between copies tailored to different jobs"
               onClick={() => {
                 setVersions(listResumeVersions())
@@ -961,7 +961,7 @@ export default function Builder() {
             )}
             <button
               type="button"
-              className="text-primary mt-2 inline-flex items-center gap-1.5 text-xs underline"
+              className="text-primary relative mt-2 -mb-3 inline-flex min-h-10 items-center gap-1.5 text-xs underline sm:mb-0 sm:min-h-0"
               onClick={() => {
                 localStorage.setItem('honestcv.seen.health', '1')
                 setHealthSeen(true)
@@ -1003,7 +1003,7 @@ export default function Builder() {
               <Button
                 type="button"
                 size="sm"
-                className="h-7 gap-1 text-xs"
+                className="h-10 gap-1 text-xs sm:h-7"
                 disabled={!resume.jobDescription.trim()}
                 title="AI rewords your summary and bullets toward this job — review each change before it's applied"
                 onClick={() => {
@@ -1091,7 +1091,7 @@ export default function Builder() {
                     <span
                       {...expDrag.handleProps(idx)}
                       role="button"
-                      className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1 active:cursor-grabbing"
+                      className="text-muted-foreground/60 hover:text-foreground -my-2.5 -ml-1 cursor-grab touch-none p-3.5 active:cursor-grabbing sm:my-0 sm:p-1"
                       title="Drag to reorder"
                       aria-label={`Drag role ${idx + 1} to reorder`}
                     >
@@ -1104,7 +1104,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-9 sm:h-7"
+                      className="h-10 sm:h-7"
                       disabled={idx === 0}
                       title="Move up"
                       onClick={() =>
@@ -1120,7 +1120,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-9 sm:h-7"
+                      className="h-10 sm:h-7"
                       disabled={idx === resume.experience.length - 1}
                       title="Move down"
                       onClick={() =>
@@ -1136,7 +1136,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-9 sm:h-7"
+                      className="h-10 sm:h-7"
                       title="Duplicate role — handy for a promotion at the same company"
                       aria-label={`Duplicate role ${idx + 1}`}
                       onClick={() =>
@@ -1159,7 +1159,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive h-9 sm:h-7"
+                      className="text-destructive h-10 sm:h-7"
                       title="Delete role"
                       aria-label={`Delete role ${idx + 1}`}
                       onClick={() =>
@@ -1258,7 +1258,7 @@ export default function Builder() {
                   <span
                     {...eduDrag.handleProps(idx)}
                     role="button"
-                    className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1 active:cursor-grabbing"
+                    className="text-muted-foreground/60 hover:text-foreground -my-2.5 -ml-1 cursor-grab touch-none p-3.5 active:cursor-grabbing sm:my-0 sm:p-1"
                     title="Drag to reorder"
                     aria-label={`Drag education ${idx + 1} to reorder`}
                   >
@@ -1429,7 +1429,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-9 sm:h-7"
+                      className="h-10 sm:h-7"
                       disabled={pIdx === 0}
                       title="Move up"
                       aria-label={`Move project ${pIdx + 1} up`}
@@ -1443,7 +1443,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-9 sm:h-7"
+                      className="h-10 sm:h-7"
                       disabled={pIdx === resume.projects.length - 1}
                       title="Move down"
                       aria-label={`Move project ${pIdx + 1} down`}
@@ -1457,7 +1457,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-9 sm:h-7"
+                      className="h-10 sm:h-7"
                       title="Duplicate project"
                       aria-label={`Duplicate project ${pIdx + 1}`}
                       onClick={() =>
@@ -1703,7 +1703,7 @@ export default function Builder() {
                     <span
                       {...secDrag.handleProps(idx)}
                       role="button"
-                      className="text-muted-foreground/60 hover:text-foreground cursor-grab touch-none p-1 active:cursor-grabbing"
+                      className="text-muted-foreground/60 hover:text-foreground -my-2.5 cursor-grab touch-none p-3.5 active:cursor-grabbing sm:my-0 sm:p-1"
                       title="Drag to reorder"
                       aria-label={`Drag ${sectionLabel(resume, key)} to reorder`}
                     >
@@ -1716,7 +1716,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-9 sm:h-7"
+                      className="h-10 sm:h-7"
                       disabled={idx === 0}
                       title="Move up"
                       onClick={() =>
@@ -1732,7 +1732,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-9 sm:h-7"
+                      className="h-10 sm:h-7"
                       disabled={idx === keys.length - 1}
                       title="Move down"
                       onClick={() =>
@@ -2220,7 +2220,7 @@ export default function Builder() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs"
+                      className="h-10 text-xs sm:h-7"
                       onClick={() => {
                         setResume({ ...emptyResume(), ...v.data })
                         setVersionsOpen(false)
@@ -2232,7 +2232,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive h-7 text-xs"
+                      className="text-destructive h-10 text-xs sm:h-7"
                       onClick={() => setVersions(deleteResumeVersion(v.id))}
                     >
                       Delete
@@ -2794,7 +2794,7 @@ function TailorDialog({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-xs"
+                  className="h-10 text-xs sm:h-7"
                   onClick={() => pending.forEach((r) => decide(r.id, 'accepted'))}
                 >
                   Accept all remaining
@@ -2813,7 +2813,7 @@ function TailorDialog({
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        className="h-7 text-xs"
+                        className="h-10 text-xs sm:h-7"
                         onClick={() => decide(r.id, 'accepted')}
                       >
                         <Check className="size-3" /> Accept
@@ -2821,7 +2821,7 @@ function TailorDialog({
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs"
+                        className="h-10 text-xs sm:h-7"
                         onClick={() => decide(r.id, 'skipped')}
                       >
                         Keep original
