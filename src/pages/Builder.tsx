@@ -328,7 +328,9 @@ export default function Builder() {
     // ?template=<id> deep link from the landing gallery / static template pages
     const wanted = new URLSearchParams(window.location.search).get('template')
     if (wanted && TEMPLATES.some((t) => t.id === wanted) && r.templateId !== wanted) {
-      return { ...r, templateId: wanted }
+      const next = { ...r, templateId: wanted }
+      saveResume(next)
+      return next
     }
     return r
   })
