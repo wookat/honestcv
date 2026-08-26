@@ -132,6 +132,19 @@ export default function AtsChecker() {
             missing keywords and format checks. 100% free, no sign-up — everything runs
             in your browser and never touches our servers.
           </p>
+          <div className="mt-5">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setResumeText(EXAMPLE_RESUME)
+                setJd(EXAMPLE_JD)
+                setChecked(true)
+              }}
+            >
+              <Target /> See an example score first
+            </Button>
+          </div>
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
