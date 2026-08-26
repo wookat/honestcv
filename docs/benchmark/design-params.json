@@ -1,0 +1,717 @@
+{
+  "rezi-01-landing": {
+    "title": "The #1 AI Resume Builder – Forbes' Top Pick. Trusted by 4.3M",
+    "body": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "17.616px",
+      "fontWeight": "450",
+      "lineHeight": "26.424px",
+      "letterSpacing": "normal",
+      "color": "rgb(84, 84, 84)"
+    },
+    "h1": {
+      "fontFamily": "\"PP Neue Montreal\", Arial, sans-serif",
+      "fontSize": "55.52px",
+      "fontWeight": "500",
+      "lineHeight": "63.848px",
+      "letterSpacing": "-0.2776px",
+      "color": "rgb(0, 0, 0)",
+      "text": "Free AI Resume Builder. Build, improve, & score your resume"
+    },
+    "h2": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "15.536px",
+      "fontWeight": "450",
+      "lineHeight": "23.304px",
+      "letterSpacing": "-0.07768px",
+      "color": "rgb(84, 84, 84)"
+    },
+    "primaryButton": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "17.616px",
+      "fontWeight": "450",
+      "color": "rgb(255, 255, 255)",
+      "backgroundColor": "color(srgb 0 0 0 / 0.35)",
+      "borderRadius": "8px 8px 0px 0px",
+      "padding": "8px 48px 8px 16px",
+      "boxShadow": "none",
+      "transitionDuration": "0.2s, 0.2s, 0.2s",
+      "transitionProperty": "padding, background-color, opacity",
+      "transitionTimingFunction": "cubic-bezier(0.165, 0.84, 0.44, 1), cubic-bezier(0.165, 0.84, 0.44, 1), cubic-bezier(0.165, 0.84, 0.44, 1)",
+      "text": "Generate Cover Letters",
+      "h": 34
+    },
+    "sections": [
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      }
+    ],
+    "containerMaxWidth": "1344px",
+    "bgColor": "rgb(250, 250, 250)"
+  },
+  "rezi-02-pricing": {
+    "title": "Rezi Pricing - All Plans Include A 30-Day Money Back Guarantee",
+    "body": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "17.616px",
+      "fontWeight": "450",
+      "lineHeight": "26.424px",
+      "letterSpacing": "normal",
+      "color": "rgb(84, 84, 84)"
+    },
+    "h1": {
+      "fontFamily": "\"PP Neue Montreal\", Arial, sans-serif",
+      "fontSize": "55.52px",
+      "fontWeight": "500",
+      "lineHeight": "63.848px",
+      "letterSpacing": "-0.2776px",
+      "color": "rgb(0, 0, 0)",
+      "text": "The resume that actually gets you the interview"
+    },
+    "h2": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "20px",
+      "fontWeight": "450",
+      "lineHeight": "30px",
+      "letterSpacing": "-0.3px",
+      "color": "rgb(0, 0, 0)"
+    },
+    "primaryButton": null,
+    "sections": [
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      }
+    ],
+    "containerMaxWidth": "1344px",
+    "bgColor": "rgb(250, 250, 250)"
+  },
+  "rezi-03-templates": {
+    "title": "Free ATS Resume Templates (2026) | Download Word & PDF",
+    "body": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "17.616px",
+      "fontWeight": "450",
+      "lineHeight": "26.424px",
+      "letterSpacing": "normal",
+      "color": "rgb(84, 84, 84)"
+    },
+    "h1": {
+      "fontFamily": "\"PP Neue Montreal\", Arial, sans-serif",
+      "fontSize": "55.52px",
+      "fontWeight": "500",
+      "lineHeight": "63.848px",
+      "letterSpacing": "-0.2776px",
+      "color": "rgb(0, 0, 0)",
+      "text": "Discover the best ATS resume templates"
+    },
+    "h2": {
+      "fontFamily": "\"PP Neue Montreal\", Arial, sans-serif",
+      "fontSize": "55.52px",
+      "fontWeight": "500",
+      "lineHeight": "63.848px",
+      "letterSpacing": "-0.2776px",
+      "color": "rgb(0, 0, 0)"
+    },
+    "primaryButton": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "13.616px",
+      "fontWeight": "450",
+      "color": "rgb(166, 166, 166)",
+      "backgroundColor": "rgba(255, 255, 255, 0)",
+      "borderRadius": "8px",
+      "padding": "8px 12px",
+      "boxShadow": "none",
+      "transitionDuration": "0.3s, 0.3s",
+      "transitionProperty": "background-color, color",
+      "transitionTimingFunction": "cubic-bezier(0.165, 0.84, 0.44, 1), cubic-bezier(0.165, 0.84, 0.44, 1)",
+      "text": "Everything you need to know about resume templates",
+      "h": 57
+    },
+    "sections": [
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      }
+    ],
+    "containerMaxWidth": "1344px",
+    "bgColor": "rgb(250, 250, 250)"
+  },
+  "rezi-04-ai-resume-builder": {
+    "title": "Free AI Resume Builder - Create an ATS-Ready Resume in Minutes | Rezi",
+    "body": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "17.616px",
+      "fontWeight": "450",
+      "lineHeight": "26.424px",
+      "letterSpacing": "normal",
+      "color": "rgb(84, 84, 84)"
+    },
+    "h1": {
+      "fontFamily": "\"PP Neue Montreal\", Arial, sans-serif",
+      "fontSize": "55.52px",
+      "fontWeight": "500",
+      "lineHeight": "63.848px",
+      "letterSpacing": "-0.2776px",
+      "color": "rgb(0, 0, 0)",
+      "text": "The Most Advanced AI Resume Builder"
+    },
+    "h2": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "15.536px",
+      "fontWeight": "450",
+      "lineHeight": "23.304px",
+      "letterSpacing": "-0.07768px",
+      "color": "rgb(84, 84, 84)"
+    },
+    "primaryButton": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "17.616px",
+      "fontWeight": "450",
+      "color": "rgb(255, 255, 255)",
+      "backgroundColor": "color(srgb 0 0 0 / 0.35)",
+      "borderRadius": "8px 8px 0px 0px",
+      "padding": "8px 16px",
+      "boxShadow": "none",
+      "transitionDuration": "0.2s, 0.2s, 0.2s",
+      "transitionProperty": "padding, background-color, opacity",
+      "transitionTimingFunction": "cubic-bezier(0.165, 0.84, 0.44, 1), cubic-bezier(0.165, 0.84, 0.44, 1), cubic-bezier(0.165, 0.84, 0.44, 1)",
+      "text": "Create Resumes",
+      "h": 34
+    },
+    "sections": [
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      }
+    ],
+    "containerMaxWidth": "1344px",
+    "bgColor": "rgb(250, 250, 250)"
+  },
+  "rezi-05-tools": {
+    "title": "Free AI Resume Tools: Write, Optimize & Tailor Your Resume - Rezi",
+    "body": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "17.616px",
+      "fontWeight": "450",
+      "lineHeight": "26.424px",
+      "letterSpacing": "normal",
+      "color": "rgb(84, 84, 84)"
+    },
+    "h1": {
+      "fontFamily": "\"PP Neue Montreal\", Arial, sans-serif",
+      "fontSize": "55.52px",
+      "fontWeight": "500",
+      "lineHeight": "63.848px",
+      "letterSpacing": "-0.2776px",
+      "color": "rgb(0, 0, 0)",
+      "text": "Stop guessing.\nStart getting callbacks."
+    },
+    "h2": {
+      "fontFamily": "\"PP Neue Montreal\", Arial, sans-serif",
+      "fontSize": "45.904px",
+      "fontWeight": "500",
+      "lineHeight": "52.7896px",
+      "letterSpacing": "normal",
+      "color": "rgb(0, 0, 0)"
+    },
+    "primaryButton": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "17.616px",
+      "fontWeight": "450",
+      "color": "rgb(255, 255, 255)",
+      "backgroundColor": "color(srgb 0 0 0 / 0.35)",
+      "borderRadius": "8px 8px 0px 0px",
+      "padding": "8px 48px 8px 16px",
+      "boxShadow": "none",
+      "transitionDuration": "0.2s, 0.2s, 0.2s",
+      "transitionProperty": "padding, background-color, opacity",
+      "transitionTimingFunction": "cubic-bezier(0.165, 0.84, 0.44, 1), cubic-bezier(0.165, 0.84, 0.44, 1), cubic-bezier(0.165, 0.84, 0.44, 1)",
+      "text": "Generate Cover Letters",
+      "h": 34
+    },
+    "sections": [
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      }
+    ],
+    "containerMaxWidth": "1344px",
+    "bgColor": "rgb(250, 250, 250)"
+  },
+  "rezi-06-resume-examples": {
+    "title": "300+ Resume Examples for All Jobs | ATS Friendly | Rezi",
+    "body": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "17.616px",
+      "fontWeight": "450",
+      "lineHeight": "26.424px",
+      "letterSpacing": "normal",
+      "color": "rgb(84, 84, 84)"
+    },
+    "h1": {
+      "fontFamily": "\"PP Neue Montreal\", Arial, sans-serif",
+      "fontSize": "55.52px",
+      "fontWeight": "500",
+      "lineHeight": "63.848px",
+      "letterSpacing": "-0.2776px",
+      "color": "rgb(0, 0, 0)",
+      "text": "Find your perfect resume example"
+    },
+    "h2": {
+      "fontFamily": "\"PP Neue Montreal\", Arial, sans-serif",
+      "fontSize": "26.144px",
+      "fontWeight": "500",
+      "lineHeight": "32.68px",
+      "letterSpacing": "0.13072px",
+      "color": "rgb(0, 0, 0)"
+    },
+    "primaryButton": {
+      "fontFamily": "\"Inter Variable\", Arial, sans-serif",
+      "fontSize": "13.616px",
+      "fontWeight": "450",
+      "color": "rgb(166, 166, 166)",
+      "backgroundColor": "rgba(255, 255, 255, 0)",
+      "borderRadius": "8px",
+      "padding": "8px 12px",
+      "boxShadow": "none",
+      "transitionDuration": "0.3s, 0.3s",
+      "transitionProperty": "background-color, color",
+      "transitionTimingFunction": "cubic-bezier(0.165, 0.84, 0.44, 1), cubic-bezier(0.165, 0.84, 0.44, 1)",
+      "text": "How to make a perfect ATS-friendly resume to beat the system",
+      "h": 57
+    },
+    "sections": [
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      }
+    ],
+    "containerMaxWidth": "1344px",
+    "bgColor": "rgb(250, 250, 250)"
+  },
+  "rezi-07-signup": {
+    "title": "Sign Up | Rezi",
+    "body": {
+      "fontFamily": "\"Source Sans Pro\", sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "24px",
+      "letterSpacing": "normal",
+      "color": "rgb(17, 24, 39)"
+    },
+    "h1": {
+      "fontFamily": "\"Source Sans Pro\", sans-serif",
+      "fontSize": "24px",
+      "fontWeight": "600",
+      "lineHeight": "32px",
+      "letterSpacing": "normal",
+      "color": "rgb(17, 24, 39)",
+      "text": "Create your Rezi account"
+    },
+    "h2": {
+      "fontFamily": "\"Source Sans Pro\", sans-serif",
+      "fontSize": "18px",
+      "fontWeight": "600",
+      "lineHeight": "28px",
+      "letterSpacing": "normal",
+      "color": "rgb(17, 24, 39)"
+    },
+    "primaryButton": {
+      "fontFamily": "\"Source Sans Pro\", sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "700",
+      "color": "rgb(255, 255, 255)",
+      "backgroundColor": "rgb(77, 112, 235)",
+      "borderRadius": "6px",
+      "padding": "4px 20px",
+      "boxShadow": "none",
+      "transitionDuration": "0.15s",
+      "transitionProperty": "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, backdrop-filter, display, content-visibility, overlay, pointer-events",
+      "transitionTimingFunction": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "text": "SIGN UP",
+      "h": 48
+    },
+    "sections": [
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      }
+    ],
+    "containerMaxWidth": null,
+    "bgColor": "rgb(255, 255, 255)"
+  },
+  "rezup-01-landing": {
+    "title": "RezUp — AI Resume Builder. ATS-Friendly Resumes in Minutes.",
+    "body": {
+      "fontFamily": "Inter, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", system-ui, sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "24px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.18 0.02 260)"
+    },
+    "h1": {
+      "fontFamily": "Sora, Inter, system-ui, sans-serif",
+      "fontSize": "48px",
+      "fontWeight": "700",
+      "lineHeight": "48px",
+      "letterSpacing": "-1.2px",
+      "color": "oklch(0.18 0.02 260)",
+      "text": "The AI resume builder that gets you interviews"
+    },
+    "h2": {
+      "fontFamily": "Georgia, \"Times New Roman\", serif",
+      "fontSize": "24px",
+      "fontWeight": "700",
+      "lineHeight": "32px",
+      "letterSpacing": "normal",
+      "color": "rgb(31, 31, 31)"
+    },
+    "primaryButton": {
+      "fontFamily": "Inter, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", system-ui, sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "500",
+      "color": "oklch(0.18 0.02 260)",
+      "backgroundColor": "oklch(0.99 0.002 250)",
+      "borderRadius": "8px",
+      "padding": "0px 24px",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+      "transitionDuration": "0.15s",
+      "transitionProperty": "color, background-color, border-color, box-shadow, transform",
+      "transitionTimingFunction": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "text": "Check my resume's ATS score",
+      "h": 44
+    },
+    "sections": [
+      {
+        "paddingTop": "64px",
+        "paddingBottom": "48px"
+      },
+      {
+        "paddingTop": "32px",
+        "paddingBottom": "32px"
+      },
+      {
+        "paddingTop": "32px",
+        "paddingBottom": "32px"
+      },
+      {
+        "paddingTop": "40px",
+        "paddingBottom": "40px"
+      },
+      {
+        "paddingTop": "0px",
+        "paddingBottom": "0px"
+      },
+      {
+        "paddingTop": "48px",
+        "paddingBottom": "48px"
+      }
+    ],
+    "containerMaxWidth": "1152px",
+    "bgColor": "oklch(0.99 0.002 250)"
+  },
+  "rezup-02-builder-empty": {
+    "title": "Resume Builder — RezUp",
+    "body": {
+      "fontFamily": "Inter, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", system-ui, sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "24px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.18 0.02 260)"
+    },
+    "h1": {
+      "fontFamily": "Sora, Inter, system-ui, sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "24px",
+      "letterSpacing": "-0.24px",
+      "color": "oklch(0.18 0.02 260)",
+      "text": "Resume builder"
+    },
+    "h2": {
+      "fontFamily": "Georgia, \"Times New Roman\", serif",
+      "fontSize": "24px",
+      "fontWeight": "700",
+      "lineHeight": "32px",
+      "letterSpacing": "normal",
+      "color": "rgb(31, 31, 31)"
+    },
+    "primaryButton": {
+      "fontFamily": "Inter, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", system-ui, sans-serif",
+      "fontSize": "12px",
+      "fontWeight": "500",
+      "color": "oklch(0.18 0.02 260)",
+      "backgroundColor": "oklch(0.99 0.002 250)",
+      "borderRadius": "8px",
+      "padding": "0px 12px",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+      "transitionDuration": "0.15s",
+      "transitionProperty": "color, background-color, border-color, box-shadow, transform",
+      "transitionTimingFunction": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "text": "DOCX",
+      "h": 32
+    },
+    "sections": [],
+    "containerMaxWidth": "1152px",
+    "bgColor": "oklch(0.99 0.002 250)"
+  },
+  "rezup-03-ats-checker": {
+    "title": "Free ATS Resume Checker — Instant Match Score | RezUp",
+    "body": {
+      "fontFamily": "Inter, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", system-ui, sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "24px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.18 0.02 260)"
+    },
+    "h1": {
+      "fontFamily": "Sora, Inter, system-ui, sans-serif",
+      "fontSize": "36px",
+      "fontWeight": "700",
+      "lineHeight": "40px",
+      "letterSpacing": "-0.9px",
+      "color": "oklch(0.18 0.02 260)",
+      "text": "Will your resume pass the ATS?"
+    },
+    "h2": null,
+    "primaryButton": {
+      "fontFamily": "Inter, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", system-ui, sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "500",
+      "color": "oklch(0.985 0 0)",
+      "backgroundColor": "oklch(0.5 0.18 265)",
+      "borderRadius": "8px",
+      "padding": "0px 24px",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px",
+      "transitionDuration": "0.15s",
+      "transitionProperty": "color, background-color, border-color, box-shadow, transform",
+      "transitionTimingFunction": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "text": "Check my ATS score",
+      "h": 44
+    },
+    "sections": [],
+    "containerMaxWidth": "1152px",
+    "bgColor": "oklch(0.99 0.002 250)"
+  },
+  "rezup-04-templates-hub": {
+    "title": "ATS-Friendly Resume Templates (Free) — RezUp",
+    "body": {
+      "fontFamily": "Inter, system-ui, -apple-system, sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "27.2px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.18 0.02 260)"
+    },
+    "h1": {
+      "fontFamily": "Sora, Inter, system-ui, sans-serif",
+      "fontSize": "32px",
+      "fontWeight": "700",
+      "lineHeight": "40px",
+      "letterSpacing": "-0.48px",
+      "color": "oklch(0.18 0.02 260)",
+      "text": "ATS-friendly resume templates"
+    },
+    "h2": {
+      "fontFamily": "Sora, Inter, system-ui, sans-serif",
+      "fontSize": "18px",
+      "fontWeight": "700",
+      "lineHeight": "30.6px",
+      "letterSpacing": "-0.27px",
+      "color": "oklch(0.18 0.02 260)"
+    },
+    "primaryButton": {
+      "fontFamily": "Inter, system-ui, -apple-system, sans-serif",
+      "fontSize": "14.4px",
+      "fontWeight": "500",
+      "color": "oklch(0.985 0 0)",
+      "backgroundColor": "oklch(0.5 0.18 265)",
+      "borderRadius": "8px",
+      "padding": "8.8px 17.6px",
+      "boxShadow": "none",
+      "transitionDuration": "0s",
+      "transitionProperty": "all",
+      "transitionTimingFunction": "ease",
+      "text": "Build my resume free",
+      "h": 44
+    },
+    "sections": [],
+    "containerMaxWidth": "1152px",
+    "bgColor": "oklch(0.99 0.002 250)"
+  },
+  "rezup-05-examples-hub": {
+    "title": "Resume Examples by Role (2026) — RezUp",
+    "body": {
+      "fontFamily": "Inter, system-ui, -apple-system, sans-serif",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "27.2px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.18 0.02 260)"
+    },
+    "h1": {
+      "fontFamily": "Sora, Inter, system-ui, sans-serif",
+      "fontSize": "32px",
+      "fontWeight": "700",
+      "lineHeight": "40px",
+      "letterSpacing": "-0.48px",
+      "color": "oklch(0.18 0.02 260)",
+      "text": "Resume examples by role"
+    },
+    "h2": {
+      "fontFamily": "Sora, Inter, system-ui, sans-serif",
+      "fontSize": "18px",
+      "fontWeight": "700",
+      "lineHeight": "30.6px",
+      "letterSpacing": "-0.27px",
+      "color": "oklch(0.18 0.02 260)"
+    },
+    "primaryButton": {
+      "fontFamily": "Inter, system-ui, -apple-system, sans-serif",
+      "fontSize": "14.4px",
+      "fontWeight": "500",
+      "color": "oklch(0.985 0 0)",
+      "backgroundColor": "oklch(0.5 0.18 265)",
+      "borderRadius": "8px",
+      "padding": "8.8px 17.6px",
+      "boxShadow": "none",
+      "transitionDuration": "0s",
+      "transitionProperty": "all",
+      "transitionTimingFunction": "ease",
+      "text": "Build my resume free",
+      "h": 44
+    },
+    "sections": [],
+    "containerMaxWidth": "1152px",
+    "bgColor": "oklch(0.99 0.002 250)"
+  }
+}
