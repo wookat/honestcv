@@ -177,7 +177,7 @@ const app = new Hono<{ Bindings: Env }>()
 // cache middleware) so the SPA shells served by the Worker for /builder and
 // /ats-checker get cf-cache hits like the static assets already do.
 // Bump to invalidate edge-cached Worker HTML on deploys that change rendering.
-const CACHE_VER = 2
+const CACHE_VER = 3
 
 const etagOf = async (buf: ArrayBuffer) => {
   const d = await crypto.subtle.digest('SHA-1', buf)
@@ -859,6 +859,57 @@ app.post('/api/license/activate', async (c) => {
     plan: record.plan,
     expiresAt: record.expiresAt,
   })
+})
+
+// --- Zalize unified account (optional; guests are unaffected) ---
+// The `.zalize.com` central-session cookie reaches cv.zalize.com, so the
+// Worker forwards it server-side; the central token never reaches the client.
+const ZA_ACCOUNT_ORIGIN = 'https://account.zalize.com'
+const ZA_RESUME_ORIGIN = 'https://resume.zalize.com'
+
+async function zaEmail(cookie: string | undefined): Promise<string | null> {
+  if (!cookie || !cookie.includes('better-auth.session_token')) return null
+  try {
+    const r = await fetch(`${ZA_ACCOUNT_ORIGIN}/api/auth/get-session`, {
+      headers: { cookie },
+    })
+    if (!r.ok) return null
+    const data = (await r.json()) as { user?: { email?: string } } | null
+    const email = (data?.user?.email ?? '').trim().toLowerCase()
+    return email || null
+  } catch {
+    return null
+  }
+}
+
+app.get('/api/za/session', async (c) => {
+  c.header('Cache-Control', 'no-store')
+  const email = await zaEmail(c.req.header('cookie'))
+  if (!email) return c.json({ error: 'Not signed in to Zalize account' }, 401)
+  return c.json({ email })
+})
+
+// Proxy the Resume Center primary-resume export (ResumeProfile v1) for the
+// signed-in central account, so the Builder can offer one-click import.
+app.get('/api/za/primary', async (c) => {
+  c.header('Cache-Control', 'no-store')
+  const cookie = c.req.header('cookie') ?? ''
+  if (!cookie.includes('better-auth.session_token')) {
+    return c.json({ error: 'Not signed in to Zalize account' }, 401)
+  }
+  let r: Response
+  try {
+    r = await fetch(`${ZA_RESUME_ORIGIN}/api/export/primary`, {
+      headers: { cookie },
+    })
+  } catch {
+    return c.json({ error: 'Resume Center is unavailable, try again later' }, 502)
+  }
+  if (r.status === 401) return c.json({ error: 'Not signed in to Zalize account' }, 401)
+  if (r.status === 404) return c.json({ error: 'No resume in Resume Center yet' }, 404)
+  if (!r.ok) return c.json({ error: 'Resume Center is unavailable, try again later' }, 502)
+  const profile = (await r.json()) as Record<string, unknown>
+  return c.json(profile)
 })
 
 // Current unlock status for the stored token (checked at app start)
