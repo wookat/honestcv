@@ -382,6 +382,9 @@ export default function Builder() {
   const [rcBusy, setRcBusy] = useState(false)
   const [zaEmail, setZaEmail] = useState<string | null>(null)
   const [zaBusy, setZaBusy] = useState(false)
+  useEffect(() => {
+    if (importOpen) void zalizeSessionEmail().then(setZaEmail)
+  }, [importOpen])
   const importFileRef = useRef<HTMLInputElement>(null)
   const backupFileRef = useRef<HTMLInputElement>(null)
   const [restoreError, setRestoreError] = useState('')
@@ -2301,10 +2304,7 @@ export default function Builder() {
       </Dialog>
       <Dialog
         open={importOpen}
-        onOpenChange={(open) => {
-          setImportOpen(open)
-          if (open) void zalizeSessionEmail().then(setZaEmail)
-        }}
+        onOpenChange={setImportOpen}
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
