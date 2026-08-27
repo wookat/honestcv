@@ -45,6 +45,7 @@ export function SiteFooter() {
           <a className="hover:text-foreground underline" href="/about">About</a>
           <a className="hover:text-foreground underline" href="/terms">Terms &amp; refunds</a>
           <a className="hover:text-foreground underline" href="/privacy">Privacy</a>
+          <a className="hover:text-foreground underline" href="mailto:support@zalize.com">Contact</a>
         </p>
         <p className="space-x-3">
           <a className="hover:text-foreground underline" href="https://qr.zalize.com">HonestQR</a>
