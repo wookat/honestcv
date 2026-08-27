@@ -1416,7 +1416,7 @@ const LEGAL_PAGES = [
       ['What our servers see', 'AI rewrite requests send only the text you ask to improve (plus the job description you pasted) to generate a response; we do not retain it after responding. Purchases store an order id and license key so your license can be restored.'],
       ['Payments', 'Checkout is handled by our merchant of record (Lemon Squeezy). Your payment details go to them, not us. Their receipt email is your proof of purchase.'],
       ['No tracking for sale', 'We do not sell or share personal data. We use no advertising trackers.'],
-      ['Contact', 'Questions or data requests: reply to your receipt email or use the contact link in the footer.'],
+      ['Contact', 'Questions, feedback or data requests: email support@zalize.com. For purchase issues, replying to your receipt email also works.'],
     ],
   },
 ]
@@ -1451,7 +1451,7 @@ ${FP_BEACON}
 <h1>${esc(p.h1)}</h1>
 ${p.sections.map(([h, t]) => `<h2 style="margin-top:1.5rem;font-size:1.125rem">${esc(h)}</h2>\n<p class="lede" style="font-size:1rem">${esc(t)}</p>`).join('\n')}
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -1532,7 +1532,7 @@ ${FP_BEACON}
 </ul>
 <p class="lede" style="font-size:1rem">Sister products, same promise: <a href="https://qr.zalize.com">HonestQR</a>, <a href="https://pdf.zalize.com">HonestPDF</a>, <a href="https://subsleuth.zalize.com">SubSleuth</a>.</p>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/about">About</a> · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/about">About</a> · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -1613,7 +1613,7 @@ ${related.map((r) => `<li><a href="${r.path}">${esc(r.title.split(' — ')[0])}<
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -1668,7 +1668,7 @@ ${others.map((t) => `<li><a href="${t.path}/">${esc(t.name)} resume template</a>
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -1744,7 +1744,7 @@ ${bodyHtml ?? renderHubItems(items)}
 <a class="btn" href="/builder">Start building free</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -3087,7 +3087,7 @@ ${guideLinks.map((r) => `<li><a href="${r.path}">${esc(r.title)}</a></li>`).join
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -3484,7 +3484,7 @@ ${PRICING_FAQ.map(([q, a]) => `<h3>${esc(q)}</h3>\n<p>${esc(a)}</p>`).join('\n')
 <a class="btn" href="/builder">Start building free</a>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
@@ -3569,7 +3569,7 @@ ${AI_SECTIONS.map(
 <a class="btn" href="/builder">Try the AI builder free</a>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
 </body>
 </html>`
 }
