@@ -70,7 +70,13 @@ import {
   resumeStrength,
 } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
-import { parseShareId, fetchResumeProfile, resumeFromProfile } from '@/lib/resumeCenter'
+import {
+  parseShareId,
+  fetchResumeProfile,
+  resumeFromProfile,
+  zalizeSessionEmail,
+  fetchZalizePrimary,
+} from '@/lib/resumeCenter'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText } from '@/lib/download'
@@ -374,6 +380,8 @@ export default function Builder() {
   const [importError, setImportError] = useState('')
   const [rcInput, setRcInput] = useState('')
   const [rcBusy, setRcBusy] = useState(false)
+  const [zaEmail, setZaEmail] = useState<string | null>(null)
+  const [zaBusy, setZaBusy] = useState(false)
   const importFileRef = useRef<HTMLInputElement>(null)
   const backupFileRef = useRef<HTMLInputElement>(null)
   const [restoreError, setRestoreError] = useState('')
@@ -2291,7 +2299,13 @@ export default function Builder() {
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+      <Dialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open)
+          if (open) void zalizeSessionEmail().then(setZaEmail)
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Import your existing resume</DialogTitle>
@@ -2339,6 +2353,34 @@ export default function Builder() {
               }}
             />
           </div>
+          {zaEmail && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-muted-foreground text-xs">
+                Signed in to Zalize as {zaEmail}:
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={zaBusy}
+                onClick={() => {
+                  setZaBusy(true)
+                  setImportError('')
+                  fetchZalizePrimary()
+                    .then((rp) => {
+                      setResume(resumeFromProfile(rp))
+                      setImportOpen(false)
+                    })
+                    .catch((err: unknown) =>
+                      setImportError(err instanceof Error ? err.message : 'Import failed.')
+                    )
+                    .finally(() => setZaBusy(false))
+                }}
+              >
+                {zaBusy ? 'Importing…' : 'Import my primary resume'}
+              </Button>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-muted-foreground text-xs">or pull from Resume Center:</span>
             <input
