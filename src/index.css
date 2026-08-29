@@ -150,6 +150,7 @@
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;
+    height: auto !important;
     aspect-ratio: auto !important;
     overflow: visible !important;
     border: none;
@@ -157,7 +158,9 @@
     border-radius: 0;
   }
   [data-resume-preview] [data-resume-page-window] {
+    width: auto !important;
     height: auto !important;
     overflow: visible !important;
+    transform: none !important;
   }
 }

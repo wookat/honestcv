@@ -85,71 +85,87 @@ export function ResumePreview({
     )
 
   return (
-    <PaginatedPages
-      resume={resume}
-      fontFamily={fontFamily}
-      aspectRatio={aspectRatio}
-      contentStyle={contentStyle}
-    >
+    <PaginatedPages resume={resume} fontFamily={fontFamily} contentStyle={contentStyle}>
       {content}
     </PaginatedPages>
   )
 }
 
+const PAGE_PAD = 32
+
 /**
- * Renders the resume as a stack of page frames. Each frame shows a window
- * onto the same content, shifted up by one page height per frame, so every
- * page of a long resume is visible (matching the multi-page PDF export).
+ * Renders the resume as a stack of page frames. Content is laid out at the
+ * true page width (96dpi Letter/A4) and scaled down to fit the frame, so the
+ * page count is independent of frame width and matches the PDF export's
+ * page geometry. Each frame shows a window onto the same content, shifted
+ * up by one page height per frame.
  */
 function PaginatedPages({
   resume,
   fontFamily,
-  aspectRatio,
   contentStyle,
   children,
 }: {
   resume: Resume
   fontFamily: string
-  aspectRatio: string
   contentStyle: React.CSSProperties
   children: React.ReactNode
 }) {
-  const windowRef = useRef<HTMLDivElement>(null)
+  const baseW = resume.pageSize === 'a4' ? 794 : 816
+  const baseH = resume.pageSize === 'a4' ? 1123 : 1056
+  const windowH = baseH - PAGE_PAD * 2
+  const frameRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const [pages, setPages] = useState(1)
-  const [windowH, setWindowH] = useState(0)
+  const [scale, setScale] = useState(0)
 
   useEffect(() => {
-    const el = windowRef.current
-    if (!el) return
+    const frame = frameRef.current
+    const content = contentRef.current
+    if (!frame || !content) return
     const measure = () => {
-      const h = el.clientHeight
-      setWindowH(h)
-      setPages(Math.max(1, Math.ceil((el.scrollHeight - 1) / Math.max(h, 1))))
+      setScale(frame.clientWidth / baseW)
+      setPages(Math.max(1, Math.ceil((content.scrollHeight - 1) / windowH)))
     }
     measure()
     const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    const inner = el.firstElementChild
-    if (inner) ro.observe(inner)
+    ro.observe(frame)
+    ro.observe(content)
     return () => ro.disconnect()
-  }, [resume])
+  }, [resume, baseW, windowH])
 
   return (
     <div className="space-y-4">
       {Array.from({ length: pages }, (_, i) => (
         <div
           key={i}
+          ref={i === 0 ? frameRef : undefined}
           data-resume-preview={i === 0 ? '' : undefined}
-          className="relative mx-auto w-full rounded-md border bg-white p-8 text-[#1f1f1f] shadow-sm"
-          style={{ fontFamily, aspectRatio, overflow: 'hidden' }}
+          className="relative mx-auto w-full rounded-md border bg-white text-[#1f1f1f] shadow-sm"
+          style={{
+            fontFamily,
+            overflow: 'hidden',
+            ...(scale > 0
+              ? { height: baseH * scale }
+              : { aspectRatio: `${baseW} / ${baseH}` }),
+          }}
           aria-label={`Resume preview page ${i + 1} of ${pages}`}
         >
           <div
-            ref={i === 0 ? windowRef : undefined}
             data-resume-page-window
-            className="h-full overflow-hidden"
+            style={{
+              width: baseW,
+              height: baseH,
+              padding: PAGE_PAD,
+              overflow: 'hidden',
+              transform: `scale(${scale || 1})`,
+              transformOrigin: 'top left',
+            }}
           >
-            <div style={{ transform: i > 0 ? `translateY(-${i * windowH}px)` : undefined }}>
+            <div
+              ref={i === 0 ? contentRef : undefined}
+              style={{ transform: i > 0 ? `translateY(-${i * windowH}px)` : undefined }}
+            >
               <div style={contentStyle}>{children}</div>
             </div>
           </div>
