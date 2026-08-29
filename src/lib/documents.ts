@@ -5,7 +5,7 @@
 
 import { newId } from '@/lib/resume'
 
-export type CareerDocKind = 'cover' | 'interview'
+export type CareerDocKind = 'cover' | 'interview' | 'resignation'
 
 export interface CareerDoc {
   id: string

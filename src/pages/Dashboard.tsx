@@ -257,13 +257,14 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <h2 className="mt-10 text-lg font-semibold">Cover letters & interview briefs</h2>
+        <h2 className="mt-10 text-lg font-semibold">Career documents</h2>
         <p className="text-muted-foreground mt-1 text-sm">
           Documents you saved from the AI tools in the editor.
         </p>
         {docs.length === 0 ? (
           <p className="text-muted-foreground mt-4 rounded-md border border-dashed p-4 text-sm">
-            Nothing saved yet — generate a cover letter or interview prep brief in the{' '}
+            Nothing saved yet — generate a cover letter, interview brief or resignation letter in
+            the{' '}
             <Link to="/builder" className="underline">
               editor
             </Link>{' '}
@@ -277,15 +278,20 @@ export default function Dashboard() {
                 className="bg-card flex items-center justify-between gap-2 rounded-md border p-3"
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  {d.kind === 'cover' ? (
-                    <FileText className="text-primary size-4 shrink-0" />
-                  ) : (
+                  {d.kind === 'interview' ? (
                     <MessagesSquare className="text-primary size-4 shrink-0" />
+                  ) : (
+                    <FileText className="text-primary size-4 shrink-0" />
                   )}
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{d.title}</p>
                     <p className="text-muted-foreground text-xs">
-                      {d.kind === 'cover' ? 'Cover letter' : 'Interview prep'} ·{' '}
+                      {d.kind === 'cover'
+                        ? 'Cover letter'
+                        : d.kind === 'resignation'
+                          ? 'Resignation letter'
+                          : 'Interview prep'}{' '}
+                      ·{' '}
                       {new Date(d.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
