@@ -2001,6 +2001,32 @@ export default function Builder() {
             </span>
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Font</span>
+              {(
+                [
+                  ['auto', 'Auto', 'Follow the template’s font'],
+                  ['serif', 'Serif', 'Georgia / Times — traditional look'],
+                  ['sans', 'Sans', 'Inter / Calibri — modern look'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — applies to preview, PDF and DOCX`}
+                  aria-pressed={(resume.fontFamily ?? 'auto') === value}
+                  onClick={() => set('fontFamily', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.fontFamily ?? 'auto') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Text</span>
               {(['s', 'm', 'l'] as const).map((scale) => (
                 <button

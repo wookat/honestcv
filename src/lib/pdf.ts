@@ -5,7 +5,7 @@
 
 import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'
 import { downloadBlob } from '@/lib/download'
-import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys } from '@/lib/resume'
+import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys, serifOf } from '@/lib/resume'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_SIZES = {
@@ -265,7 +265,7 @@ class PdfWriter {
 async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const doc = await PDFDocument.create()
-  const fonts: Fonts = tpl.serif
+  const fonts: Fonts = serifOf(resume, tpl.serif)
     ? {
         regular: await doc.embedFont(StandardFonts.TimesRoman),
         bold: await doc.embedFont(StandardFonts.TimesRomanBold),
