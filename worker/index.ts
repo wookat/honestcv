@@ -178,7 +178,7 @@ const app = new Hono<{ Bindings: Env }>()
 // cache middleware) so the SPA shells served by the Worker for /builder and
 // /ats-checker get cf-cache hits like the static assets already do.
 // Bump to invalidate edge-cached Worker HTML on deploys that change rendering.
-const CACHE_VER = 3
+const CACHE_VER = 4
 
 const etagOf = async (buf: ArrayBuffer) => {
   const d = await crypto.subtle.digest('SHA-1', buf)
@@ -239,12 +239,11 @@ app.use('*', async (c, next) => {
   } else if (c.req.path.startsWith('/fonts/')) {
     h.set('Cache-Control', 'public, max-age=604800')
   } else if (c.req.method === 'GET' && !c.req.path.startsWith('/api/') && c.res.status === 200) {
-    // Pages: browsers revalidate quickly; the edge holds them for 10 minutes
-    // (s-maxage also opts the response into the cache middleware above).
-    // The zone edge cache sits in front of the Worker and can't be purged
-    // with our API tokens, so s-maxage bounds how long a stale SPA shell
-    // (with previous-deploy asset hashes) survives a deploy.
-    h.set('Cache-Control', 'public, max-age=300, s-maxage=600')
+    // Pages: short TTLs everywhere (s-maxage also opts the response into the
+    // cache middleware above). The zone edge cache sits in front of the Worker
+    // and can't be purged with our API tokens, so s-maxage bounds how long a
+    // stale SPA shell (with previous-deploy asset hashes) survives a deploy.
+    h.set('Cache-Control', 'public, max-age=60, s-maxage=60')
   }
 })
 
@@ -929,11 +928,12 @@ async function zaEmail(cookie: string | undefined): Promise<string | null> {
   }
 }
 
+// Signed-out is an expected state, not an error: return 200 with a null email
+// so the browser console stays clean on every page load.
 app.get('/api/za/session', async (c) => {
   c.header('Cache-Control', 'no-store')
   const email = await zaEmail(c.req.header('cookie'))
-  if (!email) return c.json({ error: 'Not signed in to Zalize account' }, 401)
-  return c.json({ email })
+  return c.json({ email: email ?? null })
 })
 
 // Proxy the Resume Center primary-resume export (ResumeProfile v1) for the
