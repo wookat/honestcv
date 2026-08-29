@@ -157,7 +157,9 @@
     box-shadow: none;
     border-radius: 0;
   }
-  [data-resume-preview] [data-resume-page-window] {
+  [data-resume-preview] [data-resume-page-window],
+  [data-resume-preview] [data-resume-page-window] > div {
+    position: static !important;
     width: auto !important;
     height: auto !important;
     overflow: visible !important;

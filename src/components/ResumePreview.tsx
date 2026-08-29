@@ -154,6 +154,9 @@ function PaginatedPages({
           <div
             data-resume-page-window
             style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
               width: baseW,
               height: baseH,
               padding: PAGE_PAD,
@@ -162,11 +165,13 @@ function PaginatedPages({
               transformOrigin: 'top left',
             }}
           >
-            <div
-              ref={i === 0 ? contentRef : undefined}
-              style={{ transform: i > 0 ? `translateY(-${i * windowH}px)` : undefined }}
-            >
-              <div style={contentStyle}>{children}</div>
+            <div style={{ height: windowH, overflow: 'hidden' }}>
+              <div
+                ref={i === 0 ? contentRef : undefined}
+                style={{ transform: i > 0 ? `translateY(-${i * windowH}px)` : undefined }}
+              >
+                <div style={contentStyle}>{children}</div>
+              </div>
             </div>
           </div>
           {pages > 1 && (
