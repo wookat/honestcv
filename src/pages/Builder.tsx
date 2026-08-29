@@ -2109,7 +2109,7 @@ export default function Builder() {
 
           <div className="rounded-lg border bg-slate-100/90 p-3 sm:p-6 dark:bg-slate-900/40">
             <div className="shadow-lg">
-              <ResumePreview resume={resume} />
+              <ResumePreview resume={resume} paginated />
             </div>
           </div>
 
