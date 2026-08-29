@@ -1314,13 +1314,37 @@ details.mnav[open] summary{background:var(--border)}
 details.mnav .panel{position:absolute;right:0;top:calc(100% + .5rem);min-width:11rem;background:var(--bg);border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);box-shadow:0 8px 24px rgb(0 0 0 / .08);padding:.25rem}
 details.mnav .panel a{display:flex;align-items:center;min-height:2.5rem;padding:0 .75rem;font-size:.875rem;color:var(--fg);text-decoration:none;border-radius:calc(var(--radius) - 4px)}
 details.mnav .panel a:hover{background:var(--border)}
+details.mnav .panel p{margin:.5rem 0 0;padding:0 .75rem;font-size:.6875rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+details.rnav{display:none;position:relative}
+@media (min-width:768px){details.rnav{display:block}}
+details.rnav summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.25rem;color:var(--muted)}
+details.rnav summary::-webkit-details-marker{display:none}
+details.rnav summary:hover{color:var(--fg)}
+details.rnav[open] summary{color:var(--fg)}
+details.rnav[open] summary svg{transform:rotate(180deg)}
+details.rnav .panel{position:absolute;left:0;top:calc(100% + .75rem);min-width:14rem;background:var(--bg);border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);box-shadow:0 8px 24px rgb(0 0 0 / .08);padding:.25rem;z-index:30}
+details.rnav .panel a{display:flex;align-items:center;min-height:2.5rem;padding:0 .75rem;font-size:.875rem;color:var(--fg);text-decoration:none;border-radius:calc(var(--radius) - 4px)}
+details.rnav .panel a:hover{background:var(--border)}
 `.trim()
 
 /** Header nav mirroring the React SiteHeader (src/components/Layout.tsx). */
+const RESOURCE_LINKS = [
+  ['Resume guides', '/guides/'],
+  ['RezUp vs Zety', '/vs/zety'],
+  ['RezUp vs LiveCareer', '/vs/livecareer'],
+  ['One-time payment builders', '/resume-builder-one-time-payment'],
+  ['About', '/about'],
+]
+const RESOURCE_LINKS_HTML = RESOURCE_LINKS.map(([label, href]) => `<a href="${href}">${label}</a>`).join('\n')
 const NAV_HTML = `<nav class="main" aria-label="Main">
 <a href="/templates/">Templates</a>
 <a href="/examples/">Examples</a>
-<a href="/guides/">Guides</a>
+<details class="rnav">
+<summary>Resources <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></summary>
+<div class="panel">
+${RESOURCE_LINKS_HTML}
+</div>
+</details>
 <a href="/ats-checker">ATS Checker</a>
 <a href="/pricing/">Pricing</a>
 </nav>
@@ -1329,10 +1353,11 @@ const NAV_HTML = `<nav class="main" aria-label="Main">
 <div class="panel">
 <a href="/templates/">Templates</a>
 <a href="/examples/">Examples</a>
-<a href="/guides/">Guides</a>
 <a href="/ats-checker">ATS Checker</a>
 <a href="/pricing/">Pricing</a>
 <a href="/dashboard">My resumes</a>
+<p>Resources</p>
+${RESOURCE_LINKS_HTML}
 </div>
 </details>`
 
