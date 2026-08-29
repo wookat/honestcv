@@ -56,14 +56,16 @@ import {
   PaymentRequiredError,
   type TailorItemInput,
   aiCoverLetter,
+  aiKeywordBullet,
   aiInterviewBrief,
   aiRewrite,
   aiTailor,
   fetchAiQuota,
 } from '@/lib/api'
-import { scoreResume } from '@/lib/ats'
+import { type AtsResult, scoreResume } from '@/lib/ats'
 import {
   ACTION_VERBS,
+  type HealthDimension,
   type HealthReport,
   checkBullets,
   resumeHealth,
@@ -353,6 +355,7 @@ export default function Builder() {
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
   const [tailorOpen, setTailorOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
+  const [kwBulletFor, setKwBulletFor] = useState<string | null>(null)
   const [checklistOpen, setChecklistOpen] = useState(
     () =>
       !localStorage.getItem('honestcv.tourDone') && !localStorage.getItem('honestcv.shared')
@@ -540,6 +543,15 @@ export default function Builder() {
 
   const strength = useMemo(() => resumeStrength(resume), [resume])
   const health = useMemo(() => resumeHealth(resume), [resume])
+
+  const insertKeywordBullet = useCallback((expId: string, text: string) => {
+    setResume((r) => ({
+      ...r,
+      experience: r.experience.map((e) =>
+        e.id === expId ? { ...e, bullets: [...e.bullets.filter((b) => b.trim()), text] } : e
+      ),
+    }))
+  }, [])
 
   const applyTailorSuggestion = useCallback((id: string, text: string) => {
     if (id === 'summary') {
@@ -1959,6 +1971,17 @@ export default function Builder() {
                   )}
                 </span>
               </div>
+              <button
+                type="button"
+                className="text-primary mt-2 inline-flex min-h-10 items-center text-xs underline sm:min-h-0"
+                onClick={() => {
+                  localStorage.setItem('honestcv.seen.health', '1')
+                  setHealthSeen(true)
+                  setHealthOpen(true)
+                }}
+              >
+                See full score breakdown
+              </button>
               <details className="mt-2 text-xs">
                 <summary className="text-muted-foreground hover:text-foreground cursor-pointer select-none underline-offset-2 hover:underline">
                   How this score is calculated
@@ -2003,25 +2026,39 @@ export default function Builder() {
                         Missing ({ats.missing.length})
                       </span>{' '}
                       <span className="text-muted-foreground">
-                        — click a keyword you genuinely have to add it to Skills:
+                        — for keywords you genuinely have, add to Skills or let AI draft a bullet:
                       </span>
                       <span className="mt-1 flex flex-wrap gap-1">
                         {ats.missing.map((kw) => (
-                          <button
+                          <span
                             key={kw}
-                            type="button"
-                            className="bg-muted hover:bg-primary/10 rounded-full border px-2 py-0.5"
-                            onClick={() =>
-                              set(
-                                'skills',
-                                resume.skills.trim()
-                                  ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
-                                  : kw
-                              )
-                            }
+                            className="bg-muted inline-flex items-center overflow-hidden rounded-full border"
                           >
-                            + {kw}
-                          </button>
+                            <button
+                              type="button"
+                              className="hover:bg-primary/10 px-2 py-0.5"
+                              title="Add to Skills"
+                              onClick={() =>
+                                set(
+                                  'skills',
+                                  resume.skills.trim()
+                                    ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
+                                    : kw
+                                )
+                              }
+                            >
+                              + {kw}
+                            </button>
+                            <button
+                              type="button"
+                              className="hover:bg-primary/10 border-l px-1.5 py-0.5"
+                              title={`Draft an experience bullet using "${kw}"`}
+                              aria-label={`Draft a bullet using ${kw}`}
+                              onClick={() => setKwBulletFor(kw)}
+                            >
+                              <Sparkles aria-hidden className="size-3" />
+                            </button>
+                          </span>
                         ))}
                       </span>
                     </div>
@@ -2141,7 +2178,21 @@ export default function Builder() {
           onApply={applyTailorSuggestion}
         />
       )}
-      <HealthDialog open={healthOpen} onClose={() => setHealthOpen(false)} health={health} />
+      <HealthDialog
+        open={healthOpen}
+        onClose={() => setHealthOpen(false)}
+        health={health}
+        ats={ats}
+      />
+      {kwBulletFor !== null && (
+        <KeywordBulletDialog
+          keyword={kwBulletFor}
+          resume={resume}
+          onClose={() => setKwBulletFor(null)}
+          onQuota={setFreeLeft}
+          onInsert={insertKeywordBullet}
+        />
+      )}
       <Dialog open={variantPick !== null} onOpenChange={(o) => !o && setVariantPick(null)}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
@@ -2893,28 +2944,56 @@ function TailorDialog({
   )
 }
 
-/** Rule-based multi-dimension health report — no AI calls, computed locally. */
+/** Rule-based multi-dimension score breakdown — no AI calls, computed locally. */
 function HealthDialog({
   open,
   onClose,
   health,
+  ats,
 }: {
   open: boolean
   onClose: () => void
   health: HealthReport
+  ats: AtsResult
 }) {
+  const atsDimensions: HealthDimension[] = [
+    ...(ats.keywordScore !== null
+      ? [
+          {
+            id: 'keywords',
+            label: 'Keyword match',
+            score: ats.keywordScore,
+            summary: `${ats.matched.length} of ${ats.matched.length + ats.missing.length} job-posting keywords found in your resume`,
+            plain:
+              'ATS software and recruiters search for the job posting\u2019s exact terms \u2014 missing ones can filter you out before a human reads a word.',
+            findings: ats.missing.slice(0, 6).map((k) => `Missing keyword: "${k}"`),
+          },
+        ]
+      : []),
+    {
+      id: 'ats-structure',
+      label: 'ATS structure',
+      score: ats.structureScore,
+      summary: `${ats.checks.filter((c) => c.pass).length} of ${ats.checks.length} structure checks passing`,
+      plain:
+        'Standard sections and complete contact details are what resume parsers latch onto first.',
+      findings: ats.checks.filter((c) => !c.pass).map((c) => `${c.label} \u2014 ${c.hint}`),
+    },
+  ]
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Resume health report — {health.score}/100</DialogTitle>
+          <DialogTitle>
+            Score breakdown — ATS {ats.score}/100 · Writing {health.score}/100
+          </DialogTitle>
           <DialogDescription>
-            Six rule-based checks computed in your browser — a writing-quality heuristic, not a
-            hiring prediction. Nothing leaves your device.
+            Every check is rule-based and computed in your browser — a transparent heuristic, not
+            a hiring prediction. Nothing leaves your device.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          {health.dimensions.map((d) => (
+          {[...atsDimensions, ...health.dimensions].map((d) => (
             <div key={d.id} className="rounded-lg border p-3">
               <div className="flex items-center justify-between gap-2 text-sm">
                 <span className="font-medium">{d.label}</span>
@@ -2961,6 +3040,114 @@ function HealthDialog({
             </div>
           ))}
         </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** AI-drafts one bullet that works a missing JD keyword into an experience,
+ * grounded in the resume's real content — review before it's inserted. */
+function KeywordBulletDialog({
+  keyword,
+  resume,
+  onClose,
+  onQuota,
+  onInsert,
+}: {
+  keyword: string
+  resume: Resume
+  onClose: () => void
+  onQuota: (remaining: number) => void
+  onInsert: (expId: string, text: string) => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [text, setText] = useState<string | null>(null)
+  const [expId, setExpId] = useState(resume.experience[0]?.id ?? '')
+  const [inserted, setInserted] = useState(false)
+
+  const run = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      const { text: drafted, freeRemaining } = await aiKeywordBullet({
+        keyword,
+        resumeText: resumeToPlainText(resume),
+        jobDescription: resume.jobDescription,
+        role: resume.targetRole,
+      })
+      if (freeRemaining !== null) onQuota(freeRemaining)
+      setText(drafted)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Draft a bullet for “{keyword}”</DialogTitle>
+          <DialogDescription>
+            The AI drafts one bullet that works this keyword in, grounded in your existing resume —
+            unknowns become [bracketed placeholders] for you to fill in. Only use it if the
+            experience is genuinely yours.
+          </DialogDescription>
+        </DialogHeader>
+        {resume.experience.length === 0 ? (
+          <p className="text-sm">Add an experience entry first — the bullet needs a role to live under.</p>
+        ) : text === null ? (
+          <Button onClick={() => void run()} disabled={busy}>
+            {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+            {busy ? 'Drafting…' : 'Draft the bullet'}
+          </Button>
+        ) : (
+          <div className="space-y-3">
+            <Textarea
+              rows={3}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              aria-label="Drafted bullet"
+            />
+            <div className="space-y-1.5">
+              <Label htmlFor="kwBulletExp">Add to</Label>
+              <select
+                id="kwBulletExp"
+                className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+                value={expId}
+                onChange={(e) => setExpId(e.target.value)}
+              >
+                {resume.experience.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {[e.role, e.company].filter(Boolean).join(' at ') || 'Experience'}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {inserted ? (
+              <p className="text-sm font-medium text-emerald-700">Added to your resume.</p>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={!text.trim() || !expId}
+                  onClick={() => {
+                    onInsert(expId, text.trim())
+                    setInserted(true)
+                  }}
+                >
+                  <Check className="size-3" /> Add bullet
+                </Button>
+                <Button size="sm" variant="outline" onClick={onClose}>
+                  Discard
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+        {error && <p className="text-destructive text-sm">{error}</p>}
       </DialogContent>
     </Dialog>
   )
