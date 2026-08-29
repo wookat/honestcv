@@ -328,6 +328,8 @@ export default function Dashboard() {
             </DialogDescription>
           </DialogHeader>
           <Textarea
+            id="career-doc-text"
+            name="career-doc-text"
             rows={14}
             value={docText}
             onChange={(e) => setDocText(e.target.value)}
