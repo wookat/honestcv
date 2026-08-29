@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   ArrowDown,
   ArrowUp,
@@ -13,6 +14,7 @@ import {
   FileUp,
   GraduationCap,
   GripVertical,
+  LayoutGrid,
   LayoutTemplate,
   Lightbulb,
   ListChecks,
@@ -920,6 +922,17 @@ export default function Builder() {
               }}
             >
               <Copy className="size-3" /> Copies{versions.length > 0 ? ` (${versions.length})` : ''}
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-10 gap-1 text-xs sm:h-7"
+              title="See all your resumes and copies in one place"
+            >
+              <Link to="/dashboard">
+                <LayoutGrid className="size-3" /> My resumes
+              </Link>
             </Button>
             <input
               ref={backupFileRef}
@@ -2259,7 +2272,8 @@ export default function Builder() {
             <DialogTitle>Resume copies</DialogTitle>
             <DialogDescription>
               Keep one copy per job you're applying to — tailor keywords without
-              losing your master version. Copies live in this browser only.
+              losing your master version. Copies live in this browser only. Manage
+              them visually on <Link to="/dashboard" className="underline">My resumes</Link>.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2">
