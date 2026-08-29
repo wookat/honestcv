@@ -1301,7 +1301,20 @@ h2[id]{scroll-margin-top:1rem}
 .related ul{list-style:none;padding:0;margin:0;display:grid;gap:.5rem}
 footer.site{border-top:1px solid var(--border)}
 footer.site .in{max-width:72rem;margin:0 auto;padding:1.5rem 1rem;text-align:center;font-size:.75rem;color:var(--muted)}
+nav.main{display:none}
+@media (min-width:768px){nav.main{display:flex;align-items:center;gap:1.25rem;font-size:.875rem}}
+nav.main a{color:var(--muted);text-decoration:none}
+nav.main a:hover{color:var(--fg)}
 `.trim()
+
+/** Header nav mirroring the React SiteHeader (src/components/Layout.tsx). */
+const NAV_HTML = `<nav class="main" aria-label="Main">
+<a href="/templates/">Templates</a>
+<a href="/examples/">Examples</a>
+<a href="/guides/">Guides</a>
+<a href="/ats-checker">ATS Checker</a>
+<a href="/pricing/">Pricing</a>
+</nav>`
 
 /** URL-safe anchor id from a section heading */
 function anchorId(heading) {
@@ -1369,6 +1382,7 @@ ${FP_BEACON}
 <body>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
@@ -1445,6 +1459,7 @@ ${FP_BEACON}
 <body>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
@@ -1507,6 +1522,7 @@ ${FP_BEACON}
 <body>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
@@ -1591,6 +1607,7 @@ ${FP_BEACON}
 <body>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
@@ -1644,6 +1661,7 @@ ${FP_BEACON}
 <body>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
 <a class="btn" href="/builder?template=${p.path.split('/').pop()}">Use this template free</a>
 </div></header>
 <main>
@@ -1733,6 +1751,7 @@ ${FP_BEACON}
 <body>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main${mainStyle ? ` style="${mainStyle}"` : ''}>
@@ -3064,6 +3083,7 @@ ${FP_BEACON}
 <body>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
@@ -3450,6 +3470,7 @@ ${FP_BEACON}
 <body>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main>
@@ -3553,6 +3574,7 @@ ${FP_BEACON}
 <body>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
 <main style="max-width:56rem">
