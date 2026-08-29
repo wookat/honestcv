@@ -437,8 +437,12 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>{openDoc?.title}</DialogTitle>
             <DialogDescription>
-              {openDoc?.kind === 'cover' ? 'Cover letter' : 'Interview prep brief'} — edits are
-              saved to this browser.
+              {openDoc?.kind === 'cover'
+                ? 'Cover letter'
+                : openDoc?.kind === 'resignation'
+                  ? 'Resignation letter'
+                  : 'Interview prep brief'}{' '}
+              — edits are saved to this browser.
             </DialogDescription>
           </DialogHeader>
           <Textarea

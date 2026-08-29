@@ -2196,6 +2196,7 @@ export default function Builder() {
           <div className="grid gap-2 sm:grid-cols-3">
             <Button
               variant="outline"
+              className="min-h-10 sm:min-h-9"
               onClick={() =>
                 hasBundlePlan || freeMode
                   ? setToolOpen('cover')
@@ -2209,6 +2210,7 @@ export default function Builder() {
             </Button>
             <Button
               variant="outline"
+              className="min-h-10 sm:min-h-9"
               onClick={() =>
                 hasBundlePlan || freeMode
                   ? setToolOpen('interview')
@@ -2222,6 +2224,7 @@ export default function Builder() {
             </Button>
             <Button
               variant="outline"
+              className="min-h-10 sm:min-h-9"
               onClick={() =>
                 hasBundlePlan || freeMode
                   ? setToolOpen('resignation')
