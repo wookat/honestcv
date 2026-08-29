@@ -2463,9 +2463,11 @@ export default function Builder() {
           <DialogHeader>
             <DialogTitle>Import your existing resume</DialogTitle>
             <DialogDescription>
-              Upload a PDF, DOCX or TXT file — or paste the text below. We'll pre-fill
-              the sections, entirely in your browser; nothing is uploaded to a server.
-              Review the result; imports are a starting point, not perfect.
+              Upload a PDF, DOCX or TXT file — including the PDF LinkedIn saves
+              from your profile (More → Save to PDF) — or paste the text below.
+              We'll pre-fill the sections, entirely in your browser; nothing is
+              uploaded to a server. Review the result; imports are a starting
+              point, not perfect.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap items-center gap-2">
