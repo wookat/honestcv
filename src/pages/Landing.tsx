@@ -8,6 +8,7 @@ import {
   Copy,
   FileDown,
   Lock,
+  ScanSearch,
   ShieldCheck,
   Sparkles,
   Target,
@@ -345,6 +346,58 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* The problem: ATS filtering */}
+        <section aria-labelledby="problem-heading" className="mx-auto max-w-5xl px-4 pt-24">
+          <div className="grid items-center gap-10 md:grid-cols-2">
+            <div>
+              <p className="text-primary text-sm font-medium tracking-widest uppercase">The problem</p>
+              <h2 id="problem-heading" className="mt-2 text-3xl font-semibold tracking-tight">
+                It&apos;s usually not a person rejecting you — it&apos;s a parser
+              </h2>
+              <p className="text-muted-foreground mt-4">
+                Most companies run every resume through Applicant Tracking Systems (ATS)
+                before a recruiter ever sees it. If the software can&apos;t parse your
+                layout, or the keywords from the job posting aren&apos;t there, you&apos;re
+                filtered out — silently, with no explanation.
+              </p>
+              <p className="text-muted-foreground mt-3">
+                That&apos;s why every RezUp template is single-column real text, and why
+                the match score checks your resume against the actual job description
+                before you send it.
+              </p>
+              <Button asChild variant="outline" className="mt-5">
+                <Link to="/ats-checker">
+                  Run the free ATS check <ArrowRight />
+                </Link>
+              </Button>
+            </div>
+            <div aria-hidden className="bg-card mx-auto w-full max-w-md rounded-xl border p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <ScanSearch className="text-primary size-4" /> Applicant Tracking System
+              </div>
+              <div className="mt-4 space-y-2 text-xs">
+                {(
+                  [
+                    ['Name', 'Detected', true],
+                    ['Contact info', 'Detected', true],
+                    ['Experience', '3 positions detected', true],
+                    ['Skills', 'Parsed as body text', false],
+                  ] as [string, string, boolean][]
+                ).map(([field, status, ok]) => (
+                  <div key={field} className="flex items-center justify-between rounded-md border px-3 py-2">
+                    <span className="font-medium">{field}</span>
+                    <span className={ok ? 'text-emerald-600' : 'text-red-600'}>{status}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-md border bg-red-50 px-3 py-2.5 text-xs text-red-800">
+                Match against job description: <strong>47%</strong> — filtered out before
+                a recruiter sees it
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* How it works */}
         <section aria-labelledby="how-heading" className="mx-auto max-w-5xl px-4 py-24">
           <h2 id="how-heading" className="text-center text-3xl font-semibold tracking-tight">
@@ -554,11 +607,17 @@ export default function Landing() {
               </CardContent>
             </Card>
           </div>
-          <p className="text-muted-foreground mt-4 text-center text-xs">
+          <div className="mt-6 flex justify-center">
+            <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900">
+              <ShieldCheck className="size-4 shrink-0" />
+              7-day money-back guarantee · your card is never stored
+            </div>
+          </div>
+          <p className="text-muted-foreground mt-3 text-center text-xs">
             <Lock className="mr-1 inline size-3" />
             {freeMode
               ? 'No payment is collected during the beta — no card on file, nothing that renews.'
-              : 'Payments processed by our merchant of record. 7-day money-back guarantee — email support@zalize.com. Your card is never stored for recurring billing.'}
+              : 'Payments processed by our merchant of record. Refunds within 7 days — email support@zalize.com.'}
           </p>
         </section>
 
@@ -643,6 +702,26 @@ export default function Landing() {
               [
                 'Where is my data stored?',
                 'In your browser (localStorage). We have no accounts and no resume database. The only content that reaches our server is text you explicitly send for AI rewriting, which is processed and returned, not stored.',
+              ],
+              [
+                'Will the AI invent experience I don\u2019t have?',
+                'No. The AI only rewords what you actually wrote — stronger verbs, the job posting\u2019s keywords, clearer impact. Where a number would help but you didn\u2019t give one, it inserts an [add %] placeholder for you to fill in. Nothing changes until you accept each edit.',
+              ],
+              [
+                'Can I import my LinkedIn profile or an existing resume?',
+                'Yes. Upload the PDF LinkedIn saves from your profile (More \u2192 Save to PDF), or any PDF/DOCX/TXT resume, and the sections are pre-filled for you to review — entirely in your browser, nothing is uploaded to a server.',
+              ],
+              [
+                'How is RezUp different from Zety or LiveCareer?',
+                'One payment instead of a recurring subscription, AI that never fabricates, and no account or server-side resume storage. See the detailed side-by-side pages: RezUp vs Zety and RezUp vs LiveCareer, linked in the footer.',
+              ],
+              [
+                'Can I keep editing after I pay?',
+                'Forever. Your one-time purchase unlocks unlimited downloads — come back next year, update your resume, and export again at no extra cost.',
+              ],
+              [
+                'How do refunds work?',
+                'If RezUp isn\u2019t for you, email support@zalize.com within 7 days of purchase for a full refund — no forms, no retention flow. Since we never store your card, there\u2019s nothing to cancel afterwards.',
               ],
               [
                 'What if I need it on another device?',
