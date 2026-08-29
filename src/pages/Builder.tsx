@@ -2632,7 +2632,7 @@ function BulletGuidance({
           {onFix && (
             <button
               type="button"
-              className="text-primary mt-0.5 inline-flex min-h-9 items-center gap-1 underline underline-offset-2 disabled:opacity-50 sm:min-h-0"
+              className="text-primary mt-0.5 inline-flex min-h-10 items-center gap-1 underline underline-offset-2 disabled:opacity-50 sm:min-h-0"
               disabled={busyLine !== null && busyLine !== undefined}
               onClick={() => onFix(r.index)}
               title={`AI rewrites line ${r.index + 1} — you pick from the suggestions`}
