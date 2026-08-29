@@ -5,7 +5,7 @@
 
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Copy, FilePlus2, Pencil, Trash2 } from 'lucide-react'
+import { Copy, FilePlus2, FileText, MessagesSquare, Pencil, Trash2 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { ResumePreview } from '@/components/ResumePreview'
@@ -19,7 +19,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { scoreResume } from '@/lib/ats'
+import {
+  type CareerDoc,
+  deleteCareerDoc,
+  listCareerDocs,
+  updateCareerDoc,
+} from '@/lib/documents'
 import {
   type Resume,
   type ResumeVersion,
@@ -57,6 +64,10 @@ export default function Dashboard() {
   const [confirmOpen, setConfirmOpen] = useState<ResumeVersion | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<ResumeVersion | null>(null)
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null)
+  const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
+  const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
+  const [docText, setDocText] = useState('')
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
 
   const openCopy = (v: ResumeVersion) => {
     saveResume({ ...emptyResume(), ...v.data })
@@ -207,6 +218,69 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
+
+        <h2 className="mt-10 text-lg font-semibold">Cover letters & interview briefs</h2>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Documents you saved from the AI tools in the editor.
+        </p>
+        {docs.length === 0 ? (
+          <p className="text-muted-foreground mt-4 rounded-md border border-dashed p-4 text-sm">
+            Nothing saved yet — generate a cover letter or interview prep brief in the{' '}
+            <Link to="/builder" className="underline">
+              editor
+            </Link>{' '}
+            and hit “Save to My resumes”.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {docs.map((d) => (
+              <li
+                key={d.id}
+                className="bg-card flex items-center justify-between gap-2 rounded-md border p-3"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  {d.kind === 'cover' ? (
+                    <FileText className="text-primary size-4 shrink-0" />
+                  ) : (
+                    <MessagesSquare className="text-primary size-4 shrink-0" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{d.title}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {d.kind === 'cover' ? 'Cover letter' : 'Interview prep'} ·{' '}
+                      {new Date(d.updatedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    onClick={() => {
+                      setOpenDoc(d)
+                      setDocText(d.text)
+                    }}
+                  >
+                    Open
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive min-h-10 sm:min-h-8"
+                    title="Delete this document"
+                    onClick={() => setConfirmDeleteDoc(d)}
+                  >
+                    <Trash2 className="size-3.5" />
+                    <span className="sr-only">Delete {d.title}</span>
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </main>
       <SiteFooter />
 
@@ -239,6 +313,72 @@ export default function Dashboard() {
             )}
             <Button type="button" onClick={() => confirmOpen && openCopy(confirmOpen)}>
               Open and replace draft
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openDoc !== null} onOpenChange={(o) => !o && setOpenDoc(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{openDoc?.title}</DialogTitle>
+            <DialogDescription>
+              {openDoc?.kind === 'cover' ? 'Cover letter' : 'Interview prep brief'} — edits are
+              saved to this browser.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            rows={14}
+            value={docText}
+            onChange={(e) => setDocText(e.target.value)}
+            className="font-mono text-xs"
+            aria-label="Document text"
+          />
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void navigator.clipboard.writeText(docText)}
+            >
+              Copy text
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (openDoc) setDocs(updateCareerDoc(openDoc.id, { text: docText }))
+                setOpenDoc(null)
+              }}
+            >
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmDeleteDoc !== null}
+        onOpenChange={(o) => !o && setConfirmDeleteDoc(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete "{confirmDeleteDoc?.title}"?</DialogTitle>
+            <DialogDescription>
+              This removes the document from this browser permanently.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setConfirmDeleteDoc(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (confirmDeleteDoc) setDocs(deleteCareerDoc(confirmDeleteDoc.id))
+                setConfirmDeleteDoc(null)
+              }}
+            >
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
