@@ -968,7 +968,7 @@ app.get('/api/license/status', async (c) => {
 
 // Client-side routes rendered by the SPA shell; anything else missing from
 // static assets is a real 404 (avoids soft-404s for arbitrary URLs).
-const SPA_ROUTES = new Set(['/', '/builder', '/ats-checker'])
+const SPA_ROUTES = new Set(['/', '/builder', '/ats-checker', '/dashboard'])
 
 app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {
