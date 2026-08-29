@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Menu, X } from 'lucide-react'
 import { LogoMark } from '@/components/Logo'
 
 /** Sets the document title and meta description for the current route. */
@@ -11,6 +12,7 @@ export function usePageMeta(title: string, description: string) {
 }
 
 export function SiteHeader({ action }: { action?: React.ReactNode }) {
+  const [menuOpen, setMenuOpen] = useState(false)
   return (
     <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -26,8 +28,32 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           <Link className="hover:text-foreground" to="/ats-checker">ATS Checker</Link>
           <a className="hover:text-foreground" href="/pricing/">Pricing</a>
         </nav>
-        {action}
+        <div className="flex items-center gap-1">
+          {action}
+          <button
+            type="button"
+            aria-label="Menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+            className="hover:bg-accent -mr-2 inline-flex size-10 items-center justify-center rounded-md md:hidden"
+          >
+            {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+        </div>
       </div>
+      {menuOpen && (
+        <nav
+          aria-label="Main"
+          className="bg-background border-t px-4 pb-2 md:hidden"
+        >
+          <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/templates/">Templates</a>
+          <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/examples/">Examples</a>
+          <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/guides/">Guides</a>
+          <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/ats-checker" onClick={() => setMenuOpen(false)}>ATS Checker</Link>
+          <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/pricing/">Pricing</a>
+          <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/dashboard" onClick={() => setMenuOpen(false)}>My resumes</Link>
+        </nav>
+      )}
     </header>
   )
 }
