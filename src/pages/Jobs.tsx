@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, BriefcaseBusiness, ExternalLink, Search } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
+import { WorkspaceNav } from '@/components/WorkspaceNav'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -142,7 +143,9 @@ export default function Jobs() {
           </Button>
         }
       />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8">
+        <WorkspaceNav />
+        <div className="min-w-0 flex-1">
         <h1 className="text-2xl font-bold">Job search</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Remote jobs via{' '}
@@ -417,6 +420,7 @@ export default function Jobs() {
               <p className="text-muted-foreground text-sm">Select a job to see the details.</p>
             )}
           </div>
+        </div>
         </div>
       </main>
       <SiteFooter />
