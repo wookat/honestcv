@@ -15,8 +15,16 @@
       var items = ul.querySelectorAll('li')
       var shown = 0
       for (var j = 0; j < items.length; j++) {
-        var match = !q || (items[j].textContent || '').toLowerCase().indexOf(q) !== -1
-        items[j].hidden = !match
+        var item = items[j]
+        var match = !q || (item.textContent || '').toLowerCase().indexOf(q) !== -1
+        // Some items carry an inline display (e.g. flex), which would override
+        // the [hidden] UA rule, so toggle display directly.
+        if (match) {
+          if (item.dataset.display !== undefined) item.style.display = item.dataset.display
+        } else {
+          if (item.dataset.display === undefined) item.dataset.display = item.style.display
+          item.style.display = 'none'
+        }
         if (match) shown++
       }
       ul.hidden = shown === 0
