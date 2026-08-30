@@ -259,6 +259,7 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       label: 'Quantified achievements',
       pass: quantified,
       hint: 'Numbers (%, $, counts) make bullets stand out to recruiters.',
+      anchor: 'experience',
     },
     {
       label: 'Employment dates listed',
