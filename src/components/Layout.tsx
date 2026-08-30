@@ -103,6 +103,7 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/jobs" onClick={() => setMenuOpen(false)}>Jobs</Link>
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/pricing/">Pricing</a>
           <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/dashboard" onClick={() => setMenuOpen(false)}>My resumes</Link>
+          <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/builder?assistant=1" onClick={() => setMenuOpen(false)}>AI assistant</Link>
           <p className="text-muted-foreground mt-2 px-2 text-xs font-medium tracking-wide uppercase">Resources</p>
           {RESOURCE_LINKS.map(([label, href]) => (
             <a key={href} className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href={href}>{label}</a>
