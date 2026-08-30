@@ -383,7 +383,19 @@ export default function Builder() {
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
-  const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(null)
+  // ?doc=cover&company=<name> deep link from the /jobs board's "Cover letter" action
+  const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(() => {
+    const doc = new URLSearchParams(window.location.search).get('doc')
+    return doc === 'cover' || doc === 'interview' || doc === 'resignation' ? doc : null
+  })
+  const [toolCompany] = useState(
+    () => new URLSearchParams(window.location.search).get('company') ?? ''
+  )
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('doc')) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [])
   const [tailorOpen, setTailorOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
   const [kwBulletFor, setKwBulletFor] = useState<string | null>(null)
@@ -2453,6 +2465,7 @@ export default function Builder() {
       />
       <BundleToolDialog
         kind={toolOpen}
+        initialCompany={toolCompany}
         onClose={() => setToolOpen(null)}
         resume={resume}
         onQuota={setFreeLeft}
@@ -2928,16 +2941,18 @@ function BulletGuidance({
 
 function BundleToolDialog({
   kind,
+  initialCompany = '',
   onClose,
   resume,
   onQuota,
 }: {
   kind: 'cover' | 'interview' | 'resignation' | null
+  initialCompany?: string
   onClose: () => void
   resume: Resume
   onQuota: (remaining: number) => void
 }) {
-  const [company, setCompany] = useState('')
+  const [company, setCompany] = useState(initialCompany)
   const [currentRole, setCurrentRole] = useState('')
   const [lastDay, setLastDay] = useState('')
   const [reason, setReason] = useState('')
@@ -2956,6 +2971,7 @@ function BundleToolDialog({
 
   if (kind !== lastKind) {
     setLastKind(kind)
+    if (kind !== null && initialCompany) setCompany(initialCompany)
     setResult('')
     setError('')
     setSavedId(null)

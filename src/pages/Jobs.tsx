@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, BriefcaseBusiness, ExternalLink, Search } from 'lucide-react'
+import { ArrowLeft, BriefcaseBusiness, ExternalLink, FileText, Search } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { WorkspaceNav } from '@/components/WorkspaceNav'
@@ -68,7 +68,10 @@ export default function Jobs() {
   const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => listPipeline())
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [mobileDetail, setMobileDetail] = useState(false)
-  const [confirmTarget, setConfirmTarget] = useState<JobListing | null>(null)
+  const [confirmTarget, setConfirmTarget] = useState<{
+    job: JobListing
+    intent: 'target' | 'cover'
+  } | null>(null)
 
   const fetchJobs = (q: string, cat = '') =>
     searchJobs(q, cat)
@@ -128,10 +131,14 @@ export default function Jobs() {
     setPipeline(status === 'none' ? removeFromPipeline(job.id) : upsertPipeline(job, status))
   }
 
-  const targetResume = (job: JobListing) => {
+  const targetResume = (job: JobListing, intent: 'target' | 'cover') => {
     const draft = loadResume() ?? emptyResume()
     saveResume({ ...draft, targetRole: job.title, jobDescription: job.description })
-    void navigate('/builder')
+    void navigate(
+      intent === 'cover'
+        ? `/builder?doc=cover&company=${encodeURIComponent(job.company)}`
+        : '/builder'
+    )
   }
 
   return (
@@ -379,9 +386,18 @@ export default function Jobs() {
                     type="button"
                     size="sm"
                     className="min-h-10 gap-1.5 sm:min-h-8"
-                    onClick={() => setConfirmTarget(selected)}
+                    onClick={() => setConfirmTarget({ job: selected, intent: 'target' })}
                   >
                     <BriefcaseBusiness className="size-4" /> Target my resume
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="min-h-10 gap-1.5 sm:min-h-8"
+                    onClick={() => setConfirmTarget({ job: selected, intent: 'cover' })}
+                  >
+                    <FileText className="size-4" /> Cover letter
                   </Button>
                   <Button asChild size="sm" variant="outline" className="min-h-10 gap-1.5 sm:min-h-8">
                     <a href={selected.url} target="_blank" rel="noopener noreferrer">
@@ -428,11 +444,17 @@ export default function Jobs() {
       <Dialog open={confirmTarget !== null} onOpenChange={(o) => !o && setConfirmTarget(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Target "{confirmTarget?.title}"?</DialogTitle>
+            <DialogTitle>
+              {confirmTarget?.intent === 'cover'
+                ? `Write a cover letter for "${confirmTarget.job.title}"?`
+                : `Target "${confirmTarget?.job.title}"?`}
+            </DialogTitle>
             <DialogDescription>
               This sets the job title and description on your current draft so the ATS score and
               AI tailoring in the editor aim at this posting. It replaces the draft's current
               target job, if any.
+              {confirmTarget?.intent === 'cover' &&
+                ' The editor opens with the cover letter tool pre-filled for this company.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -441,9 +463,11 @@ export default function Jobs() {
             </Button>
             <Button
               type="button"
-              onClick={() => confirmTarget && targetResume(confirmTarget)}
+              onClick={() => confirmTarget && targetResume(confirmTarget.job, confirmTarget.intent)}
             >
-              Target and open editor
+              {confirmTarget?.intent === 'cover'
+                ? 'Open cover letter tool'
+                : 'Target and open editor'}
             </Button>
           </DialogFooter>
         </DialogContent>
