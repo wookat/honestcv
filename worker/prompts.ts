@@ -147,6 +147,28 @@ export function buildResignationLetterMessages(
   ]
 }
 
+export function buildInterviewFeedbackMessages(
+  question: string,
+  answer: string,
+  resumeText: string,
+  jobDescription: string,
+  role: string
+): ChatMessage[] {
+  return [
+    {
+      role: 'system',
+      content: `You are an interview coach reviewing one practice answer. Assess the candidate's answer to the given question and reply in plain text with exactly these headings:
+WHAT WORKED — 2-3 specific strengths of this answer.
+WHAT TO IMPROVE — 2-3 concrete, actionable fixes (structure, specificity, relevance to the role).
+STRONGER ANSWER — a rewritten answer the candidate could give, grounded only in their real resume content; where a specific detail is unknown, use a bracketed placeholder like [metric] or [project name]. Never invent experience the resume does not support. No markdown syntax beyond the plain headings above.`,
+    },
+    {
+      role: 'user',
+      content: `Role: ${role || 'the role'}\n\nInterview question:\n"""\n${question.slice(0, 300)}\n"""\n\nCandidate's answer:\n"""\n${answer.slice(0, 3000)}\n"""${jobDescription.trim() ? `\n\nJob description:\n"""\n${jobDescription.slice(0, 3000)}\n"""` : ''}${resumeText.trim() ? `\n\nCandidate resume:\n"""\n${resumeText.slice(0, 5000)}\n"""` : ''}`,
+    },
+  ]
+}
+
 export function buildInterviewBriefMessages(
   resumeText: string,
   jobDescription: string,

@@ -110,3 +110,13 @@ export async function aiInterviewBrief(input: {
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-brief', input)
 }
+
+export async function aiInterviewFeedback(input: {
+  question: string
+  answer: string
+  resumeText: string
+  jobDescription: string
+  role: string
+}): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-feedback', input)
+}

@@ -29,6 +29,7 @@ import {
   buildCoverLetterMessages,
   buildKeywordBulletMessages,
   buildInterviewBriefMessages,
+  buildInterviewFeedbackMessages,
   buildResignationLetterMessages,
   buildRewriteMessages,
 } from './prompts'
@@ -742,6 +743,65 @@ app.post('/api/ai/interview-brief', async (c) => {
   const result = await callLlm(
     c.env,
     buildInterviewBriefMessages(resumeText, jd, body.role ?? ''),
+    0.5
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  return c.json({ text: result.text, freeRemaining })
+})
+
+// Interview answer feedback — Career Bundle (free mode: shares the free AI quota)
+app.post('/api/ai/interview-feedback', async (c) => {
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent || ent.plan !== 'bundle') {
+    if (!freeMode(c.env)) {
+      return c.json(
+        {
+          error: 'Interview practice is part of the Career Bundle ($19.99, one-time).',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error:
+            'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+  const body = await c.req
+    .json<{
+      question?: string
+      answer?: string
+      resumeText?: string
+      jobDescription?: string
+      role?: string
+    }>()
+    .catch(() => ({}) as Record<string, never>)
+  const question = body.question?.trim()
+  const answer = body.answer?.trim()
+  if (!question) return c.json({ error: 'Type the interview question first.' }, 400)
+  if (!answer || answer.length < 20) {
+    return c.json({ error: 'Write your answer first — a couple of sentences at least.' }, 400)
+  }
+  const result = await callLlm(
+    c.env,
+    buildInterviewFeedbackMessages(
+      question,
+      answer,
+      body.resumeText ?? '',
+      body.jobDescription ?? '',
+      body.role ?? ''
+    ),
     0.5
   )
   // Quota is consumed only after a successful call, so failures cost nothing
