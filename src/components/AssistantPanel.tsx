@@ -1,34 +1,65 @@
 /**
  * Resume assistant — a chat side panel inside the builder, grounded in the
- * current draft. Advises and points at in-editor tools; it never edits the
- * resume itself. History is kept locally per browser.
+ * current draft. Advises and points at in-editor tools; it can propose a
+ * summary or skills edit, which is only written after the user clicks Apply.
+ * History is kept locally per browser.
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Send, Sparkles, Trash2, X } from 'lucide-react'
+import { Check, Loader2, Send, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { aiAssistant, PaymentRequiredError, type AssistantTurnInput } from '@/lib/api'
+import {
+  aiAssistant,
+  PaymentRequiredError,
+  type AssistantAction,
+  type AssistantTurnInput,
+} from '@/lib/api'
 import { resumeToPlainText, type Resume } from '@/lib/resume'
 
 const CHAT_KEY = 'honestcv.assistantChat'
 const CHAT_MAX = 40
 
-function loadChat(): AssistantTurnInput[] {
+interface ChatMsg extends AssistantTurnInput {
+  action?: AssistantAction
+  applied?: boolean
+}
+
+function validAction(a: unknown): a is AssistantAction {
+  if (!a || typeof a !== 'object') return false
+  const action = a as { type?: unknown; value?: unknown }
+  if (action.type === 'summary') return typeof action.value === 'string' && Boolean(action.value)
+  if (action.type === 'skills')
+    return (
+      Array.isArray(action.value) &&
+      action.value.length > 0 &&
+      action.value.every((s) => typeof s === 'string')
+    )
+  return false
+}
+
+function loadChat(): ChatMsg[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(CHAT_KEY) ?? '[]') as unknown
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (t): t is AssistantTurnInput =>
-        Boolean(t && typeof (t as { content?: unknown }).content === 'string') &&
-        ((t as { role?: unknown }).role === 'user' || (t as { role?: unknown }).role === 'assistant')
-    )
+    return parsed
+      .filter(
+        (t): t is ChatMsg =>
+          Boolean(t && typeof (t as { content?: unknown }).content === 'string') &&
+          ((t as { role?: unknown }).role === 'user' ||
+            (t as { role?: unknown }).role === 'assistant')
+      )
+      .map((t) => ({
+        role: t.role,
+        content: t.content,
+        ...(validAction(t.action) ? { action: t.action, applied: t.applied === true } : {}),
+      }))
   } catch {
     return []
   }
 }
 
-function persistChat(turns: AssistantTurnInput[]) {
+function persistChat(turns: ChatMsg[]) {
   try {
     localStorage.setItem(CHAT_KEY, JSON.stringify(turns.slice(-CHAT_MAX)))
   } catch {
@@ -58,6 +89,7 @@ export function AssistantPanel({
   jobDescription,
   onQuota,
   onPaymentRequired,
+  onApply,
 }: {
   open: boolean
   onClose: () => void
@@ -65,8 +97,9 @@ export function AssistantPanel({
   jobDescription: string
   onQuota: (remaining: number) => void
   onPaymentRequired: (message: string) => void
+  onApply: (action: AssistantAction) => void
 }) {
-  const [turns, setTurns] = useState<AssistantTurnInput[]>(loadChat)
+  const [turns, setTurns] = useState<ChatMsg[]>(loadChat)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -88,14 +121,21 @@ export function AssistantPanel({
     setError('')
     setBusy(true)
     try {
-      const { text: reply, freeRemaining } = await aiAssistant({
-        turns: next.slice(-12),
+      const { text: reply, action, freeRemaining } = await aiAssistant({
+        turns: next.slice(-12).map((t) => ({ role: t.role, content: t.content })),
         resumeText: resumeToPlainText(resume),
         jobDescription,
         role: resume.targetRole,
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
-      const withReply = [...next, { role: 'assistant' as const, content: reply }].slice(-CHAT_MAX)
+      const withReply = [
+        ...next,
+        {
+          role: 'assistant' as const,
+          content: reply,
+          ...(validAction(action) ? { action } : {}),
+        },
+      ].slice(-CHAT_MAX)
       setTurns(withReply)
       persistChat(withReply)
     } catch (e) {
@@ -104,6 +144,15 @@ export function AssistantPanel({
     } finally {
       setBusy(false)
     }
+  }
+
+  const apply = (index: number) => {
+    const msg = turns[index]
+    if (!msg.action || msg.applied) return
+    onApply(msg.action)
+    const next = turns.map((t, i) => (i === index ? { ...t, applied: true } : t))
+    setTurns(next)
+    persistChat(next)
   }
 
   const clear = () => {
@@ -168,15 +217,35 @@ export function AssistantPanel({
           </div>
         )}
         {turns.map((t, i) => (
-          <div
-            key={i}
-            className={
-              t.role === 'user'
-                ? 'bg-primary text-primary-foreground ml-8 rounded-lg px-3 py-2 text-sm whitespace-pre-wrap'
-                : 'bg-muted mr-8 rounded-lg px-3 py-2 text-sm whitespace-pre-wrap'
-            }
-          >
-            {t.content}
+          <div key={i} className={t.role === 'user' ? 'ml-8 space-y-2' : 'mr-8 space-y-2'}>
+            <div
+              className={
+                t.role === 'user'
+                  ? 'bg-primary text-primary-foreground rounded-lg px-3 py-2 text-sm whitespace-pre-wrap'
+                  : 'bg-muted rounded-lg px-3 py-2 text-sm whitespace-pre-wrap'
+              }
+            >
+              {t.content}
+            </div>
+            {t.action && (
+              <div className="rounded-lg border px-3 py-2">
+                <p className="text-muted-foreground text-xs font-medium">
+                  {t.action.type === 'summary' ? 'Proposed summary' : 'Proposed skills'}
+                </p>
+                <p className="mt-1 text-sm whitespace-pre-wrap">
+                  {t.action.type === 'summary' ? t.action.value : t.action.value.join(', ')}
+                </p>
+                {t.applied ? (
+                  <p className="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
+                    <Check className="size-3.5" /> Applied to your resume
+                  </p>
+                ) : (
+                  <Button size="sm" className="mt-2 min-h-10 sm:min-h-8" onClick={() => apply(i)}>
+                    {t.action.type === 'summary' ? 'Apply to summary' : 'Add to skills'}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         ))}
         {busy && (
