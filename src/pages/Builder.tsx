@@ -3248,7 +3248,7 @@ export default function Builder() {
                     aria-label={`Text color ${value}`}
                     aria-pressed={active}
                     onClick={() => set('textColor', value)}
-                    className="-m-0.5 flex size-8 items-center justify-center rounded-full"
+                    className="-m-0.5 flex size-10 items-center justify-center rounded-full sm:size-8"
                   >
                     <span
                       aria-hidden
