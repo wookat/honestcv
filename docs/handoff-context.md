@@ -23,6 +23,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - KV 存 license/免费额度/邮件 leads；无关系型数据库
 - 已消费简历中心 ResumeProfile v1（/share/ 链接导入，PR #199/#200；注意 CSP connect-src 需包含简历中心 API 域）
 
+## Rezi 对标循环（2026-08-29 起，R1–R5 已完成）
+- 一手审计：docs/audit-2026-08-29-rezi-r1.md；各轮方案 docs/plan-r1..r5-*.md
+- R1 评分深度+AI keyword bullet（PR #214）、R2 落地页 showcase+导航（#215）、R3 逐行 AI 修复（#216）、R4 多页实时预览（#217）、R5 简历操作台 /dashboard（#218，含 SPA_ROUTES 补 /dashboard 修 404）
+- PR 为累积链（R2 基于 R1 分支…R5 基于 R4），生产已部署最新版；PR 均未合并，合并时按链顺序
+- 生产复验标准：1440+375 双视口、无横向溢出、触摸目标≥40px、console clean、文档路由 200
+
 ## 进行中/待办任务（按优先级）
 1. 付费通道：Lemon Squeezy 配置完成后关 FREE_MODE，回归 checkout 全流程
 2. 品牌：遵循 @zalize/brand 版本化包（治理批次 GV-2）

@@ -376,6 +376,25 @@ export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
   return versions
 }
 
+export function renameResumeVersion(id: string, name: string): ResumeVersion[] {
+  const versions = listResumeVersions().map((v) =>
+    v.id === id ? { ...v, name, updatedAt: Date.now() } : v
+  )
+  persistVersions(versions)
+  return versions
+}
+
+export function duplicateResumeVersion(id: string): ResumeVersion[] {
+  const source = listResumeVersions().find((v) => v.id === id)
+  if (!source) return listResumeVersions()
+  const versions = [
+    { id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now(), data: source.data },
+    ...listResumeVersions(),
+  ]
+  persistVersions(versions)
+  return versions
+}
+
 export function deleteResumeVersion(id: string): ResumeVersion[] {
   const versions = listResumeVersions().filter((v) => v.id !== id)
   persistVersions(versions)
