@@ -81,7 +81,7 @@ import {
   aiTailor,
   fetchAiQuota,
 } from '@/lib/api'
-import { type AtsResult, atsScoreSummary, scoreResume } from '@/lib/ats'
+import { type AtsResult, type SectionAnchor, atsScoreSummary, scoreResume } from '@/lib/ats'
 import {
   ACTION_VERBS,
   type HealthDimension,
@@ -335,20 +335,44 @@ function useDragReorder(onReorder: (from: number, to: number) => void) {
   return { handleProps, dropProps, overIndex }
 }
 
+/** Event dispatched by ATS-check "Fix" links to scroll the matching editor section into view */
+const JUMP_EVENT = 'honestcv:jump-section'
+
 function Section({
   title,
   icon,
   children,
   defaultOpen = true,
+  anchor,
 }: {
   title: string
   icon: React.ReactNode
   children: React.ReactNode
   defaultOpen?: boolean
+  anchor?: SectionAnchor
 }) {
   const [open, setOpen] = useState(defaultOpen)
+  const [flash, setFlash] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!anchor) return
+    const onJump = (ev: Event) => {
+      if ((ev as CustomEvent<string>).detail !== anchor) return
+      setOpen(true)
+      requestAnimationFrame(() => {
+        ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+      setFlash(true)
+      window.setTimeout(() => setFlash(false), 1600)
+    }
+    window.addEventListener(JUMP_EVENT, onJump)
+    return () => window.removeEventListener(JUMP_EVENT, onJump)
+  }, [anchor])
   return (
-    <Card className="py-0">
+    <Card
+      ref={ref}
+      className={`scroll-mt-16 py-0 transition-shadow ${flash ? 'ring-primary/60 ring-2' : ''}`}
+    >
       <CardContent className="p-4">
         <button
           type="button"
@@ -508,6 +532,13 @@ export default function Builder() {
   const [templateFilter, setTemplateFilter] = useState('all')
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
+  /** Scroll the editor section that fixes a failing ATS check into view */
+  const jumpToSection = (anchor: SectionAnchor) => {
+    setMobilePane('edit')
+    requestAnimationFrame(() =>
+      window.dispatchEvent(new CustomEvent(JUMP_EVENT, { detail: anchor }))
+    )
+  }
   const { undo, canUndo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
   // ?assistant=1 deep link from the workspace sidebar / mobile menu "AI assistant" entries
@@ -1347,7 +1378,7 @@ export default function Builder() {
             </div>
           </Section>
 
-          <Section title="Contact" icon={<FileText className="size-4" />}>
+          <Section title="Contact" icon={<FileText className="size-4" />} anchor="contact">
             <div className="grid gap-3 sm:grid-cols-2">
               {(
                 [
@@ -1373,7 +1404,7 @@ export default function Builder() {
             </div>
           </Section>
 
-          <Section title="Summary" icon={<FileText className="size-4" />}>
+          <Section title="Summary" icon={<FileText className="size-4" />} anchor="summary">
             <Textarea
               rows={3}
               placeholder="2-3 sentences: who you are, years of experience, biggest strengths and wins."
@@ -1391,7 +1422,7 @@ export default function Builder() {
             </div>
           </Section>
 
-          <Section title="Experience" icon={<Briefcase className="size-4" />}>
+          <Section title="Experience" icon={<Briefcase className="size-4" />} anchor="experience">
             {resume.experience.map((e, idx) => (
               <div
                 key={e.id}
@@ -1594,7 +1625,7 @@ export default function Builder() {
             </Button>
           </Section>
 
-          <Section title="Education" icon={<GraduationCap className="size-4" />}>
+          <Section title="Education" icon={<GraduationCap className="size-4" />} anchor="education">
             {resume.education.map((e, idx) => (
               <div
                 key={e.id}
@@ -2720,7 +2751,7 @@ export default function Builder() {
             </Button>
           </Section>
 
-          <Section title="Skills & certifications" icon={<Sparkles className="size-4" />}>
+          <Section title="Skills & certifications" icon={<Sparkles className="size-4" />} anchor="skills">
             <div className="space-y-1.5">
               <Label htmlFor="skills">Skills (comma-separated)</Label>
               <Textarea
@@ -3466,6 +3497,15 @@ export default function Builder() {
                     <span>
                       <span className="font-medium">{c.label}</span>
                       {!c.pass && <span className="text-muted-foreground"> — {c.hint}</span>}
+                      {!c.pass && c.anchor && (
+                        <button
+                          type="button"
+                          className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                          onClick={() => c.anchor && jumpToSection(c.anchor)}
+                        >
+                          Fix →
+                        </button>
+                      )}
                     </span>
                   </li>
                 ))}
