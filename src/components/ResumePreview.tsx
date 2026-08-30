@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from 'react'
 
 import {
   type Resume,
+  awardBullets,
+  awardEntries,
   certEntries,
   courseworkBullets,
   courseworkEntries,
@@ -417,6 +419,37 @@ function SectionBlock({
         {resume.certifications.trim() && (
           <p className="text-[11px]">{resume.certifications.trim()}</p>
         )}
+      </>
+    ) : null
+  }
+  if (sectionKey === 'awards') {
+    const items = awardEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('Awards & Honors')}
+        {items.map((a) => (
+          <div key={a.id} className="mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11.5px] font-bold">
+                {a.name.trim() || 'Award'}
+                {a.organization.trim() && (
+                  <span className="font-normal"> — {a.organization.trim()}</span>
+                )}
+              </p>
+              {a.date.trim() && (
+                <p className="text-[10px] text-neutral-500 italic">{a.date.trim()}</p>
+              )}
+            </div>
+            <ul className="mt-0.5 space-y-0.5">
+              {awardBullets(a).map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11px]">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </>
     ) : null
   }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowDown,
+  Award,
   BookOpen,
   ArrowUp,
   Briefcase,
@@ -102,6 +103,7 @@ import {
   type Resume,
   type ResumeVersion,
   deleteResumeVersion,
+  emptyAward,
   emptyCertification,
   emptyCustomSection,
   emptyEducation,
@@ -2112,6 +2114,101 @@ export default function Builder() {
               }
             >
               <Plus className="size-4" /> Add coursework
+            </Button>
+          </Section>
+
+          <Section title="Awards & honors" icon={<Award className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              Awards, honors and recognitions that back up your track record.
+            </p>
+            {(resume.awards ?? []).map((a) => (
+              <div key={a.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Award name (e.g. Dean's List)"
+                    value={a.name}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: (r.awards ?? []).map((x) =>
+                          x.id === a.id ? { ...x, name: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-[1fr_5rem] gap-2">
+                    <Input
+                      placeholder="Awarded by (organization)"
+                      value={a.organization}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, organization: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="When"
+                      value={a.date}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, date: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="Why it's relevant — one bullet per line"
+                    value={a.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: (r.awards ?? []).map((x) =>
+                          x.id === a.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete award"
+                    aria-label="Delete award"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: (r.awards ?? []).filter((x) => x.id !== a.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  awards: [...(r.awards ?? []), emptyAward()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add award
             </Button>
           </Section>
 

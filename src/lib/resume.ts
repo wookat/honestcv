@@ -86,7 +86,19 @@ export interface CourseworkItem {
   description: string
 }
 
-/** User-defined section (e.g. Volunteering, Publications, Awards) */
+export interface AwardItem {
+  id: string
+  /** Award or honor name, e.g. "Dean's List" */
+  name: string
+  /** Which organization gave the award */
+  organization: string
+  /** When it was received, e.g. "2026" */
+  date: string
+  /** How the award is relevant; one bullet per line */
+  description: string
+}
+
+/** User-defined section (e.g. Volunteering, Publications) */
 export interface CustomSection {
   id: string
   title: string
@@ -106,6 +118,7 @@ export interface Resume {
   certItems?: CertificationItem[]
   involvement?: InvolvementItem[]
   coursework?: CourseworkItem[]
+  awards?: AwardItem[]
   customSections: CustomSection[]
   /** Section keys in render order (see SECTION_KEYS + custom:<id>) */
   sectionOrder: string[]
@@ -183,6 +196,7 @@ export function emptyResume(): Resume {
     certItems: [],
     involvement: [],
     coursework: [],
+    awards: [],
     customSections: [],
     sectionOrder: [...SECTION_KEYS],
     templateId: 'classic',
@@ -249,6 +263,14 @@ export const emptyCoursework = (): CourseworkItem => ({
   description: '',
 })
 
+export const emptyAward = (): AwardItem => ({
+  id: newId(),
+  name: '',
+  organization: '',
+  date: '',
+  description: '',
+})
+
 export const emptyCustomSection = (): CustomSection => ({
   id: newId(),
   title: '',
@@ -265,6 +287,7 @@ export const SECTION_KEYS = [
   'coursework',
   'skills',
   'certifications',
+  'awards',
 ] as const
 
 export const SECTION_LABELS: Record<string, string> = {
@@ -276,6 +299,7 @@ export const SECTION_LABELS: Record<string, string> = {
   coursework: 'Coursework',
   skills: 'Skills',
   certifications: 'Certifications',
+  awards: 'Awards & Honors',
 }
 
 /**
@@ -517,6 +541,13 @@ export function sanitizeResume(input: unknown): Resume | null {
       date: asStr(c.date),
       skill: asStr(c.skill),
       description: asStr(c.description),
+    })),
+    awards: asObjArr(raw.awards).map((a) => ({
+      id: asStr(a.id) || newId(),
+      name: asStr(a.name),
+      organization: asStr(a.organization),
+      date: asStr(a.date),
+      description: asStr(a.description),
     })),
     customSections: asObjArr(raw.customSections).map((s) => ({
       id: asStr(s.id) || newId(),
@@ -766,6 +797,19 @@ export const courseworkBullets = (c: CourseworkItem): string[] => [
   ...c.description.split('\n').map((l) => l.trim()).filter(Boolean),
 ]
 
+/** Award entries with any content */
+export const awardEntries = (r: Resume): AwardItem[] =>
+  (r.awards ?? []).filter((a) => a.name.trim() || a.organization.trim())
+
+/** Heading line for an award entry: name — organization */
+export function awardHeadingLine(a: AwardItem): string {
+  return [a.name.trim(), a.organization.trim()].filter(Boolean).join(' — ')
+}
+
+/** Non-empty description lines of an award entry, rendered as bullets */
+export const awardBullets = (a: AwardItem): string[] =>
+  a.description.split('\n').map((l) => l.trim()).filter(Boolean)
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
@@ -831,6 +875,12 @@ export function resumeToPlainText(r: Resume): string {
         if (c.description.trim()) lines.push(c.description.trim())
       }
       if (r.certifications) lines.push(r.certifications)
+    } else if (key === 'awards' && awardEntries(r).length > 0) {
+      lines.push('', 'AWARDS & HONORS')
+      for (const a of awardEntries(r)) {
+        lines.push(awardHeadingLine(a) + (a.date.trim() ? ` (${a.date.trim()})` : ''))
+        for (const b of awardBullets(a)) lines.push(`- ${b}`)
+      }
     } else if (key.startsWith('custom:')) {
       const s = r.customSections.find((x) => `custom:${x.id}` === key)
       if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue
@@ -914,6 +964,16 @@ export function resumeToMarkdown(r: Resume): string {
         if (c.description.trim()) lines.push(c.description.trim(), '')
       }
       if (r.certifications) lines.push(r.certifications)
+    } else if (key === 'awards' && awardEntries(r).length > 0) {
+      heading('Awards & Honors')
+      for (const a of awardEntries(r)) {
+        lines.push(
+          `### ${awardHeadingLine(a)}${a.date.trim() ? ` *(${a.date.trim()})*` : ''}`,
+          ''
+        )
+        for (const b of awardBullets(a)) lines.push(`- ${b}`)
+        lines.push('')
+      }
     } else if (key.startsWith('custom:')) {
       const s = r.customSections.find((x) => `custom:${x.id}` === key)
       if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue
