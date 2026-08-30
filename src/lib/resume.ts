@@ -344,15 +344,95 @@ export function exampleToResume(person: ExamplePerson): Resume {
 
 const STORAGE_KEY = 'honestcv.resume'
 
+const asStr = (v: unknown): string => (typeof v === 'string' ? v : '')
+const asStrArr = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : []
+const asObjArr = (v: unknown): Record<string, unknown>[] =>
+  Array.isArray(v)
+    ? v.filter((o): o is Record<string, unknown> => typeof o === 'object' && o !== null)
+    : []
+const asEnum = <T extends string>(v: unknown, allowed: readonly T[]): T | undefined =>
+  allowed.includes(v as T) ? (v as T) : undefined
+
+/**
+ * Coerce untrusted stored data into a valid Resume, field by field, so a
+ * corrupted or legacy localStorage entry degrades gracefully instead of
+ * crashing the app at render time. Returns null when nothing is salvageable.
+ */
+export function sanitizeResume(input: unknown): Resume | null {
+  if (typeof input !== 'object' || input === null) return null
+  const raw = input as Record<string, unknown>
+  if (typeof raw.contact !== 'object' || raw.contact === null) return null
+  const c = raw.contact as Record<string, unknown>
+  const base = emptyResume()
+  const resume: Resume = {
+    contact: {
+      fullName: asStr(c.fullName),
+      title: asStr(c.title),
+      email: asStr(c.email),
+      phone: asStr(c.phone),
+      location: asStr(c.location),
+      website: asStr(c.website),
+      linkedin: asStr(c.linkedin),
+    },
+    summary: asStr(raw.summary),
+    experience: asObjArr(raw.experience).map((e) => ({
+      id: asStr(e.id) || newId(),
+      company: asStr(e.company),
+      role: asStr(e.role),
+      location: asStr(e.location),
+      startDate: asStr(e.startDate),
+      endDate: asStr(e.endDate),
+      bullets: asStrArr(e.bullets),
+    })),
+    education: asObjArr(raw.education).map((e) => ({
+      id: asStr(e.id) || newId(),
+      school: asStr(e.school),
+      degree: asStr(e.degree),
+      location: asStr(e.location),
+      startDate: asStr(e.startDate),
+      endDate: asStr(e.endDate),
+      details: asStr(e.details),
+    })),
+    projects: asObjArr(raw.projects).map((p) => ({
+      id: asStr(p.id) || newId(),
+      name: asStr(p.name),
+      link: asStr(p.link),
+      description: asStr(p.description),
+    })),
+    // legacy/hand-edited data may hold skills as a string array
+    skills: Array.isArray(raw.skills) ? asStrArr(raw.skills).join(', ') : asStr(raw.skills),
+    certifications: asStr(raw.certifications),
+    customSections: asObjArr(raw.customSections).map((s) => ({
+      id: asStr(s.id) || newId(),
+      title: asStr(s.title),
+      bullets: asStrArr(s.bullets),
+    })),
+    sectionOrder: asStrArr(raw.sectionOrder),
+    templateId: asStr(raw.templateId) || base.templateId,
+    accentColor: asStr(raw.accentColor),
+    pageSize: asEnum(raw.pageSize, ['letter', 'a4'] as const) ?? 'letter',
+    fontScale: asEnum(raw.fontScale, ['s', 'm', 'l'] as const),
+    lineSpacing: asEnum(raw.lineSpacing, ['compact', 'normal', 'relaxed'] as const),
+    fontFamily: asEnum(raw.fontFamily, ['auto', 'serif', 'sans'] as const),
+    sectionSpacing: asEnum(raw.sectionSpacing, ['tight', 'normal', 'roomy'] as const),
+    sectionDivider: asEnum(raw.sectionDivider, ['auto', 'on', 'off'] as const),
+    targetRole: asStr(raw.targetRole),
+    jobDescription: asStr(raw.jobDescription),
+  }
+  resume.sectionOrder = orderedSectionKeys(resume)
+  return resume
+}
+
 export function loadResume(): Resume | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as Resume
-    if (!parsed.contact || !Array.isArray(parsed.experience)) return null
-    const merged = { ...emptyResume(), ...parsed }
-    merged.sectionOrder = orderedSectionKeys(merged)
-    return merged
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return null
+    if (!(parsed as Record<string, unknown>).contact) return null
+    if (!Array.isArray((parsed as Record<string, unknown>).experience)) return null
+    return sanitizeResume(parsed)
   } catch {
     return null
   }
@@ -381,7 +461,12 @@ export function listResumeVersions(): ResumeVersion[] {
     const raw = localStorage.getItem(VERSIONS_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as ResumeVersion[]
-    return Array.isArray(parsed) ? parsed.filter((v) => v.id && v.data) : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((v) => {
+      if (!v || typeof v !== 'object' || !v.id) return []
+      const data = sanitizeResume(v.data)
+      return data ? [{ ...v, data }] : []
+    })
   } catch {
     return []
   }
@@ -456,7 +541,12 @@ export function listResumeHistory(): ResumeSnapshot[] {
     const raw = localStorage.getItem(HISTORY_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as ResumeSnapshot[]
-    return Array.isArray(parsed) ? parsed.filter((s) => s.id && s.at && s.data) : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || !s.at) return []
+      const data = sanitizeResume(s.data)
+      return data ? [{ ...s, data }] : []
+    })
   } catch {
     return []
   }
