@@ -33,8 +33,7 @@ interface NavItem {
   active: boolean
 }
 
-export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
-  const { pathname } = useLocation()
+export function PlanCard({ className }: { className?: string } = {}) {
   const license = loadLicense()
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
   useEffect(() => {
@@ -48,6 +47,38 @@ export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  return (
+    <div className={`bg-card rounded-md border p-3 text-sm ${className ?? ''}`} aria-label="Your plan">
+      <p className="font-medium">{license ? PLAN_LABELS[license.plan] : 'Free plan'}</p>
+      {license ? (
+        <p className="text-muted-foreground mt-1 flex items-center gap-1.5 text-xs">
+          <Sparkles className="size-3.5 shrink-0" /> Unlimited AI
+        </p>
+      ) : (
+        <>
+          {freeLeft !== null && (
+            <p className="text-muted-foreground mt-1 flex items-center gap-1.5 text-xs">
+              <Sparkles className="size-3.5 shrink-0" />
+              <span>
+                Free AI credits left:{' '}
+                <span className="text-foreground font-medium tabular-nums">{freeLeft}</span>
+              </span>
+            </p>
+          )}
+          <a
+            href="/pricing/"
+            className="text-primary mt-2 inline-flex min-h-10 items-center text-xs font-medium underline-offset-4 hover:underline md:min-h-6"
+          >
+            Upgrade
+          </a>
+        </>
+      )}
+    </div>
+  )
+}
+
+export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
+  const { pathname } = useLocation()
   const counts = useMemo(
     () => ({
       resumes: listResumeVersions().length + (loadResume() ? 1 : 0),
@@ -98,32 +129,7 @@ export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
             </Link>
           ))}
         </nav>
-        <div className="bg-card rounded-md border p-3 text-sm" aria-label="Your plan">
-          <p className="font-medium">{license ? PLAN_LABELS[license.plan] : 'Free plan'}</p>
-          {license ? (
-            <p className="text-muted-foreground mt-1 flex items-center gap-1.5 text-xs">
-              <Sparkles className="size-3.5 shrink-0" /> Unlimited AI
-            </p>
-          ) : (
-            <>
-              {freeLeft !== null && (
-                <p className="text-muted-foreground mt-1 flex items-center gap-1.5 text-xs">
-                  <Sparkles className="size-3.5 shrink-0" />
-                  <span>
-                    Free AI credits left:{' '}
-                    <span className="text-foreground font-medium tabular-nums">{freeLeft}</span>
-                  </span>
-                </p>
-              )}
-              <a
-                href="/pricing/"
-                className="text-primary mt-2 inline-flex min-h-6 items-center text-xs font-medium underline-offset-4 hover:underline"
-              >
-                Upgrade
-              </a>
-            </>
-          )}
-        </div>
+        <PlanCard />
       </div>
     </aside>
   )
