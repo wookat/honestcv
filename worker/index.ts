@@ -27,6 +27,7 @@ import {
   type TailorItem,
   buildTailorMessages,
   buildCoverLetterMessages,
+  buildKeywordBulletMessages,
   buildInterviewBriefMessages,
   buildRewriteMessages,
 } from './prompts'
@@ -379,6 +380,52 @@ app.post('/api/ai/rewrite', async (c) => {
   }
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ text: texts?.[0] ?? result.text, texts, freeRemaining })
+})
+
+// Keyword bullet: draft one bullet working a missing JD keyword into the
+// resume, grounded in existing content. Shares the free AI quota.
+app.post('/api/ai/keyword-bullet', async (c) => {
+  const body = await c.req
+    .json<{ keyword?: string; resumeText?: string; jobDescription?: string; role?: string }>()
+    .catch(() => ({}) as Record<string, never>)
+  const keyword = body.keyword?.trim()
+  const resumeText = body.resumeText?.trim()
+  const jd = body.jobDescription?.trim()
+  if (!keyword || keyword.length > 80) {
+    return c.json({ error: 'Pick a keyword first.' }, 400)
+  }
+  if (!resumeText) {
+    return c.json({ error: 'Add some resume content first — the bullet is grounded in it.' }, 400)
+  }
+  if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
+
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent) {
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error: 'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+
+  const result = await callLlm(
+    c.env,
+    buildKeywordBulletMessages(keyword, resumeText, jd, body.role ?? ''),
+    0.5,
+    400
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  return c.json({ text, freeRemaining })
 })
 
 // Tailor pass: rewrite summary + bullets toward one JD in a single call,

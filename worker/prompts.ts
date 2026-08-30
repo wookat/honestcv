@@ -84,6 +84,32 @@ Output STRICT JSON only: an array of objects {"id": string, "text": string} for 
   ]
 }
 
+/**
+ * Draft one bullet that works a missing JD keyword into the resume, grounded
+ * strictly in the candidate's existing content (bracketed placeholders where
+ * specifics are unknown).
+ */
+export function buildKeywordBulletMessages(
+  keyword: string,
+  resumeText: string,
+  jobDescription: string,
+  role: string
+): ChatMessage[] {
+  return [
+    {
+      role: 'system',
+      content: `${SYSTEM_WRITER}
+The user says they genuinely have experience with a keyword the job description asks for, but it is missing from their resume. Draft exactly ONE work-experience bullet that uses the keyword naturally.
+Ground the bullet only in what the resume already shows; where a specific project, metric or scope is unknown, use bracketed placeholders such as [project name] or [add %] for the user to fill in — never invent specifics.
+Output the single bullet as one line of plain text. No leading dash, no quotes, no commentary.`,
+    },
+    {
+      role: 'user',
+      content: `Keyword to work in: ${keyword}\nTarget role: ${role || 'not specified'}\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
+    },
+  ]
+}
+
 export function buildCoverLetterMessages(
   resumeText: string,
   jobDescription: string,

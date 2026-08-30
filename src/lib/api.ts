@@ -75,6 +75,15 @@ export async function aiTailor(input: {
   )
 }
 
+export async function aiKeywordBullet(input: {
+  keyword: string
+  resumeText: string
+  jobDescription: string
+  role: string
+}): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/keyword-bullet', input)
+}
+
 export async function aiCoverLetter(input: {
   resumeText: string
   jobDescription: string
