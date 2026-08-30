@@ -3739,8 +3739,13 @@ const AI_SECTIONS = [
   },
   {
     id: 'cover-letter',
-    name: 'Cover letters & interview prep',
-    copy: 'The Career Bundle adds an AI cover letter written from your resume and the specific posting, plus an interview brief: the questions this job is likely to ask, STAR stories drawn from your real experience, and the gaps to prepare for.',
+    name: 'Cover letters, interview prep & resignation letters',
+    copy: 'Three career documents built from the same resume: an AI cover letter written for the specific posting, an interview brief \u2014 likely questions, STAR stories drawn from your real experience, gaps to prepare \u2014 and a professional resignation letter, all exported on a letterhead.',
+    links: [
+      ['Cover letter generator', '/cover-letter-generator/'],
+      ['Interview prep', '/interview-prep/'],
+      ['Resignation letter generator', '/resignation-letter-generator/'],
+    ],
     svg: '<svg viewBox="0 0 200 120" role="img" aria-label="Cover letter illustration" style="width:100%;max-width:320px"><rect x="30" y="10" width="80" height="100" rx="6" fill="#fff" stroke="#e2e8f0"/><rect x="40" y="22" width="40" height="6" rx="2" fill="#cbd5e1"/><rect x="40" y="36" width="60" height="4" rx="2" fill="#e2e8f0"/><rect x="40" y="46" width="56" height="4" rx="2" fill="#e2e8f0"/><rect x="40" y="56" width="60" height="4" rx="2" fill="#e2e8f0"/><rect x="40" y="66" width="48" height="4" rx="2" fill="#e2e8f0"/><rect x="120" y="34" width="56" height="52" rx="8" fill="oklch(0.5 0.18 265 / 0.08)" stroke="oklch(0.5 0.18 265 / 0.3)"/><rect x="128" y="44" width="40" height="4" rx="2" fill="oklch(0.5 0.18 265 / 0.5)"/><rect x="128" y="54" width="34" height="4" rx="2" fill="oklch(0.5 0.18 265 / 0.35)"/><rect x="128" y="64" width="38" height="4" rx="2" fill="oklch(0.5 0.18 265 / 0.35)"/></svg>',
   },
 ]
@@ -3771,6 +3776,8 @@ function aiPage() {
 .ai-row h2{margin:0 0 .5rem}
 .ai-row p{margin:0;color:var(--muted)}
 .ai-kicker{color:var(--primary);font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:0 0 .35rem}
+.ai-links{margin-top:.75rem !important;font-size:.9375rem}
+.ai-links a{color:var(--primary);text-decoration:underline}
 </style>
 ${FP_BEACON}
 </head>
@@ -3786,7 +3793,11 @@ ${NAV_HTML}
 ${AI_SECTIONS.map(
     (s, i) => `<section id="${s.id}" class="ai-row${i % 2 ? ' flip' : ''}">
 <div class="ai-art" aria-hidden="true">${s.svg}</div>
-<div><p class="ai-kicker">Ability ${i + 1}</p><h2>${esc(s.name)}</h2><p>${esc(s.copy)}</p></div>
+<div><p class="ai-kicker">Ability ${i + 1}</p><h2>${esc(s.name)}</h2><p>${esc(s.copy)}</p>${
+      s.links
+        ? `<p class="ai-links">${s.links.map(([label, href]) => `<a href="${href}">${esc(label)}</a>`).join(' · ')}</p>`
+        : ''
+    }</div>
 </section>`
   ).join('\n')}
 <div class="cta" style="margin-top:3.5rem">

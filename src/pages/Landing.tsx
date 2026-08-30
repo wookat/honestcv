@@ -135,14 +135,16 @@ const SUITE = [
     title: 'Cover letters',
     text: 'Generate a cover letter tailored to a specific job posting, edit it, and export it on a letterhead PDF or DOCX that matches your resume.',
     cta: 'Write a cover letter',
-    to: '/builder',
+    to: '/builder?doc=cover',
+    learnMore: '/cover-letter-generator/',
   },
   {
     icon: MessagesSquare,
     title: 'Interview prep',
     text: 'Get likely questions for your target role, practice your answers, and receive AI feedback on what worked and what to sharpen.',
     cta: 'Prep for an interview',
-    to: '/builder',
+    to: '/builder?doc=interview',
+    learnMore: '/interview-prep/',
   },
   {
     icon: BriefcaseBusiness,
@@ -679,11 +681,21 @@ export default function Landing() {
                   <s.icon className="text-primary mb-2 size-6" />
                   <h3 className="font-semibold">{s.title}</h3>
                   <p className="text-muted-foreground mt-1 text-sm">{s.text}</p>
-                  <Button asChild variant="link" className="mt-auto h-auto self-start px-0 pt-3">
-                    <Link to={s.to}>
-                      {s.cta} <ArrowRight />
-                    </Link>
-                  </Button>
+                  <div className="mt-auto flex items-center gap-4 pt-3">
+                    <Button asChild variant="link" className="h-auto px-0">
+                      <Link to={s.to}>
+                        {s.cta} <ArrowRight />
+                      </Link>
+                    </Button>
+                    {'learnMore' in s && (
+                      <a
+                        href={s.learnMore}
+                        className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
+                      >
+                        How it works
+                      </a>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
