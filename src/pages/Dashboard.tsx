@@ -131,6 +131,13 @@ export default function Dashboard() {
     )
   }, [examples, exampleQuery, exampleSector])
 
+  const closeNewDialog = () => {
+    setNewOpen(false)
+    setNewRole('')
+    setNewJd('')
+    setNewKeepCopy(true)
+  }
+
   const startNewResume = () => {
     if (draft && newKeepCopy) {
       setVersions(
@@ -557,7 +564,7 @@ export default function Dashboard() {
       </main>
       <SiteFooter />
 
-      <Dialog open={newOpen} onOpenChange={setNewOpen}>
+      <Dialog open={newOpen} onOpenChange={(o) => (o ? setNewOpen(true) : closeNewDialog())}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Start a new resume</DialogTitle>
@@ -611,7 +618,7 @@ export default function Dashboard() {
               type="button"
               variant="outline"
               className="min-h-10"
-              onClick={() => setNewOpen(false)}
+              onClick={closeNewDialog}
             >
               Cancel
             </Button>
