@@ -4,10 +4,11 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Copy, FilePlus2, FileText, MessagesSquare, Pencil, Trash2 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
+import { WorkspaceNav } from '@/components/WorkspaceNav'
 import { ResumePreview } from '@/components/ResumePreview'
 import { Button } from '@/components/ui/button'
 import {
@@ -68,6 +69,10 @@ export default function Dashboard() {
     'Manage your resume drafts and job-tailored copies. Everything stays in your browser.'
   )
   const navigate = useNavigate()
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (hash) document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
+  }, [hash])
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [draft] = useState<Resume | null>(() => loadResume())
   const [confirmOpen, setConfirmOpen] = useState<ResumeVersion | null>(null)
@@ -121,7 +126,9 @@ export default function Dashboard() {
           </Button>
         }
       />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8">
+        <WorkspaceNav />
+        <div className="min-w-0 flex-1">
         <h1 className="text-2xl font-bold">My resumes</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           One copy per job you're applying to. Everything is stored in this browser
@@ -257,7 +264,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <h2 className="mt-10 text-lg font-semibold">Career documents</h2>
+        <h2 id="documents" className="mt-10 scroll-mt-20 text-lg font-semibold">Career documents</h2>
         <p className="text-muted-foreground mt-1 text-sm">
           Documents you saved from the AI tools in the editor.
         </p>
@@ -327,7 +334,7 @@ export default function Dashboard() {
         )}
         {examples.length > 0 && (
           <>
-            <h2 className="mt-10 text-lg font-semibold">Sample library</h2>
+            <h2 id="samples" className="mt-10 scroll-mt-20 text-lg font-semibold">Sample library</h2>
             <p className="text-muted-foreground mt-1 text-sm">
               Start from a proven example for your role, then make it yours in the editor.
             </p>
@@ -395,6 +402,7 @@ export default function Dashboard() {
             </p>
           </>
         )}
+        </div>
       </main>
       <SiteFooter />
 
