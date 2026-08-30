@@ -74,6 +74,8 @@ export interface Resume {
   sectionSpacing?: 'tight' | 'normal' | 'roomy'
   /** Section divider rule; 'auto' follows the template */
   sectionDivider?: 'auto' | 'on' | 'off'
+  /** JD keywords the user marked as not relevant — excluded from ATS keyword coverage */
+  ignoredKeywords?: string[]
   /** Target role + JD used for tailoring and the ATS score */
   targetRole: string
   jobDescription: string
@@ -411,6 +413,7 @@ export function sanitizeResume(input: unknown): Resume | null {
     sectionOrder: asStrArr(raw.sectionOrder),
     templateId: asStr(raw.templateId) || base.templateId,
     accentColor: asStr(raw.accentColor),
+    ignoredKeywords: asStrArr(raw.ignoredKeywords),
     pageSize: asEnum(raw.pageSize, ['letter', 'a4'] as const) ?? 'letter',
     fontScale: asEnum(raw.fontScale, ['s', 'm', 'l'] as const),
     lineSpacing: asEnum(raw.lineSpacing, ['compact', 'normal', 'relaxed'] as const),
