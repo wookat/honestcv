@@ -61,6 +61,7 @@ import {
   aiCoverLetter,
   aiKeywordBullet,
   aiInterviewBrief,
+  aiInterviewFeedback,
   aiResignationLetter,
   aiRewrite,
   aiTailor,
@@ -2843,6 +2844,11 @@ function BundleToolDialog({
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
   const [savedId, setSavedId] = useState<string | null>(null)
+  const [question, setQuestion] = useState('')
+  const [answer, setAnswer] = useState('')
+  const [feedback, setFeedback] = useState('')
+  const [feedbackBusy, setFeedbackBusy] = useState(false)
+  const [feedbackError, setFeedbackError] = useState('')
   const [lastKind, setLastKind] = useState(kind)
 
   if (kind !== lastKind) {
@@ -2850,6 +2856,37 @@ function BundleToolDialog({
     setResult('')
     setError('')
     setSavedId(null)
+    setFeedback('')
+    setFeedbackError('')
+    setFeedbackBusy(false)
+  }
+
+  const getFeedback = async () => {
+    if (!question.trim()) {
+      setFeedbackError('Type the interview question first.')
+      return
+    }
+    if (answer.trim().length < 20) {
+      setFeedbackError('Write your answer first — a couple of sentences at least.')
+      return
+    }
+    setFeedbackBusy(true)
+    setFeedbackError('')
+    try {
+      const { text, freeRemaining } = await aiInterviewFeedback({
+        question,
+        answer,
+        resumeText: resumeToPlainText(resume),
+        jobDescription: resume.jobDescription,
+        role: resume.targetRole,
+      })
+      setFeedback(text)
+      if (freeRemaining !== null) onQuota(freeRemaining)
+    } catch (e) {
+      setFeedbackError((e as Error).message)
+    } finally {
+      setFeedbackBusy(false)
+    }
   }
 
   const generate = async () => {
@@ -3101,6 +3138,62 @@ function BundleToolDialog({
               </Button>
             </div>
           </>
+        )}
+        {kind === 'interview' && (
+          <div className="space-y-3 border-t pt-4">
+            <div>
+              <p className="text-sm font-medium">Practice an answer</p>
+              <p className="text-muted-foreground text-xs">
+                Type a question and your answer — AI coaches you against your resume and the
+                target job.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="practice-question">Interview question</Label>
+              <Input
+                id="practice-question"
+                placeholder="e.g. Tell me about a time you led a difficult project"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                maxLength={300}
+                className="min-h-10 sm:min-h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="practice-answer">Your answer</Label>
+              <Textarea
+                id="practice-answer"
+                rows={5}
+                placeholder="Answer out loud, then type what you said — honest first drafts get the most useful coaching."
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+              />
+            </div>
+            <Button
+              onClick={() => void getFeedback()}
+              disabled={feedbackBusy}
+              variant="outline"
+              className="min-h-10 sm:min-h-9"
+            >
+              {feedbackBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+              {feedbackBusy ? 'Coaching…' : 'Get AI feedback'}
+            </Button>
+            {feedbackBusy && (
+              <p className="text-muted-foreground text-xs" role="status">
+                Usually takes 15–40 seconds — feedback appears below.
+              </p>
+            )}
+            {feedbackError && <p className="text-destructive text-sm">{feedbackError}</p>}
+            {feedback && (
+              <Textarea
+                readOnly
+                rows={12}
+                value={feedback}
+                className="font-mono text-xs"
+                aria-label="AI feedback on your answer"
+              />
+            )}
+          </div>
         )}
       </DialogContent>
     </Dialog>
