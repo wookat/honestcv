@@ -232,6 +232,9 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - BulletGuidance's positive state (R80) is a `p.text-emerald-700`, not an `li` — assert green vs amber with `p.text-emerald-700` and `li.text-amber-700` selectors.
 - Clearing `honestcv.*` via CDP does not refresh the visible page — always reload after the clear before asserting throwaway state.
 - Never combine `pkill/pgrep -f <script>` with follow-up commands in one exec call — the pattern matches the wrapper `bash -c` and kills/false-positives itself; filter with `| grep -v 'bash -c'` and kill in a separate call.
+- In the Experience editor, filling role/company inserts warning lines that shift layout — the "Need ideas? Show bullet starters" link sits directly above the AI buttons and is easy to misclick; re-screenshot after any field edit before clicking AI buttons.
+- A successful AI call also fires a non-AI `POST /api/ev {"e":"ai-use"}` analytics beacon — don't count it as an extra AI request.
+- `/api/ai/suggest-bullet` (R81) returns `{text, freeRemaining}`; capture the response body via `Network.getResponseBody` right after `responseReceived` to byte-verify the appended line matches the server text.
 
 ## Devin Secrets Needed
 
