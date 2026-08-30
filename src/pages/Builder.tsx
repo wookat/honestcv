@@ -53,6 +53,7 @@ import {
   useFreeMode,
   useLicense,
 } from '@/components/Paywall'
+import { AssistantPanel } from '@/components/AssistantPanel'
 import { DraftIllustration } from '@/components/Illustrations'
 import { ResumePreview } from '@/components/ResumePreview'
 import { ScoreRing } from '@/components/ScoreRing'
@@ -479,6 +480,7 @@ export default function Builder() {
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
   const { undo, canUndo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
   )
@@ -842,6 +844,15 @@ export default function Builder() {
               className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
             >
               <History className="size-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setAssistantOpen(true)}
+              title="Resume assistant — chat about your draft and job search"
+              className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
+            >
+              <MessagesSquare className="size-3.5" />
             </Button>
             <Button size="sm" onClick={() => void download('pdf')} disabled={Boolean(downloading)}>
               {downloading === 'pdf' ? (
@@ -2495,6 +2506,16 @@ export default function Builder() {
           }}
         />
       )}
+      <AssistantPanel
+        open={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        resume={resume}
+        jobDescription={resume.jobDescription}
+        onQuota={setFreeLeft}
+        onPaymentRequired={(msg) => {
+          if (!freeMode) requireUnlock(msg)
+        }}
+      />
       {kwBulletFor !== null && (
         <KeywordBulletDialog
           keyword={kwBulletFor}
