@@ -61,6 +61,7 @@ import {
   aiCoverLetter,
   aiKeywordBullet,
   aiInterviewBrief,
+  aiResignationLetter,
   aiRewrite,
   aiTailor,
   fetchAiQuota,
@@ -372,7 +373,7 @@ export default function Builder() {
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
-  const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
+  const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(null)
   const [tailorOpen, setTailorOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
   const [kwBulletFor, setKwBulletFor] = useState<string | null>(null)
@@ -2192,9 +2193,10 @@ export default function Builder() {
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             <Button
               variant="outline"
+              className="min-h-10 sm:min-h-9"
               onClick={() =>
                 hasBundlePlan || freeMode
                   ? setToolOpen('cover')
@@ -2208,6 +2210,7 @@ export default function Builder() {
             </Button>
             <Button
               variant="outline"
+              className="min-h-10 sm:min-h-9"
               onClick={() =>
                 hasBundlePlan || freeMode
                   ? setToolOpen('interview')
@@ -2217,6 +2220,20 @@ export default function Builder() {
               }
             >
               <MessagesSquare /> Interview prep{' '}
+              {!hasBundlePlan && !freeMode && <Lock className="size-3 opacity-60" />}
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-10 sm:min-h-9"
+              onClick={() =>
+                hasBundlePlan || freeMode
+                  ? setToolOpen('resignation')
+                  : requireUnlock(
+                      'The resignation letter writer is part of the Career Bundle ($19.99, one-time).'
+                    )
+              }
+            >
+              <FileText /> Resignation letter{' '}
               {!hasBundlePlan && !freeMode && <Lock className="size-3 opacity-60" />}
             </Button>
           </div>
@@ -2735,12 +2752,15 @@ function BundleToolDialog({
   resume,
   onQuota,
 }: {
-  kind: 'cover' | 'interview' | null
+  kind: 'cover' | 'interview' | 'resignation' | null
   onClose: () => void
   resume: Resume
   onQuota: (remaining: number) => void
 }) {
   const [company, setCompany] = useState('')
+  const [currentRole, setCurrentRole] = useState('')
+  const [lastDay, setLastDay] = useState('')
+  const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
@@ -2758,6 +2778,23 @@ function BundleToolDialog({
     setBusy(true)
     setError('')
     try {
+      if (kind === 'resignation') {
+        if (!company.trim() || !currentRole.trim()) {
+          setError('Fill in your company and current role first.')
+          return
+        }
+        const { text, freeRemaining } = await aiResignationLetter({
+          company,
+          role: currentRole,
+          lastDay,
+          reason,
+          name: resume.contact.fullName,
+        })
+        setResult(text)
+        setSavedId(null)
+        if (freeRemaining !== null) onQuota(freeRemaining)
+        return
+      }
       const resumeText = resumeToPlainText(resume)
       const jd = resume.jobDescription
       if (!jd.trim()) {
@@ -2788,6 +2825,17 @@ function BundleToolDialog({
   }
 
   const insertTemplate = () => {
+    if (kind === 'resignation') {
+      const name = resume.contact.fullName || '[Your name]'
+      const co = company || '[Company]'
+      const role = currentRole || '[your role]'
+      const day = lastDay || '[last working day — typically two weeks from today]'
+      setResult(
+        `Dear [Manager name],\n\nPlease accept this letter as formal notice of my resignation from my position as ${role} at ${co}. My last working day will be ${day}.\n\nI'm grateful for the opportunities I've had here — [one specific thing you genuinely appreciated: a project, a skill you grew, the team]. Thank you for your support during my time with the company.\n\nI'm committed to a smooth handover: I'll document my ongoing work and am happy to help train a replacement before I leave.\n\nSincerely,\n${name}`
+      )
+      setError('')
+      return
+    }
     if (kind === 'interview') {
       const role = resume.targetRole || '[role]'
       setResult(
@@ -2805,14 +2853,21 @@ function BundleToolDialog({
     setError('')
   }
 
-  const title = kind === 'cover' ? 'Cover Letter' : 'Interview Prep Brief'
+  const title =
+    kind === 'cover'
+      ? 'Cover Letter'
+      : kind === 'resignation'
+        ? 'Resignation Letter'
+        : 'Interview Prep Brief'
   return (
     <Dialog open={kind !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Tailored to your resume and the job description you pasted in "Target job".
+            {kind === 'resignation'
+              ? 'A professional, gracious letter — fill in your company and role below.'
+              : 'Tailored to your resume and the job description you pasted in "Target job".'}
           </DialogDescription>
         </DialogHeader>
         {kind === 'cover' && (
@@ -2824,6 +2879,46 @@ function BundleToolDialog({
               value={company}
               onChange={(e) => setCompany(e.target.value)}
             />
+          </div>
+        )}
+        {kind === 'resignation' && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="res-company">Company you're leaving</Label>
+              <Input
+                id="res-company"
+                placeholder="e.g. Acme Corp"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="res-role">Your current role</Label>
+              <Input
+                id="res-role"
+                placeholder="e.g. Senior Analyst"
+                value={currentRole}
+                onChange={(e) => setCurrentRole(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="res-last-day">Last working day (optional)</Label>
+              <Input
+                id="res-last-day"
+                placeholder="e.g. March 14"
+                value={lastDay}
+                onChange={(e) => setLastDay(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="res-reason">Reason — sets the tone (optional)</Label>
+              <Input
+                id="res-reason"
+                placeholder="e.g. new opportunity, relocation"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            </div>
           </div>
         )}
         <div className="flex flex-wrap gap-2">
@@ -2858,7 +2953,11 @@ function BundleToolDialog({
                     m.downloadTextPdf(
                       title,
                       result,
-                      kind === 'cover' ? 'cover-letter.pdf' : 'interview-prep.pdf'
+                      kind === 'cover'
+                        ? 'cover-letter.pdf'
+                        : kind === 'resignation'
+                          ? 'resignation-letter.pdf'
+                          : 'interview-prep.pdf'
                     )
                   )
                 }
@@ -2873,7 +2972,11 @@ function BundleToolDialog({
                     m.downloadTextDocx(
                       title,
                       result,
-                      kind === 'cover' ? 'cover-letter.docx' : 'interview-prep.docx'
+                      kind === 'cover'
+                        ? 'cover-letter.docx'
+                        : kind === 'resignation'
+                          ? 'resignation-letter.docx'
+                          : 'interview-prep.docx'
                     )
                   )
                 }
@@ -2888,12 +2991,22 @@ function BundleToolDialog({
                   const docTitle =
                     kind === 'cover'
                       ? `${company || resume.targetRole || 'Untitled'} — Cover letter`
-                      : `${resume.targetRole || 'Untitled'} — Interview prep`
+                      : kind === 'resignation'
+                        ? `${company || 'Untitled'} — Resignation letter`
+                        : `${resume.targetRole || 'Untitled'} — Interview prep`
                   if (savedId) {
                     updateCareerDoc(savedId, { title: docTitle, text: result })
                   } else {
                     setSavedId(
-                      saveCareerDoc(kind === 'cover' ? 'cover' : 'interview', docTitle, result).id
+                      saveCareerDoc(
+                        kind === 'cover'
+                          ? 'cover'
+                          : kind === 'resignation'
+                            ? 'resignation'
+                            : 'interview',
+                        docTitle,
+                        result
+                      ).id
                     )
                   }
                 }}

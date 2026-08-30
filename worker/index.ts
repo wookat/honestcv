@@ -29,6 +29,7 @@ import {
   buildCoverLetterMessages,
   buildKeywordBulletMessages,
   buildInterviewBriefMessages,
+  buildResignationLetterMessages,
   buildRewriteMessages,
 } from './prompts'
 
@@ -530,6 +531,57 @@ app.post('/api/ai/cover-letter', async (c) => {
   const result = await callLlm(
     c.env,
     buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? ''),
+    0.6
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  return c.json({ text: result.text, freeRemaining })
+})
+
+// Resignation letter — Career Bundle (free mode: shares the free AI quota)
+app.post('/api/ai/resignation-letter', async (c) => {
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent || ent.plan !== 'bundle') {
+    if (!freeMode(c.env)) {
+      return c.json(
+        {
+          error: 'The resignation letter writer is part of the Career Bundle ($19.99, one-time).',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error:
+            'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+  const body = await c.req
+    .json<{ company?: string; role?: string; lastDay?: string; reason?: string; name?: string }>()
+    .catch(() => ({}) as Record<string, never>)
+  const company = body.company?.trim()
+  const role = body.role?.trim()
+  if (!company) return c.json({ error: 'Add your company name first.' }, 400)
+  if (!role) return c.json({ error: 'Add your current role first.' }, 400)
+  const result = await callLlm(
+    c.env,
+    buildResignationLetterMessages(
+      company,
+      role,
+      body.lastDay?.trim() ?? '',
+      body.reason ?? '',
+      body.name?.trim() ?? ''
+    ),
     0.6
   )
   // Quota is consumed only after a successful call, so failures cost nothing

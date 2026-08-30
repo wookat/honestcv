@@ -128,6 +128,25 @@ export function buildCoverLetterMessages(
   ]
 }
 
+export function buildResignationLetterMessages(
+  company: string,
+  role: string,
+  lastDay: string,
+  reason: string,
+  name: string
+): ChatMessage[] {
+  return [
+    {
+      role: 'system',
+      content: `You are an expert career writer. Write a professional, gracious resignation letter (120-200 words). Structure: clear statement of resignation with the final working day, one short paragraph of genuine gratitude, an offer to help with the transition, warm closing. Keep the tone respectful and positive regardless of the reason; never badmouth the employer. Never fabricate details — where a specific (manager name, project) is unknown, use a bracketed placeholder like [Manager name]. Plain text, no markdown, no addresses or dates at the top. Start with "Dear [Manager name]," unless a name is given. End with "Sincerely," and the employee's name.`,
+    },
+    {
+      role: 'user',
+      content: `Company: ${company}\nCurrent role: ${role}\nLast working day: ${lastDay || 'two weeks from today'}\nEmployee name: ${name || '[Your name]'}${reason.trim() ? `\nContext for tone (do not state negatively): ${reason.slice(0, 500)}` : ''}`,
+    },
+  ]
+}
+
 export function buildInterviewBriefMessages(
   resumeText: string,
   jobDescription: string,
