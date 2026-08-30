@@ -23,11 +23,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - KV 存 license/免费额度/邮件 leads；无关系型数据库
 - 已消费简历中心 ResumeProfile v1（/share/ 链接导入，PR #199/#200；注意 CSP connect-src 需包含简历中心 API 域）
 
-## Rezi 对标循环（2026-08-29 起，R1–R8 已完成）
-- 一手审计：docs/audit-2026-08-29-rezi-r1.md（R8 复审计截图 ~/audit-r1/shots-r8/）；各轮方案 docs/plan-r1..r8-*.md
-- R1 评分深度+AI keyword bullet（PR #214）、R2 落地页 showcase+导航（#215）、R3 逐行 AI 修复（#216）、R4 多页实时预览（#217）、R5 简历操作台 /dashboard（#218，含 SPA_ROUTES 补 /dashboard 修 404）、R6 可保存 cover letter/interview 文档进 dashboard（#219）、R7 Auto-fit 一键排版（#220，真实 PDF 计页选最可读组合）、R8 dashboard 内 Sample library（#221，搜索+行业筛选，复用 examples.json）
-- PR 为累积链（R2 基于 R1 分支…R8 基于 R7），生产已部署最新版；PR 均未合并，合并时按链顺序
+## Rezi 对标循环（2026-08-29 起，R1–R9 已完成）
+- 一手审计：docs/audit-2026-08-29-rezi-r1.md（R8 复审计截图 ~/audit-r1/shots-r8/）；各轮方案 docs/plan-r1..r9-*.md
+- R1 评分深度+AI keyword bullet（PR #214）、R2 落地页 showcase+导航（#215）、R3 逐行 AI 修复（#216）、R4 多页实时预览（#217）、R5 简历操作台 /dashboard（#218，含 SPA_ROUTES 补 /dashboard 修 404）、R6 可保存 cover letter/interview 文档进 dashboard（#219）、R7 Auto-fit 一键排版（#220，真实 PDF 计页选最可读组合）、R8 dashboard 内 Sample library（#221，搜索+行业筛选，复用 examples.json）、R9 移动端汉堡导航（#222，React header + 静态页零 JS details 菜单）
+- PR 为累积链（R2 基于 R1 分支…R9 基于 R8），生产已部署最新版（worker 546f0ffc）；PR 均未合并，合并时按链顺序
 - 剩余候选差距（R8 复审计确认）：Rezi Job Search（+2M 职位+申请管线，重后端，架构差异待决策）、付费人工 Review（商业模式差异）、LinkedIn 导入/自动补全（P2-7）、导航下拉信息架构（P2-9）、落地页信任背书继续加深（P1-8 残余）
+- R9 QA 备注（P2，非本轮引入）：React 页 console 有 [Report Only] CSP 违规日志（指令与 worker/index.ts 自身 CSP 不符，疑似平台注入的 report-only 策略，无实际拦截），待查来源
 - R7 QA 备注（可选优化，非 P0/P1）：Auto-fit 在已最优页数时仍会把设置升到更可读组合；表单控件 id/name 信息性提示已在 dashboard 修复、builder 其余字段未处理
 - 生产复验标准：1440+375 双视口、无横向溢出、触摸目标≥40px、console clean、文档路由 200
 

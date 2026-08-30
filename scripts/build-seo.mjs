@@ -1305,6 +1305,15 @@ nav.main{display:none}
 @media (min-width:768px){nav.main{display:flex;align-items:center;gap:1.25rem;font-size:.875rem}}
 nav.main a{color:var(--muted);text-decoration:none}
 nav.main a:hover{color:var(--fg)}
+details.mnav{position:relative}
+@media (min-width:768px){details.mnav{display:none}}
+details.mnav summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;border-radius:calc(var(--radius) - 2px);color:var(--fg)}
+details.mnav summary::-webkit-details-marker{display:none}
+details.mnav summary:hover{background:var(--border)}
+details.mnav[open] summary{background:var(--border)}
+details.mnav .panel{position:absolute;right:0;top:calc(100% + .5rem);min-width:11rem;background:var(--bg);border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);box-shadow:0 8px 24px rgb(0 0 0 / .08);padding:.25rem}
+details.mnav .panel a{display:flex;align-items:center;min-height:2.5rem;padding:0 .75rem;font-size:.875rem;color:var(--fg);text-decoration:none;border-radius:calc(var(--radius) - 4px)}
+details.mnav .panel a:hover{background:var(--border)}
 `.trim()
 
 /** Header nav mirroring the React SiteHeader (src/components/Layout.tsx). */
@@ -1314,7 +1323,18 @@ const NAV_HTML = `<nav class="main" aria-label="Main">
 <a href="/guides/">Guides</a>
 <a href="/ats-checker">ATS Checker</a>
 <a href="/pricing/">Pricing</a>
-</nav>`
+</nav>
+<details class="mnav">
+<summary aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></summary>
+<div class="panel">
+<a href="/templates/">Templates</a>
+<a href="/examples/">Examples</a>
+<a href="/guides/">Guides</a>
+<a href="/ats-checker">ATS Checker</a>
+<a href="/pricing/">Pricing</a>
+<a href="/dashboard">My resumes</a>
+</div>
+</details>`
 
 /** URL-safe anchor id from a section heading */
 function anchorId(heading) {
