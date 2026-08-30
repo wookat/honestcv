@@ -13,6 +13,7 @@ import {
   lineSpacingOf,
   educationDetailLine,
   orderedSectionKeys,
+  projectDates,
   sectionSpacingOf,
   serifOf,
 } from '@/lib/resume'
@@ -262,10 +263,16 @@ function SectionBlock({
           {resume.projects.map((p) =>
             !p.name ? null : (
               <div key={p.id} className="mb-1.5">
-                <p className="text-[11px] font-bold">
-                  {p.name}
-                  {p.link && <span className="font-normal"> — {p.link}</span>}
-                </p>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                  <p className="text-[11px] font-bold">
+                    {p.name}
+                    {p.org?.trim() && <span className="font-normal">{'  ·  '}{p.org.trim()}</span>}
+                    {p.link && <span className="font-normal"> — {p.link}</span>}
+                  </p>
+                  {projectDates(p) && (
+                    <p className="text-[10px] text-neutral-500 italic">{projectDates(p)}</p>
+                  )}
+                </div>
                 {p.description.trim() && (
                   <p className="text-[11px]">{p.description.trim()}</p>
                 )}

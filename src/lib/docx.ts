@@ -24,6 +24,8 @@ import {
   fontScaleOf,
   lineSpacingOf,
   orderedSectionKeys,
+  projectDates,
+  projectHeadingLine,
   sectionSpacingOf,
   serifOf,
 } from '@/lib/resume'
@@ -190,8 +192,9 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       children.push(heading('Projects'))
       for (const p of resume.projects) {
         if (!p.name) continue
+        const dates = projectDates(p)
         children.push(
-          body(`${p.name}${p.link ? ` — ${p.link}` : ''}`, {
+          body(`${projectHeadingLine(p)}${dates ? `  (${dates})` : ''}`, {
             bold: true,
             after: 20,
             keepNext: true,

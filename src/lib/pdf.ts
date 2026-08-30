@@ -12,6 +12,8 @@ import {
   fontScaleOf,
   lineSpacingOf,
   orderedSectionKeys,
+  projectDates,
+  projectHeadingLine,
   sectionSpacingOf,
   serifOf,
 } from '@/lib/resume'
@@ -343,7 +345,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         if (!p.name) continue
         w.gap(2)
         w.ensure(30) // keep the project name with its description
-        w.text(`${p.name}${p.link ? ` — ${p.link}` : ''}`, { font: fonts.bold, size: 10 })
+        w.titleLine(projectHeadingLine(p), projectDates(p), { size: 10 })
         if (p.description.trim()) {
           w.gap(1)
           w.text(p.description.trim(), { size: 10 })

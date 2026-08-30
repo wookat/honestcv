@@ -42,6 +42,10 @@ export interface ProjectItem {
   name: string
   link: string
   description: string
+  /** Organization the project was done for/with */
+  org?: string
+  startDate?: string
+  endDate?: string
 }
 
 /** User-defined section (e.g. Volunteering, Publications, Awards) */
@@ -407,6 +411,9 @@ export function sanitizeResume(input: unknown): Resume | null {
       name: asStr(p.name),
       link: asStr(p.link),
       description: asStr(p.description),
+      org: asStr(p.org),
+      startDate: asStr(p.startDate),
+      endDate: asStr(p.endDate),
     })),
     // legacy/hand-edited data may hold skills as a string array
     skills: Array.isArray(raw.skills) ? asStrArr(raw.skills).join(', ') : asStr(raw.skills),
@@ -601,6 +608,19 @@ export function educationDetailLine(e: EducationItem): string {
     .join(' · ')
 }
 
+/** Heading line for a project entry: name · org — link */
+export function projectHeadingLine(p: ProjectItem): string {
+  const left = [p.name.trim(), p.org?.trim() ?? ''].filter(Boolean).join(' · ')
+  return p.link.trim() ? `${left} — ${p.link.trim()}` : left
+}
+
+/** Date range for a project entry: "start – end", or '' when both empty */
+export function projectDates(p: ProjectItem): string {
+  const start = p.startDate?.trim() ?? ''
+  const end = p.endDate?.trim() ?? ''
+  return start || end ? `${start} – ${end}` : ''
+}
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
@@ -624,7 +644,13 @@ export function resumeToPlainText(r: Resume): string {
       lines.push('', 'PROJECTS')
       for (const p of r.projects) {
         if (!p.name) continue
-        lines.push(p.name + (p.link ? ` (${p.link})` : ''))
+        const dates = projectDates(p)
+        lines.push(
+          p.name +
+            (p.org?.trim() ? ` · ${p.org.trim()}` : '') +
+            (p.link ? ` (${p.link})` : '') +
+            (dates ? ` (${dates})` : '')
+        )
         if (p.description) lines.push(p.description)
       }
     } else if (key === 'education' && r.education.some((e) => e.school)) {
@@ -677,7 +703,12 @@ export function resumeToMarkdown(r: Resume): string {
       heading('Projects')
       for (const p of r.projects) {
         if (!p.name) continue
-        lines.push(`### ${p.link ? `[${p.name}](${p.link})` : p.name}`, '')
+        const title = p.org?.trim() ? `${p.name} · ${p.org.trim()}` : p.name
+        const dates = projectDates(p)
+        lines.push(
+          `### ${p.link ? `[${title}](${p.link})` : title}${dates ? ` *(${dates})*` : ''}`,
+          ''
+        )
         if (p.description) lines.push(p.description, '')
       }
     } else if (key === 'education' && r.education.some((e) => e.school)) {
