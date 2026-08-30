@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowDown,
   ArrowUp,
@@ -484,13 +484,14 @@ export default function Builder() {
   const [assistantOpen, setAssistantOpen] = useState(
     () => new URLSearchParams(window.location.search).get('assistant') === '1'
   )
-  const { search } = useLocation()
+  const { pathname, search } = useLocation()
+  const navigate = useNavigate()
   useEffect(() => {
     if (new URLSearchParams(search).get('assistant') !== '1') return
-    window.history.replaceState(null, '', window.location.pathname)
+    navigate(pathname, { replace: true })
     const id = window.setTimeout(() => setAssistantOpen(true), 0)
     return () => window.clearTimeout(id)
-  }, [search])
+  }, [search, pathname, navigate])
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
   )
