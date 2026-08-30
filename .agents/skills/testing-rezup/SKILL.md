@@ -251,3 +251,5 @@ None — the seeded test license key is provided by the user per run.
 - The rendered ResumePreview root is the only div with an inline `style.fontFamily` — use that selector to assert the active font family.
 - On an empty throwaway client, "Load an example resume" resets designer settings (template/fontFamily) — load the example BEFORE toggling design options.
 - Budget-limited AI-call QA: arm a background CDP `Network.enable` listener (capture `requestWillBeSent` postData + `getResponseBody` on `loadingFinished`) BEFORE the single UI click, and cross-check whole-run AI traffic with `performance.getEntriesByType('resource')` — reliable as long as no page reload occurs between example load and the check.
+- Builder undo (Ctrl+Z) QA: keep focus on the just-clicked button and press Ctrl+Z immediately — do NOT click "neutral" whitespace first (the top-left logo navigates away and wipes the in-memory undo history; section headers toggle collapse).
+- Entry drag-reorder needs a slow drag: mouse-down on the ⠿ handle, several small mouse_move steps, brief pause before mouse_up; a fast drop is silently ignored.
