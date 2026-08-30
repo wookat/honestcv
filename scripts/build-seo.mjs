@@ -1048,35 +1048,78 @@ function tint(hex, alpha = 0.12) {
   return `#${((mix((n >> 16) & 255) << 16) | (mix((n >> 8) & 255) << 8) | mix(n & 255)).toString(16).padStart(6, '0')}`
 }
 
-/** Inline SVG schematic of a template's layout (same idea as TemplateThumb.tsx). */
+/** Sample resume fragment rendered inside template thumbnails (same as TemplateThumb.tsx). */
+const THUMB_SAMPLE = {
+  name: 'Jordan Reyes',
+  sub: 'Senior Software Engineer · Austin, TX',
+  summary: [
+    'Engineer with 8 years on high-traffic services.',
+    'Led a 5-person team; cut p95 latency 38%.',
+  ],
+  jobs: [
+    ['Senior Engineer — Nimbus Cloud · 2021–now', ['Scaled checkout to 2.1M orders/month.', 'Cut infra spend $340K/yr.']],
+    ['Engineer — Brightline Labs · 2018–2021', ['Shipped billing API used by 40+ teams.']],
+  ],
+  skills: 'TypeScript · React · Node.js · SQL · AWS',
+  education: 'B.S. Computer Science — UT Austin · 2018',
+}
+
+/** Inline SVG mini-preview of a template rendering real sample content (same idea as TemplateThumb.tsx). */
 function templateThumbSvg(slug, width = 96) {
   const m = TEMPLATE_META[slug]
   if (!m) return ''
-  const W = 96
-  const H = 124
-  const cx = (w) => (m.headerAlign === 'center' ? (W - w) / 2 : 10)
-  const nameW = 34
-  const subW = 44
-  let y = 12
+  const W = 120
+  const H = 155
+  const L = 10
+  const R = W - 10
+  const font = m.serif ? "Georgia,'Times New Roman',serif" : 'Helvetica,Arial,sans-serif'
+  const anchor = m.headerAlign === 'center' ? `x="${W / 2}" text-anchor="middle"` : `x="${L}"`
+  const s = THUMB_SAMPLE
   const parts = []
-  parts.push(`<rect x="${cx(nameW)}" y="${y}" width="${nameW}" height="6" rx="1" fill="${m.nameCase === 'upper' ? '#111' : '#333'}"/>`)
-  y += 10
-  parts.push(`<rect x="${cx(subW)}" y="${y}" width="${subW}" height="4" rx="1" fill="#d4d4d4"/>`)
-  y += 12
-  for (let i = 0; i < 3; i++) {
-    if (m.band)
-      parts.push(`<rect x="8" y="${y - 2}" width="${W - 16}" height="9" rx="1" fill="${tint(m.accent)}"/>`)
-    parts.push(`<rect x="10" y="${y}" width="24" height="5" rx="1" fill="${m.accent}"/>`)
-    if (m.divider !== 'none')
-      parts.push(`<rect x="10" y="${y + 7}" width="${W - 20}" height="${m.divider === 'thick' ? 2 : 1}" fill="${m.accent}"/>`)
-    let ly = y + (m.divider !== 'none' ? 12 : 9)
-    for (const w of [W - 20, W - 32]) {
-      parts.push(`<rect x="10" y="${ly}" width="${w}" height="4" rx="1" fill="#e5e5e5"/>`)
-      ly += 7
+  const text = (x, y, size, fill, str, extra = '') =>
+    parts.push(`<text x="${x}" y="${y}" font-size="${size}" fill="${fill}" ${extra}>${esc(str)}</text>`)
+  let y = 14
+  parts.push(
+    `<text ${anchor} y="${y}" font-size="8" font-weight="700" fill="#111"${m.nameCase === 'upper' ? ' letter-spacing=".5"' : ''}>${esc(m.nameCase === 'upper' ? s.name.toUpperCase() : s.name)}</text>`
+  )
+  y += 8
+  parts.push(
+    `<text ${anchor} y="${y}" font-size="3.6" fill="#777">${esc(s.sub)}</text>`
+  )
+  y += 9
+  const heading = (label) => {
+    if (m.band) {
+      parts.push(`<rect x="${L - 3}" y="${y - 5}" width="${W - 2 * (L - 3)}" height="7.5" rx="1" fill="${tint(m.accent)}"/>`)
     }
-    y = ly + 6
+    text(L, y, 4.4, m.accent, label.toUpperCase(), 'font-weight="700" letter-spacing=".6"')
+    if (!m.band && m.divider !== 'none') {
+      parts.push(`<rect x="${L}" y="${y + 2}" width="${R - L}" height="${m.divider === 'thick' ? 1.4 : 0.6}" fill="${m.accent}"/>`)
+    }
+    y += m.band || m.divider !== 'none' ? 8 : 6.5
   }
-  return `<svg role="img" aria-label="${esc(slug)} template layout preview" width="${width}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="background:#fff;border:1px solid var(--border);border-radius:6px">${parts.join('')}</svg>`
+  heading('Summary')
+  for (const line of s.summary) {
+    text(L, y, 3.8, '#444', line)
+    y += 5.5
+  }
+  y += 4
+  heading('Experience')
+  for (const [job, bullets] of s.jobs) {
+    text(L, y, 3.9, '#333', job, 'font-weight="600"')
+    y += 5.5
+    for (const b of bullets) {
+      text(L, y, 3.8, '#444', `•  ${b}`)
+      y += 5.5
+    }
+    y += 1.5
+  }
+  y += 2.5
+  heading('Skills')
+  text(L, y, 3.8, '#444', s.skills)
+  y += 9.5
+  heading('Education')
+  text(L, y, 3.8, '#444', s.education)
+  return `<svg role="img" aria-label="${esc(slug)} template preview with sample resume content" width="${width}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="${font}" style="background:#fff;border:1px solid var(--border);border-radius:6px">${parts.join('')}</svg>`
 }
 
 /** pSEO template pages, one per built-in template */
