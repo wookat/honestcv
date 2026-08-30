@@ -70,6 +70,10 @@ export interface Resume {
   lineSpacing?: 'compact' | 'normal' | 'relaxed'
   /** Font family across preview and exports; 'auto' follows the template */
   fontFamily?: 'auto' | 'serif' | 'sans'
+  /** Vertical space before each section heading */
+  sectionSpacing?: 'tight' | 'normal' | 'roomy'
+  /** Section divider rule; 'auto' follows the template */
+  sectionDivider?: 'auto' | 'on' | 'off'
   /** Target role + JD used for tailoring and the ATS score */
   targetRole: string
   jobDescription: string
@@ -88,6 +92,24 @@ export const lineSpacingOf = (r: Resume) => LINE_SPACING[r.lineSpacing ?? 'norma
 /** Whether to render with a serif font, honouring the user's font-family override. */
 export const serifOf = (r: Resume, tplSerif: boolean) =>
   r.fontFamily === 'serif' ? true : r.fontFamily === 'sans' ? false : tplSerif
+
+/** Multipliers applied to the space before section headings. */
+export const SECTION_SPACING = { tight: 0.6, normal: 1, roomy: 1.4 } as const
+
+export const sectionSpacingOf = (r: Resume) => SECTION_SPACING[r.sectionSpacing ?? 'normal']
+
+/** Section divider to render, honouring the user's override of the template rule. */
+export const dividerOf = (
+  r: Resume,
+  tplDivider: 'line' | 'thick' | 'none'
+): 'line' | 'thick' | 'none' =>
+  r.sectionDivider === 'off'
+    ? 'none'
+    : r.sectionDivider === 'on'
+      ? tplDivider === 'none'
+        ? 'line'
+        : tplDivider
+      : tplDivider
 
 export function emptyResume(): Resume {
   return {
