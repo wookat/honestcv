@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -72,9 +72,10 @@ export default function AtsChecker() {
     'Free ATS Resume Checker — Instant Match Score | RezUp',
     'Paste your resume and a job description to get an instant ATS match score, missing keywords and format checks. 100% free, no sign-up — runs entirely in your browser.'
   )
-  const [resumeText, setResumeText] = useState('')
+  const { state } = useLocation() as { state?: { resumeText?: string } }
+  const [resumeText, setResumeText] = useState(state?.resumeText ?? '')
   const [jd, setJd] = useState('')
-  const [checked, setChecked] = useState(false)
+  const [checked, setChecked] = useState(Boolean(state?.resumeText))
   const [linkCopied, setLinkCopied] = useState(false)
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
