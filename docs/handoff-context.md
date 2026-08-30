@@ -29,7 +29,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - R19 职位板深度（#232，对标 Rezi Job Search 顶栏：搜索框从草稿 targetRole 预填并首载即搜、Remotive category 筛选（Worker 校验 slug 并按类别标签后置过滤——2026-08-29 实测上游忽略 category 参数，KV key jobs:v3:<q>|<category>）、地点客户端子串筛选、Relevance/Newest 排序、公司 logo（CSP img-src 加 remotive.com，onError 隐藏）；不做 Matched/匹配分（无诚实模型））
 - R20 职位行级快捷操作（#233，对标 Rezi 列表行内 Add to Saved/Change status：每行 Save 切换 + 状态 select（No status 移除条目），与详情面板双向同步；管线标签行显示 updatedAt 相对时间戳如「Saved today」；纯 UI 批次无存储变更）
 - R21 操作台工作区侧栏（#234，对标 Rezi app 左侧常驻侧栏：/dashboard 与 /jobs md+ 显示 WorkspaceNav——Create new resume 按钮 + My resumes/Career documents(#documents)/Sample library(#samples)/Job search/ATS checker 链接，活跃项 aria-current + 本地数据计数徽标；<md 隐藏靠汉堡菜单；纯前端无 Worker/存储变更）
-- PR 为累积链（R2 基于 R1 分支…R21 基于 R20），生产已部署最新版（R21 部署时 wrangler 上传成功但 zones/routes 同步 API 报 Authentication error 10000——自定义域路由已存在故不影响上线，新 bundle 已实测生效；若后续需改路由需补 Cloudflare token 的 zone Workers Routes 权限）；PR 均未合并，合并时按链顺序
+- R22 落地页 hero 简历投递区（#235，对标 Rezi 首页「Upload or drop your resume to get started / Score resume」：hero CTA 下方新增虚线拖放/点选上传区，浏览器内 extractTextFromFile 提取后带 router state 跳 /ats-checker 自动出分（空 JD 仍出格式分）；提取失败/无文本内联报错留在落地页；文案明示「never uploaded to a server」；纯前端无 Worker 变更）
+- PR 为累积链（R2 基于 R1 分支…R22 基于 R21），生产已部署最新版（R21 部署时 wrangler 上传成功但 zones/routes 同步 API 报 Authentication error 10000——自定义域路由已存在故不影响上线，新 bundle 已实测生效；若后续需改路由需补 Cloudflare token 的 zone Workers Routes 权限）；PR 均未合并，合并时按链顺序
 - 剩余候选差距（R8 复审计确认）：Rezi Job Search 已由 R16/R17 落地免 key MVP（后续扩源需 Adzuna/Jooble key，已向老板申报）、付费人工 Review（商业模式差异）、落地页信任（P1-8）R11 已做可诚实部分，真实用户评价/用户量待产品上量后再补；导航下拉（P2-9）R13 已做、部署缓存窗口与 session 401 R12 已修（窗口收窄到 ~1 分钟）
 - QA 备注（P2，非本轮引入）：React 页 console 偶发 [Report Only] CSP 违规日志（疑似平台注入，无拦截）
 - R7 QA 备注（可选优化，非 P0/P1）：Auto-fit 在已最优页数时仍会把设置升到更可读组合；表单控件 id/name 信息性提示已在 dashboard 修复、builder 其余字段未处理

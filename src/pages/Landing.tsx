@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   BadgeCheck,
@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Copy,
   FileDown,
+  FileUp,
   Lock,
   ScanSearch,
   ShieldCheck,
@@ -21,6 +22,7 @@ import { useFreeMode } from '@/components/Paywall'
 import { ResumePreview } from '@/components/ResumePreview'
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { ScoreRing } from '@/components/ScoreRing'
+import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { sampleResume } from '@/lib/resume'
 import { TEMPLATES, TEMPLATE_FILTERS } from '@/lib/templates'
 
@@ -253,6 +255,83 @@ const COMPARISON: [string, string, string][] = [
   ['Your resume data', 'Stays in your browser', 'Stored on their servers'],
 ]
 
+/** Hero drop zone: extracts an uploaded resume in the browser and opens the ATS checker scored. */
+function HeroResumeDrop() {
+  const navigate = useNavigate()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [dragOver, setDragOver] = useState(false)
+
+  const handleFile = (file: File | undefined) => {
+    if (!file || busy) return
+    setBusy(true)
+    setError('')
+    extractTextFromFile(file)
+      .then((text) => {
+        if (text.trim().length < 30) {
+          setError('No text found in this file — it may be a scanned image. Try the checker and paste your resume instead.')
+          setBusy(false)
+          return
+        }
+        void navigate('/ats-checker', { state: { resumeText: text } })
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Could not read this file.')
+        setBusy(false)
+      })
+  }
+
+  return (
+    <div className="animate-rise mx-auto mt-6 max-w-xl [--rise-delay:240ms]">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragOver(true)
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDragOver(false)
+          handleFile(e.dataTransfer.files?.[0])
+        }}
+        className={`flex min-h-14 w-full items-center justify-center gap-2.5 rounded-xl border-2 border-dashed px-4 py-3 text-sm transition-colors ${
+          dragOver
+            ? 'border-primary bg-primary/5 text-foreground'
+            : 'text-muted-foreground hover:border-primary/50 hover:text-foreground border-border bg-white/60'
+        }`}
+      >
+        <FileUp className="size-4 shrink-0" />
+        {busy ? (
+          'Reading your resume…'
+        ) : (
+          <span>
+            <span className="text-foreground font-medium">Upload or drop your resume</span>
+            {' — get your free ATS score'}
+          </span>
+        )}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={IMPORT_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          handleFile(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
+      {error && <p className="text-destructive mt-2 text-xs">{error}</p>}
+      <p className="text-muted-foreground mt-2 text-xs">
+        PDF, DOCX or TXT · read entirely in your browser — never uploaded to a server.
+      </p>
+    </div>
+  )
+}
+
 export default function Landing() {
   usePageMeta(
     'RezUp — AI Resume Builder. ATS-Friendly Resumes in Minutes.',
@@ -323,6 +402,7 @@ export default function Landing() {
               ? 'Free during beta: editor, templates, ATS score, AI tools and downloads — all included.'
               : 'Editing, templates & ATS score are free. Pay only to download.'}
           </p>
+          <HeroResumeDrop />
           </div>
           <ProductMock />
         </section>
