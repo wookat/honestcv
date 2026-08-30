@@ -56,6 +56,8 @@ const FONT_BY_KIND = {
   sans: 'Calibri',
   mono: 'Courier New',
   merriweather: 'Merriweather',
+  sourcesans: 'Source Sans 3',
+  robotomono: 'Roboto Mono',
 } as const
 // Page width in twips minus the 864-twip left/right margins
 const PAGE_TWIPS = {

@@ -3294,6 +3294,8 @@ export default function Builder() {
                   ['sans', 'Sans', 'Inter / Calibri — modern look'],
                   ['mono', 'Mono', 'Courier — typewriter look'],
                   ['merriweather', 'Merri', 'Merriweather — classic resume serif'],
+                  ['sourcesans', 'Source', 'Source Sans — modern humanist sans'],
+                  ['robotomono', 'Roboto', 'Roboto Mono — clean monospace'],
                 ] as const
               ).map(([value, label, hint]) => (
                 <button
