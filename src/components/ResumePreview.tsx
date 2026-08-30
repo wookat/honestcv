@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys } from '@/lib/resume'
+import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys, serifOf } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
 export function ResumePreview({
@@ -18,7 +18,9 @@ export function ResumePreview({
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const c = resume.contact
-  const fontFamily = tpl.serif ? 'Georgia, "Times New Roman", serif' : 'Inter, Arial, sans-serif'
+  const fontFamily = serifOf(resume, tpl.serif)
+    ? 'Georgia, "Times New Roman", serif'
+    : 'Inter, Arial, sans-serif'
   const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]
     .filter(Boolean)
     .join('  |  ')

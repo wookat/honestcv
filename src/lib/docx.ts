@@ -17,7 +17,7 @@ import {
   TextRun,
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
-import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys } from '@/lib/resume'
+import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys, serifOf } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
 const FONT_SERIF = 'Georgia'
@@ -30,7 +30,7 @@ const PAGE_TWIPS = {
 
 export async function downloadResumeDocx(resume: Resume, filename: string) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
-  const font = tpl.serif ? FONT_SERIF : FONT_SANS
+  const font = serifOf(resume, tpl.serif) ? FONT_SERIF : FONT_SANS
   const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
   const rightTab = pageSize.width - 864 * 2
   const accent = tpl.accent.replace('#', '')

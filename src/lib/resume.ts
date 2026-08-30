@@ -68,6 +68,8 @@ export interface Resume {
   fontScale?: 's' | 'm' | 'l'
   /** Line spacing across preview and exports */
   lineSpacing?: 'compact' | 'normal' | 'relaxed'
+  /** Font family across preview and exports; 'auto' follows the template */
+  fontFamily?: 'auto' | 'serif' | 'sans'
   /** Target role + JD used for tailoring and the ATS score */
   targetRole: string
   jobDescription: string
@@ -82,6 +84,10 @@ export const LINE_SPACING = { compact: 1.22, normal: 1.35, relaxed: 1.52 } as co
 
 export const fontScaleOf = (r: Resume) => FONT_SCALE[r.fontScale ?? 'm']
 export const lineSpacingOf = (r: Resume) => LINE_SPACING[r.lineSpacing ?? 'normal']
+
+/** Whether to render with a serif font, honouring the user's font-family override. */
+export const serifOf = (r: Resume, tplSerif: boolean) =>
+  r.fontFamily === 'serif' ? true : r.fontFamily === 'sans' ? false : tplSerif
 
 export function emptyResume(): Resume {
   return {
