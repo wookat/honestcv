@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   ArrowRight,
   BadgeCheck,
+  Check,
   ChevronDown,
   Copy,
   FileDown,
@@ -118,6 +119,125 @@ const FEATURES = [
     icon: BadgeCheck,
     title: 'Clickable, ATS-clean exports',
     text: 'Your email, website and LinkedIn are live links in both the PDF and the DOCX — recruiters click straight through, and parsers still read every word.',
+  },
+]
+
+/** Static in-page demos of the builder's core tools, built from the real UI
+ * patterns (no invented users or ratings — just the product itself). */
+function ShowcaseAtsScore() {
+  return (
+    <div className="bg-card rounded-xl border p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium">ATS match score</p>
+        <ScoreRing score={72} size={56} />
+      </div>
+      <div className="mt-3 text-xs">
+        <p className="font-medium text-green-700">Matched (4)</p>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {['react', 'typescript', 'testing', 'agile'].map((kw) => (
+            <span
+              key={kw}
+              className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-green-800"
+            >
+              <span aria-hidden className="text-green-600">✓</span> {kw}
+            </span>
+          ))}
+        </div>
+        <p className="mt-2 font-medium text-red-700">Missing (2)</p>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {['kubernetes', 'graphql'].map((kw) => (
+            <span key={kw} className="bg-muted inline-flex items-center overflow-hidden rounded-full border">
+              <span className="px-2 py-0.5">+ {kw}</span>
+              <span className="border-l px-1.5 py-1">
+                <Sparkles aria-hidden className="size-3" />
+              </span>
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ShowcaseTailor() {
+  return (
+    <div className="bg-card space-y-2 rounded-xl border p-5 text-sm shadow-sm">
+      <p className="text-muted-foreground text-xs font-medium">Frontend Engineer at Acme</p>
+      <p className="text-muted-foreground line-through decoration-red-300">
+        Responsible for the checkout page and helped with testing.
+      </p>
+      <p className="font-medium text-emerald-800">
+        Rebuilt the checkout flow in React, cutting load time 38% and raising conversion [add %].
+      </p>
+      <div className="flex gap-2 pt-1">
+        <span className="bg-primary text-primary-foreground inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium">
+          <Check className="size-3" /> Accept
+        </span>
+        <span className="inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium">
+          Keep original
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function ShowcaseBreakdown() {
+  const dims: [string, number, string][] = [
+    ['Keyword match', 72, 'Missing keyword: "kubernetes"'],
+    ['ATS structure', 83, 'Skills section filled · Education listed'],
+    ['Quantified impact', 40, 'No number: "Led the migration project…"'],
+  ]
+  return (
+    <div className="bg-card space-y-3 rounded-xl border p-5 shadow-sm">
+      <p className="text-sm font-medium">Score breakdown</p>
+      {dims.map(([label, score, finding]) => (
+        <div key={label}>
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium">{label}</span>
+            <span className={score >= 80 ? 'text-emerald-600' : score >= 50 ? 'text-amber-600' : 'text-red-600'}>
+              {score}
+            </span>
+          </div>
+          <div aria-hidden className="bg-muted mt-1 h-1.5 w-full overflow-hidden rounded-full">
+            <div
+              className={`h-full rounded-full ${score >= 80 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-400'}`}
+              style={{ width: `${score}%` }}
+            />
+          </div>
+          <p className="text-muted-foreground mt-0.5 text-xs">{finding}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const SHOWCASES: {
+  eyebrow: string
+  title: string
+  text: string
+  cta: string
+  visual: () => React.JSX.Element
+}[] = [
+  {
+    eyebrow: 'Keyword targeting',
+    title: 'See your ATS match — and close every keyword gap',
+    text: 'Paste any job description and the match score updates live as you type. Every missing keyword is one click from your Skills list, or one click from an AI-drafted bullet that works it into your real experience.',
+    cta: 'Check a job description',
+    visual: ShowcaseAtsScore,
+  },
+  {
+    eyebrow: 'AI tailoring',
+    title: 'AI rewrites you approve line by line',
+    text: 'The AI rewords your summary and bullets toward the job — stronger verbs, the JD’s exact keywords, quantified impact. It never invents facts: gaps become [add %] placeholders, and nothing changes until you accept it.',
+    cta: 'Tailor my resume',
+    visual: ShowcaseTailor,
+  },
+  {
+    eyebrow: 'Score breakdown',
+    title: 'Know exactly what to fix, and what it’s worth',
+    text: 'One dialog breaks your score into keyword match, ATS structure and six writing-quality checks — each with the specific lines to fix. Transparent rules, computed in your browser, no black box.',
+    cta: 'See my breakdown',
+    visual: ShowcaseBreakdown,
   },
 ]
 
@@ -267,6 +387,33 @@ export default function Landing() {
               </li>
             ))}
           </ol>
+        </section>
+
+        {/* Feature showcases */}
+        <section aria-labelledby="showcase-heading" className="mx-auto max-w-5xl space-y-20 px-4 pb-24">
+          <h2 id="showcase-heading" className="sr-only">
+            The tools in action
+          </h2>
+          {SHOWCASES.map((s, i) => (
+            <div
+              key={s.eyebrow}
+              className={`grid items-center gap-8 md:grid-cols-2 ${i % 2 === 1 ? 'md:[&>*:first-child]:order-2' : ''}`}
+            >
+              <div>
+                <p className="text-primary text-sm font-medium tracking-widest uppercase">{s.eyebrow}</p>
+                <h3 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{s.title}</h3>
+                <p className="text-muted-foreground mt-3">{s.text}</p>
+                <Button asChild variant="outline" className="mt-5">
+                  <Link to="/builder">
+                    {s.cta} <ArrowRight />
+                  </Link>
+                </Button>
+              </div>
+              <div aria-hidden className="mx-auto w-full max-w-md">
+                <s.visual />
+              </div>
+            </div>
+          ))}
         </section>
 
         {/* Features */}

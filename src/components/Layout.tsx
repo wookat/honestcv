@@ -19,6 +19,13 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           RezUp
           <span className="text-muted-foreground text-xs font-normal">by Zalize</span>
         </Link>
+        <nav aria-label="Main" className="text-muted-foreground hidden items-center gap-5 text-sm md:flex">
+          <a className="hover:text-foreground" href="/templates/">Templates</a>
+          <a className="hover:text-foreground" href="/examples/">Examples</a>
+          <a className="hover:text-foreground" href="/guides/">Guides</a>
+          <Link className="hover:text-foreground" to="/ats-checker">ATS Checker</Link>
+          <a className="hover:text-foreground" href="/pricing/">Pricing</a>
+        </nav>
         {action}
       </div>
     </header>
