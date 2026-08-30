@@ -3564,6 +3564,10 @@ table.cmp th,table.cmp td{padding:.6rem .5rem;text-align:left;border-bottom:1px 
 table.cmp th:nth-child(2),table.cmp td:nth-child(2){background:oklch(0.5 0.18 265 / 0.06)}
 table.cmp td:nth-child(2){color:#047857;font-weight:500}
 table.cmp td:nth-child(3){color:var(--muted)}
+table.cmp.plans th:nth-child(2),table.cmp.plans td:nth-child(2){background:none}
+table.cmp.plans td:nth-child(2),table.cmp.plans td:nth-child(3){color:inherit;font-weight:400}
+table.cmp.plans th:nth-child(4),table.cmp.plans td:nth-child(4){background:oklch(0.5 0.18 265 / 0.06)}
+table.cmp.plans td:nth-child(4){color:#047857;font-weight:500}
 .faq h3{margin:1.25rem 0 .25rem;font-size:1rem}
 .faq p{margin:0;color:var(--muted);font-size:.9375rem}
 </style>
@@ -3581,6 +3585,26 @@ ${NAV_HTML}
 <div class="price-grid">
 ${planCard('Single Resume', '$9.99', 'Everything you need to apply: unlimited exports of one polished, tailored resume.', ['Unlimited PDF + DOCX downloads, no watermark', 'Unlimited AI rewrites & job-targeted tailoring', 'All 22 ATS-friendly templates', 'Edit and re-download forever'], false)}
 ${planCard('Career Bundle', '$19.99', 'The full job-hunt kit: resume, cover letters and interview prep in one purchase.', ['Everything in Single Resume', 'AI cover letters tailored to each job posting', 'Interview prep brief: likely questions, STAR stories, gaps', 'All future features included'], true)}
+</div>
+<h2 style="margin-top:3rem">Compare our plans</h2>
+<p style="color:var(--muted);font-size:.9375rem">${FREE_MODE ? 'During the beta everything below is free for everyone — this is what each plan covers when billing opens.' : 'Everything in the Free column stays free forever — you only pay to download.'}</p>
+<div style="overflow-x:auto" tabindex="0" role="region" aria-label="Plan comparison">
+<table class="cmp plans">
+<thead><tr><th><span style="position:absolute;clip:rect(0 0 0 0)">Feature</span></th><th>Free</th><th>Single Resume<br /><span style="font-weight:400;color:var(--muted)">$9.99 once</span></th><th>Career Bundle<br /><span style="font-weight:400;color:var(--muted)">$19.99 once</span></th></tr></thead>
+<tbody>
+<tr><td>Full editor &amp; live preview</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>All 22 ATS-safe templates</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>ATS match score vs any job description</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>AI rewrites &amp; job-targeted tailoring</td><td>5 included</td><td>Unlimited</td><td>Unlimited</td></tr>
+<tr><td>PDF + DOCX downloads, no watermark</td><td>—</td><td>Unlimited</td><td>Unlimited</td></tr>
+<tr><td>Edit and re-download forever</td><td>—</td><td>✓</td><td>✓</td></tr>
+<tr><td>AI cover letters tailored to each job posting</td><td>—</td><td>—</td><td>✓</td></tr>
+<tr><td>Interview prep brief (questions, STAR stories, gaps)</td><td>—</td><td>—</td><td>✓</td></tr>
+<tr><td>All future features included</td><td>—</td><td>—</td><td>✓</td></tr>
+<tr><td>Account required</td><td>No</td><td>No</td><td>No</td></tr>
+<tr><td>Recurring charges</td><td>Never</td><td>Never</td><td>Never</td></tr>
+</tbody>
+</table>
 </div>
 <h2 style="margin-top:3rem">What you get, next to a typical subscription builder</h2>
 <div style="overflow-x:auto" tabindex="0" role="region" aria-label="Feature comparison">
