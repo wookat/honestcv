@@ -12,6 +12,8 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 - After killing the CDP hold, `Emulation.clearDeviceMetricsOverride` alone may leave the page stuck at the mobile width — if `innerWidth` stays 375, send `Emulation.setDeviceMetricsOverride({width:0,height:0,deviceScaleFactor:0,mobile:false})`, then `clearDeviceMetricsOverride`, then `Page.reload`.
 - xdotool typing drops/mutates characters (seen: "+"→"O", leading letter dropped) — always verify typed text in `honestcv.resume` before asserting, and use ASCII-word substitutes for symbols that won't land.
 - Router deep-link features (e.g. `?assistant=1`, `?doc=`) must be tested on *repeat* activation, not just first use: cleaning query params with raw `history.replaceState` desyncs react-router's location and the second activation silently no-ops.
+- DOCX exports can be runtime-verified without Word/LibreOffice: download, then `unzip -p file.docx word/document.xml` and extract text with `re.findall(r'<w:t[^>]*>([^<]*)</w:t>')`. Section headings are stored uppercase (grep "MILITARY SERVICE", not "Military service"); bold is a `<w:b/>` in the run properties immediately before the `<w:t>`.
+- Clicking multiple export buttons in a row: Chrome's downloads popup can cover the later buttons so only the first file lands — press Escape and click each export separately, verifying `~/Downloads` between clicks.
 
 ## QA traffic marking (unified convention)
 
