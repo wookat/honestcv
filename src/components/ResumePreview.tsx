@@ -11,6 +11,7 @@ import {
   dividerOf,
   fontScaleOf,
   lineSpacingOf,
+  educationDetailLine,
   orderedSectionKeys,
   sectionSpacingOf,
   serifOf,
@@ -295,8 +296,8 @@ function SectionBlock({
                     </p>
                   )}
                 </div>
-                {e.details.trim() && (
-                  <p className="text-[11px]">{e.details.trim()}</p>
+                {educationDetailLine(e) && (
+                  <p className="text-[11px]">{educationDetailLine(e)}</p>
                 )}
               </div>
           )

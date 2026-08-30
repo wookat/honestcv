@@ -20,6 +20,7 @@ import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
   dividerOf,
+  educationDetailLine,
   fontScaleOf,
   lineSpacingOf,
   orderedSectionKeys,
@@ -221,7 +222,8 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             ],
           })
         )
-        if (e.details.trim()) children.push(body(e.details.trim()))
+        const detail = educationDetailLine(e)
+        if (detail) children.push(body(detail))
       }
     } else if (key === 'skills' && resume.skills.trim()) {
       children.push(heading('Skills'), body(resume.skills.trim(), { after: 100 }))

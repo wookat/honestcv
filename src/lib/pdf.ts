@@ -8,6 +8,7 @@ import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
   dividerOf,
+  educationDetailLine,
   fontScaleOf,
   lineSpacingOf,
   orderedSectionKeys,
@@ -360,9 +361,10 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
           dates,
           { size: 10 }
         )
-        if (e.details.trim()) {
+        const detail = educationDetailLine(e)
+        if (detail) {
           w.gap(1)
-          w.text(e.details.trim(), { size: 10 })
+          w.text(detail, { size: 10 })
         }
       }
     } else if (key === 'skills' && resume.skills.trim()) {

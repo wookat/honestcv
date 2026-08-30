@@ -93,7 +93,8 @@ export function resumeFromProfile(rp: ResumeProfileV1): Resume {
     location: '',
     startDate: e.startDate ?? '',
     endDate: e.endDate ?? '',
-    details: e.gpa ? `GPA: ${e.gpa}` : '',
+    details: '',
+    gpa: e.gpa ?? '',
   }))
   r.projects = (rp.projects ?? []).map((p) => ({
     id: newId(),
