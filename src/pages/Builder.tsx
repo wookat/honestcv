@@ -486,10 +486,10 @@ export default function Builder() {
   )
   const { search } = useLocation()
   useEffect(() => {
-    if (new URLSearchParams(search).get('assistant') === '1') {
-      setAssistantOpen(true)
-      window.history.replaceState(null, '', window.location.pathname)
-    }
+    if (new URLSearchParams(search).get('assistant') !== '1') return
+    window.history.replaceState(null, '', window.location.pathname)
+    const id = window.setTimeout(() => setAssistantOpen(true), 0)
+    return () => window.clearTimeout(id)
   }, [search])
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
