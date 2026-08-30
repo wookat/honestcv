@@ -429,6 +429,54 @@ export function deleteResumeVersion(id: string): ResumeVersion[] {
   return versions
 }
 
+/** Automatic edit-history checkpoints of the single builder draft. */
+export interface ResumeSnapshot {
+  id: string
+  at: number
+  data: Resume
+}
+
+const HISTORY_KEY = 'honestcv.resumeHistory'
+const HISTORY_MAX = 15
+const HISTORY_MIN_GAP_MS = 10 * 60 * 1000
+
+export function listResumeHistory(): ResumeSnapshot[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as ResumeSnapshot[]
+    return Array.isArray(parsed) ? parsed.filter((s) => s.id && s.at && s.data) : []
+  } catch {
+    return []
+  }
+}
+
+function persistHistory(snapshots: ResumeSnapshot[]) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(snapshots.slice(0, HISTORY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+/**
+ * Records a checkpoint of the draft. Skipped when the newest checkpoint is
+ * identical, or (unless `force`) younger than the 10-minute gap.
+ * Returns the updated list.
+ */
+export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapshot[] {
+  const history = listResumeHistory()
+  const newest = history[0]
+  const json = JSON.stringify(data)
+  if (newest) {
+    if (JSON.stringify(newest.data) === json) return history
+    if (!force && Date.now() - newest.at < HISTORY_MIN_GAP_MS) return history
+  }
+  const next = [{ id: newId(), at: Date.now(), data: JSON.parse(json) as Resume }, ...history]
+  persistHistory(next)
+  return next.slice(0, HISTORY_MAX)
+}
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []

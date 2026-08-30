@@ -14,6 +14,7 @@ import {
   FileUp,
   GraduationCap,
   GripVertical,
+  History,
   LayoutGrid,
   LayoutTemplate,
   Save,
@@ -106,6 +107,9 @@ import {
   newId,
   orderedSectionKeys,
   listResumeVersions,
+  listResumeHistory,
+  recordResumeSnapshot,
+  type ResumeSnapshot,
   resumeToPlainText,
   resumeToMarkdown,
   sampleResume,
@@ -133,6 +137,7 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     window.clearTimeout(t.current)
     t.current = window.setTimeout(() => {
       saveResume(resume)
+      recordResumeSnapshot(resume)
       pending.current = null
       setState('saved')
     }, 400)
@@ -143,6 +148,7 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     const flush = () => {
       if (pending.current) {
         saveResume(pending.current)
+        recordResumeSnapshot(pending.current)
         pending.current = null
       }
     }
@@ -458,6 +464,7 @@ export default function Builder() {
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
   const { undo, canUndo } = useUndo(resume, setResume)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
   )
@@ -750,6 +757,14 @@ export default function Builder() {
               title="Undo (Ctrl+Z)"
             >
               <Undo2 className="size-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setHistoryOpen(true)}
+              title="Edit history — automatic checkpoints of this draft"
+            >
+              <History className="size-3.5" />
             </Button>
             <Button size="sm" onClick={() => void download('pdf')} disabled={Boolean(downloading)}>
               {downloading === 'pdf' ? (
@@ -2382,6 +2397,17 @@ export default function Builder() {
         health={health}
         ats={ats}
       />
+      {historyOpen && (
+        <HistoryDialog
+          resume={resume}
+          onClose={() => setHistoryOpen(false)}
+          onRestore={(snap) => {
+            recordResumeSnapshot(resume, true)
+            setResume({ ...emptyResume(), ...snap.data })
+            setHistoryOpen(false)
+          }}
+        />
+      )}
       {kwBulletFor !== null && (
         <KeywordBulletDialog
           keyword={kwBulletFor}
@@ -3538,6 +3564,83 @@ function HealthDialog({
             </div>
           ))}
         </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const snapshotAgo = (ms: number) => {
+  const mins = Math.floor((Date.now() - ms) / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return mins === 1 ? '1 minute ago' : `${mins} minutes ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`
+  const days = Math.floor(hours / 24)
+  return days === 1 ? '1 day ago' : `${days} days ago`
+}
+
+/** Automatic checkpoints of the draft — restore rolls the builder back;
+ * the pre-restore draft is checkpointed first so restores are reversible. */
+function HistoryDialog({
+  resume,
+  onClose,
+  onRestore,
+}: {
+  resume: Resume
+  onClose: () => void
+  onRestore: (snap: ResumeSnapshot) => void
+}) {
+  const [snapshots] = useState<ResumeSnapshot[]>(() => listResumeHistory())
+  const currentJson = useMemo(() => JSON.stringify(resume), [resume])
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit history</DialogTitle>
+          <DialogDescription>
+            The builder keeps a checkpoint of your draft about every 10 minutes while
+            you edit. Restoring saves a checkpoint of the current draft first.
+          </DialogDescription>
+        </DialogHeader>
+        {snapshots.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            No checkpoints yet — keep editing and one is saved automatically about
+            every 10 minutes.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {snapshots.map((s) => {
+              const isCurrent = JSON.stringify(s.data) === currentJson
+              return (
+                <li
+                  key={s.id}
+                  className="flex min-h-10 items-center justify-between gap-3 rounded-md border px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{snapshotAgo(s.at)}</p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {[s.data.contact.fullName || 'Untitled', s.data.targetRole]
+                        .filter(Boolean)
+                        .join(' — ')}
+                    </p>
+                  </div>
+                  {isCurrent ? (
+                    <span className="text-muted-foreground shrink-0 text-xs">Current</span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-10 shrink-0 sm:min-h-8"
+                      onClick={() => onRestore(s)}
+                    >
+                      <History className="size-3.5" /> Restore
+                    </Button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </DialogContent>
     </Dialog>
   )
