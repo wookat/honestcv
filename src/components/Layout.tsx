@@ -114,27 +114,79 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
   )
 }
 
+const FOOTER_COLUMNS: [string, [string, string][]][] = [
+  [
+    'Product',
+    [
+      ['Resume builder', '/builder'],
+      ['My resumes', '/dashboard'],
+      ['Job search', '/jobs'],
+      ['Free ATS checker', '/ats-checker'],
+      ['Pricing', '/pricing/'],
+    ],
+  ],
+  [
+    'Resources',
+    [
+      ['Resume templates', '/templates/'],
+      ['Resume examples', '/examples/'],
+      ['Resume guides', '/guides/'],
+      ['All comparisons', '/vs/'],
+    ],
+  ],
+  [
+    'Compare',
+    [
+      ['RezUp vs Zety', '/vs/zety'],
+      ['RezUp vs LiveCareer', '/vs/livecareer'],
+      ['RezUp vs Rezi', '/vs/rezi'],
+      ['RezUp vs Enhancv', '/vs/enhancv'],
+      ['One-time payment builders', '/resume-builder-one-time-payment'],
+    ],
+  ],
+  [
+    'Company',
+    [
+      ['About', '/about'],
+      ['Terms & refunds', '/terms'],
+      ['Privacy', '/privacy'],
+      ['Contact', 'mailto:support@zalize.com'],
+    ],
+  ],
+]
+
+const INTERNAL_ROUTES = new Set(['/builder', '/dashboard', '/jobs', '/ats-checker'])
+
 export function SiteFooter() {
   return (
     <footer className="border-t">
-      <div className="text-muted-foreground mx-auto max-w-6xl space-y-2 px-4 py-6 text-center text-xs">
+      <nav
+        aria-label="Footer"
+        className="mx-auto grid max-w-6xl grid-cols-2 gap-x-8 gap-y-6 px-4 pb-2 pt-8 text-sm md:grid-cols-4"
+      >
+        {FOOTER_COLUMNS.map(([heading, links]) => (
+          <div key={heading}>
+            <h2 className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
+              {heading}
+            </h2>
+            <ul className="space-y-2">
+              {links.map(([label, href]) => (
+                <li key={href}>
+                  {INTERNAL_ROUTES.has(href) ? (
+                    <Link className="hover:underline" to={href}>{label}</Link>
+                  ) : (
+                    <a className="hover:underline" href={href}>{label}</a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </nav>
+      <div className="text-muted-foreground mx-auto max-w-6xl space-y-1 px-4 py-6 text-center text-xs">
         <p>
           © {new Date().getFullYear()} RezUp · part of Zalize · Pay once, own it
-          forever. No subscriptions, no auto-renewals, no trial traps.
-        </p>
-        <p>No account needed. Your resume stays in your browser — we never store it.</p>
-        <p className="space-x-3">
-          <Link className="hover:text-foreground underline" to="/ats-checker">Free ATS checker</Link>
-          <a className="hover:text-foreground underline" href="/vs/zety">RezUp vs Zety</a>
-          <a className="hover:text-foreground underline" href="/guides/">Resume guides</a>
-          <a className="hover:text-foreground underline" href="/examples/">Resume examples</a>
-          <a className="hover:text-foreground underline" href="/templates/">Resume templates</a>
-          <a className="hover:text-foreground underline" href="/vs/livecareer">vs LiveCareer</a>
-          <a className="hover:text-foreground underline" href="/resume-builder-one-time-payment">One-time payment resume builders</a>
-          <a className="hover:text-foreground underline" href="/about">About</a>
-          <a className="hover:text-foreground underline" href="/terms">Terms &amp; refunds</a>
-          <a className="hover:text-foreground underline" href="/privacy">Privacy</a>
-          <a className="hover:text-foreground underline" href="mailto:support@zalize.com">Contact</a>
+          forever. Your resume stays in your browser — we never store it.
         </p>
         <p className="space-x-3">
           <a className="hover:text-foreground underline" href="https://qr.zalize.com">HonestQR</a>
