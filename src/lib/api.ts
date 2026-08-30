@@ -157,6 +157,7 @@ export async function aiAssistant(input: {
   resumeText: string
   jobDescription: string
   role: string
+  scoreSummary: string
 }): Promise<{ text: string; action: AssistantAction | null; freeRemaining: number | null }> {
   return post<{ text: string; action: AssistantAction | null; freeRemaining: number | null }>(
     '/api/ai/assistant',

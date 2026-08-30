@@ -1054,6 +1054,7 @@ app.post('/api/ai/assistant', async (c) => {
       resumeText?: string
       jobDescription?: string
       role?: string
+      scoreSummary?: string
     }>()
     .catch(() => ({}) as Record<string, never>)
   const turns = (body.turns ?? [])
@@ -1072,7 +1073,8 @@ app.post('/api/ai/assistant', async (c) => {
       turns,
       body.resumeText ?? '',
       body.jobDescription ?? '',
-      body.role ?? ''
+      body.role ?? '',
+      typeof body.scoreSummary === 'string' ? body.scoreSummary : ''
     ),
     0.5,
     1200

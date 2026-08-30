@@ -268,7 +268,8 @@ export function buildAssistantMessages(
   turns: AssistantTurn[],
   resumeText: string,
   jobDescription: string,
-  role: string
+  role: string,
+  scoreSummary: string
 ): ChatMessage[] {
   const context = [
     `Target role: ${role.trim() || 'not specified'}`,
@@ -278,12 +279,16 @@ export function buildAssistantMessages(
     resumeText.trim()
       ? `Candidate's current resume draft:\n"""\n${resumeText.slice(0, 6000)}\n"""`
       : 'The resume draft is currently empty.',
+    scoreSummary.trim()
+      ? `Live ATS score report, computed by the editor from this draft (the same numbers the user sees):\n"""\n${scoreSummary.slice(0, 2500)}\n"""`
+      : 'No ATS score report available.',
   ].join('\n\n')
   return [
     {
       role: 'system',
       content: `You are RezUp's resume assistant, chatting inside the resume editor. The user's current resume draft, target role, and target job description are provided below as context.
 Rules:
+- When the user asks about their ATS score or how to improve it, ground the answer in the live ATS score report: cite the actual score, name the actual failing checks and missing keywords, and recommend the highest-impact fixes from that report. Never invent your own score or checks the report does not show.
 - Ground every statement in the resume context. Never invent employers, titles, dates, metrics, or skills the resume does not show; where a detail is unknown, say so or use a bracketed placeholder like [metric].
 - Be concise: plain text, short paragraphs or "- " bullet lists, no markdown headings or bold, under 250 words per reply.
 - You cannot edit the resume directly. When an in-editor tool fits the request, point the user to it by name: "Tailor to job" (rewrites summary/bullets toward the JD), "Resume health" (checks), "Draft from my resume" (summary drafting), "AI suggest related skills" (skills), the Cover Letter / Interview Prep / Resignation Letter tools, and Auto-fit (layout).

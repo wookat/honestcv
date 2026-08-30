@@ -270,3 +270,35 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
 
   return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
 }
+
+/**
+ * Deterministic plain-text report of an ATS result, sent to the resume
+ * assistant so score answers cite the same numbers and checks the editor
+ * shows instead of guessing.
+ */
+export function atsScoreSummary(ats: AtsResult): string {
+  const lines: string[] = [`Total ATS score: ${ats.score}/100`]
+  lines.push(
+    ats.keywordScore !== null
+      ? `Sub-scores: keyword match ${ats.keywordScore}/100 (70% weight), structure ${ats.structureScore}/100 (30% weight)`
+      : `Structure score: ${ats.structureScore}/100 (no target job description provided, so no keyword score)`
+  )
+  const failing = ats.checks.filter((c) => !c.pass)
+  lines.push(
+    failing.length > 0
+      ? `Failing checks:\n${failing.map((c) => `- ${c.label}: ${c.hint}`).join('\n')}`
+      : 'All structure checks pass.'
+  )
+  if (ats.keywordScore !== null) {
+    lines.push(
+      `Job keywords matched (${ats.matched.length}): ${ats.matched.slice(0, 20).join(', ') || 'none'}`
+    )
+    lines.push(
+      `Job keywords missing (${ats.missing.length}): ${ats.missing.slice(0, 20).join(', ') || 'none'}`
+    )
+    if (ats.ignored.length > 0) {
+      lines.push(`Keywords the user marked not relevant (excluded): ${ats.ignored.join(', ')}`)
+    }
+  }
+  return lines.join('\n').slice(0, 2000)
+}
