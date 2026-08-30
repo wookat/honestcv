@@ -11,6 +11,8 @@ import {
   FilePlus2,
   FileText,
   FileUp,
+  LayoutGrid,
+  List,
   Loader2,
   MessagesSquare,
   Pencil,
@@ -133,6 +135,20 @@ export default function Dashboard() {
   const [freeDlOpen, setFreeDlOpen] = useState(false)
   const pendingDl = useRef<{ resume: Resume; fmt: 'pdf' | 'docx' } | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [view, setView] = useState<'grid' | 'list'>(() =>
+    localStorage.getItem('honestcv.dashboardView') === 'list' ? 'list' : 'grid'
+  )
+  const changeView = (v: 'grid' | 'list') => {
+    setView(v)
+    localStorage.setItem('honestcv.dashboardView', v)
+  }
+  const [sortBy, setSortBy] = useState<'edited' | 'name'>('edited')
+  const sortedVersions = useMemo(() => {
+    const arr = [...versions]
+    if (sortBy === 'name') arr.sort((a, b) => a.name.localeCompare(b.name))
+    else arr.sort((a, b) => b.updatedAt - a.updatedAt)
+    return arr
+  }, [versions, sortBy])
 
   const runDownload = async (r: Resume, fmt: 'pdf' | 'docx', key: string) => {
     setDownloading(key)
@@ -235,6 +251,61 @@ export default function Dashboard() {
     void navigate('/builder')
   }
 
+  const versionActions = (v: ResumeVersion) => (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        className="min-h-10 flex-1 sm:min-h-8 sm:flex-none"
+        onClick={() => (draft ? setConfirmOpen(v) : openCopy(v))}
+      >
+        Open
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="min-h-10 sm:min-h-8"
+        title="Duplicate this copy"
+        onClick={() => setVersions(duplicateResumeVersion(v.id))}
+      >
+        <Copy className="size-3.5" />
+        <span className="sr-only">Duplicate {v.name}</span>
+      </Button>
+      {dlButton({ ...emptyResume(), ...v.data }, 'pdf', `${v.id}-pdf`, v.name)}
+      {dlButton({ ...emptyResume(), ...v.data }, 'docx', `${v.id}-docx`, v.name)}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="min-h-10 sm:min-h-8"
+        title="Edit name & target job"
+        onClick={() =>
+          setEditing({
+            id: v.id,
+            name: v.name,
+            targetRole: v.data.targetRole || '',
+            jobDescription: v.data.jobDescription || '',
+          })
+        }
+      >
+        <Pencil className="size-3.5" />
+        <span className="sr-only">Edit name and target job for {v.name}</span>
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="text-destructive min-h-10 sm:min-h-8"
+        title="Delete this copy"
+        onClick={() => setConfirmDelete(v)}
+      >
+        <Trash2 className="size-3.5" />
+        <span className="sr-only">Delete {v.name}</span>
+      </Button>
+    </>
+  )
+
   const handleImportFile = (file: File | undefined) => {
     if (!file || importBusy) return
     setImportBusy(true)
@@ -278,7 +349,52 @@ export default function Dashboard() {
           only — use Backup in the editor to keep a file copy.
         </p>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {versions.length > 0 && (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="version-sort" className="text-muted-foreground text-xs">
+                Sort saved copies
+              </label>
+              <select
+                id="version-sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'edited' | 'name')}
+                className="bg-card min-h-10 rounded-md border px-2 text-sm sm:min-h-8"
+              >
+                <option value="edited">Last edited</option>
+                <option value="name">Name A–Z</option>
+              </select>
+            </div>
+            <div className="flex gap-1" role="group" aria-label="Saved copies view">
+              <Button
+                type="button"
+                variant={view === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                aria-pressed={view === 'grid'}
+                title="Grid view"
+                onClick={() => changeView('grid')}
+              >
+                <LayoutGrid className="size-3.5" />
+                <span className="sr-only">Grid view</span>
+              </Button>
+              <Button
+                type="button"
+                variant={view === 'list' ? 'default' : 'outline'}
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                aria-pressed={view === 'list'}
+                title="List view"
+                onClick={() => changeView('list')}
+              >
+                <List className="size-3.5" />
+                <span className="sr-only">List view</span>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${versions.length > 0 ? 'mt-3' : 'mt-6'}`}>
           {draft ? (
             <div className="bg-card flex flex-col rounded-md border shadow-sm">
               <Thumb resume={draft} />
@@ -383,10 +499,31 @@ export default function Dashboard() {
             />
           </div>
 
-          {versions.map((v) => (
-            <div key={v.id} className="bg-card flex flex-col rounded-md border shadow-sm">
-              <Thumb resume={{ ...emptyResume(), ...v.data }} />
-              <div className="flex flex-1 flex-col gap-2 p-3">
+          {view === 'grid' &&
+            sortedVersions.map((v) => (
+              <div key={v.id} className="bg-card flex flex-col rounded-md border shadow-sm">
+                <Thumb resume={{ ...emptyResume(), ...v.data }} />
+                <div className="flex flex-1 flex-col gap-2 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{v.name}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {editedAgo(v.updatedAt)} · ATS{' '}
+                      {scoreResume(v.data, v.data.jobDescription).score}/100
+                    </p>
+                  </div>
+                  <div className="mt-auto flex flex-wrap gap-1.5">{versionActions(v)}</div>
+                </div>
+              </div>
+            ))}
+        </div>
+
+        {view === 'list' && sortedVersions.length > 0 && (
+          <ul className="mt-4 space-y-2">
+            {sortedVersions.map((v) => (
+              <li
+                key={v.id}
+                className="bg-card flex flex-col gap-2 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between"
+              >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{v.name}</p>
                   <p className="text-muted-foreground text-xs">
@@ -394,62 +531,11 @@ export default function Dashboard() {
                     {scoreResume(v.data, v.data.jobDescription).score}/100
                   </p>
                 </div>
-                <div className="mt-auto flex flex-wrap gap-1.5">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="min-h-10 flex-1 sm:min-h-8"
-                    onClick={() => (draft ? setConfirmOpen(v) : openCopy(v))}
-                  >
-                    Open
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="min-h-10 sm:min-h-8"
-                    title="Duplicate this copy"
-                    onClick={() => setVersions(duplicateResumeVersion(v.id))}
-                  >
-                    <Copy className="size-3.5" />
-                    <span className="sr-only">Duplicate {v.name}</span>
-                  </Button>
-                  {dlButton({ ...emptyResume(), ...v.data }, 'pdf', `${v.id}-pdf`, v.name)}
-                  {dlButton({ ...emptyResume(), ...v.data }, 'docx', `${v.id}-docx`, v.name)}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="min-h-10 sm:min-h-8"
-                    title="Edit name & target job"
-                    onClick={() =>
-                      setEditing({
-                        id: v.id,
-                        name: v.name,
-                        targetRole: v.data.targetRole || '',
-                        jobDescription: v.data.jobDescription || '',
-                      })
-                    }
-                  >
-                    <Pencil className="size-3.5" />
-                    <span className="sr-only">Edit name and target job for {v.name}</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive min-h-10 sm:min-h-8"
-                    title="Delete this copy"
-                    onClick={() => setConfirmDelete(v)}
-                  >
-                    <Trash2 className="size-3.5" />
-                    <span className="sr-only">Delete {v.name}</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+                <div className="flex flex-wrap gap-1.5">{versionActions(v)}</div>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <h2 id="documents" className="mt-10 scroll-mt-20 text-lg font-semibold">Career documents</h2>
         <p className="text-muted-foreground mt-1 text-sm">
