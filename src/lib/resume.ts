@@ -48,6 +48,17 @@ export interface ProjectItem {
   endDate?: string
 }
 
+export interface CertificationItem {
+  id: string
+  name: string
+  /** Issuing organization */
+  issuer: string
+  /** When it was earned, e.g. "2024" */
+  date: string
+  /** How the certificate is relevant */
+  description: string
+}
+
 /** User-defined section (e.g. Volunteering, Publications, Awards) */
 export interface CustomSection {
   id: string
@@ -63,7 +74,9 @@ export interface Resume {
   education: EducationItem[]
   projects: ProjectItem[]
   skills: string
+  /** Legacy free-text certifications line; rendered after structured entries */
   certifications: string
+  certItems?: CertificationItem[]
   customSections: CustomSection[]
   /** Section keys in render order (see SECTION_KEYS + custom:<id>) */
   sectionOrder: string[]
@@ -138,6 +151,7 @@ export function emptyResume(): Resume {
     projects: [],
     skills: '',
     certifications: '',
+    certItems: [],
     customSections: [],
     sectionOrder: [...SECTION_KEYS],
     templateId: 'classic',
@@ -174,6 +188,14 @@ export const emptyProject = (): ProjectItem => ({
   id: newId(),
   name: '',
   link: '',
+  description: '',
+})
+
+export const emptyCertification = (): CertificationItem => ({
+  id: newId(),
+  name: '',
+  issuer: '',
+  date: '',
   description: '',
 })
 
@@ -418,6 +440,13 @@ export function sanitizeResume(input: unknown): Resume | null {
     // legacy/hand-edited data may hold skills as a string array
     skills: Array.isArray(raw.skills) ? asStrArr(raw.skills).join(', ') : asStr(raw.skills),
     certifications: asStr(raw.certifications),
+    certItems: asObjArr(raw.certItems).map((c) => ({
+      id: asStr(c.id) || newId(),
+      name: asStr(c.name),
+      issuer: asStr(c.issuer),
+      date: asStr(c.date),
+      description: asStr(c.description),
+    })),
     customSections: asObjArr(raw.customSections).map((s) => ({
       id: asStr(s.id) || newId(),
       title: asStr(s.title),
@@ -621,6 +650,15 @@ export function projectDates(p: ProjectItem): string {
   return start || end ? `${start} – ${end}` : ''
 }
 
+/** Heading line for a certification entry: name — issuer */
+export function certHeadingLine(c: CertificationItem): string {
+  return [c.name.trim(), c.issuer.trim()].filter(Boolean).join(' — ')
+}
+
+/** Structured certification entries with any content */
+export const certEntries = (r: Resume): CertificationItem[] =>
+  (r.certItems ?? []).filter((c) => c.name.trim() || c.issuer.trim())
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
@@ -666,8 +704,13 @@ export function resumeToPlainText(r: Resume): string {
       }
     } else if (key === 'skills' && r.skills) {
       lines.push('', 'SKILLS', r.skills)
-    } else if (key === 'certifications' && r.certifications) {
-      lines.push('', 'CERTIFICATIONS', r.certifications)
+    } else if (key === 'certifications' && (certEntries(r).length > 0 || r.certifications)) {
+      lines.push('', 'CERTIFICATIONS')
+      for (const c of certEntries(r)) {
+        lines.push(certHeadingLine(c) + (c.date.trim() ? ` (${c.date.trim()})` : ''))
+        if (c.description.trim()) lines.push(c.description.trim())
+      }
+      if (r.certifications) lines.push(r.certifications)
     } else if (key.startsWith('custom:')) {
       const s = r.customSections.find((x) => `custom:${x.id}` === key)
       if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue
@@ -723,9 +766,16 @@ export function resumeToMarkdown(r: Resume): string {
     } else if (key === 'skills' && r.skills) {
       heading('Skills')
       lines.push(r.skills)
-    } else if (key === 'certifications' && r.certifications) {
+    } else if (key === 'certifications' && (certEntries(r).length > 0 || r.certifications)) {
       heading('Certifications')
-      lines.push(r.certifications)
+      for (const c of certEntries(r)) {
+        lines.push(
+          `### ${certHeadingLine(c)}${c.date.trim() ? ` *(${c.date.trim()})*` : ''}`,
+          ''
+        )
+        if (c.description.trim()) lines.push(c.description.trim(), '')
+      }
+      if (r.certifications) lines.push(r.certifications)
     } else if (key.startsWith('custom:')) {
       const s = r.customSections.find((x) => `custom:${x.id}` === key)
       if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue

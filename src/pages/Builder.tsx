@@ -100,6 +100,7 @@ import {
   type Resume,
   type ResumeVersion,
   deleteResumeVersion,
+  emptyCertification,
   emptyCustomSection,
   emptyEducation,
   emptyExperience,
@@ -1940,8 +1941,101 @@ export default function Builder() {
                 )
               })()}
             </div>
+            <div className="space-y-2">
+              <Label>Certifications (optional)</Label>
+              {(resume.certItems ?? []).map((c) => (
+                <div key={c.id} className="space-y-2 rounded-md border p-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input
+                      placeholder="Certificate name (AWS Solutions Architect)"
+                      value={c.name}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: (r.certItems ?? []).map((x) =>
+                            x.id === c.id ? { ...x, name: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                      <Input
+                        placeholder="Issuer (Amazon Web Services)"
+                        value={c.issuer}
+                        onChange={(ev) =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, issuer: ev.target.value } : x
+                            ),
+                          }))
+                        }
+                      />
+                      <Input
+                        className="w-24"
+                        placeholder="2024"
+                        value={c.date}
+                        onChange={(ev) =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, date: ev.target.value } : x
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <Textarea
+                      rows={2}
+                      placeholder="How it's relevant (optional)"
+                      value={c.description}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: (r.certItems ?? []).map((x) =>
+                            x.id === c.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                      title="Delete certification"
+                      aria-label="Delete certification"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: (r.certItems ?? []).filter((x) => x.id !== c.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                onClick={() =>
+                  setResume((r) => ({
+                    ...r,
+                    certItems: [...(r.certItems ?? []), emptyCertification()],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Add certification
+              </Button>
+            </div>
             <div className="space-y-1.5">
-              <Label htmlFor="certs">Certifications (optional)</Label>
+              <Label htmlFor="certs">Additional certifications (free text, optional)</Label>
               <Input
                 id="certs"
                 placeholder="AWS Solutions Architect (2024), PMP…"
