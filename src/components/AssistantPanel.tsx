@@ -80,6 +80,11 @@ const QUICK_TASKS: { label: string; prompt: string }[] = [
     label: 'Suggest skills',
     prompt: 'Which skills am I missing or under-selling for my target role?',
   },
+  {
+    label: 'Target my job',
+    prompt:
+      'How well does my resume match my target job? Point out the biggest gaps and how to tailor it.',
+  },
 ]
 
 export function AssistantPanel({

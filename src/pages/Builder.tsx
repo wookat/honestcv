@@ -393,7 +393,8 @@ export default function Builder() {
     () => new URLSearchParams(window.location.search).get('company') ?? ''
   )
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('doc')) {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('doc') || params.get('assistant')) {
       window.history.replaceState(null, '', window.location.pathname)
     }
   }, [])
@@ -480,7 +481,10 @@ export default function Builder() {
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
   const { undo, canUndo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
-  const [assistantOpen, setAssistantOpen] = useState(false)
+  // ?assistant=1 deep link from the workspace sidebar's "AI assistant" entry
+  const [assistantOpen, setAssistantOpen] = useState(
+    () => new URLSearchParams(window.location.search).get('assistant') === '1'
+  )
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
   )
