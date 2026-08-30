@@ -541,6 +541,23 @@ export default function Dashboard() {
         <p className="text-muted-foreground mt-1 text-sm">
           Documents you saved from the AI tools in the editor.
         </p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <Button asChild variant="outline" size="sm" className="min-h-10 sm:min-h-8">
+            <Link to="/builder?doc=cover">
+              <FilePlus2 className="size-3.5" /> New cover letter
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="min-h-10 sm:min-h-8">
+            <Link to="/builder?doc=interview">
+              <FilePlus2 className="size-3.5" /> New interview prep
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="min-h-10 sm:min-h-8">
+            <Link to="/builder?doc=resignation">
+              <FilePlus2 className="size-3.5" /> New resignation letter
+            </Link>
+          </Button>
+        </div>
         {docs.length > 0 && (
           <div
             className="mt-4 flex flex-wrap gap-1.5"
