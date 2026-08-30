@@ -755,6 +755,7 @@ export default function Builder() {
               onClick={undo}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
+              className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
             >
               <Undo2 className="size-3.5" />
             </Button>
@@ -763,6 +764,7 @@ export default function Builder() {
               variant="ghost"
               onClick={() => setHistoryOpen(true)}
               title="Edit history — automatic checkpoints of this draft"
+              className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
             >
               <History className="size-3.5" />
             </Button>
