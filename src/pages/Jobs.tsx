@@ -62,6 +62,7 @@ export default function Jobs() {
   const [category, setCategory] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
   const [sort, setSort] = useState<'relevance' | 'newest'>('relevance')
+  const [excluded, setExcluded] = useState<ReadonlySet<JobStatus>>(new Set())
   const [jobs, setJobs] = useState<JobListing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -107,8 +108,17 @@ export default function Jobs() {
   const loc = locationFilter.trim().toLowerCase()
   const base: JobListing[] =
     tab === 'all' ? jobs : pipeline.filter((e) => e.status === tab).map((e) => e.job)
+  const afterExclude =
+    tab === 'all' && excluded.size > 0
+      ? base.filter((j) => {
+          const s = statusOf.get(j.id)
+          return !(s && excluded.has(s))
+        })
+      : base
   const filtered =
-    tab === 'all' && loc ? base.filter((j) => j.location.toLowerCase().includes(loc)) : base
+    tab === 'all' && loc
+      ? afterExclude.filter((j) => j.location.toLowerCase().includes(loc))
+      : afterExclude
   const shown =
     tab === 'all' && sort === 'newest'
       ? [...filtered].sort(
@@ -247,6 +257,42 @@ export default function Jobs() {
               <option value="newest">Newest</option>
             </select>
           </form>
+        )}
+
+        {tab === 'all' && pipeline.length > 0 && (
+          <div
+            className="mt-3 flex flex-wrap items-center gap-1.5"
+            role="group"
+            aria-label="Hide jobs you are already tracking"
+          >
+            <span className="text-muted-foreground text-xs font-medium">Hide:</span>
+            {JOB_STATUSES.map((s) => {
+              const hits = jobs.filter((j) => statusOf.get(j.id) === s).length
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={excluded.has(s)}
+                  onClick={() =>
+                    setExcluded((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(s)) next.delete(s)
+                      else next.add(s)
+                      return next
+                    })
+                  }
+                  className={`min-h-10 rounded-md border px-3 py-1 text-xs font-medium transition sm:min-h-8 ${
+                    excluded.has(s)
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {JOB_STATUS_LABELS[s]}
+                  {hits > 0 ? ` (${hits})` : ''}
+                </button>
+              )
+            })}
+          </div>
         )}
 
         <div className="mt-6 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
