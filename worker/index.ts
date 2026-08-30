@@ -231,7 +231,7 @@ app.use('*', async (c, next) => {
   h.set(
     'Content-Security-Policy',
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://resume.zalize.com https://resume-forge.wookat520.workers.dev; " +
+      "img-src 'self' data: blob: https://remotive.com; font-src 'self'; connect-src 'self' https://resume.zalize.com https://resume-forge.wookat520.workers.dev; " +
       "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; " +
       "form-action 'self'; frame-ancestors 'self'"
   )
@@ -334,11 +334,30 @@ const htmlToText = (html: string) =>
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 
+// Fixed category slugs accepted by Remotive's `category` parameter.
+const JOBS_CATEGORIES = new Set([
+  'software-dev',
+  'customer-support',
+  'design',
+  'marketing',
+  'sales-business',
+  'product',
+  'project-management',
+  'data',
+  'devops',
+  'finance-legal',
+  'hr',
+  'qa',
+  'writing',
+  'all-others',
+])
+
 interface RemotiveJob {
   id?: number | string
   url?: string
   title?: string
   company_name?: string
+  company_logo?: string
   category?: string
   job_type?: string
   publication_date?: string
@@ -349,11 +368,14 @@ interface RemotiveJob {
 
 app.get('/api/jobs/search', async (c) => {
   const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
-  const cacheKey = `jobs:v1:${q.toLowerCase()}`
+  const rawCategory = (c.req.query('category') ?? '').trim()
+  const category = JOBS_CATEGORIES.has(rawCategory) ? rawCategory : ''
+  const cacheKey = `jobs:v2:${q.toLowerCase()}|${category}`
   const cached = await c.env.KV.get(cacheKey)
   if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
   const upstreamUrl = new URL('https://remotive.com/api/remote-jobs')
   if (q) upstreamUrl.searchParams.set('search', q)
+  if (category) upstreamUrl.searchParams.set('category', category)
   upstreamUrl.searchParams.set('limit', '50')
   let upstream: Response | undefined
   try {
@@ -373,6 +395,7 @@ app.get('/api/jobs/search', async (c) => {
       id: String(j.id),
       title: j.title ?? '',
       company: j.company_name ?? '',
+      logo: j.company_logo ?? '',
       category: j.category ?? '',
       type: (j.job_type ?? '').replace(/_/g, ' '),
       location: j.candidate_required_location || 'Remote',
