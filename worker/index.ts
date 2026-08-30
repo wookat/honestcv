@@ -23,8 +23,11 @@ import {
   verifyLsSignature,
 } from './lemonsqueezy'
 import {
+  type AssistantTurn,
   type RewriteKind,
   type TailorItem,
+  buildAssistantMessages,
+  parseAssistantAction,
   buildTailorMessages,
   buildCoverLetterMessages,
   buildKeywordBulletMessages,
@@ -1013,6 +1016,69 @@ app.post('/api/ai/interview-feedback', async (c) => {
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ text: result.text, freeRemaining })
+})
+
+// Resume assistant chat — Career Bundle (free mode: shares the free AI quota)
+app.post('/api/ai/assistant', async (c) => {
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent || ent.plan !== 'bundle') {
+    if (!freeMode(c.env)) {
+      return c.json(
+        {
+          error: 'The resume assistant is part of the Career Bundle ($19.99, one-time).',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error:
+            'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+  const body = await c.req
+    .json<{
+      turns?: AssistantTurn[]
+      resumeText?: string
+      jobDescription?: string
+      role?: string
+    }>()
+    .catch(() => ({}) as Record<string, never>)
+  const turns = (body.turns ?? [])
+    .filter(
+      (t): t is AssistantTurn =>
+        Boolean(t && typeof t.content === 'string' && t.content.trim()) &&
+        (t.role === 'user' || t.role === 'assistant')
+    )
+    .slice(-12)
+  if (turns.length === 0 || turns[turns.length - 1].role !== 'user') {
+    return c.json({ error: 'Type a message first.' }, 400)
+  }
+  const result = await callLlm(
+    c.env,
+    buildAssistantMessages(
+      turns,
+      body.resumeText ?? '',
+      body.jobDescription ?? '',
+      body.role ?? ''
+    ),
+    0.5,
+    1200
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  const { text, action } = parseAssistantAction(result.text ?? '')
+  return c.json({ text, action, freeRemaining })
 })
 
 // Checkout availability: frontend checks before opening checkout; when

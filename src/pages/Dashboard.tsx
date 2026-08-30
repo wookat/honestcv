@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
+  BriefcaseBusiness,
   Copy,
   FileDown,
   FilePlus2,
@@ -27,7 +28,7 @@ import {
   useFreeMode,
   useLicense,
 } from '@/components/Paywall'
-import { WorkspaceNav } from '@/components/WorkspaceNav'
+import { PlanCard, WorkspaceNav } from '@/components/WorkspaceNav'
 import { ResumePreview } from '@/components/ResumePreview'
 import { Button } from '@/components/ui/button'
 import {
@@ -343,6 +344,32 @@ export default function Dashboard() {
       <main className="mx-auto flex w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8">
         <WorkspaceNav onCreate={() => setNewOpen(true)} />
         <div className="min-w-0 flex-1">
+        <div className="mb-6 grid gap-3 md:hidden">
+          <Link
+            to="/builder?assistant=1"
+            className="bg-card hover:bg-accent flex items-center gap-3 rounded-md border p-4"
+          >
+            <MessagesSquare className="text-primary size-5 shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">AI assistant</span>
+              <span className="text-muted-foreground block truncate text-xs">
+                Chat about your resume, get targeted suggestions
+              </span>
+            </span>
+          </Link>
+          <Link
+            to="/jobs"
+            className="bg-card hover:bg-accent flex items-center gap-3 rounded-md border p-4"
+          >
+            <BriefcaseBusiness className="text-primary size-5 shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">Job search</span>
+              <span className="text-muted-foreground block truncate text-xs">
+                Remote jobs + your application pipeline
+              </span>
+            </span>
+          </Link>
+        </div>
         <h1 className="text-2xl font-bold">My resumes</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           One copy per job you're applying to. Everything is stored in this browser
@@ -729,6 +756,7 @@ export default function Dashboard() {
             </p>
           </>
         )}
+        <PlanCard className="mt-8 md:hidden" />
         </div>
       </main>
       <SiteFooter />

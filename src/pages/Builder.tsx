@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowDown,
   ArrowUp,
@@ -53,6 +53,7 @@ import {
   useFreeMode,
   useLicense,
 } from '@/components/Paywall'
+import { AssistantPanel } from '@/components/AssistantPanel'
 import { DraftIllustration } from '@/components/Illustrations'
 import { ResumePreview } from '@/components/ResumePreview'
 import { ScoreRing } from '@/components/ScoreRing'
@@ -479,6 +480,18 @@ export default function Builder() {
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
   const { undo, canUndo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
+  // ?assistant=1 deep link from the workspace sidebar / mobile menu "AI assistant" entries
+  const [assistantOpen, setAssistantOpen] = useState(
+    () => new URLSearchParams(window.location.search).get('assistant') === '1'
+  )
+  const { pathname, search } = useLocation()
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (new URLSearchParams(search).get('assistant') !== '1') return
+    navigate(pathname, { replace: true })
+    const id = window.setTimeout(() => setAssistantOpen(true), 0)
+    return () => window.clearTimeout(id)
+  }, [search, pathname, navigate])
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
   )
@@ -830,7 +843,7 @@ export default function Builder() {
               onClick={undo}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
-              className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
+              className="hidden min-h-10 min-w-10 sm:inline-flex sm:min-h-8 sm:min-w-8"
             >
               <Undo2 className="size-3.5" />
             </Button>
@@ -842,6 +855,15 @@ export default function Builder() {
               className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
             >
               <History className="size-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setAssistantOpen(true)}
+              title="Resume assistant — chat about your draft and job search"
+              className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
+            >
+              <MessagesSquare className="size-3.5" />
             </Button>
             <Button size="sm" onClick={() => void download('pdf')} disabled={Boolean(downloading)}>
               {downloading === 'pdf' ? (
@@ -858,6 +880,7 @@ export default function Builder() {
               variant="outline"
               onClick={() => void download('docx')}
               disabled={Boolean(downloading)}
+              className="hidden sm:inline-flex"
             >
               {downloading === 'docx' ? (
                 <Loader2 className="animate-spin" />
@@ -2495,6 +2518,31 @@ export default function Builder() {
           }}
         />
       )}
+      <AssistantPanel
+        open={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        resume={resume}
+        jobDescription={resume.jobDescription}
+        onQuota={setFreeLeft}
+        onPaymentRequired={(msg) => {
+          if (!freeMode) requireUnlock(msg)
+        }}
+        onApply={(action) => {
+          if (action.type === 'summary') {
+            setResume((r) => ({ ...r, summary: action.value }))
+            return
+          }
+          setResume((r) => {
+            const existing = r.skills
+              .split(/[,\n]/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+            const have = new Set(existing.map((s) => s.toLowerCase()))
+            const added = action.value.filter((s) => !have.has(s.trim().toLowerCase()))
+            return { ...r, skills: [...existing, ...added].join(', ') }
+          })
+        }}
+      />
       {kwBulletFor !== null && (
         <KeywordBulletDialog
           keyword={kwBulletFor}
