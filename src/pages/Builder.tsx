@@ -1445,6 +1445,12 @@ export default function Builder() {
                     />
                   </div>
                 </div>
+                {(e.role.trim() || e.company.trim()) && !e.startDate.trim() && (
+                  <p className="text-xs text-amber-700">
+                    ⚠ Dates are missing — add a start date so ATS parsers can place this role on
+                    your timeline.
+                  </p>
+                )}
                 <Textarea
                   rows={4}
                   placeholder={'One achievement per line, e.g.\nCut deploy time by 60% by introducing CI caching\nLed a team of 3 engineers on the checkout redesign'}
