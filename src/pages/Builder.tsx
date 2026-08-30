@@ -866,7 +866,12 @@ export default function Builder() {
             >
               <MessagesSquare className="size-3.5" />
             </Button>
-            <Button size="sm" onClick={() => void download('pdf')} disabled={Boolean(downloading)}>
+            <Button
+              size="sm"
+              onClick={() => void download('pdf')}
+              disabled={Boolean(downloading)}
+              className="hidden sm:inline-flex"
+            >
               {downloading === 'pdf' ? (
                 <Loader2 className="animate-spin" />
               ) : downloaded === 'pdf' ? (
@@ -882,16 +887,17 @@ export default function Builder() {
                 variant="outline"
                 aria-haspopup="true"
                 aria-expanded={downloadMenuOpen}
-                title="More download formats"
+                title="Download your resume"
                 disabled={Boolean(downloading)}
                 onClick={() => setDownloadMenuOpen((o) => !o)}
-                className="min-h-10 min-w-10"
+                className="min-h-10"
               >
+                {downloading ? <Loader2 className="animate-spin" /> : <Download />}
                 <ChevronDown className={`size-3.5 transition-transform ${downloadMenuOpen ? 'rotate-180' : ''}`} />
               </Button>
               {downloadMenuOpen && (
                 <div className="bg-background absolute right-0 top-full z-30 mt-2 min-w-40 rounded-md border p-1 shadow-lg">
-                  {(['docx', 'txt', 'md'] as const).map((fmt) => (
+                  {(['pdf', 'docx', 'txt', 'md'] as const).map((fmt) => (
                     <button
                       key={fmt}
                       type="button"

@@ -33,10 +33,13 @@ from its mobile download sheet.
 Minimal, no new deps, follows the existing `ResourcesDropdown` pattern in
 `Layout.tsx` (useState + absolute-positioned menu):
 
-- Keep the PDF button unchanged (primary action stays one tap).
-- Add a mobile-only (`sm:hidden`) chevron button right after the PDF button
-  that toggles a small dropdown with `DOCX`, `TXT`, `MD` items, each calling
-  the existing `download(fmt)` and closing the menu.
+- On mobile (`sm:hidden`) a single download button (download icon + chevron)
+  replaces the PDF button and toggles a dropdown with `PDF`, `DOCX`, `TXT`,
+  `MD` items, each calling the existing `download(fmt)` and closing the menu.
+  (A first draft kept the PDF button and added a separate chevron, but the
+  extra 40px made the 375px header overflow to 401px — QA caught it, so the
+  two were merged into one menu, matching Rezi's single Download sheet entry.)
+- Desktop (sm+) keeps the standalone PDF button (`hidden sm:inline-flex`).
 - Items are ≥40px tall; menu is anchored below the header, right-aligned.
 - Desktop (sm+) keeps the existing separate DOCX/TXT/MD buttons — the new
   button is hidden there, so no duplicate controls.
