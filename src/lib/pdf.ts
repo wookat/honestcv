@@ -7,6 +7,9 @@ import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pd
 import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
+  awardBullets,
+  awardEntries,
+  awardHeadingLine,
   certEntries,
   certHeadingLine,
   courseworkBullets,
@@ -416,6 +419,15 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
       if (resume.certifications.trim()) {
         w.gap(2)
         w.text(resume.certifications.trim(), { size: 10 })
+      }
+    } else if (key === 'awards' && awardEntries(resume).length > 0) {
+      w.heading('Awards & Honors')
+      for (const a of awardEntries(resume)) {
+        w.gap(4)
+        w.ensure(34)
+        w.titleLine(awardHeadingLine(a), a.date.trim(), { size: 10.5 })
+        w.gap(2)
+        for (const b of awardBullets(a)) w.bullet(b)
       }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)

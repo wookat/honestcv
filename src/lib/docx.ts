@@ -19,6 +19,8 @@ import {
 import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
+  awardBullets,
+  awardEntries,
   certEntries,
   certHeadingLine,
   courseworkBullets,
@@ -311,6 +313,34 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       }
       if (resume.certifications.trim())
         children.push(body(resume.certifications.trim(), { after: 100 }))
+    } else if (key === 'awards' && awardEntries(resume).length > 0) {
+      children.push(heading('Awards & Honors'))
+      for (const a of awardEntries(resume)) {
+        const date = a.date.trim()
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+            children: [
+              new TextRun({ text: a.name.trim() || 'Award', bold: true, size: sz(22), font }),
+              ...(a.organization.trim()
+                ? [
+                    new TextRun({
+                      text: ` — ${a.organization.trim()}`,
+                      size: sz(21),
+                      font,
+                    }),
+                  ]
+                : []),
+              ...(date
+                ? [new TextRun({ children: [new Tab(), date], italics: true, size: sz(19), font })]
+                : []),
+            ],
+          })
+        )
+        for (const b of awardBullets(a)) children.push(body(b, { bullet: true }))
+      }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)
       if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue
