@@ -175,6 +175,22 @@ function usePdfPageCount(resume: Resume): number | null {
   return pages
 }
 
+const FIT_COMBOS: Array<
+  [NonNullable<Resume['fontScale']>, NonNullable<Resume['lineSpacing']>]
+> = [
+  ['l', 'relaxed'],
+  ['l', 'normal'],
+  ['m', 'relaxed'],
+  ['l', 'compact'],
+  ['m', 'normal'],
+  ['s', 'relaxed'],
+  ['m', 'compact'],
+  ['s', 'normal'],
+  ['s', 'compact'],
+]
+
+const SCALE_NAME = { s: 'small', m: 'medium', l: 'large' } as const
+
 /** Global undo: snapshots resume state (throttled) and restores on Ctrl/Cmd+Z */
 function useUndo(
   resume: Resume,
@@ -404,6 +420,37 @@ export default function Builder() {
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
   const pdfPages = usePdfPageCount(resume)
+  const [fitBusy, setFitBusy] = useState(false)
+  const [fitMsg, setFitMsg] = useState('')
+  const autoFit = useCallback(async () => {
+    setFitBusy(true)
+    setFitMsg('')
+    try {
+      const { countResumePdfPages } = await import('@/lib/pdf')
+      let best: { fontScale: 's' | 'm' | 'l'; lineSpacing: 'compact' | 'normal' | 'relaxed'; pages: number } | null = null
+      for (const [fontScale, lineSpacing] of FIT_COMBOS) {
+        const pages = await countResumePdfPages({ ...resume, fontScale, lineSpacing })
+        if (!best || pages < best.pages) best = { fontScale, lineSpacing, pages }
+        if (pages === 1) break
+      }
+      if (!best) return
+      const same =
+        best.fontScale === (resume.fontScale ?? 'm') &&
+        best.lineSpacing === (resume.lineSpacing ?? 'normal')
+      if (!same) {
+        setResume((r) => ({ ...r, fontScale: best.fontScale, lineSpacing: best.lineSpacing }))
+      }
+      setFitMsg(
+        same
+          ? `Already at the best fit — ${best.pages} page${best.pages === 1 ? '' : 's'}`
+          : `Fits ${best.pages} page${best.pages === 1 ? '' : 's'} — set ${SCALE_NAME[best.fontScale]} text, ${best.lineSpacing} spacing`
+      )
+    } catch {
+      setFitMsg('Auto-fit failed — please try again')
+    } finally {
+      setFitBusy(false)
+    }
+  }, [resume, setResume])
   const [templateFilter, setTemplateFilter] = useState('all')
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
@@ -1827,13 +1874,30 @@ export default function Builder() {
           }`}
         >
           {pdfPages !== null && (
-            <p
-              className={`text-xs ${pdfPages > 1 ? 'text-amber-700' : 'text-muted-foreground'}`}
-            >
-              PDF export: {pdfPages} page{pdfPages === 1 ? '' : 's'}
-              {pdfPages > 1 &&
-                ' — recruiters prefer one page; consider trimming older roles or long bullets'}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p
+                className={`text-xs ${pdfPages > 1 ? 'text-amber-700' : 'text-muted-foreground'}`}
+              >
+                PDF export: {pdfPages} page{pdfPages === 1 ? '' : 's'}
+                {pdfPages > 1 &&
+                  ' — recruiters prefer one page; consider trimming older roles or long bullets'}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 gap-1 text-xs sm:h-7"
+                disabled={fitBusy}
+                title="Pick the most readable text size and line spacing that fit the fewest pages"
+                onClick={() => void autoFit()}
+              >
+                <Wand2 className="size-3" /> {fitBusy ? 'Fitting…' : 'Auto-fit'}
+              </Button>
+              {fitMsg && (
+                <p role="status" className="text-muted-foreground text-xs">
+                  {fitMsg}
+                </p>
+              )}
+            </div>
           )}
           <div
             className="flex flex-wrap items-center gap-1.5"
