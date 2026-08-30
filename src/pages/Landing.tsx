@@ -785,7 +785,7 @@ export default function Landing() {
                   All 30 examples, grouped by sector, each with a matching template you
                   can start from.
                 </p>
-                <Button asChild variant="link" className="mt-2 h-auto px-0">
+                <Button asChild variant="link" className="mt-2 h-auto min-h-10 px-0">
                   <a href="/examples/">
                     View all 30 examples <ArrowRight />
                   </a>
