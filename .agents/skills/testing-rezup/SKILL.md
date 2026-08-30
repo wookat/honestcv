@@ -244,3 +244,9 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 ## Devin Secrets Needed
 
 None — the seeded test license key is provided by the user per run.
+
+## R84 font/export QA notes
+
+- PDF/DOCX download buttons trigger the launch email gate on a fresh client — enter a throwaway email then "Download anyway"; files land in `~/Downloads`. Verify fonts objectively with `pdffonts` (preinstalled) and `unzip -p file.docx word/document.xml | grep w:rFonts`.
+- The rendered ResumePreview root is the only div with an inline `style.fontFamily` — use that selector to assert the active font family.
+- On an empty throwaway client, "Load an example resume" resets designer settings (template/fontFamily) — load the example BEFORE toggling design options.
