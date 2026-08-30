@@ -43,6 +43,13 @@ const postedAgo = (iso: string) => {
   return days === 1 ? '1 day ago' : `${days} days ago`
 }
 
+const agoFromMs = (ms: number) => {
+  const days = Math.floor((Date.now() - ms) / 86_400_000)
+  if (!ms || Number.isNaN(days) || days < 0) return ''
+  if (days === 0) return 'today'
+  return days === 1 ? '1 day ago' : `${days} days ago`
+}
+
 export default function Jobs() {
   usePageMeta(
     'Job search — RezUp',
@@ -84,6 +91,12 @@ export default function Jobs() {
   const statusOf = useMemo(() => {
     const map = new Map<string, JobStatus>()
     for (const e of pipeline) map.set(e.job.id, e.status)
+    return map
+  }, [pipeline])
+
+  const updatedAtOf = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const e of pipeline) map.set(e.job.id, e.updatedAt)
     return map
   }, [pipeline])
 
@@ -244,49 +257,84 @@ export default function Jobs() {
               </p>
             ) : (
               <ul>
-                {shown.map((j) => (
-                  <li key={j.id} className="border-b last:border-b-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedId(j.id)
-                        setMobileDetail(true)
-                      }}
-                      aria-pressed={selected?.id === j.id}
-                      className={`hover:bg-accent block w-full px-4 py-3 text-left ${
-                        selected?.id === j.id ? 'bg-accent border-primary border-l-2' : ''
-                      }`}
-                    >
-                      <span className="flex items-start gap-2">
-                        {j.logo && (
-                          <img
-                            src={j.logo}
-                            alt=""
-                            loading="lazy"
-                            className="mt-0.5 size-8 shrink-0 rounded border object-contain"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none'
-                            }}
-                          />
-                        )}
-                        <span className="min-w-0">
-                          <p className="truncate text-sm font-medium">{j.title}</p>
-                          <p className="text-muted-foreground truncate text-xs">
-                            {j.company} · {j.location}
-                          </p>
-                        </span>
-                      </span>
-                      <p className="text-muted-foreground mt-0.5 text-xs">
-                        {postedAgo(j.postedAt)}
-                        {statusOf.has(j.id) && (
-                          <span className="text-primary ml-2 font-medium">
-                            {JOB_STATUS_LABELS[statusOf.get(j.id) as JobStatus]}
+                {shown.map((j) => {
+                  const status = statusOf.get(j.id)
+                  const updated = updatedAtOf.get(j.id)
+                  return (
+                    <li key={j.id} className="border-b last:border-b-0">
+                      <div
+                        className={`hover:bg-accent relative px-4 py-3 ${
+                          selected?.id === j.id ? 'bg-accent border-primary border-l-2' : ''
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedId(j.id)
+                            setMobileDetail(true)
+                          }}
+                          aria-pressed={selected?.id === j.id}
+                          className="block w-full text-left"
+                        >
+                          <span className="flex items-start gap-2">
+                            {j.logo && (
+                              <img
+                                src={j.logo}
+                                alt=""
+                                loading="lazy"
+                                className="mt-0.5 size-8 shrink-0 rounded border object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                }}
+                              />
+                            )}
+                            <span className="min-w-0">
+                              <p className="truncate text-sm font-medium">{j.title}</p>
+                              <p className="text-muted-foreground truncate text-xs">
+                                {j.company} · {j.location}
+                              </p>
+                            </span>
                           </span>
-                        )}
-                      </p>
-                    </button>
-                  </li>
-                ))}
+                          <p className="text-muted-foreground mt-0.5 text-xs">
+                            {postedAgo(j.postedAt)}
+                            {status && tab !== 'all' && updated && (
+                              <span className="text-primary ml-2 font-medium">
+                                {JOB_STATUS_LABELS[status]} {agoFromMs(updated)}
+                              </span>
+                            )}
+                          </p>
+                        </button>
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            aria-pressed={status === 'saved'}
+                            onClick={() => setStatus(j, status === 'saved' ? 'none' : 'saved')}
+                            className={`min-h-10 rounded-md border px-2 py-0.5 text-xs font-medium transition sm:min-h-7 ${
+                              status === 'saved'
+                                ? 'border-primary ring-primary/40 ring-2'
+                                : 'hover:border-muted-foreground/40'
+                            }`}
+                          >
+                            {status === 'saved' ? 'Saved' : 'Save'}
+                          </button>
+                          <select
+                            value={status ?? 'none'}
+                            onChange={(e) => setStatus(j, e.target.value as JobStatus | 'none')}
+                            aria-label={`Status of ${j.title} at ${j.company}`}
+                            className="border-input bg-background min-h-10 rounded-md border px-1.5 text-xs sm:min-h-7"
+                          >
+                            <option value="none">No status</option>
+                            {JOB_STATUSES.map((s) => (
+                              <option key={s} value={s}>
+                                {JOB_STATUS_LABELS[s]}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>
