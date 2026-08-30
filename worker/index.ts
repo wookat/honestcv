@@ -27,6 +27,7 @@ import {
   type RewriteKind,
   type TailorItem,
   buildAssistantMessages,
+  parseAssistantAction,
   buildTailorMessages,
   buildCoverLetterMessages,
   buildKeywordBulletMessages,
@@ -1076,7 +1077,8 @@ app.post('/api/ai/assistant', async (c) => {
   // Quota is consumed only after a successful call, so failures cost nothing
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: result.text, freeRemaining })
+  const { text, action } = parseAssistantAction(result.text ?? '')
+  return c.json({ text, action, freeRemaining })
 })
 
 // Checkout availability: frontend checks before opening checkout; when

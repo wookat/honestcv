@@ -2516,6 +2516,21 @@ export default function Builder() {
         onPaymentRequired={(msg) => {
           if (!freeMode) requireUnlock(msg)
         }}
+        onApply={(action) => {
+          if (action.type === 'summary') {
+            setResume((r) => ({ ...r, summary: action.value }))
+            return
+          }
+          setResume((r) => {
+            const existing = r.skills
+              .split(/[,\n]/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+            const have = new Set(existing.map((s) => s.toLowerCase()))
+            const added = action.value.filter((s) => !have.has(s.trim().toLowerCase()))
+            return { ...r, skills: [...existing, ...added].join(', ') }
+          })
+        }}
       />
       {kwBulletFor !== null && (
         <KeywordBulletDialog
