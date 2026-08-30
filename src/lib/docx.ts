@@ -21,6 +21,9 @@ import {
   type Resume,
   certEntries,
   certHeadingLine,
+  involvementBullets,
+  involvementDates,
+  involvementEntries,
   dividerOf,
   educationDetailLine,
   fontScaleOf,
@@ -203,6 +206,34 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
           })
         )
         if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
+      }
+    } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
+      children.push(heading('Involvement'))
+      for (const i of involvementEntries(resume)) {
+        const dates = involvementDates(i)
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+            children: [
+              new TextRun({ text: i.role.trim() || 'Role', bold: true, size: sz(22), font }),
+              ...(i.organization.trim()
+                ? [
+                    new TextRun({
+                      text: `  ·  ${i.organization.trim()}${i.location.trim() ? `, ${i.location.trim()}` : ''}`,
+                      size: sz(21),
+                      font,
+                    }),
+                  ]
+                : []),
+              ...(dates
+                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
+                : []),
+            ],
+          })
+        )
+        for (const b of involvementBullets(i)) children.push(body(b, { bullet: true }))
       }
     } else if (key === 'education' && resume.education.some((e) => e.school)) {
       children.push(heading('Education'))

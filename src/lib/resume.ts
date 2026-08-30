@@ -59,6 +59,19 @@ export interface CertificationItem {
   description: string
 }
 
+export interface InvolvementItem {
+  id: string
+  /** Role at the organization, e.g. "Selected Member" */
+  role: string
+  organization: string
+  /** College or city where the organization is located */
+  location: string
+  startDate: string
+  endDate: string
+  /** What you did there; one bullet per line */
+  description: string
+}
+
 /** User-defined section (e.g. Volunteering, Publications, Awards) */
 export interface CustomSection {
   id: string
@@ -77,6 +90,7 @@ export interface Resume {
   /** Legacy free-text certifications line; rendered after structured entries */
   certifications: string
   certItems?: CertificationItem[]
+  involvement?: InvolvementItem[]
   customSections: CustomSection[]
   /** Section keys in render order (see SECTION_KEYS + custom:<id>) */
   sectionOrder: string[]
@@ -152,6 +166,7 @@ export function emptyResume(): Resume {
     skills: '',
     certifications: '',
     certItems: [],
+    involvement: [],
     customSections: [],
     sectionOrder: [...SECTION_KEYS],
     templateId: 'classic',
@@ -199,6 +214,16 @@ export const emptyCertification = (): CertificationItem => ({
   description: '',
 })
 
+export const emptyInvolvement = (): InvolvementItem => ({
+  id: newId(),
+  role: '',
+  organization: '',
+  location: '',
+  startDate: '',
+  endDate: '',
+  description: '',
+})
+
 export const emptyCustomSection = (): CustomSection => ({
   id: newId(),
   title: '',
@@ -210,6 +235,7 @@ export const SECTION_KEYS = [
   'summary',
   'experience',
   'projects',
+  'involvement',
   'education',
   'skills',
   'certifications',
@@ -219,6 +245,7 @@ export const SECTION_LABELS: Record<string, string> = {
   summary: 'Summary',
   experience: 'Experience',
   projects: 'Projects',
+  involvement: 'Involvement',
   education: 'Education',
   skills: 'Skills',
   certifications: 'Certifications',
@@ -447,6 +474,15 @@ export function sanitizeResume(input: unknown): Resume | null {
       date: asStr(c.date),
       description: asStr(c.description),
     })),
+    involvement: asObjArr(raw.involvement).map((i) => ({
+      id: asStr(i.id) || newId(),
+      role: asStr(i.role),
+      organization: asStr(i.organization),
+      location: asStr(i.location),
+      startDate: asStr(i.startDate),
+      endDate: asStr(i.endDate),
+      description: asStr(i.description),
+    })),
     customSections: asObjArr(raw.customSections).map((s) => ({
       id: asStr(s.id) || newId(),
       title: asStr(s.title),
@@ -659,6 +695,27 @@ export function certHeadingLine(c: CertificationItem): string {
 export const certEntries = (r: Resume): CertificationItem[] =>
   (r.certItems ?? []).filter((c) => c.name.trim() || c.issuer.trim())
 
+/** Involvement entries with any content */
+export const involvementEntries = (r: Resume): InvolvementItem[] =>
+  (r.involvement ?? []).filter((i) => i.role.trim() || i.organization.trim())
+
+/** Heading line for an involvement entry: role · organization, location */
+export function involvementHeadingLine(i: InvolvementItem): string {
+  const left = [i.role.trim(), i.organization.trim()].filter(Boolean).join('  ·  ')
+  return i.location.trim() ? `${left}, ${i.location.trim()}` : left
+}
+
+/** Date range for an involvement entry: "start – end", or '' when both empty */
+export function involvementDates(i: InvolvementItem): string {
+  const start = i.startDate.trim()
+  const end = i.endDate.trim()
+  return start || end ? `${start} – ${end}` : ''
+}
+
+/** Non-empty description lines of an involvement entry, rendered as bullets */
+export const involvementBullets = (i: InvolvementItem): string[] =>
+  i.description.split('\n').map((l) => l.trim()).filter(Boolean)
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
@@ -690,6 +747,13 @@ export function resumeToPlainText(r: Resume): string {
             (dates ? ` (${dates})` : '')
         )
         if (p.description) lines.push(p.description)
+      }
+    } else if (key === 'involvement' && involvementEntries(r).length > 0) {
+      lines.push('', 'INVOLVEMENT')
+      for (const i of involvementEntries(r)) {
+        const dates = involvementDates(i)
+        lines.push(involvementHeadingLine(i) + (dates ? ` (${dates})` : ''))
+        for (const b of involvementBullets(i)) lines.push(`- ${b}`)
       }
     } else if (key === 'education' && r.education.some((e) => e.school)) {
       lines.push('', 'EDUCATION')
@@ -753,6 +817,14 @@ export function resumeToMarkdown(r: Resume): string {
           ''
         )
         if (p.description) lines.push(p.description, '')
+      }
+    } else if (key === 'involvement' && involvementEntries(r).length > 0) {
+      heading('Involvement')
+      for (const i of involvementEntries(r)) {
+        const dates = involvementDates(i)
+        lines.push(`### ${involvementHeadingLine(i)}${dates ? ` *(${dates})*` : ''}`, '')
+        for (const b of involvementBullets(i)) lines.push(`- ${b}`)
+        lines.push('')
       }
     } else if (key === 'education' && r.education.some((e) => e.school)) {
       heading('Education')
