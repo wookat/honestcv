@@ -10,6 +10,9 @@ import {
   type Resume,
   certEntries,
   dividerOf,
+  involvementBullets,
+  involvementDates,
+  involvementEntries,
   fontScaleOf,
   lineSpacingOf,
   educationDetailLine,
@@ -282,6 +285,41 @@ function SectionBlock({
         )}
       </>
     ) : null
+  if (sectionKey === 'involvement') {
+    const items = involvementEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('Involvement')}
+        {items.map((inv) => (
+          <div key={inv.id} className="mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11.5px] font-bold">
+                {inv.role.trim() || 'Role'}
+                {inv.organization.trim() && (
+                  <span className="font-normal">
+                    {'  ·  '}
+                    {inv.organization.trim()}
+                    {inv.location.trim() ? `, ${inv.location.trim()}` : ''}
+                  </span>
+                )}
+              </p>
+              {involvementDates(inv) && (
+                <p className="text-[10px] text-neutral-500 italic">{involvementDates(inv)}</p>
+              )}
+            </div>
+            <ul className="mt-0.5 space-y-0.5">
+              {involvementBullets(inv).map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11px]">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </>
+    ) : null
+  }
   if (sectionKey === 'education')
     return resume.education.some((e) => e.school) ? (
       <>

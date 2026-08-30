@@ -30,6 +30,7 @@ import {
   Trash2,
   Undo2,
   Unlock,
+  Users,
   Wand2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -104,6 +105,7 @@ import {
   emptyCustomSection,
   emptyEducation,
   emptyExperience,
+  emptyInvolvement,
   emptyProject,
   emptyResume,
   exampleToResume,
@@ -1880,6 +1882,127 @@ export default function Builder() {
               }
             >
               <Plus className="size-4" /> Add project
+            </Button>
+          </Section>
+
+          <Section title="Involvement" icon={<Users className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              Campus or community organizations — clubs, societies, volunteering.
+            </p>
+            {(resume.involvement ?? []).map((inv) => (
+              <div key={inv.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Role (e.g. Selected Member)"
+                    value={inv.role}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, role: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Organization"
+                    value={inv.organization}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, organization: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="College or city (optional)"
+                    value={inv.location}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, location: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Start (2024)"
+                      value={inv.startDate}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, startDate: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="End"
+                      value={inv.endDate}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, endDate: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="What you did there — one bullet per line"
+                    value={inv.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete involvement"
+                    aria-label="Delete involvement"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).filter((x) => x.id !== inv.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  involvement: [...(r.involvement ?? []), emptyInvolvement()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add involvement
             </Button>
           </Section>
 

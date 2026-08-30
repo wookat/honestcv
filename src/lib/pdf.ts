@@ -9,6 +9,10 @@ import {
   type Resume,
   certEntries,
   certHeadingLine,
+  involvementBullets,
+  involvementDates,
+  involvementEntries,
+  involvementHeadingLine,
   dividerOf,
   educationDetailLine,
   fontScaleOf,
@@ -352,6 +356,15 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
           w.gap(1)
           w.text(p.description.trim(), { size: 10 })
         }
+      }
+    } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
+      w.heading('Involvement')
+      for (const i of involvementEntries(resume)) {
+        w.gap(4)
+        w.ensure(34)
+        w.titleLine(involvementHeadingLine(i), involvementDates(i), { size: 10.5 })
+        w.gap(2)
+        for (const b of involvementBullets(i)) w.bullet(b)
       }
     } else if (key === 'education' && resume.education.some((e) => e.school)) {
       w.heading('Education')
