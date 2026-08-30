@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowDown,
+  BookOpen,
   ArrowUp,
   Briefcase,
   Check,
@@ -105,6 +106,7 @@ import {
   emptyCustomSection,
   emptyEducation,
   emptyExperience,
+  emptyCoursework,
   emptyInvolvement,
   emptyProject,
   emptyResume,
@@ -2003,6 +2005,113 @@ export default function Builder() {
               }
             >
               <Plus className="size-4" /> Add involvement
+            </Button>
+          </Section>
+
+          <Section title="Coursework" icon={<BookOpen className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              Relevant courses — useful when you have little work experience.
+            </p>
+            {(resume.coursework ?? []).map((cw) => (
+              <div key={cw.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Course name (e.g. Intro to Computer Systems)"
+                    value={cw.name}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).map((x) =>
+                          x.id === cw.id ? { ...x, name: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-[1fr_5rem] gap-2">
+                    <Input
+                      placeholder="Where (school or platform)"
+                      value={cw.institution}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, institution: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="When"
+                      value={cw.date}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, date: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <Input
+                  placeholder="Skill used (optional, e.g. Teamwork)"
+                  value={cw.skill}
+                  onChange={(ev) =>
+                    setResume((r) => ({
+                      ...r,
+                      coursework: (r.coursework ?? []).map((x) =>
+                        x.id === cw.id ? { ...x, skill: ev.target.value } : x
+                      ),
+                    }))
+                  }
+                />
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="How you applied it — one bullet per line"
+                    value={cw.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).map((x) =>
+                          x.id === cw.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete coursework"
+                    aria-label="Delete coursework"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).filter((x) => x.id !== cw.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  coursework: [...(r.coursework ?? []), emptyCoursework()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add coursework
             </Button>
           </Section>
 
