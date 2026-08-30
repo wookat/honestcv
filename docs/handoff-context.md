@@ -23,12 +23,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - KV 存 license/免费额度/邮件 leads；无关系型数据库
 - 已消费简历中心 ResumeProfile v1（/share/ 链接导入，PR #199/#200；注意 CSP connect-src 需包含简历中心 API 域）
 
-## Rezi 对标循环（2026-08-29 起，R1–R11 已完成）
+## Rezi 对标循环（2026-08-29 起，R1–R13 已完成）
 - 一手审计：docs/audit-2026-08-29-rezi-r1.md（R8 复审计截图 ~/audit-r1/shots-r8/）；各轮方案 docs/plan-r1..r11-*.md
-- R1 评分深度+AI keyword bullet（PR #214）、R2 落地页 showcase+导航（#215）、R3 逐行 AI 修复（#216）、R4 多页实时预览（#217）、R5 简历操作台 /dashboard（#218，含 SPA_ROUTES 补 /dashboard 修 404）、R6 可保存 cover letter/interview 文档进 dashboard（#219）、R7 Auto-fit 一键排版（#220，真实 PDF 计页选最可读组合）、R8 dashboard 内 Sample library（#221，搜索+行业筛选，复用 examples.json）、R9 移动端汉堡导航（#222，React header + 静态页零 JS details 菜单）、R10 LinkedIn「Save to PDF」档案导入（#223，extractPdf 双栏检测+LinkedIn 专用解析：公司在前/时长括注/多角色公司/侧栏 Contact·Top Skills）、R11 落地页信任深度（#224，ATS「The problem」教育区块+FAQ 5→10 条+退款保证醒目 badge；不造假社会证明）、R12 P2 清理（#225，/api/za/session 未登录改 200 {email:null} 消除 console 401——探测仅在 Builder Import 弹窗打开时触发；页面 Cache-Control 300/600→60/60 收窄部署后旧 HTML 窗口，CACHE_VER 3→4）
-- PR 为累积链（R2 基于 R1 分支…R11 基于 R10），生产已部署最新版（worker 9cb5bfb2）；PR 均未合并，合并时按链顺序
-- 剩余候选差距（R8 复审计确认）：Rezi Job Search（+2M 职位+申请管线，重后端，架构差异待决策）、付费人工 Review（商业模式差异）、导航下拉信息架构（P2-9）、落地页信任（P1-8）R11 已做可诚实部分，真实用户评价/用户量待产品上量后再补；QA 新增 P2：部署后 ~4 分钟 CDN 窗口内旧 HTML 引用已删 JS bundle（404），建议查 HTML 缓存 TTL/部署原子性
-- QA 备注（P2，非本轮引入）：React 页 console 偶发 [Report Only] CSP 违规日志（疑似平台注入，无拦截）；/builder 偶发 GET /api/za/session 401 console 报错（未登录时的会话探测，建议静默处理），待查
+- R1 评分深度+AI keyword bullet（PR #214）、R2 落地页 showcase+导航（#215）、R3 逐行 AI 修复（#216）、R4 多页实时预览（#217）、R5 简历操作台 /dashboard（#218，含 SPA_ROUTES 补 /dashboard 修 404）、R6 可保存 cover letter/interview 文档进 dashboard（#219）、R7 Auto-fit 一键排版（#220，真实 PDF 计页选最可读组合）、R8 dashboard 内 Sample library（#221，搜索+行业筛选，复用 examples.json）、R9 移动端汉堡导航（#222，React header + 静态页零 JS details 菜单）、R10 LinkedIn「Save to PDF」档案导入（#223，extractPdf 双栏检测+LinkedIn 专用解析：公司在前/时长括注/多角色公司/侧栏 Contact·Top Skills）、R11 落地页信任深度（#224，ATS「The problem」教育区块+FAQ 5→10 条+退款保证醒目 badge；不造假社会证明）、R12 P2 清理（#225，/api/za/session 未登录改 200 {email:null} 消除 console 401——探测仅在 Builder Import 弹窗打开时触发；页面 Cache-Control 300/600→60/60 收窄部署后旧 HTML 窗口，CACHE_VER 3→4）、R13 导航下拉信息架构（#226，Resources ▾ 下拉：guides/vs Zety/vs LiveCareer/one-time payment/About，React ResourcesDropdown + 静态页零 JS details.rnav，移动菜单加 Resources 分组）
+- PR 为累积链（R2 基于 R1 分支…R13 基于 R12），生产已部署最新版（worker dcb8ff42）；PR 均未合并，合并时按链顺序
+- 剩余候选差距（R8 复审计确认）：Rezi Job Search（+2M 职位+申请管线，重后端，架构差异待决策）、付费人工 Review（商业模式差异）、落地页信任（P1-8）R11 已做可诚实部分，真实用户评价/用户量待产品上量后再补；导航下拉（P2-9）R13 已做、部署缓存窗口与 session 401 R12 已修（窗口收窄到 ~1 分钟）
+- QA 备注（P2，非本轮引入）：React 页 console 偶发 [Report Only] CSP 违规日志（疑似平台注入，无拦截）
 - R7 QA 备注（可选优化，非 P0/P1）：Auto-fit 在已最优页数时仍会把设置升到更可读组合；表单控件 id/name 信息性提示已在 dashboard 修复、builder 其余字段未处理
 - 生产复验标准：1440+375 双视口、无横向溢出、触摸目标≥40px、console clean、文档路由 200
 
