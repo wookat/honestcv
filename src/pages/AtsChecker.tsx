@@ -79,8 +79,28 @@ export default function AtsChecker() {
   const [linkCopied, setLinkCopied] = useState(false)
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
+  const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
+
+  const handleFile = (file: File | undefined) => {
+    if (!file || fileBusy) return
+    setFileBusy(true)
+    setFileError('')
+    extractTextFromFile(file)
+      .then((text) => {
+        if (!text.trim())
+          throw new Error(
+            'No text found in this file — it may be a scanned image. Paste the text instead.'
+          )
+        setResumeText(text)
+        setChecked(false)
+      })
+      .catch((err: unknown) =>
+        setFileError(err instanceof Error ? err.message : 'Could not read this file.')
+      )
+      .finally(() => setFileBusy(false))
+  }
 
   const openInBuilder = () => {
     const existing = loadResume()
@@ -150,7 +170,21 @@ export default function AtsChecker() {
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
+          <div
+            className={`space-y-1.5 rounded-lg transition-colors ${
+              dragOver ? 'ring-primary bg-primary/5 ring-2 ring-offset-2' : ''
+            }`}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragOver(true)
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragOver(false)
+              handleFile(e.dataTransfer.files?.[0])
+            }}
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Label htmlFor="resume-text">Your resume (paste or upload)</Label>
               <Button
@@ -170,26 +204,8 @@ export default function AtsChecker() {
                 accept={IMPORT_ACCEPT}
                 className="hidden"
                 onChange={(e) => {
-                  const file = e.target.files?.[0]
+                  handleFile(e.target.files?.[0])
                   e.target.value = ''
-                  if (!file) return
-                  setFileBusy(true)
-                  setFileError('')
-                  extractTextFromFile(file)
-                    .then((text) => {
-                      if (!text.trim())
-                        throw new Error(
-                          'No text found in this file — it may be a scanned image. Paste the text instead.'
-                        )
-                      setResumeText(text)
-                      setChecked(false)
-                    })
-                    .catch((err: unknown) =>
-                      setFileError(
-                        err instanceof Error ? err.message : 'Could not read this file.'
-                      )
-                    )
-                    .finally(() => setFileBusy(false))
                 }}
               />
             </div>
@@ -197,7 +213,7 @@ export default function AtsChecker() {
             <Textarea
               id="resume-text"
               rows={12}
-              placeholder="Paste your full resume text here…"
+              placeholder="Paste your full resume text here — or drop a PDF / DOCX file on this box…"
               value={resumeText}
               onChange={(e) => {
                 setResumeText(e.target.value)
@@ -478,6 +494,66 @@ export default function AtsChecker() {
             </CardContent>
           </Card>
         )}
+
+        <section className="mt-14">
+          <h2 className="text-center text-xl font-semibold">How the checker works</h2>
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                step: '1',
+                title: 'Paste or drop your resume',
+                text: 'Paste the text, or drop a PDF / DOCX — it’s read entirely in your browser and never uploaded to a server.',
+              },
+              {
+                step: '2',
+                title: 'Get your score instantly',
+                text: 'A transparent rule-based check scores keyword match against the job ad (70%) and ATS-safe structure (30%) — with every matched and missing keyword listed.',
+              },
+              {
+                step: '3',
+                title: 'Fix the gaps in the builder',
+                text: 'One click carries your resume and the job description into the free builder, where AI rewrites target the exact keywords you’re missing.',
+              },
+            ].map((s) => (
+              <div key={s.step} className="rounded-lg border bg-white p-4">
+                <div className="bg-primary/10 text-primary flex size-7 items-center justify-center rounded-full text-sm font-semibold">
+                  {s.step}
+                </div>
+                <p className="mt-2 text-sm font-medium">{s.title}</p>
+                <p className="text-muted-foreground mt-1 text-sm">{s.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-12">
+          <h2 className="text-center text-xl font-semibold">Common questions</h2>
+          <div className="mx-auto mt-4 max-w-2xl space-y-2">
+            {[
+              {
+                q: 'Is the ATS checker really free?',
+                a: 'Yes — the checker is free with no sign-up, no email and no usage cap. RezUp makes money from one-time resume-download purchases, so the checker has no paywall.',
+              },
+              {
+                q: 'Is my resume uploaded anywhere?',
+                a: 'No. The file is parsed and scored by JavaScript running in your browser — the text never leaves your device and we never store it.',
+              },
+              {
+                q: 'How is the score calculated?',
+                a: 'Overall score = keyword match × 70% + structure × 30%. Keyword match counts how many of the job ad’s key terms appear in your resume; structure checks for the parts a parser expects (contact info, headings, dates, bullets). It’s a transparent rule-based check, not a black box.',
+              },
+              {
+                q: 'Does a high score guarantee interviews?',
+                a: 'No — no checker can promise that. A high score means ATS filters and keyword-scanning recruiters are unlikely to skip you for mechanical reasons; the content of your experience still has to earn the interview.',
+              },
+            ].map((f) => (
+              <details key={f.q} className="rounded-lg border bg-white px-4 py-3">
+                <summary className="cursor-pointer text-sm font-medium">{f.q}</summary>
+                <p className="text-muted-foreground mt-2 text-sm">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
       </main>
 
       <SiteFooter />
