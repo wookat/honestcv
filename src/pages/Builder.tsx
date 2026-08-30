@@ -2339,7 +2339,7 @@ export default function Builder() {
                 <div className="text-muted-foreground mt-1.5 space-y-1.5 rounded-md border p-2.5">
                   <p>
                     {ats.keywordScore !== null
-                      ? `Score = keyword coverage ×70% + structure checks ×30%. Keyword coverage is the share of the job posting\u2019s top keywords (extracted by frequency, stop-words removed) that appear in your resume. Structure is the ${ats.checks.length}-point checklist below — each check has equal weight.`
+                      ? `Score = keyword coverage ×70% + structure checks ×30%. Keyword coverage is the share of the job posting\u2019s top keywords (extracted by frequency, stop-words removed) that appear in your resume${ats.ignored.length > 0 ? ` — ${ats.ignored.length} keyword${ats.ignored.length === 1 ? '' : 's'} you marked not relevant ${ats.ignored.length === 1 ? 'is' : 'are'} excluded` : ''}. Structure is the ${ats.checks.length}-point checklist below — each check has equal weight.`
                       : `Without a job description the score is the ${ats.checks.length}-point structure checklist below — each check has equal weight (${ats.checks.filter((c) => c.pass).length} of ${ats.checks.length} passing). Paste a job description above to add the stricter keyword-coverage half.`}
                   </p>
                   <p>
@@ -2408,7 +2408,48 @@ export default function Builder() {
                             >
                               <Sparkles aria-hidden className="size-3" />
                             </button>
+                            <button
+                              type="button"
+                              className="hover:bg-primary/10 text-muted-foreground border-l px-1.5 py-0.5"
+                              title={`Not relevant to me — exclude "${kw}" from the score`}
+                              aria-label={`Mark ${kw} as not relevant`}
+                              onClick={() =>
+                                set('ignoredKeywords', [...(resume.ignoredKeywords ?? []), kw])
+                              }
+                            >
+                              ×
+                            </button>
                           </span>
+                        ))}
+                      </span>
+                    </div>
+                  )}
+                  {ats.ignored.length > 0 && (
+                    <div>
+                      <span className="text-muted-foreground font-medium">
+                        Excluded ({ats.ignored.length})
+                      </span>{' '}
+                      <span className="text-muted-foreground">
+                        — marked not relevant; not counted in coverage. Click to restore:
+                      </span>
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {ats.ignored.map((kw) => (
+                          <button
+                            key={kw}
+                            type="button"
+                            className="text-muted-foreground hover:bg-primary/10 inline-flex items-center rounded-full border border-dashed px-2 py-0.5 line-through"
+                            title={`Restore "${kw}" to the keyword pool`}
+                            onClick={() =>
+                              set(
+                                'ignoredKeywords',
+                                (resume.ignoredKeywords ?? []).filter(
+                                  (k) => k.toLowerCase() !== kw.toLowerCase()
+                                )
+                              )
+                            }
+                          >
+                            {kw}
+                          </button>
                         ))}
                       </span>
                     </div>

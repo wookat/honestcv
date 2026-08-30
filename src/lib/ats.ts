@@ -48,6 +48,8 @@ export interface AtsResult {
   missing: string[]
   /** Per-keyword occurrence counts (resume vs job ad), missing keywords first */
   keywordDetail: KeywordDetail[]
+  /** JD keywords the user marked not relevant — excluded from coverage */
+  ignored: string[]
   /** Keyword coverage 0-100, or null when no JD was provided */
   keywordScore: number | null
   /** Structure/best-practices sub-score 0-100 */
@@ -175,13 +177,14 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     },
   ]
 
-  return finalize(keywords, matched, missing, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
+  return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
 }
 
 function finalize(
   keywords: string[],
   matched: string[],
   missing: string[],
+  ignored: string[],
   checks: AtsResult['checks'],
   keywordDetail: KeywordDetail[]
 ): AtsResult {
@@ -193,7 +196,7 @@ function finalize(
     keywordScore !== null
       ? Math.round((keywordScore * 70 + structureScore * 30) / 100)
       : structureScore
-  return { score, matched, missing, keywordDetail, keywordScore, structureScore, checks }
+  return { score, matched, missing, ignored, keywordDetail, keywordScore, structureScore, checks }
 }
 
 import type { Resume } from './resume'
@@ -204,7 +207,10 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
   const resumeTokenList = tokenize(resumeText)
   const resumeTokens = new Set(resumeTokenList)
 
-  const keywords = jd.trim() ? extractKeywords(jd) : []
+  const ignoredSet = new Set((resume.ignoredKeywords ?? []).map((k) => k.toLowerCase()))
+  const allKeywords = jd.trim() ? extractKeywords(jd) : []
+  const ignored = allKeywords.filter((kw) => ignoredSet.has(kw))
+  const keywords = allKeywords.filter((kw) => !ignoredSet.has(kw))
   const matched: string[] = []
   const missing: string[] = []
   for (const kw of keywords) {
@@ -262,5 +268,5 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
     },
   ]
 
-  return finalize(keywords, matched, missing, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
+  return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
 }
