@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   ArrowDown,
   ArrowUp,
@@ -393,8 +393,7 @@ export default function Builder() {
     () => new URLSearchParams(window.location.search).get('company') ?? ''
   )
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('doc') || params.get('assistant')) {
+    if (new URLSearchParams(window.location.search).get('doc')) {
       window.history.replaceState(null, '', window.location.pathname)
     }
   }, [])
@@ -481,10 +480,17 @@ export default function Builder() {
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
   const { undo, canUndo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
-  // ?assistant=1 deep link from the workspace sidebar's "AI assistant" entry
+  // ?assistant=1 deep link from the workspace sidebar / mobile menu "AI assistant" entries
   const [assistantOpen, setAssistantOpen] = useState(
     () => new URLSearchParams(window.location.search).get('assistant') === '1'
   )
+  const { search } = useLocation()
+  useEffect(() => {
+    if (new URLSearchParams(search).get('assistant') === '1') {
+      setAssistantOpen(true)
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [search])
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
   )
