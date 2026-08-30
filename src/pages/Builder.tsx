@@ -3192,15 +3192,13 @@ function BundleToolDialog({
                 size="sm"
                 onClick={() =>
                   void import('@/lib/pdf').then((m) =>
-                    m.downloadTextPdf(
-                      title,
-                      result,
-                      kind === 'cover'
-                        ? 'cover-letter.pdf'
-                        : kind === 'resignation'
-                          ? 'resignation-letter.pdf'
-                          : 'interview-prep.pdf'
-                    )
+                    kind === 'interview'
+                      ? m.downloadTextPdf(title, result, 'interview-prep.pdf')
+                      : m.downloadLetterPdf(
+                          resume,
+                          result,
+                          kind === 'cover' ? 'cover-letter.pdf' : 'resignation-letter.pdf'
+                        )
                   )
                 }
               >
@@ -3211,15 +3209,13 @@ function BundleToolDialog({
                 size="sm"
                 onClick={() =>
                   void import('@/lib/docx').then((m) =>
-                    m.downloadTextDocx(
-                      title,
-                      result,
-                      kind === 'cover'
-                        ? 'cover-letter.docx'
-                        : kind === 'resignation'
-                          ? 'resignation-letter.docx'
-                          : 'interview-prep.docx'
-                    )
+                    kind === 'interview'
+                      ? m.downloadTextDocx(title, result, 'interview-prep.docx')
+                      : m.downloadLetterDocx(
+                          resume,
+                          result,
+                          kind === 'cover' ? 'cover-letter.docx' : 'resignation-letter.docx'
+                        )
                   )
                 }
               >

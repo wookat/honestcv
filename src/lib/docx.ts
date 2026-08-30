@@ -288,3 +288,94 @@ export async function downloadTextDocx(
   const blob = await Packer.toBlob(doc)
   downloadBlob(blob, filename)
 }
+
+/** Letter (cover / resignation) with the sender's letterhead, matching the
+ *  resume's template accent, font family and page size. */
+export async function downloadLetterDocx(resume: Resume, body: string, filename: string) {
+  const tpl = resolveTemplate(resume.templateId, resume.accentColor)
+  const font = serifOf(resume, tpl.serif) ? FONT_SERIF : FONT_SANS
+  const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
+  const accent = tpl.accent.replace('#', '')
+  const c = resume.contact
+  const paragraphs: Paragraph[] = []
+
+  if (c.fullName.trim()) {
+    paragraphs.push(
+      new Paragraph({
+        spacing: { after: 40 },
+        children: [new TextRun({ text: c.fullName.trim(), bold: true, size: 30, font })],
+      })
+    )
+  }
+  const httpUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
+  const contactSegments = [
+    c.email ? { text: c.email, url: `mailto:${c.email}` } : null,
+    c.phone ? { text: c.phone } : null,
+    c.location ? { text: c.location } : null,
+    c.website ? { text: c.website, url: httpUrl(c.website) } : null,
+  ].filter((s): s is { text: string; url?: string } => s !== null)
+  if (c.fullName.trim().length > 0 || contactSegments.length > 0) {
+    const runs: (TextRun | ExternalHyperlink)[] = []
+    contactSegments.forEach((s, i) => {
+      if (i > 0) runs.push(new TextRun({ text: '  |  ', size: 19, font }))
+      runs.push(
+        s.url
+          ? new ExternalHyperlink({
+              link: s.url,
+              children: [new TextRun({ text: s.text, size: 19, font, style: 'Hyperlink' })],
+            })
+          : new TextRun({ text: s.text, size: 19, font })
+      )
+    })
+    paragraphs.push(
+      new Paragraph({
+        spacing: { after: 240 },
+        border: {
+          bottom: { style: BorderStyle.SINGLE, size: 6, color: accent },
+        },
+        children: runs,
+      })
+    )
+  }
+  const date = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  paragraphs.push(
+    new Paragraph({
+      spacing: { after: 300 },
+      children: [new TextRun({ text: date, size: 21, font })],
+    })
+  )
+  for (const block of body.split(/\n{2,}/)) {
+    const t = block.trim()
+    if (!t) continue
+    paragraphs.push(
+      new Paragraph({
+        spacing: { after: 200, line: 340 },
+        children: t
+          .split('\n')
+          .map(
+            (line, i) =>
+              new TextRun({ text: line, size: 22, font, break: i > 0 ? 1 : 0 })
+          ),
+      })
+    )
+  }
+  const doc = new Document({
+    sections: [
+      {
+        properties: {
+          page: {
+            size: pageSize,
+            margin: { top: 720, bottom: 720, left: 864, right: 864 },
+          },
+        },
+        children: paragraphs,
+      },
+    ],
+  })
+  const blob = await Packer.toBlob(doc)
+  downloadBlob(blob, filename)
+}
