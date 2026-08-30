@@ -3,14 +3,18 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   BadgeCheck,
+  BriefcaseBusiness,
   Check,
   ChevronDown,
   Copy,
   FileDown,
+  FileText,
   FileUp,
+  LayoutDashboard,
   Lock,
   ScanSearch,
   ShieldCheck,
+  MessagesSquare,
   Sparkles,
   Target,
 } from 'lucide-react'
@@ -122,6 +126,37 @@ const FEATURES = [
     icon: BadgeCheck,
     title: 'Clickable, ATS-clean exports',
     text: 'Your email, website and LinkedIn are live links in both the PDF and the DOCX — recruiters click straight through, and parsers still read every word.',
+  },
+]
+
+const SUITE = [
+  {
+    icon: FileText,
+    title: 'Cover letters',
+    text: 'Generate a cover letter tailored to a specific job posting, edit it, and export it on a letterhead PDF or DOCX that matches your resume.',
+    cta: 'Write a cover letter',
+    to: '/builder',
+  },
+  {
+    icon: MessagesSquare,
+    title: 'Interview prep',
+    text: 'Get likely questions for your target role, practice your answers, and receive AI feedback on what worked and what to sharpen.',
+    cta: 'Prep for an interview',
+    to: '/builder',
+  },
+  {
+    icon: BriefcaseBusiness,
+    title: 'Job search',
+    text: 'Browse remote job postings, track applications through a saved-to-interviewing pipeline, and target your resume or a cover letter at any posting in one click.',
+    cta: 'Search jobs',
+    to: '/jobs',
+  },
+  {
+    icon: LayoutDashboard,
+    title: 'Resume dashboard',
+    text: 'Keep a named resume copy per application, manage your cover letters and prep docs, and restore any automatic edit checkpoint.',
+    cta: 'Open my dashboard',
+    to: '/dashboard',
   },
 ]
 
@@ -573,6 +608,36 @@ export default function Landing() {
             </a>
             .
           </p>
+        </section>
+
+        {/* Product suite */}
+        <section aria-labelledby="suite-heading" className="mx-auto max-w-5xl px-4 pb-24">
+          <h2 id="suite-heading" className="text-center text-3xl font-semibold tracking-tight">
+            More than a resume builder
+          </h2>
+          <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-center text-sm">
+            Everything from finding the posting to walking into the interview — all free
+            during beta, all working from the same resume.
+          </p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {SUITE.map((s) => (
+              <Card
+                key={s.title}
+                className="py-0 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <CardContent className="flex h-full flex-col p-5">
+                  <s.icon className="text-primary mb-2 size-6" />
+                  <h3 className="font-semibold">{s.title}</h3>
+                  <p className="text-muted-foreground mt-1 text-sm">{s.text}</p>
+                  <Button asChild variant="link" className="mt-auto h-auto self-start px-0 pt-3">
+                    <Link to={s.to}>
+                      {s.cta} <ArrowRight />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </section>
 
         {/* Templates gallery */}
