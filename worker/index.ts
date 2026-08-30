@@ -309,6 +309,85 @@ app.get('/api/ai/quota', async (c) => {
   return c.json({ freeRemaining: Math.max(limit - used, 0) })
 })
 
+// Job search: proxy Remotive's public remote-jobs API behind a KV cache so
+// the upstream sees at most one request per query per hour. Descriptions are
+// flattened to plain text so the client can feed them straight into the JD
+// tailoring flow (and the CSP never has to allow third-party origins).
+const JOBS_CACHE_TTL = 60 * 60
+const JOBS_MAX_QUERY = 80
+const JOBS_MAX_DESCRIPTION = 8_000
+
+const htmlToText = (html: string) =>
+  html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<li[^>]*>/gi, '\n• ')
+    .replace(/<br\s*\/?>|<\/p>|<\/div>|<\/h[1-6]>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&(#39|apos|#x27);/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ ?\n ?/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+
+interface RemotiveJob {
+  id?: number | string
+  url?: string
+  title?: string
+  company_name?: string
+  category?: string
+  job_type?: string
+  publication_date?: string
+  candidate_required_location?: string
+  salary?: string
+  description?: string
+}
+
+app.get('/api/jobs/search', async (c) => {
+  const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
+  const cacheKey = `jobs:v1:${q.toLowerCase()}`
+  const cached = await c.env.KV.get(cacheKey)
+  if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
+  const upstreamUrl = new URL('https://remotive.com/api/remote-jobs')
+  if (q) upstreamUrl.searchParams.set('search', q)
+  upstreamUrl.searchParams.set('limit', '50')
+  let upstream: Response | undefined
+  try {
+    upstream = await fetch(upstreamUrl, { headers: { accept: 'application/json' } })
+  } catch {
+    // network failure: handled below
+  }
+  if (!upstream?.ok) {
+    return c.json({ error: 'Job search is unavailable right now — please retry shortly.' }, 502)
+  }
+  const data = await upstream
+    .json<{ jobs?: RemotiveJob[] }>()
+    .catch(() => ({ jobs: [] as RemotiveJob[] }))
+  const jobs = (data.jobs ?? [])
+    .filter((j) => j.id && j.title && j.url)
+    .map((j) => ({
+      id: String(j.id),
+      title: j.title ?? '',
+      company: j.company_name ?? '',
+      category: j.category ?? '',
+      type: (j.job_type ?? '').replace(/_/g, ' '),
+      location: j.candidate_required_location || 'Remote',
+      postedAt: j.publication_date ?? '',
+      salary: j.salary ?? '',
+      url: j.url ?? '',
+      description: htmlToText(j.description ?? '').slice(0, JOBS_MAX_DESCRIPTION),
+    }))
+  const payload = { jobs, source: 'remotive' }
+  c.executionCtx.waitUntil(
+    c.env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: JOBS_CACHE_TTL })
+  )
+  return c.json(payload)
+})
+
 app.get('/api/health', (c) => {
   const configured = Boolean(c.env.LLM_RELAY_BASE_URL && c.env.LLM_RELAY_API_KEY)
   return c.json({ ok: true, llmConfigured: configured })
@@ -1020,7 +1099,7 @@ app.get('/api/license/status', async (c) => {
 
 // Client-side routes rendered by the SPA shell; anything else missing from
 // static assets is a real 404 (avoids soft-404s for arbitrary URLs).
-const SPA_ROUTES = new Set(['/', '/builder', '/ats-checker', '/dashboard'])
+const SPA_ROUTES = new Set(['/', '/builder', '/ats-checker', '/dashboard', '/jobs'])
 
 app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {

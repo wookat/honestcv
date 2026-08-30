@@ -76,6 +76,7 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           <a className="hover:text-foreground" href="/examples/">Examples</a>
           <ResourcesDropdown />
           <Link className="hover:text-foreground" to="/ats-checker">ATS Checker</Link>
+          <Link className="hover:text-foreground" to="/jobs">Jobs</Link>
           <a className="hover:text-foreground" href="/pricing/">Pricing</a>
         </nav>
         <div className="flex items-center gap-1">
@@ -99,6 +100,7 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/templates/">Templates</a>
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/examples/">Examples</a>
           <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/ats-checker" onClick={() => setMenuOpen(false)}>ATS Checker</Link>
+          <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/jobs" onClick={() => setMenuOpen(false)}>Jobs</Link>
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/pricing/">Pricing</a>
           <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/dashboard" onClick={() => setMenuOpen(false)}>My resumes</Link>
           <p className="text-muted-foreground mt-2 px-2 text-xs font-medium tracking-wide uppercase">Resources</p>
