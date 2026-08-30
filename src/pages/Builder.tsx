@@ -2004,7 +2004,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive h-9 shrink-0"
+                      className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                       title="Delete certification"
                       aria-label="Delete certification"
                       onClick={() =>
@@ -2023,6 +2023,7 @@ export default function Builder() {
                 type="button"
                 variant="outline"
                 size="sm"
+                className="min-h-10 sm:min-h-8"
                 onClick={() =>
                   setResume((r) => ({
                     ...r,
