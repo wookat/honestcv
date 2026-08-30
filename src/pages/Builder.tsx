@@ -1797,6 +1797,46 @@ export default function Builder() {
                     }
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Organization (optional)"
+                    value={p.org ?? ''}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        projects: r.projects.map((x) =>
+                          x.id === p.id ? { ...x, org: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Start (2024)"
+                      value={p.startDate ?? ''}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          projects: r.projects.map((x) =>
+                            x.id === p.id ? { ...x, startDate: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="End"
+                      value={p.endDate ?? ''}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          projects: r.projects.map((x) =>
+                            x.id === p.id ? { ...x, endDate: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
                     rows={2}
