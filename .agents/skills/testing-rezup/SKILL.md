@@ -235,6 +235,10 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - In the Experience editor, filling role/company inserts warning lines that shift layout — the "Need ideas? Show bullet starters" link sits directly above the AI buttons and is easy to misclick; re-screenshot after any field edit before clicking AI buttons.
 - A successful AI call also fires a non-AI `POST /api/ev {"e":"ai-use"}` analytics beacon — don't count it as an extra AI request.
 - `/api/ai/suggest-bullet` (R81) returns `{text, freeRemaining}`; capture the response body via `Network.getResponseBody` right after `responseReceived` to byte-verify the appended line matches the server text.
+- To assert the ATS "Fix →" jump ring (R82), poll for the class substring `ring-primary/60` together with `ring-2` — plain `.ring-2` matches ~7 permanent elements and gives false positives.
+- Screen-tool↔CSS coordinate mapping at desktop 1600: tool = css×0.64 with a +88px vertical browser-chrome offset — use CDP `getBoundingClientRect` plus this mapping when a small link misclicks.
+- The top-nav "ATS Checker" link navigates the SAME tab away from /builder — navigate back before builder-targeted CDP lookups.
+- The `type` action into Builder textareas occasionally drops the first character of a line — verify typed text via localStorage/DOM before asserting.
 
 ## Devin Secrets Needed
 
