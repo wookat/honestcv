@@ -21,6 +21,9 @@ import {
   involvementBullets,
   involvementDates,
   involvementEntries,
+  militaryBullets,
+  militaryDates,
+  militaryEntries,
   fontScaleOf,
   lineSpacingOf,
   educationDetailLine,
@@ -507,6 +510,41 @@ function SectionBlock({
             {referenceDetailLine(x) && (
               <p className="mt-0.5 text-[11px]">{referenceDetailLine(x)}</p>
             )}
+          </div>
+        ))}
+      </>
+    ) : null
+  }
+  if (sectionKey === 'military') {
+    const items = militaryEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('Military service')}
+        {items.map((m) => (
+          <div key={m.id} className="mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11.5px] font-bold">
+                {m.rank.trim() || 'Rank'}
+                {m.branch.trim() && (
+                  <span className="font-normal">
+                    {'  ·  '}
+                    {m.branch.trim()}
+                    {m.location.trim() ? `, ${m.location.trim()}` : ''}
+                  </span>
+                )}
+              </p>
+              {militaryDates(m) && (
+                <p className="text-[10px] text-neutral-500 italic">{militaryDates(m)}</p>
+              )}
+            </div>
+            <ul className="mt-0.5 space-y-0.5">
+              {militaryBullets(m).map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11px]">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         ))}
       </>

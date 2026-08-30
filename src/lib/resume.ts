@@ -125,6 +125,20 @@ export interface ReferenceItem {
   kind: ReferenceKind
 }
 
+export interface MilitaryServiceItem {
+  id: string
+  /** Rank or position at the organization, e.g. "Sergeant" */
+  rank: string
+  /** Branch served in, e.g. "Army" */
+  branch: string
+  /** Where stationed, e.g. "Fort Bragg, NC" */
+  location: string
+  startDate: string
+  endDate: string
+  /** Responsibilities and accomplishments; one bullet per line */
+  description: string
+}
+
 /** User-defined section (e.g. Volunteering, Publications) */
 export interface CustomSection {
   id: string
@@ -148,6 +162,7 @@ export interface Resume {
   awards?: AwardItem[]
   publications?: PublicationItem[]
   references?: ReferenceItem[]
+  military?: MilitaryServiceItem[]
   customSections: CustomSection[]
   /** Section keys in render order (see SECTION_KEYS + custom:<id>) */
   sectionOrder: string[]
@@ -228,6 +243,7 @@ export function emptyResume(): Resume {
     awards: [],
     publications: [],
     references: [],
+    military: [],
     customSections: [],
     sectionOrder: [...SECTION_KEYS],
     templateId: 'classic',
@@ -312,6 +328,16 @@ export const emptyReference = (): ReferenceItem => ({
   kind: '',
 })
 
+export const emptyMilitaryService = (): MilitaryServiceItem => ({
+  id: newId(),
+  rank: '',
+  branch: '',
+  location: '',
+  startDate: '',
+  endDate: '',
+  description: '',
+})
+
 export const emptyPublication = (): PublicationItem => ({
   id: newId(),
   title: '',
@@ -339,6 +365,7 @@ export const SECTION_KEYS = [
   'awards',
   'publications',
   'references',
+  'military',
 ] as const
 
 export const SECTION_LABELS: Record<string, string> = {
@@ -353,6 +380,7 @@ export const SECTION_LABELS: Record<string, string> = {
   awards: 'Awards & Honors',
   publications: 'Publications',
   references: 'References',
+  military: 'Military service',
 }
 
 /**
@@ -617,6 +645,15 @@ export function sanitizeResume(input: unknown): Resume | null {
       email: asStr(x.email),
       phone: asStr(x.phone),
       kind: x.kind === 'personal' || x.kind === 'professional' ? x.kind : '',
+    })),
+    military: asObjArr(raw.military).map((m) => ({
+      id: asStr(m.id) || newId(),
+      rank: asStr(m.rank),
+      branch: asStr(m.branch),
+      location: asStr(m.location),
+      startDate: asStr(m.startDate),
+      endDate: asStr(m.endDate),
+      description: asStr(m.description),
     })),
     customSections: asObjArr(raw.customSections).map((s) => ({
       id: asStr(s.id) || newId(),
@@ -913,6 +950,27 @@ export function referenceDetailLine(x: ReferenceItem): string {
   return [x.email.trim(), x.phone.trim(), kind].filter(Boolean).join(' · ')
 }
 
+/** Military service entries with any content */
+export const militaryEntries = (r: Resume): MilitaryServiceItem[] =>
+  (r.military ?? []).filter((m) => m.rank.trim() || m.branch.trim())
+
+/** Heading line for a military service entry: rank · branch, location */
+export function militaryHeadingLine(m: MilitaryServiceItem): string {
+  const left = [m.rank.trim(), m.branch.trim()].filter(Boolean).join('  ·  ')
+  return m.location.trim() ? `${left}, ${m.location.trim()}` : left
+}
+
+/** Date range for a military service entry: "start – end", or '' when both empty */
+export function militaryDates(m: MilitaryServiceItem): string {
+  const start = m.startDate.trim()
+  const end = m.endDate.trim()
+  return start || end ? `${start} – ${end}` : ''
+}
+
+/** Non-empty description lines of a military service entry, rendered as bullets */
+export const militaryBullets = (m: MilitaryServiceItem): string[] =>
+  m.description.split('\n').map((l) => l.trim()).filter(Boolean)
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
@@ -996,6 +1054,13 @@ export function resumeToPlainText(r: Resume): string {
         lines.push(referenceHeadingLine(x))
         const detail = referenceDetailLine(x)
         if (detail) lines.push(`- ${detail}`)
+      }
+    } else if (key === 'military' && militaryEntries(r).length > 0) {
+      lines.push('', 'MILITARY SERVICE')
+      for (const m of militaryEntries(r)) {
+        const dates = militaryDates(m)
+        lines.push(militaryHeadingLine(m) + (dates ? ` (${dates})` : ''))
+        for (const b of militaryBullets(m)) lines.push(`- ${b}`)
       }
     } else if (key.startsWith('custom:')) {
       const s = r.customSections.find((x) => `custom:${x.id}` === key)
@@ -1106,6 +1171,14 @@ export function resumeToMarkdown(r: Resume): string {
         lines.push(`### ${referenceHeadingLine(x)}`, '')
         const detail = referenceDetailLine(x)
         if (detail) lines.push(`- ${detail}`, '')
+      }
+    } else if (key === 'military' && militaryEntries(r).length > 0) {
+      heading('Military service')
+      for (const m of militaryEntries(r)) {
+        const dates = militaryDates(m)
+        lines.push(`### ${militaryHeadingLine(m)}${dates ? ` *(${dates})*` : ''}`, '')
+        for (const b of militaryBullets(m)) lines.push(`- ${b}`)
+        lines.push('')
       }
     } else if (key.startsWith('custom:')) {
       const s = r.customSections.find((x) => `custom:${x.id}` === key)

@@ -23,6 +23,7 @@ import {
   LayoutTemplate,
   Save,
   Lightbulb,
+  Shield,
   ListChecks,
   ListOrdered,
   Loader2,
@@ -110,6 +111,7 @@ import {
   emptyPublication,
   emptyReference,
   type ReferenceKind,
+  emptyMilitaryService,
   emptyCustomSection,
   emptyEducation,
   emptyExperience,
@@ -2437,6 +2439,127 @@ export default function Builder() {
               }
             >
               <Plus className="size-4" /> Add reference
+            </Button>
+          </Section>
+
+          <Section title="Military service" icon={<Shield className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              Your service record — rank, branch, where you were stationed and what you did.
+            </p>
+            {(resume.military ?? []).map((m) => (
+              <div key={m.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Rank or position (e.g. Sergeant)"
+                    value={m.rank}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        military: (r.military ?? []).map((x) =>
+                          x.id === m.id ? { ...x, rank: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Branch (e.g. Army)"
+                    value={m.branch}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        military: (r.military ?? []).map((x) =>
+                          x.id === m.id ? { ...x, branch: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Stationed at (e.g. Fort Bragg, NC)"
+                    value={m.location}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        military: (r.military ?? []).map((x) =>
+                          x.id === m.id ? { ...x, location: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Start (2020)"
+                      value={m.startDate}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).map((x) =>
+                            x.id === m.id ? { ...x, startDate: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="End"
+                      value={m.endDate}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).map((x) =>
+                            x.id === m.id ? { ...x, endDate: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="Responsibilities and accomplishments — one bullet per line"
+                    value={m.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        military: (r.military ?? []).map((x) =>
+                          x.id === m.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete military service"
+                    aria-label="Delete military service"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        military: (r.military ?? []).filter((x) => x.id !== m.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  military: [...(r.military ?? []), emptyMilitaryService()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add military service
             </Button>
           </Section>
 
