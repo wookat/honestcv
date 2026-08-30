@@ -3,9 +3,9 @@
  * with open / duplicate / rename / delete. All data lives in localStorage.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Copy, FilePlus2, FileText, MessagesSquare, Pencil, Trash2 } from 'lucide-react'
+import { Copy, FilePlus2, FileText, FileUp, MessagesSquare, Pencil, Trash2 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { WorkspaceNav } from '@/components/WorkspaceNav'
@@ -22,6 +22,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { scoreResume } from '@/lib/ats'
+import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
+import { parseResumeText } from '@/lib/importText'
 import {
   type CareerDoc,
   type CareerDocKind,
@@ -49,6 +51,12 @@ interface ExampleEntry {
   role: string
   sector: string
   person: ExamplePerson
+}
+
+const editedAgo = (ms: number) => {
+  const days = Math.floor((Date.now() - ms) / 86400000)
+  if (days <= 0) return 'Edited today'
+  return days === 1 ? 'Edited 1 day ago' : `Edited ${days} days ago`
 }
 
 function Thumb({ resume }: { resume: Resume }) {
@@ -84,6 +92,11 @@ export default function Dashboard() {
   const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
   const [docText, setDocText] = useState('')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const [importBusy, setImportBusy] = useState(false)
+  const [importError, setImportError] = useState('')
+  const [importDragOver, setImportDragOver] = useState(false)
+  const [confirmImport, setConfirmImport] = useState<Resume | null>(null)
   const [examples, setExamples] = useState<ExampleEntry[]>([])
   const [exampleQuery, setExampleQuery] = useState('')
   const [exampleSector, setExampleSector] = useState('All')
@@ -117,6 +130,36 @@ export default function Dashboard() {
   const openCopy = (v: ResumeVersion) => {
     saveResume({ ...emptyResume(), ...v.data })
     void navigate('/builder')
+  }
+
+  const openImported = (r: Resume) => {
+    saveResume(r)
+    void navigate('/builder')
+  }
+
+  const handleImportFile = (file: File | undefined) => {
+    if (!file || importBusy) return
+    setImportBusy(true)
+    setImportError('')
+    extractTextFromFile(file)
+      .then((text) => {
+        if (text.trim().length < 30) {
+          setImportError('No text found in this file — it may be a scanned image.')
+          setImportBusy(false)
+          return
+        }
+        const parsed = parseResumeText(text)
+        if (draft) {
+          setConfirmImport(parsed)
+          setImportBusy(false)
+        } else {
+          openImported(parsed)
+        }
+      })
+      .catch((err: unknown) => {
+        setImportError(err instanceof Error ? err.message : 'Could not read this file.')
+        setImportBusy(false)
+      })
   }
 
   return (
@@ -185,6 +228,48 @@ export default function Dashboard() {
             </div>
           )}
 
+          <div className="flex flex-col">
+            <button
+              type="button"
+              disabled={importBusy}
+              onClick={() => importInputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setImportDragOver(true)
+              }}
+              onDragLeave={() => setImportDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setImportDragOver(false)
+                handleImportFile(e.dataTransfer.files?.[0])
+              }}
+              className={`flex min-h-64 flex-1 flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed p-6 text-center transition-colors ${
+                importDragOver
+                  ? 'border-primary bg-primary/5'
+                  : 'bg-card hover:border-primary/50 border-border'
+              }`}
+            >
+              <FileUp className="text-muted-foreground size-8" />
+              <p className="text-sm font-medium">
+                {importBusy ? 'Reading your resume…' : 'Import a resume'}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                Click or drop a PDF, DOCX or TXT here — read entirely in your browser.
+              </p>
+              {importError && <p className="text-destructive text-xs">{importError}</p>}
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept={IMPORT_ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                handleImportFile(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
+          </div>
+
           {versions.map((v) => (
             <div key={v.id} className="bg-card flex flex-col rounded-md border shadow-sm">
               <Thumb resume={{ ...emptyResume(), ...v.data }} />
@@ -213,7 +298,7 @@ export default function Dashboard() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{v.name}</p>
                     <p className="text-muted-foreground text-xs">
-                      {new Date(v.updatedAt).toLocaleDateString()} · ATS{' '}
+                      {editedAgo(v.updatedAt)} · ATS{' '}
                       {scoreResume(v.data, v.data.jobDescription).score}/100
                     </p>
                   </div>
@@ -473,6 +558,40 @@ export default function Dashboard() {
               </Button>
             )}
             <Button type="button" onClick={() => confirmOpen && openCopy(confirmOpen)}>
+              Open and replace draft
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmImport !== null} onOpenChange={(o) => !o && setConfirmImport(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Open the imported resume?</DialogTitle>
+            <DialogDescription>
+              This replaces what's currently in the editor. Save the current draft as
+              a copy first if you want to keep it.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            {draft && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setVersions(
+                    saveResumeVersion(
+                      draft.targetRole || draft.contact.fullName || 'Untitled copy',
+                      draft
+                    )
+                  )
+                  if (confirmImport) openImported(confirmImport)
+                }}
+              >
+                Save draft as copy, then open
+              </Button>
+            )}
+            <Button type="button" onClick={() => confirmImport && openImported(confirmImport)}>
               Open and replace draft
             </Button>
           </DialogFooter>
