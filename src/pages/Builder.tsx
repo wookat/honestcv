@@ -3156,6 +3156,7 @@ function BundleToolDialog({
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 maxLength={300}
+                className="min-h-10 sm:min-h-9"
               />
             </div>
             <div className="space-y-1.5">
@@ -3168,7 +3169,12 @@ function BundleToolDialog({
                 onChange={(e) => setAnswer(e.target.value)}
               />
             </div>
-            <Button onClick={() => void getFeedback()} disabled={feedbackBusy} variant="outline">
+            <Button
+              onClick={() => void getFeedback()}
+              disabled={feedbackBusy}
+              variant="outline"
+              className="min-h-10 sm:min-h-9"
+            >
               {feedbackBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
               {feedbackBusy ? 'Coaching…' : 'Get AI feedback'}
             </Button>
