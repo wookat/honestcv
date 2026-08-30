@@ -5,6 +5,12 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 
 # Testing RezUp
 
+## CDP mobile-emulation & deep-link pitfalls
+
+- `Emulation.setDeviceMetricsOverride` reverts when the websocket that set it closes — hold a single CDP connection open for the whole mobile pass, and re-check `innerWidth` before judging layout. Pair with `Emulation.setPageScaleFactor(1)` for stable layout metrics.
+- A nohup'd CDP-hold helper may survive `kill_shell` — `pkill -f cdp_hold` and verify `innerWidth` is back to desktop before final desktop screenshots.
+- Router deep-link features (e.g. `?assistant=1`, `?doc=`) must be tested on *repeat* activation, not just first use: cleaning query params with raw `history.replaceState` desyncs react-router's location and the second activation silently no-ops.
+
 ## QA traffic marking (unified convention)
 
 - Real-browser QA: set `localStorage['honestcv.qa']='1'` via `context.addInitScript()` BEFORE the first `goto` — this suppresses the first-party `/api/hit` pageview beacon and all `/api/ev` funnel events client-side.
