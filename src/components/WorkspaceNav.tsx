@@ -3,14 +3,26 @@
  * Hidden below md; the mobile hamburger menu covers the same destinations.
  */
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { BadgeCheck, BriefcaseBusiness, FilePlus2, FileText, Files, LibraryBig } from 'lucide-react'
+import {
+  BadgeCheck,
+  BriefcaseBusiness,
+  FilePlus2,
+  FileText,
+  Files,
+  LibraryBig,
+  Sparkles,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { fetchAiQuota } from '@/lib/api'
 import { listCareerDocs } from '@/lib/documents'
 import { listPipeline } from '@/lib/jobs'
+import { loadLicense } from '@/lib/license'
 import { listResumeVersions, loadResume } from '@/lib/resume'
+
+const PLAN_LABELS = { resume: 'Resume plan', bundle: 'Bundle plan' } as const
 
 interface NavItem {
   label: string
@@ -22,6 +34,19 @@ interface NavItem {
 
 export function WorkspaceNav() {
   const { pathname } = useLocation()
+  const license = loadLicense()
+  const [freeLeft, setFreeLeft] = useState<number | null>(null)
+  useEffect(() => {
+    if (license) return
+    let cancelled = false
+    void fetchAiQuota().then((n) => {
+      if (!cancelled) setFreeLeft(n)
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const counts = useMemo(
     () => ({
       resumes: listResumeVersions().length + (loadResume() ? 1 : 0),
@@ -65,6 +90,32 @@ export function WorkspaceNav() {
             </Link>
           ))}
         </nav>
+        <div className="bg-card rounded-md border p-3 text-sm" aria-label="Your plan">
+          <p className="font-medium">{license ? PLAN_LABELS[license.plan] : 'Free plan'}</p>
+          {license ? (
+            <p className="text-muted-foreground mt-1 flex items-center gap-1.5 text-xs">
+              <Sparkles className="size-3.5 shrink-0" /> Unlimited AI
+            </p>
+          ) : (
+            <>
+              {freeLeft !== null && (
+                <p className="text-muted-foreground mt-1 flex items-center gap-1.5 text-xs">
+                  <Sparkles className="size-3.5 shrink-0" />
+                  <span>
+                    Free AI credits left:{' '}
+                    <span className="text-foreground font-medium tabular-nums">{freeLeft}</span>
+                  </span>
+                </p>
+              )}
+              <a
+                href="/pricing/"
+                className="text-primary mt-2 inline-flex min-h-6 items-center text-xs font-medium underline-offset-4 hover:underline"
+              >
+                Upgrade
+              </a>
+            </>
+          )}
+        </div>
       </div>
     </aside>
   )
