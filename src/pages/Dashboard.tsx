@@ -151,6 +151,47 @@ export default function Dashboard() {
     return arr
   }, [versions, sortBy])
 
+  const docDownload = (d: CareerDoc, text: string, fmt: 'pdf' | 'docx', key: string) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="min-h-10 gap-1 px-2 text-xs sm:min-h-8"
+      title={`Download ${d.title} as ${fmt.toUpperCase()}`}
+      disabled={downloading === key}
+      onClick={async () => {
+        setDownloading(key)
+        try {
+          const base =
+            d.kind === 'cover'
+              ? 'cover-letter'
+              : d.kind === 'resignation'
+                ? 'resignation-letter'
+                : 'interview-prep'
+          const letterhead = draft ?? emptyResume()
+          if (fmt === 'pdf') {
+            const m = await import('@/lib/pdf')
+            if (d.kind === 'interview') await m.downloadTextPdf(d.title, text, `${base}.pdf`)
+            else await m.downloadLetterPdf(letterhead, text, `${base}.pdf`)
+          } else {
+            const m = await import('@/lib/docx')
+            if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, `${base}.docx`)
+            else await m.downloadLetterDocx(letterhead, text, `${base}.docx`)
+          }
+        } finally {
+          setDownloading(null)
+        }
+      }}
+    >
+      {downloading === key ? (
+        <Loader2 className="size-3.5 animate-spin" />
+      ) : (
+        <FileDown className="size-3.5" />
+      )}
+      {fmt.toUpperCase()}
+    </Button>
+  )
+
   const runDownload = async (r: Resume, fmt: 'pdf' | 'docx', key: string) => {
     setDownloading(key)
     try {
@@ -652,12 +693,11 @@ export default function Dashboard() {
                         : d.kind === 'resignation'
                           ? 'Resignation letter'
                           : 'Interview prep'}{' '}
-                      ·{' '}
-                      {new Date(d.updatedAt).toLocaleDateString()}
+                      · {editedAgo(d.updatedAt)}
                     </p>
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-1.5">
+                <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
                   <Button
                     type="button"
                     variant="outline"
@@ -670,6 +710,8 @@ export default function Dashboard() {
                   >
                     Open
                   </Button>
+                  {docDownload(d, d.text, 'pdf', `${d.id}-pdf`)}
+                  {docDownload(d, d.text, 'docx', `${d.id}-docx`)}
                   <Button
                     type="button"
                     variant="outline"
@@ -1005,6 +1047,8 @@ export default function Dashboard() {
             aria-label="Document text"
           />
           <DialogFooter className="gap-2">
+            {openDoc && docDownload(openDoc, docText, 'pdf', 'viewer-pdf')}
+            {openDoc && docDownload(openDoc, docText, 'docx', 'viewer-docx')}
             <Button
               type="button"
               variant="outline"
