@@ -3728,7 +3728,7 @@ const AI_SECTIONS = [
   {
     id: 'score',
     name: 'Free ATS match score',
-    copy: 'A transparent, rule-based score computed entirely in your browser: keyword coverage against the posting\u2019s top terms plus a 6-point structure checklist. See matched and missing keywords \u2014 free, before you ever pay.',
+    copy: 'A transparent, rule-based score computed entirely in your browser: keyword coverage against the posting\u2019s top terms plus a 7-point structure checklist. See matched and missing keywords \u2014 free, before you ever pay.',
     svg: '<svg viewBox="0 0 200 120" role="img" aria-label="Score ring illustration" style="width:100%;max-width:320px"><circle cx="100" cy="60" r="38" fill="none" stroke="#e2e8f0" stroke-width="9"/><circle cx="100" cy="60" r="38" fill="none" stroke="#059669" stroke-width="9" stroke-linecap="round" stroke-dasharray="239" stroke-dashoffset="33" transform="rotate(-90 100 60)"/><text x="100" y="68" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="24" font-weight="700" fill="#059669">86</text></svg>',
   },
   {
