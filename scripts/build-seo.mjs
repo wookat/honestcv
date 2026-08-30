@@ -1743,7 +1743,12 @@ function templatePage(p) {
 <meta property="og:image" content="${SITE}/og2.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Templates', path: '/templates/' }, { name: `${p.name} resume template`, path: p.path }]))}</script>
-<style>${CSS}</style>
+<style>${CSS}
+.tpl-others{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr));gap:1rem;margin-top:1rem}
+.tpl-others a{display:block;text-decoration:none;color:inherit}
+.tpl-others a:hover svg{border-color:var(--primary)}
+.tpl-others .nm{display:block;margin-top:.35rem;text-align:center;font-size:.85rem}
+</style>
 ${FP_BEACON}
 </head>
 <body>
@@ -1754,7 +1759,7 @@ ${NAV_HTML}
 </div></header>
 <main>
 <h1>${esc(p.name)} — ATS-friendly resume template</h1>
-<div style="margin:1rem 0">${templateThumbSvg(p.path.split('/').pop(), 140)}</div>
+<div style="margin:1rem 0">${templateThumbSvg(p.path.split('/').pop(), 300)}</div>
 <p class="lede">${esc(p.blurb)}</p>
 <ul class="features">
 <li>Strictly single-column — the layout ATS parsers read most reliably</li>
@@ -1769,9 +1774,9 @@ ${NAV_HTML}
 </div>
 <div class="related">
 <h2>Other templates</h2>
-<ul>
-${others.map((t) => `<li><a href="${t.path}/">${esc(t.name)} resume template</a></li>`).join('\n')}
-</ul>
+<div class="tpl-others">
+${others.map((t) => `<a href="${t.path}/" aria-label="${esc(t.name)} resume template">${templateThumbSvg(t.path.split('/').pop(), '100%')}<span class="nm">${esc(t.name)}</span></a>`).join('\n')}
+</div>
 </div>
 </main>
 <footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
