@@ -33,6 +33,7 @@ import {
   buildInterviewQuestionsMessages,
   buildResignationLetterMessages,
   buildRewriteMessages,
+  buildSummaryDraftMessages,
 } from './prompts'
 
 interface Env extends BillingEnv, LsEnv {
@@ -497,6 +498,72 @@ app.post('/api/ai/rewrite', async (c) => {
   }
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ text: texts?.[0] ?? result.text, texts, freeRemaining })
+})
+
+// Summary draft: write candidate summaries from the resume alone, grounded
+// strictly in existing content. Shares the free AI quota.
+app.post('/api/ai/summary-draft', async (c) => {
+  const body = await c.req
+    .json<{ resumeText?: string; role?: string }>()
+    .catch(() => ({}) as Record<string, never>)
+  const resumeText = body.resumeText?.trim()
+  if (!resumeText) {
+    return c.json(
+      { error: 'Add some experience or skills first — the draft is written only from your resume.' },
+      400
+    )
+  }
+
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent) {
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error: freeMode(c.env)
+            ? 'You have used all free AI calls for now — they reset within 30 days. Downloads stay free.'
+            : 'Free AI rewrites are used up. Unlock RezUp once ($9.99) for unlimited AI rewrites plus PDF/DOCX downloads.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+
+  const result = await callLlm(
+    c.env,
+    buildSummaryDraftMessages(resumeText, body.role ?? ''),
+    0.5,
+    900
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
+  let texts: string[] = []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (Array.isArray(parsed)) {
+      texts = parsed
+        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+        .map((t) => t.trim())
+        .slice(0, 3)
+    }
+  } catch {
+    texts = []
+  }
+  if (texts.length === 0) {
+    return c.json(
+      {
+        error:
+          'The AI service is having trouble right now — please retry in a minute. None of your free AI uses were spent.',
+      },
+      502
+    )
+  }
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  return c.json({ text: texts[0], texts, freeRemaining })
 })
 
 // Keyword bullet: draft one bullet working a missing JD keyword into the

@@ -58,6 +58,16 @@ export async function aiRewrite(
   return data
 }
 
+export async function aiSummaryDraft(input: {
+  resumeText: string
+  role: string
+}): Promise<{ text: string; texts: string[]; freeRemaining: number | null }> {
+  return post<{ text: string; texts: string[]; freeRemaining: number | null }>(
+    '/api/ai/summary-draft',
+    input
+  )
+}
+
 export interface TailorItemInput {
   id: string
   kind: 'summary' | 'bullet'

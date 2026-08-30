@@ -66,6 +66,7 @@ import {
   aiInterviewQuestions,
   aiResignationLetter,
   aiRewrite,
+  aiSummaryDraft,
   aiTailor,
   fetchAiQuota,
 } from '@/lib/api'
@@ -594,6 +595,39 @@ export default function Builder() {
       } else {
         apply(out)
       }
+    } catch (e) {
+      if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
+      else setAiError((e as Error).message)
+    } finally {
+      setAiBusy(null)
+    }
+  }
+
+  const runSummaryDraft = async () => {
+    const tag = 'summary-draft'
+    const hasContent =
+      resume.experience.some((e) => e.role.trim() || e.bullets.some((b) => b.trim())) ||
+      resume.skills.trim().length > 0 ||
+      resume.education.some((e) => e.degree.trim() || e.school.trim())
+    if (!hasContent) {
+      setAiErrorTag(tag)
+      setAiError('Add some experience or skills first — the draft is written only from your resume.')
+      return
+    }
+    setAiBusy(tag)
+    setAiError('')
+    setAiErrorTag(tag)
+    try {
+      const { texts, freeRemaining } = await aiSummaryDraft({
+        resumeText: resumeToPlainText({ ...resume, summary: '' }),
+        role: resume.targetRole,
+      })
+      if (freeRemaining !== null) setFreeLeft(freeRemaining)
+      setVariantPick({
+        title: 'Pick a summary',
+        candidates: texts,
+        apply: (out) => set('summary', out),
+      })
     } catch (e) {
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
@@ -1174,11 +1208,13 @@ export default function Builder() {
               onChange={(e) => set('summary', e.target.value)}
             />
             <div className="flex items-center gap-2">
-              {aiButton('summary', 'AI polish summary', () =>
-                void runRewrite('summary', 'summary', resume.summary, (out) =>
-                  set('summary', out)
-                )
-              )}
+              {resume.summary.trim()
+                ? aiButton('summary', 'AI polish summary', () =>
+                    void runRewrite('summary', 'summary', resume.summary, (out) =>
+                      set('summary', out)
+                    )
+                  )
+                : aiButton('summary-draft', 'Draft from my resume', () => void runSummaryDraft())}
             </div>
           </Section>
 
