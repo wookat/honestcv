@@ -62,6 +62,7 @@ import {
   aiKeywordBullet,
   aiInterviewBrief,
   aiInterviewFeedback,
+  aiInterviewQuestions,
   aiResignationLetter,
   aiRewrite,
   aiTailor,
@@ -2849,6 +2850,8 @@ function BundleToolDialog({
   const [feedback, setFeedback] = useState('')
   const [feedbackBusy, setFeedbackBusy] = useState(false)
   const [feedbackError, setFeedbackError] = useState('')
+  const [suggested, setSuggested] = useState<string[]>([])
+  const [suggestBusy, setSuggestBusy] = useState(false)
   const [lastKind, setLastKind] = useState(kind)
 
   if (kind !== lastKind) {
@@ -2859,6 +2862,30 @@ function BundleToolDialog({
     setFeedback('')
     setFeedbackError('')
     setFeedbackBusy(false)
+    setSuggested([])
+    setSuggestBusy(false)
+  }
+
+  const suggestQuestions = async () => {
+    if (!resume.jobDescription.trim()) {
+      setFeedbackError('Paste the job description in "Target job" first — questions tailor to it.')
+      return
+    }
+    setSuggestBusy(true)
+    setFeedbackError('')
+    try {
+      const { questions, freeRemaining } = await aiInterviewQuestions({
+        resumeText: resumeToPlainText(resume),
+        jobDescription: resume.jobDescription,
+        role: resume.targetRole,
+      })
+      setSuggested(questions)
+      if (freeRemaining !== null) onQuota(freeRemaining)
+    } catch (e) {
+      setFeedbackError((e as Error).message)
+    } finally {
+      setSuggestBusy(false)
+    }
   }
 
   const getFeedback = async () => {
@@ -3150,6 +3177,25 @@ function BundleToolDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="practice-question">Interview question</Label>
+              {suggested.length > 0 && (
+                <ul className="space-y-1">
+                  {suggested.map((q) => (
+                    <li key={q}>
+                      <button
+                        type="button"
+                        className="bg-muted/50 hover:border-primary/50 w-full rounded-md border px-3 py-2 text-left text-xs"
+                        onClick={() => {
+                          setQuestion(q)
+                          setFeedback('')
+                          setFeedbackError('')
+                        }}
+                      >
+                        {q}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <Input
                 id="practice-question"
                 placeholder="e.g. Tell me about a time you led a difficult project"
@@ -3169,15 +3215,26 @@ function BundleToolDialog({
                 onChange={(e) => setAnswer(e.target.value)}
               />
             </div>
-            <Button
-              onClick={() => void getFeedback()}
-              disabled={feedbackBusy}
-              variant="outline"
-              className="min-h-10 sm:min-h-9"
-            >
-              {feedbackBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
-              {feedbackBusy ? 'Coaching…' : 'Get AI feedback'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => void getFeedback()}
+                disabled={feedbackBusy || suggestBusy}
+                variant="outline"
+                className="min-h-10 sm:min-h-9"
+              >
+                {feedbackBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                {feedbackBusy ? 'Coaching…' : 'Get AI feedback'}
+              </Button>
+              <Button
+                onClick={() => void suggestQuestions()}
+                disabled={feedbackBusy || suggestBusy}
+                variant="outline"
+                className="min-h-10 sm:min-h-9"
+              >
+                {suggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                {suggestBusy ? 'Thinking…' : 'Suggest questions'}
+              </Button>
+            </div>
             {feedbackBusy && (
               <p className="text-muted-foreground text-xs" role="status">
                 Usually takes 15–40 seconds — feedback appears below.

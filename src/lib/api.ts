@@ -111,6 +111,17 @@ export async function aiInterviewBrief(input: {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-brief', input)
 }
 
+export async function aiInterviewQuestions(input: {
+  resumeText: string
+  jobDescription: string
+  role: string
+}): Promise<{ questions: string[]; freeRemaining: number | null }> {
+  return post<{ questions: string[]; freeRemaining: number | null }>(
+    '/api/ai/interview-questions',
+    input
+  )
+}
+
 export async function aiInterviewFeedback(input: {
   question: string
   answer: string
