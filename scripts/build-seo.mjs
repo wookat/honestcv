@@ -1327,6 +1327,9 @@ const FOOTER_COLUMNS = [
       ['Resume templates', '/templates/'],
       ['Resume examples', '/examples/'],
       ['Resume guides', '/guides/'],
+      ['Cover letter generator', '/cover-letter-generator/'],
+      ['Interview prep', '/interview-prep/'],
+      ['Resignation letter writer', '/resignation-letter-generator/'],
       ['All comparisons', '/vs/'],
     ],
   ],
@@ -1437,6 +1440,8 @@ details.rnav .panel a:hover{background:var(--border)}
 /** Header nav mirroring the React SiteHeader (src/components/Layout.tsx). */
 const RESOURCE_LINKS = [
   ['Resume guides', '/guides/'],
+  ['Cover letter generator', '/cover-letter-generator/'],
+  ['Interview prep', '/interview-prep/'],
   ['RezUp vs Zety', '/vs/zety'],
   ['RezUp vs LiveCareer', '/vs/livecareer'],
   ['One-time payment builders', '/resume-builder-one-time-payment'],
@@ -3798,12 +3803,153 @@ mkdirSync(path.join(OUT_DIR, 'ai'), { recursive: true })
 writeFileSync(path.join(OUT_DIR, 'ai/index.html'), aiPage())
 console.log('built /ai/index.html')
 
+// ---- Standalone landing pages for the career-document tools ----
+const TOOL_PAGES = [
+  {
+    slug: 'cover-letter-generator',
+    title: 'AI Cover Letter Generator — From Your Resume, Free | RezUp',
+    description:
+      'Generate a tailored cover letter from your real resume and the specific job posting. Letterhead PDF and DOCX export, no invented experience, free during beta.',
+    h1: 'AI cover letter generator',
+    lede: 'Paste the job posting and RezUp writes a cover letter from your actual resume — your real roles, your real results, aimed at that specific job. It never invents experience you don\u2019t have.',
+    cta: '/builder?doc=cover',
+    ctaLabel: 'Write my cover letter free',
+    steps: [
+      ['Build or import your resume', 'The letter is grounded in your resume, so start there \u2014 build one in the editor or import an existing PDF/DOCX. Everything stays in your browser.'],
+      ['Paste the job posting', 'Add the company name and paste the job description. The AI aligns your strongest, most relevant experience to what the posting asks for.'],
+      ['Review, edit and export', 'Edit the draft in place, then download it as a letterhead PDF or DOCX \u2014 your name, contact line and the date, matching your resume\u2019s template style.'],
+    ],
+    faq: [
+      ['Is the cover letter generator free?', 'Yes \u2014 during beta every AI feature is free within a daily credit allowance. When billing opens, unlimited AI is part of a one-time purchase, never a subscription.'],
+      ['Will it make things up about me?', 'No. The letter is written only from what your resume actually says. Where a specific number or detail would strengthen a claim, it leaves a visible gap for you to fill instead of fabricating one.'],
+      ['Where is my letter stored?', 'In your browser (localStorage), alongside your resume. We never store your resume or letters on a server.'],
+      ['What formats can I download?', 'Letterhead PDF and DOCX \u2014 real text, not an image \u2014 with your name, clickable contact details and the date.'],
+    ],
+  },
+  {
+    slug: 'interview-prep',
+    title: 'AI Interview Prep — Questions, STAR Stories, Practice | RezUp',
+    description:
+      'An interview brief built from your resume and the job description: likely questions, STAR stories from your real experience, gaps to prepare \u2014 plus answer practice with AI feedback.',
+    h1: 'AI interview prep',
+    lede: 'Get a prep brief for a specific job: the questions this posting is likely to raise, STAR stories drawn from your real experience, and the gaps you should prepare to address. Then practice answers and get AI feedback.',
+    cta: '/builder?doc=interview',
+    ctaLabel: 'Prep my interview free',
+    steps: [
+      ['Start from your resume and the posting', 'The brief is built from your resume plus the job description you\u2019re interviewing for, so the questions and stories are specific to you and the role.'],
+      ['Read your brief', 'Likely interview questions, suggested STAR stories that use your actual accomplishments, and an honest list of gaps between your background and the posting.'],
+      ['Practice answers with AI feedback', 'Type an answer to any question \u2014 yours or an AI-suggested one \u2014 and get structured feedback: what worked, what to improve, and a stronger version that stays true to your experience.'],
+    ],
+    faq: [
+      ['Is interview prep free?', 'Yes \u2014 during beta every AI feature is free within a daily credit allowance. When billing opens, unlimited AI is part of a one-time purchase, never a subscription.'],
+      ['Will the STAR stories be accurate?', 'They are drawn from the experience in your resume. The AI arranges your real accomplishments into the STAR shape \u2014 it does not invent employers, projects or metrics.'],
+      ['Where is my brief stored?', 'In your browser (localStorage). You can save briefs to your dashboard and export them as text \u2014 nothing is stored on a server.'],
+      ['Is this a video interview simulator?', 'No. RezUp\u2019s prep is text-based: a written brief plus written answer practice with feedback. There is no camera or recorded mock interview.'],
+    ],
+  },
+  {
+    slug: 'resignation-letter-generator',
+    title: 'Resignation Letter Generator — Professional & Free | RezUp',
+    description:
+      'Write a professional, courteous resignation letter in minutes. Letterhead PDF and DOCX export with your details and the date. Free during beta, stored only in your browser.',
+    h1: 'Resignation letter generator',
+    lede: 'Leave on good terms with a short, professional resignation letter: your role, your last working day, and a courteous thank-you \u2014 exported on a letterhead with your name and contact details.',
+    cta: '/builder?doc=resignation',
+    ctaLabel: 'Write my resignation letter free',
+    steps: [
+      ['Fill in the basics', 'Your role, company, and last working day \u2014 plus an optional note of thanks or handover offer.'],
+      ['Generate and edit', 'The AI drafts a concise, professional letter with the right tone \u2014 no oversharing, no burned bridges. Edit any line before you send it.'],
+      ['Export on letterhead', 'Download a letterhead PDF or DOCX with your name, contact line and the date, or copy the text into an email.'],
+    ],
+    faq: [
+      ['Is the resignation letter generator free?', 'Yes \u2014 during beta every AI feature is free within a daily credit allowance. When billing opens, unlimited AI is part of a one-time purchase, never a subscription.'],
+      ['What should a resignation letter include?', 'Three things: a clear statement that you are resigning from your role, your last working day (typically two weeks out or per your contract), and a professional thank-you. Everything else \u2014 reasons, grievances, next plans \u2014 is optional and usually better left out.'],
+      ['Where is my letter stored?', 'In your browser (localStorage). You can save it to your dashboard \u2014 nothing is stored on a server.'],
+    ],
+  },
+]
+
+function toolPage(p) {
+  const canonical = `${SITE}/${p.slug}/`
+  const faqLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: p.faq.map(([q, a]) => ({
+      '@type': 'Question',
+      name: q,
+      acceptedAnswer: { '@type': 'Answer', text: a },
+    })),
+  }
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>${esc(p.title)}</title>
+<meta name="description" content="${esc(p.description)}" />
+<link rel="canonical" href="${canonical}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="RezUp" />
+<meta property="og:title" content="${esc(p.title)}" />
+<meta property="og:description" content="${esc(p.description)}" />
+<meta property="og:url" content="${canonical}" />
+<meta property="og:image" content="${SITE}/og2.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: p.h1, path: `/${p.slug}/` }]))}</script>
+<script type="application/ld+json">${JSON.stringify(faqLd)}</script>
+<style>${CSS}
+.steps{list-style:none;counter-reset:step;padding:0;margin:1rem 0 0;display:grid;gap:1rem}
+.steps li{counter-increment:step;border:1px solid var(--border);background:var(--card);border-radius:var(--radius);padding:1rem 1.25rem;position:relative;padding-left:3.25rem}
+.steps li::before{content:counter(step);position:absolute;left:1rem;top:1.1rem;width:1.5rem;height:1.5rem;border-radius:50%;background:var(--accent);color:var(--primary);font-weight:700;font-size:.8125rem;display:flex;align-items:center;justify-content:center}
+.steps h3{margin:0 0 .25rem;font-size:1rem}
+.steps p{margin:0;color:var(--muted);font-size:.9375rem}
+.faq h3{margin:1.25rem 0 .25rem;font-size:1rem}
+.faq p{margin:0;color:var(--muted);font-size:.9375rem}
+</style>
+${FP_BEACON}
+</head>
+<body>
+<header class="site"><div class="in">
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
+<a class="btn" href="/builder">Build my resume free</a>
+</div></header>
+<main>
+<h1>${esc(p.h1)}</h1>
+<p class="lede">${esc(p.lede)}</p>
+<p style="margin-top:1.25rem"><a class="btn" href="${p.cta}">${esc(p.ctaLabel)}</a></p>
+<h2 style="margin-top:3rem">How it works</h2>
+<ol class="steps">
+${p.steps.map(([h, t]) => `<li><h3>${esc(h)}</h3><p>${esc(t)}</p></li>`).join('\n')}
+</ol>
+<h2 style="margin-top:3rem">Frequently asked questions</h2>
+<div class="faq">
+${p.faq.map(([q, a]) => `<h3>${esc(q)}</h3><p>${esc(a)}</p>`).join('\n')}
+</div>
+<div class="cta">
+<p>Everything runs on your real experience and stays in your browser \u2014 no account, no server-side storage, no subscription.</p>
+<a class="btn" href="${p.cta}">${esc(p.ctaLabel)}</a>
+</div>
+</main>
+${siteFooter()}
+</body>
+</html>`
+}
+
+for (const p of TOOL_PAGES) {
+  mkdirSync(path.join(OUT_DIR, p.slug), { recursive: true })
+  writeFileSync(path.join(OUT_DIR, p.slug, 'index.html'), toolPage(p))
+  console.log(`built /${p.slug}/index.html`)
+}
+
 const urls = [
   '/',
   '/builder',
   '/ats-checker',
   '/pricing/',
   '/ai/',
+  ...TOOL_PAGES.map((p) => `/${p.slug}/`),
   ...PAGES.map((p) => `${p.path}/`),
   ...HUBS.map((h) => h.pathname),
   ...GUIDES.map((p) => `${p.path}/`),
@@ -3836,6 +3982,9 @@ const llms = `# RezUp
 
 - [Resume builder](${SITE}/builder): full editor with templates, live preview and exports
 - [Free ATS checker](${SITE}/ats-checker): paste a resume + job description for an instant match score with matched/missing keywords
+- [Cover letter generator](${SITE}/cover-letter-generator/): AI cover letter from your real resume and a specific job posting, letterhead PDF/DOCX export
+- [Interview prep](${SITE}/interview-prep/): interview brief (likely questions, STAR stories, gaps) plus answer practice with AI feedback
+- [Resignation letter generator](${SITE}/resignation-letter-generator/): professional resignation letter with letterhead export
 
 ## Comparisons (first-hand tests)
 
