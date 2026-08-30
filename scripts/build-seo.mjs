@@ -1817,6 +1817,7 @@ function hubPage({
   extraCss,
   mainStyle,
   filterPlaceholder,
+  filterEmpty,
 }) {
   const canonical = `${SITE}${pathname}`
   const itemListLd = {
@@ -1862,7 +1863,7 @@ ${NAV_HTML}
 <main${mainStyle ? ` style="${mainStyle}"` : ''}>
 <h1>${esc(h1)}</h1>
 <p class="lede">${esc(intro)}</p>
-${filterPlaceholder ? `<input id="hub-filter" type="search" hidden placeholder="${esc(filterPlaceholder)}" aria-label="Filter the list below" autocomplete="off" style="width:100%;max-width:26rem;min-height:2.75rem;margin-top:1rem;padding:0 .875rem;border:1px solid var(--border);border-radius:.5rem;font:inherit;background:#fff" />\n<p id="hub-filter-empty" hidden style="margin-top:1.5rem;color:#667085">No examples match that search \u2014 try a broader word like \u201cengineer\u201d or \u201cmanager\u201d.</p>` : ''}
+${filterPlaceholder ? `<input id="hub-filter" type="search" hidden placeholder="${esc(filterPlaceholder)}" aria-label="Filter the list below" autocomplete="off" style="width:100%;max-width:26rem;min-height:2.75rem;margin-top:1rem;padding:0 .875rem;border:1px solid var(--border);border-radius:.5rem;font:inherit;background:#fff" />\n<p id="hub-filter-empty" hidden style="margin-top:1.5rem;color:#667085">${esc(filterEmpty ?? 'No examples match that search \u2014 try a broader word like \u201cengineer\u201d or \u201cmanager\u201d.')}</p>` : ''}
 ${bodyHtml ?? renderHubItems(items)}
 <div class="cta">
 <p>${FREE_MODE ? 'RezUp is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The RezUp builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
@@ -3424,6 +3425,8 @@ const HUBS = [
     intro:
       'Practical, honest resume advice — no fluff, no fabricated-metrics tricks. Each guide is written to be actionable in minutes and pairs with our free in-browser ATS checker.',
     items: groupedGuideItems(),
+    filterPlaceholder: 'Search guides \u2014 ATS, keywords, gap, cover letter\u2026',
+    filterEmpty: 'No guides match that search \u2014 try a broader word like \u201cATS\u201d or \u201csummary\u201d.',
   },
   {
     pathname: '/examples/',
