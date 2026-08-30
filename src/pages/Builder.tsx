@@ -2471,6 +2471,20 @@ export default function Builder() {
             }}
           >
             {icon} {label}
+            {pane === 'preview' && (
+              <span
+                aria-label={`ATS match score ${ats.score} out of 100`}
+                className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
+                  ats.score >= 80
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : ats.score >= 50
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-red-100 text-red-700'
+                }`}
+              >
+                {ats.score}
+              </span>
+            )}
           </button>
         ))}
       </div>
