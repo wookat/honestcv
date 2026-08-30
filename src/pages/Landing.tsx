@@ -160,6 +160,56 @@ const SUITE = [
   },
 ]
 
+/** Sector cards mirroring EXAMPLE_GROUPS in scripts/build-seo.mjs (static
+ * /examples/ pages are generated at build time, so slugs are duplicated here). */
+const EXAMPLE_SECTORS = [
+  {
+    name: 'Tech & data',
+    count: 6,
+    roles: [
+      ['Software Engineer', 'software-engineer'],
+      ['Data Analyst', 'data-analyst'],
+      ['Product Manager', 'product-manager'],
+    ],
+  },
+  {
+    name: 'Business & finance',
+    count: 8,
+    roles: [
+      ['Marketing Manager', 'marketing-manager'],
+      ['Accountant', 'accountant'],
+      ['Project Manager', 'project-manager'],
+    ],
+  },
+  {
+    name: 'Healthcare & education',
+    count: 5,
+    roles: [
+      ['Registered Nurse', 'registered-nurse'],
+      ['Medical Assistant', 'medical-assistant'],
+      ['Teacher', 'teacher'],
+    ],
+  },
+  {
+    name: 'Trades & transport',
+    count: 4,
+    roles: [
+      ['Electrician', 'electrician'],
+      ['Truck Driver', 'truck-driver'],
+      ['Warehouse Worker', 'warehouse-worker'],
+    ],
+  },
+  {
+    name: 'Customer-facing & office',
+    count: 7,
+    roles: [
+      ['Customer Service', 'customer-service'],
+      ['Retail Associate', 'retail-associate'],
+      ['Administrative Assistant', 'administrative-assistant'],
+    ],
+  },
+] as const
+
 /** Static in-page demos of the builder's core tools, built from the real UI
  * patterns (no invented users or ratings — just the product itself). */
 function ShowcaseAtsScore() {
@@ -691,6 +741,58 @@ export default function Landing() {
             </a>{' '}
             — nurse, engineer, electrician, accountant, retail and more.
           </p>
+        </section>
+
+        {/* Resume examples */}
+        <section aria-labelledby="examples-heading" className="mx-auto max-w-5xl px-4 pb-24">
+          <h2 id="examples-heading" className="text-center text-3xl font-semibold tracking-tight">
+            Steal the structure from 30 real resume examples
+          </h2>
+          <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-center text-sm">
+            Complete resumes for real roles — summary, bullets, skills and all — not
+            lorem ipsum. Open one, see how it's put together, then start yours.
+          </p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {EXAMPLE_SECTORS.map((s) => (
+              <Card
+                key={s.name}
+                className="py-0 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h3 className="font-semibold">{s.name}</h3>
+                    <span className="text-muted-foreground text-xs">{s.count} examples</span>
+                  </div>
+                  <ul className="mt-2">
+                    {s.roles.map(([role, slug]) => (
+                      <li key={slug}>
+                        <a
+                          className="text-muted-foreground hover:text-primary flex min-h-10 items-center text-sm underline-offset-4 hover:underline"
+                          href={`/examples/${slug}/`}
+                        >
+                          {role} resume example
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            ))}
+            <Card className="border-dashed py-0">
+              <CardContent className="flex h-full flex-col items-start justify-center p-5">
+                <h3 className="font-semibold">Every role, one place</h3>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  All 30 examples, grouped by sector, each with a matching template you
+                  can start from.
+                </p>
+                <Button asChild variant="link" className="mt-2 h-auto px-0">
+                  <a href="/examples/">
+                    View all 30 examples <ArrowRight />
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </section>
 
         {/* Pricing */}
