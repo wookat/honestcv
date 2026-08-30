@@ -1,12 +1,21 @@
 /**
  * Live HTML preview of the resume, styled per template to closely mirror the
- * PDF/DOCX output. Rendered inside a fixed-aspect "page".
+ * PDF/DOCX output. Rendered inside fixed-aspect "pages" — pass `paginated`
+ * to show every page of a long resume instead of clipping after page one.
  */
+
+import { useEffect, useRef, useState } from 'react'
 
 import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
-export function ResumePreview({ resume }: { resume: Resume }) {
+export function ResumePreview({
+  resume,
+  paginated = false,
+}: {
+  resume: Resume
+  paginated?: boolean
+}) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const c = resume.contact
   const fontFamily = tpl.serif ? 'Georgia, "Times New Roman", serif' : 'Inter, Arial, sans-serif'
@@ -33,20 +42,14 @@ export function ResumePreview({ resume }: { resume: Resume }) {
     </h3>
   )
 
-  return (
-    <div
-      data-resume-preview
-      className="mx-auto w-full rounded-md border bg-white p-8 text-[#1f1f1f] shadow-sm"
-      style={{
-        fontFamily,
-        aspectRatio: resume.pageSize === 'a4' ? '210 / 297' : '8.5 / 11',
-        overflow: 'hidden',
-        // Mirror the export's text-size and line-spacing settings
-        zoom: fontScaleOf(resume),
-        lineHeight: lineSpacingOf(resume) + 0.1,
-      }}
-      aria-label="Resume preview"
-    >
+  const aspectRatio = resume.pageSize === 'a4' ? '210 / 297' : '8.5 / 11'
+  const contentStyle: React.CSSProperties = {
+    // Mirror the export's text-size and line-spacing settings
+    zoom: fontScaleOf(resume),
+    lineHeight: lineSpacingOf(resume) + 0.1,
+  }
+  const content = (
+    <>
       <div className={tpl.headerAlign === 'left' ? 'text-left' : 'text-center'}>
         <h2 className="text-2xl font-bold">
           {tpl.nameCase === 'upper'
@@ -65,6 +68,121 @@ export function ResumePreview({ resume }: { resume: Resume }) {
 
       {orderedSectionKeys(resume).map((key) => (
         <SectionBlock key={key} sectionKey={key} resume={resume} heading={heading} />
+      ))}
+    </>
+  )
+
+  if (!paginated)
+    return (
+      <div
+        data-resume-preview
+        className="mx-auto w-full rounded-md border bg-white p-8 text-[#1f1f1f] shadow-sm"
+        style={{ fontFamily, aspectRatio, overflow: 'hidden', ...contentStyle }}
+        aria-label="Resume preview"
+      >
+        {content}
+      </div>
+    )
+
+  return (
+    <PaginatedPages resume={resume} fontFamily={fontFamily} contentStyle={contentStyle}>
+      {content}
+    </PaginatedPages>
+  )
+}
+
+const PAGE_PAD = 32
+
+/**
+ * Renders the resume as a stack of page frames. Content is laid out at the
+ * true page width (96dpi Letter/A4) and scaled down to fit the frame, so the
+ * page count is independent of frame width and matches the PDF export's
+ * page geometry. Each frame shows a window onto the same content, shifted
+ * up by one page height per frame.
+ */
+function PaginatedPages({
+  resume,
+  fontFamily,
+  contentStyle,
+  children,
+}: {
+  resume: Resume
+  fontFamily: string
+  contentStyle: React.CSSProperties
+  children: React.ReactNode
+}) {
+  const baseW = resume.pageSize === 'a4' ? 794 : 816
+  const baseH = resume.pageSize === 'a4' ? 1123 : 1056
+  const windowH = baseH - PAGE_PAD * 2
+  const frameRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [pages, setPages] = useState(1)
+  const [scale, setScale] = useState(0)
+
+  useEffect(() => {
+    const frame = frameRef.current
+    const content = contentRef.current
+    if (!frame || !content) return
+    const measure = () => {
+      setScale(frame.clientWidth / baseW)
+      setPages(Math.max(1, Math.ceil((content.scrollHeight - 1) / windowH)))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(frame)
+    ro.observe(content)
+    return () => ro.disconnect()
+  }, [resume, baseW, windowH])
+
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: pages }, (_, i) => (
+        <div
+          key={i}
+          ref={i === 0 ? frameRef : undefined}
+          data-resume-preview={i === 0 ? '' : undefined}
+          className="relative mx-auto w-full rounded-md border bg-white text-[#1f1f1f] shadow-sm"
+          style={{
+            fontFamily,
+            overflow: 'hidden',
+            ...(scale > 0
+              ? { height: baseH * scale }
+              : { aspectRatio: `${baseW} / ${baseH}` }),
+          }}
+          aria-label={`Resume preview page ${i + 1} of ${pages}`}
+        >
+          <div
+            data-resume-page-window
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: baseW,
+              height: baseH,
+              padding: PAGE_PAD,
+              overflow: 'hidden',
+              transform: `scale(${scale || 1})`,
+              transformOrigin: 'top left',
+            }}
+          >
+            <div style={{ height: windowH, overflow: 'hidden' }}>
+              <div
+                ref={i === 0 ? contentRef : undefined}
+                style={{ transform: i > 0 ? `translateY(-${i * windowH}px)` : undefined }}
+              >
+                <div style={contentStyle}>{children}</div>
+              </div>
+            </div>
+          </div>
+          {pages > 1 && (
+            <span
+              aria-hidden
+              className="absolute right-2 bottom-1 text-[9px] text-neutral-400"
+            >
+              Page {i + 1} of {pages}
+            </span>
+          )}
+        </div>
       ))}
     </div>
   )
