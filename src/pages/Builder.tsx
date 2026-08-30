@@ -2333,8 +2333,8 @@ export default function Builder() {
                 <div className="text-muted-foreground mt-1.5 space-y-1.5 rounded-md border p-2.5">
                   <p>
                     {ats.keywordScore !== null
-                      ? 'Score = keyword coverage ×70% + structure checks ×30%. Keyword coverage is the share of the job posting\u2019s top keywords (extracted by frequency, stop-words removed) that appear in your resume. Structure is the 6-point checklist below — each check has equal weight.'
-                      : `Without a job description the score is the 6-point structure checklist below — each check has equal weight (${ats.checks.filter((c) => c.pass).length} of ${ats.checks.length} passing). Paste a job description above to add the stricter keyword-coverage half.`}
+                      ? `Score = keyword coverage ×70% + structure checks ×30%. Keyword coverage is the share of the job posting\u2019s top keywords (extracted by frequency, stop-words removed) that appear in your resume. Structure is the ${ats.checks.length}-point checklist below — each check has equal weight.`
+                      : `Without a job description the score is the ${ats.checks.length}-point structure checklist below — each check has equal weight (${ats.checks.filter((c) => c.pass).length} of ${ats.checks.length} passing). Paste a job description above to add the stricter keyword-coverage half.`}
                   </p>
                   <p>
                     It’s a transparent rule-based check that runs in your browser — it mirrors

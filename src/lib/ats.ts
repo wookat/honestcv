@@ -164,6 +164,11 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
       hint: 'Numbers (%, $, counts) make bullets stand out to recruiters.',
     },
     {
+      label: 'Employment dates found',
+      pass: /\b(19|20)\d{2}\b/.test(resumeText),
+      hint: 'ATS parsers build your work timeline from dates — include years for every role.',
+    },
+    {
       label: 'Enough content to parse',
       pass: resumeTextRaw.trim().length >= 400,
       hint: 'Very short resumes give ATS systems too little to match on.',
@@ -237,6 +242,13 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       label: 'Quantified achievements',
       pass: quantified,
       hint: 'Numbers (%, $, counts) make bullets stand out to recruiters.',
+    },
+    {
+      label: 'Employment dates listed',
+      pass: resume.experience
+        .filter((e) => e.role.trim() || e.company.trim())
+        .every((e) => e.startDate.trim()),
+      hint: 'ATS parsers build your work timeline from dates — add a start date to every role.',
     },
     {
       label: 'Skills section filled',
