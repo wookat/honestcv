@@ -58,6 +58,17 @@ export async function aiRewrite(
   return data
 }
 
+export async function aiSkillSuggest(input: {
+  skills: string
+  role: string
+  jobDescription: string
+}): Promise<{ skills: string[]; freeRemaining: number | null }> {
+  return post<{ skills: string[]; freeRemaining: number | null }>(
+    '/api/ai/skill-suggest',
+    input
+  )
+}
+
 export async function aiSummaryDraft(input: {
   resumeText: string
   role: string

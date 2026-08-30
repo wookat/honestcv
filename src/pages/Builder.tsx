@@ -66,6 +66,7 @@ import {
   aiInterviewQuestions,
   aiResignationLetter,
   aiRewrite,
+  aiSkillSuggest,
   aiSummaryDraft,
   aiTailor,
   fetchAiQuota,
@@ -628,6 +629,34 @@ export default function Builder() {
         candidates: texts,
         apply: (out) => set('summary', out),
       })
+    } catch (e) {
+      if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
+      else setAiError((e as Error).message)
+    } finally {
+      setAiBusy(null)
+    }
+  }
+
+  const [aiSkillChips, setAiSkillChips] = useState<string[] | null>(null)
+
+  const runSkillSuggest = async () => {
+    const tag = 'skill-suggest'
+    if (!resume.skills.trim() && !resume.targetRole.trim()) {
+      setAiErrorTag(tag)
+      setAiError('Add a target role or a few skills first — suggestions build on what you already have.')
+      return
+    }
+    setAiBusy(tag)
+    setAiError('')
+    setAiErrorTag(tag)
+    try {
+      const { skills, freeRemaining } = await aiSkillSuggest({
+        skills: resume.skills,
+        role: resume.targetRole,
+        jobDescription: resume.jobDescription,
+      })
+      if (freeRemaining !== null) setFreeLeft(freeRemaining)
+      setAiSkillChips(skills)
     } catch (e) {
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
@@ -1718,23 +1747,30 @@ export default function Builder() {
                 value={resume.skills}
                 onChange={(e) => set('skills', e.target.value)}
               />
-              {aiButton('skills', 'AI clean up skills', () =>
-                void runRewrite('skills', 'skills', resume.skills, (out) =>
-                  set('skills', out)
-                )
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {aiButton('skills', 'AI clean up skills', () =>
+                  void runRewrite('skills', 'skills', resume.skills, (out) =>
+                    set('skills', out)
+                  )
+                )}
+                {aiButton('skill-suggest', 'AI suggest related skills', () =>
+                  void runSkillSuggest()
+                )}
+              </div>
               {(() => {
                 const have = new Set(
                   resume.skills.split(/[,\n]/).map((s) => s.trim().toLowerCase())
                 )
-                const chips = skillSuggestionsFor(resume.targetRole).filter(
+                const chips = (aiSkillChips ?? skillSuggestionsFor(resume.targetRole)).filter(
                   (s) => !have.has(s.toLowerCase())
                 )
                 if (chips.length === 0) return null
                 return (
                   <div className="text-xs">
                     <span className="text-muted-foreground">
-                      Common for your target role — tap only skills you actually have:
+                      {aiSkillChips
+                        ? 'Related to your skills and role — tap only skills you actually have:'
+                        : 'Common for your target role — tap only skills you actually have:'}
                     </span>
                     <span className="mt-1 flex flex-wrap gap-1">
                       {chips.map((kw) => (
