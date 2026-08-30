@@ -33,6 +33,7 @@ import {
   buildInterviewQuestionsMessages,
   buildResignationLetterMessages,
   buildRewriteMessages,
+  buildSkillSuggestMessages,
   buildSummaryDraftMessages,
 } from './prompts'
 
@@ -564,6 +565,74 @@ app.post('/api/ai/summary-draft', async (c) => {
   }
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ text: texts[0], texts, freeRemaining })
+})
+
+// Skill suggestions: discovery chips related to the user's existing skills /
+// target role — the user confirms each one. Shares the free AI quota.
+app.post('/api/ai/skill-suggest', async (c) => {
+  const body = await c.req
+    .json<{ skills?: string; role?: string; jobDescription?: string }>()
+    .catch(() => ({}) as Record<string, never>)
+  const skills = body.skills?.trim() ?? ''
+  const role = body.role?.trim() ?? ''
+  if (!skills && !role) {
+    return c.json(
+      { error: 'Add a target role or a few skills first — suggestions build on what you already have.' },
+      400
+    )
+  }
+
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent) {
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error: freeMode(c.env)
+            ? 'You have used all free AI calls for now — they reset within 30 days. Downloads stay free.'
+            : 'Free AI rewrites are used up. Unlock RezUp once ($9.99) for unlimited AI rewrites plus PDF/DOCX downloads.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+
+  const result = await callLlm(
+    c.env,
+    buildSkillSuggestMessages(skills, role, body.jobDescription ?? ''),
+    0.5,
+    400
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
+  let suggested: string[] = []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (Array.isArray(parsed)) {
+      suggested = parsed
+        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+        .map((t) => t.trim())
+        .filter((t) => t.length <= 40)
+        .slice(0, 12)
+    }
+  } catch {
+    suggested = []
+  }
+  if (suggested.length === 0) {
+    return c.json(
+      {
+        error:
+          'The AI service is having trouble right now — please retry in a minute. None of your free AI uses were spent.',
+      },
+      502
+    )
+  }
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  return c.json({ skills: suggested, freeRemaining })
 })
 
 // Keyword bullet: draft one bullet working a missing JD keyword into the
