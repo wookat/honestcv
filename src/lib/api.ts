@@ -105,6 +105,15 @@ export async function aiKeywordBullet(input: {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/keyword-bullet', input)
 }
 
+export async function aiSuggestBullet(input: {
+  role: string
+  company: string
+  bullets: string[]
+  resumeText: string
+}): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/suggest-bullet', input)
+}
+
 export async function aiCoverLetter(input: {
   resumeText: string
   jobDescription: string

@@ -76,6 +76,7 @@ import {
   aiResignationLetter,
   aiRewrite,
   aiSkillSuggest,
+  aiSuggestBullet,
   aiSummaryDraft,
   aiTailor,
   fetchAiQuota,
@@ -653,6 +654,34 @@ export default function Builder() {
     } catch (e) {
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
+    } finally {
+      setAiBusy(null)
+    }
+  }
+
+  const runSuggestBullet = async (e: ExperienceItem) => {
+    const tag = `exp-${e.id}-suggest`
+    if (!e.role.trim() && !e.company.trim()) {
+      setAiErrorTag(tag)
+      setAiError('Add a job title or company first — the bullet is drafted for that role.')
+      return
+    }
+    setAiBusy(tag)
+    setAiError('')
+    setAiErrorTag(tag)
+    try {
+      const { text, freeRemaining } = await aiSuggestBullet({
+        role: e.role,
+        company: e.company,
+        bullets: e.bullets.filter((b) => b.trim()),
+        resumeText: resumeToPlainText(resume),
+      })
+      if (freeRemaining !== null) setFreeLeft(freeRemaining)
+      const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
+      if (line) setExp(e.id, { bullets: [...e.bullets.filter((b) => b.trim()), line] })
+    } catch (err) {
+      if (err instanceof PaymentRequiredError && !freeMode) requireUnlock(err.message)
+      else setAiError((err as Error).message)
     } finally {
       setAiBusy(null)
     }
@@ -1531,6 +1560,12 @@ export default function Builder() {
                     })
                   }
                 />
+                {aiButton(
+                  `exp-${e.id}-suggest`,
+                  'Suggest a bullet',
+                  () => void runSuggestBullet(e),
+                  !e.role.trim() && !e.company.trim()
+                )}
                 {aiButton(`exp-${e.id}`, 'AI rewrite bullets', () =>
                   void runRewrite(
                     `exp-${e.id}`,

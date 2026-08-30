@@ -31,6 +31,7 @@ import {
   buildTailorMessages,
   buildCoverLetterMessages,
   buildKeywordBulletMessages,
+  buildSuggestBulletMessages,
   buildInterviewBriefMessages,
   buildInterviewFeedbackMessages,
   buildInterviewQuestionsMessages,
@@ -678,6 +679,55 @@ app.post('/api/ai/keyword-bullet', async (c) => {
     c.env,
     buildKeywordBulletMessages(keyword, resumeText, jd, body.role ?? ''),
     0.5,
+    400
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  return c.json({ text, freeRemaining })
+})
+
+// Suggest one new bullet for a specific experience entry, grounded in the
+// resume (bracketed placeholders where specifics are unknown). Shares the
+// free AI quota.
+app.post('/api/ai/suggest-bullet', async (c) => {
+  const body = await c.req
+    .json<{ role?: string; company?: string; bullets?: string[]; resumeText?: string }>()
+    .catch(() => ({}) as Record<string, never>)
+  const role = body.role?.trim() ?? ''
+  const company = body.company?.trim() ?? ''
+  if (!role && !company) {
+    return c.json({ error: 'Add a job title or company first — the bullet is drafted for that role.' }, 400)
+  }
+  if (role.length > 200 || company.length > 200) {
+    return c.json({ error: 'That role or company name is too long.' }, 400)
+  }
+  const bullets = Array.isArray(body.bullets)
+    ? body.bullets.filter((b): b is string => typeof b === 'string').slice(0, 12)
+    : []
+  const resumeText = body.resumeText?.trim() ?? ''
+
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent) {
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error: 'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+
+  const result = await callLlm(
+    c.env,
+    buildSuggestBulletMessages(role, company, bullets, resumeText),
+    0.6,
     400
   )
   // Quota is consumed only after a successful call, so failures cost nothing
