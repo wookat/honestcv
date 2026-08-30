@@ -832,7 +832,7 @@ export default function Builder() {
               onClick={undo}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
-              className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
+              className="hidden min-h-10 min-w-10 sm:inline-flex sm:min-h-8 sm:min-w-8"
             >
               <Undo2 className="size-3.5" />
             </Button>
@@ -869,6 +869,7 @@ export default function Builder() {
               variant="outline"
               onClick={() => void download('docx')}
               disabled={Boolean(downloading)}
+              className="hidden sm:inline-flex"
             >
               {downloading === 'docx' ? (
                 <Loader2 className="animate-spin" />
