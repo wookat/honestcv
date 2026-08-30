@@ -13,6 +13,8 @@ export function usePageMeta(title: string, description: string) {
 
 const RESOURCE_LINKS: [string, string][] = [
   ['Resume guides', '/guides/'],
+  ['Cover letter generator', '/cover-letter-generator/'],
+  ['Interview prep', '/interview-prep/'],
   ['RezUp vs Zety', '/vs/zety'],
   ['RezUp vs LiveCareer', '/vs/livecareer'],
   ['One-time payment builders', '/resume-builder-one-time-payment'],
@@ -131,6 +133,9 @@ const FOOTER_COLUMNS: [string, [string, string][]][] = [
       ['Resume templates', '/templates/'],
       ['Resume examples', '/examples/'],
       ['Resume guides', '/guides/'],
+      ['Cover letter generator', '/cover-letter-generator/'],
+      ['Interview prep', '/interview-prep/'],
+      ['Resignation letter writer', '/resignation-letter-generator/'],
       ['All comparisons', '/vs/'],
     ],
   ],
