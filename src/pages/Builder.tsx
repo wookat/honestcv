@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   LayoutTemplate,
   Save,
+  Share2,
   Lightbulb,
   Shield,
   Bot,
@@ -101,6 +102,12 @@ import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { downloadText } from '@/lib/download'
 import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import { trackEvent } from '@/lib/track'
+import {
+  type ShareLink,
+  createShareLink,
+  loadShareLink,
+  revokeShareLink,
+} from '@/lib/share'
 
 import {
   type ExperienceItem,
@@ -401,6 +408,11 @@ export default function Builder() {
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
+  const [shareLinkOpen, setShareLinkOpen] = useState(false)
+  const [shareLink, setShareLink] = useState<ShareLink | null>(() => loadShareLink())
+  const [shareBusy, setShareBusy] = useState(false)
+  const [shareError, setShareError] = useState('')
+  const [shareLinkCopied, setShareLinkCopied] = useState(false)
   // ?doc=cover&company=<name> deep link from the /jobs board's "Cover letter" action
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(() => {
     const doc = new URLSearchParams(window.location.search).get('doc')
@@ -1143,6 +1155,20 @@ export default function Builder() {
               }}
             >
               <Copy className="size-3" /> Copies{versions.length > 0 ? ` (${versions.length})` : ''}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 gap-1 text-xs sm:h-7"
+              title="Get a read-only link anyone can open — no signup needed"
+              onClick={() => {
+                setShareError('')
+                setShareLinkCopied(false)
+                setShareLinkOpen(true)
+              }}
+            >
+              <Share2 className="size-3" /> Share link
             </Button>
             <Button
               asChild
@@ -3745,6 +3771,114 @@ export default function Builder() {
               </a>
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={shareLinkOpen} onOpenChange={setShareLinkOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share this resume</DialogTitle>
+            <DialogDescription>
+              Anyone with the link sees a read-only snapshot of this resume — no
+              signup needed. Turn it off anytime.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <span className="flex items-center gap-2 font-medium">
+              {shareLink ? (
+                <Unlock aria-hidden className="size-4" />
+              ) : (
+                <Lock aria-hidden className="size-4" />
+              )}
+              Anyone with the link
+            </span>
+            <select
+              aria-label="Link access"
+              className="border-input bg-background h-10 rounded-md border px-3 text-sm"
+              value={shareLink ? 'view' : 'off'}
+              disabled={shareBusy}
+              onChange={(e) => {
+                setShareError('')
+                setShareLinkCopied(false)
+                if (e.target.value === 'view') {
+                  setShareBusy(true)
+                  createShareLink(resume)
+                    .then((link) => setShareLink(link))
+                    .catch((err: unknown) =>
+                      setShareError(err instanceof Error ? err.message : 'Sharing failed.')
+                    )
+                    .finally(() => setShareBusy(false))
+                } else {
+                  setShareBusy(true)
+                  void revokeShareLink()
+                    .then(() => setShareLink(null))
+                    .finally(() => setShareBusy(false))
+                }
+              }}
+            >
+              <option value="off">No access</option>
+              <option value="view">Can view</option>
+            </select>
+          </div>
+          {shareBusy && (
+            <p className="text-muted-foreground text-sm" role="status">
+              {shareLink ? 'Turning off…' : 'Creating link…'}
+            </p>
+          )}
+          {shareError && (
+            <p className="text-destructive text-sm" role="alert">
+              {shareError}
+            </p>
+          )}
+          {shareLink && !shareBusy && (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={shareLink.url}
+                  aria-label="Share link"
+                  onFocus={(e) => e.target.select()}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 shrink-0"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(shareLink.url)
+                      .then(() => setShareLinkCopied(true))
+                  }}
+                >
+                  {shareLinkCopied ? 'Copied!' : 'Copy'}
+                </Button>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                The link shows a snapshot from{' '}
+                {new Date(shareLink.sharedAt).toLocaleString()} — publish again
+                after edits to update it. Unshared links expire after 180 days.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 sm:h-8"
+                disabled={shareBusy}
+                onClick={() => {
+                  setShareError('')
+                  setShareLinkCopied(false)
+                  setShareBusy(true)
+                  createShareLink(resume)
+                    .then((link) => setShareLink(link))
+                    .catch((err: unknown) =>
+                      setShareError(err instanceof Error ? err.message : 'Sharing failed.')
+                    )
+                    .finally(() => setShareBusy(false))
+                }}
+              >
+                Publish latest version
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <Dialog
