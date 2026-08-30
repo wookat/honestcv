@@ -16,6 +16,7 @@ import {
   GripVertical,
   LayoutGrid,
   LayoutTemplate,
+  Save,
   Lightbulb,
   ListChecks,
   ListOrdered,
@@ -84,6 +85,7 @@ import {
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText } from '@/lib/download'
+import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import { trackEvent } from '@/lib/track'
 
 import {
@@ -2676,12 +2678,14 @@ function BundleToolDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
+  const [savedId, setSavedId] = useState<string | null>(null)
   const [lastKind, setLastKind] = useState(kind)
 
   if (kind !== lastKind) {
     setLastKind(kind)
     setResult('')
     setError('')
+    setSavedId(null)
   }
 
   const generate = async () => {
@@ -2708,6 +2712,7 @@ function BundleToolDialog({
               role: resume.targetRole,
             })
       setResult(text)
+      setSavedId(null)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
       setError((e as Error).message)
@@ -2808,6 +2813,34 @@ function BundleToolDialog({
                 }
               >
                 <Download /> DOCX
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                title="Keep this document — reopen it anytime from My resumes"
+                onClick={() => {
+                  const docTitle =
+                    kind === 'cover'
+                      ? `${company || resume.targetRole || 'Untitled'} — Cover letter`
+                      : `${resume.targetRole || 'Untitled'} — Interview prep`
+                  if (savedId) {
+                    updateCareerDoc(savedId, { title: docTitle, text: result })
+                  } else {
+                    setSavedId(
+                      saveCareerDoc(kind === 'cover' ? 'cover' : 'interview', docTitle, result).id
+                    )
+                  }
+                }}
+              >
+                {savedId ? (
+                  <>
+                    <Check /> Saved — update
+                  </>
+                ) : (
+                  <>
+                    <Save /> Save to My resumes
+                  </>
+                )}
               </Button>
             </div>
           </>
