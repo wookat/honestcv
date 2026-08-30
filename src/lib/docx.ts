@@ -17,7 +17,15 @@ import {
   TextRun,
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
-import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys } from '@/lib/resume'
+import {
+  type Resume,
+  dividerOf,
+  fontScaleOf,
+  lineSpacingOf,
+  orderedSectionKeys,
+  sectionSpacingOf,
+  serifOf,
+} from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
 const FONT_SERIF = 'Georgia'
@@ -30,7 +38,7 @@ const PAGE_TWIPS = {
 
 export async function downloadResumeDocx(resume: Resume, filename: string) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
-  const font = tpl.serif ? FONT_SERIF : FONT_SANS
+  const font = serifOf(resume, tpl.serif) ? FONT_SERIF : FONT_SANS
   const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
   const rightTab = pageSize.width - 864 * 2
   const accent = tpl.accent.replace('#', '')
@@ -38,20 +46,22 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   const sz = (n: number) => Math.round(n * fs)
   // docx line spacing: 240 twips = single; scale by the user's line-spacing setting
   const lineTwips = Math.round(240 * (lineSpacingOf(resume) / 1.35))
+  const divider = dividerOf(resume, tpl.divider)
+  const headingBefore = Math.round(240 * sectionSpacingOf(resume))
   const heading = (text: string) =>
     new Paragraph({
-      spacing: { before: 240, after: 80 },
+      spacing: { before: headingBefore, after: 80 },
       keepNext: true,
       shading: tpl.band
         ? { type: ShadingType.CLEAR, fill: accentTint(tpl.accent).replace('#', '') }
         : undefined,
       border:
-        tpl.divider === 'none' || tpl.band
+        divider === 'none' || tpl.band
           ? undefined
           : {
               bottom: {
                 style: BorderStyle.SINGLE,
-                size: tpl.divider === 'thick' ? 12 : 4,
+                size: divider === 'thick' ? 12 : 4,
                 color: accent,
               },
             },

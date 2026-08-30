@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   ArrowDown,
   ArrowUp,
@@ -13,7 +14,10 @@ import {
   FileUp,
   GraduationCap,
   GripVertical,
+  History,
+  LayoutGrid,
   LayoutTemplate,
+  Save,
   Lightbulb,
   ListChecks,
   ListOrdered,
@@ -58,6 +62,9 @@ import {
   aiCoverLetter,
   aiKeywordBullet,
   aiInterviewBrief,
+  aiInterviewFeedback,
+  aiInterviewQuestions,
+  aiResignationLetter,
   aiRewrite,
   aiTailor,
   fetchAiQuota,
@@ -82,6 +89,7 @@ import {
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText } from '@/lib/download'
+import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import { trackEvent } from '@/lib/track'
 
 import {
@@ -99,6 +107,9 @@ import {
   newId,
   orderedSectionKeys,
   listResumeVersions,
+  listResumeHistory,
+  recordResumeSnapshot,
+  type ResumeSnapshot,
   resumeToPlainText,
   resumeToMarkdown,
   sampleResume,
@@ -126,6 +137,7 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     window.clearTimeout(t.current)
     t.current = window.setTimeout(() => {
       saveResume(resume)
+      recordResumeSnapshot(resume)
       pending.current = null
       setState('saved')
     }, 400)
@@ -136,6 +148,7 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     const flush = () => {
       if (pending.current) {
         saveResume(pending.current)
+        recordResumeSnapshot(pending.current)
         pending.current = null
       }
     }
@@ -170,6 +183,22 @@ function usePdfPageCount(resume: Resume): number | null {
   }, [resume])
   return pages
 }
+
+const FIT_COMBOS: Array<
+  [NonNullable<Resume['fontScale']>, NonNullable<Resume['lineSpacing']>]
+> = [
+  ['l', 'relaxed'],
+  ['l', 'normal'],
+  ['m', 'relaxed'],
+  ['l', 'compact'],
+  ['m', 'normal'],
+  ['s', 'relaxed'],
+  ['m', 'compact'],
+  ['s', 'normal'],
+  ['s', 'compact'],
+]
+
+const SCALE_NAME = { s: 'small', m: 'medium', l: 'large' } as const
 
 /** Global undo: snapshots resume state (throttled) and restores on Ctrl/Cmd+Z */
 function useUndo(
@@ -352,7 +381,7 @@ export default function Builder() {
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
-  const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | null>(null)
+  const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(null)
   const [tailorOpen, setTailorOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
   const [kwBulletFor, setKwBulletFor] = useState<string | null>(null)
@@ -400,10 +429,42 @@ export default function Builder() {
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
   const pdfPages = usePdfPageCount(resume)
+  const [fitBusy, setFitBusy] = useState(false)
+  const [fitMsg, setFitMsg] = useState('')
+  const autoFit = useCallback(async () => {
+    setFitBusy(true)
+    setFitMsg('')
+    try {
+      const { countResumePdfPages } = await import('@/lib/pdf')
+      let best: { fontScale: 's' | 'm' | 'l'; lineSpacing: 'compact' | 'normal' | 'relaxed'; pages: number } | null = null
+      for (const [fontScale, lineSpacing] of FIT_COMBOS) {
+        const pages = await countResumePdfPages({ ...resume, fontScale, lineSpacing })
+        if (!best || pages < best.pages) best = { fontScale, lineSpacing, pages }
+        if (pages === 1) break
+      }
+      if (!best) return
+      const same =
+        best.fontScale === (resume.fontScale ?? 'm') &&
+        best.lineSpacing === (resume.lineSpacing ?? 'normal')
+      if (!same) {
+        setResume((r) => ({ ...r, fontScale: best.fontScale, lineSpacing: best.lineSpacing }))
+      }
+      setFitMsg(
+        same
+          ? `Already at the best fit — ${best.pages} page${best.pages === 1 ? '' : 's'}`
+          : `Fits ${best.pages} page${best.pages === 1 ? '' : 's'} — set ${SCALE_NAME[best.fontScale]} text, ${best.lineSpacing} spacing`
+      )
+    } catch {
+      setFitMsg('Auto-fit failed — please try again')
+    } finally {
+      setFitBusy(false)
+    }
+  }, [resume, setResume])
   const [templateFilter, setTemplateFilter] = useState('all')
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
   const { undo, canUndo } = useUndo(resume, setResume)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const expDrag = useDragReorder((from, to) =>
     setResume((r) => ({ ...r, experience: reorder(r.experience, from, to) }))
   )
@@ -694,8 +755,18 @@ export default function Builder() {
               onClick={undo}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
+              className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
             >
               <Undo2 className="size-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setHistoryOpen(true)}
+              title="Edit history — automatic checkpoints of this draft"
+              className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
+            >
+              <History className="size-3.5" />
             </Button>
             <Button size="sm" onClick={() => void download('pdf')} disabled={Boolean(downloading)}>
               {downloading === 'pdf' ? (
@@ -920,6 +991,17 @@ export default function Builder() {
               }}
             >
               <Copy className="size-3" /> Copies{versions.length > 0 ? ` (${versions.length})` : ''}
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-10 gap-1 text-xs sm:h-7"
+              title="See all your resumes and copies in one place"
+            >
+              <Link to="/dashboard">
+                <LayoutGrid className="size-3" /> My resumes
+              </Link>
             </Button>
             <input
               ref={backupFileRef}
@@ -1231,7 +1313,29 @@ export default function Builder() {
                   value={e.bullets.join('\n')}
                   onChange={(ev) => setExp(e.id, { bullets: ev.target.value.split('\n') })}
                 />
-                <BulletGuidance bullets={e.bullets} />
+                <BulletGuidance
+                  bullets={e.bullets}
+                  busyLine={
+                    aiBusy?.startsWith(`exp-${e.id}-line-`)
+                      ? Number(aiBusy.slice(`exp-${e.id}-line-`.length))
+                      : null
+                  }
+                  onFix={(idx) =>
+                    void runRewrite(
+                      `exp-${e.id}-line-${idx}`,
+                      'bullets',
+                      e.bullets[idx] ?? '',
+                      (out) =>
+                        setExp(e.id, {
+                          bullets: e.bullets.map((b, i) =>
+                            i === idx
+                              ? (out.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim() || b
+                              : b
+                          ),
+                        })
+                    )
+                  }
+                />
                 <BulletIdeas
                   role={`${e.role} ${resume.targetRole}`}
                   onAdd={(s) =>
@@ -1790,13 +1894,30 @@ export default function Builder() {
           }`}
         >
           {pdfPages !== null && (
-            <p
-              className={`text-xs ${pdfPages > 1 ? 'text-amber-700' : 'text-muted-foreground'}`}
-            >
-              PDF export: {pdfPages} page{pdfPages === 1 ? '' : 's'}
-              {pdfPages > 1 &&
-                ' — recruiters prefer one page; consider trimming older roles or long bullets'}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p
+                className={`text-xs ${pdfPages > 1 ? 'text-amber-700' : 'text-muted-foreground'}`}
+              >
+                PDF export: {pdfPages} page{pdfPages === 1 ? '' : 's'}
+                {pdfPages > 1 &&
+                  ' — recruiters prefer one page; consider trimming older roles or long bullets'}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 gap-1 text-xs sm:h-7"
+                disabled={fitBusy}
+                title="Pick the most readable text size and line spacing that fit the fewest pages"
+                onClick={() => void autoFit()}
+              >
+                <Wand2 className="size-3" /> {fitBusy ? 'Fitting…' : 'Auto-fit'}
+              </Button>
+              {fitMsg && (
+                <p role="status" className="text-muted-foreground text-xs">
+                  {fitMsg}
+                </p>
+              )}
+            </div>
           )}
           <div
             className="flex flex-wrap items-center gap-1.5"
@@ -1899,6 +2020,32 @@ export default function Builder() {
             </span>
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Font</span>
+              {(
+                [
+                  ['auto', 'Auto', 'Follow the template’s font'],
+                  ['serif', 'Serif', 'Georgia / Times — traditional look'],
+                  ['sans', 'Sans', 'Inter / Calibri — modern look'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — applies to preview, PDF and DOCX`}
+                  aria-pressed={(resume.fontFamily ?? 'auto') === value}
+                  onClick={() => set('fontFamily', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.fontFamily ?? 'auto') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Text</span>
               {(['s', 'm', 'l'] as const).map((scale) => (
                 <button
@@ -1936,6 +2083,58 @@ export default function Builder() {
                   onClick={() => set('lineSpacing', value)}
                   className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
                     (resume.lineSpacing ?? 'normal') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Sections</span>
+              {(
+                [
+                  ['tight', 'Tight'],
+                  ['normal', 'Normal'],
+                  ['roomy', 'Roomy'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${label} space between sections — applies to preview, PDF and DOCX`}
+                  aria-pressed={(resume.sectionSpacing ?? 'normal') === value}
+                  onClick={() => set('sectionSpacing', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.sectionSpacing ?? 'normal') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Divider</span>
+              {(
+                [
+                  ['auto', 'Auto', 'Follow the template’s section divider'],
+                  ['on', 'On', 'Show a rule under each section heading'],
+                  ['off', 'Off', 'Hide section divider rules'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — applies to preview, PDF and DOCX`}
+                  aria-pressed={(resume.sectionDivider ?? 'auto') === value}
+                  onClick={() => set('sectionDivider', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.sectionDivider ?? 'auto') === value
                       ? 'border-primary ring-primary/40 ring-2'
                       : 'hover:border-muted-foreground/40'
                   }`}
@@ -2087,13 +2286,14 @@ export default function Builder() {
 
           <div className="rounded-lg border bg-slate-100/90 p-3 sm:p-6 dark:bg-slate-900/40">
             <div className="shadow-lg">
-              <ResumePreview resume={resume} />
+              <ResumePreview resume={resume} paginated />
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             <Button
               variant="outline"
+              className="min-h-10 sm:min-h-9"
               onClick={() =>
                 hasBundlePlan || freeMode
                   ? setToolOpen('cover')
@@ -2107,6 +2307,7 @@ export default function Builder() {
             </Button>
             <Button
               variant="outline"
+              className="min-h-10 sm:min-h-9"
               onClick={() =>
                 hasBundlePlan || freeMode
                   ? setToolOpen('interview')
@@ -2116,6 +2317,20 @@ export default function Builder() {
               }
             >
               <MessagesSquare /> Interview prep{' '}
+              {!hasBundlePlan && !freeMode && <Lock className="size-3 opacity-60" />}
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-10 sm:min-h-9"
+              onClick={() =>
+                hasBundlePlan || freeMode
+                  ? setToolOpen('resignation')
+                  : requireUnlock(
+                      'The resignation letter writer is part of the Career Bundle ($19.99, one-time).'
+                    )
+              }
+            >
+              <FileText /> Resignation letter{' '}
               {!hasBundlePlan && !freeMode && <Lock className="size-3 opacity-60" />}
             </Button>
           </div>
@@ -2184,6 +2399,17 @@ export default function Builder() {
         health={health}
         ats={ats}
       />
+      {historyOpen && (
+        <HistoryDialog
+          resume={resume}
+          onClose={() => setHistoryOpen(false)}
+          onRestore={(snap) => {
+            recordResumeSnapshot(resume, true)
+            setResume({ ...emptyResume(), ...snap.data })
+            setHistoryOpen(false)
+          }}
+        />
+      )}
       {kwBulletFor !== null && (
         <KeywordBulletDialog
           keyword={kwBulletFor}
@@ -2237,7 +2463,8 @@ export default function Builder() {
             <DialogTitle>Resume copies</DialogTitle>
             <DialogDescription>
               Keep one copy per job you're applying to — tailor keywords without
-              losing your master version. Copies live in this browser only.
+              losing your master version. Copies live in this browser only. Manage
+              them visually on <Link to="/dashboard" className="underline">My resumes</Link>.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2">
@@ -2361,9 +2588,11 @@ export default function Builder() {
           <DialogHeader>
             <DialogTitle>Import your existing resume</DialogTitle>
             <DialogDescription>
-              Upload a PDF, DOCX or TXT file — or paste the text below. We'll pre-fill
-              the sections, entirely in your browser; nothing is uploaded to a server.
-              Review the result; imports are a starting point, not perfect.
+              Upload a PDF, DOCX or TXT file — including the PDF LinkedIn saves
+              from your profile (More → Save to PDF) — or paste the text below.
+              We'll pre-fill the sections, entirely in your browser; nothing is
+              uploaded to a server. Review the result; imports are a starting
+              point, not perfect.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap items-center gap-2">
@@ -2587,18 +2816,40 @@ function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void
   )
 }
 
-function BulletGuidance({ bullets }: { bullets: string[] }) {
+function BulletGuidance({
+  bullets,
+  onFix,
+  busyLine,
+}: {
+  bullets: string[]
+  onFix?: (index: number) => void
+  busyLine?: number | null
+}) {
   const results = useMemo(() => checkBullets(bullets), [bullets])
   if (results.length === 0) return null
   return (
     <ul className="space-y-0.5 text-xs">
-      {results.slice(0, 4).map((r) =>
-        r.issues.slice(0, 2).map((issue) => (
-          <li key={`${r.index}-${issue.kind}`} className="text-amber-700">
-            ⚠ Line {r.index + 1}: {issue.message}
-          </li>
-        ))
-      )}
+      {results.slice(0, 4).map((r) => (
+        <li key={r.index} className="text-amber-700">
+          {r.issues.slice(0, 2).map((issue) => (
+            <span key={issue.kind} className="block">
+              ⚠ Line {r.index + 1}: {issue.message}
+            </span>
+          ))}
+          {onFix && (
+            <button
+              type="button"
+              className="text-primary mt-0.5 inline-flex min-h-10 items-center gap-1 underline underline-offset-2 disabled:opacity-50 sm:min-h-0"
+              disabled={busyLine !== null && busyLine !== undefined}
+              onClick={() => onFix(r.index)}
+              title={`AI rewrites line ${r.index + 1} — you pick from the suggestions`}
+            >
+              <Sparkles aria-hidden className="size-3" />
+              {busyLine === r.index ? 'Fixing…' : `Fix line ${r.index + 1} with AI`}
+            </button>
+          )}
+        </li>
+      ))}
     </ul>
   )
 }
@@ -2609,27 +2860,111 @@ function BundleToolDialog({
   resume,
   onQuota,
 }: {
-  kind: 'cover' | 'interview' | null
+  kind: 'cover' | 'interview' | 'resignation' | null
   onClose: () => void
   resume: Resume
   onQuota: (remaining: number) => void
 }) {
   const [company, setCompany] = useState('')
+  const [currentRole, setCurrentRole] = useState('')
+  const [lastDay, setLastDay] = useState('')
+  const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
+  const [savedId, setSavedId] = useState<string | null>(null)
+  const [question, setQuestion] = useState('')
+  const [answer, setAnswer] = useState('')
+  const [feedback, setFeedback] = useState('')
+  const [feedbackBusy, setFeedbackBusy] = useState(false)
+  const [feedbackError, setFeedbackError] = useState('')
+  const [suggested, setSuggested] = useState<string[]>([])
+  const [suggestBusy, setSuggestBusy] = useState(false)
   const [lastKind, setLastKind] = useState(kind)
 
   if (kind !== lastKind) {
     setLastKind(kind)
     setResult('')
     setError('')
+    setSavedId(null)
+    setFeedback('')
+    setFeedbackError('')
+    setFeedbackBusy(false)
+    setSuggested([])
+    setSuggestBusy(false)
+  }
+
+  const suggestQuestions = async () => {
+    if (!resume.jobDescription.trim()) {
+      setFeedbackError('Paste the job description in "Target job" first — questions tailor to it.')
+      return
+    }
+    setSuggestBusy(true)
+    setFeedbackError('')
+    try {
+      const { questions, freeRemaining } = await aiInterviewQuestions({
+        resumeText: resumeToPlainText(resume),
+        jobDescription: resume.jobDescription,
+        role: resume.targetRole,
+      })
+      setSuggested(questions)
+      if (freeRemaining !== null) onQuota(freeRemaining)
+    } catch (e) {
+      setFeedbackError((e as Error).message)
+    } finally {
+      setSuggestBusy(false)
+    }
+  }
+
+  const getFeedback = async () => {
+    if (!question.trim()) {
+      setFeedbackError('Type the interview question first.')
+      return
+    }
+    if (answer.trim().length < 20) {
+      setFeedbackError('Write your answer first — a couple of sentences at least.')
+      return
+    }
+    setFeedbackBusy(true)
+    setFeedbackError('')
+    try {
+      const { text, freeRemaining } = await aiInterviewFeedback({
+        question,
+        answer,
+        resumeText: resumeToPlainText(resume),
+        jobDescription: resume.jobDescription,
+        role: resume.targetRole,
+      })
+      setFeedback(text)
+      if (freeRemaining !== null) onQuota(freeRemaining)
+    } catch (e) {
+      setFeedbackError((e as Error).message)
+    } finally {
+      setFeedbackBusy(false)
+    }
   }
 
   const generate = async () => {
     setBusy(true)
     setError('')
     try {
+      if (kind === 'resignation') {
+        if (!company.trim() || !currentRole.trim()) {
+          setError('Fill in your company and current role first.')
+          return
+        }
+        const { text, freeRemaining } = await aiResignationLetter({
+          company,
+          role: currentRole,
+          lastDay,
+          reason,
+          name: resume.contact.fullName,
+        })
+        setResult(text)
+        setSavedId(null)
+        if (freeRemaining !== null) onQuota(freeRemaining)
+        return
+      }
       const resumeText = resumeToPlainText(resume)
       const jd = resume.jobDescription
       if (!jd.trim()) {
@@ -2650,6 +2985,7 @@ function BundleToolDialog({
               role: resume.targetRole,
             })
       setResult(text)
+      setSavedId(null)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
       setError((e as Error).message)
@@ -2659,6 +2995,17 @@ function BundleToolDialog({
   }
 
   const insertTemplate = () => {
+    if (kind === 'resignation') {
+      const name = resume.contact.fullName || '[Your name]'
+      const co = company || '[Company]'
+      const role = currentRole || '[your role]'
+      const day = lastDay || '[last working day — typically two weeks from today]'
+      setResult(
+        `Dear [Manager name],\n\nPlease accept this letter as formal notice of my resignation from my position as ${role} at ${co}. My last working day will be ${day}.\n\nI'm grateful for the opportunities I've had here — [one specific thing you genuinely appreciated: a project, a skill you grew, the team]. Thank you for your support during my time with the company.\n\nI'm committed to a smooth handover: I'll document my ongoing work and am happy to help train a replacement before I leave.\n\nSincerely,\n${name}`
+      )
+      setError('')
+      return
+    }
     if (kind === 'interview') {
       const role = resume.targetRole || '[role]'
       setResult(
@@ -2676,14 +3023,21 @@ function BundleToolDialog({
     setError('')
   }
 
-  const title = kind === 'cover' ? 'Cover Letter' : 'Interview Prep Brief'
+  const title =
+    kind === 'cover'
+      ? 'Cover Letter'
+      : kind === 'resignation'
+        ? 'Resignation Letter'
+        : 'Interview Prep Brief'
   return (
     <Dialog open={kind !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Tailored to your resume and the job description you pasted in "Target job".
+            {kind === 'resignation'
+              ? 'A professional, gracious letter — fill in your company and role below.'
+              : 'Tailored to your resume and the job description you pasted in "Target job".'}
           </DialogDescription>
         </DialogHeader>
         {kind === 'cover' && (
@@ -2695,6 +3049,46 @@ function BundleToolDialog({
               value={company}
               onChange={(e) => setCompany(e.target.value)}
             />
+          </div>
+        )}
+        {kind === 'resignation' && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="res-company">Company you're leaving</Label>
+              <Input
+                id="res-company"
+                placeholder="e.g. Acme Corp"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="res-role">Your current role</Label>
+              <Input
+                id="res-role"
+                placeholder="e.g. Senior Analyst"
+                value={currentRole}
+                onChange={(e) => setCurrentRole(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="res-last-day">Last working day (optional)</Label>
+              <Input
+                id="res-last-day"
+                placeholder="e.g. March 14"
+                value={lastDay}
+                onChange={(e) => setLastDay(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="res-reason">Reason — sets the tone (optional)</Label>
+              <Input
+                id="res-reason"
+                placeholder="e.g. new opportunity, relocation"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            </div>
           </div>
         )}
         <div className="flex flex-wrap gap-2">
@@ -2729,7 +3123,11 @@ function BundleToolDialog({
                     m.downloadTextPdf(
                       title,
                       result,
-                      kind === 'cover' ? 'cover-letter.pdf' : 'interview-prep.pdf'
+                      kind === 'cover'
+                        ? 'cover-letter.pdf'
+                        : kind === 'resignation'
+                          ? 'resignation-letter.pdf'
+                          : 'interview-prep.pdf'
                     )
                   )
                 }
@@ -2744,15 +3142,143 @@ function BundleToolDialog({
                     m.downloadTextDocx(
                       title,
                       result,
-                      kind === 'cover' ? 'cover-letter.docx' : 'interview-prep.docx'
+                      kind === 'cover'
+                        ? 'cover-letter.docx'
+                        : kind === 'resignation'
+                          ? 'resignation-letter.docx'
+                          : 'interview-prep.docx'
                     )
                   )
                 }
               >
                 <Download /> DOCX
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                title="Keep this document — reopen it anytime from My resumes"
+                onClick={() => {
+                  const docTitle =
+                    kind === 'cover'
+                      ? `${company || resume.targetRole || 'Untitled'} — Cover letter`
+                      : kind === 'resignation'
+                        ? `${company || 'Untitled'} — Resignation letter`
+                        : `${resume.targetRole || 'Untitled'} — Interview prep`
+                  if (savedId) {
+                    updateCareerDoc(savedId, { title: docTitle, text: result })
+                  } else {
+                    setSavedId(
+                      saveCareerDoc(
+                        kind === 'cover'
+                          ? 'cover'
+                          : kind === 'resignation'
+                            ? 'resignation'
+                            : 'interview',
+                        docTitle,
+                        result
+                      ).id
+                    )
+                  }
+                }}
+              >
+                {savedId ? (
+                  <>
+                    <Check /> Saved — update
+                  </>
+                ) : (
+                  <>
+                    <Save /> Save to My resumes
+                  </>
+                )}
+              </Button>
             </div>
           </>
+        )}
+        {kind === 'interview' && (
+          <div className="space-y-3 border-t pt-4">
+            <div>
+              <p className="text-sm font-medium">Practice an answer</p>
+              <p className="text-muted-foreground text-xs">
+                Type a question and your answer — AI coaches you against your resume and the
+                target job.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="practice-question">Interview question</Label>
+              {suggested.length > 0 && (
+                <ul className="space-y-1">
+                  {suggested.map((q) => (
+                    <li key={q}>
+                      <button
+                        type="button"
+                        className="bg-muted/50 hover:border-primary/50 w-full rounded-md border px-3 py-2 text-left text-xs"
+                        onClick={() => {
+                          setQuestion(q)
+                          setFeedback('')
+                          setFeedbackError('')
+                        }}
+                      >
+                        {q}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Input
+                id="practice-question"
+                placeholder="e.g. Tell me about a time you led a difficult project"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                maxLength={300}
+                className="min-h-10 sm:min-h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="practice-answer">Your answer</Label>
+              <Textarea
+                id="practice-answer"
+                rows={5}
+                placeholder="Answer out loud, then type what you said — honest first drafts get the most useful coaching."
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => void getFeedback()}
+                disabled={feedbackBusy || suggestBusy}
+                variant="outline"
+                className="min-h-10 sm:min-h-9"
+              >
+                {feedbackBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                {feedbackBusy ? 'Coaching…' : 'Get AI feedback'}
+              </Button>
+              <Button
+                onClick={() => void suggestQuestions()}
+                disabled={feedbackBusy || suggestBusy}
+                variant="outline"
+                className="min-h-10 sm:min-h-9"
+              >
+                {suggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                {suggestBusy ? 'Thinking…' : 'Suggest questions'}
+              </Button>
+            </div>
+            {feedbackBusy && (
+              <p className="text-muted-foreground text-xs" role="status">
+                Usually takes 15–40 seconds — feedback appears below.
+              </p>
+            )}
+            {feedbackError && <p className="text-destructive text-sm">{feedbackError}</p>}
+            {feedback && (
+              <Textarea
+                readOnly
+                rows={12}
+                value={feedback}
+                className="font-mono text-xs"
+                aria-label="AI feedback on your answer"
+              />
+            )}
+          </div>
         )}
       </DialogContent>
     </Dialog>
@@ -3040,6 +3566,83 @@ function HealthDialog({
             </div>
           ))}
         </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const snapshotAgo = (ms: number) => {
+  const mins = Math.floor((Date.now() - ms) / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return mins === 1 ? '1 minute ago' : `${mins} minutes ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`
+  const days = Math.floor(hours / 24)
+  return days === 1 ? '1 day ago' : `${days} days ago`
+}
+
+/** Automatic checkpoints of the draft — restore rolls the builder back;
+ * the pre-restore draft is checkpointed first so restores are reversible. */
+function HistoryDialog({
+  resume,
+  onClose,
+  onRestore,
+}: {
+  resume: Resume
+  onClose: () => void
+  onRestore: (snap: ResumeSnapshot) => void
+}) {
+  const [snapshots] = useState<ResumeSnapshot[]>(() => listResumeHistory())
+  const currentJson = useMemo(() => JSON.stringify(resume), [resume])
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit history</DialogTitle>
+          <DialogDescription>
+            The builder keeps a checkpoint of your draft about every 10 minutes while
+            you edit. Restoring saves a checkpoint of the current draft first.
+          </DialogDescription>
+        </DialogHeader>
+        {snapshots.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            No checkpoints yet — keep editing and one is saved automatically about
+            every 10 minutes.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {snapshots.map((s) => {
+              const isCurrent = JSON.stringify(s.data) === currentJson
+              return (
+                <li
+                  key={s.id}
+                  className="flex min-h-10 items-center justify-between gap-3 rounded-md border px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{snapshotAgo(s.at)}</p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {[s.data.contact.fullName || 'Untitled', s.data.targetRole]
+                        .filter(Boolean)
+                        .join(' — ')}
+                    </p>
+                  </div>
+                  {isCurrent ? (
+                    <span className="text-muted-foreground shrink-0 text-xs">Current</span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-10 shrink-0 sm:min-h-8"
+                      onClick={() => onRestore(s)}
+                    >
+                      <History className="size-3.5" /> Restore
+                    </Button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </DialogContent>
     </Dialog>
   )

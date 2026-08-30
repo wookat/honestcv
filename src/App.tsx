@@ -5,6 +5,8 @@ import NotFound from '@/pages/NotFound'
 
 const Builder = lazy(() => import('@/pages/Builder'))
 const AtsChecker = lazy(() => import('@/pages/AtsChecker'))
+const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const Jobs = lazy(() => import('@/pages/Jobs'))
 
 // Mirrors the static skeleton injected into spa.html (scripts/prerender.mjs)
 // so slow connections see a stable form outline until the route chunk lands.
@@ -35,6 +37,8 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/builder" element={<Builder />} />
         <Route path="/ats-checker" element={<AtsChecker />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/jobs" element={<Jobs />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

@@ -46,12 +46,26 @@ const CUSTOM_HEADING_RE =
 const isBullet = (line: string) => /^[-–—•*·▪◦]\s+/.test(line)
 const stripBullet = (line: string) => line.replace(/^[-–—•*·▪◦]\s+/, '').trim()
 
+// LinkedIn "Profile → More → Save to PDF" export markers: a `handle (LinkedIn)`
+// contact line, the sidebar's "Top Skills" heading, or page footers.
+const LI_PAGE_RE = /^page \d+ of \d+$/i
+const LI_DURATION_RE = /\s*\((?:less than a year|\d+\s+years?(?:\s+\d+\s+months?)?|\d+\s+months?)\)\s*$/i
+
+export function looksLikeLinkedInExport(raw: string): boolean {
+  return (
+    /^\S+\s+\(LinkedIn\)$/im.test(raw) ||
+    /^top skills$/im.test(raw) ||
+    (LINKEDIN_RE.test(raw) &&
+      raw.split(/\r?\n/).some((l) => LI_PAGE_RE.test(l.trim())))
+  )
+}
+
 /** First phone-like match that isn't actually a year range like "2010 - 2014". */
 function findPhone(text: string): string {
   const re = new RegExp(PHONE_RE.source, 'g')
   for (const m of text.matchAll(re)) {
     const candidate = m[0].trim()
-    if (/^\d{4}\s*[–—-]\s*\d{4}$/.test(candidate)) continue
+    if (/^\(?\d{4}\s*[–—-]\s*\d{4}\)?$/.test(candidate)) continue
     if (candidate.replace(/\D/g, '').length < 7) continue
     return candidate
   }
@@ -124,6 +138,7 @@ function splitRoleCompany(text: string): { role: string; company: string; locati
 }
 
 export function parseResumeText(raw: string): Resume {
+  if (looksLikeLinkedInExport(raw)) return parseLinkedInText(raw)
   const resume = emptyResume()
   resume.experience = []
   resume.education = []
@@ -304,6 +319,255 @@ export function parseResumeText(raw: string): Resume {
     .map((s) => s.trim())
     .filter(Boolean)
     .join(', ')
+  resume.certifications = certLines.join('; ')
+
+  if (resume.experience.length === 0) resume.experience = [emptyExperience()]
+  if (resume.education.length === 0) resume.education = [emptyEducation()]
+  return resume
+}
+
+type LiSection = SectionName | 'contact' | 'custom' | null
+
+const LI_HEADINGS: [RegExp, LiSection][] = [
+  [/^contact$/i, 'contact'],
+  [/^top skills$/i, 'skills'],
+  [/^(summary|about)$/i, 'summary'],
+  [/^experience$/i, 'experience'],
+  [/^education$/i, 'education'],
+  [/^skills$/i, 'skills'],
+  [/^(certifications?|licenses & certifications)$/i, 'certifications'],
+]
+
+/** A standalone tenure line under a company with several roles, e.g. "3 years 2 months". */
+const LI_TENURE_RE = /^(?:less than a year|\d+\s+years?(?:\s+\d+\s+months?)?|\d+\s+months?)$/i
+
+const LI_LOCATION_RE = /^[A-Za-zÀ-ÿ .'-]+(?:,\s*[A-Za-zÀ-ÿ .'-]+){1,2}$/
+
+/** A short line without ending punctuation — likely a company/role header. */
+const looksLikeExpHeader = (line: string) =>
+  line.length <= 60 && line.split(/\s+/).length <= 8 && !/[.!?:,;]$/.test(line)
+
+/**
+ * Parser for LinkedIn's own "Save to PDF" profile export. Its layout is
+ * fixed: main column with name / headline / location / Summary / Experience
+ * (company line first, then role, then a date line with a tenure note) /
+ * Education, and a sidebar with Contact, Top Skills, Languages, etc.
+ */
+function parseLinkedInText(raw: string): Resume {
+  const resume = emptyResume()
+  resume.experience = []
+  resume.education = []
+
+  const lines = raw
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && !LI_PAGE_RE.test(l))
+
+  const text = raw
+  resume.contact.email = text.match(EMAIL_RE)?.[0] ?? ''
+  resume.contact.phone = findPhone(text.replace(/^.*\(LinkedIn\).*$/gim, ''))
+  const fullUrl = text.match(LINKEDIN_RE)?.[0] ?? ''
+  const handle = text.match(/^(\S+)\s+\(LinkedIn\)$/im)?.[1] ?? ''
+  resume.contact.linkedin =
+    fullUrl && !/linkedin\.com\/in\/?$/i.test(fullUrl)
+      ? fullUrl
+      : handle
+        ? `linkedin.com/in/${handle}`
+        : fullUrl
+
+  let section: LiSection = null
+  let currentCustom: CustomSection | null = null
+  const summaryLines: string[] = []
+  const skills: string[] = []
+  const certLines: string[] = []
+  const headerLines: string[] = []
+
+  let expHeader: string[] = []
+  let currentExp: ExperienceItem | null = null
+  let lastCompany = ''
+  let expectLocation = false
+
+  let eduSchool = ''
+  let currentEdu: EducationItem | null = null
+
+  const flushExp = () => {
+    if (!currentExp && expHeader.length > 0) {
+      // Trailing header lines without a date line — still an entry
+      currentExp = {
+        ...emptyExperience(),
+        id: newId(),
+        company: expHeader[0] ?? '',
+        role: expHeader[1] ?? '',
+        bullets: [],
+      }
+      resume.experience.push(currentExp)
+    }
+    expHeader = []
+    currentExp = null
+    expectLocation = false
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.replace(LI_DURATION_RE, '').trim()
+    if (!line) continue
+
+    const heading = LI_HEADINGS.find(([re]) => re.test(line.replace(/[:：]$/, '')))
+    if (heading) {
+      if (section === 'experience') flushExp()
+      section = heading[1]
+      currentCustom = null
+      currentEdu = null
+      eduSchool = ''
+      continue
+    }
+    if (section !== null && section !== 'summary') {
+      // Only well-known headings here — an ALL-CAPS company name like "IBM"
+      // must not start a custom section.
+      const t = line.replace(/[:：]$/, '')
+      const customTitle = t.length <= 32 && CUSTOM_HEADING_RE.test(t) ? t : null
+      if (customTitle) {
+        if (section === 'experience') flushExp()
+        section = 'custom'
+        currentCustom = { id: newId(), title: customTitle, bullets: [] }
+        resume.customSections.push(currentCustom)
+        continue
+      }
+    }
+
+    switch (section) {
+      case null:
+        headerLines.push(line)
+        break
+      case 'contact':
+        // email / phone / profile handle — already captured via regexes
+        break
+      case 'summary':
+        summaryLines.push(line)
+        break
+      case 'skills':
+        skills.push(line)
+        break
+      case 'certifications':
+        certLines.push(line)
+        break
+      case 'custom':
+        if (currentCustom) currentCustom.bullets.push(stripBullet(line))
+        break
+      case 'experience': {
+        const { rest, start, end } = extractDates(line)
+        if (start && rest.length <= 12) {
+          // Date line closes the entry header: company first, then role.
+          // Header lines of a follow-up role may have been buffered as
+          // description lines of the previous entry — reclaim short trailing
+          // lines without ending punctuation.
+          if (expHeader.length === 0 && currentExp) {
+            while (
+              expHeader.length < 2 &&
+              currentExp.bullets.length > 0 &&
+              looksLikeExpHeader(currentExp.bullets[currentExp.bullets.length - 1])
+            ) {
+              expHeader.unshift(currentExp.bullets.pop() as string)
+            }
+          }
+          const company = expHeader.length >= 2 ? expHeader[0] : lastCompany
+          const role = expHeader.length >= 2 ? expHeader.slice(1).join(' ') : (expHeader[0] ?? '')
+          currentExp = {
+            ...emptyExperience(),
+            id: newId(),
+            company,
+            role,
+            startDate: start,
+            endDate: end,
+            bullets: [],
+          }
+          if (company) lastCompany = company
+          resume.experience.push(currentExp)
+          expHeader = []
+          expectLocation = true
+        } else if (!currentExp) {
+          if (LI_TENURE_RE.test(line)) {
+            // Company with several roles: "Company\n<total tenure>\nRole\nDates…"
+            if (expHeader.length > 0) lastCompany = expHeader[0]
+            expHeader = []
+          } else {
+            expHeader.push(line)
+          }
+        } else if (LI_TENURE_RE.test(line)) {
+          // A new company block begins (previous line was its name)
+          const name = currentExp.bullets.pop()
+          flushExp()
+          if (name) lastCompany = name
+        } else if (
+          expectLocation &&
+          !currentExp.location &&
+          line.length <= 60 &&
+          (LI_LOCATION_RE.test(line) || /^remote$/i.test(line))
+        ) {
+          currentExp.location = line
+          expectLocation = false
+        } else if (isBullet(line)) {
+          currentExp.bullets.push(stripBullet(line))
+          expectLocation = false
+        } else if (
+          currentExp.bullets.length > 0 &&
+          /^[a-zà-ÿ]/.test(line) &&
+          !/[.!?:]$/.test(currentExp.bullets[currentExp.bullets.length - 1])
+        ) {
+          // Wrapped continuation of the previous description line
+          currentExp.bullets[currentExp.bullets.length - 1] += ` ${line}`
+        } else {
+          currentExp.bullets.push(line)
+          expectLocation = false
+        }
+        break
+      }
+      case 'education': {
+        const { rest, start, end } = extractDates(line)
+        if (eduSchool) {
+          // "Degree, Field of study · (2014 - 2018)"
+          const degree = rest.replace(/\s*·\s*$/, '').replace(/[\s·(),-]+$/, '').trim()
+          currentEdu = {
+            ...emptyEducation(),
+            id: newId(),
+            school: eduSchool,
+            degree,
+            startDate: start,
+            endDate: end,
+          }
+          resume.education.push(currentEdu)
+          eduSchool = ''
+        } else if (start && currentEdu && !currentEdu.startDate && !rest) {
+          currentEdu.startDate = start
+          currentEdu.endDate = end
+        } else {
+          eduSchool = line
+        }
+        break
+      }
+      default:
+        break
+    }
+  }
+  if (section === 'experience') flushExp()
+  if (eduSchool) {
+    resume.education.push({ ...emptyEducation(), id: newId(), school: eduSchool })
+  }
+
+  // Header: name, then headline (possibly wrapped), then location
+  const header = headerLines.filter((l) => !EMAIL_RE.test(l) && !/\(LinkedIn\)/i.test(l))
+  resume.contact.fullName = header[0] ?? ''
+  const headline: string[] = []
+  for (const line of header.slice(1)) {
+    if (LI_LOCATION_RE.test(line) && line.length <= 60 && headline.length > 0) {
+      resume.contact.location = line
+      break
+    }
+    headline.push(line)
+  }
+  resume.contact.title = headline.join(' ')
+
+  resume.summary = summaryLines.join(' ')
+  resume.skills = skills.join(', ')
   resume.certifications = certLines.join('; ')
 
   if (resume.experience.length === 0) resume.experience = [emptyExperience()]

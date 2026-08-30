@@ -5,7 +5,15 @@
 
 import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'
 import { downloadBlob } from '@/lib/download'
-import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys } from '@/lib/resume'
+import {
+  type Resume,
+  dividerOf,
+  fontScaleOf,
+  lineSpacingOf,
+  orderedSectionKeys,
+  sectionSpacingOf,
+  serifOf,
+} from '@/lib/resume'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_SIZES = {
@@ -58,6 +66,10 @@ class PdfWriter {
   fs = 1
   /** Line-height multiplier (user line-spacing setting) */
   lh = 1.35
+  /** Section-spacing multiplier (user sections setting) */
+  ss = 1
+  /** Section divider rule (user override applied over the template) */
+  divider: 'line' | 'thick' | 'none' = 'line'
 
   constructor(doc: PDFDocument, fonts: Fonts, tpl: TemplateMeta, size: 'letter' | 'a4') {
     this.doc = doc
@@ -69,6 +81,7 @@ class PdfWriter {
     this.contentW = this.pageW - MARGIN * 2
     this.page = doc.addPage([this.pageW, this.pageH])
     this.y = this.pageH - MARGIN
+    this.divider = tpl.divider
   }
 
   ensure(height: number) {
@@ -198,7 +211,7 @@ class PdfWriter {
     // heading + divider + first content line, so a heading never sits
     // alone at the bottom of a page
     this.ensure(52)
-    this.gap(10)
+    this.gap(10 * this.ss)
     if (this.tpl.band) {
       const size = 11 * this.fs
       const bandH = size * this.lh + 6
@@ -223,8 +236,8 @@ class PdfWriter {
       return
     }
     this.text(text, { font: this.fonts.bold, size: 11, color: this.accent })
-    if (this.tpl.divider !== 'none') {
-      const thickness = this.tpl.divider === 'thick' ? 2 : 0.75
+    if (this.divider !== 'none') {
+      const thickness = this.divider === 'thick' ? 2 : 0.75
       this.gap(3)
       this.page.drawLine({
         start: { x: MARGIN, y: this.y },
@@ -265,7 +278,7 @@ class PdfWriter {
 async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const doc = await PDFDocument.create()
-  const fonts: Fonts = tpl.serif
+  const fonts: Fonts = serifOf(resume, tpl.serif)
     ? {
         regular: await doc.embedFont(StandardFonts.TimesRoman),
         bold: await doc.embedFont(StandardFonts.TimesRomanBold),
@@ -279,6 +292,8 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
   const w = new PdfWriter(doc, fonts, tpl, resume.pageSize === 'a4' ? 'a4' : 'letter')
   w.fs = fontScaleOf(resume)
   w.lh = lineSpacingOf(resume)
+  w.ss = sectionSpacingOf(resume)
+  w.divider = dividerOf(resume, tpl.divider)
   const c = resume.contact
 
   const centerHeader = tpl.headerAlign !== 'left'

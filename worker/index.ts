@@ -29,6 +29,9 @@ import {
   buildCoverLetterMessages,
   buildKeywordBulletMessages,
   buildInterviewBriefMessages,
+  buildInterviewFeedbackMessages,
+  buildInterviewQuestionsMessages,
+  buildResignationLetterMessages,
   buildRewriteMessages,
 } from './prompts'
 
@@ -178,7 +181,7 @@ const app = new Hono<{ Bindings: Env }>()
 // cache middleware) so the SPA shells served by the Worker for /builder and
 // /ats-checker get cf-cache hits like the static assets already do.
 // Bump to invalidate edge-cached Worker HTML on deploys that change rendering.
-const CACHE_VER = 3
+const CACHE_VER = 4
 
 const etagOf = async (buf: ArrayBuffer) => {
   const d = await crypto.subtle.digest('SHA-1', buf)
@@ -230,7 +233,7 @@ app.use('*', async (c, next) => {
   h.set(
     'Content-Security-Policy',
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://resume.zalize.com https://resume-forge.wookat520.workers.dev; " +
+      "img-src 'self' data: blob: https://remotive.com; font-src 'self'; connect-src 'self' https://resume.zalize.com https://resume-forge.wookat520.workers.dev; " +
       "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; " +
       "form-action 'self'; frame-ancestors 'self'"
   )
@@ -239,12 +242,11 @@ app.use('*', async (c, next) => {
   } else if (c.req.path.startsWith('/fonts/')) {
     h.set('Cache-Control', 'public, max-age=604800')
   } else if (c.req.method === 'GET' && !c.req.path.startsWith('/api/') && c.res.status === 200) {
-    // Pages: browsers revalidate quickly; the edge holds them for 10 minutes
-    // (s-maxage also opts the response into the cache middleware above).
-    // The zone edge cache sits in front of the Worker and can't be purged
-    // with our API tokens, so s-maxage bounds how long a stale SPA shell
-    // (with previous-deploy asset hashes) survives a deploy.
-    h.set('Cache-Control', 'public, max-age=300, s-maxage=600')
+    // Pages: short TTLs everywhere (s-maxage also opts the response into the
+    // cache middleware above). The zone edge cache sits in front of the Worker
+    // and can't be purged with our API tokens, so s-maxage bounds how long a
+    // stale SPA shell (with previous-deploy asset hashes) survives a deploy.
+    h.set('Cache-Control', 'public, max-age=60, s-maxage=60')
   }
 })
 
@@ -307,6 +309,121 @@ app.get('/api/ai/quota', async (c) => {
   const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
   const used = Number((await c.env.KV.get(quotaKvKey(fp, 'ai'))) ?? '0')
   return c.json({ freeRemaining: Math.max(limit - used, 0) })
+})
+
+// Job search: proxy Remotive's public remote-jobs API behind a KV cache so
+// the upstream sees at most one request per query per hour. Descriptions are
+// flattened to plain text so the client can feed them straight into the JD
+// tailoring flow (and the CSP never has to allow third-party origins).
+const JOBS_CACHE_TTL = 60 * 60
+const JOBS_MAX_QUERY = 80
+const JOBS_MAX_DESCRIPTION = 8_000
+
+const htmlToText = (html: string) =>
+  html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<li[^>]*>/gi, '\n• ')
+    .replace(/<br\s*\/?>|<\/p>|<\/div>|<\/h[1-6]>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&(#39|apos|#x27);/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ ?\n ?/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+
+// Fixed category slugs accepted by Remotive's `category` parameter,
+// mapped to the category labels Remotive uses on job entries. The label
+// match is enforced here because the upstream parameter is not always
+// honored; 'all-others' acts as the catch-all for unmatched labels.
+const JOBS_CATEGORIES: Record<string, string[]> = {
+  'software-dev': ['software development'],
+  'customer-support': ['customer service'],
+  design: ['design'],
+  marketing: ['marketing'],
+  'sales-business': ['sales', 'business'],
+  product: ['product'],
+  'project-management': ['project management'],
+  data: ['data analysis', 'data'],
+  devops: ['devops', 'sysadmin'],
+  'finance-legal': ['finance', 'legal'],
+  hr: ['human resources'],
+  qa: ['qa', 'quality assurance'],
+  writing: ['writing'],
+  'all-others': [],
+}
+const JOBS_KNOWN_LABELS = new Set(
+  Object.values(JOBS_CATEGORIES).flat()
+)
+
+function matchesCategory(slug: string, label: string): boolean {
+  const l = label.trim().toLowerCase()
+  if (slug === 'all-others') return !JOBS_KNOWN_LABELS.has(l)
+  return JOBS_CATEGORIES[slug].includes(l)
+}
+
+interface RemotiveJob {
+  id?: number | string
+  url?: string
+  title?: string
+  company_name?: string
+  company_logo?: string
+  category?: string
+  job_type?: string
+  publication_date?: string
+  candidate_required_location?: string
+  salary?: string
+  description?: string
+}
+
+app.get('/api/jobs/search', async (c) => {
+  const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
+  const rawCategory = (c.req.query('category') ?? '').trim()
+  const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
+  const cacheKey = `jobs:v3:${q.toLowerCase()}|${category}`
+  const cached = await c.env.KV.get(cacheKey)
+  if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
+  const upstreamUrl = new URL('https://remotive.com/api/remote-jobs')
+  if (q) upstreamUrl.searchParams.set('search', q)
+  if (category) upstreamUrl.searchParams.set('category', category)
+  upstreamUrl.searchParams.set('limit', '50')
+  let upstream: Response | undefined
+  try {
+    upstream = await fetch(upstreamUrl, { headers: { accept: 'application/json' } })
+  } catch {
+    // network failure: handled below
+  }
+  if (!upstream?.ok) {
+    return c.json({ error: 'Job search is unavailable right now — please retry shortly.' }, 502)
+  }
+  const data = await upstream
+    .json<{ jobs?: RemotiveJob[] }>()
+    .catch(() => ({ jobs: [] as RemotiveJob[] }))
+  const jobs = (data.jobs ?? [])
+    .filter((j) => j.id && j.title && j.url)
+    .filter((j) => !category || matchesCategory(category, j.category ?? ''))
+    .map((j) => ({
+      id: String(j.id),
+      title: j.title ?? '',
+      company: j.company_name ?? '',
+      logo: j.company_logo ?? '',
+      category: j.category ?? '',
+      type: (j.job_type ?? '').replace(/_/g, ' '),
+      location: j.candidate_required_location || 'Remote',
+      postedAt: j.publication_date ?? '',
+      salary: j.salary ?? '',
+      url: j.url ?? '',
+      description: htmlToText(j.description ?? '').slice(0, JOBS_MAX_DESCRIPTION),
+    }))
+  const payload = { jobs, source: 'remotive' }
+  c.executionCtx.waitUntil(
+    c.env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: JOBS_CACHE_TTL })
+  )
+  return c.json(payload)
 })
 
 app.get('/api/health', (c) => {
@@ -539,6 +656,57 @@ app.post('/api/ai/cover-letter', async (c) => {
   return c.json({ text: result.text, freeRemaining })
 })
 
+// Resignation letter — Career Bundle (free mode: shares the free AI quota)
+app.post('/api/ai/resignation-letter', async (c) => {
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent || ent.plan !== 'bundle') {
+    if (!freeMode(c.env)) {
+      return c.json(
+        {
+          error: 'The resignation letter writer is part of the Career Bundle ($19.99, one-time).',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error:
+            'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+  const body = await c.req
+    .json<{ company?: string; role?: string; lastDay?: string; reason?: string; name?: string }>()
+    .catch(() => ({}) as Record<string, never>)
+  const company = body.company?.trim()
+  const role = body.role?.trim()
+  if (!company) return c.json({ error: 'Add your company name first.' }, 400)
+  if (!role) return c.json({ error: 'Add your current role first.' }, 400)
+  const result = await callLlm(
+    c.env,
+    buildResignationLetterMessages(
+      company,
+      role,
+      body.lastDay?.trim() ?? '',
+      body.reason ?? '',
+      body.name?.trim() ?? ''
+    ),
+    0.6
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  return c.json({ text: result.text, freeRemaining })
+})
+
 // Interview brief — Career Bundle (free mode: shares the free AI quota)
 app.post('/api/ai/interview-brief', async (c) => {
   const ent = await entitlementFromRequest(c)
@@ -576,6 +744,133 @@ app.post('/api/ai/interview-brief', async (c) => {
   const result = await callLlm(
     c.env,
     buildInterviewBriefMessages(resumeText, jd, body.role ?? ''),
+    0.5
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  return c.json({ text: result.text, freeRemaining })
+})
+
+// Interview practice questions — Career Bundle (free mode: shares the free AI quota)
+app.post('/api/ai/interview-questions', async (c) => {
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent || ent.plan !== 'bundle') {
+    if (!freeMode(c.env)) {
+      return c.json(
+        {
+          error: 'Interview practice is part of the Career Bundle ($19.99, one-time).',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error:
+            'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+  const body = await c.req
+    .json<{ resumeText?: string; jobDescription?: string; role?: string }>()
+    .catch(() => ({}) as Record<string, never>)
+  const resumeText = body.resumeText?.trim()
+  const jd = body.jobDescription?.trim()
+  if (!resumeText) return c.json({ error: 'Add resume content first.' }, 400)
+  if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
+  const result = await callLlm(
+    c.env,
+    buildInterviewQuestionsMessages(resumeText, jd, body.role ?? ''),
+    0.6,
+    600
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
+  let questions: string[] = []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (Array.isArray(parsed)) {
+      questions = parsed
+        .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
+        .map((q) => q.trim().slice(0, 200))
+        .slice(0, 5)
+    }
+  } catch {
+    questions = []
+  }
+  if (questions.length === 0) {
+    return c.json(
+      {
+        error:
+          'The AI service is having trouble right now — please retry in a minute. None of your free AI uses were spent.',
+      },
+      502
+    )
+  }
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  return c.json({ questions, freeRemaining })
+})
+
+// Interview answer feedback — Career Bundle (free mode: shares the free AI quota)
+app.post('/api/ai/interview-feedback', async (c) => {
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent || ent.plan !== 'bundle') {
+    if (!freeMode(c.env)) {
+      return c.json(
+        {
+          error: 'Interview practice is part of the Career Bundle ($19.99, one-time).',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error:
+            'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+  const body = await c.req
+    .json<{
+      question?: string
+      answer?: string
+      resumeText?: string
+      jobDescription?: string
+      role?: string
+    }>()
+    .catch(() => ({}) as Record<string, never>)
+  const question = body.question?.trim()
+  const answer = body.answer?.trim()
+  if (!question) return c.json({ error: 'Type the interview question first.' }, 400)
+  if (!answer || answer.length < 20) {
+    return c.json({ error: 'Write your answer first — a couple of sentences at least.' }, 400)
+  }
+  const result = await callLlm(
+    c.env,
+    buildInterviewFeedbackMessages(
+      question,
+      answer,
+      body.resumeText ?? '',
+      body.jobDescription ?? '',
+      body.role ?? ''
+    ),
     0.5
   )
   // Quota is consumed only after a successful call, so failures cost nothing
@@ -929,11 +1224,12 @@ async function zaEmail(cookie: string | undefined): Promise<string | null> {
   }
 }
 
+// Signed-out is an expected state, not an error: return 200 with a null email
+// so the browser console stays clean on every page load.
 app.get('/api/za/session', async (c) => {
   c.header('Cache-Control', 'no-store')
   const email = await zaEmail(c.req.header('cookie'))
-  if (!email) return c.json({ error: 'Not signed in to Zalize account' }, 401)
-  return c.json({ email })
+  return c.json({ email: email ?? null })
 })
 
 // Proxy the Resume Center primary-resume export (ResumeProfile v1) for the
@@ -968,7 +1264,7 @@ app.get('/api/license/status', async (c) => {
 
 // Client-side routes rendered by the SPA shell; anything else missing from
 // static assets is a real 404 (avoids soft-404s for arbitrary URLs).
-const SPA_ROUTES = new Set(['/', '/builder', '/ats-checker'])
+const SPA_ROUTES = new Set(['/', '/builder', '/ats-checker', '/dashboard', '/jobs'])
 
 app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {

@@ -93,10 +93,41 @@ export async function aiCoverLetter(input: {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/cover-letter', input)
 }
 
+export async function aiResignationLetter(input: {
+  company: string
+  role: string
+  lastDay: string
+  reason: string
+  name: string
+}): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/resignation-letter', input)
+}
+
 export async function aiInterviewBrief(input: {
   resumeText: string
   jobDescription: string
   role: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-brief', input)
+}
+
+export async function aiInterviewQuestions(input: {
+  resumeText: string
+  jobDescription: string
+  role: string
+}): Promise<{ questions: string[]; freeRemaining: number | null }> {
+  return post<{ questions: string[]; freeRemaining: number | null }>(
+    '/api/ai/interview-questions',
+    input
+  )
+}
+
+export async function aiInterviewFeedback(input: {
+  question: string
+  answer: string
+  resumeText: string
+  jobDescription: string
+  role: string
+}): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-feedback', input)
 }

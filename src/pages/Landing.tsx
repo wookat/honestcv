@@ -1,12 +1,15 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   BadgeCheck,
+  Check,
   ChevronDown,
   Copy,
   FileDown,
+  FileUp,
   Lock,
+  ScanSearch,
   ShieldCheck,
   Sparkles,
   Target,
@@ -19,6 +22,7 @@ import { useFreeMode } from '@/components/Paywall'
 import { ResumePreview } from '@/components/ResumePreview'
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { ScoreRing } from '@/components/ScoreRing'
+import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { sampleResume } from '@/lib/resume'
 import { TEMPLATES, TEMPLATE_FILTERS } from '@/lib/templates'
 
@@ -121,6 +125,125 @@ const FEATURES = [
   },
 ]
 
+/** Static in-page demos of the builder's core tools, built from the real UI
+ * patterns (no invented users or ratings — just the product itself). */
+function ShowcaseAtsScore() {
+  return (
+    <div className="bg-card rounded-xl border p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium">ATS match score</p>
+        <ScoreRing score={72} size={56} />
+      </div>
+      <div className="mt-3 text-xs">
+        <p className="font-medium text-green-700">Matched (4)</p>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {['react', 'typescript', 'testing', 'agile'].map((kw) => (
+            <span
+              key={kw}
+              className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-green-800"
+            >
+              <span aria-hidden className="text-green-600">✓</span> {kw}
+            </span>
+          ))}
+        </div>
+        <p className="mt-2 font-medium text-red-700">Missing (2)</p>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {['kubernetes', 'graphql'].map((kw) => (
+            <span key={kw} className="bg-muted inline-flex items-center overflow-hidden rounded-full border">
+              <span className="px-2 py-0.5">+ {kw}</span>
+              <span className="border-l px-1.5 py-1">
+                <Sparkles aria-hidden className="size-3" />
+              </span>
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ShowcaseTailor() {
+  return (
+    <div className="bg-card space-y-2 rounded-xl border p-5 text-sm shadow-sm">
+      <p className="text-muted-foreground text-xs font-medium">Frontend Engineer at Acme</p>
+      <p className="text-muted-foreground line-through decoration-red-300">
+        Responsible for the checkout page and helped with testing.
+      </p>
+      <p className="font-medium text-emerald-800">
+        Rebuilt the checkout flow in React, cutting load time 38% and raising conversion [add %].
+      </p>
+      <div className="flex gap-2 pt-1">
+        <span className="bg-primary text-primary-foreground inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium">
+          <Check className="size-3" /> Accept
+        </span>
+        <span className="inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium">
+          Keep original
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function ShowcaseBreakdown() {
+  const dims: [string, number, string][] = [
+    ['Keyword match', 72, 'Missing keyword: "kubernetes"'],
+    ['ATS structure', 83, 'Skills section filled · Education listed'],
+    ['Quantified impact', 40, 'No number: "Led the migration project…"'],
+  ]
+  return (
+    <div className="bg-card space-y-3 rounded-xl border p-5 shadow-sm">
+      <p className="text-sm font-medium">Score breakdown</p>
+      {dims.map(([label, score, finding]) => (
+        <div key={label}>
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium">{label}</span>
+            <span className={score >= 80 ? 'text-emerald-600' : score >= 50 ? 'text-amber-600' : 'text-red-600'}>
+              {score}
+            </span>
+          </div>
+          <div aria-hidden className="bg-muted mt-1 h-1.5 w-full overflow-hidden rounded-full">
+            <div
+              className={`h-full rounded-full ${score >= 80 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-400'}`}
+              style={{ width: `${score}%` }}
+            />
+          </div>
+          <p className="text-muted-foreground mt-0.5 text-xs">{finding}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const SHOWCASES: {
+  eyebrow: string
+  title: string
+  text: string
+  cta: string
+  visual: () => React.JSX.Element
+}[] = [
+  {
+    eyebrow: 'Keyword targeting',
+    title: 'See your ATS match — and close every keyword gap',
+    text: 'Paste any job description and the match score updates live as you type. Every missing keyword is one click from your Skills list, or one click from an AI-drafted bullet that works it into your real experience.',
+    cta: 'Check a job description',
+    visual: ShowcaseAtsScore,
+  },
+  {
+    eyebrow: 'AI tailoring',
+    title: 'AI rewrites you approve line by line',
+    text: 'The AI rewords your summary and bullets toward the job — stronger verbs, the JD’s exact keywords, quantified impact. It never invents facts: gaps become [add %] placeholders, and nothing changes until you accept it.',
+    cta: 'Tailor my resume',
+    visual: ShowcaseTailor,
+  },
+  {
+    eyebrow: 'Score breakdown',
+    title: 'Know exactly what to fix, and what it’s worth',
+    text: 'One dialog breaks your score into keyword match, ATS structure and six writing-quality checks — each with the specific lines to fix. Transparent rules, computed in your browser, no black box.',
+    cta: 'See my breakdown',
+    visual: ShowcaseBreakdown,
+  },
+]
+
 const COMPARISON: [string, string, string][] = [
   ['Cost to download your resume', '$9.99 once', '$1.95–$2.95 “trial” → $25.95–$29.95 every 4 weeks'],
   ['Cost over a 6-month job search', '$9.99', '$150–$180'],
@@ -131,6 +254,83 @@ const COMPARISON: [string, string, string][] = [
   ['Account required', 'No', 'Yes'],
   ['Your resume data', 'Stays in your browser', 'Stored on their servers'],
 ]
+
+/** Hero drop zone: extracts an uploaded resume in the browser and opens the ATS checker scored. */
+function HeroResumeDrop() {
+  const navigate = useNavigate()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [dragOver, setDragOver] = useState(false)
+
+  const handleFile = (file: File | undefined) => {
+    if (!file || busy) return
+    setBusy(true)
+    setError('')
+    extractTextFromFile(file)
+      .then((text) => {
+        if (text.trim().length < 30) {
+          setError('No text found in this file — it may be a scanned image. Try the checker and paste your resume instead.')
+          setBusy(false)
+          return
+        }
+        void navigate('/ats-checker', { state: { resumeText: text } })
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Could not read this file.')
+        setBusy(false)
+      })
+  }
+
+  return (
+    <div className="animate-rise mx-auto mt-6 max-w-xl [--rise-delay:240ms]">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragOver(true)
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDragOver(false)
+          handleFile(e.dataTransfer.files?.[0])
+        }}
+        className={`flex min-h-14 w-full items-center justify-center gap-2.5 rounded-xl border-2 border-dashed px-4 py-3 text-sm transition-colors ${
+          dragOver
+            ? 'border-primary bg-primary/5 text-foreground'
+            : 'text-muted-foreground hover:border-primary/50 hover:text-foreground border-border bg-white/60'
+        }`}
+      >
+        <FileUp className="size-4 shrink-0" />
+        {busy ? (
+          'Reading your resume…'
+        ) : (
+          <span>
+            <span className="text-foreground font-medium">Upload or drop your resume</span>
+            {' — get your free ATS score'}
+          </span>
+        )}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={IMPORT_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          handleFile(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
+      {error && <p className="text-destructive mt-2 text-xs">{error}</p>}
+      <p className="text-muted-foreground mt-2 text-xs">
+        PDF, DOCX or TXT · read entirely in your browser — never uploaded to a server.
+      </p>
+    </div>
+  )
+}
 
 export default function Landing() {
   usePageMeta(
@@ -202,6 +402,7 @@ export default function Landing() {
               ? 'Free during beta: editor, templates, ATS score, AI tools and downloads — all included.'
               : 'Editing, templates & ATS score are free. Pay only to download.'}
           </p>
+          <HeroResumeDrop />
           </div>
           <ProductMock />
         </section>
@@ -222,6 +423,58 @@ export default function Landing() {
                 <p className="text-muted-foreground mt-1 text-sm">{label}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* The problem: ATS filtering */}
+        <section aria-labelledby="problem-heading" className="mx-auto max-w-5xl px-4 pt-24">
+          <div className="grid items-center gap-10 md:grid-cols-2">
+            <div>
+              <p className="text-primary text-sm font-medium tracking-widest uppercase">The problem</p>
+              <h2 id="problem-heading" className="mt-2 text-3xl font-semibold tracking-tight">
+                It&apos;s usually not a person rejecting you — it&apos;s a parser
+              </h2>
+              <p className="text-muted-foreground mt-4">
+                Most companies run every resume through Applicant Tracking Systems (ATS)
+                before a recruiter ever sees it. If the software can&apos;t parse your
+                layout, or the keywords from the job posting aren&apos;t there, you&apos;re
+                filtered out — silently, with no explanation.
+              </p>
+              <p className="text-muted-foreground mt-3">
+                That&apos;s why every RezUp template is single-column real text, and why
+                the match score checks your resume against the actual job description
+                before you send it.
+              </p>
+              <Button asChild variant="outline" className="mt-5">
+                <Link to="/ats-checker">
+                  Run the free ATS check <ArrowRight />
+                </Link>
+              </Button>
+            </div>
+            <div aria-hidden className="bg-card mx-auto w-full max-w-md rounded-xl border p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <ScanSearch className="text-primary size-4" /> Applicant Tracking System
+              </div>
+              <div className="mt-4 space-y-2 text-xs">
+                {(
+                  [
+                    ['Name', 'Detected', true],
+                    ['Contact info', 'Detected', true],
+                    ['Experience', '3 positions detected', true],
+                    ['Skills', 'Parsed as body text', false],
+                  ] as [string, string, boolean][]
+                ).map(([field, status, ok]) => (
+                  <div key={field} className="flex items-center justify-between rounded-md border px-3 py-2">
+                    <span className="font-medium">{field}</span>
+                    <span className={ok ? 'text-emerald-600' : 'text-red-600'}>{status}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-md border bg-red-50 px-3 py-2.5 text-xs text-red-800">
+                Match against job description: <strong>47%</strong> — filtered out before
+                a recruiter sees it
+              </div>
+            </div>
           </div>
         </section>
 
@@ -267,6 +520,33 @@ export default function Landing() {
               </li>
             ))}
           </ol>
+        </section>
+
+        {/* Feature showcases */}
+        <section aria-labelledby="showcase-heading" className="mx-auto max-w-5xl space-y-20 px-4 pb-24">
+          <h2 id="showcase-heading" className="sr-only">
+            The tools in action
+          </h2>
+          {SHOWCASES.map((s, i) => (
+            <div
+              key={s.eyebrow}
+              className={`grid items-center gap-8 md:grid-cols-2 ${i % 2 === 1 ? 'md:[&>*:first-child]:order-2' : ''}`}
+            >
+              <div>
+                <p className="text-primary text-sm font-medium tracking-widest uppercase">{s.eyebrow}</p>
+                <h3 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{s.title}</h3>
+                <p className="text-muted-foreground mt-3">{s.text}</p>
+                <Button asChild variant="outline" className="mt-5">
+                  <Link to="/builder">
+                    {s.cta} <ArrowRight />
+                  </Link>
+                </Button>
+              </div>
+              <div aria-hidden className="mx-auto w-full max-w-md">
+                <s.visual />
+              </div>
+            </div>
+          ))}
         </section>
 
         {/* Features */}
@@ -407,11 +687,17 @@ export default function Landing() {
               </CardContent>
             </Card>
           </div>
-          <p className="text-muted-foreground mt-4 text-center text-xs">
+          <div className="mt-6 flex justify-center">
+            <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900">
+              <ShieldCheck className="size-4 shrink-0" />
+              7-day money-back guarantee · your card is never stored
+            </div>
+          </div>
+          <p className="text-muted-foreground mt-3 text-center text-xs">
             <Lock className="mr-1 inline size-3" />
             {freeMode
               ? 'No payment is collected during the beta — no card on file, nothing that renews.'
-              : 'Payments processed by our merchant of record. 7-day money-back guarantee — email support@zalize.com. Your card is never stored for recurring billing.'}
+              : 'Payments processed by our merchant of record. Refunds within 7 days — email support@zalize.com.'}
           </p>
         </section>
 
@@ -496,6 +782,26 @@ export default function Landing() {
               [
                 'Where is my data stored?',
                 'In your browser (localStorage). We have no accounts and no resume database. The only content that reaches our server is text you explicitly send for AI rewriting, which is processed and returned, not stored.',
+              ],
+              [
+                'Will the AI invent experience I don\u2019t have?',
+                'No. The AI only rewords what you actually wrote — stronger verbs, the job posting\u2019s keywords, clearer impact. Where a number would help but you didn\u2019t give one, it inserts an [add %] placeholder for you to fill in. Nothing changes until you accept each edit.',
+              ],
+              [
+                'Can I import my LinkedIn profile or an existing resume?',
+                'Yes. Upload the PDF LinkedIn saves from your profile (More \u2192 Save to PDF), or any PDF/DOCX/TXT resume, and the sections are pre-filled for you to review — entirely in your browser, nothing is uploaded to a server.',
+              ],
+              [
+                'How is RezUp different from Zety or LiveCareer?',
+                'One payment instead of a recurring subscription, AI that never fabricates, and no account or server-side resume storage. See the detailed side-by-side pages: RezUp vs Zety and RezUp vs LiveCareer, linked in the footer.',
+              ],
+              [
+                'Can I keep editing after I pay?',
+                'Forever. Your one-time purchase unlocks unlimited downloads — come back next year, update your resume, and export again at no extra cost.',
+              ],
+              [
+                'How do refunds work?',
+                'If RezUp isn\u2019t for you, email support@zalize.com within 7 days of purchase for a full refund — no forms, no retention flow. Since we never store your card, there\u2019s nothing to cancel afterwards.',
               ],
               [
                 'What if I need it on another device?',

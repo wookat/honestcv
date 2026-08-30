@@ -68,6 +68,12 @@ export interface Resume {
   fontScale?: 's' | 'm' | 'l'
   /** Line spacing across preview and exports */
   lineSpacing?: 'compact' | 'normal' | 'relaxed'
+  /** Font family across preview and exports; 'auto' follows the template */
+  fontFamily?: 'auto' | 'serif' | 'sans'
+  /** Vertical space before each section heading */
+  sectionSpacing?: 'tight' | 'normal' | 'roomy'
+  /** Section divider rule; 'auto' follows the template */
+  sectionDivider?: 'auto' | 'on' | 'off'
   /** Target role + JD used for tailoring and the ATS score */
   targetRole: string
   jobDescription: string
@@ -82,6 +88,28 @@ export const LINE_SPACING = { compact: 1.22, normal: 1.35, relaxed: 1.52 } as co
 
 export const fontScaleOf = (r: Resume) => FONT_SCALE[r.fontScale ?? 'm']
 export const lineSpacingOf = (r: Resume) => LINE_SPACING[r.lineSpacing ?? 'normal']
+
+/** Whether to render with a serif font, honouring the user's font-family override. */
+export const serifOf = (r: Resume, tplSerif: boolean) =>
+  r.fontFamily === 'serif' ? true : r.fontFamily === 'sans' ? false : tplSerif
+
+/** Multipliers applied to the space before section headings. */
+export const SECTION_SPACING = { tight: 0.6, normal: 1, roomy: 1.4 } as const
+
+export const sectionSpacingOf = (r: Resume) => SECTION_SPACING[r.sectionSpacing ?? 'normal']
+
+/** Section divider to render, honouring the user's override of the template rule. */
+export const dividerOf = (
+  r: Resume,
+  tplDivider: 'line' | 'thick' | 'none'
+): 'line' | 'thick' | 'none' =>
+  r.sectionDivider === 'off'
+    ? 'none'
+    : r.sectionDivider === 'on'
+      ? tplDivider === 'none'
+        ? 'line'
+        : tplDivider
+      : tplDivider
 
 export function emptyResume(): Resume {
   return {
@@ -376,10 +404,77 @@ export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
   return versions
 }
 
+export function renameResumeVersion(id: string, name: string): ResumeVersion[] {
+  const versions = listResumeVersions().map((v) =>
+    v.id === id ? { ...v, name, updatedAt: Date.now() } : v
+  )
+  persistVersions(versions)
+  return versions
+}
+
+export function duplicateResumeVersion(id: string): ResumeVersion[] {
+  const source = listResumeVersions().find((v) => v.id === id)
+  if (!source) return listResumeVersions()
+  const versions = [
+    { id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now(), data: source.data },
+    ...listResumeVersions(),
+  ]
+  persistVersions(versions)
+  return versions
+}
+
 export function deleteResumeVersion(id: string): ResumeVersion[] {
   const versions = listResumeVersions().filter((v) => v.id !== id)
   persistVersions(versions)
   return versions
+}
+
+/** Automatic edit-history checkpoints of the single builder draft. */
+export interface ResumeSnapshot {
+  id: string
+  at: number
+  data: Resume
+}
+
+const HISTORY_KEY = 'honestcv.resumeHistory'
+const HISTORY_MAX = 15
+const HISTORY_MIN_GAP_MS = 10 * 60 * 1000
+
+export function listResumeHistory(): ResumeSnapshot[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as ResumeSnapshot[]
+    return Array.isArray(parsed) ? parsed.filter((s) => s.id && s.at && s.data) : []
+  } catch {
+    return []
+  }
+}
+
+function persistHistory(snapshots: ResumeSnapshot[]) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(snapshots.slice(0, HISTORY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+/**
+ * Records a checkpoint of the draft. Skipped when the newest checkpoint is
+ * identical, or (unless `force`) younger than the 10-minute gap.
+ * Returns the updated list.
+ */
+export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapshot[] {
+  const history = listResumeHistory()
+  const newest = history[0]
+  const json = JSON.stringify(data)
+  if (newest) {
+    if (JSON.stringify(newest.data) === json) return history
+    if (!force && Date.now() - newest.at < HISTORY_MIN_GAP_MS) return history
+  }
+  const next = [{ id: newId(), at: Date.now(), data: JSON.parse(json) as Resume }, ...history]
+  persistHistory(next)
+  return next.slice(0, HISTORY_MAX)
 }
 
 /** Flatten to plain text (for AI context + ATS scoring) */
