@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { scoreResume } from '@/lib/ats'
 import {
   type CareerDoc,
+  type CareerDocKind,
   deleteCareerDoc,
   listCareerDocs,
   updateCareerDoc,
@@ -79,6 +80,7 @@ export default function Dashboard() {
   const [confirmDelete, setConfirmDelete] = useState<ResumeVersion | null>(null)
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null)
   const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
+  const [docKind, setDocKind] = useState<CareerDocKind | 'all'>('all')
   const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
   const [docText, setDocText] = useState('')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
@@ -268,6 +270,41 @@ export default function Dashboard() {
         <p className="text-muted-foreground mt-1 text-sm">
           Documents you saved from the AI tools in the editor.
         </p>
+        {docs.length > 0 && (
+          <div
+            className="mt-4 flex flex-wrap gap-1.5"
+            role="group"
+            aria-label="Filter documents by type"
+          >
+            {(
+              [
+                ['all', 'All'],
+                ['cover', 'Cover letters'],
+                ['interview', 'Interview prep'],
+                ['resignation', 'Resignation letters'],
+              ] as const
+            )
+              .filter(([k]) => k === 'all' || docs.some((d) => d.kind === k))
+              .map(([k, label]) => {
+                const count = k === 'all' ? docs.length : docs.filter((d) => d.kind === k).length
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={docKind === k}
+                    onClick={() => setDocKind(k)}
+                    className={`min-h-10 rounded-md border px-2 py-1 text-xs font-medium transition sm:min-h-8 ${
+                      docKind === k
+                        ? 'border-primary ring-primary/40 ring-2'
+                        : 'hover:border-muted-foreground/40'
+                    }`}
+                  >
+                    {label} ({count})
+                  </button>
+                )
+              })}
+          </div>
+        )}
         {docs.length === 0 ? (
           <p className="text-muted-foreground mt-4 rounded-md border border-dashed p-4 text-sm">
             Nothing saved yet — generate a cover letter, interview brief or resignation letter in
@@ -279,7 +316,9 @@ export default function Dashboard() {
           </p>
         ) : (
           <ul className="mt-4 space-y-2">
-            {docs.map((d) => (
+            {docs
+              .filter((d) => docKind === 'all' || d.kind === docKind)
+              .map((d) => (
               <li
                 key={d.id}
                 className="bg-card flex items-center justify-between gap-2 rounded-md border p-3"
@@ -502,7 +541,11 @@ export default function Dashboard() {
               type="button"
               variant="destructive"
               onClick={() => {
-                if (confirmDeleteDoc) setDocs(deleteCareerDoc(confirmDeleteDoc.id))
+                if (confirmDeleteDoc) {
+                  const next = deleteCareerDoc(confirmDeleteDoc.id)
+                  setDocs(next)
+                  if (docKind !== 'all' && !next.some((d) => d.kind === docKind)) setDocKind('all')
+                }
                 setConfirmDeleteDoc(null)
               }}
             >
