@@ -19,6 +19,8 @@ import {
 import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
+  certEntries,
+  certHeadingLine,
   dividerOf,
   educationDetailLine,
   fontScaleOf,
@@ -230,11 +232,24 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       }
     } else if (key === 'skills' && resume.skills.trim()) {
       children.push(heading('Skills'), body(resume.skills.trim(), { after: 100 }))
-    } else if (key === 'certifications' && resume.certifications.trim()) {
-      children.push(
-        heading('Certifications'),
-        body(resume.certifications.trim(), { after: 100 })
-      )
+    } else if (
+      key === 'certifications' &&
+      (certEntries(resume).length > 0 || resume.certifications.trim())
+    ) {
+      children.push(heading('Certifications'))
+      for (const c of certEntries(resume)) {
+        const date = c.date.trim()
+        children.push(
+          body(`${certHeadingLine(c)}${date ? `  (${date})` : ''}`, {
+            bold: true,
+            after: 20,
+            keepNext: true,
+          })
+        )
+        if (c.description.trim()) children.push(body(c.description.trim(), { after: 80 }))
+      }
+      if (resume.certifications.trim())
+        children.push(body(resume.certifications.trim(), { after: 100 }))
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)
       if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue

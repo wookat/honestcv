@@ -7,6 +7,8 @@ import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pd
 import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
+  certEntries,
+  certHeadingLine,
   dividerOf,
   educationDetailLine,
   fontScaleOf,
@@ -372,9 +374,24 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
     } else if (key === 'skills' && resume.skills.trim()) {
       w.heading('Skills')
       w.text(resume.skills.trim(), { size: 10 })
-    } else if (key === 'certifications' && resume.certifications.trim()) {
+    } else if (
+      key === 'certifications' &&
+      (certEntries(resume).length > 0 || resume.certifications.trim())
+    ) {
       w.heading('Certifications')
-      w.text(resume.certifications.trim(), { size: 10 })
+      for (const c of certEntries(resume)) {
+        w.gap(2)
+        w.ensure(30)
+        w.titleLine(certHeadingLine(c), c.date.trim(), { size: 10 })
+        if (c.description.trim()) {
+          w.gap(1)
+          w.text(c.description.trim(), { size: 10 })
+        }
+      }
+      if (resume.certifications.trim()) {
+        w.gap(2)
+        w.text(resume.certifications.trim(), { size: 10 })
+      }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)
       if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue

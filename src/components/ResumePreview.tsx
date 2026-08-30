@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import {
   type Resume,
+  certEntries,
   dividerOf,
   fontScaleOf,
   lineSpacingOf,
@@ -318,13 +319,33 @@ function SectionBlock({
         <p className="text-[11px]">{resume.skills.trim()}</p>
       </>
     ) : null
-  if (sectionKey === 'certifications')
-    return resume.certifications.trim() ? (
+  if (sectionKey === 'certifications') {
+    const certs = certEntries(resume)
+    return certs.length > 0 || resume.certifications.trim() ? (
       <>
         {heading('Certifications')}
-        <p className="text-[11px]">{resume.certifications.trim()}</p>
+        {certs.map((c) => (
+          <div key={c.id} className="mb-1.5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11px] font-bold">
+                {c.name.trim() || 'Certificate'}
+                {c.issuer.trim() && <span className="font-normal"> — {c.issuer.trim()}</span>}
+              </p>
+              {c.date.trim() && (
+                <p className="text-[10px] text-neutral-500 italic">{c.date.trim()}</p>
+              )}
+            </div>
+            {c.description.trim() && (
+              <p className="text-[11px]">{c.description.trim()}</p>
+            )}
+          </div>
+        ))}
+        {resume.certifications.trim() && (
+          <p className="text-[11px]">{resume.certifications.trim()}</p>
+        )}
       </>
     ) : null
+  }
   if (sectionKey.startsWith('custom:')) {
     const s = resume.customSections.find((x) => `custom:${x.id}` === sectionKey)
     if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) return null
