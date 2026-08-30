@@ -51,6 +51,24 @@ export function buildRewriteMessages(
   ]
 }
 
+/**
+ * Draft candidate summaries from the resume alone (no user draft needed),
+ * grounded strictly in the resume's existing content.
+ */
+export function buildSummaryDraftMessages(resumeText: string, role: string): ChatMessage[] {
+  return [
+    {
+      role: 'system',
+      content: `${SYSTEM_WRITER}
+The user has a filled resume but no professional summary yet. Write 3 alternative professional summaries (each 2-3 sentences, max 60 words) using ONLY facts present in the resume text — job titles, employers, skills, education, and metrics that appear there. Different emphasis per version (1: concise, 2: impact-focused, 3: keyword/skills-focused). Never invent seniority, metrics, tools, or scope the resume does not show. Reply with ONLY a JSON array of 3 strings — no markdown, no commentary.`,
+    },
+    {
+      role: 'user',
+      content: `Target role: ${role || 'not specified'}\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
+    },
+  ]
+}
+
 export interface TailorItem {
   id: string
   kind: 'summary' | 'bullet'
