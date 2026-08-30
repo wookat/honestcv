@@ -12,6 +12,7 @@ import {
   FileText,
   Files,
   LibraryBig,
+  MessagesSquare,
   Sparkles,
 } from 'lucide-react'
 
@@ -61,6 +62,7 @@ export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
     { label: 'Sample library', to: '/dashboard#samples', icon: LibraryBig, active: false },
     { label: 'Job search', to: '/jobs', icon: BriefcaseBusiness, count: counts.pipeline, active: pathname === '/jobs' },
     { label: 'ATS checker', to: '/ats-checker', icon: BadgeCheck, active: pathname === '/ats-checker' },
+    { label: 'AI assistant', to: '/builder?assistant=1', icon: MessagesSquare, active: false },
   ]
   return (
     <aside className="hidden w-56 shrink-0 md:block" aria-label="Workspace">
