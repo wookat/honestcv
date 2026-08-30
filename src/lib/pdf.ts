@@ -9,6 +9,9 @@ import {
   type Resume,
   certEntries,
   certHeadingLine,
+  courseworkBullets,
+  courseworkEntries,
+  courseworkHeadingLine,
   involvementBullets,
   involvementDates,
   involvementEntries,
@@ -383,6 +386,15 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
           w.gap(1)
           w.text(detail, { size: 10 })
         }
+      }
+    } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
+      w.heading('Coursework')
+      for (const cw of courseworkEntries(resume)) {
+        w.gap(4)
+        w.ensure(34)
+        w.titleLine(courseworkHeadingLine(cw), cw.date.trim(), { size: 10.5 })
+        w.gap(2)
+        for (const b of courseworkBullets(cw)) w.bullet(b)
       }
     } else if (key === 'skills' && resume.skills.trim()) {
       w.heading('Skills')

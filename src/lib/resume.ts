@@ -72,6 +72,20 @@ export interface InvolvementItem {
   description: string
 }
 
+export interface CourseworkItem {
+  id: string
+  /** Course name, e.g. "Introduction to Computer Systems" */
+  name: string
+  /** Where the course was taken */
+  institution: string
+  /** When the course was taken, e.g. "2026" */
+  date: string
+  /** Skill used in the course (optional) */
+  skill: string
+  /** How the skill was applied; one bullet per line */
+  description: string
+}
+
 /** User-defined section (e.g. Volunteering, Publications, Awards) */
 export interface CustomSection {
   id: string
@@ -91,6 +105,7 @@ export interface Resume {
   certifications: string
   certItems?: CertificationItem[]
   involvement?: InvolvementItem[]
+  coursework?: CourseworkItem[]
   customSections: CustomSection[]
   /** Section keys in render order (see SECTION_KEYS + custom:<id>) */
   sectionOrder: string[]
@@ -167,6 +182,7 @@ export function emptyResume(): Resume {
     certifications: '',
     certItems: [],
     involvement: [],
+    coursework: [],
     customSections: [],
     sectionOrder: [...SECTION_KEYS],
     templateId: 'classic',
@@ -224,6 +240,15 @@ export const emptyInvolvement = (): InvolvementItem => ({
   description: '',
 })
 
+export const emptyCoursework = (): CourseworkItem => ({
+  id: newId(),
+  name: '',
+  institution: '',
+  date: '',
+  skill: '',
+  description: '',
+})
+
 export const emptyCustomSection = (): CustomSection => ({
   id: newId(),
   title: '',
@@ -237,6 +262,7 @@ export const SECTION_KEYS = [
   'projects',
   'involvement',
   'education',
+  'coursework',
   'skills',
   'certifications',
 ] as const
@@ -247,6 +273,7 @@ export const SECTION_LABELS: Record<string, string> = {
   projects: 'Projects',
   involvement: 'Involvement',
   education: 'Education',
+  coursework: 'Coursework',
   skills: 'Skills',
   certifications: 'Certifications',
 }
@@ -483,6 +510,14 @@ export function sanitizeResume(input: unknown): Resume | null {
       endDate: asStr(i.endDate),
       description: asStr(i.description),
     })),
+    coursework: asObjArr(raw.coursework).map((c) => ({
+      id: asStr(c.id) || newId(),
+      name: asStr(c.name),
+      institution: asStr(c.institution),
+      date: asStr(c.date),
+      skill: asStr(c.skill),
+      description: asStr(c.description),
+    })),
     customSections: asObjArr(raw.customSections).map((s) => ({
       id: asStr(s.id) || newId(),
       title: asStr(s.title),
@@ -716,6 +751,21 @@ export function involvementDates(i: InvolvementItem): string {
 export const involvementBullets = (i: InvolvementItem): string[] =>
   i.description.split('\n').map((l) => l.trim()).filter(Boolean)
 
+/** Coursework entries with any content */
+export const courseworkEntries = (r: Resume): CourseworkItem[] =>
+  (r.coursework ?? []).filter((c) => c.name.trim() || c.institution.trim())
+
+/** Heading line for a coursework entry: name · institution */
+export function courseworkHeadingLine(c: CourseworkItem): string {
+  return [c.name.trim(), c.institution.trim()].filter(Boolean).join('  ·  ')
+}
+
+/** Bullets for a coursework entry: "Skill: X" (when set) + description lines */
+export const courseworkBullets = (c: CourseworkItem): string[] => [
+  ...(c.skill.trim() ? [`Skill: ${c.skill.trim()}`] : []),
+  ...c.description.split('\n').map((l) => l.trim()).filter(Boolean),
+]
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
@@ -765,6 +815,12 @@ export function resumeToPlainText(r: Resume): string {
         )
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail)
+      }
+    } else if (key === 'coursework' && courseworkEntries(r).length > 0) {
+      lines.push('', 'COURSEWORK')
+      for (const cw of courseworkEntries(r)) {
+        lines.push(courseworkHeadingLine(cw) + (cw.date.trim() ? ` (${cw.date.trim()})` : ''))
+        for (const b of courseworkBullets(cw)) lines.push(`- ${b}`)
       }
     } else if (key === 'skills' && r.skills) {
       lines.push('', 'SKILLS', r.skills)
@@ -834,6 +890,16 @@ export function resumeToMarkdown(r: Resume): string {
         lines.push(`### ${[e.degree, e.school].filter(Boolean).join(', ')}${dates}`, '')
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail, '')
+      }
+    } else if (key === 'coursework' && courseworkEntries(r).length > 0) {
+      heading('Coursework')
+      for (const cw of courseworkEntries(r)) {
+        lines.push(
+          `### ${courseworkHeadingLine(cw)}${cw.date.trim() ? ` *(${cw.date.trim()})*` : ''}`,
+          ''
+        )
+        for (const b of courseworkBullets(cw)) lines.push(`- ${b}`)
+        lines.push('')
       }
     } else if (key === 'skills' && r.skills) {
       heading('Skills')

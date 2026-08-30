@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from 'react'
 import {
   type Resume,
   certEntries,
+  courseworkBullets,
+  courseworkEntries,
   dividerOf,
   involvementBullets,
   involvementDates,
@@ -350,6 +352,40 @@ function SectionBlock({
         )}
       </>
     ) : null
+  if (sectionKey === 'coursework') {
+    const items = courseworkEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('Coursework')}
+        {items.map((cw) => (
+          <div key={cw.id} className="mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11.5px] font-bold">
+                {cw.name.trim() || 'Course'}
+                {cw.institution.trim() && (
+                  <span className="font-normal">
+                    {'  ·  '}
+                    {cw.institution.trim()}
+                  </span>
+                )}
+              </p>
+              {cw.date.trim() && (
+                <p className="text-[10px] text-neutral-500 italic">{cw.date.trim()}</p>
+              )}
+            </div>
+            <ul className="mt-0.5 space-y-0.5">
+              {courseworkBullets(cw).map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11px]">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </>
+    ) : null
+  }
   if (sectionKey === 'skills')
     return resume.skills.trim() ? (
       <>

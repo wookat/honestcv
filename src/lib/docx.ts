@@ -21,6 +21,8 @@ import {
   type Resume,
   certEntries,
   certHeadingLine,
+  courseworkBullets,
+  courseworkEntries,
   involvementBullets,
   involvementDates,
   involvementEntries,
@@ -260,6 +262,34 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         )
         const detail = educationDetailLine(e)
         if (detail) children.push(body(detail))
+      }
+    } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
+      children.push(heading('Coursework'))
+      for (const cw of courseworkEntries(resume)) {
+        const date = cw.date.trim()
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+            children: [
+              new TextRun({ text: cw.name.trim() || 'Course', bold: true, size: sz(22), font }),
+              ...(cw.institution.trim()
+                ? [
+                    new TextRun({
+                      text: `  ·  ${cw.institution.trim()}`,
+                      size: sz(21),
+                      font,
+                    }),
+                  ]
+                : []),
+              ...(date
+                ? [new TextRun({ children: [new Tab(), date], italics: true, size: sz(19), font })]
+                : []),
+            ],
+          })
+        )
+        for (const b of courseworkBullets(cw)) children.push(body(b, { bullet: true }))
       }
     } else if (key === 'skills' && resume.skills.trim()) {
       children.push(heading('Skills'), body(resume.skills.trim(), { after: 100 }))
