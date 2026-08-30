@@ -419,3 +419,64 @@ export async function downloadTextPdf(title: string, text: string, filename: str
   const bytes = await doc.save()
   downloadBlob(new Blob([bytes as BlobPart], { type: 'application/pdf' }), filename)
 }
+
+/** Letter (cover / resignation) with the sender's letterhead, matching the
+ *  resume's template accent, font family and page size. */
+export async function downloadLetterPdf(resume: Resume, body: string, filename: string) {
+  const tpl = resolveTemplate(resume.templateId, resume.accentColor)
+  const doc = await PDFDocument.create()
+  const fonts: Fonts = serifOf(resume, tpl.serif)
+    ? {
+        regular: await doc.embedFont(StandardFonts.TimesRoman),
+        bold: await doc.embedFont(StandardFonts.TimesRomanBold),
+        italic: await doc.embedFont(StandardFonts.TimesRomanItalic),
+      }
+    : {
+        regular: await doc.embedFont(StandardFonts.Helvetica),
+        bold: await doc.embedFont(StandardFonts.HelveticaBold),
+        italic: await doc.embedFont(StandardFonts.HelveticaOblique),
+      }
+  const w = new PdfWriter(doc, fonts, tpl, resume.pageSize === 'a4' ? 'a4' : 'letter')
+  const c = resume.contact
+  if (c.fullName.trim()) {
+    w.text(c.fullName.trim(), { font: fonts.bold, size: 16 })
+    w.gap(2)
+  }
+  const httpUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
+  const contactSegments = [
+    c.email ? { text: c.email, url: `mailto:${c.email}` } : null,
+    c.phone ? { text: c.phone } : null,
+    c.location ? { text: c.location } : null,
+    c.website ? { text: c.website, url: httpUrl(c.website) } : null,
+  ].filter((s): s is { text: string; url?: string } => s !== null)
+  if (contactSegments.length > 0) {
+    w.linkLine(contactSegments, { size: 9, color: w.soft })
+  }
+  if (c.fullName.trim() || contactSegments.length > 0) {
+    w.gap(6)
+    w.page.drawLine({
+      start: { x: MARGIN, y: w.y },
+      end: { x: w.pageW - MARGIN, y: w.y },
+      thickness: 1,
+      color: w.accent,
+    })
+    w.gap(14)
+  }
+  const date = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  w.text(date, { size: 10.5, color: w.soft })
+  w.gap(12)
+  for (const block of body.split(/\n{2,}/)) {
+    const t = block.trim()
+    if (!t) continue
+    for (const line of t.split('\n')) {
+      w.text(line, { size: 10.5, lineGap: 1 })
+    }
+    w.gap(8)
+  }
+  const bytes = await doc.save()
+  downloadBlob(new Blob([bytes as BlobPart], { type: 'application/pdf' }), filename)
+}

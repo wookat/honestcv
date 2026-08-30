@@ -1,13 +1,30 @@
 /**
  * Resume dashboard: card grid of the current draft plus every saved copy,
- * with open / duplicate / rename / delete. All data lives in localStorage.
+ * with open / download / duplicate / rename / delete. All data lives in localStorage.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Copy, FilePlus2, FileText, FileUp, MessagesSquare, Pencil, Trash2 } from 'lucide-react'
+import {
+  Copy,
+  FileDown,
+  FilePlus2,
+  FileText,
+  FileUp,
+  Loader2,
+  MessagesSquare,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
+import {
+  FreeDownloadDialog,
+  UpgradeDialog,
+  hasSubscribed,
+  useFreeMode,
+  useLicense,
+} from '@/components/Paywall'
 import { WorkspaceNav } from '@/components/WorkspaceNav'
 import { ResumePreview } from '@/components/ResumePreview'
 import { Button } from '@/components/ui/button'
@@ -41,9 +58,9 @@ import {
   exampleToResume,
   listResumeVersions,
   loadResume,
-  renameResumeVersion,
   saveResume,
   saveResumeVersion,
+  updateResumeVersion,
 } from '@/lib/resume'
 
 interface ExampleEntry {
@@ -86,7 +103,12 @@ export default function Dashboard() {
   const [draft] = useState<Resume | null>(() => loadResume())
   const [confirmOpen, setConfirmOpen] = useState<ResumeVersion | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<ResumeVersion | null>(null)
-  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null)
+  const [editing, setEditing] = useState<{
+    id: string
+    name: string
+    targetRole: string
+    jobDescription: string
+  } | null>(null)
   const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
   const [docKind, setDocKind] = useState<CareerDocKind | 'all'>('all')
   const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
@@ -100,6 +122,65 @@ export default function Dashboard() {
   const [examples, setExamples] = useState<ExampleEntry[]>([])
   const [exampleQuery, setExampleQuery] = useState('')
   const [exampleSector, setExampleSector] = useState('All')
+  const [newOpen, setNewOpen] = useState(false)
+  const [newKeepCopy, setNewKeepCopy] = useState(true)
+  const [newRole, setNewRole] = useState('')
+  const [newJd, setNewJd] = useState('')
+  const freeMode = useFreeMode()
+  const { license } = useLicense()
+  const unlocked = Boolean(license)
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
+  const [freeDlOpen, setFreeDlOpen] = useState(false)
+  const pendingDl = useRef<{ resume: Resume; fmt: 'pdf' | 'docx' } | null>(null)
+  const [downloading, setDownloading] = useState<string | null>(null)
+
+  const runDownload = async (r: Resume, fmt: 'pdf' | 'docx', key: string) => {
+    setDownloading(key)
+    try {
+      const name = (r.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
+      if (fmt === 'pdf')
+        await (await import('@/lib/pdf')).downloadResumePdf(r, `${name}-resume.pdf`)
+      else await (await import('@/lib/docx')).downloadResumeDocx(r, `${name}-resume.docx`)
+      if (!localStorage.getItem('honestcv.shared')) localStorage.setItem('honestcv.shared', '1')
+    } finally {
+      setDownloading(null)
+    }
+  }
+
+  const download = (r: Resume, fmt: 'pdf' | 'docx', key: string) => {
+    if (!unlocked) {
+      if (!freeMode) {
+        setUpgradeOpen(true)
+        return
+      }
+      if (!hasSubscribed() && !localStorage.getItem('honestcv.shared')) {
+        pendingDl.current = { resume: r, fmt }
+        setFreeDlOpen(true)
+        return
+      }
+    }
+    void runDownload(r, fmt, key)
+  }
+
+  const dlButton = (r: Resume, fmt: 'pdf' | 'docx', key: string, label: string) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="min-h-10 gap-1 px-2 text-xs sm:min-h-8"
+      title={`Download ${label} as ${fmt.toUpperCase()}`}
+      disabled={downloading === key}
+      onClick={() => download(r, fmt, key)}
+    >
+      {downloading === key ? (
+        <Loader2 className="size-3.5 animate-spin" />
+      ) : (
+        <FileDown className="size-3.5" />
+      )}
+      {fmt.toUpperCase()}
+      <span className="sr-only"> — download {label}</span>
+    </Button>
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -126,6 +207,23 @@ export default function Dashboard() {
         (!q || e.role.toLowerCase().includes(q) || e.sector.toLowerCase().includes(q))
     )
   }, [examples, exampleQuery, exampleSector])
+
+  const closeNewDialog = () => {
+    setNewOpen(false)
+    setNewRole('')
+    setNewJd('')
+    setNewKeepCopy(true)
+  }
+
+  const startNewResume = () => {
+    if (draft && newKeepCopy) {
+      setVersions(
+        saveResumeVersion(draft.targetRole || draft.contact.fullName || 'Untitled resume', draft)
+      )
+    }
+    saveResume({ ...emptyResume(), targetRole: newRole.trim(), jobDescription: newJd.trim() })
+    void navigate('/builder')
+  }
 
   const openCopy = (v: ResumeVersion) => {
     saveResume({ ...emptyResume(), ...v.data })
@@ -172,7 +270,7 @@ export default function Dashboard() {
         }
       />
       <main className="mx-auto flex w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8">
-        <WorkspaceNav />
+        <WorkspaceNav onCreate={() => setNewOpen(true)} />
         <div className="min-w-0 flex-1">
         <h1 className="text-2xl font-bold">My resumes</h1>
         <p className="text-muted-foreground mt-1 text-sm">
@@ -213,6 +311,8 @@ export default function Dashboard() {
                   >
                     <Copy className="size-3.5" /> Save as copy
                   </Button>
+                  {dlButton(draft, 'pdf', 'draft-pdf', 'current draft')}
+                  {dlButton(draft, 'docx', 'draft-docx', 'current draft')}
                 </div>
               </div>
             </div>
@@ -227,6 +327,19 @@ export default function Dashboard() {
               </Button>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => setNewOpen(true)}
+            className="bg-card hover:border-primary/50 border-border flex min-h-64 flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed p-6 text-center transition-colors"
+          >
+            <FilePlus2 className="text-muted-foreground size-8" />
+            <p className="text-sm font-medium">Start a new resume</p>
+            <p className="text-muted-foreground text-xs">
+              Optionally target a job from the first keystroke — your current draft can be kept as
+              a copy.
+            </p>
+          </button>
 
           <div className="flex flex-col">
             <button
@@ -274,35 +387,13 @@ export default function Dashboard() {
             <div key={v.id} className="bg-card flex flex-col rounded-md border shadow-sm">
               <Thumb resume={{ ...emptyResume(), ...v.data }} />
               <div className="flex flex-1 flex-col gap-2 p-3">
-                {renaming?.id === v.id ? (
-                  <form
-                    className="flex gap-1.5"
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      setVersions(renameResumeVersion(v.id, renaming.name.trim() || v.name))
-                      setRenaming(null)
-                    }}
-                  >
-                    <Input
-                      autoFocus
-                      value={renaming.name}
-                      onChange={(e) => setRenaming({ id: v.id, name: e.target.value })}
-                      aria-label="New name"
-                      className="h-10 sm:h-8"
-                    />
-                    <Button type="submit" size="sm" className="min-h-10 sm:min-h-8">
-                      Save
-                    </Button>
-                  </form>
-                ) : (
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{v.name}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {editedAgo(v.updatedAt)} · ATS{' '}
-                      {scoreResume(v.data, v.data.jobDescription).score}/100
-                    </p>
-                  </div>
-                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{v.name}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {editedAgo(v.updatedAt)} · ATS{' '}
+                    {scoreResume(v.data, v.data.jobDescription).score}/100
+                  </p>
+                </div>
                 <div className="mt-auto flex flex-wrap gap-1.5">
                   <Button
                     type="button"
@@ -323,16 +414,25 @@ export default function Dashboard() {
                     <Copy className="size-3.5" />
                     <span className="sr-only">Duplicate {v.name}</span>
                   </Button>
+                  {dlButton({ ...emptyResume(), ...v.data }, 'pdf', `${v.id}-pdf`, v.name)}
+                  {dlButton({ ...emptyResume(), ...v.data }, 'docx', `${v.id}-docx`, v.name)}
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className="min-h-10 sm:min-h-8"
-                    title="Rename this copy"
-                    onClick={() => setRenaming({ id: v.id, name: v.name })}
+                    title="Edit name & target job"
+                    onClick={() =>
+                      setEditing({
+                        id: v.id,
+                        name: v.name,
+                        targetRole: v.data.targetRole || '',
+                        jobDescription: v.data.jobDescription || '',
+                      })
+                    }
                   >
                     <Pencil className="size-3.5" />
-                    <span className="sr-only">Rename {v.name}</span>
+                    <span className="sr-only">Edit name and target job for {v.name}</span>
                   </Button>
                   <Button
                     type="button"
@@ -530,6 +630,159 @@ export default function Dashboard() {
       </main>
       <SiteFooter />
 
+      <Dialog open={newOpen} onOpenChange={(o) => (o ? setNewOpen(true) : closeNewDialog())}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Start a new resume</DialogTitle>
+            <DialogDescription>
+              Targeting a job now pre-fills keyword matching in the editor — both fields are
+              optional.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label htmlFor="new-resume-role" className="text-sm font-medium">
+                Target role
+              </label>
+              <Input
+                id="new-resume-role"
+                name="new-resume-role"
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+                placeholder="e.g. Senior Frontend Engineer"
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="new-resume-jd" className="text-sm font-medium">
+                Job description
+              </label>
+              <Textarea
+                id="new-resume-jd"
+                name="new-resume-jd"
+                rows={5}
+                value={newJd}
+                onChange={(e) => setNewJd(e.target.value)}
+                placeholder="Paste the job posting to score your resume against it as you write"
+                className="text-xs"
+              />
+            </div>
+            {draft && (
+              <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={newKeepCopy}
+                  onChange={(e) => setNewKeepCopy(e.target.checked)}
+                  className="size-4"
+                />
+                Keep a copy of my current draft in My resumes
+              </label>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-10"
+              onClick={closeNewDialog}
+            >
+              Cancel
+            </Button>
+            <Button type="button" className="min-h-10" onClick={startNewResume}>
+              Create resume
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Resume settings</DialogTitle>
+            <DialogDescription>
+              Rename this copy or point it at a different job — its ATS score updates against the
+              new posting.
+            </DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label htmlFor="edit-version-name" className="text-sm font-medium">
+                  Name
+                </label>
+                <Input
+                  id="edit-version-name"
+                  name="edit-version-name"
+                  value={editing.name}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="edit-version-role" className="text-sm font-medium">
+                  Target role
+                </label>
+                <Input
+                  id="edit-version-role"
+                  name="edit-version-role"
+                  value={editing.targetRole}
+                  onChange={(e) => setEditing({ ...editing, targetRole: e.target.value })}
+                  placeholder="e.g. Senior Frontend Engineer"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="edit-version-jd" className="text-sm font-medium">
+                  Job description
+                </label>
+                <Textarea
+                  id="edit-version-jd"
+                  name="edit-version-jd"
+                  rows={5}
+                  value={editing.jobDescription}
+                  onChange={(e) => setEditing({ ...editing, jobDescription: e.target.value })}
+                  placeholder="Paste the job posting to score this copy against it"
+                  className="text-xs"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-10"
+              onClick={() => setEditing(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="min-h-10"
+              onClick={() => {
+                if (!editing) return
+                const current = versions.find((v) => v.id === editing.id)
+                if (current) {
+                  setVersions(
+                    updateResumeVersion(editing.id, {
+                      name: editing.name.trim() || current.name,
+                      data: {
+                        ...current.data,
+                        targetRole: editing.targetRole.trim(),
+                        jobDescription: editing.jobDescription,
+                      },
+                    })
+                  )
+                }
+                setEditing(null)
+              }}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={confirmOpen !== null} onOpenChange={(o) => !o && setConfirmOpen(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -699,6 +952,21 @@ export default function Dashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FreeDownloadDialog
+        open={freeDlOpen}
+        onOpenChange={setFreeDlOpen}
+        onUnlocked={() => {
+          const p = pendingDl.current
+          pendingDl.current = null
+          if (p) void runDownload(p.resume, p.fmt, 'pending')
+        }}
+      />
+      <UpgradeDialog
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        reason="Downloading your resume as PDF or DOCX is the one thing we charge for — once, not monthly."
+      />
     </div>
   )
 }

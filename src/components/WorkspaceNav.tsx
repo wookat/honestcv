@@ -32,7 +32,7 @@ interface NavItem {
   active: boolean
 }
 
-export function WorkspaceNav() {
+export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
   const { pathname } = useLocation()
   const license = loadLicense()
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
@@ -65,11 +65,17 @@ export function WorkspaceNav() {
   return (
     <aside className="hidden w-56 shrink-0 md:block" aria-label="Workspace">
       <div className="sticky top-20 space-y-4">
-        <Button asChild className="w-full gap-2">
-          <Link to="/builder">
+        {onCreate ? (
+          <Button type="button" className="w-full gap-2" onClick={onCreate}>
             <FilePlus2 className="size-4" /> Create new resume
-          </Link>
-        </Button>
+          </Button>
+        ) : (
+          <Button asChild className="w-full gap-2">
+            <Link to="/builder">
+              <FilePlus2 className="size-4" /> Create new resume
+            </Link>
+          </Button>
+        )}
         <nav className="space-y-0.5" aria-label="Workspace sections">
           {items.map(({ label, to, icon: Icon, count, active }) => (
             <Link

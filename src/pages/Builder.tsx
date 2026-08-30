@@ -66,6 +66,8 @@ import {
   aiInterviewQuestions,
   aiResignationLetter,
   aiRewrite,
+  aiSkillSuggest,
+  aiSummaryDraft,
   aiTailor,
   fetchAiQuota,
 } from '@/lib/api'
@@ -381,7 +383,19 @@ export default function Builder() {
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
-  const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(null)
+  // ?doc=cover&company=<name> deep link from the /jobs board's "Cover letter" action
+  const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(() => {
+    const doc = new URLSearchParams(window.location.search).get('doc')
+    return doc === 'cover' || doc === 'interview' || doc === 'resignation' ? doc : null
+  })
+  const [toolCompany] = useState(
+    () => new URLSearchParams(window.location.search).get('company') ?? ''
+  )
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('doc')) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [])
   const [tailorOpen, setTailorOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
   const [kwBulletFor, setKwBulletFor] = useState<string | null>(null)
@@ -594,6 +608,67 @@ export default function Builder() {
       } else {
         apply(out)
       }
+    } catch (e) {
+      if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
+      else setAiError((e as Error).message)
+    } finally {
+      setAiBusy(null)
+    }
+  }
+
+  const runSummaryDraft = async () => {
+    const tag = 'summary-draft'
+    const hasContent =
+      resume.experience.some((e) => e.role.trim() || e.bullets.some((b) => b.trim())) ||
+      resume.skills.trim().length > 0 ||
+      resume.education.some((e) => e.degree.trim() || e.school.trim())
+    if (!hasContent) {
+      setAiErrorTag(tag)
+      setAiError('Add some experience or skills first — the draft is written only from your resume.')
+      return
+    }
+    setAiBusy(tag)
+    setAiError('')
+    setAiErrorTag(tag)
+    try {
+      const { texts, freeRemaining } = await aiSummaryDraft({
+        resumeText: resumeToPlainText({ ...resume, summary: '' }),
+        role: resume.targetRole,
+      })
+      if (freeRemaining !== null) setFreeLeft(freeRemaining)
+      setVariantPick({
+        title: 'Pick a summary',
+        candidates: texts,
+        apply: (out) => set('summary', out),
+      })
+    } catch (e) {
+      if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
+      else setAiError((e as Error).message)
+    } finally {
+      setAiBusy(null)
+    }
+  }
+
+  const [aiSkillChips, setAiSkillChips] = useState<string[] | null>(null)
+
+  const runSkillSuggest = async () => {
+    const tag = 'skill-suggest'
+    if (!resume.skills.trim() && !resume.targetRole.trim()) {
+      setAiErrorTag(tag)
+      setAiError('Add a target role or a few skills first — suggestions build on what you already have.')
+      return
+    }
+    setAiBusy(tag)
+    setAiError('')
+    setAiErrorTag(tag)
+    try {
+      const { skills, freeRemaining } = await aiSkillSuggest({
+        skills: resume.skills,
+        role: resume.targetRole,
+        jobDescription: resume.jobDescription,
+      })
+      if (freeRemaining !== null) setFreeLeft(freeRemaining)
+      setAiSkillChips(skills)
     } catch (e) {
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
@@ -1174,11 +1249,13 @@ export default function Builder() {
               onChange={(e) => set('summary', e.target.value)}
             />
             <div className="flex items-center gap-2">
-              {aiButton('summary', 'AI polish summary', () =>
-                void runRewrite('summary', 'summary', resume.summary, (out) =>
-                  set('summary', out)
-                )
-              )}
+              {resume.summary.trim()
+                ? aiButton('summary', 'AI polish summary', () =>
+                    void runRewrite('summary', 'summary', resume.summary, (out) =>
+                      set('summary', out)
+                    )
+                  )
+                : aiButton('summary-draft', 'Draft from my resume', () => void runSummaryDraft())}
             </div>
           </Section>
 
@@ -1682,23 +1759,30 @@ export default function Builder() {
                 value={resume.skills}
                 onChange={(e) => set('skills', e.target.value)}
               />
-              {aiButton('skills', 'AI clean up skills', () =>
-                void runRewrite('skills', 'skills', resume.skills, (out) =>
-                  set('skills', out)
-                )
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {aiButton('skills', 'AI clean up skills', () =>
+                  void runRewrite('skills', 'skills', resume.skills, (out) =>
+                    set('skills', out)
+                  )
+                )}
+                {aiButton('skill-suggest', 'AI suggest related skills', () =>
+                  void runSkillSuggest()
+                )}
+              </div>
               {(() => {
                 const have = new Set(
                   resume.skills.split(/[,\n]/).map((s) => s.trim().toLowerCase())
                 )
-                const chips = skillSuggestionsFor(resume.targetRole).filter(
+                const chips = (aiSkillChips ?? skillSuggestionsFor(resume.targetRole)).filter(
                   (s) => !have.has(s.toLowerCase())
                 )
                 if (chips.length === 0) return null
                 return (
                   <div className="text-xs">
                     <span className="text-muted-foreground">
-                      Common for your target role — tap only skills you actually have:
+                      {aiSkillChips
+                        ? 'Related to your skills and role — tap only skills you actually have:'
+                        : 'Common for your target role — tap only skills you actually have:'}
                     </span>
                     <span className="mt-1 flex flex-wrap gap-1">
                       {chips.map((kw) => (
@@ -2381,6 +2465,7 @@ export default function Builder() {
       />
       <BundleToolDialog
         kind={toolOpen}
+        initialCompany={toolCompany}
         onClose={() => setToolOpen(null)}
         resume={resume}
         onQuota={setFreeLeft}
@@ -2856,16 +2941,18 @@ function BulletGuidance({
 
 function BundleToolDialog({
   kind,
+  initialCompany = '',
   onClose,
   resume,
   onQuota,
 }: {
   kind: 'cover' | 'interview' | 'resignation' | null
+  initialCompany?: string
   onClose: () => void
   resume: Resume
   onQuota: (remaining: number) => void
 }) {
-  const [company, setCompany] = useState('')
+  const [company, setCompany] = useState(initialCompany)
   const [currentRole, setCurrentRole] = useState('')
   const [lastDay, setLastDay] = useState('')
   const [reason, setReason] = useState('')
@@ -2884,6 +2971,7 @@ function BundleToolDialog({
 
   if (kind !== lastKind) {
     setLastKind(kind)
+    if (kind !== null && initialCompany) setCompany(initialCompany)
     setResult('')
     setError('')
     setSavedId(null)
@@ -3092,11 +3180,16 @@ function BundleToolDialog({
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => void generate()} disabled={busy}>
+          <Button className="min-h-10 sm:min-h-9" onClick={() => void generate()} disabled={busy}>
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {busy ? 'Writing…' : result ? 'Regenerate' : 'Generate'}
           </Button>
-          <Button variant="outline" onClick={insertTemplate} disabled={busy}>
+          <Button
+            className="min-h-10 sm:min-h-9"
+            variant="outline"
+            onClick={insertTemplate}
+            disabled={busy}
+          >
             Start from a template
           </Button>
         </div>
@@ -3114,21 +3207,20 @@ function BundleToolDialog({
               onChange={(e) => setResult(e.target.value)}
               className="font-mono text-xs"
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-10 sm:min-h-8"
                 onClick={() =>
                   void import('@/lib/pdf').then((m) =>
-                    m.downloadTextPdf(
-                      title,
-                      result,
-                      kind === 'cover'
-                        ? 'cover-letter.pdf'
-                        : kind === 'resignation'
-                          ? 'resignation-letter.pdf'
-                          : 'interview-prep.pdf'
-                    )
+                    kind === 'interview'
+                      ? m.downloadTextPdf(title, result, 'interview-prep.pdf')
+                      : m.downloadLetterPdf(
+                          resume,
+                          result,
+                          kind === 'cover' ? 'cover-letter.pdf' : 'resignation-letter.pdf'
+                        )
                   )
                 }
               >
@@ -3137,17 +3229,16 @@ function BundleToolDialog({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-10 sm:min-h-8"
                 onClick={() =>
                   void import('@/lib/docx').then((m) =>
-                    m.downloadTextDocx(
-                      title,
-                      result,
-                      kind === 'cover'
-                        ? 'cover-letter.docx'
-                        : kind === 'resignation'
-                          ? 'resignation-letter.docx'
-                          : 'interview-prep.docx'
-                    )
+                    kind === 'interview'
+                      ? m.downloadTextDocx(title, result, 'interview-prep.docx')
+                      : m.downloadLetterDocx(
+                          resume,
+                          result,
+                          kind === 'cover' ? 'cover-letter.docx' : 'resignation-letter.docx'
+                        )
                   )
                 }
               >
@@ -3156,6 +3247,7 @@ function BundleToolDialog({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-10 sm:min-h-8"
                 title="Keep this document — reopen it anytime from My resumes"
                 onClick={() => {
                   const docTitle =

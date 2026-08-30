@@ -51,6 +51,50 @@ export function buildRewriteMessages(
   ]
 }
 
+/**
+ * Draft candidate summaries from the resume alone (no user draft needed),
+ * grounded strictly in the resume's existing content.
+ */
+export function buildSummaryDraftMessages(resumeText: string, role: string): ChatMessage[] {
+  return [
+    {
+      role: 'system',
+      content: `${SYSTEM_WRITER}
+The user has a filled resume but no professional summary yet. Write 3 alternative professional summaries (each 2-3 sentences, max 60 words) using ONLY facts present in the resume text — job titles, employers, skills, education, and metrics that appear there. Different emphasis per version (1: concise, 2: impact-focused, 3: keyword/skills-focused). Never invent seniority, metrics, tools, or scope the resume does not show. Reply with ONLY a JSON array of 3 strings — no markdown, no commentary.`,
+    },
+    {
+      role: 'user',
+      content: `Target role: ${role || 'not specified'}\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
+    },
+  ]
+}
+
+/**
+ * Suggest additional resume skills related to what the user already has —
+ * discovery chips the user taps only for skills they actually possess.
+ */
+export function buildSkillSuggestMessages(
+  skills: string,
+  role: string,
+  jobDescription: string
+): ChatMessage[] {
+  const parts = [
+    `Suggest up to 12 additional skills this candidate might list on their resume, closely related to their existing skills and target role (adjacent tools, frameworks, methods, and industry-standard names). These are discovery suggestions the user confirms — do NOT repeat skills already listed. Each suggestion must be a short canonical skill name (1-3 words). Reply with ONLY a JSON array of strings — no markdown, no commentary.`,
+  ]
+  if (role) parts.push(`Target role: ${role}`)
+  if (skills) parts.push(`Existing skills: ${skills.slice(0, 1500)}`)
+  const jd = jobDescription.trim()
+  if (jd) parts.push(`Job description they are targeting:\n"""\n${jd.slice(0, 3000)}\n"""`)
+  return [
+    {
+      role: 'system',
+      content:
+        'You are an expert on job-market skills taxonomies. You suggest related, real, commonly-recognized skill names for resumes. Never invent niche tools that do not exist.',
+    },
+    { role: 'user', content: parts.join('\n\n') },
+  ]
+}
+
 export interface TailorItem {
   id: string
   kind: 'summary' | 'bullet'
