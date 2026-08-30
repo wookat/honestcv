@@ -4,7 +4,7 @@
  */
 
 export interface ChatMessage {
-  role: 'system' | 'user'
+  role: 'system' | 'user' | 'assistant'
   content: string
 }
 
@@ -249,5 +249,46 @@ Never fabricate experience. No markdown syntax beyond the plain headings above.`
       role: 'user',
       content: `Role: ${role || 'the role'}\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
     },
+  ]
+}
+
+export interface AssistantTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/**
+ * Multi-turn resume assistant chat grounded in the user's current draft.
+ * The assistant advises and points at in-editor tools; it never edits the
+ * resume itself and never invents facts the resume does not contain.
+ */
+export function buildAssistantMessages(
+  turns: AssistantTurn[],
+  resumeText: string,
+  jobDescription: string,
+  role: string
+): ChatMessage[] {
+  const context = [
+    `Target role: ${role.trim() || 'not specified'}`,
+    jobDescription.trim()
+      ? `Target job description:\n"""\n${jobDescription.slice(0, 4000)}\n"""`
+      : 'No target job description provided.',
+    resumeText.trim()
+      ? `Candidate's current resume draft:\n"""\n${resumeText.slice(0, 6000)}\n"""`
+      : 'The resume draft is currently empty.',
+  ].join('\n\n')
+  return [
+    {
+      role: 'system',
+      content: `You are RezUp's resume assistant, chatting inside the resume editor. The user's current resume draft, target role, and target job description are provided below as context.
+Rules:
+- Ground every statement in the resume context. Never invent employers, titles, dates, metrics, or skills the resume does not show; where a detail is unknown, say so or use a bracketed placeholder like [metric].
+- Be concise: plain text, short paragraphs or "- " bullet lists, no markdown headings or bold, under 250 words per reply.
+- You cannot edit the resume directly. When an in-editor tool fits the request, point the user to it by name: "Tailor to job" (rewrites summary/bullets toward the JD), "Resume health" (checks), "Draft from my resume" (summary drafting), "AI suggest related skills" (skills), the Cover Letter / Interview Prep / Resignation Letter tools, and Auto-fit (layout).
+- Answer questions about job search, interviews, and resume strategy honestly and practically. If asked something unrelated to resumes, careers, or job search, briefly decline and steer back.
+
+${context}`,
+    },
+    ...turns.map((t) => ({ role: t.role, content: t.content.slice(0, 2000) })),
   ]
 }

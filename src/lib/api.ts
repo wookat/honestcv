@@ -143,6 +143,20 @@ export async function aiInterviewQuestions(input: {
   )
 }
 
+export interface AssistantTurnInput {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export async function aiAssistant(input: {
+  turns: AssistantTurnInput[]
+  resumeText: string
+  jobDescription: string
+  role: string
+}): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/assistant', input)
+}
+
 export async function aiInterviewFeedback(input: {
   question: string
   answer: string
