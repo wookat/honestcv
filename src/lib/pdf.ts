@@ -7,6 +7,21 @@ import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pd
 import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
+  awardBullets,
+  awardEntries,
+  awardHeadingLine,
+  publicationBullets,
+  publicationEntries,
+  publicationHeadingLine,
+  certEntries,
+  certHeadingLine,
+  courseworkBullets,
+  courseworkEntries,
+  courseworkHeadingLine,
+  involvementBullets,
+  involvementDates,
+  involvementEntries,
+  involvementHeadingLine,
   dividerOf,
   educationDetailLine,
   fontScaleOf,
@@ -351,6 +366,15 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
           w.text(p.description.trim(), { size: 10 })
         }
       }
+    } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
+      w.heading('Involvement')
+      for (const i of involvementEntries(resume)) {
+        w.gap(4)
+        w.ensure(34)
+        w.titleLine(involvementHeadingLine(i), involvementDates(i), { size: 10.5 })
+        w.gap(2)
+        for (const b of involvementBullets(i)) w.bullet(b)
+      }
     } else if (key === 'education' && resume.education.some((e) => e.school)) {
       w.heading('Education')
       for (const e of resume.education) {
@@ -369,12 +393,54 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
           w.text(detail, { size: 10 })
         }
       }
+    } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
+      w.heading('Coursework')
+      for (const cw of courseworkEntries(resume)) {
+        w.gap(4)
+        w.ensure(34)
+        w.titleLine(courseworkHeadingLine(cw), cw.date.trim(), { size: 10.5 })
+        w.gap(2)
+        for (const b of courseworkBullets(cw)) w.bullet(b)
+      }
     } else if (key === 'skills' && resume.skills.trim()) {
       w.heading('Skills')
       w.text(resume.skills.trim(), { size: 10 })
-    } else if (key === 'certifications' && resume.certifications.trim()) {
+    } else if (
+      key === 'certifications' &&
+      (certEntries(resume).length > 0 || resume.certifications.trim())
+    ) {
       w.heading('Certifications')
-      w.text(resume.certifications.trim(), { size: 10 })
+      for (const c of certEntries(resume)) {
+        w.gap(2)
+        w.ensure(30)
+        w.titleLine(certHeadingLine(c), c.date.trim(), { size: 10 })
+        if (c.description.trim()) {
+          w.gap(1)
+          w.text(c.description.trim(), { size: 10 })
+        }
+      }
+      if (resume.certifications.trim()) {
+        w.gap(2)
+        w.text(resume.certifications.trim(), { size: 10 })
+      }
+    } else if (key === 'awards' && awardEntries(resume).length > 0) {
+      w.heading('Awards & Honors')
+      for (const a of awardEntries(resume)) {
+        w.gap(4)
+        w.ensure(34)
+        w.titleLine(awardHeadingLine(a), a.date.trim(), { size: 10.5 })
+        w.gap(2)
+        for (const b of awardBullets(a)) w.bullet(b)
+      }
+    } else if (key === 'publications' && publicationEntries(resume).length > 0) {
+      w.heading('Publications')
+      for (const p of publicationEntries(resume)) {
+        w.gap(4)
+        w.ensure(34)
+        w.titleLine(publicationHeadingLine(p), p.date.trim(), { size: 10.5 })
+        w.gap(2)
+        for (const b of publicationBullets(p)) w.bullet(b)
+      }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)
       if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowDown,
+  Award,
+  BookOpen,
+  BookText,
   ArrowUp,
   Briefcase,
   Check,
@@ -30,6 +33,7 @@ import {
   Trash2,
   Undo2,
   Unlock,
+  Users,
   Wand2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -100,9 +104,14 @@ import {
   type Resume,
   type ResumeVersion,
   deleteResumeVersion,
+  emptyAward,
+  emptyCertification,
+  emptyPublication,
   emptyCustomSection,
   emptyEducation,
   emptyExperience,
+  emptyCoursework,
+  emptyInvolvement,
   emptyProject,
   emptyResume,
   exampleToResume,
@@ -1882,6 +1891,424 @@ export default function Builder() {
             </Button>
           </Section>
 
+          <Section title="Involvement" icon={<Users className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              Campus or community organizations — clubs, societies, volunteering.
+            </p>
+            {(resume.involvement ?? []).map((inv) => (
+              <div key={inv.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Role (e.g. Selected Member)"
+                    value={inv.role}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, role: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Organization"
+                    value={inv.organization}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, organization: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="College or city (optional)"
+                    value={inv.location}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, location: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Start (2024)"
+                      value={inv.startDate}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, startDate: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="End"
+                      value={inv.endDate}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, endDate: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="What you did there — one bullet per line"
+                    value={inv.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete involvement"
+                    aria-label="Delete involvement"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).filter((x) => x.id !== inv.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  involvement: [...(r.involvement ?? []), emptyInvolvement()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add involvement
+            </Button>
+          </Section>
+
+          <Section title="Coursework" icon={<BookOpen className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              Relevant courses — useful when you have little work experience.
+            </p>
+            {(resume.coursework ?? []).map((cw) => (
+              <div key={cw.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Course name (e.g. Intro to Computer Systems)"
+                    value={cw.name}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).map((x) =>
+                          x.id === cw.id ? { ...x, name: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-[1fr_5rem] gap-2">
+                    <Input
+                      placeholder="Where (school or platform)"
+                      value={cw.institution}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, institution: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="When"
+                      value={cw.date}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, date: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <Input
+                  placeholder="Skill used (optional, e.g. Teamwork)"
+                  value={cw.skill}
+                  onChange={(ev) =>
+                    setResume((r) => ({
+                      ...r,
+                      coursework: (r.coursework ?? []).map((x) =>
+                        x.id === cw.id ? { ...x, skill: ev.target.value } : x
+                      ),
+                    }))
+                  }
+                />
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="How you applied it — one bullet per line"
+                    value={cw.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).map((x) =>
+                          x.id === cw.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete coursework"
+                    aria-label="Delete coursework"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).filter((x) => x.id !== cw.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  coursework: [...(r.coursework ?? []), emptyCoursework()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add coursework
+            </Button>
+          </Section>
+
+          <Section title="Awards & honors" icon={<Award className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              Awards, honors and recognitions that back up your track record.
+            </p>
+            {(resume.awards ?? []).map((a) => (
+              <div key={a.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Award name (e.g. Dean's List)"
+                    value={a.name}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: (r.awards ?? []).map((x) =>
+                          x.id === a.id ? { ...x, name: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-[1fr_5rem] gap-2">
+                    <Input
+                      placeholder="Awarded by (organization)"
+                      value={a.organization}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, organization: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="When"
+                      value={a.date}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, date: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="Why it's relevant — one bullet per line"
+                    value={a.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: (r.awards ?? []).map((x) =>
+                          x.id === a.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete award"
+                    aria-label="Delete award"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: (r.awards ?? []).filter((x) => x.id !== a.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  awards: [...(r.awards ?? []), emptyAward()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add award
+            </Button>
+          </Section>
+
+          <Section title="Publications" icon={<BookText className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              Papers, articles and talks — with the journal or conference they appeared in.
+            </p>
+            {(resume.publications ?? []).map((pub) => (
+              <div key={pub.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Publication title"
+                    value={pub.title}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).map((x) =>
+                          x.id === pub.id ? { ...x, title: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-[1fr_5rem] gap-2">
+                    <Input
+                      placeholder="Journal / conference"
+                      value={pub.venue}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, venue: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="When"
+                      value={pub.date}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, date: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="Additional information — one bullet per line"
+                    value={pub.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).map((x) =>
+                          x.id === pub.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete publication"
+                    aria-label="Delete publication"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).filter((x) => x.id !== pub.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  publications: [...(r.publications ?? []), emptyPublication()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add publication
+            </Button>
+          </Section>
+
           <Section title="Skills & certifications" icon={<Sparkles className="size-4" />}>
             <div className="space-y-1.5">
               <Label htmlFor="skills">Skills (comma-separated)</Label>
@@ -1940,8 +2367,101 @@ export default function Builder() {
                 )
               })()}
             </div>
+            <div className="space-y-2">
+              <Label>Certifications (optional)</Label>
+              {(resume.certItems ?? []).map((c) => (
+                <div key={c.id} className="space-y-2 rounded-md border p-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input
+                      placeholder="Certificate name (AWS Solutions Architect)"
+                      value={c.name}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: (r.certItems ?? []).map((x) =>
+                            x.id === c.id ? { ...x, name: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                      <Input
+                        placeholder="Issuer (Amazon Web Services)"
+                        value={c.issuer}
+                        onChange={(ev) =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, issuer: ev.target.value } : x
+                            ),
+                          }))
+                        }
+                      />
+                      <Input
+                        className="w-24"
+                        placeholder="2024"
+                        value={c.date}
+                        onChange={(ev) =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, date: ev.target.value } : x
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <Textarea
+                      rows={2}
+                      placeholder="How it's relevant (optional)"
+                      value={c.description}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: (r.certItems ?? []).map((x) =>
+                            x.id === c.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                      title="Delete certification"
+                      aria-label="Delete certification"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: (r.certItems ?? []).filter((x) => x.id !== c.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                onClick={() =>
+                  setResume((r) => ({
+                    ...r,
+                    certItems: [...(r.certItems ?? []), emptyCertification()],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Add certification
+              </Button>
+            </div>
             <div className="space-y-1.5">
-              <Label htmlFor="certs">Certifications (optional)</Label>
+              <Label htmlFor="certs">Additional certifications (free text, optional)</Label>
               <Input
                 id="certs"
                 placeholder="AWS Solutions Architect (2024), PMP…"

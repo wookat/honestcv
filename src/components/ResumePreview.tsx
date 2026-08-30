@@ -8,7 +8,17 @@ import { useEffect, useRef, useState } from 'react'
 
 import {
   type Resume,
+  awardBullets,
+  awardEntries,
+  publicationBullets,
+  publicationEntries,
+  certEntries,
+  courseworkBullets,
+  courseworkEntries,
   dividerOf,
+  involvementBullets,
+  involvementDates,
+  involvementEntries,
   fontScaleOf,
   lineSpacingOf,
   educationDetailLine,
@@ -281,6 +291,41 @@ function SectionBlock({
         )}
       </>
     ) : null
+  if (sectionKey === 'involvement') {
+    const items = involvementEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('Involvement')}
+        {items.map((inv) => (
+          <div key={inv.id} className="mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11.5px] font-bold">
+                {inv.role.trim() || 'Role'}
+                {inv.organization.trim() && (
+                  <span className="font-normal">
+                    {'  ·  '}
+                    {inv.organization.trim()}
+                    {inv.location.trim() ? `, ${inv.location.trim()}` : ''}
+                  </span>
+                )}
+              </p>
+              {involvementDates(inv) && (
+                <p className="text-[10px] text-neutral-500 italic">{involvementDates(inv)}</p>
+              )}
+            </div>
+            <ul className="mt-0.5 space-y-0.5">
+              {involvementBullets(inv).map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11px]">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </>
+    ) : null
+  }
   if (sectionKey === 'education')
     return resume.education.some((e) => e.school) ? (
       <>
@@ -311,6 +356,40 @@ function SectionBlock({
         )}
       </>
     ) : null
+  if (sectionKey === 'coursework') {
+    const items = courseworkEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('Coursework')}
+        {items.map((cw) => (
+          <div key={cw.id} className="mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11.5px] font-bold">
+                {cw.name.trim() || 'Course'}
+                {cw.institution.trim() && (
+                  <span className="font-normal">
+                    {'  ·  '}
+                    {cw.institution.trim()}
+                  </span>
+                )}
+              </p>
+              {cw.date.trim() && (
+                <p className="text-[10px] text-neutral-500 italic">{cw.date.trim()}</p>
+              )}
+            </div>
+            <ul className="mt-0.5 space-y-0.5">
+              {courseworkBullets(cw).map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11px]">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </>
+    ) : null
+  }
   if (sectionKey === 'skills')
     return resume.skills.trim() ? (
       <>
@@ -318,13 +397,95 @@ function SectionBlock({
         <p className="text-[11px]">{resume.skills.trim()}</p>
       </>
     ) : null
-  if (sectionKey === 'certifications')
-    return resume.certifications.trim() ? (
+  if (sectionKey === 'certifications') {
+    const certs = certEntries(resume)
+    return certs.length > 0 || resume.certifications.trim() ? (
       <>
         {heading('Certifications')}
-        <p className="text-[11px]">{resume.certifications.trim()}</p>
+        {certs.map((c) => (
+          <div key={c.id} className="mb-1.5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11px] font-bold">
+                {c.name.trim() || 'Certificate'}
+                {c.issuer.trim() && <span className="font-normal"> — {c.issuer.trim()}</span>}
+              </p>
+              {c.date.trim() && (
+                <p className="text-[10px] text-neutral-500 italic">{c.date.trim()}</p>
+              )}
+            </div>
+            {c.description.trim() && (
+              <p className="text-[11px]">{c.description.trim()}</p>
+            )}
+          </div>
+        ))}
+        {resume.certifications.trim() && (
+          <p className="text-[11px]">{resume.certifications.trim()}</p>
+        )}
       </>
     ) : null
+  }
+  if (sectionKey === 'awards') {
+    const items = awardEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('Awards & Honors')}
+        {items.map((a) => (
+          <div key={a.id} className="mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11.5px] font-bold">
+                {a.name.trim() || 'Award'}
+                {a.organization.trim() && (
+                  <span className="font-normal"> — {a.organization.trim()}</span>
+                )}
+              </p>
+              {a.date.trim() && (
+                <p className="text-[10px] text-neutral-500 italic">{a.date.trim()}</p>
+              )}
+            </div>
+            <ul className="mt-0.5 space-y-0.5">
+              {awardBullets(a).map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11px]">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </>
+    ) : null
+  }
+  if (sectionKey === 'publications') {
+    const items = publicationEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('Publications')}
+        {items.map((p) => (
+          <div key={p.id} className="mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11.5px] font-bold">
+                {p.title.trim() || 'Publication'}
+                {p.venue.trim() && (
+                  <span className="font-normal"> — {p.venue.trim()}</span>
+                )}
+              </p>
+              {p.date.trim() && (
+                <p className="text-[10px] text-neutral-500 italic">{p.date.trim()}</p>
+              )}
+            </div>
+            <ul className="mt-0.5 space-y-0.5">
+              {publicationBullets(p).map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11px]">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </>
+    ) : null
+  }
   if (sectionKey.startsWith('custom:')) {
     const s = resume.customSections.find((x) => `custom:${x.id}` === sectionKey)
     if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) return null

@@ -9,6 +9,8 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 
 - `Emulation.setDeviceMetricsOverride` reverts when the websocket that set it closes — hold a single CDP connection open for the whole mobile pass, and re-check `innerWidth` before judging layout. Pair with `Emulation.setPageScaleFactor(1)` for stable layout metrics.
 - A nohup'd CDP-hold helper may survive `kill_shell` — `pkill -f cdp_hold` and verify `innerWidth` is back to desktop before final desktop screenshots.
+- After killing the CDP hold, `Emulation.clearDeviceMetricsOverride` alone may leave the page stuck at the mobile width — if `innerWidth` stays 375, send `Emulation.setDeviceMetricsOverride({width:0,height:0,deviceScaleFactor:0,mobile:false})`, then `clearDeviceMetricsOverride`, then `Page.reload`.
+- xdotool typing drops/mutates characters (seen: "+"→"O", leading letter dropped) — always verify typed text in `honestcv.resume` before asserting, and use ASCII-word substitutes for symbols that won't land.
 - Router deep-link features (e.g. `?assistant=1`, `?doc=`) must be tested on *repeat* activation, not just first use: cleaning query params with raw `history.replaceState` desyncs react-router's location and the second activation silently no-ops.
 
 ## QA traffic marking (unified convention)

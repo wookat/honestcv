@@ -19,6 +19,17 @@ import {
 import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
+  awardBullets,
+  awardEntries,
+  publicationBullets,
+  publicationEntries,
+  certEntries,
+  certHeadingLine,
+  courseworkBullets,
+  courseworkEntries,
+  involvementBullets,
+  involvementDates,
+  involvementEntries,
   dividerOf,
   educationDetailLine,
   fontScaleOf,
@@ -202,6 +213,34 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         )
         if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
       }
+    } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
+      children.push(heading('Involvement'))
+      for (const i of involvementEntries(resume)) {
+        const dates = involvementDates(i)
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+            children: [
+              new TextRun({ text: i.role.trim() || 'Role', bold: true, size: sz(22), font }),
+              ...(i.organization.trim()
+                ? [
+                    new TextRun({
+                      text: `  ·  ${i.organization.trim()}${i.location.trim() ? `, ${i.location.trim()}` : ''}`,
+                      size: sz(21),
+                      font,
+                    }),
+                  ]
+                : []),
+              ...(dates
+                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
+                : []),
+            ],
+          })
+        )
+        for (const b of involvementBullets(i)) children.push(body(b, { bullet: true }))
+      }
     } else if (key === 'education' && resume.education.some((e) => e.school)) {
       children.push(heading('Education'))
       for (const e of resume.education) {
@@ -228,13 +267,109 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         const detail = educationDetailLine(e)
         if (detail) children.push(body(detail))
       }
+    } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
+      children.push(heading('Coursework'))
+      for (const cw of courseworkEntries(resume)) {
+        const date = cw.date.trim()
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+            children: [
+              new TextRun({ text: cw.name.trim() || 'Course', bold: true, size: sz(22), font }),
+              ...(cw.institution.trim()
+                ? [
+                    new TextRun({
+                      text: `  ·  ${cw.institution.trim()}`,
+                      size: sz(21),
+                      font,
+                    }),
+                  ]
+                : []),
+              ...(date
+                ? [new TextRun({ children: [new Tab(), date], italics: true, size: sz(19), font })]
+                : []),
+            ],
+          })
+        )
+        for (const b of courseworkBullets(cw)) children.push(body(b, { bullet: true }))
+      }
     } else if (key === 'skills' && resume.skills.trim()) {
       children.push(heading('Skills'), body(resume.skills.trim(), { after: 100 }))
-    } else if (key === 'certifications' && resume.certifications.trim()) {
-      children.push(
-        heading('Certifications'),
-        body(resume.certifications.trim(), { after: 100 })
-      )
+    } else if (
+      key === 'certifications' &&
+      (certEntries(resume).length > 0 || resume.certifications.trim())
+    ) {
+      children.push(heading('Certifications'))
+      for (const c of certEntries(resume)) {
+        const date = c.date.trim()
+        children.push(
+          body(`${certHeadingLine(c)}${date ? `  (${date})` : ''}`, {
+            bold: true,
+            after: 20,
+            keepNext: true,
+          })
+        )
+        if (c.description.trim()) children.push(body(c.description.trim(), { after: 80 }))
+      }
+      if (resume.certifications.trim())
+        children.push(body(resume.certifications.trim(), { after: 100 }))
+    } else if (key === 'awards' && awardEntries(resume).length > 0) {
+      children.push(heading('Awards & Honors'))
+      for (const a of awardEntries(resume)) {
+        const date = a.date.trim()
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+            children: [
+              new TextRun({ text: a.name.trim() || 'Award', bold: true, size: sz(22), font }),
+              ...(a.organization.trim()
+                ? [
+                    new TextRun({
+                      text: ` — ${a.organization.trim()}`,
+                      size: sz(21),
+                      font,
+                    }),
+                  ]
+                : []),
+              ...(date
+                ? [new TextRun({ children: [new Tab(), date], italics: true, size: sz(19), font })]
+                : []),
+            ],
+          })
+        )
+        for (const b of awardBullets(a)) children.push(body(b, { bullet: true }))
+      }
+    } else if (key === 'publications' && publicationEntries(resume).length > 0) {
+      children.push(heading('Publications'))
+      for (const p of publicationEntries(resume)) {
+        const date = p.date.trim()
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+            children: [
+              new TextRun({
+                text: p.title.trim() || 'Publication',
+                bold: true,
+                size: sz(22),
+                font,
+              }),
+              ...(p.venue.trim()
+                ? [new TextRun({ text: ` — ${p.venue.trim()}`, size: sz(21), font })]
+                : []),
+              ...(date
+                ? [new TextRun({ children: [new Tab(), date], italics: true, size: sz(19), font })]
+                : []),
+            ],
+          })
+        )
+        for (const b of publicationBullets(p)) children.push(body(b, { bullet: true }))
+      }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)
       if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) continue
