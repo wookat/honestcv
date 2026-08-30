@@ -39,7 +39,7 @@ import {
   projectDates,
   projectHeadingLine,
   sectionSpacingOf,
-  serifOf,
+  familyOf,
 } from '@/lib/resume'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
@@ -302,20 +302,37 @@ class PdfWriter {
   }
 }
 
+const STANDARD_FONTS_BY_KIND = {
+  serif: {
+    regular: StandardFonts.TimesRoman,
+    bold: StandardFonts.TimesRomanBold,
+    italic: StandardFonts.TimesRomanItalic,
+  },
+  sans: {
+    regular: StandardFonts.Helvetica,
+    bold: StandardFonts.HelveticaBold,
+    italic: StandardFonts.HelveticaOblique,
+  },
+  mono: {
+    regular: StandardFonts.Courier,
+    bold: StandardFonts.CourierBold,
+    italic: StandardFonts.CourierOblique,
+  },
+} as const
+
+async function embedFontsFor(doc: PDFDocument, resume: Resume, tplSerif: boolean): Promise<Fonts> {
+  const kind = STANDARD_FONTS_BY_KIND[familyOf(resume, tplSerif)]
+  return {
+    regular: await doc.embedFont(kind.regular),
+    bold: await doc.embedFont(kind.bold),
+    italic: await doc.embedFont(kind.italic),
+  }
+}
+
 async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const doc = await PDFDocument.create()
-  const fonts: Fonts = serifOf(resume, tpl.serif)
-    ? {
-        regular: await doc.embedFont(StandardFonts.TimesRoman),
-        bold: await doc.embedFont(StandardFonts.TimesRomanBold),
-        italic: await doc.embedFont(StandardFonts.TimesRomanItalic),
-      }
-    : {
-        regular: await doc.embedFont(StandardFonts.Helvetica),
-        bold: await doc.embedFont(StandardFonts.HelveticaBold),
-        italic: await doc.embedFont(StandardFonts.HelveticaOblique),
-      }
+  const fonts: Fonts = await embedFontsFor(doc, resume, tpl.serif)
   const w = new PdfWriter(doc, fonts, tpl, resume.pageSize === 'a4' ? 'a4' : 'letter')
   w.fs = fontScaleOf(resume)
   w.lh = lineSpacingOf(resume)
@@ -534,17 +551,7 @@ export async function downloadTextPdf(title: string, text: string, filename: str
 export async function downloadLetterPdf(resume: Resume, body: string, filename: string) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const doc = await PDFDocument.create()
-  const fonts: Fonts = serifOf(resume, tpl.serif)
-    ? {
-        regular: await doc.embedFont(StandardFonts.TimesRoman),
-        bold: await doc.embedFont(StandardFonts.TimesRomanBold),
-        italic: await doc.embedFont(StandardFonts.TimesRomanItalic),
-      }
-    : {
-        regular: await doc.embedFont(StandardFonts.Helvetica),
-        bold: await doc.embedFont(StandardFonts.HelveticaBold),
-        italic: await doc.embedFont(StandardFonts.HelveticaOblique),
-      }
+  const fonts: Fonts = await embedFontsFor(doc, resume, tpl.serif)
   const w = new PdfWriter(doc, fonts, tpl, resume.pageSize === 'a4' ? 'a4' : 'letter')
   const c = resume.contact
   if (c.fullName.trim()) {
