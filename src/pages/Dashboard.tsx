@@ -100,6 +100,10 @@ export default function Dashboard() {
   const [examples, setExamples] = useState<ExampleEntry[]>([])
   const [exampleQuery, setExampleQuery] = useState('')
   const [exampleSector, setExampleSector] = useState('All')
+  const [newOpen, setNewOpen] = useState(false)
+  const [newKeepCopy, setNewKeepCopy] = useState(true)
+  const [newRole, setNewRole] = useState('')
+  const [newJd, setNewJd] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -126,6 +130,16 @@ export default function Dashboard() {
         (!q || e.role.toLowerCase().includes(q) || e.sector.toLowerCase().includes(q))
     )
   }, [examples, exampleQuery, exampleSector])
+
+  const startNewResume = () => {
+    if (draft && newKeepCopy) {
+      setVersions(
+        saveResumeVersion(draft.targetRole || draft.contact.fullName || 'Untitled resume', draft)
+      )
+    }
+    saveResume({ ...emptyResume(), targetRole: newRole.trim(), jobDescription: newJd.trim() })
+    void navigate('/builder')
+  }
 
   const openCopy = (v: ResumeVersion) => {
     saveResume({ ...emptyResume(), ...v.data })
@@ -172,7 +186,7 @@ export default function Dashboard() {
         }
       />
       <main className="mx-auto flex w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8">
-        <WorkspaceNav />
+        <WorkspaceNav onCreate={() => setNewOpen(true)} />
         <div className="min-w-0 flex-1">
         <h1 className="text-2xl font-bold">My resumes</h1>
         <p className="text-muted-foreground mt-1 text-sm">
@@ -227,6 +241,19 @@ export default function Dashboard() {
               </Button>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => setNewOpen(true)}
+            className="bg-card hover:border-primary/50 border-border flex min-h-64 flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed p-6 text-center transition-colors"
+          >
+            <FilePlus2 className="text-muted-foreground size-8" />
+            <p className="text-sm font-medium">Start a new resume</p>
+            <p className="text-muted-foreground text-xs">
+              Optionally target a job from the first keystroke — your current draft can be kept as
+              a copy.
+            </p>
+          </button>
 
           <div className="flex flex-col">
             <button
@@ -529,6 +556,71 @@ export default function Dashboard() {
         </div>
       </main>
       <SiteFooter />
+
+      <Dialog open={newOpen} onOpenChange={setNewOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Start a new resume</DialogTitle>
+            <DialogDescription>
+              Targeting a job now pre-fills keyword matching in the editor — both fields are
+              optional.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label htmlFor="new-resume-role" className="text-sm font-medium">
+                Target role
+              </label>
+              <Input
+                id="new-resume-role"
+                name="new-resume-role"
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+                placeholder="e.g. Senior Frontend Engineer"
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="new-resume-jd" className="text-sm font-medium">
+                Job description
+              </label>
+              <Textarea
+                id="new-resume-jd"
+                name="new-resume-jd"
+                rows={5}
+                value={newJd}
+                onChange={(e) => setNewJd(e.target.value)}
+                placeholder="Paste the job posting to score your resume against it as you write"
+                className="text-xs"
+              />
+            </div>
+            {draft && (
+              <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={newKeepCopy}
+                  onChange={(e) => setNewKeepCopy(e.target.checked)}
+                  className="size-4"
+                />
+                Keep a copy of my current draft in My resumes
+              </label>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-10"
+              onClick={() => setNewOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="button" className="min-h-10" onClick={startNewResume}>
+              Create resume
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={confirmOpen !== null} onOpenChange={(o) => !o && setConfirmOpen(null)}>
         <DialogContent className="sm:max-w-md">
