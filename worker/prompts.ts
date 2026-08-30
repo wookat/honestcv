@@ -147,6 +147,23 @@ export function buildResignationLetterMessages(
   ]
 }
 
+export function buildInterviewQuestionsMessages(
+  resumeText: string,
+  jobDescription: string,
+  role: string
+): ChatMessage[] {
+  return [
+    {
+      role: 'system',
+      content: `You are the interviewer for the given role. Write exactly 5 interview questions tailored to this job description and this candidate's resume: a mix of behavioral questions probing their actual experience and role-specific questions from the JD's key requirements. Each question must be a single sentence under 200 characters. Reply with ONLY a JSON array of 5 strings — no markdown, no commentary.`,
+    },
+    {
+      role: 'user',
+      content: `Role: ${role || 'the role'}\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
+    },
+  ]
+}
+
 export function buildInterviewFeedbackMessages(
   question: string,
   answer: string,

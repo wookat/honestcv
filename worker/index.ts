@@ -30,6 +30,7 @@ import {
   buildKeywordBulletMessages,
   buildInterviewBriefMessages,
   buildInterviewFeedbackMessages,
+  buildInterviewQuestionsMessages,
   buildResignationLetterMessages,
   buildRewriteMessages,
 } from './prompts'
@@ -749,6 +750,74 @@ app.post('/api/ai/interview-brief', async (c) => {
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ text: result.text, freeRemaining })
+})
+
+// Interview practice questions — Career Bundle (free mode: shares the free AI quota)
+app.post('/api/ai/interview-questions', async (c) => {
+  const ent = await entitlementFromRequest(c)
+  let freeRemaining: number | null = null
+  if (!ent || ent.plan !== 'bundle') {
+    if (!freeMode(c.env)) {
+      return c.json(
+        {
+          error: 'Interview practice is part of the Career Bundle ($19.99, one-time).',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    const remaining = await peekFreeQuota(c)
+    if (remaining < 0) {
+      return c.json(
+        {
+          error:
+            'You have used all free AI calls for now — they reset within 30 days.',
+          code: 'payment_required',
+        },
+        402
+      )
+    }
+    freeRemaining = remaining
+  }
+  const body = await c.req
+    .json<{ resumeText?: string; jobDescription?: string; role?: string }>()
+    .catch(() => ({}) as Record<string, never>)
+  const resumeText = body.resumeText?.trim()
+  const jd = body.jobDescription?.trim()
+  if (!resumeText) return c.json({ error: 'Add resume content first.' }, 400)
+  if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
+  const result = await callLlm(
+    c.env,
+    buildInterviewQuestionsMessages(resumeText, jd, body.role ?? ''),
+    0.6,
+    600
+  )
+  // Quota is consumed only after a successful call, so failures cost nothing
+  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
+  const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
+  let questions: string[] = []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (Array.isArray(parsed)) {
+      questions = parsed
+        .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
+        .map((q) => q.trim().slice(0, 200))
+        .slice(0, 5)
+    }
+  } catch {
+    questions = []
+  }
+  if (questions.length === 0) {
+    return c.json(
+      {
+        error:
+          'The AI service is having trouble right now — please retry in a minute. None of your free AI uses were spent.',
+      },
+      502
+    )
+  }
+  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+  return c.json({ questions, freeRemaining })
 })
 
 // Interview answer feedback — Career Bundle (free mode: shares the free AI quota)
