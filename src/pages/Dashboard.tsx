@@ -1,13 +1,30 @@
 /**
  * Resume dashboard: card grid of the current draft plus every saved copy,
- * with open / duplicate / rename / delete. All data lives in localStorage.
+ * with open / download / duplicate / rename / delete. All data lives in localStorage.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Copy, FilePlus2, FileText, FileUp, MessagesSquare, Pencil, Trash2 } from 'lucide-react'
+import {
+  Copy,
+  FileDown,
+  FilePlus2,
+  FileText,
+  FileUp,
+  Loader2,
+  MessagesSquare,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
+import {
+  FreeDownloadDialog,
+  UpgradeDialog,
+  hasSubscribed,
+  useFreeMode,
+  useLicense,
+} from '@/components/Paywall'
 import { WorkspaceNav } from '@/components/WorkspaceNav'
 import { ResumePreview } from '@/components/ResumePreview'
 import { Button } from '@/components/ui/button'
@@ -104,6 +121,61 @@ export default function Dashboard() {
   const [newKeepCopy, setNewKeepCopy] = useState(true)
   const [newRole, setNewRole] = useState('')
   const [newJd, setNewJd] = useState('')
+  const freeMode = useFreeMode()
+  const { license } = useLicense()
+  const unlocked = Boolean(license)
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
+  const [freeDlOpen, setFreeDlOpen] = useState(false)
+  const pendingDl = useRef<{ resume: Resume; fmt: 'pdf' | 'docx' } | null>(null)
+  const [downloading, setDownloading] = useState<string | null>(null)
+
+  const runDownload = async (r: Resume, fmt: 'pdf' | 'docx', key: string) => {
+    setDownloading(key)
+    try {
+      const name = (r.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
+      if (fmt === 'pdf')
+        await (await import('@/lib/pdf')).downloadResumePdf(r, `${name}-resume.pdf`)
+      else await (await import('@/lib/docx')).downloadResumeDocx(r, `${name}-resume.docx`)
+      if (!localStorage.getItem('honestcv.shared')) localStorage.setItem('honestcv.shared', '1')
+    } finally {
+      setDownloading(null)
+    }
+  }
+
+  const download = (r: Resume, fmt: 'pdf' | 'docx', key: string) => {
+    if (!unlocked) {
+      if (!freeMode) {
+        setUpgradeOpen(true)
+        return
+      }
+      if (!hasSubscribed() && !localStorage.getItem('honestcv.shared')) {
+        pendingDl.current = { resume: r, fmt }
+        setFreeDlOpen(true)
+        return
+      }
+    }
+    void runDownload(r, fmt, key)
+  }
+
+  const dlButton = (r: Resume, fmt: 'pdf' | 'docx', key: string, label: string) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="min-h-10 gap-1 px-2 text-xs sm:min-h-8"
+      title={`Download ${label} as ${fmt.toUpperCase()}`}
+      disabled={downloading === key}
+      onClick={() => download(r, fmt, key)}
+    >
+      {downloading === key ? (
+        <Loader2 className="size-3.5 animate-spin" />
+      ) : (
+        <FileDown className="size-3.5" />
+      )}
+      {fmt.toUpperCase()}
+      <span className="sr-only"> — download {label}</span>
+    </Button>
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -234,6 +306,8 @@ export default function Dashboard() {
                   >
                     <Copy className="size-3.5" /> Save as copy
                   </Button>
+                  {dlButton(draft, 'pdf', 'draft-pdf', 'current draft')}
+                  {dlButton(draft, 'docx', 'draft-docx', 'current draft')}
                 </div>
               </div>
             </div>
@@ -357,6 +431,8 @@ export default function Dashboard() {
                     <Copy className="size-3.5" />
                     <span className="sr-only">Duplicate {v.name}</span>
                   </Button>
+                  {dlButton({ ...emptyResume(), ...v.data }, 'pdf', `${v.id}-pdf`, v.name)}
+                  {dlButton({ ...emptyResume(), ...v.data }, 'docx', `${v.id}-docx`, v.name)}
                   <Button
                     type="button"
                     variant="outline"
@@ -798,6 +874,21 @@ export default function Dashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FreeDownloadDialog
+        open={freeDlOpen}
+        onOpenChange={setFreeDlOpen}
+        onUnlocked={() => {
+          const p = pendingDl.current
+          pendingDl.current = null
+          if (p) void runDownload(p.resume, p.fmt, 'pending')
+        }}
+      />
+      <UpgradeDialog
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        reason="Downloading your resume as PDF or DOCX is the one thing we charge for — once, not monthly."
+      />
     </div>
   )
 }
