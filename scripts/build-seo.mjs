@@ -1310,6 +1310,63 @@ function esc(s) {
     .replaceAll('"', '&quot;')
 }
 
+const FOOTER_COLUMNS = [
+  [
+    'Product',
+    [
+      ['Resume builder', '/builder'],
+      ['My resumes', '/dashboard'],
+      ['Job search', '/jobs'],
+      ['Free ATS checker', '/ats-checker'],
+      ['Pricing', '/pricing/'],
+    ],
+  ],
+  [
+    'Resources',
+    [
+      ['Resume templates', '/templates/'],
+      ['Resume examples', '/examples/'],
+      ['Resume guides', '/guides/'],
+      ['All comparisons', '/vs/'],
+    ],
+  ],
+  [
+    'Compare',
+    [
+      ['RezUp vs Zety', '/vs/zety'],
+      ['RezUp vs LiveCareer', '/vs/livecareer'],
+      ['RezUp vs Rezi', '/vs/rezi'],
+      ['RezUp vs Enhancv', '/vs/enhancv'],
+      ['One-time payment builders', '/resume-builder-one-time-payment'],
+    ],
+  ],
+  [
+    'Company',
+    [
+      ['About', '/about'],
+      ['Terms & refunds', '/terms'],
+      ['Privacy', '/privacy'],
+      ['Contact', 'mailto:support@zalize.com'],
+    ],
+  ],
+]
+
+function siteFooter() {
+  return `<footer class="site">
+<nav class="cols" aria-label="Footer">
+${FOOTER_COLUMNS.map(
+    ([heading, links]) => `<div>
+<h2>${esc(heading)}</h2>
+<ul>
+${links.map(([label, href]) => `<li><a href="${href}">${esc(label)}</a></li>`).join('\n')}
+</ul>
+</div>`
+  ).join('\n')}
+</nav>
+<div class="in">© ${new Date().getFullYear()} RezUp · part of Zalize · Pay once, own it forever. Your resume stays in your browser — we never store it. · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div>
+</footer>`
+}
+
 const CSS = `
 @font-face{font-family:'Inter';font-style:normal;font-weight:400 700;font-display:optional;src:url('/fonts/inter-latin.woff2') format('woff2')}
 @font-face{font-family:'Sora';font-style:normal;font-weight:600 800;font-display:optional;src:url('/fonts/sora-latin.woff2') format('woff2')}
@@ -1344,6 +1401,13 @@ h2[id]{scroll-margin-top:1rem}
 .related ul{list-style:none;padding:0;margin:0;display:grid;gap:.5rem}
 footer.site{border-top:1px solid var(--border)}
 footer.site .in{max-width:72rem;margin:0 auto;padding:1.5rem 1rem;text-align:center;font-size:.75rem;color:var(--muted)}
+footer.site .cols{max-width:72rem;margin:0 auto;padding:2rem 1rem .5rem;display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem 2rem;font-size:.8125rem}
+@media (min-width:768px){footer.site .cols{grid-template-columns:repeat(4,1fr)}}
+footer.site .cols h2{margin:0 0 .5rem;font-size:.75rem;font-family:'Inter',system-ui,sans-serif;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+footer.site .cols ul{list-style:none;margin:0;padding:0}
+footer.site .cols li{margin:.4rem 0}
+footer.site .cols a{color:var(--fg);text-decoration:none}
+footer.site .cols a:hover{text-decoration:underline}
 nav.main{display:none}
 @media (min-width:768px){nav.main{display:flex;align-items:center;gap:1.25rem;font-size:.875rem}}
 nav.main a{color:var(--muted);text-decoration:none}
@@ -1491,7 +1555,7 @@ ${related.map((r) => `<li><a href="${r.path}">${esc(r.title.split(' — ')[0])}<
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · Pay once, own it forever. Your resume stays in your browser. · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+${siteFooter()}
 </body>
 </html>`
 }
@@ -1554,7 +1618,7 @@ ${NAV_HTML}
 <h1>${esc(p.h1)}</h1>
 ${p.sections.map(([h, t]) => `<h2 style="margin-top:1.5rem;font-size:1.125rem">${esc(h)}</h2>\n<p class="lede" style="font-size:1rem">${esc(t)}</p>`).join('\n')}
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+${siteFooter()}
 </body>
 </html>`
 }
@@ -1636,7 +1700,7 @@ ${NAV_HTML}
 </ul>
 <p class="lede" style="font-size:1rem">Sister products, same promise: <a href="https://qr.zalize.com">HonestQR</a>, <a href="https://pdf.zalize.com">HonestPDF</a>, <a href="https://subsleuth.zalize.com">SubSleuth</a>.</p>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/about">About</a> · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+${siteFooter()}
 </body>
 </html>`
 }
@@ -1718,7 +1782,7 @@ ${related.map((r) => `<li><a href="${r.path}">${esc(r.title.split(' — ')[0])}<
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+${siteFooter()}
 </body>
 </html>`
 }
@@ -1779,7 +1843,7 @@ ${others.map((t) => `<a href="${t.path}/" aria-label="${esc(t.name)} resume temp
 </div>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+${siteFooter()}
 </body>
 </html>`
 }
@@ -1870,7 +1934,7 @@ ${bodyHtml ?? renderHubItems(items)}
 <a class="btn" href="/builder">Start building free</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+${siteFooter()}
 </body>
 </html>`
 }
@@ -3214,7 +3278,7 @@ ${guideLinks.map((r) => `<li><a href="${r.path}">${esc(r.title)}</a></li>`).join
 </ul>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+${siteFooter()}
 </body>
 </html>`
 }
@@ -3639,7 +3703,7 @@ ${PRICING_FAQ.map(([q, a]) => `<h3>${esc(q)}</h3>\n<p>${esc(a)}</p>`).join('\n')
 <a class="btn" href="/builder">Start building free</a>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms &amp; refunds</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+${siteFooter()}
 </body>
 </html>`
 }
@@ -3725,7 +3789,7 @@ ${AI_SECTIONS.map(
 <a class="btn" href="/builder">Try the AI builder free</a>
 </div>
 </main>
-<footer class="site"><div class="in">© ${new Date().getFullYear()} RezUp · <a href="/examples/">Examples</a> · <a href="/guides/">Guides</a> · <a href="/templates/">Templates</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="mailto:support@zalize.com">Contact</a> · More honest tools: <a href="https://qr.zalize.com">HonestQR</a> · <a href="https://pdf.zalize.com">HonestPDF</a> · <a href="https://subsleuth.zalize.com">SubSleuth</a></div></footer>
+${siteFooter()}
 </body>
 </html>`
 }
