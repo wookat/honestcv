@@ -1231,7 +1231,29 @@ export default function Builder() {
                   value={e.bullets.join('\n')}
                   onChange={(ev) => setExp(e.id, { bullets: ev.target.value.split('\n') })}
                 />
-                <BulletGuidance bullets={e.bullets} />
+                <BulletGuidance
+                  bullets={e.bullets}
+                  busyLine={
+                    aiBusy?.startsWith(`exp-${e.id}-line-`)
+                      ? Number(aiBusy.slice(`exp-${e.id}-line-`.length))
+                      : null
+                  }
+                  onFix={(idx) =>
+                    void runRewrite(
+                      `exp-${e.id}-line-${idx}`,
+                      'bullets',
+                      e.bullets[idx] ?? '',
+                      (out) =>
+                        setExp(e.id, {
+                          bullets: e.bullets.map((b, i) =>
+                            i === idx
+                              ? (out.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim() || b
+                              : b
+                          ),
+                        })
+                    )
+                  }
+                />
                 <BulletIdeas
                   role={`${e.role} ${resume.targetRole}`}
                   onAdd={(s) =>
@@ -2587,18 +2609,40 @@ function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void
   )
 }
 
-function BulletGuidance({ bullets }: { bullets: string[] }) {
+function BulletGuidance({
+  bullets,
+  onFix,
+  busyLine,
+}: {
+  bullets: string[]
+  onFix?: (index: number) => void
+  busyLine?: number | null
+}) {
   const results = useMemo(() => checkBullets(bullets), [bullets])
   if (results.length === 0) return null
   return (
     <ul className="space-y-0.5 text-xs">
-      {results.slice(0, 4).map((r) =>
-        r.issues.slice(0, 2).map((issue) => (
-          <li key={`${r.index}-${issue.kind}`} className="text-amber-700">
-            ⚠ Line {r.index + 1}: {issue.message}
-          </li>
-        ))
-      )}
+      {results.slice(0, 4).map((r) => (
+        <li key={r.index} className="text-amber-700">
+          {r.issues.slice(0, 2).map((issue) => (
+            <span key={issue.kind} className="block">
+              ⚠ Line {r.index + 1}: {issue.message}
+            </span>
+          ))}
+          {onFix && (
+            <button
+              type="button"
+              className="text-primary mt-0.5 inline-flex min-h-10 items-center gap-1 underline underline-offset-2 disabled:opacity-50 sm:min-h-0"
+              disabled={busyLine !== null && busyLine !== undefined}
+              onClick={() => onFix(r.index)}
+              title={`AI rewrites line ${r.index + 1} — you pick from the suggestions`}
+            >
+              <Sparkles aria-hidden className="size-3" />
+              {busyLine === r.index ? 'Fixing…' : `Fix line ${r.index + 1} with AI`}
+            </button>
+          )}
+        </li>
+      ))}
     </ul>
   )
 }
