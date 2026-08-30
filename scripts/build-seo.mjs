@@ -1758,7 +1758,18 @@ function renderHubItems(items) {
     .join('\n')
 }
 
-function hubPage({ pathname, title, description, h1, intro, items, bodyHtml, extraCss, mainStyle }) {
+function hubPage({
+  pathname,
+  title,
+  description,
+  h1,
+  intro,
+  items,
+  bodyHtml,
+  extraCss,
+  mainStyle,
+  filterPlaceholder,
+}) {
   const canonical = `${SITE}${pathname}`
   const itemListLd = {
     '@context': 'https://schema.org',
@@ -1792,6 +1803,7 @@ function hubPage({ pathname, title, description, h1, intro, items, bodyHtml, ext
 <script type="application/ld+json">${JSON.stringify(itemListLd)}</script>
 <style>${CSS}${extraCss ?? ''}</style>
 ${FP_BEACON}
+${filterPlaceholder ? '<script defer src="/hub-filter.js"></script>' : ''}
 </head>
 <body>
 <header class="site"><div class="in">
@@ -1802,6 +1814,7 @@ ${NAV_HTML}
 <main${mainStyle ? ` style="${mainStyle}"` : ''}>
 <h1>${esc(h1)}</h1>
 <p class="lede">${esc(intro)}</p>
+${filterPlaceholder ? `<input id="hub-filter" type="search" hidden placeholder="${esc(filterPlaceholder)}" aria-label="Filter the list below" autocomplete="off" style="width:100%;max-width:26rem;min-height:2.75rem;margin-top:1rem;padding:0 .875rem;border:1px solid var(--border);border-radius:.5rem;font:inherit;background:#fff" />\n<p id="hub-filter-empty" hidden style="margin-top:1.5rem;color:#667085">No examples match that search \u2014 try a broader word like \u201cengineer\u201d or \u201cmanager\u201d.</p>` : ''}
 ${bodyHtml ?? renderHubItems(items)}
 <div class="cta">
 <p>${FREE_MODE ? 'RezUp is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The RezUp builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
@@ -3373,6 +3386,7 @@ const HUBS = [
     intro:
       'Full example resumes — summary, quantified bullets, skills, education — written the way we coach: every claim scoped, measurable and defensible in an interview. Pick your role, then build yours in the same ATS-safe layout.',
     items: groupedExampleItems(),
+    filterPlaceholder: 'Search by job title — nurse, engineer, sales…',
   },
   {
     pathname: '/templates/',
