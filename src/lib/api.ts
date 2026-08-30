@@ -110,6 +110,7 @@ export async function aiSuggestBullet(input: {
   company: string
   bullets: string[]
   resumeText: string
+  variant?: 'key-numbers'
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/suggest-bullet', input)
 }
