@@ -220,9 +220,12 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 
 - Byte-level restore proof: before deleting the `qa.<round>.backup` key, compute `diffs`/`extra` against it in the same CDP evaluation (restore → compare → only then remove `qa.*`) so restoration is provable rather than inferred from key counts.
 - Ending mobile emulation: a plain pkill of the CDP-hold process has restored desktop width cleanly in recent rounds — try that first, and fall back to the documented metric-reset workaround only if `innerWidth` stays 375 (a leftover hold process can survive the first pkill — check and `kill -9` before the metric reset).
-- Assistant panel QA: quick-task buttons only render while the chat is empty; for later sends type the exact QUICK_TASKS prompt text into the input (same request path).
+- Assistant panel QA: the empty chat shows stacked quick-task buttons; once the chat is non-empty the same QUICK_TASKS render as rounded-full pills pinned above the composer (R78) — either sends the exact prompt through the same request path.
 - Asserting `scoreSummary` in captured `/api/ai/assistant` bodies: it is the LAST key in the JSON body and gets cut once chat turns grow — don't truncate postData logs; grep the raw `Network.getRequestPostData` result.
 - Each assistant send costs 1 free AI quota — run assistant tests on a throwaway clientId (clear `honestcv.*` → fresh client gets a full quota) and restore the baseline afterwards.
+- Assistant replies often return in <2s, so a post-click DOM probe misses the busy state — arm a ~25ms `setInterval` poller sampling `disabled` on the target buttons BEFORE clicking, then read the samples.
+- Do NOT use CDP offline emulation to fake a stuck assistant request: Chrome queues the fetch and delivers it after network restore, consuming a real AI quota send.
+- To render chat-dependent UI without spending quota, save `honestcv.assistantChat` JSON before Clear chat and restore it via CDP + reload.
 
 ## Devin Secrets Needed
 
