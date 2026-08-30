@@ -33,6 +33,7 @@ import {
   projectDates,
   sectionSpacingOf,
   familyOf,
+  textInkOf,
 } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
@@ -108,8 +109,8 @@ export function ResumePreview({
     return (
       <div
         data-resume-preview
-        className="mx-auto w-full rounded-md border bg-white p-8 text-[#1f1f1f] shadow-sm"
-        style={{ fontFamily, aspectRatio, overflow: 'hidden', ...contentStyle }}
+        className="mx-auto w-full rounded-md border bg-white p-8 shadow-sm"
+        style={{ fontFamily, color: textInkOf(resume), aspectRatio, overflow: 'hidden', ...contentStyle }}
         aria-label="Resume preview"
       >
         {content}
@@ -173,9 +174,10 @@ function PaginatedPages({
           key={i}
           ref={i === 0 ? frameRef : undefined}
           data-resume-preview={i === 0 ? '' : undefined}
-          className="relative mx-auto w-full rounded-md border bg-white text-[#1f1f1f] shadow-sm"
+          className="relative mx-auto w-full rounded-md border bg-white shadow-sm"
           style={{
             fontFamily,
+            color: textInkOf(resume),
             overflow: 'hidden',
             ...(scale > 0
               ? { height: baseH * scale }

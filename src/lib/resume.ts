@@ -194,6 +194,8 @@ export interface Resume {
   sectionSpacing?: 'tight' | 'normal' | 'roomy'
   /** Section divider rule; 'auto' follows the template */
   sectionDivider?: 'auto' | 'on' | 'off'
+  /** Body text color across preview, PDF and DOCX */
+  textColor?: 'default' | 'black' | 'navy'
   /** JD keywords the user marked as not relevant — excluded from ATS keyword coverage */
   ignoredKeywords?: string[]
   /** Target role + JD used for tailoring and the ATS score */
@@ -225,6 +227,11 @@ export const familyOf = (r: Resume, tplSerif: boolean): FontFamilyKind =>
 export const SECTION_SPACING = { tight: 0.6, normal: 1, roomy: 1.4 } as const
 
 export const sectionSpacingOf = (r: Resume) => SECTION_SPACING[r.sectionSpacing ?? 'normal']
+
+/** Body text ink (hex) per text-color setting. */
+export const TEXT_INKS = { default: '#1f1f1f', black: '#000000', navy: '#1f3a5c' } as const
+
+export const textInkOf = (r: Resume) => TEXT_INKS[r.textColor ?? 'default']
 
 /** Section divider to render, honouring the user's override of the template rule. */
 export const dividerOf = (
@@ -772,6 +779,7 @@ export function sanitizeResume(input: unknown): Resume | null {
     fontFamily: asEnum(raw.fontFamily, ['auto', 'serif', 'sans', 'mono'] as const),
     sectionSpacing: asEnum(raw.sectionSpacing, ['tight', 'normal', 'roomy'] as const),
     sectionDivider: asEnum(raw.sectionDivider, ['auto', 'on', 'off'] as const),
+    textColor: asEnum(raw.textColor, ['default', 'black', 'navy'] as const),
     targetRole: asStr(raw.targetRole),
     jobDescription: asStr(raw.jobDescription),
   }

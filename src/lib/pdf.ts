@@ -40,6 +40,7 @@ import {
   projectHeadingLine,
   sectionSpacingOf,
   familyOf,
+  textInkOf,
 } from '@/lib/resume'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
@@ -334,6 +335,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
   const doc = await PDFDocument.create()
   const fonts: Fonts = await embedFontsFor(doc, resume, tpl.serif)
   const w = new PdfWriter(doc, fonts, tpl, resume.pageSize === 'a4' ? 'a4' : 'letter')
+  w.ink = hexToRgb(textInkOf(resume))
   w.fs = fontScaleOf(resume)
   w.lh = lineSpacingOf(resume)
   w.ss = sectionSpacingOf(resume)

@@ -46,6 +46,8 @@ import {
   projectHeadingLine,
   sectionSpacingOf,
   familyOf,
+  TEXT_INKS,
+  textInkOf,
 } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
@@ -67,6 +69,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   // docx line spacing: 240 twips = single; scale by the user's line-spacing setting
   const lineTwips = Math.round(240 * (lineSpacingOf(resume) / 1.35))
   const divider = dividerOf(resume, tpl.divider)
+  const ink = textInkOf(resume)
   const headingBefore = Math.round(240 * sectionSpacingOf(resume))
   const heading = (text: string) =>
     new Paragraph({
@@ -459,6 +462,10 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   }
 
   const doc = new Document({
+    styles:
+      ink === TEXT_INKS.default
+        ? undefined
+        : { default: { document: { run: { color: ink.replace('#', '') } } } },
     sections: [
       {
         properties: {
