@@ -6,7 +6,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-import { type Resume, fontScaleOf, lineSpacingOf, orderedSectionKeys, serifOf } from '@/lib/resume'
+import {
+  type Resume,
+  dividerOf,
+  fontScaleOf,
+  lineSpacingOf,
+  orderedSectionKeys,
+  sectionSpacingOf,
+  serifOf,
+} from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
 export function ResumePreview({
@@ -25,16 +33,17 @@ export function ResumePreview({
     .filter(Boolean)
     .join('  |  ')
 
+  const divider = tpl.band ? 'none' : dividerOf(resume, tpl.divider)
+  const headingMarginTop = 16 * sectionSpacingOf(resume)
   const heading = (label: string) => (
     <h3
-      className="mt-4 mb-1.5 text-[11px] font-bold tracking-wide"
+      className="mb-1.5 text-[11px] font-bold tracking-wide"
       style={{
+        marginTop: headingMarginTop,
         color: tpl.accent,
         borderBottom:
-          tpl.divider === 'none'
-            ? 'none'
-            : `${tpl.divider === 'thick' ? 2 : 1}px solid ${tpl.accent}`,
-        paddingBottom: tpl.band ? 3 : tpl.divider === 'none' ? 0 : 3,
+          divider === 'none' ? 'none' : `${divider === 'thick' ? 2 : 1}px solid ${tpl.accent}`,
+        paddingBottom: tpl.band ? 3 : divider === 'none' ? 0 : 3,
         ...(tpl.band
           ? { background: accentTint(tpl.accent), padding: '3px 6px', borderRadius: 2 }
           : {}),
