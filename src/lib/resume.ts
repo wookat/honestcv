@@ -451,6 +451,7 @@ export interface ResumeVersion {
   id: string
   name: string
   updatedAt: number
+  folder?: string
   data: Resume
 }
 
@@ -465,7 +466,9 @@ export function listResumeVersions(): ResumeVersion[] {
     return parsed.flatMap((v) => {
       if (!v || typeof v !== 'object' || !v.id) return []
       const data = sanitizeResume(v.data)
-      return data ? [{ ...v, data }] : []
+      if (!data) return []
+      const folder = typeof v.folder === 'string' && v.folder.trim() ? v.folder : undefined
+      return [{ ...v, folder, data }]
     })
   } catch {
     return []
@@ -499,7 +502,7 @@ export function renameResumeVersion(id: string, name: string): ResumeVersion[] {
 
 export function updateResumeVersion(
   id: string,
-  patch: { name?: string; data?: Resume }
+  patch: { name?: string; folder?: string; data?: Resume }
 ): ResumeVersion[] {
   const versions = listResumeVersions().map((v) =>
     v.id === id ? { ...v, ...patch, updatedAt: Date.now() } : v

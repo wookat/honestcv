@@ -109,6 +109,7 @@ export default function Dashboard() {
   const [editing, setEditing] = useState<{
     id: string
     name: string
+    folder: string
     targetRole: string
     jobDescription: string
   } | null>(null)
@@ -144,12 +145,24 @@ export default function Dashboard() {
     localStorage.setItem('honestcv.dashboardView', v)
   }
   const [sortBy, setSortBy] = useState<'edited' | 'name'>('edited')
+  const [folderFilter, setFolderFilter] = useState<string>('all')
+  const folders = useMemo(() => {
+    const names = new Set<string>()
+    for (const v of versions) if (v.folder) names.add(v.folder)
+    return [...names].sort((a, b) => a.localeCompare(b))
+  }, [versions])
+  const activeFolder =
+    folderFilter === 'all' || folderFilter === 'none' || folders.includes(folderFilter)
+      ? folderFilter
+      : 'all'
   const sortedVersions = useMemo(() => {
-    const arr = [...versions]
+    const arr = versions.filter((v) =>
+      activeFolder === 'all' ? true : activeFolder === 'none' ? !v.folder : v.folder === activeFolder
+    )
     if (sortBy === 'name') arr.sort((a, b) => a.name.localeCompare(b.name))
     else arr.sort((a, b) => b.updatedAt - a.updatedAt)
     return arr
-  }, [versions, sortBy])
+  }, [versions, sortBy, activeFolder])
 
   const docDownload = (d: CareerDoc, text: string, fmt: 'pdf' | 'docx', key: string) => (
     <Button
@@ -326,6 +339,7 @@ export default function Dashboard() {
           setEditing({
             id: v.id,
             name: v.name,
+            folder: v.folder || '',
             targetRole: v.data.targetRole || '',
             jobDescription: v.data.jobDescription || '',
           })
@@ -462,6 +476,36 @@ export default function Dashboard() {
           </div>
         )}
 
+        {folders.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter copies by folder">
+            {(
+              [
+                ['all', 'All', versions.length],
+                ...folders.map(
+                  (f) => [f, f, versions.filter((v) => v.folder === f).length] as const
+                ),
+                ['none', 'No folder', versions.filter((v) => !v.folder).length],
+              ] as const
+            )
+              .filter(([k, , count]) => k === 'all' || count > 0)
+              .map(([k, label, count]) => (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={activeFolder === k}
+                  onClick={() => setFolderFilter(k)}
+                  className={`min-h-10 rounded-md border px-2 py-1 text-xs font-medium transition sm:min-h-8 ${
+                    activeFolder === k
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label} ({count})
+                </button>
+              ))}
+          </div>
+        )}
+
         <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${versions.length > 0 ? 'mt-3' : 'mt-6'}`}>
           {draft ? (
             <div className="bg-card flex flex-col rounded-md border shadow-sm">
@@ -577,6 +621,7 @@ export default function Dashboard() {
                     <p className="text-muted-foreground text-xs">
                       {editedAgo(v.updatedAt)} · ATS{' '}
                       {scoreResume(v.data, v.data.jobDescription).score}/100
+                      {v.folder ? ` · ${v.folder}` : ''}
                     </p>
                   </div>
                   <div className="mt-auto flex flex-wrap gap-1.5">{versionActions(v)}</div>
@@ -905,6 +950,25 @@ export default function Dashboard() {
                 />
               </div>
               <div className="space-y-1.5">
+                <label htmlFor="edit-version-folder" className="text-sm font-medium">
+                  Folder
+                </label>
+                <Input
+                  id="edit-version-folder"
+                  name="edit-version-folder"
+                  list="version-folders"
+                  value={editing.folder}
+                  onChange={(e) => setEditing({ ...editing, folder: e.target.value })}
+                  placeholder="e.g. Backend roles — leave empty for no folder"
+                  className="h-10"
+                />
+                <datalist id="version-folders">
+                  {folders.map((f) => (
+                    <option key={f} value={f} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="space-y-1.5">
                 <label htmlFor="edit-version-jd" className="text-sm font-medium">
                   Job description
                 </label>
@@ -939,6 +1003,7 @@ export default function Dashboard() {
                   setVersions(
                     updateResumeVersion(editing.id, {
                       name: editing.name.trim() || current.name,
+                      folder: editing.folder.trim() || undefined,
                       data: {
                         ...current.data,
                         targetRole: editing.targetRole.trim(),
