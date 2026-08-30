@@ -3164,11 +3164,16 @@ function BundleToolDialog({
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => void generate()} disabled={busy}>
+          <Button className="min-h-10 sm:min-h-9" onClick={() => void generate()} disabled={busy}>
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {busy ? 'Writing…' : result ? 'Regenerate' : 'Generate'}
           </Button>
-          <Button variant="outline" onClick={insertTemplate} disabled={busy}>
+          <Button
+            className="min-h-10 sm:min-h-9"
+            variant="outline"
+            onClick={insertTemplate}
+            disabled={busy}
+          >
             Start from a template
           </Button>
         </div>
@@ -3186,10 +3191,11 @@ function BundleToolDialog({
               onChange={(e) => setResult(e.target.value)}
               className="font-mono text-xs"
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-10 sm:min-h-8"
                 onClick={() =>
                   void import('@/lib/pdf').then((m) =>
                     kind === 'interview'
@@ -3207,6 +3213,7 @@ function BundleToolDialog({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-10 sm:min-h-8"
                 onClick={() =>
                   void import('@/lib/docx').then((m) =>
                     kind === 'interview'
@@ -3224,6 +3231,7 @@ function BundleToolDialog({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-10 sm:min-h-8"
                 title="Keep this document — reopen it anytime from My resumes"
                 onClick={() => {
                   const docTitle =
