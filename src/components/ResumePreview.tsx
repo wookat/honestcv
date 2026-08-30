@@ -33,7 +33,7 @@ export function ResumePreview({
     .filter(Boolean)
     .join('  |  ')
 
-  const divider = dividerOf(resume, tpl.divider)
+  const divider = tpl.band ? 'none' : dividerOf(resume, tpl.divider)
   const headingMarginTop = 16 * sectionSpacingOf(resume)
   const heading = (label: string) => (
     <h3
