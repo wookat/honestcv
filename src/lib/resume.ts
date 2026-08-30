@@ -147,6 +147,18 @@ export interface CustomSection {
   bullets: string[]
 }
 
+export interface AgentItem {
+  id: string
+  /** Agent name, e.g. "Support Triage Agent" */
+  name: string
+  /** When the agent was built, e.g. "2026" */
+  date: string
+  /** Skills used, e.g. "Task Automation, Workflow Management" */
+  skills: string
+  /** How building the agent was relevant; one bullet per line */
+  description: string
+}
+
 export interface Resume {
   contact: ContactInfo
   summary: string
@@ -163,6 +175,7 @@ export interface Resume {
   publications?: PublicationItem[]
   references?: ReferenceItem[]
   military?: MilitaryServiceItem[]
+  agents?: AgentItem[]
   customSections: CustomSection[]
   /** Section keys in render order (see SECTION_KEYS + custom:<id>) */
   sectionOrder: string[]
@@ -244,6 +257,7 @@ export function emptyResume(): Resume {
     publications: [],
     references: [],
     military: [],
+    agents: [],
     customSections: [],
     sectionOrder: [...SECTION_KEYS],
     templateId: 'classic',
@@ -338,6 +352,14 @@ export const emptyMilitaryService = (): MilitaryServiceItem => ({
   description: '',
 })
 
+export const emptyAgent = (): AgentItem => ({
+  id: newId(),
+  name: '',
+  date: '',
+  skills: '',
+  description: '',
+})
+
 export const emptyPublication = (): PublicationItem => ({
   id: newId(),
   title: '',
@@ -366,6 +388,7 @@ export const SECTION_KEYS = [
   'publications',
   'references',
   'military',
+  'agents',
 ] as const
 
 export const SECTION_LABELS: Record<string, string> = {
@@ -381,6 +404,7 @@ export const SECTION_LABELS: Record<string, string> = {
   publications: 'Publications',
   references: 'References',
   military: 'Military service',
+  agents: 'Agents',
 }
 
 /**
@@ -670,6 +694,13 @@ export function sanitizeResume(input: unknown): Resume | null {
       startDate: asStr(m.startDate),
       endDate: asStr(m.endDate),
       description: asStr(m.description),
+    })),
+    agents: asObjArr(raw.agents).map((a) => ({
+      id: asStr(a.id) || newId(),
+      name: asStr(a.name),
+      date: asStr(a.date),
+      skills: asStr(a.skills),
+      description: asStr(a.description),
     })),
     customSections: asObjArr(raw.customSections).map((s) => ({
       id: asStr(s.id) || newId(),
@@ -987,6 +1018,16 @@ export function militaryDates(m: MilitaryServiceItem): string {
 export const militaryBullets = (m: MilitaryServiceItem): string[] =>
   m.description.split('\n').map((l) => l.trim()).filter(Boolean)
 
+/** Agent entries with any content */
+export const agentEntries = (r: Resume): AgentItem[] =>
+  (r.agents ?? []).filter((a) => a.name.trim())
+
+/** Bullets for an agent entry: "Skills used: X" (when set) + description lines */
+export const agentBullets = (a: AgentItem): string[] => [
+  ...(a.skills.trim() ? [`Skills used: ${a.skills.trim()}`] : []),
+  ...a.description.split('\n').map((l) => l.trim()).filter(Boolean),
+]
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
@@ -1077,6 +1118,12 @@ export function resumeToPlainText(r: Resume): string {
         const dates = militaryDates(m)
         lines.push(militaryHeadingLine(m) + (dates ? ` (${dates})` : ''))
         for (const b of militaryBullets(m)) lines.push(`- ${b}`)
+      }
+    } else if (key === 'agents' && agentEntries(r).length > 0) {
+      lines.push('', 'AGENTS')
+      for (const a of agentEntries(r)) {
+        lines.push(a.name.trim() + (a.date.trim() ? ` (${a.date.trim()})` : ''))
+        for (const b of agentBullets(a)) lines.push(`- ${b}`)
       }
     } else if (key.startsWith('custom:')) {
       const s = r.customSections.find((x) => `custom:${x.id}` === key)
@@ -1194,6 +1241,13 @@ export function resumeToMarkdown(r: Resume): string {
         const dates = militaryDates(m)
         lines.push(`### ${militaryHeadingLine(m)}${dates ? ` *(${dates})*` : ''}`, '')
         for (const b of militaryBullets(m)) lines.push(`- ${b}`)
+        lines.push('')
+      }
+    } else if (key === 'agents' && agentEntries(r).length > 0) {
+      heading('Agents')
+      for (const a of agentEntries(r)) {
+        lines.push(`### ${a.name.trim()}${a.date.trim() ? ` *(${a.date.trim()})*` : ''}`, '')
+        for (const b of agentBullets(a)) lines.push(`- ${b}`)
         lines.push('')
       }
     } else if (key.startsWith('custom:')) {

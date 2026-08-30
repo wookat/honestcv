@@ -35,6 +35,8 @@ import {
   militaryBullets,
   militaryDates,
   militaryEntries,
+  agentBullets,
+  agentEntries,
   dividerOf,
   educationDetailLine,
   fontScaleOf,
@@ -421,6 +423,31 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
           })
         )
         for (const b of militaryBullets(m)) children.push(body(b, { bullet: true }))
+      }
+    } else if (key === 'agents' && agentEntries(resume).length > 0) {
+      children.push(heading('Agents'))
+      for (const a of agentEntries(resume)) {
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+            children: [
+              new TextRun({ text: a.name.trim(), bold: true, size: sz(22), font }),
+              ...(a.date.trim()
+                ? [
+                    new TextRun({
+                      children: [new Tab(), a.date.trim()],
+                      italics: true,
+                      size: sz(19),
+                      font,
+                    }),
+                  ]
+                : []),
+            ],
+          })
+        )
+        for (const b of agentBullets(a)) children.push(body(b, { bullet: true }))
       }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)

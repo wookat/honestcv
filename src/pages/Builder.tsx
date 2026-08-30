@@ -24,6 +24,7 @@ import {
   Save,
   Lightbulb,
   Shield,
+  Bot,
   ListChecks,
   ListOrdered,
   Loader2,
@@ -112,6 +113,7 @@ import {
   emptyReference,
   type ReferenceKind,
   emptyMilitaryService,
+  emptyAgent,
   emptyCustomSection,
   emptyEducation,
   emptyExperience,
@@ -2560,6 +2562,99 @@ export default function Builder() {
               }
             >
               <Plus className="size-4" /> Add military service
+            </Button>
+          </Section>
+
+          <Section title="Agents" icon={<Bot className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              AI agents you built — what they were called, when, and why they mattered.
+            </p>
+            {(resume.agents ?? []).map((a) => (
+              <div key={a.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Agent name, e.g. Support Triage Agent"
+                    value={a.name}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        agents: (r.agents ?? []).map((x) =>
+                          x.id === a.id ? { ...x, name: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="When built, e.g. 2026"
+                    value={a.date}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        agents: (r.agents ?? []).map((x) =>
+                          x.id === a.id ? { ...x, date: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                </div>
+                <Input
+                  placeholder="Skills used, e.g. Task Automation, Workflow Management"
+                  value={a.skills}
+                  onChange={(ev) =>
+                    setResume((r) => ({
+                      ...r,
+                      agents: (r.agents ?? []).map((x) =>
+                        x.id === a.id ? { ...x, skills: ev.target.value } : x
+                      ),
+                    }))
+                  }
+                />
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="How building the agent was relevant — one bullet per line"
+                    value={a.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        agents: (r.agents ?? []).map((x) =>
+                          x.id === a.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete agent"
+                    aria-label="Delete agent"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        agents: (r.agents ?? []).filter((x) => x.id !== a.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  agents: [...(r.agents ?? []), emptyAgent()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add agent
             </Button>
           </Section>
 
