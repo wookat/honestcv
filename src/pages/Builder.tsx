@@ -4,6 +4,7 @@ import {
   ArrowDown,
   Award,
   BookOpen,
+  BookText,
   ArrowUp,
   Briefcase,
   Check,
@@ -105,6 +106,7 @@ import {
   deleteResumeVersion,
   emptyAward,
   emptyCertification,
+  emptyPublication,
   emptyCustomSection,
   emptyEducation,
   emptyExperience,
@@ -2209,6 +2211,101 @@ export default function Builder() {
               }
             >
               <Plus className="size-4" /> Add award
+            </Button>
+          </Section>
+
+          <Section title="Publications" icon={<BookText className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              Papers, articles and talks — with the journal or conference they appeared in.
+            </p>
+            {(resume.publications ?? []).map((pub) => (
+              <div key={pub.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Publication title"
+                    value={pub.title}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).map((x) =>
+                          x.id === pub.id ? { ...x, title: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-[1fr_5rem] gap-2">
+                    <Input
+                      placeholder="Journal / conference"
+                      value={pub.venue}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, venue: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="When"
+                      value={pub.date}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, date: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="Additional information — one bullet per line"
+                    value={pub.description}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).map((x) =>
+                          x.id === pub.id ? { ...x, description: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete publication"
+                    aria-label="Delete publication"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).filter((x) => x.id !== pub.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  publications: [...(r.publications ?? []), emptyPublication()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add publication
             </Button>
           </Section>
 

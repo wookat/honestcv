@@ -10,6 +10,8 @@ import {
   type Resume,
   awardBullets,
   awardEntries,
+  publicationBullets,
+  publicationEntries,
   certEntries,
   courseworkBullets,
   courseworkEntries,
@@ -442,6 +444,37 @@ function SectionBlock({
             </div>
             <ul className="mt-0.5 space-y-0.5">
               {awardBullets(a).map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11px]">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </>
+    ) : null
+  }
+  if (sectionKey === 'publications') {
+    const items = publicationEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('Publications')}
+        {items.map((p) => (
+          <div key={p.id} className="mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11.5px] font-bold">
+                {p.title.trim() || 'Publication'}
+                {p.venue.trim() && (
+                  <span className="font-normal"> — {p.venue.trim()}</span>
+                )}
+              </p>
+              {p.date.trim() && (
+                <p className="text-[10px] text-neutral-500 italic">{p.date.trim()}</p>
+              )}
+            </div>
+            <ul className="mt-0.5 space-y-0.5">
+              {publicationBullets(p).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
                   <span>{b}</span>

@@ -21,6 +21,8 @@ import {
   type Resume,
   awardBullets,
   awardEntries,
+  publicationBullets,
+  publicationEntries,
   certEntries,
   certHeadingLine,
   courseworkBullets,
@@ -340,6 +342,33 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
           })
         )
         for (const b of awardBullets(a)) children.push(body(b, { bullet: true }))
+      }
+    } else if (key === 'publications' && publicationEntries(resume).length > 0) {
+      children.push(heading('Publications'))
+      for (const p of publicationEntries(resume)) {
+        const date = p.date.trim()
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+            children: [
+              new TextRun({
+                text: p.title.trim() || 'Publication',
+                bold: true,
+                size: sz(22),
+                font,
+              }),
+              ...(p.venue.trim()
+                ? [new TextRun({ text: ` — ${p.venue.trim()}`, size: sz(21), font })]
+                : []),
+              ...(date
+                ? [new TextRun({ children: [new Tab(), date], italics: true, size: sz(19), font })]
+                : []),
+            ],
+          })
+        )
+        for (const b of publicationBullets(p)) children.push(body(b, { bullet: true }))
       }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)

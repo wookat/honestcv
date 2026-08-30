@@ -10,6 +10,9 @@ import {
   awardBullets,
   awardEntries,
   awardHeadingLine,
+  publicationBullets,
+  publicationEntries,
+  publicationHeadingLine,
   certEntries,
   certHeadingLine,
   courseworkBullets,
@@ -428,6 +431,15 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         w.titleLine(awardHeadingLine(a), a.date.trim(), { size: 10.5 })
         w.gap(2)
         for (const b of awardBullets(a)) w.bullet(b)
+      }
+    } else if (key === 'publications' && publicationEntries(resume).length > 0) {
+      w.heading('Publications')
+      for (const p of publicationEntries(resume)) {
+        w.gap(4)
+        w.ensure(34)
+        w.titleLine(publicationHeadingLine(p), p.date.trim(), { size: 10.5 })
+        w.gap(2)
+        for (const b of publicationBullets(p)) w.bullet(b)
       }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)

@@ -98,6 +98,18 @@ export interface AwardItem {
   description: string
 }
 
+export interface PublicationItem {
+  id: string
+  /** Publication title */
+  title: string
+  /** Journal or conference name */
+  venue: string
+  /** When it was published, e.g. "2026" */
+  date: string
+  /** Additional information; one bullet per line */
+  description: string
+}
+
 /** User-defined section (e.g. Volunteering, Publications) */
 export interface CustomSection {
   id: string
@@ -119,6 +131,7 @@ export interface Resume {
   involvement?: InvolvementItem[]
   coursework?: CourseworkItem[]
   awards?: AwardItem[]
+  publications?: PublicationItem[]
   customSections: CustomSection[]
   /** Section keys in render order (see SECTION_KEYS + custom:<id>) */
   sectionOrder: string[]
@@ -197,6 +210,7 @@ export function emptyResume(): Resume {
     involvement: [],
     coursework: [],
     awards: [],
+    publications: [],
     customSections: [],
     sectionOrder: [...SECTION_KEYS],
     templateId: 'classic',
@@ -271,6 +285,14 @@ export const emptyAward = (): AwardItem => ({
   description: '',
 })
 
+export const emptyPublication = (): PublicationItem => ({
+  id: newId(),
+  title: '',
+  venue: '',
+  date: '',
+  description: '',
+})
+
 export const emptyCustomSection = (): CustomSection => ({
   id: newId(),
   title: '',
@@ -288,6 +310,7 @@ export const SECTION_KEYS = [
   'skills',
   'certifications',
   'awards',
+  'publications',
 ] as const
 
 export const SECTION_LABELS: Record<string, string> = {
@@ -300,6 +323,7 @@ export const SECTION_LABELS: Record<string, string> = {
   skills: 'Skills',
   certifications: 'Certifications',
   awards: 'Awards & Honors',
+  publications: 'Publications',
 }
 
 /**
@@ -548,6 +572,13 @@ export function sanitizeResume(input: unknown): Resume | null {
       organization: asStr(a.organization),
       date: asStr(a.date),
       description: asStr(a.description),
+    })),
+    publications: asObjArr(raw.publications).map((p) => ({
+      id: asStr(p.id) || newId(),
+      title: asStr(p.title),
+      venue: asStr(p.venue),
+      date: asStr(p.date),
+      description: asStr(p.description),
     })),
     customSections: asObjArr(raw.customSections).map((s) => ({
       id: asStr(s.id) || newId(),
@@ -810,6 +841,19 @@ export function awardHeadingLine(a: AwardItem): string {
 export const awardBullets = (a: AwardItem): string[] =>
   a.description.split('\n').map((l) => l.trim()).filter(Boolean)
 
+/** Publication entries with any content */
+export const publicationEntries = (r: Resume): PublicationItem[] =>
+  (r.publications ?? []).filter((p) => p.title.trim() || p.venue.trim())
+
+/** Heading line for a publication entry: title — venue */
+export function publicationHeadingLine(p: PublicationItem): string {
+  return [p.title.trim(), p.venue.trim()].filter(Boolean).join(' — ')
+}
+
+/** Non-empty description lines of a publication entry, rendered as bullets */
+export const publicationBullets = (p: PublicationItem): string[] =>
+  p.description.split('\n').map((l) => l.trim()).filter(Boolean)
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
@@ -880,6 +924,12 @@ export function resumeToPlainText(r: Resume): string {
       for (const a of awardEntries(r)) {
         lines.push(awardHeadingLine(a) + (a.date.trim() ? ` (${a.date.trim()})` : ''))
         for (const b of awardBullets(a)) lines.push(`- ${b}`)
+      }
+    } else if (key === 'publications' && publicationEntries(r).length > 0) {
+      lines.push('', 'PUBLICATIONS')
+      for (const p of publicationEntries(r)) {
+        lines.push(publicationHeadingLine(p) + (p.date.trim() ? ` (${p.date.trim()})` : ''))
+        for (const b of publicationBullets(p)) lines.push(`- ${b}`)
       }
     } else if (key.startsWith('custom:')) {
       const s = r.customSections.find((x) => `custom:${x.id}` === key)
@@ -972,6 +1022,16 @@ export function resumeToMarkdown(r: Resume): string {
           ''
         )
         for (const b of awardBullets(a)) lines.push(`- ${b}`)
+        lines.push('')
+      }
+    } else if (key === 'publications' && publicationEntries(r).length > 0) {
+      heading('Publications')
+      for (const p of publicationEntries(r)) {
+        lines.push(
+          `### ${publicationHeadingLine(p)}${p.date.trim() ? ` *(${p.date.trim()})*` : ''}`,
+          ''
+        )
+        for (const b of publicationBullets(p)) lines.push(`- ${b}`)
         lines.push('')
       }
     } else if (key.startsWith('custom:')) {
