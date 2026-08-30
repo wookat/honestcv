@@ -3,6 +3,7 @@
  * Flags weak openers, missing quantification, and length problems.
  */
 import type { Resume } from '@/lib/resume'
+import type { SectionAnchor } from '@/lib/ats'
 
 const WEAK_OPENERS = [
   'responsible for',
@@ -132,6 +133,8 @@ export interface HealthDimension {
   plain: string
   /** Specific findings, worst first */
   findings: string[]
+  /** Builder editor section that fixes the findings, when they all live in one section */
+  anchor?: SectionAnchor
 }
 
 export interface HealthReport {
@@ -167,6 +170,7 @@ export function resumeHealth(r: Resume): HealthReport {
       .filter((b) => !/\d/.test(b.text))
       .slice(0, 5)
       .map((b) => `No number: ${label(b)}`),
+    anchor: 'experience',
   }
 
   // 2. Verb strength — bullets opening with a strong action verb
@@ -194,6 +198,7 @@ export function resumeHealth(r: Resume): HealthReport {
         ? 'No experience bullets yet'
         : `${strongOnes.length} of ${bullets.length} bullets open with a strong verb`,
     findings: weakOnes.slice(0, 5).map((b) => `Weak opener: ${label(b)}`),
+    anchor: 'experience',
   }
 
   // 3. Brevity — bullet and summary length discipline
