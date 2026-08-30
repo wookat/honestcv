@@ -14,6 +14,8 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 - Router deep-link features (e.g. `?assistant=1`, `?doc=`) must be tested on *repeat* activation, not just first use: cleaning query params with raw `history.replaceState` desyncs react-router's location and the second activation silently no-ops.
 - DOCX exports can be runtime-verified without Word/LibreOffice: download, then `unzip -p file.docx word/document.xml` and extract text with `re.findall(r'<w:t[^>]*>([^<]*)</w:t>')`. Section headings are stored uppercase (grep "MILITARY SERVICE", not "Military service"); bold is a `<w:b/>` in the run properties immediately before the `<w:t>`.
 - Clicking multiple export buttons in a row: Chrome's downloads popup can cover the later buttons so only the first file lands — press Escape and click each export separately, verifying `~/Downloads` between clicks.
+- Clearing `honestcv.*` (e.g. for fresh-resume tests) also wipes the download-unlock flag — re-set `honestcv.shared='1'` before export tests, and expect the pre-existing "Final check before download" nudge on sparse resumes (click "Download anyway").
+- A fresh resume does not write `honestcv.resume` until the first edit — assert its default section order from the rendered Section order panel, not storage.
 
 ## QA traffic marking (unified convention)
 

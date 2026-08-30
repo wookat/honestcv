@@ -385,7 +385,9 @@ export const SECTION_LABELS: Record<string, string> = {
 
 /**
  * The resume's section keys in render order: stored order, minus stale keys,
- * plus any keys not yet present (new built-ins or newly added custom sections).
+ * plus any keys not yet present. Missing built-ins are spliced in at their
+ * default position (after the nearest preceding built-in already present);
+ * missing custom sections are appended.
  */
 export function orderedSectionKeys(r: Resume): string[] {
   const valid = new Set<string>([
@@ -399,6 +401,20 @@ export function orderedSectionKeys(r: Resume): string[] {
       order.push(key)
       seen.add(key)
     }
+  }
+  for (let i = 0; i < SECTION_KEYS.length; i++) {
+    const key = SECTION_KEYS[i]
+    if (seen.has(key)) continue
+    let at = 0
+    for (let j = i - 1; j >= 0; j--) {
+      const prev = order.indexOf(SECTION_KEYS[j])
+      if (prev !== -1) {
+        at = prev + 1
+        break
+      }
+    }
+    order.splice(at, 0, key)
+    seen.add(key)
   }
   for (const key of valid) if (!seen.has(key)) order.push(key)
   return order
