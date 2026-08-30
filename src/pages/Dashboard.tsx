@@ -58,9 +58,9 @@ import {
   exampleToResume,
   listResumeVersions,
   loadResume,
-  renameResumeVersion,
   saveResume,
   saveResumeVersion,
+  updateResumeVersion,
 } from '@/lib/resume'
 
 interface ExampleEntry {
@@ -103,7 +103,12 @@ export default function Dashboard() {
   const [draft] = useState<Resume | null>(() => loadResume())
   const [confirmOpen, setConfirmOpen] = useState<ResumeVersion | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<ResumeVersion | null>(null)
-  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null)
+  const [editing, setEditing] = useState<{
+    id: string
+    name: string
+    targetRole: string
+    jobDescription: string
+  } | null>(null)
   const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
   const [docKind, setDocKind] = useState<CareerDocKind | 'all'>('all')
   const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
@@ -382,35 +387,13 @@ export default function Dashboard() {
             <div key={v.id} className="bg-card flex flex-col rounded-md border shadow-sm">
               <Thumb resume={{ ...emptyResume(), ...v.data }} />
               <div className="flex flex-1 flex-col gap-2 p-3">
-                {renaming?.id === v.id ? (
-                  <form
-                    className="flex gap-1.5"
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      setVersions(renameResumeVersion(v.id, renaming.name.trim() || v.name))
-                      setRenaming(null)
-                    }}
-                  >
-                    <Input
-                      autoFocus
-                      value={renaming.name}
-                      onChange={(e) => setRenaming({ id: v.id, name: e.target.value })}
-                      aria-label="New name"
-                      className="h-10 sm:h-8"
-                    />
-                    <Button type="submit" size="sm" className="min-h-10 sm:min-h-8">
-                      Save
-                    </Button>
-                  </form>
-                ) : (
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{v.name}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {editedAgo(v.updatedAt)} · ATS{' '}
-                      {scoreResume(v.data, v.data.jobDescription).score}/100
-                    </p>
-                  </div>
-                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{v.name}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {editedAgo(v.updatedAt)} · ATS{' '}
+                    {scoreResume(v.data, v.data.jobDescription).score}/100
+                  </p>
+                </div>
                 <div className="mt-auto flex flex-wrap gap-1.5">
                   <Button
                     type="button"
@@ -438,11 +421,18 @@ export default function Dashboard() {
                     variant="outline"
                     size="sm"
                     className="min-h-10 sm:min-h-8"
-                    title="Rename this copy"
-                    onClick={() => setRenaming({ id: v.id, name: v.name })}
+                    title="Edit name & target job"
+                    onClick={() =>
+                      setEditing({
+                        id: v.id,
+                        name: v.name,
+                        targetRole: v.data.targetRole || '',
+                        jobDescription: v.data.jobDescription || '',
+                      })
+                    }
                   >
                     <Pencil className="size-3.5" />
-                    <span className="sr-only">Rename {v.name}</span>
+                    <span className="sr-only">Edit name and target job for {v.name}</span>
                   </Button>
                   <Button
                     type="button"
@@ -700,6 +690,94 @@ export default function Dashboard() {
             </Button>
             <Button type="button" className="min-h-10" onClick={startNewResume}>
               Create resume
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Resume settings</DialogTitle>
+            <DialogDescription>
+              Rename this copy or point it at a different job — its ATS score updates against the
+              new posting.
+            </DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label htmlFor="edit-version-name" className="text-sm font-medium">
+                  Name
+                </label>
+                <Input
+                  id="edit-version-name"
+                  name="edit-version-name"
+                  value={editing.name}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="edit-version-role" className="text-sm font-medium">
+                  Target role
+                </label>
+                <Input
+                  id="edit-version-role"
+                  name="edit-version-role"
+                  value={editing.targetRole}
+                  onChange={(e) => setEditing({ ...editing, targetRole: e.target.value })}
+                  placeholder="e.g. Senior Frontend Engineer"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="edit-version-jd" className="text-sm font-medium">
+                  Job description
+                </label>
+                <Textarea
+                  id="edit-version-jd"
+                  name="edit-version-jd"
+                  rows={5}
+                  value={editing.jobDescription}
+                  onChange={(e) => setEditing({ ...editing, jobDescription: e.target.value })}
+                  placeholder="Paste the job posting to score this copy against it"
+                  className="text-xs"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-10"
+              onClick={() => setEditing(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="min-h-10"
+              onClick={() => {
+                if (!editing) return
+                const current = versions.find((v) => v.id === editing.id)
+                if (current) {
+                  setVersions(
+                    updateResumeVersion(editing.id, {
+                      name: editing.name.trim() || current.name,
+                      data: {
+                        ...current.data,
+                        targetRole: editing.targetRole.trim(),
+                        jobDescription: editing.jobDescription,
+                      },
+                    })
+                  )
+                }
+                setEditing(null)
+              }}
+            >
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
