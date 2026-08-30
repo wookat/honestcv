@@ -3,7 +3,7 @@
  * with open / duplicate / rename / delete. All data lives in localStorage.
  */
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Copy, FilePlus2, FileText, MessagesSquare, Pencil, Trash2 } from 'lucide-react'
 
@@ -28,17 +28,26 @@ import {
   updateCareerDoc,
 } from '@/lib/documents'
 import {
+  type ExamplePerson,
   type Resume,
   type ResumeVersion,
   deleteResumeVersion,
   duplicateResumeVersion,
   emptyResume,
+  exampleToResume,
   listResumeVersions,
   loadResume,
   renameResumeVersion,
   saveResume,
   saveResumeVersion,
 } from '@/lib/resume'
+
+interface ExampleEntry {
+  slug: string
+  role: string
+  sector: string
+  person: ExamplePerson
+}
 
 function Thumb({ resume }: { resume: Resume }) {
   return (
@@ -68,6 +77,35 @@ export default function Dashboard() {
   const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
   const [docText, setDocText] = useState('')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
+  const [examples, setExamples] = useState<ExampleEntry[]>([])
+  const [exampleQuery, setExampleQuery] = useState('')
+  const [exampleSector, setExampleSector] = useState('All')
+
+  useEffect(() => {
+    let cancelled = false
+    void fetch('/examples/examples.json')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list: ExampleEntry[]) => {
+        if (!cancelled) setExamples(list)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const sectors = useMemo(
+    () => ['All', ...Array.from(new Set(examples.map((e) => e.sector)))],
+    [examples]
+  )
+  const filteredExamples = useMemo(() => {
+    const q = exampleQuery.trim().toLowerCase()
+    return examples.filter(
+      (e) =>
+        (exampleSector === 'All' || e.sector === exampleSector) &&
+        (!q || e.role.toLowerCase().includes(q) || e.sector.toLowerCase().includes(q))
+    )
+  }, [examples, exampleQuery, exampleSector])
 
   const openCopy = (v: ResumeVersion) => {
     saveResume({ ...emptyResume(), ...v.data })
@@ -280,6 +318,76 @@ export default function Dashboard() {
               </li>
             ))}
           </ul>
+        )}
+        {examples.length > 0 && (
+          <>
+            <h2 className="mt-10 text-lg font-semibold">Sample library</h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Start from a proven example for your role, then make it yours in the editor.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Input
+                type="search"
+                value={exampleQuery}
+                onChange={(e) => setExampleQuery(e.target.value)}
+                placeholder="Search samples by role or industry"
+                aria-label="Search samples by role or industry"
+                className="h-10 max-w-xs"
+              />
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label="Filter samples by industry"
+              >
+                {sectors.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={exampleSector === s}
+                    onClick={() => setExampleSector(s)}
+                    className={`min-h-10 rounded-md border px-2 py-1 text-xs font-medium transition sm:min-h-8 ${
+                      exampleSector === s
+                        ? 'border-primary ring-primary/40 ring-2'
+                        : 'hover:border-muted-foreground/40'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {filteredExamples.length === 0 ? (
+              <p className="text-muted-foreground mt-4 rounded-md border border-dashed p-4 text-sm">
+                No samples match “{exampleQuery}” — try another role or clear the search.
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredExamples.slice(0, 9).map((e) => (
+                  <div key={e.slug} className="bg-card flex flex-col rounded-md border shadow-sm">
+                    <Thumb resume={exampleToResume(e.person)} />
+                    <div className="flex flex-1 flex-col gap-2 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{e.role}</p>
+                        <p className="text-muted-foreground text-xs">{e.sector}</p>
+                      </div>
+                      <div className="mt-auto">
+                        <Button asChild size="sm" className="min-h-10 w-full sm:min-h-8">
+                          <Link to={`/builder?example=${e.slug}`}>Use this example</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-muted-foreground mt-3 text-sm">
+              Showing {Math.min(filteredExamples.length, 9)} of {filteredExamples.length}
+              {' · '}
+              <a href="/examples/" className="underline">
+                Browse all examples
+              </a>
+            </p>
+          </>
         )}
       </main>
       <SiteFooter />
