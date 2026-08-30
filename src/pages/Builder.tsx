@@ -1601,9 +1601,35 @@ export default function Builder() {
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="GPA (3.8/4.0 — optional)"
+                    value={e.gpa ?? ''}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        education: r.education.map((x) =>
+                          x.id === e.id ? { ...x, gpa: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Minor (Mathematics — optional)"
+                    value={e.minor ?? ''}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        education: r.education.map((x) =>
+                          x.id === e.id ? { ...x, minor: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                </div>
                 <div className="flex items-center justify-between gap-2">
                   <Input
-                    placeholder="Details (GPA, honors — optional)"
+                    placeholder="Details (honors, thesis — optional)"
                     value={e.details}
                     onChange={(ev) =>
                       setResume((r) => ({

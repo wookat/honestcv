@@ -31,6 +31,10 @@ export interface EducationItem {
   startDate: string
   endDate: string
   details: string
+  /** Grade point average, e.g. "3.8/4.0" */
+  gpa?: string
+  /** Minor field of study */
+  minor?: string
 }
 
 export interface ProjectItem {
@@ -395,6 +399,8 @@ export function sanitizeResume(input: unknown): Resume | null {
       startDate: asStr(e.startDate),
       endDate: asStr(e.endDate),
       details: asStr(e.details),
+      gpa: asStr(e.gpa),
+      minor: asStr(e.minor),
     })),
     projects: asObjArr(raw.projects).map((p) => ({
       id: asStr(p.id) || newId(),
@@ -584,6 +590,17 @@ export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapsho
   return next.slice(0, HISTORY_MAX)
 }
 
+/** Detail line under an education entry: details · Minor in X · GPA: Y */
+export function educationDetailLine(e: EducationItem): string {
+  return [
+    e.details.trim(),
+    e.minor?.trim() ? `Minor in ${e.minor.trim()}` : '',
+    e.gpa?.trim() ? `GPA: ${e.gpa.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
@@ -618,7 +635,8 @@ export function resumeToPlainText(r: Resume): string {
           [e.degree, e.school].filter(Boolean).join(', ') +
             (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
         )
-        if (e.details) lines.push(e.details)
+        const detail = educationDetailLine(e)
+        if (detail) lines.push(detail)
       }
     } else if (key === 'skills' && r.skills) {
       lines.push('', 'SKILLS', r.skills)
@@ -668,7 +686,8 @@ export function resumeToMarkdown(r: Resume): string {
         if (!e.school) continue
         const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
         lines.push(`### ${[e.degree, e.school].filter(Boolean).join(', ')}${dates}`, '')
-        if (e.details) lines.push(e.details, '')
+        const detail = educationDetailLine(e)
+        if (detail) lines.push(detail, '')
       }
     } else if (key === 'skills' && r.skills) {
       heading('Skills')
