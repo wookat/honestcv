@@ -27,7 +27,7 @@ import {
   useFreeMode,
   useLicense,
 } from '@/components/Paywall'
-import { WorkspaceNav } from '@/components/WorkspaceNav'
+import { PlanCard, WorkspaceNav } from '@/components/WorkspaceNav'
 import { ResumePreview } from '@/components/ResumePreview'
 import { Button } from '@/components/ui/button'
 import {
@@ -729,6 +729,7 @@ export default function Dashboard() {
             </p>
           </>
         )}
+        <PlanCard className="mt-8 md:hidden" />
         </div>
       </main>
       <SiteFooter />

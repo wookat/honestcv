@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, BriefcaseBusiness, ExternalLink, FileText, Search } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
-import { WorkspaceNav } from '@/components/WorkspaceNav'
+import { PlanCard, WorkspaceNav } from '@/components/WorkspaceNav'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -437,6 +437,7 @@ export default function Jobs() {
             )}
           </div>
         </div>
+        <PlanCard className="mt-8 md:hidden" />
         </div>
       </main>
       <SiteFooter />
