@@ -381,6 +381,7 @@ export default function Builder() {
   const [aiErrorTag, setAiErrorTag] = useState<string | null>(null)
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false)
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
@@ -865,7 +866,12 @@ export default function Builder() {
             >
               <MessagesSquare className="size-3.5" />
             </Button>
-            <Button size="sm" onClick={() => void download('pdf')} disabled={Boolean(downloading)}>
+            <Button
+              size="sm"
+              onClick={() => void download('pdf')}
+              disabled={Boolean(downloading)}
+              className="hidden sm:inline-flex"
+            >
               {downloading === 'pdf' ? (
                 <Loader2 className="animate-spin" />
               ) : downloaded === 'pdf' ? (
@@ -875,6 +881,38 @@ export default function Builder() {
               )}
               PDF
             </Button>
+            <div className="relative sm:hidden">
+              <Button
+                size="sm"
+                variant="outline"
+                aria-haspopup="true"
+                aria-expanded={downloadMenuOpen}
+                title="Download your resume"
+                disabled={Boolean(downloading)}
+                onClick={() => setDownloadMenuOpen((o) => !o)}
+                className="min-h-10"
+              >
+                {downloading ? <Loader2 className="animate-spin" /> : <Download />}
+                <ChevronDown className={`size-3.5 transition-transform ${downloadMenuOpen ? 'rotate-180' : ''}`} />
+              </Button>
+              {downloadMenuOpen && (
+                <div className="bg-background absolute right-0 top-full z-30 mt-2 min-w-40 rounded-md border p-1 shadow-lg">
+                  {(['pdf', 'docx', 'txt', 'md'] as const).map((fmt) => (
+                    <button
+                      key={fmt}
+                      type="button"
+                      className="text-foreground hover:bg-accent flex min-h-10 w-full items-center gap-2 rounded-sm px-3 text-sm"
+                      onClick={() => {
+                        setDownloadMenuOpen(false)
+                        void download(fmt)
+                      }}
+                    >
+                      <Download className="size-3.5" /> {fmt.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <Button
               size="sm"
               variant="outline"
