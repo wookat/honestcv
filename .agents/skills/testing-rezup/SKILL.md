@@ -239,6 +239,7 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - Screen-tool↔CSS coordinate mapping at desktop 1600: tool = css×0.64 with a +88px vertical browser-chrome offset — use CDP `getBoundingClientRect` plus this mapping when a small link misclicks.
 - The top-nav "ATS Checker" link navigates the SAME tab away from /builder — navigate back before builder-targeted CDP lookups.
 - The `type` action into Builder textareas occasionally drops the first character of a line — verify typed text via localStorage/DOM before asserting.
+- The HealthDialog (score breakdown) is reachable two ways: "Full health report — N/100" link in the Resume strength card (desktop left column) and "See full score breakdown" in the ATS score card (the only practical entry on the mobile Preview & score pane). Its Fix buttons are `min-h-10` (40px) on mobile but 16px on desktop (`sm:min-h-0`) — assert touch targets only under 375px emulation.
 
 ## Devin Secrets Needed
 
