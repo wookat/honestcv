@@ -231,7 +231,7 @@ app.use('*', async (c, next) => {
   h.set(
     'Content-Security-Policy',
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://resume.zalize.com https://resume-forge.wookat520.workers.dev; " +
+      "img-src 'self' data: blob: https://remotive.com; font-src 'self'; connect-src 'self' https://resume.zalize.com https://resume-forge.wookat520.workers.dev; " +
       "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; " +
       "form-action 'self'; frame-ancestors 'self'"
   )
@@ -334,11 +334,42 @@ const htmlToText = (html: string) =>
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 
+// Fixed category slugs accepted by Remotive's `category` parameter,
+// mapped to the category labels Remotive uses on job entries. The label
+// match is enforced here because the upstream parameter is not always
+// honored; 'all-others' acts as the catch-all for unmatched labels.
+const JOBS_CATEGORIES: Record<string, string[]> = {
+  'software-dev': ['software development'],
+  'customer-support': ['customer service'],
+  design: ['design'],
+  marketing: ['marketing'],
+  'sales-business': ['sales', 'business'],
+  product: ['product'],
+  'project-management': ['project management'],
+  data: ['data analysis', 'data'],
+  devops: ['devops', 'sysadmin'],
+  'finance-legal': ['finance', 'legal'],
+  hr: ['human resources'],
+  qa: ['qa', 'quality assurance'],
+  writing: ['writing'],
+  'all-others': [],
+}
+const JOBS_KNOWN_LABELS = new Set(
+  Object.values(JOBS_CATEGORIES).flat()
+)
+
+function matchesCategory(slug: string, label: string): boolean {
+  const l = label.trim().toLowerCase()
+  if (slug === 'all-others') return !JOBS_KNOWN_LABELS.has(l)
+  return JOBS_CATEGORIES[slug].includes(l)
+}
+
 interface RemotiveJob {
   id?: number | string
   url?: string
   title?: string
   company_name?: string
+  company_logo?: string
   category?: string
   job_type?: string
   publication_date?: string
@@ -349,11 +380,14 @@ interface RemotiveJob {
 
 app.get('/api/jobs/search', async (c) => {
   const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
-  const cacheKey = `jobs:v1:${q.toLowerCase()}`
+  const rawCategory = (c.req.query('category') ?? '').trim()
+  const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
+  const cacheKey = `jobs:v3:${q.toLowerCase()}|${category}`
   const cached = await c.env.KV.get(cacheKey)
   if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
   const upstreamUrl = new URL('https://remotive.com/api/remote-jobs')
   if (q) upstreamUrl.searchParams.set('search', q)
+  if (category) upstreamUrl.searchParams.set('category', category)
   upstreamUrl.searchParams.set('limit', '50')
   let upstream: Response | undefined
   try {
@@ -369,10 +403,12 @@ app.get('/api/jobs/search', async (c) => {
     .catch(() => ({ jobs: [] as RemotiveJob[] }))
   const jobs = (data.jobs ?? [])
     .filter((j) => j.id && j.title && j.url)
+    .filter((j) => !category || matchesCategory(category, j.category ?? ''))
     .map((j) => ({
       id: String(j.id),
       title: j.title ?? '',
       company: j.company_name ?? '',
+      logo: j.company_logo ?? '',
       category: j.category ?? '',
       type: (j.job_type ?? '').replace(/_/g, ' '),
       location: j.candidate_required_location || 'Remote',

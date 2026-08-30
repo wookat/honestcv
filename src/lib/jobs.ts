@@ -8,6 +8,8 @@ export interface JobListing {
   id: string
   title: string
   company: string
+  /** Company logo URL (may be missing on entries saved before it existed) */
+  logo?: string
   category: string
   type: string
   location: string
@@ -36,8 +38,28 @@ export interface PipelineEntry {
 
 const PIPELINE_KEY = 'honestcv.jobPipeline'
 
-export async function searchJobs(q: string): Promise<JobListing[]> {
-  const res = await fetch(`/api/jobs/search?q=${encodeURIComponent(q)}`)
+/** Category slugs accepted by the jobs API (Remotive's fixed list). */
+export const JOB_CATEGORIES: [slug: string, label: string][] = [
+  ['software-dev', 'Software Development'],
+  ['customer-support', 'Customer Service'],
+  ['design', 'Design'],
+  ['marketing', 'Marketing'],
+  ['sales-business', 'Sales / Business'],
+  ['product', 'Product'],
+  ['project-management', 'Project Management'],
+  ['data', 'Data Analysis'],
+  ['devops', 'DevOps / Sysadmin'],
+  ['finance-legal', 'Finance / Legal'],
+  ['hr', 'Human Resources'],
+  ['qa', 'QA'],
+  ['writing', 'Writing'],
+  ['all-others', 'All others'],
+]
+
+export async function searchJobs(q: string, category = ''): Promise<JobListing[]> {
+  const params = new URLSearchParams({ q })
+  if (category) params.set('category', category)
+  const res = await fetch(`/api/jobs/search?${params}`)
   const data = (await res.json().catch(() => ({}))) as {
     jobs?: JobListing[]
     error?: string

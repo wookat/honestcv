@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
+  JOB_CATEGORIES,
   JOB_STATUSES,
   JOB_STATUS_LABELS,
   type JobListing,
@@ -49,7 +50,10 @@ export default function Jobs() {
   )
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('all')
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() => loadResume()?.targetRole ?? '')
+  const [category, setCategory] = useState('')
+  const [locationFilter, setLocationFilter] = useState('')
+  const [sort, setSort] = useState<'relevance' | 'newest'>('relevance')
   const [jobs, setJobs] = useState<JobListing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -58,8 +62,8 @@ export default function Jobs() {
   const [mobileDetail, setMobileDetail] = useState(false)
   const [confirmTarget, setConfirmTarget] = useState<JobListing | null>(null)
 
-  const fetchJobs = (q: string) =>
-    searchJobs(q)
+  const fetchJobs = (q: string, cat = '') =>
+    searchJobs(q, cat)
       .then((list) => {
         setJobs(list)
         setSelectedId((cur) => cur ?? list[0]?.id ?? null)
@@ -67,14 +71,14 @@ export default function Jobs() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
 
-  const runSearch = (q: string) => {
+  const runSearch = (q: string, cat = category) => {
     setLoading(true)
     setError('')
-    void fetchJobs(q)
+    void fetchJobs(q, cat)
   }
 
   useEffect(() => {
-    void fetchJobs('')
+    void fetchJobs(loadResume()?.targetRole ?? '')
   }, [])
 
   const statusOf = useMemo(() => {
@@ -83,8 +87,17 @@ export default function Jobs() {
     return map
   }, [pipeline])
 
-  const shown: JobListing[] =
+  const loc = locationFilter.trim().toLowerCase()
+  const base: JobListing[] =
     tab === 'all' ? jobs : pipeline.filter((e) => e.status === tab).map((e) => e.job)
+  const filtered =
+    tab === 'all' && loc ? base.filter((j) => j.location.toLowerCase().includes(loc)) : base
+  const shown =
+    tab === 'all' && sort === 'newest'
+      ? [...filtered].sort(
+          (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
+        )
+      : filtered
   const selected =
     shown.find((j) => j.id === selectedId) ??
     jobs.find((j) => j.id === selectedId) ??
@@ -158,7 +171,7 @@ export default function Jobs() {
 
         {tab === 'all' && (
           <form
-            className="mt-4 flex gap-2"
+            className="mt-4 flex flex-wrap items-center gap-2"
             onSubmit={(e) => {
               e.preventDefault()
               setSelectedId(null)
@@ -171,11 +184,45 @@ export default function Jobs() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by job title, e.g. frontend developer"
               aria-label="Search jobs by title"
-              className="h-10 max-w-md"
+              className="h-10 w-full max-w-md sm:w-auto sm:flex-1"
             />
             <Button type="submit" className="min-h-10 gap-1.5">
               <Search className="size-4" /> Search
             </Button>
+            <select
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value)
+                setSelectedId(null)
+                runSearch(query.trim(), e.target.value)
+              }}
+              aria-label="Filter by category"
+              className="border-input bg-background h-10 rounded-md border px-2 text-sm"
+            >
+              <option value="">All categories</option>
+              {JOB_CATEGORIES.map(([slug, label]) => (
+                <option key={slug} value={slug}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <Input
+              type="search"
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              placeholder="Location, e.g. Europe"
+              aria-label="Filter by location"
+              className="h-10 w-36"
+            />
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as 'relevance' | 'newest')}
+              aria-label="Sort jobs"
+              className="border-input bg-background h-10 rounded-md border px-2 text-sm"
+            >
+              <option value="relevance">Relevance</option>
+              <option value="newest">Newest</option>
+            </select>
           </form>
         )}
 
@@ -210,10 +257,25 @@ export default function Jobs() {
                         selected?.id === j.id ? 'bg-accent border-primary border-l-2' : ''
                       }`}
                     >
-                      <p className="truncate text-sm font-medium">{j.title}</p>
-                      <p className="text-muted-foreground truncate text-xs">
-                        {j.company} · {j.location}
-                      </p>
+                      <span className="flex items-start gap-2">
+                        {j.logo && (
+                          <img
+                            src={j.logo}
+                            alt=""
+                            loading="lazy"
+                            className="mt-0.5 size-8 shrink-0 rounded border object-contain"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
+                        )}
+                        <span className="min-w-0">
+                          <p className="truncate text-sm font-medium">{j.title}</p>
+                          <p className="text-muted-foreground truncate text-xs">
+                            {j.company} · {j.location}
+                          </p>
+                        </span>
+                      </span>
                       <p className="text-muted-foreground mt-0.5 text-xs">
                         {postedAgo(j.postedAt)}
                         {statusOf.has(j.id) && (
@@ -243,7 +305,19 @@ export default function Jobs() {
                 >
                   <ArrowLeft className="size-4" /> Back to list
                 </button>
-                <h2 className="text-lg font-semibold">{selected.title}</h2>
+                <div className="flex items-center gap-3">
+                  {selected.logo && (
+                    <img
+                      src={selected.logo}
+                      alt=""
+                      className="size-10 shrink-0 rounded border object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  )}
+                  <h2 className="text-lg font-semibold">{selected.title}</h2>
+                </div>
                 <p className="text-muted-foreground mt-1 text-sm">
                   {selected.company} · {selected.location}
                   {selected.type && ` · ${selected.type}`}
