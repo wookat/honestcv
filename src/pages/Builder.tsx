@@ -3293,6 +3293,7 @@ export default function Builder() {
                   ['serif', 'Serif', 'Georgia / Times — traditional look'],
                   ['sans', 'Sans', 'Inter / Calibri — modern look'],
                   ['mono', 'Mono', 'Courier — typewriter look'],
+                  ['merriweather', 'Merri', 'Merriweather — classic resume serif'],
                 ] as const
               ).map(([value, label, hint]) => (
                 <button

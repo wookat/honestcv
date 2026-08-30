@@ -50,6 +50,7 @@ export function ResumePreview({
     serif: 'Georgia, "Times New Roman", serif',
     sans: 'Inter, Arial, sans-serif',
     mono: '"Courier New", ui-monospace, monospace',
+    merriweather: 'Merriweather, Georgia, serif',
   }[familyOf(resume, tpl.serif)]
   const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]
     .filter(Boolean)

@@ -51,7 +51,12 @@ import {
 } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
-const FONT_BY_KIND = { serif: 'Georgia', sans: 'Calibri', mono: 'Courier New' } as const
+const FONT_BY_KIND = {
+  serif: 'Georgia',
+  sans: 'Calibri',
+  mono: 'Courier New',
+  merriweather: 'Merriweather',
+} as const
 // Page width in twips minus the 864-twip left/right margins
 const PAGE_TWIPS = {
   letter: { width: 12240, height: 15840 },

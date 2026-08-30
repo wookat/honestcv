@@ -189,7 +189,7 @@ export interface Resume {
   /** Line spacing across preview and exports */
   lineSpacing?: 'compact' | 'normal' | 'relaxed'
   /** Font family across preview and exports; 'auto' follows the template */
-  fontFamily?: 'auto' | 'serif' | 'sans' | 'mono'
+  fontFamily?: 'auto' | 'serif' | 'sans' | 'mono' | 'merriweather'
   /** Vertical space before each section heading */
   sectionSpacing?: 'tight' | 'normal' | 'roomy'
   /** Section divider rule; 'auto' follows the template */
@@ -213,11 +213,14 @@ export const LINE_SPACING = { compact: 1.22, normal: 1.35, relaxed: 1.52 } as co
 export const fontScaleOf = (r: Resume) => FONT_SCALE[r.fontScale ?? 'm']
 export const lineSpacingOf = (r: Resume) => LINE_SPACING[r.lineSpacing ?? 'normal']
 
-export type FontFamilyKind = 'serif' | 'sans' | 'mono'
+export type FontFamilyKind = 'serif' | 'sans' | 'mono' | 'merriweather'
 
 /** Font family to render with, honouring the user's override; 'auto' follows the template. */
 export const familyOf = (r: Resume, tplSerif: boolean): FontFamilyKind =>
-  r.fontFamily === 'serif' || r.fontFamily === 'sans' || r.fontFamily === 'mono'
+  r.fontFamily === 'serif' ||
+  r.fontFamily === 'sans' ||
+  r.fontFamily === 'mono' ||
+  r.fontFamily === 'merriweather'
     ? r.fontFamily
     : tplSerif
       ? 'serif'
@@ -776,7 +779,10 @@ export function sanitizeResume(input: unknown): Resume | null {
     pageSize: asEnum(raw.pageSize, ['letter', 'a4'] as const) ?? 'letter',
     fontScale: asEnum(raw.fontScale, ['s', 'm', 'l'] as const),
     lineSpacing: asEnum(raw.lineSpacing, ['compact', 'normal', 'relaxed'] as const),
-    fontFamily: asEnum(raw.fontFamily, ['auto', 'serif', 'sans', 'mono'] as const),
+    fontFamily: asEnum(
+      raw.fontFamily,
+      ['auto', 'serif', 'sans', 'mono', 'merriweather'] as const
+    ),
     sectionSpacing: asEnum(raw.sectionSpacing, ['tight', 'normal', 'roomy'] as const),
     sectionDivider: asEnum(raw.sectionDivider, ['auto', 'on', 'off'] as const),
     textColor: asEnum(raw.textColor, ['default', 'black', 'navy'] as const),

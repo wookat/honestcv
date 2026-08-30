@@ -4,6 +4,7 @@
  */
 
 import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
 import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
@@ -321,8 +322,37 @@ const STANDARD_FONTS_BY_KIND = {
   },
 } as const
 
+const WEB_FONT_FILES = {
+  merriweather: {
+    regular: '/fonts/merriweather-regular.ttf',
+    bold: '/fonts/merriweather-bold.ttf',
+    italic: '/fonts/merriweather-italic.ttf',
+  },
+} as const
+
+async function fetchFontBytes(url: string): Promise<ArrayBuffer> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Failed to load font ${url}: ${res.status}`)
+  return res.arrayBuffer()
+}
+
 async function embedFontsFor(doc: PDFDocument, resume: Resume, tplSerif: boolean): Promise<Fonts> {
-  const kind = STANDARD_FONTS_BY_KIND[familyOf(resume, tplSerif)]
+  const family = familyOf(resume, tplSerif)
+  if (family === 'merriweather') {
+    doc.registerFontkit(fontkit)
+    const files = WEB_FONT_FILES.merriweather
+    const [regular, bold, italic] = await Promise.all([
+      fetchFontBytes(files.regular),
+      fetchFontBytes(files.bold),
+      fetchFontBytes(files.italic),
+    ])
+    return {
+      regular: await doc.embedFont(regular, { subset: true }),
+      bold: await doc.embedFont(bold, { subset: true }),
+      italic: await doc.embedFont(italic, { subset: true }),
+    }
+  }
+  const kind = STANDARD_FONTS_BY_KIND[family]
   return {
     regular: await doc.embedFont(kind.regular),
     bold: await doc.embedFont(kind.bold),
