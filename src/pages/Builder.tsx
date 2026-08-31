@@ -711,6 +711,14 @@ export default function Builder() {
   const [refLibrary, setRefLibrary] = useState<SavedReference[]>(() => listReferenceLibrary())
   const [refLibraryOpen, setRefLibraryOpen] = useState(false)
   const [refLibrarySavedId, setRefLibrarySavedId] = useState<string | null>(null)
+  const [collapsedEntries, setCollapsedEntries] = useState<Set<string>>(() => new Set())
+  const toggleEntry = (id: string) =>
+    setCollapsedEntries((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   const [skillsLibrary, setSkillsLibrary] = useState<SavedSkills[]>(() => listSkillsLibrary())
   const [skillsLibraryOpen, setSkillsLibraryOpen] = useState(false)
   const [skillsLibrarySaved, setSkillsLibrarySaved] = useState(false)
@@ -1838,7 +1846,12 @@ export default function Builder() {
                     >
                       <GripVertical className="size-3.5" />
                     </span>
-                    Role {idx + 1}
+                    <span className="shrink-0">Role {idx + 1}</span>
+                    {(e.role.trim() || e.company.trim()) && (
+                      <span className="text-foreground min-w-0 truncate font-normal">
+                        — {[e.role, e.company].filter((x) => x.trim()).join(', ')}
+                      </span>
+                    )}
                   </p>
                   <div className="flex items-center">
                     <Button
@@ -1932,8 +1945,26 @@ export default function Builder() {
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 sm:h-7"
+                      title={collapsedEntries.has(e.id) ? 'Expand role' : 'Collapse role'}
+                      aria-expanded={!collapsedEntries.has(e.id)}
+                      aria-label={`${collapsedEntries.has(e.id) ? 'Expand' : 'Collapse'} role ${idx + 1}`}
+                      onClick={() => toggleEntry(e.id)}
+                    >
+                      {collapsedEntries.has(e.id) ? (
+                        <ChevronDown className="size-3.5" />
+                      ) : (
+                        <ChevronUp className="size-3.5" />
+                      )}
+                    </Button>
                   </div>
                 </div>
+                {!collapsedEntries.has(e.id) && (
+                  <>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Job title"
@@ -2033,6 +2064,8 @@ export default function Builder() {
                           .filter(Boolean),
                       })
                   )
+                )}
+                  </>
                 )}
               </div>
             ))}
@@ -2156,8 +2189,32 @@ export default function Builder() {
                   >
                     <GripVertical className="size-3.5" />
                   </span>
-                  Education {idx + 1}
+                  <span className="shrink-0">Education {idx + 1}</span>
+                  {(e.degree.trim() || e.school.trim()) && (
+                    <span className="text-foreground min-w-0 truncate font-normal">
+                      — {[e.degree, e.school].filter((x) => x.trim()).join(', ')}
+                    </span>
+                  )}
+                  <span className="grow" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="-my-2 h-10 shrink-0 sm:h-7"
+                    title={collapsedEntries.has(e.id) ? 'Expand education' : 'Collapse education'}
+                    aria-expanded={!collapsedEntries.has(e.id)}
+                    aria-label={`${collapsedEntries.has(e.id) ? 'Expand' : 'Collapse'} education ${idx + 1}`}
+                    onClick={() => toggleEntry(e.id)}
+                  >
+                    {collapsedEntries.has(e.id) ? (
+                      <ChevronDown className="size-3.5" />
+                    ) : (
+                      <ChevronUp className="size-3.5" />
+                    )}
+                  </Button>
                 </p>
+                {!collapsedEntries.has(e.id) && (
+                  <>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Degree (B.S. Computer Science)"
@@ -2344,6 +2401,8 @@ export default function Builder() {
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
+                  </>
+                )}
               </div>
             ))}
             <div className="flex flex-wrap items-center gap-2">
@@ -2430,7 +2489,14 @@ export default function Builder() {
             {resume.projects.map((p, pIdx) => (
               <div key={p.id} className="space-y-2 rounded-lg border p-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-muted-foreground text-xs font-medium">Project {pIdx + 1}</p>
+                  <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs font-medium">
+                    <span className="shrink-0">Project {pIdx + 1}</span>
+                    {p.name.trim() && (
+                      <span className="text-foreground min-w-0 truncate font-normal">
+                        — {p.name.trim()}
+                      </span>
+                    )}
+                  </p>
                   <div className="flex items-center">
                     <Button
                       type="button"
@@ -2502,8 +2568,26 @@ export default function Builder() {
                         <BookmarkPlus className="size-3.5" />
                       )}
                     </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 sm:h-7"
+                      title={collapsedEntries.has(p.id) ? 'Expand project' : 'Collapse project'}
+                      aria-expanded={!collapsedEntries.has(p.id)}
+                      aria-label={`${collapsedEntries.has(p.id) ? 'Expand' : 'Collapse'} project ${pIdx + 1}`}
+                      onClick={() => toggleEntry(p.id)}
+                    >
+                      {collapsedEntries.has(p.id) ? (
+                        <ChevronDown className="size-3.5" />
+                      ) : (
+                        <ChevronUp className="size-3.5" />
+                      )}
+                    </Button>
                   </div>
                 </div>
+                {!collapsedEntries.has(p.id) && (
+                  <>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Project name"
@@ -2602,6 +2686,8 @@ export default function Builder() {
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
+                  </>
+                )}
               </div>
             ))}
             <div className="flex flex-wrap items-center gap-2">
