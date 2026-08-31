@@ -152,6 +152,10 @@ import {
   saveExperienceToLibrary,
   deleteLibraryExperience,
   type SavedExperience,
+  listEducationLibrary,
+  saveEducationToLibrary,
+  deleteLibraryEducation,
+  type SavedEducation,
   recordResumeSnapshot,
   type ResumeSnapshot,
   resumeToPlainText,
@@ -614,6 +618,9 @@ export default function Builder() {
   const [expLibrary, setExpLibrary] = useState<SavedExperience[]>(() => listExperienceLibrary())
   const [expLibraryOpen, setExpLibraryOpen] = useState(false)
   const [expLibrarySavedId, setExpLibrarySavedId] = useState<string | null>(null)
+  const [eduLibrary, setEduLibrary] = useState<SavedEducation[]>(() => listEducationLibrary())
+  const [eduLibraryOpen, setEduLibraryOpen] = useState(false)
+  const [eduLibrarySavedId, setEduLibrarySavedId] = useState<string | null>(null)
   // ?assistant=1 deep link from the workspace sidebar / mobile menu "AI assistant" entries
   const [assistantOpen, setAssistantOpen] = useState(
     () => new URLSearchParams(window.location.search).get('assistant') === '1'
@@ -2048,6 +2055,26 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="h-9 shrink-0"
+                    title="Save education to library — reuse it in other resume copies"
+                    aria-label={`Save education ${idx + 1} to library`}
+                    disabled={!e.school.trim() && !e.degree.trim() && !e.details.trim()}
+                    onClick={() => {
+                      setEduLibrary(saveEducationToLibrary(e))
+                      setEduLibrarySavedId(e.id)
+                      window.setTimeout(() => setEduLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
+                    }}
+                  >
+                    {eduLibrarySavedId === e.id ? (
+                      <Check className="size-3.5 text-green-600" />
+                    ) : (
+                      <BookmarkPlus className="size-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive h-9 shrink-0"
                     title="Delete education"
                     aria-label={`Delete education ${idx + 1}`}
@@ -2063,16 +2090,79 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setResume((r) => ({ ...r, education: [...r.education, emptyEducation()] }))
-              }
-            >
-              <Plus className="size-4" /> Add education
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setResume((r) => ({ ...r, education: [...r.education, emptyEducation()] }))
+                }
+              >
+                <Plus className="size-4" /> Add education
+              </Button>
+              {eduLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title="Insert an education entry you saved from any resume copy"
+                  onClick={() => setEduLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({eduLibrary.length})
+                </Button>
+              )}
+            </div>
+            {eduLibraryOpen && eduLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved education</p>
+                {eduLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.degree, s.data.school].filter((x) => x.trim()).join(' — ') ||
+                          'Untitled education'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            education: [
+                              ...r.education.filter(
+                                (x) => x.school.trim() || x.degree.trim() || x.details.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved education ${[s.data.degree, s.data.school].filter((x) => x.trim()).join(' — ') || 'Untitled education'}`}
+                        onClick={() => setEduLibrary(deleteLibraryEducation(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Projects (optional)" icon={<FileText className="size-4" />} defaultOpen={false}>
