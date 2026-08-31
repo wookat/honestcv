@@ -4133,7 +4133,14 @@ function BulletGuidance({
   const results = useMemo(() => checkBullets(bullets), [bullets])
   const count = bullets.filter((b) => b.trim()).length
   const countNote = entryFilled && (count < 3 || count > 6)
-  if (results.length === 0 && !countNote) return null
+  if (results.length === 0 && !countNote) {
+    if (!entryFilled || count === 0) return null
+    return (
+      <p className="text-xs text-emerald-700">
+        ✓ Bullet best practices applied — 3–6 bullets, quantified, capitalized and punctuated.
+      </p>
+    )
+  }
   return (
     <ul className="space-y-0.5 text-xs">
       {countNote && (

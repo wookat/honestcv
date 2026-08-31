@@ -229,6 +229,9 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - Assistant replies often return in <2s, so a post-click DOM probe misses the busy state — arm a ~25ms `setInterval` poller sampling `disabled` on the target buttons BEFORE clicking, then read the samples.
 - Do NOT use CDP offline emulation to fake a stuck assistant request: Chrome queues the fetch and delivers it after network restore, consuming a real AI quota send.
 - To render chat-dependent UI without spending quota, save `honestcv.assistantChat` JSON before Clear chat and restore it via CDP + reload.
+- BulletGuidance's positive state (R80) is a `p.text-emerald-700`, not an `li` — assert green vs amber with `p.text-emerald-700` and `li.text-amber-700` selectors.
+- Clearing `honestcv.*` via CDP does not refresh the visible page — always reload after the clear before asserting throwaway state.
+- Never combine `pkill/pgrep -f <script>` with follow-up commands in one exec call — the pattern matches the wrapper `bash -c` and kills/false-positives itself; filter with `| grep -v 'bash -c'` and kill in a separate call.
 
 ## Devin Secrets Needed
 
