@@ -224,7 +224,7 @@ export function ResumePreview({
 
   const divider = tpl.band ? 'none' : dividerOf(resume, tpl.divider)
   const headingMarginTop = 16 * sectionSpacingOf(resume)
-  const heading = (label: string, key?: string) => (
+  const heading = (label: React.ReactNode, key?: string) => (
     <h3
       className="mb-1.5 text-[11px] font-bold tracking-wide"
       style={{
@@ -468,7 +468,7 @@ function SectionBlock({
 }: {
   sectionKey: string
   resume: Resume
-  heading: (label: string, key?: string) => React.ReactNode
+  heading: (label: React.ReactNode, key?: string) => React.ReactNode
   onEdit?: (next: Resume) => void
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
@@ -1329,14 +1329,50 @@ function SectionBlock({
     if (!s || (!s.title.trim() && !s.bullets.some((b) => b.trim()))) return null
     return (
       <>
-        {heading(s.title.trim() || 'Additional')}
+        {heading(
+          <InlineText
+            value={s.title.trim()}
+            fallback="Additional"
+            onCommit={
+              onEdit &&
+              ((v) =>
+                onEdit({
+                  ...resume,
+                  customSections: resume.customSections.map((x) =>
+                    x.id === s.id ? { ...x, title: v } : x
+                  ),
+                }))
+            }
+          />
+        )}
         <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
           {s.bullets.map(
             (b, i) =>
               b.trim() && (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
-                  <span>{b.trim()}</span>
+                  <span>
+                    <InlineText
+                      value={b.trim()}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            customSections: resume.customSections.map((x) =>
+                              x.id === s.id
+                                ? {
+                                    ...x,
+                                    bullets: v
+                                      ? x.bullets.map((bb, bi) => (bi === i ? v : bb))
+                                      : x.bullets.filter((_, bi) => bi !== i),
+                                  }
+                                : x
+                            ),
+                          }))
+                      }
+                    />
+                  </span>
                 </li>
               )
           )}
