@@ -15,7 +15,7 @@ import {
   type AssistantAction,
   type AssistantTurnInput,
 } from '@/lib/api'
-import { resumeToPlainText, type Resume } from '@/lib/resume'
+import { aiTargetRole, resumeToPlainText, type Resume } from '@/lib/resume'
 
 const CHAT_KEY = 'honestcv.assistantChat'
 const CHAT_MAX = 40
@@ -132,7 +132,7 @@ export function AssistantPanel({
         turns: next.slice(-12).map((t) => ({ role: t.role, content: t.content })),
         resumeText: resumeToPlainText(resume),
         jobDescription,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
         scoreSummary,
       })
       if (freeRemaining !== null) onQuota(freeRemaining)

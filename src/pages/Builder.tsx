@@ -117,7 +117,10 @@ import {
   type ExperienceItem,
   type Resume,
   type ResumeVersion,
+  aiTargetRole,
   deleteResumeVersion,
+  EXPERIENCE_LEVELS,
+  EXPERIENCE_LEVEL_LABELS,
   duplicateResumeVersion,
   emptyAward,
   emptyCertification,
@@ -738,7 +741,7 @@ export default function Builder() {
         kind,
         text,
         {
-          role: resume.targetRole,
+          role: aiTargetRole(resume),
           jobDescription: resume.jobDescription,
         },
         wantVariants
@@ -807,7 +810,7 @@ export default function Builder() {
     try {
       const { texts, freeRemaining } = await aiSummaryDraft({
         resumeText: resumeToPlainText({ ...resume, summary: '' }),
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setVariantPick({
@@ -838,7 +841,7 @@ export default function Builder() {
     try {
       const { skills, freeRemaining } = await aiSkillSuggest({
         skills: resume.skills,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
         jobDescription: resume.jobDescription,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
@@ -1410,6 +1413,24 @@ export default function Builder() {
                   value={resume.targetRole}
                   onChange={(e) => set('targetRole', e.target.value)}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="experienceLevel">Experience level</Label>
+                <select
+                  id="experienceLevel"
+                  className="h-11 w-full rounded-md border bg-transparent px-2 text-sm sm:h-9"
+                  value={resume.experienceLevel ?? ''}
+                  onChange={(e) =>
+                    set('experienceLevel', e.target.value as Resume['experienceLevel'])
+                  }
+                >
+                  <option value="">Auto</option>
+                  {EXPERIENCE_LEVELS.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {EXPERIENCE_LEVEL_LABELS[lvl]}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="space-y-1.5">
@@ -4739,7 +4760,7 @@ function BundleToolDialog({
       const { questions, freeRemaining } = await aiInterviewQuestions({
         resumeText: resumeToPlainText(resume),
         jobDescription: resume.jobDescription,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
       })
       setSuggested(questions)
       if (freeRemaining !== null) onQuota(freeRemaining)
@@ -4767,7 +4788,7 @@ function BundleToolDialog({
         answer,
         resumeText: resumeToPlainText(resume),
         jobDescription: resume.jobDescription,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
       })
       setFeedback(text)
       if (freeRemaining !== null) onQuota(freeRemaining)
@@ -4811,12 +4832,12 @@ function BundleToolDialog({
               resumeText,
               jobDescription: jd,
               company,
-              role: resume.targetRole,
+              role: aiTargetRole(resume),
             })
           : await aiInterviewBrief({
               resumeText,
               jobDescription: jd,
-              role: resume.targetRole,
+              role: aiTargetRole(resume),
             })
       setResult(text)
       setSavedId(null)
@@ -5177,7 +5198,7 @@ function TailorDialog({
       const { suggestions, freeRemaining } = await aiTailor({
         items,
         jobDescription: resume.jobDescription,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
       const byId = new Map(items.map((i) => [i.id, i.text]))
@@ -5556,7 +5577,7 @@ function KeywordBulletDialog({
         keyword,
         resumeText: resumeToPlainText(resume),
         jobDescription: resume.jobDescription,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
       setText(drafted)

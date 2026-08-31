@@ -205,9 +205,29 @@ export interface Resume {
   /** Target role + JD used for tailoring and the ATS score */
   targetRole: string
   jobDescription: string
+  /** Candidate seniority for the target job; grounds AI drafts ('' = unset) */
+  experienceLevel?: '' | 'internship' | 'entry' | 'mid' | 'senior' | 'executive'
 }
 
 export const newId = () => Math.random().toString(36).slice(2, 10)
+
+export const EXPERIENCE_LEVELS = ['internship', 'entry', 'mid', 'senior', 'executive'] as const
+export const EXPERIENCE_LEVEL_LABELS: Record<(typeof EXPERIENCE_LEVELS)[number], string> = {
+  internship: 'Internship',
+  entry: 'Entry level',
+  mid: 'Mid level',
+  senior: 'Senior',
+  executive: 'Executive',
+}
+
+/** Target role annotated with the experience level, for AI prompt context. */
+export function aiTargetRole(r: Resume): string {
+  const role = r.targetRole.trim()
+  const lvl = r.experienceLevel
+  if (!lvl) return role
+  const label = EXPERIENCE_LEVEL_LABELS[lvl]
+  return role ? `${role} (${label})` : `${label} position`
+}
 
 /** Multipliers applied to font sizes in the preview, PDF and DOCX. */
 export const FONT_SCALE = { xs: 0.84, s: 0.92, m: 1, l: 1.08, xl: 1.16 } as const
@@ -824,6 +844,10 @@ export function sanitizeResume(input: unknown): Resume | null {
     textColor: asEnum(raw.textColor, ['default', 'black', 'navy'] as const),
     targetRole: asStr(raw.targetRole),
     jobDescription: asStr(raw.jobDescription),
+    experienceLevel: asEnum(
+      raw.experienceLevel,
+      ['internship', 'entry', 'mid', 'senior', 'executive'] as const
+    ),
   }
   resume.sectionOrder = orderedSectionKeys(resume)
   return resume
