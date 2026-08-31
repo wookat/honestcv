@@ -1467,6 +1467,75 @@ export function deleteLibraryAward(id: string): SavedAward[] {
   return items
 }
 
+/** A single polished reference entry saved for reuse across resume copies. */
+export interface SavedReference {
+  id: string
+  savedAt: number
+  data: ReferenceItem
+}
+
+const REFERENCE_LIBRARY_KEY = 'honestcv.referenceLibrary'
+const REFERENCE_LIBRARY_MAX = 30
+
+function sanitizeReferenceItem(input: unknown): ReferenceItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: ReferenceItem = {
+    id: asStr(v.id) || newId(),
+    name: asStr(v.name),
+    title: asStr(v.title),
+    employer: asStr(v.employer),
+    email: asStr(v.email),
+    phone: asStr(v.phone),
+    kind: v.kind === 'personal' || v.kind === 'professional' ? v.kind : '',
+  }
+  return item.name.trim() || item.employer.trim() || item.email.trim() ? item : null
+}
+
+export function listReferenceLibrary(): SavedReference[] {
+  try {
+    const raw = localStorage.getItem(REFERENCE_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedReference[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeReferenceItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistReferenceLibrary(items: SavedReference[]) {
+  try {
+    localStorage.setItem(
+      REFERENCE_LIBRARY_KEY,
+      JSON.stringify(items.slice(0, REFERENCE_LIBRARY_MAX))
+    )
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveReferenceToLibrary(entry: ReferenceItem): SavedReference[] {
+  const data = sanitizeReferenceItem(entry)
+  if (!data) return listReferenceLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listReferenceLibrary(),
+  ].slice(0, REFERENCE_LIBRARY_MAX)
+  persistReferenceLibrary(items)
+  return items
+}
+
+export function deleteLibraryReference(id: string): SavedReference[] {
+  const items = listReferenceLibrary().filter((s) => s.id !== id)
+  persistReferenceLibrary(items)
+  return items
+}
+
 /** A polished skills text block saved for reuse across resume copies. */
 export interface SavedSkills {
   id: string
