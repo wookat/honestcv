@@ -156,6 +156,10 @@ import {
   saveEducationToLibrary,
   deleteLibraryEducation,
   type SavedEducation,
+  listSkillsLibrary,
+  saveSkillsToLibrary,
+  deleteLibrarySkills,
+  type SavedSkills,
   recordResumeSnapshot,
   type ResumeSnapshot,
   resumeToPlainText,
@@ -621,6 +625,9 @@ export default function Builder() {
   const [eduLibrary, setEduLibrary] = useState<SavedEducation[]>(() => listEducationLibrary())
   const [eduLibraryOpen, setEduLibraryOpen] = useState(false)
   const [eduLibrarySavedId, setEduLibrarySavedId] = useState<string | null>(null)
+  const [skillsLibrary, setSkillsLibrary] = useState<SavedSkills[]>(() => listSkillsLibrary())
+  const [skillsLibraryOpen, setSkillsLibraryOpen] = useState(false)
+  const [skillsLibrarySaved, setSkillsLibrarySaved] = useState(false)
   // ?assistant=1 deep link from the workspace sidebar / mobile menu "AI assistant" entries
   const [assistantOpen, setAssistantOpen] = useState(
     () => new URLSearchParams(window.location.search).get('assistant') === '1'
@@ -3118,7 +3125,85 @@ export default function Builder() {
                 {aiButton('skill-suggest', 'AI suggest related skills', () =>
                   void runSkillSuggest()
                 )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9"
+                  title="Save skills to library — reuse them in other resume copies"
+                  aria-label="Save skills to library"
+                  disabled={!resume.skills.trim()}
+                  onClick={() => {
+                    setSkillsLibrary(saveSkillsToLibrary(resume.skills))
+                    setSkillsLibrarySaved(true)
+                    window.setTimeout(() => setSkillsLibrarySaved(false), 1600)
+                  }}
+                >
+                  {skillsLibrarySaved ? (
+                    <Check className="size-3.5 text-green-600" />
+                  ) : (
+                    <BookmarkPlus className="size-3.5" />
+                  )}
+                </Button>
+                {skillsLibrary.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    title="Insert a skills set you saved from any resume copy"
+                    onClick={() => setSkillsLibraryOpen((v) => !v)}
+                  >
+                    <Bookmark className="size-4" /> From library ({skillsLibrary.length})
+                  </Button>
+                )}
               </div>
+              {skillsLibraryOpen && skillsLibrary.length > 0 && (
+                <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                  <p className="text-muted-foreground text-xs font-medium">Saved skills</p>
+                  {skillsLibrary.map((s) => (
+                    <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm">
+                          {s.skills.split('\n').map((l) => l.trim()).filter(Boolean)[0] ??
+                            'Untitled skills'}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          Saved {new Date(s.savedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-10 text-xs sm:h-7"
+                          onClick={() =>
+                            setResume((r) => ({
+                              ...r,
+                              skills: r.skills.trim()
+                                ? `${r.skills.replace(/\s+$/, '')}\n${s.skills}`
+                                : s.skills,
+                            }))
+                          }
+                        >
+                          Insert
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive h-10 sm:h-7"
+                          title="Remove from library"
+                          aria-label={`Remove saved skills ${s.skills.split('\n').map((l) => l.trim()).filter(Boolean)[0] ?? 'Untitled skills'}`}
+                          onClick={() => setSkillsLibrary(deleteLibrarySkills(s.id))}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {(() => {
                 const have = new Set(
                   resume.skills.split(/[,\n]/).map((s) => s.trim().toLowerCase())

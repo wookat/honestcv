@@ -1197,6 +1197,56 @@ export function deleteLibraryEducation(id: string): SavedEducation[] {
   return items
 }
 
+/** A polished skills text block saved for reuse across resume copies. */
+export interface SavedSkills {
+  id: string
+  savedAt: number
+  skills: string
+}
+
+const SKILLS_LIBRARY_KEY = 'honestcv.skillsLibrary'
+const SKILLS_LIBRARY_MAX = 30
+
+export function listSkillsLibrary(): SavedSkills[] {
+  try {
+    const raw = localStorage.getItem(SKILLS_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedSkills[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const skills = asStr(s.skills)
+      return skills.trim() ? [{ id: s.id, savedAt: s.savedAt, skills }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistSkillsLibrary(items: SavedSkills[]) {
+  try {
+    localStorage.setItem(SKILLS_LIBRARY_KEY, JSON.stringify(items.slice(0, SKILLS_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveSkillsToLibrary(skills: string): SavedSkills[] {
+  if (!skills.trim()) return listSkillsLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), skills },
+    ...listSkillsLibrary(),
+  ].slice(0, SKILLS_LIBRARY_MAX)
+  persistSkillsLibrary(items)
+  return items
+}
+
+export function deleteLibrarySkills(id: string): SavedSkills[] {
+  const items = listSkillsLibrary().filter((s) => s.id !== id)
+  persistSkillsLibrary(items)
+  return items
+}
+
 /** Detail line under an education entry: details · Minor in X · GPA: Y */
 export function educationDetailLine(e: EducationItem): string {
   return [
