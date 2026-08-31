@@ -37,6 +37,7 @@ import {
   Plus,
   Pencil,
   Sparkles,
+  Star,
   Target,
   Trash2,
   Undo2,
@@ -211,6 +212,12 @@ import {
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
 import { ACCENT_CHOICES, TEMPLATES, TEMPLATE_FILTERS, getTemplate } from '@/lib/templates'
+import {
+  loadTemplateFavorites,
+  loadTemplateRecents,
+  recordTemplateRecent,
+  toggleTemplateFavorite,
+} from '@/lib/templatePrefs'
 
 function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
   const t = useRef<number | undefined>(undefined)
@@ -671,6 +678,8 @@ export default function Builder() {
     }
   }, [resume, setResume])
   const [templateFilter, setTemplateFilter] = useState('all')
+  const [templateFavs, setTemplateFavs] = useState<string[]>(loadTemplateFavorites)
+  const [templateRecents, setTemplateRecents] = useState<string[]>(loadTemplateRecents)
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
   /** Scroll the editor section that fixes a failing ATS check into view */
@@ -4542,7 +4551,11 @@ export default function Builder() {
             role="group"
             aria-label="Filter templates by style"
           >
-            {TEMPLATE_FILTERS.map((f) => (
+            {[
+              ...TEMPLATE_FILTERS.map((f) => ({ id: f.id, label: f.label })),
+              { id: 'saved', label: `Saved (${templateFavs.length})` },
+              { id: 'recent', label: 'Recent' },
+            ].map((f) => (
               <button
                 key={f.id}
                 type="button"
@@ -4559,27 +4572,72 @@ export default function Builder() {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {TEMPLATES.filter(
-              (TEMPLATE_FILTERS.find((f) => f.id === templateFilter) ?? TEMPLATE_FILTERS[0]).match,
+            {(templateFilter === 'saved'
+              ? TEMPLATES.filter((t) => templateFavs.includes(t.id))
+              : templateFilter === 'recent'
+                ? templateRecents
+                    .map((id) => TEMPLATES.find((t) => t.id === id))
+                    .filter((t): t is (typeof TEMPLATES)[number] => t !== undefined)
+                : TEMPLATES.filter(
+                    (TEMPLATE_FILTERS.find((f) => f.id === templateFilter) ?? TEMPLATE_FILTERS[0])
+                      .match,
+                  )
             ).map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                title={t.description}
-                aria-pressed={resume.templateId === t.id}
-                onClick={() => set('templateId', t.id)}
-                className={`w-16 rounded-md border p-1 transition ${
-                  resume.templateId === t.id
-                    ? 'border-primary ring-primary/40 ring-2'
-                    : 'hover:border-muted-foreground/40'
-                }`}
-              >
-                <TemplateThumb t={t} />
-                <span className="mt-0.5 block truncate text-center text-[10px] leading-tight">
-                  {t.name}
-                </span>
-              </button>
+              <span key={t.id} className="relative">
+                <button
+                  type="button"
+                  title={t.description}
+                  aria-pressed={resume.templateId === t.id}
+                  onClick={() => {
+                    set('templateId', t.id)
+                    setTemplateRecents(recordTemplateRecent(t.id))
+                  }}
+                  className={`w-16 rounded-md border p-1 transition ${
+                    resume.templateId === t.id
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  <TemplateThumb t={t} />
+                  <span className="mt-0.5 block truncate text-center text-[10px] leading-tight">
+                    {t.name}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  title={templateFavs.includes(t.id) ? 'Remove from saved' : 'Save template'}
+                  aria-label={
+                    templateFavs.includes(t.id)
+                      ? `Remove ${t.name} from saved templates`
+                      : `Save ${t.name} template`
+                  }
+                  aria-pressed={templateFavs.includes(t.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setTemplateFavs(toggleTemplateFavorite(t.id))
+                  }}
+                  className="bg-background/90 absolute -top-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full border shadow-sm"
+                >
+                  <Star
+                    className={`size-3.5 ${
+                      templateFavs.includes(t.id)
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'text-muted-foreground'
+                    }`}
+                  />
+                </button>
+              </span>
             ))}
+            {templateFilter === 'saved' && templateFavs.length === 0 && (
+              <span className="text-muted-foreground w-full text-xs">
+                No saved templates yet — click the star on a template to keep it here.
+              </span>
+            )}
+            {templateFilter === 'recent' && templateRecents.length === 0 && (
+              <span className="text-muted-foreground w-full text-xs">
+                No recently used templates yet — pick a template and it will show up here.
+              </span>
+            )}
             <span className="text-muted-foreground w-full text-xs">
               {getTemplate(resume.templateId).name}:{' '}
               {getTemplate(resume.templateId).description} ·{' '}
