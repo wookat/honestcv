@@ -114,7 +114,14 @@ export function ResumePreview({
   }
   const content = (
     <>
-      <div className={tpl.headerAlign === 'left' ? 'text-left' : 'text-center'}>
+      <div className={`relative ${tpl.headerAlign === 'left' ? 'text-left' : 'text-center'}`}>
+        {resume.photo && (
+          <img
+            src={resume.photo}
+            alt=""
+            className="absolute top-0 right-0 h-16 w-16 rounded object-cover"
+          />
+        )}
         <h2 className="text-2xl font-bold">
           {tpl.nameCase === 'upper'
             ? (c.fullName || 'Your Name').toUpperCase()
