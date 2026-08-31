@@ -399,6 +399,9 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
               ...(p.venue.trim()
                 ? [new TextRun({ text: ` — ${p.venue.trim()}`, size: sz(21), font })]
                 : []),
+              ...((p.kind ?? '').trim()
+                ? [new TextRun({ text: ` (${(p.kind ?? '').trim()})`, italics: true, size: sz(21), font })]
+                : []),
               ...(date
                 ? [new TextRun({ children: [new Tab(), date], italics: true, size: sz(19), font })]
                 : []),
