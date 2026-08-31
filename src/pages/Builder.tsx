@@ -131,6 +131,7 @@ import {
   emptyResume,
   exampleToResume,
   FONT_SCALE,
+  LINE_SPACING,
   loadResume,
   newId,
   orderedSectionKeys,
@@ -243,6 +244,8 @@ const SCALE_NAME = {
 } as const
 
 const SCALE_STEPS = ['xs', 's', 'm', 'l', 'xl'] as const
+
+const SPACING_STEPS = ['xtight', 'compact', 'normal', 'relaxed', 'loose'] as const
 
 /** Global undo: snapshots resume state (throttled) and restores on Ctrl/Cmd+Z */
 function useUndo(
@@ -3373,28 +3376,39 @@ export default function Builder() {
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Spacing</span>
-              {(
-                [
-                  ['compact', 'Compact'],
-                  ['normal', 'Normal'],
-                  ['relaxed', 'Relaxed'],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  title={`${label} line spacing — applies to preview, PDF and DOCX`}
-                  aria-pressed={(resume.lineSpacing ?? 'normal') === value}
-                  onClick={() => set('lineSpacing', value)}
-                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
-                    (resume.lineSpacing ?? 'normal') === value
-                      ? 'border-primary ring-primary/40 ring-2'
-                      : 'hover:border-muted-foreground/40'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              <button
+                type="button"
+                aria-label="Decrease line spacing"
+                title="Tighter lines — applies to preview, PDF and DOCX"
+                disabled={(resume.lineSpacing ?? 'normal') === 'xtight'}
+                onClick={() => {
+                  const i = SPACING_STEPS.indexOf(resume.lineSpacing ?? 'normal')
+                  if (i > 0) set('lineSpacing', SPACING_STEPS[i - 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                −
+              </button>
+              <span
+                title={`Line spacing: ${resume.lineSpacing ?? 'normal'}`}
+                aria-live="polite"
+                className="min-w-10 text-center text-[11px] font-medium tabular-nums"
+              >
+                {LINE_SPACING[resume.lineSpacing ?? 'normal'].toFixed(2)}
+              </span>
+              <button
+                type="button"
+                aria-label="Increase line spacing"
+                title="Looser lines — applies to preview, PDF and DOCX"
+                disabled={(resume.lineSpacing ?? 'normal') === 'loose'}
+                onClick={() => {
+                  const i = SPACING_STEPS.indexOf(resume.lineSpacing ?? 'normal')
+                  if (i < SPACING_STEPS.length - 1) set('lineSpacing', SPACING_STEPS[i + 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                +
+              </button>
             </span>
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
