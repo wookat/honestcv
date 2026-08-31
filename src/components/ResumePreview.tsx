@@ -883,8 +883,41 @@ function SectionBlock({
         {heading(sectionHeading(resume, 'skills'), 'skills')}
         {skillLines(resume).map((line, i) => (
           <p key={i} className="text-[11px]">
-            {line.label ? <span className="font-semibold">{line.label}: </span> : null}
-            {line.text}
+            {line.label ? (
+              <span className="font-semibold">
+                <InlineText
+                  value={line.label}
+                  onCommit={
+                    onEdit &&
+                    ((v) =>
+                      onEdit({
+                        ...resume,
+                        skills: editDescriptionLine(
+                          resume.skills,
+                          i,
+                          v ? `${v}: ${line.text}` : line.text
+                        ),
+                      }))
+                  }
+                />
+                {': '}
+              </span>
+            ) : null}
+            <InlineText
+              value={line.text}
+              onCommit={
+                onEdit &&
+                ((v) =>
+                  onEdit({
+                    ...resume,
+                    skills: editDescriptionLine(
+                      resume.skills,
+                      i,
+                      v && line.label ? `${line.label}: ${v}` : v
+                    ),
+                  }))
+              }
+            />
           </p>
         ))}
       </>
