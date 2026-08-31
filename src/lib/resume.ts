@@ -185,7 +185,7 @@ export interface Resume {
   /** Export paper size: US Letter (US/Canada) or A4 (rest of world) */
   pageSize: 'letter' | 'a4'
   /** Body text size across preview and exports */
-  fontScale?: 's' | 'm' | 'l'
+  fontScale?: 'xs' | 's' | 'm' | 'l' | 'xl'
   /** Line spacing across preview and exports */
   lineSpacing?: 'compact' | 'normal' | 'relaxed'
   /** Font family across preview and exports; 'auto' follows the template */
@@ -206,7 +206,7 @@ export interface Resume {
 export const newId = () => Math.random().toString(36).slice(2, 10)
 
 /** Multipliers applied to font sizes in the preview, PDF and DOCX. */
-export const FONT_SCALE = { s: 0.92, m: 1, l: 1.08 } as const
+export const FONT_SCALE = { xs: 0.84, s: 0.92, m: 1, l: 1.08, xl: 1.16 } as const
 /** Line-height multipliers applied in the preview, PDF and DOCX. */
 export const LINE_SPACING = { compact: 1.22, normal: 1.35, relaxed: 1.52 } as const
 
@@ -785,7 +785,7 @@ export function sanitizeResume(input: unknown): Resume | null {
     accentColor: asStr(raw.accentColor),
     ignoredKeywords: asStrArr(raw.ignoredKeywords),
     pageSize: asEnum(raw.pageSize, ['letter', 'a4'] as const) ?? 'letter',
-    fontScale: asEnum(raw.fontScale, ['s', 'm', 'l'] as const),
+    fontScale: asEnum(raw.fontScale, ['xs', 's', 'm', 'l', 'xl'] as const),
     lineSpacing: asEnum(raw.lineSpacing, ['compact', 'normal', 'relaxed'] as const),
     fontFamily: asEnum(
       raw.fontFamily,
