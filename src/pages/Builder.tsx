@@ -34,6 +34,7 @@ import {
   Lock,
   MessagesSquare,
   Plus,
+  Pencil,
   Sparkles,
   Target,
   Trash2,
@@ -155,6 +156,7 @@ import {
   saveResume,
   type ExamplePerson,
   saveResumeVersion,
+  updateResumeVersion,
   sectionLabel,
   skillLines,
   sortEntriesByDate,
@@ -537,6 +539,13 @@ export default function Builder() {
   const activeVersion = activeVersionId
     ? (versions.find((v) => v.id === activeVersionId) ?? null)
     : null
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameText, setRenameText] = useState('')
+  const commitRename = (v: ResumeVersion) => {
+    const name = renameText.trim()
+    if (name && name !== v.name) setVersions(updateResumeVersion(v.id, { name }))
+    setRenamingId(null)
+  }
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
   const finalCheckFmt = useRef<'pdf' | 'docx' | 'txt' | 'md' | null>(null)
   const freeMode = useFreeMode()
@@ -1266,6 +1275,7 @@ export default function Builder() {
                 setVersions(listResumeVersions())
                 setActiveVersionIdState(getActiveVersionId())
                 setVersionName(resume.targetRole || '')
+                setRenamingId(null)
                 setVersionsOpen(true)
               }}
             >
@@ -4102,21 +4112,49 @@ export default function Builder() {
                   key={v.id}
                   className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">
-                      {v.name}
-                      {v.id === activeVersionId && (
-                        <span className="text-primary ml-1.5 text-xs font-normal">
-                          · editing
-                        </span>
-                      )}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    {renamingId === v.id ? (
+                      <Input
+                        autoFocus
+                        value={renameText}
+                        onChange={(e) => setRenameText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitRename(v)
+                          if (e.key === 'Escape') setRenamingId(null)
+                        }}
+                        onBlur={() => commitRename(v)}
+                        className="h-8"
+                        aria-label={`Rename ${v.name}`}
+                      />
+                    ) : (
+                      <p className="truncate font-medium">
+                        {v.name}
+                        {v.id === activeVersionId && (
+                          <span className="text-primary ml-1.5 text-xs font-normal">
+                            · editing
+                          </span>
+                        )}
+                      </p>
+                    )}
                     <p className="text-muted-foreground text-xs">
                       {new Date(v.updatedAt).toLocaleString()} · ATS{' '}
                       {scoreResume(v.data, v.data.jobDescription).score}/100
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 w-10 p-0 text-xs sm:h-7 sm:w-7"
+                      aria-label={`Rename copy ${v.name}`}
+                      onClick={() => {
+                        setRenameText(v.name)
+                        setRenamingId(v.id)
+                      }}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
                     <Button
                       type="button"
                       variant="outline"
