@@ -40,6 +40,7 @@ import {
   projectDates,
   projectHeadingLine,
   sectionSpacingOf,
+  skillLines,
   bulletIndentOf,
   contactIconsOf,
   familyOf,
@@ -156,6 +157,33 @@ class PdfWriter {
         color: opts.color ?? this.ink,
       })
     }
+  }
+
+  /** Line with a bold "Label:" prefix; the rest wraps at the left margin. */
+  labelledLine(label: string, rest: string, opts: { size?: number } = {}) {
+    const size = (opts.size ?? 10) * this.fs
+    const prefix = `${label}: `
+    const prefixW = this.fonts.bold.widthOfTextAtSize(prefix, size)
+    const lineHeight = size * this.lh
+    const restLines = wrapText(rest, this.fonts.regular, size, this.contentW - prefixW)
+    this.ensure(lineHeight)
+    this.y -= lineHeight
+    this.page.drawText(prefix, {
+      x: MARGIN,
+      y: this.y,
+      size,
+      font: this.fonts.bold,
+      color: this.ink,
+    })
+    this.page.drawText(restLines[0], {
+      x: MARGIN + prefixW,
+      y: this.y,
+      size,
+      font: this.fonts.regular,
+      color: this.ink,
+    })
+    if (restLines.length > 1)
+      this.text(restLines.slice(1).join(' '), { size: size / this.fs })
   }
 
   gap(h: number) {
@@ -515,7 +543,10 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
       }
     } else if (key === 'skills' && resume.skills.trim()) {
       w.heading('Skills')
-      w.text(resume.skills.trim(), { size: 10 })
+      for (const line of skillLines(resume)) {
+        if (line.label) w.labelledLine(line.label, line.text, { size: 10 })
+        else w.text(line.text, { size: 10 })
+      }
     } else if (
       key === 'certifications' &&
       (certEntries(resume).length > 0 || resume.certifications.trim())

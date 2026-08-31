@@ -1055,6 +1055,20 @@ export const courseworkBullets = (c: CourseworkItem): string[] => [
   ...c.description.split('\n').map((l) => l.trim()).filter(Boolean),
 ]
 
+/**
+ * Skills split into display lines. A line written as "Category: a, b, c"
+ * carries a `label` so renderers can bold the category prefix; a skills
+ * value with no newlines stays a single unlabelled line (legacy format).
+ */
+export function skillLines(r: Resume): { label?: string; text: string }[] {
+  const lines = r.skills.split('\n').map((l) => l.trim()).filter(Boolean)
+  if (lines.length <= 1) return lines.map((text) => ({ text }))
+  return lines.map((line) => {
+    const m = /^([^:]{1,40}):\s*(.+)$/.exec(line)
+    return m ? { label: m[1].trim(), text: m[2].trim() } : { text: line }
+  })
+}
+
 /** Award entries with any content */
 export const awardEntries = (r: Resume): AwardItem[] =>
   (r.awards ?? []).filter((a) => a.name.trim() || a.organization.trim())
