@@ -92,6 +92,7 @@ export function AssistantPanel({
   onClose,
   resume,
   jobDescription,
+  scoreSummary,
   onQuota,
   onPaymentRequired,
   onApply,
@@ -100,6 +101,7 @@ export function AssistantPanel({
   onClose: () => void
   resume: Resume
   jobDescription: string
+  scoreSummary: string
   onQuota: (remaining: number) => void
   onPaymentRequired: (message: string) => void
   onApply: (action: AssistantAction) => void
@@ -131,6 +133,7 @@ export function AssistantPanel({
         resumeText: resumeToPlainText(resume),
         jobDescription,
         role: resume.targetRole,
+        scoreSummary,
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
       const withReply = [

@@ -219,7 +219,10 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **Import dialog (Builder)**: open via the `Import resume (PDF/DOCX/text)` button. The "or pull from Resume Center" row sits between the Upload button row and the paste textarea; error text inserts below that row and shifts layout, so re-locate elements after an error appears. `parseShareId` (src/lib/resumeCenter.ts) accepts bare 4–64 char ids and URLs containing `/s/` or `/api/export/` — as of Aug 2026 it rejected canonical resume-forge `/share/:id` links (and the `/s/:id` route 404s on resume-forge itself); re-check both if testing this feature.
 
 - Byte-level restore proof: before deleting the `qa.<round>.backup` key, compute `diffs`/`extra` against it in the same CDP evaluation (restore → compare → only then remove `qa.*`) so restoration is provable rather than inferred from key counts.
-- Ending mobile emulation: a plain pkill of the CDP-hold process has restored desktop width cleanly in recent rounds — try that first, and fall back to the documented metric-reset workaround only if `innerWidth` stays 375.
+- Ending mobile emulation: a plain pkill of the CDP-hold process has restored desktop width cleanly in recent rounds — try that first, and fall back to the documented metric-reset workaround only if `innerWidth` stays 375 (a leftover hold process can survive the first pkill — check and `kill -9` before the metric reset).
+- Assistant panel QA: quick-task buttons only render while the chat is empty; for later sends type the exact QUICK_TASKS prompt text into the input (same request path).
+- Asserting `scoreSummary` in captured `/api/ai/assistant` bodies: it is the LAST key in the JSON body and gets cut once chat turns grow — don't truncate postData logs; grep the raw `Network.getRequestPostData` result.
+- Each assistant send costs 1 free AI quota — run assistant tests on a throwaway clientId (clear `honestcv.*` → fresh client gets a full quota) and restore the baseline afterwards.
 
 ## Devin Secrets Needed
 

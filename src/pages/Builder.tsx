@@ -80,7 +80,7 @@ import {
   aiTailor,
   fetchAiQuota,
 } from '@/lib/api'
-import { type AtsResult, scoreResume } from '@/lib/ats'
+import { type AtsResult, atsScoreSummary, scoreResume } from '@/lib/ats'
 import {
   ACTION_VERBS,
   type HealthDimension,
@@ -3583,6 +3583,7 @@ export default function Builder() {
         onClose={() => setAssistantOpen(false)}
         resume={resume}
         jobDescription={resume.jobDescription}
+        scoreSummary={atsScoreSummary(ats)}
         onQuota={setFreeLeft}
         onPaymentRequired={(msg) => {
           if (!freeMode) requireUnlock(msg)
