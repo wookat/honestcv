@@ -160,6 +160,10 @@ import {
   saveProjectToLibrary,
   deleteLibraryProject,
   type SavedProject,
+  listInvolvementLibrary,
+  saveInvolvementToLibrary,
+  deleteLibraryInvolvement,
+  type SavedInvolvement,
   listSkillsLibrary,
   saveSkillsToLibrary,
   deleteLibrarySkills,
@@ -636,6 +640,9 @@ export default function Builder() {
   const [projLibrary, setProjLibrary] = useState<SavedProject[]>(() => listProjectLibrary())
   const [projLibraryOpen, setProjLibraryOpen] = useState(false)
   const [projLibrarySavedId, setProjLibrarySavedId] = useState<string | null>(null)
+  const [invLibrary, setInvLibrary] = useState<SavedInvolvement[]>(() => listInvolvementLibrary())
+  const [invLibraryOpen, setInvLibraryOpen] = useState(false)
+  const [invLibrarySavedId, setInvLibrarySavedId] = useState<string | null>(null)
   const [skillsLibrary, setSkillsLibrary] = useState<SavedSkills[]>(() => listSkillsLibrary())
   const [skillsLibraryOpen, setSkillsLibraryOpen] = useState(false)
   const [skillsLibrarySaved, setSkillsLibrarySaved] = useState(false)
@@ -2521,7 +2528,7 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               Campus or community organizations — clubs, societies, volunteering.
             </p>
-            {(resume.involvement ?? []).map((inv) => (
+            {(resume.involvement ?? []).map((inv, invIdx) => (
               <div key={inv.id} className="space-y-2 rounded-lg border p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
@@ -2607,6 +2614,31 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title="Save involvement to library — reuse it in other resume copies"
+                    aria-label={`Save involvement ${invIdx + 1} to library`}
+                    disabled={
+                      !inv.role.trim() && !inv.organization.trim() && !inv.description.trim()
+                    }
+                    onClick={() => {
+                      setInvLibrary(saveInvolvementToLibrary(inv))
+                      setInvLibrarySavedId(inv.id)
+                      window.setTimeout(
+                        () => setInvLibrarySavedId((v) => (v === inv.id ? null : v)),
+                        1600
+                      )
+                    }}
+                  >
+                    {invLibrarySavedId === inv.id ? (
+                      <Check className="size-3.5 text-green-600" />
+                    ) : (
+                      <BookmarkPlus className="size-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                     title="Delete involvement"
                     aria-label="Delete involvement"
@@ -2622,20 +2654,86 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-10 sm:min-h-8"
-              onClick={() =>
-                setResume((r) => ({
-                  ...r,
-                  involvement: [...(r.involvement ?? []), emptyInvolvement()],
-                }))
-              }
-            >
-              <Plus className="size-4" /> Add involvement
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                onClick={() =>
+                  setResume((r) => ({
+                    ...r,
+                    involvement: [...(r.involvement ?? []), emptyInvolvement()],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Add involvement
+              </Button>
+              {invLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  title="Insert an involvement entry you saved from any resume copy"
+                  onClick={() => setInvLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({invLibrary.length})
+                </Button>
+              )}
+            </div>
+            {invLibraryOpen && invLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved involvement</p>
+                {invLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.role, s.data.organization]
+                          .filter((x) => x.trim())
+                          .join(' — ') || 'Untitled involvement'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            involvement: [
+                              ...(r.involvement ?? []).filter(
+                                (x) =>
+                                  x.role.trim() || x.organization.trim() || x.description.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved involvement ${[s.data.role, s.data.organization].filter((x) => x.trim()).join(' — ') || 'Untitled involvement'}`}
+                        onClick={() => setInvLibrary(deleteLibraryInvolvement(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Coursework" icon={<BookOpen className="size-4" />}>

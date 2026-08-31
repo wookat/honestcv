@@ -1266,6 +1266,75 @@ export function deleteLibraryProject(id: string): SavedProject[] {
   return items
 }
 
+/** A single polished involvement entry saved for reuse across resume copies. */
+export interface SavedInvolvement {
+  id: string
+  savedAt: number
+  data: InvolvementItem
+}
+
+const INVOLVEMENT_LIBRARY_KEY = 'honestcv.involvementLibrary'
+const INVOLVEMENT_LIBRARY_MAX = 30
+
+function sanitizeInvolvementItem(input: unknown): InvolvementItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: InvolvementItem = {
+    id: asStr(v.id) || newId(),
+    role: asStr(v.role),
+    organization: asStr(v.organization),
+    location: asStr(v.location),
+    startDate: asStr(v.startDate),
+    endDate: asStr(v.endDate),
+    description: asStr(v.description),
+  }
+  return item.role.trim() || item.organization.trim() || item.description.trim() ? item : null
+}
+
+export function listInvolvementLibrary(): SavedInvolvement[] {
+  try {
+    const raw = localStorage.getItem(INVOLVEMENT_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedInvolvement[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeInvolvementItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistInvolvementLibrary(items: SavedInvolvement[]) {
+  try {
+    localStorage.setItem(
+      INVOLVEMENT_LIBRARY_KEY,
+      JSON.stringify(items.slice(0, INVOLVEMENT_LIBRARY_MAX))
+    )
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveInvolvementToLibrary(entry: InvolvementItem): SavedInvolvement[] {
+  const data = sanitizeInvolvementItem(entry)
+  if (!data) return listInvolvementLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listInvolvementLibrary(),
+  ].slice(0, INVOLVEMENT_LIBRARY_MAX)
+  persistInvolvementLibrary(items)
+  return items
+}
+
+export function deleteLibraryInvolvement(id: string): SavedInvolvement[] {
+  const items = listInvolvementLibrary().filter((s) => s.id !== id)
+  persistInvolvementLibrary(items)
+  return items
+}
+
 /** A polished skills text block saved for reuse across resume copies. */
 export interface SavedSkills {
   id: string
