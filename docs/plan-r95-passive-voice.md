@@ -27,7 +27,7 @@ Conservative pattern to keep false positives low:
 
 - Auxiliary: `\b(was|were|is|are|been|being)\b`
 - Followed by at most one adverb (`\w+ly`), then a past participle:
-  - regular: `[a-z]{3,}ed`
+  - regular: `[a-z]{2,}ed`
   - irregular whitelist: built, made, given, done, taken, chosen, driven, written,
     held, kept, led, brought, taught, seen, shown, known, grown, won, run, built,
     sent, set, put, found, paid, sold, told
