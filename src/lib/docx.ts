@@ -32,6 +32,9 @@ import {
   involvementBullets,
   involvementDates,
   involvementEntries,
+  militaryBullets,
+  militaryDates,
+  militaryEntries,
   dividerOf,
   educationDetailLine,
   fontScaleOf,
@@ -390,6 +393,34 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         )
         const detail = referenceDetailLine(x)
         if (detail) children.push(body(detail))
+      }
+    } else if (key === 'military' && militaryEntries(resume).length > 0) {
+      children.push(heading('Military service'))
+      for (const m of militaryEntries(resume)) {
+        const dates = militaryDates(m)
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+            children: [
+              new TextRun({ text: m.rank.trim() || 'Rank', bold: true, size: sz(22), font }),
+              ...(m.branch.trim()
+                ? [
+                    new TextRun({
+                      text: `  ·  ${m.branch.trim()}${m.location.trim() ? `, ${m.location.trim()}` : ''}`,
+                      size: sz(21),
+                      font,
+                    }),
+                  ]
+                : []),
+              ...(dates
+                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
+                : []),
+            ],
+          })
+        )
+        for (const b of militaryBullets(m)) children.push(body(b, { bullet: true }))
       }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)

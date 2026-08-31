@@ -25,6 +25,10 @@ import {
   involvementDates,
   involvementEntries,
   involvementHeadingLine,
+  militaryBullets,
+  militaryDates,
+  militaryEntries,
+  militaryHeadingLine,
   dividerOf,
   educationDetailLine,
   fontScaleOf,
@@ -455,6 +459,15 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
           w.gap(2)
           w.text(detail, { size: 10 })
         }
+      }
+    } else if (key === 'military' && militaryEntries(resume).length > 0) {
+      w.heading('Military service')
+      for (const m of militaryEntries(resume)) {
+        w.gap(4)
+        w.ensure(34)
+        w.titleLine(militaryHeadingLine(m), militaryDates(m), { size: 10.5 })
+        w.gap(2)
+        for (const b of militaryBullets(m)) w.bullet(b)
       }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)
