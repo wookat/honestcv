@@ -31,6 +31,7 @@ import {
   educationDetailLine,
   orderedSectionKeys,
   projectDates,
+  sectionLabel,
   sectionSpacingOf,
   skillLines,
   bulletIndentOf,
@@ -63,9 +64,12 @@ function ContactIcon({ kind }: { kind: ContactIconKind }) {
 export function ResumePreview({
   resume,
   paginated = false,
+  onSectionJump,
 }: {
   resume: Resume
   paginated?: boolean
+  /** When set, clicking a section in the preview jumps to its editor card */
+  onSectionJump?: (key: string) => void
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const c = resume.contact
@@ -112,9 +116,22 @@ export function ResumePreview({
     zoom: fontScaleOf(resume),
     lineHeight: lineSpacingOf(resume) + 0.1,
   }
+  const jumpProps = (key: string, label: string) =>
+    onSectionJump
+      ? {
+          onClick: () => onSectionJump(key),
+          title: `Edit ${label}`,
+          className: 'cursor-pointer rounded-sm hover:bg-black/5',
+        }
+      : {}
   const content = (
     <>
-      <div className={`relative ${tpl.headerAlign === 'left' ? 'text-left' : 'text-center'}`}>
+      <div
+        {...jumpProps('contact', 'Contact')}
+        className={`relative ${tpl.headerAlign === 'left' ? 'text-left' : 'text-center'}${
+          onSectionJump ? ' cursor-pointer rounded-sm hover:bg-black/5' : ''
+        }`}
+      >
         {resume.photo && (
           <img
             src={resume.photo}
@@ -152,7 +169,9 @@ export function ResumePreview({
       </div>
 
       {orderedSectionKeys(resume).map((key) => (
-        <SectionBlock key={key} sectionKey={key} resume={resume} heading={heading} />
+        <div key={key} {...jumpProps(key, sectionLabel(resume, key))}>
+          <SectionBlock sectionKey={key} resume={resume} heading={heading} />
+        </div>
       ))}
     </>
   )

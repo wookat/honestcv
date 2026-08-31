@@ -434,7 +434,7 @@ function Section({
   icon: React.ReactNode
   children: React.ReactNode
   defaultOpen?: boolean
-  anchor?: SectionAnchor
+  anchor?: string
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const [flash, setFlash] = useState(false)
@@ -673,7 +673,7 @@ export default function Builder() {
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
   /** Scroll the editor section that fixes a failing ATS check into view */
-  const jumpToSection = (anchor: SectionAnchor) => {
+  const jumpToSection = (anchor: string) => {
     setMobilePane('edit')
     requestAnimationFrame(() =>
       window.dispatchEvent(new CustomEvent(JUMP_EVENT, { detail: anchor }))
@@ -2418,7 +2418,12 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Projects (optional)" icon={<FileText className="size-4" />} defaultOpen={false}>
+          <Section
+            title="Projects (optional)"
+            icon={<FileText className="size-4" />}
+            defaultOpen={false}
+            anchor="projects"
+          >
             {resume.projects.map((p, pIdx) => (
               <div key={p.id} className="space-y-2 rounded-lg border p-3">
                 <div className="flex items-center justify-between">
@@ -2671,7 +2676,7 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Involvement" icon={<Users className="size-4" />}>
+          <Section title="Involvement" icon={<Users className="size-4" />} anchor="involvement">
             <p className="text-muted-foreground text-xs">
               Campus or community organizations — clubs, societies, volunteering.
             </p>
@@ -2883,7 +2888,7 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Coursework" icon={<BookOpen className="size-4" />}>
+          <Section title="Coursework" icon={<BookOpen className="size-4" />} anchor="coursework">
             <p className="text-muted-foreground text-xs">
               Relevant courses — useful when you have little work experience.
             </p>
@@ -3081,7 +3086,7 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Awards & honors" icon={<Award className="size-4" />}>
+          <Section title="Awards & honors" icon={<Award className="size-4" />} anchor="awards">
             <p className="text-muted-foreground text-xs">
               Awards, honors and recognitions that back up your track record.
             </p>
@@ -3267,7 +3272,7 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Publications" icon={<BookText className="size-4" />}>
+          <Section title="Publications" icon={<BookText className="size-4" />} anchor="publications">
             <p className="text-muted-foreground text-xs">
               Papers, articles and talks — with the journal or conference they appeared in.
             </p>
@@ -3483,7 +3488,7 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="References" icon={<Contact className="size-4" />}>
+          <Section title="References" icon={<Contact className="size-4" />} anchor="references">
             <p className="text-muted-foreground text-xs">
               People who can vouch for you — with their role and how to reach them.
             </p>
@@ -3702,7 +3707,7 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Military service" icon={<Shield className="size-4" />}>
+          <Section title="Military service" icon={<Shield className="size-4" />} anchor="military">
             <p className="text-muted-foreground text-xs">
               Your service record — rank, branch, where you were stationed and what you did.
             </p>
@@ -3823,7 +3828,7 @@ export default function Builder() {
             </Button>
           </Section>
 
-          <Section title="Agents" icon={<Bot className="size-4" />}>
+          <Section title="Agents" icon={<Bot className="size-4" />} anchor="agents">
             <p className="text-muted-foreground text-xs">
               AI agents you built — what they were called, when, and why they mattered.
             </p>
@@ -4258,6 +4263,7 @@ export default function Builder() {
             title="Custom sections (optional)"
             icon={<Plus className="size-4" />}
             defaultOpen={resume.customSections.length > 0}
+            anchor="custom"
           >
             <p className="text-muted-foreground text-xs">
               Add anything else — Volunteering, Publications, Awards, Languages… One entry
@@ -4980,7 +4986,15 @@ export default function Builder() {
 
           <div className="rounded-lg border bg-slate-100/90 p-3 sm:p-6 dark:bg-slate-900/40">
             <div className="shadow-lg">
-              <ResumePreview resume={resume} paginated />
+              <ResumePreview
+                resume={resume}
+                paginated
+                onSectionJump={(key) =>
+                  jumpToSection(
+                    key === 'certifications' ? 'skills' : key.startsWith('custom:') ? 'custom' : key
+                  )
+                }
+              />
             </div>
           </div>
 
