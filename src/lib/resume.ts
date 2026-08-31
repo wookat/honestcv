@@ -209,6 +209,8 @@ export interface Resume {
   experienceLevel?: '' | 'internship' | 'entry' | 'mid' | 'senior' | 'executive'
   /** Company the resume targets; grounds AI drafts and prefills cover letters */
   targetCompany?: string
+  /** Profile photo as a data:image/... URL; shown in the preview and PDF only */
+  photo?: string
 }
 
 export const newId = () => Math.random().toString(36).slice(2, 10)
@@ -856,6 +858,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       ['internship', 'entry', 'mid', 'senior', 'executive'] as const
     ),
     targetCompany: asStr(raw.targetCompany) || undefined,
+    photo: asStr(raw.photo).startsWith('data:image/') ? asStr(raw.photo) : undefined,
   }
   resume.sectionOrder = orderedSectionKeys(resume)
   return resume

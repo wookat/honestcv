@@ -13,6 +13,7 @@ import {
   ChevronUp,
   Bookmark,
   BookmarkPlus,
+  ImagePlus,
   ClipboardPaste,
   Download,
   FileText,
@@ -672,6 +673,8 @@ export default function Builder() {
   const [certLibrary, setCertLibrary] = useState<SavedCertification[]>(() => listCertLibrary())
   const [certLibraryOpen, setCertLibraryOpen] = useState(false)
   const [certLibrarySavedId, setCertLibrarySavedId] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
+  const [photoError, setPhotoError] = useState('')
   const [pubLibrary, setPubLibrary] = useState<SavedPublication[]>(() => listPublicationLibrary())
   const [pubLibraryOpen, setPubLibraryOpen] = useState(false)
   const [pubLibrarySavedId, setPubLibrarySavedId] = useState<string | null>(null)
@@ -1583,6 +1586,86 @@ export default function Builder() {
                   />
                 </div>
               ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {resume.photo && (
+                <img
+                  src={resume.photo}
+                  alt="Profile photo"
+                  className="size-12 rounded border object-cover"
+                />
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                title="Optional photo shown top-right on the preview and PDF — many regions expect resumes without one"
+                onClick={() => photoInputRef.current?.click()}
+              >
+                <ImagePlus className="size-4" /> {resume.photo ? 'Change photo' : 'Add photo (optional)'}
+              </Button>
+              {resume.photo && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive min-h-10 sm:min-h-8"
+                  aria-label="Remove photo"
+                  onClick={() => {
+                    setPhotoError('')
+                    setResume((r) => ({ ...r, photo: undefined }))
+                  }}
+                >
+                  <Trash2 className="size-3.5" /> Remove
+                </Button>
+              )}
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                aria-label="Upload profile photo"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file) return
+                  setPhotoError('')
+                  const url = URL.createObjectURL(file)
+                  const img = new Image()
+                  img.onload = () => {
+                    URL.revokeObjectURL(url)
+                    const side = Math.min(img.naturalWidth, img.naturalHeight)
+                    if (side < 1) {
+                      setPhotoError('Could not read that image — try a JPG or PNG.')
+                      return
+                    }
+                    const canvas = document.createElement('canvas')
+                    canvas.width = 256
+                    canvas.height = 256
+                    const ctx = canvas.getContext('2d')
+                    if (!ctx) return
+                    ctx.drawImage(
+                      img,
+                      (img.naturalWidth - side) / 2,
+                      (img.naturalHeight - side) / 2,
+                      side,
+                      side,
+                      0,
+                      0,
+                      256,
+                      256
+                    )
+                    setResume((r) => ({ ...r, photo: canvas.toDataURL('image/jpeg', 0.85) }))
+                  }
+                  img.onerror = () => {
+                    URL.revokeObjectURL(url)
+                    setPhotoError('Could not read that image — try a JPG or PNG.')
+                  }
+                  img.src = url
+                }}
+              />
+              {photoError && <span className="text-destructive text-xs">{photoError}</span>}
             </div>
           </Section>
 

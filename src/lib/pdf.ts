@@ -459,6 +459,26 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
   w.divider = dividerOf(resume, tpl.divider)
   const c = resume.contact
 
+  if (resume.photo) {
+    try {
+      const bytes = Uint8Array.from(atob(resume.photo.split(',')[1] ?? ''), (ch) =>
+        ch.charCodeAt(0)
+      )
+      const image = resume.photo.startsWith('data:image/png')
+        ? await doc.embedPng(bytes)
+        : await doc.embedJpg(bytes)
+      const size = 48
+      w.page.drawImage(image, {
+        x: w.pageW - MARGIN - size,
+        y: w.pageH - MARGIN - size,
+        width: size,
+        height: size,
+      })
+    } catch {
+      // unreadable image data — render the resume without the photo
+    }
+  }
+
   const centerHeader = tpl.headerAlign !== 'left'
   const name =
     tpl.nameCase === 'upper'
