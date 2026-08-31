@@ -527,9 +527,9 @@ function SectionBlock({
                                       x.id === e.id
                                         ? {
                                             ...x,
-                                            bullets: x.bullets.map((bb, bi) =>
-                                              bi === i ? v : bb
-                                            ),
+                                            bullets: v
+                                              ? x.bullets.map((bb, bi) => (bi === i ? v : bb))
+                                              : x.bullets.filter((_, bi) => bi !== i),
                                           }
                                         : x
                                     ),
