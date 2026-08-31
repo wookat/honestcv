@@ -63,6 +63,7 @@ import {
   loadResume,
   saveResume,
   saveResumeVersion,
+  setActiveVersionId,
   updateResumeVersion,
 } from '@/lib/resume'
 
@@ -292,16 +293,19 @@ export default function Dashboard() {
         saveResumeVersion(draft.targetRole || draft.contact.fullName || 'Untitled resume', draft)
       )
     }
+    setActiveVersionId(null)
     saveResume({ ...emptyResume(), targetRole: newRole.trim(), jobDescription: newJd.trim() })
     void navigate('/builder')
   }
 
   const openCopy = (v: ResumeVersion) => {
+    setActiveVersionId(v.id)
     saveResume({ ...emptyResume(), ...v.data })
     void navigate('/builder')
   }
 
   const openImported = (r: Resume) => {
+    setActiveVersionId(null)
     saveResume(r)
     void navigate('/builder')
   }

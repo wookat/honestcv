@@ -140,6 +140,9 @@ import {
   orderedSectionKeys,
   listResumeVersions,
   listResumeHistory,
+  getActiveVersionId,
+  setActiveVersionId,
+  syncActiveVersion,
   listExperienceLibrary,
   saveExperienceToLibrary,
   deleteLibraryExperience,
@@ -176,6 +179,7 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     window.clearTimeout(t.current)
     t.current = window.setTimeout(() => {
       saveResume(resume)
+      syncActiveVersion(resume)
       recordResumeSnapshot(resume)
       pending.current = null
       setState('saved')
@@ -187,6 +191,7 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     const flush = () => {
       if (pending.current) {
         saveResume(pending.current)
+        syncActiveVersion(pending.current)
         recordResumeSnapshot(pending.current)
         pending.current = null
       }
@@ -522,6 +527,16 @@ export default function Builder() {
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [versionName, setVersionName] = useState('')
+  const [activeVersionId, setActiveVersionIdState] = useState<string | null>(() =>
+    getActiveVersionId()
+  )
+  const linkVersion = (id: string | null) => {
+    setActiveVersionId(id)
+    setActiveVersionIdState(id)
+  }
+  const activeVersion = activeVersionId
+    ? (versions.find((v) => v.id === activeVersionId) ?? null)
+    : null
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
   const finalCheckFmt = useRef<'pdf' | 'docx' | 'txt' | 'md' | null>(null)
   const freeMode = useFreeMode()
@@ -617,6 +632,7 @@ export default function Builder() {
         )
       )
         return cur
+      linkVersion(null)
       return {
         ...exampleToResume(person),
         // Keep a template the user deliberately picked
@@ -1248,11 +1264,17 @@ export default function Builder() {
               title="Save and switch between copies tailored to different jobs"
               onClick={() => {
                 setVersions(listResumeVersions())
+                setActiveVersionIdState(getActiveVersionId())
                 setVersionName(resume.targetRole || '')
                 setVersionsOpen(true)
               }}
             >
-              <Copy className="size-3" /> Copies{versions.length > 0 ? ` (${versions.length})` : ''}
+              <Copy className="size-3" />{' '}
+              {activeVersion ? (
+                <span className="max-w-28 truncate">{activeVersion.name}</span>
+              ) : (
+                <>Copies{versions.length > 0 ? ` (${versions.length})` : ''}</>
+              )}
             </Button>
             <Button
               type="button"
@@ -1296,6 +1318,7 @@ export default function Builder() {
                       return
                     }
                     setRestoreError('')
+                    linkVersion(null)
                     setResume({ ...emptyResume(), ...parsed })
                   } catch {
                     setRestoreError('That file is not a RezUp backup.')
@@ -4058,9 +4081,12 @@ export default function Builder() {
               size="sm"
               className="shrink-0"
               onClick={() => {
-                setVersions(
-                  saveResumeVersion(versionName.trim() || 'Untitled copy', resume)
+                const next = saveResumeVersion(
+                  versionName.trim() || 'Untitled copy',
+                  resume
                 )
+                setVersions(next)
+                linkVersion(next[0]?.id ?? null)
                 setVersionName('')
               }}
             >
@@ -4077,7 +4103,14 @@ export default function Builder() {
                   className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{v.name}</p>
+                    <p className="truncate font-medium">
+                      {v.name}
+                      {v.id === activeVersionId && (
+                        <span className="text-primary ml-1.5 text-xs font-normal">
+                          · editing
+                        </span>
+                      )}
+                    </p>
                     <p className="text-muted-foreground text-xs">
                       {new Date(v.updatedAt).toLocaleString()} · ATS{' '}
                       {scoreResume(v.data, v.data.jobDescription).score}/100
@@ -4089,19 +4122,24 @@ export default function Builder() {
                       variant="outline"
                       size="sm"
                       className="h-10 text-xs sm:h-7"
+                      disabled={v.id === activeVersionId}
                       onClick={() => {
+                        linkVersion(v.id)
                         setResume({ ...emptyResume(), ...v.data })
                         setVersionsOpen(false)
                       }}
                     >
-                      Load
+                      Open
                     </Button>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="text-destructive h-10 text-xs sm:h-7"
-                      onClick={() => setVersions(deleteResumeVersion(v.id))}
+                      onClick={() => {
+                        setVersions(deleteResumeVersion(v.id))
+                        if (v.id === activeVersionId) linkVersion(null)
+                      }}
                     >
                       Delete
                     </Button>
@@ -4111,8 +4149,9 @@ export default function Builder() {
             </ul>
           )}
           <p className="text-muted-foreground text-xs">
-            Loading a copy replaces what's in the editor — save the current
-            resume as a copy first if you want to keep it.
+            {activeVersion
+              ? `Edits save to "${activeVersion.name}" automatically — open another copy to switch without losing work.`
+              : "Opening a copy replaces what's in the editor — save the current resume as a copy first if you want to keep it."}
           </p>
         </DialogContent>
       </Dialog>
@@ -4335,6 +4374,7 @@ export default function Builder() {
                   setImportError('')
                   fetchZalizePrimary()
                     .then((rp) => {
+                      linkVersion(null)
                       setResume(resumeFromProfile(rp))
                       setImportOpen(false)
                     })
@@ -4371,6 +4411,7 @@ export default function Builder() {
                 setImportError('')
                 fetchResumeProfile(shareId)
                   .then((rp) => {
+                    linkVersion(null)
                     setResume(resumeFromProfile(rp))
                     setImportOpen(false)
                     setRcInput('')
@@ -4395,6 +4436,7 @@ export default function Builder() {
           <Button
             onClick={() => {
               if (!importText.trim()) return
+              linkVersion(null)
               setResume(parseResumeText(importText))
               setImportOpen(false)
               setImportText('')
