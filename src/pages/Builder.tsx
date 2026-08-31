@@ -160,6 +160,10 @@ import {
   saveSkillsToLibrary,
   deleteLibrarySkills,
   type SavedSkills,
+  listSummaryLibrary,
+  saveSummaryToLibrary,
+  deleteLibrarySummary,
+  type SavedSummary,
   recordResumeSnapshot,
   type ResumeSnapshot,
   resumeToPlainText,
@@ -628,6 +632,9 @@ export default function Builder() {
   const [skillsLibrary, setSkillsLibrary] = useState<SavedSkills[]>(() => listSkillsLibrary())
   const [skillsLibraryOpen, setSkillsLibraryOpen] = useState(false)
   const [skillsLibrarySaved, setSkillsLibrarySaved] = useState(false)
+  const [summaryLibrary, setSummaryLibrary] = useState<SavedSummary[]>(() => listSummaryLibrary())
+  const [summaryLibraryOpen, setSummaryLibraryOpen] = useState(false)
+  const [summaryLibrarySaved, setSummaryLibrarySaved] = useState(false)
   // ?assistant=1 deep link from the workspace sidebar / mobile menu "AI assistant" entries
   const [assistantOpen, setAssistantOpen] = useState(
     () => new URLSearchParams(window.location.search).get('assistant') === '1'
@@ -1537,7 +1544,7 @@ export default function Builder() {
               value={resume.summary}
               onChange={(e) => set('summary', e.target.value)}
             />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {resume.summary.trim()
                 ? aiButton('summary', 'AI polish summary', () =>
                     void runRewrite('summary', 'summary', resume.summary, (out) =>
@@ -1545,7 +1552,85 @@ export default function Builder() {
                     )
                   )
                 : aiButton('summary-draft', 'Draft from my resume', () => void runSummaryDraft())}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9"
+                title="Save summary to library — reuse it in other resume copies"
+                aria-label="Save summary to library"
+                disabled={!resume.summary.trim()}
+                onClick={() => {
+                  setSummaryLibrary(saveSummaryToLibrary(resume.summary))
+                  setSummaryLibrarySaved(true)
+                  window.setTimeout(() => setSummaryLibrarySaved(false), 1600)
+                }}
+              >
+                {summaryLibrarySaved ? (
+                  <Check className="size-3.5 text-green-600" />
+                ) : (
+                  <BookmarkPlus className="size-3.5" />
+                )}
+              </Button>
+              {summaryLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title="Insert a summary you saved from any resume copy"
+                  onClick={() => setSummaryLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({summaryLibrary.length})
+                </Button>
+              )}
             </div>
+            {summaryLibraryOpen && summaryLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved summaries</p>
+                {summaryLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {s.summary.split('\n').map((l) => l.trim()).filter(Boolean)[0] ??
+                          'Untitled summary'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            summary: r.summary.trim()
+                              ? `${r.summary.replace(/\s+$/, '')}\n${s.summary}`
+                              : s.summary,
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved summary ${s.summary.split('\n').map((l) => l.trim()).filter(Boolean)[0] ?? 'Untitled summary'}`}
+                        onClick={() => setSummaryLibrary(deleteLibrarySummary(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Experience" icon={<Briefcase className="size-4" />} anchor="experience">
