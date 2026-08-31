@@ -172,6 +172,10 @@ import {
   saveAwardToLibrary,
   deleteLibraryAward,
   type SavedAward,
+  listReferenceLibrary,
+  saveReferenceToLibrary,
+  deleteLibraryReference,
+  type SavedReference,
   listSkillsLibrary,
   saveSkillsToLibrary,
   deleteLibrarySkills,
@@ -657,6 +661,9 @@ export default function Builder() {
   const [awardLibrary, setAwardLibrary] = useState<SavedAward[]>(() => listAwardLibrary())
   const [awardLibraryOpen, setAwardLibraryOpen] = useState(false)
   const [awardLibrarySavedId, setAwardLibrarySavedId] = useState<string | null>(null)
+  const [refLibrary, setRefLibrary] = useState<SavedReference[]>(() => listReferenceLibrary())
+  const [refLibraryOpen, setRefLibraryOpen] = useState(false)
+  const [refLibrarySavedId, setRefLibrarySavedId] = useState<string | null>(null)
   const [skillsLibrary, setSkillsLibrary] = useState<SavedSkills[]>(() => listSkillsLibrary())
   const [skillsLibraryOpen, setSkillsLibraryOpen] = useState(false)
   const [skillsLibrarySaved, setSkillsLibrarySaved] = useState(false)
@@ -3233,7 +3240,7 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               People who can vouch for you — with their role and how to reach them.
             </p>
-            {(resume.references ?? []).map((ref) => (
+            {(resume.references ?? []).map((ref, refIdx) => (
               <div key={ref.id} className="space-y-2 rounded-lg border p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
@@ -3326,6 +3333,31 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title="Save reference to library — reuse it in other resume copies"
+                    aria-label={`Save reference ${refIdx + 1} to library`}
+                    disabled={
+                      !ref.name.trim() && !ref.employer.trim() && !ref.email.trim()
+                    }
+                    onClick={() => {
+                      setRefLibrary(saveReferenceToLibrary(ref))
+                      setRefLibrarySavedId(ref.id)
+                      window.setTimeout(
+                        () => setRefLibrarySavedId((v) => (v === ref.id ? null : v)),
+                        1600
+                      )
+                    }}
+                  >
+                    {refLibrarySavedId === ref.id ? (
+                      <Check className="size-3.5 text-green-600" />
+                    ) : (
+                      <BookmarkPlus className="size-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                     title="Delete reference"
                     aria-label="Delete reference"
@@ -3341,20 +3373,86 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-10 sm:min-h-8"
-              onClick={() =>
-                setResume((r) => ({
-                  ...r,
-                  references: [...(r.references ?? []), emptyReference()],
-                }))
-              }
-            >
-              <Plus className="size-4" /> Add reference
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                onClick={() =>
+                  setResume((r) => ({
+                    ...r,
+                    references: [...(r.references ?? []), emptyReference()],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Add reference
+              </Button>
+              {refLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  title="Insert a reference you saved from any resume copy"
+                  onClick={() => setRefLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({refLibrary.length})
+                </Button>
+              )}
+            </div>
+            {refLibraryOpen && refLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved references</p>
+                {refLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.name, s.data.employer]
+                          .filter((x) => x.trim())
+                          .join(' — ') || 'Untitled reference'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            references: [
+                              ...(r.references ?? []).filter(
+                                (x) =>
+                                  x.name.trim() || x.employer.trim() || x.email.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved reference ${[s.data.name, s.data.employer].filter((x) => x.trim()).join(' — ') || 'Untitled reference'}`}
+                        onClick={() => setRefLibrary(deleteLibraryReference(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Military service" icon={<Shield className="size-4" />}>
