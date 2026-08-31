@@ -36,6 +36,14 @@ const KNOWN_PHRASES = [
   'risk management', 'change management', 'human resources',
 ]
 
+/** Builder editor section that fixes a failing structural check */
+export type SectionAnchor =
+  | 'contact'
+  | 'summary'
+  | 'experience'
+  | 'skills'
+  | 'education'
+
 export interface KeywordDetail {
   keyword: string
   inResume: number
@@ -55,7 +63,7 @@ export interface AtsResult {
   /** Structure/best-practices sub-score 0-100 */
   structureScore: number
   /** Structural checks independent of the JD */
-  checks: { label: string; pass: boolean; hint: string }[]
+  checks: { label: string; pass: boolean; hint: string; anchor?: SectionAnchor }[]
 }
 
 function countOccurrences(haystack: string, tokens: string[], kw: string): number {
@@ -233,21 +241,25 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       label: 'Contact info complete',
       pass: Boolean(resume.contact.fullName && resume.contact.email && resume.contact.phone),
       hint: 'Name, email and phone are the minimum ATS parsers look for.',
+      anchor: 'contact',
     },
     {
       label: 'Professional summary present',
       pass: resume.summary.trim().length >= 40,
       hint: 'A 2-3 sentence summary gives ATS keyword context at the top.',
+      anchor: 'summary',
     },
     {
       label: 'Work experience with bullets',
       pass: bulletCount >= 3,
       hint: 'Use 2-4 bullet points per role describing impact.',
+      anchor: 'experience',
     },
     {
       label: 'Quantified achievements',
       pass: quantified,
       hint: 'Numbers (%, $, counts) make bullets stand out to recruiters.',
+      anchor: 'experience',
     },
     {
       label: 'Employment dates listed',
@@ -255,16 +267,19 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
         .filter((e) => e.role.trim() || e.company.trim())
         .every((e) => e.startDate.trim()),
       hint: 'ATS parsers build your work timeline from dates — add a start date to every role.',
+      anchor: 'experience',
     },
     {
       label: 'Skills section filled',
       pass: resume.skills.trim().length >= 10,
       hint: 'A dedicated skills list is the easiest keyword match for ATS.',
+      anchor: 'skills',
     },
     {
       label: 'Education listed',
       pass: resume.education.some((e) => e.school.trim()),
       hint: 'Most ATS templates expect an education section.',
+      anchor: 'education',
     },
   ]
 

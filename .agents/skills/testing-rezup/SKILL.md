@@ -220,9 +220,25 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 
 - Byte-level restore proof: before deleting the `qa.<round>.backup` key, compute `diffs`/`extra` against it in the same CDP evaluation (restore → compare → only then remove `qa.*`) so restoration is provable rather than inferred from key counts.
 - Ending mobile emulation: a plain pkill of the CDP-hold process has restored desktop width cleanly in recent rounds — try that first, and fall back to the documented metric-reset workaround only if `innerWidth` stays 375 (a leftover hold process can survive the first pkill — check and `kill -9` before the metric reset).
-- Assistant panel QA: quick-task buttons only render while the chat is empty; for later sends type the exact QUICK_TASKS prompt text into the input (same request path).
+- Assistant panel QA: the empty chat shows stacked quick-task buttons; once the chat is non-empty the same QUICK_TASKS render as rounded-full pills pinned above the composer (R78) — either sends the exact prompt through the same request path.
 - Asserting `scoreSummary` in captured `/api/ai/assistant` bodies: it is the LAST key in the JSON body and gets cut once chat turns grow — don't truncate postData logs; grep the raw `Network.getRequestPostData` result.
+- BulletGuidance (builder Experience) caps output at 4 flagged lines and 2 issues per line, issue order per line: weak-opener → first-person → no-metric → filler → buzzword → punctuation → length. To prove a specific flag, craft a bullet where it lands in the first two (e.g. punctuation needs a bullet with a metric and no buzzword).
+- BUZZWORDS matching reports the FIRST array match ('synergy' sorts before 'team player'), so assert on the actual matched term, not the one you typed first.
+- `pgrep -f <pattern>` inside a one-shot exec matches its own bash wrapper — use `pgrep -af 'python3 /tmp/<script>'` to find real leftover CDP-hold processes; stale holds from prior rounds can survive and must be killed before new mobile emulation.
 - Each assistant send costs 1 free AI quota — run assistant tests on a throwaway clientId (clear `honestcv.*` → fresh client gets a full quota) and restore the baseline afterwards.
+- Assistant replies often return in <2s, so a post-click DOM probe misses the busy state — arm a ~25ms `setInterval` poller sampling `disabled` on the target buttons BEFORE clicking, then read the samples.
+- Do NOT use CDP offline emulation to fake a stuck assistant request: Chrome queues the fetch and delivers it after network restore, consuming a real AI quota send.
+- To render chat-dependent UI without spending quota, save `honestcv.assistantChat` JSON before Clear chat and restore it via CDP + reload.
+- BulletGuidance's positive state (R80) is a `p.text-emerald-700`, not an `li` — assert green vs amber with `p.text-emerald-700` and `li.text-amber-700` selectors.
+- Clearing `honestcv.*` via CDP does not refresh the visible page — always reload after the clear before asserting throwaway state.
+- Never combine `pkill/pgrep -f <script>` with follow-up commands in one exec call — the pattern matches the wrapper `bash -c` and kills/false-positives itself; filter with `| grep -v 'bash -c'` and kill in a separate call.
+- In the Experience editor, filling role/company inserts warning lines that shift layout — the "Need ideas? Show bullet starters" link sits directly above the AI buttons and is easy to misclick; re-screenshot after any field edit before clicking AI buttons.
+- A successful AI call also fires a non-AI `POST /api/ev {"e":"ai-use"}` analytics beacon — don't count it as an extra AI request.
+- `/api/ai/suggest-bullet` (R81) returns `{text, freeRemaining}`; capture the response body via `Network.getResponseBody` right after `responseReceived` to byte-verify the appended line matches the server text.
+- To assert the ATS "Fix →" jump ring (R82), poll for the class substring `ring-primary/60` together with `ring-2` — plain `.ring-2` matches ~7 permanent elements and gives false positives.
+- Screen-tool↔CSS coordinate mapping at desktop 1600: tool = css×0.64 with a +88px vertical browser-chrome offset — use CDP `getBoundingClientRect` plus this mapping when a small link misclicks.
+- The top-nav "ATS Checker" link navigates the SAME tab away from /builder — navigate back before builder-targeted CDP lookups.
+- The `type` action into Builder textareas occasionally drops the first character of a line — verify typed text via localStorage/DOM before asserting.
 
 ## Devin Secrets Needed
 
