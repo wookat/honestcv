@@ -40,6 +40,7 @@ import {
   projectDates,
   projectHeadingLine,
   sectionSpacingOf,
+  sectionHeading,
   skillLines,
   bulletIndentOf,
   contactIconsOf,
@@ -512,10 +513,10 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
 
   for (const key of orderedSectionKeys(resume)) {
     if (key === 'summary' && resume.summary.trim()) {
-      w.heading('Summary')
+      w.heading(sectionHeading(resume, 'summary'))
       w.text(resume.summary.trim(), { size: 10 })
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
-      w.heading('Experience')
+      w.heading(sectionHeading(resume, 'experience'))
       for (const e of resume.experience) {
         if (!e.company && !e.role) continue
         w.gap(4)
@@ -527,7 +528,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
       }
     } else if (key === 'projects' && resume.projects.some((p) => p.name)) {
-      w.heading('Projects')
+      w.heading(sectionHeading(resume, 'projects'))
       for (const p of resume.projects) {
         if (!p.name) continue
         w.gap(2)
@@ -539,7 +540,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         }
       }
     } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
-      w.heading('Involvement')
+      w.heading(sectionHeading(resume, 'involvement'))
       for (const i of involvementEntries(resume)) {
         w.gap(4)
         w.ensure(34)
@@ -548,7 +549,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         for (const b of involvementBullets(i)) w.bullet(b)
       }
     } else if (key === 'education' && resume.education.some((e) => e.school)) {
-      w.heading('Education')
+      w.heading(sectionHeading(resume, 'education'))
       for (const e of resume.education) {
         if (!e.school) continue
         w.gap(2)
@@ -566,7 +567,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         }
       }
     } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
-      w.heading('Coursework')
+      w.heading(sectionHeading(resume, 'coursework'))
       for (const cw of courseworkEntries(resume)) {
         w.gap(4)
         w.ensure(34)
@@ -575,7 +576,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         for (const b of courseworkBullets(cw)) w.bullet(b)
       }
     } else if (key === 'skills' && resume.skills.trim()) {
-      w.heading('Skills')
+      w.heading(sectionHeading(resume, 'skills'))
       for (const line of skillLines(resume)) {
         if (line.label) w.labelledLine(line.label, line.text, { size: 10 })
         else w.text(line.text, { size: 10 })
@@ -584,7 +585,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
       key === 'certifications' &&
       (certEntries(resume).length > 0 || resume.certifications.trim())
     ) {
-      w.heading('Certifications')
+      w.heading(sectionHeading(resume, 'certifications'))
       for (const c of certEntries(resume)) {
         w.gap(2)
         w.ensure(30)
@@ -599,7 +600,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         w.text(resume.certifications.trim(), { size: 10 })
       }
     } else if (key === 'awards' && awardEntries(resume).length > 0) {
-      w.heading('Awards & Honors')
+      w.heading(sectionHeading(resume, 'awards'))
       for (const a of awardEntries(resume)) {
         w.gap(4)
         w.ensure(34)
@@ -608,7 +609,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         for (const b of awardBullets(a)) w.bullet(b)
       }
     } else if (key === 'publications' && publicationEntries(resume).length > 0) {
-      w.heading('Publications')
+      w.heading(sectionHeading(resume, 'publications'))
       for (const p of publicationEntries(resume)) {
         w.gap(4)
         w.ensure(34)
@@ -617,7 +618,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         for (const b of publicationBullets(p)) w.bullet(b)
       }
     } else if (key === 'references' && referenceEntries(resume).length > 0) {
-      w.heading('References')
+      w.heading(sectionHeading(resume, 'references'))
       for (const x of referenceEntries(resume)) {
         w.gap(4)
         w.ensure(34)
@@ -629,7 +630,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         }
       }
     } else if (key === 'military' && militaryEntries(resume).length > 0) {
-      w.heading('Military service')
+      w.heading(sectionHeading(resume, 'military'))
       for (const m of militaryEntries(resume)) {
         w.gap(4)
         w.ensure(34)
@@ -638,7 +639,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         for (const b of militaryBullets(m)) w.bullet(b)
       }
     } else if (key === 'agents' && agentEntries(resume).length > 0) {
-      w.heading('Agents')
+      w.heading(sectionHeading(resume, 'agents'))
       for (const a of agentEntries(resume)) {
         w.gap(4)
         w.ensure(34)

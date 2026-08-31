@@ -31,6 +31,7 @@ import {
   educationDetailLine,
   orderedSectionKeys,
   projectDates,
+  sectionHeading,
   sectionLabel,
   sectionSpacingOf,
   skillLines,
@@ -146,12 +147,13 @@ export function ResumePreview({
 
   const divider = tpl.band ? 'none' : dividerOf(resume, tpl.divider)
   const headingMarginTop = 16 * sectionSpacingOf(resume)
-  const heading = (label: string) => (
+  const heading = (label: string, key?: string) => (
     <h3
       className="mb-1.5 text-[11px] font-bold tracking-wide"
       style={{
         marginTop: headingMarginTop,
         color: tpl.accent,
+        textTransform: tpl.headingCase === 'upper' ? 'uppercase' : undefined,
         borderBottom:
           divider === 'none' ? 'none' : `${divider === 'thick' ? 2 : 1}px solid ${tpl.accent}`,
         paddingBottom: tpl.band ? 3 : divider === 'none' ? 0 : 3,
@@ -160,7 +162,23 @@ export function ResumePreview({
           : {}),
       }}
     >
-      {tpl.headingCase === 'upper' ? label.toUpperCase() : label}
+      {onEdit && key ? (
+        <InlineText
+          value={(resume.sectionHeadings?.[key] ?? '').trim()}
+          fallback={sectionLabel(resume, key)}
+          onCommit={(v) => {
+            const next = { ...(resume.sectionHeadings ?? {}) }
+            if (!v || v === sectionLabel(resume, key)) delete next[key]
+            else next[key] = v
+            onEdit({
+              ...resume,
+              sectionHeadings: Object.keys(next).length ? next : undefined,
+            })
+          }}
+        />
+      ) : (
+        label
+      )}
     </h3>
   )
 
@@ -366,7 +384,7 @@ function SectionBlock({
 }: {
   sectionKey: string
   resume: Resume
-  heading: (label: string) => React.ReactNode
+  heading: (label: string, key?: string) => React.ReactNode
   onEdit?: (next: Resume) => void
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
@@ -374,7 +392,7 @@ function SectionBlock({
   if (sectionKey === 'summary')
     return resume.summary.trim() ? (
       <>
-        {heading('Summary')}
+        {heading(sectionHeading(resume, 'summary'), 'summary')}
         <p className="text-[11px]">
           <InlineText
             value={resume.summary.trim()}
@@ -386,7 +404,7 @@ function SectionBlock({
   if (sectionKey === 'experience')
     return resume.experience.some((e) => e.company || e.role) ? (
       <>
-        {heading('Experience')}
+        {heading(sectionHeading(resume, 'experience'), 'experience')}
           {resume.experience.map((e) =>
             !e.company && !e.role ? null : (
               <div key={e.id} className="mb-2">
@@ -470,7 +488,7 @@ function SectionBlock({
   if (sectionKey === 'projects')
     return resume.projects.some((p) => p.name) ? (
       <>
-        {heading('Projects')}
+        {heading(sectionHeading(resume, 'projects'), 'projects')}
           {resume.projects.map((p) =>
             !p.name ? null : (
               <div key={p.id} className="mb-1.5">
@@ -522,7 +540,7 @@ function SectionBlock({
     const items = involvementEntries(resume)
     return items.length > 0 ? (
       <>
-        {heading('Involvement')}
+        {heading(sectionHeading(resume, 'involvement'), 'involvement')}
         {items.map((inv) => (
           <div key={inv.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -556,7 +574,7 @@ function SectionBlock({
   if (sectionKey === 'education')
     return resume.education.some((e) => e.school) ? (
       <>
-        {heading('Education')}
+        {heading(sectionHeading(resume, 'education'), 'education')}
           {resume.education.map((e) =>
             !e.school ? null : (
               <div key={e.id} className="mb-1.5">
@@ -612,7 +630,7 @@ function SectionBlock({
     const items = courseworkEntries(resume)
     return items.length > 0 ? (
       <>
-        {heading('Coursework')}
+        {heading(sectionHeading(resume, 'coursework'), 'coursework')}
         {items.map((cw) => (
           <div key={cw.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -645,7 +663,7 @@ function SectionBlock({
   if (sectionKey === 'skills')
     return resume.skills.trim() ? (
       <>
-        {heading('Skills')}
+        {heading(sectionHeading(resume, 'skills'), 'skills')}
         {skillLines(resume).map((line, i) => (
           <p key={i} className="text-[11px]">
             {line.label ? <span className="font-semibold">{line.label}: </span> : null}
@@ -658,7 +676,7 @@ function SectionBlock({
     const certs = certEntries(resume)
     return certs.length > 0 || resume.certifications.trim() ? (
       <>
-        {heading('Certifications')}
+        {heading(sectionHeading(resume, 'certifications'), 'certifications')}
         {certs.map((c) => (
           <div key={c.id} className="mb-1.5">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -685,7 +703,7 @@ function SectionBlock({
     const items = awardEntries(resume)
     return items.length > 0 ? (
       <>
-        {heading('Awards & Honors')}
+        {heading(sectionHeading(resume, 'awards'), 'awards')}
         {items.map((a) => (
           <div key={a.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -716,7 +734,7 @@ function SectionBlock({
     const items = publicationEntries(resume)
     return items.length > 0 ? (
       <>
-        {heading('Publications')}
+        {heading(sectionHeading(resume, 'publications'), 'publications')}
         {items.map((p) => (
           <div key={p.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -750,7 +768,7 @@ function SectionBlock({
     const items = referenceEntries(resume)
     return items.length > 0 ? (
       <>
-        {heading('References')}
+        {heading(sectionHeading(resume, 'references'), 'references')}
         {items.map((x) => (
           <div key={x.id} className="mb-2">
             <p className="text-[11.5px] font-bold">
@@ -774,7 +792,7 @@ function SectionBlock({
     const items = militaryEntries(resume)
     return items.length > 0 ? (
       <>
-        {heading('Military service')}
+        {heading(sectionHeading(resume, 'military'), 'military')}
         {items.map((m) => (
           <div key={m.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -809,7 +827,7 @@ function SectionBlock({
     const items = agentEntries(resume)
     return items.length > 0 ? (
       <>
-        {heading('Agents')}
+        {heading(sectionHeading(resume, 'agents'), 'agents')}
         {items.map((a) => (
           <div key={a.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
