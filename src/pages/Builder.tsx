@@ -5,6 +5,7 @@ import {
   Award,
   BookOpen,
   BookText,
+  Contact,
   ArrowUp,
   Briefcase,
   Check,
@@ -107,6 +108,8 @@ import {
   emptyAward,
   emptyCertification,
   emptyPublication,
+  emptyReference,
+  type ReferenceKind,
   emptyCustomSection,
   emptyEducation,
   emptyExperience,
@@ -2306,6 +2309,134 @@ export default function Builder() {
               }
             >
               <Plus className="size-4" /> Add publication
+            </Button>
+          </Section>
+
+          <Section title="References" icon={<Contact className="size-4" />}>
+            <p className="text-muted-foreground text-xs">
+              People who can vouch for you — with their role and how to reach them.
+            </p>
+            {(resume.references ?? []).map((ref) => (
+              <div key={ref.id} className="space-y-2 rounded-lg border p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Full name"
+                    value={ref.name}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        references: (r.references ?? []).map((x) =>
+                          x.id === ref.id ? { ...x, name: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Job title"
+                      value={ref.title}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          references: (r.references ?? []).map((x) =>
+                            x.id === ref.id ? { ...x, title: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      placeholder="Employer"
+                      value={ref.employer}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          references: (r.references ?? []).map((x) =>
+                            x.id === ref.id ? { ...x, employer: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={ref.email}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        references: (r.references ?? []).map((x) =>
+                          x.id === ref.id ? { ...x, email: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Phone"
+                    value={ref.phone}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        references: (r.references ?? []).map((x) =>
+                          x.id === ref.id ? { ...x, phone: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <select
+                    aria-label="Reference type"
+                    className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+                    value={ref.kind}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        references: (r.references ?? []).map((x) =>
+                          x.id === ref.id
+                            ? { ...x, kind: ev.target.value as ReferenceKind }
+                            : x
+                        ),
+                      }))
+                    }
+                  >
+                    <option value="">Reference type (optional)</option>
+                    <option value="professional">Professional</option>
+                    <option value="personal">Personal</option>
+                  </select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    title="Delete reference"
+                    aria-label="Delete reference"
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        references: (r.references ?? []).filter((x) => x.id !== ref.id),
+                      }))
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() =>
+                setResume((r) => ({
+                  ...r,
+                  references: [...(r.references ?? []), emptyReference()],
+                }))
+              }
+            >
+              <Plus className="size-4" /> Add reference
             </Button>
           </Section>
 

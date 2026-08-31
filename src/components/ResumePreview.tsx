@@ -12,6 +12,8 @@ import {
   awardEntries,
   publicationBullets,
   publicationEntries,
+  referenceDetailLine,
+  referenceEntries,
   certEntries,
   courseworkBullets,
   courseworkEntries,
@@ -481,6 +483,30 @@ function SectionBlock({
                 </li>
               ))}
             </ul>
+          </div>
+        ))}
+      </>
+    ) : null
+  }
+  if (sectionKey === 'references') {
+    const items = referenceEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('References')}
+        {items.map((x) => (
+          <div key={x.id} className="mb-2">
+            <p className="text-[11.5px] font-bold">
+              {x.name.trim()}
+              {(x.title.trim() || x.employer.trim()) && (
+                <span className="font-normal">
+                  {' — '}
+                  {[x.title.trim(), x.employer.trim()].filter(Boolean).join(', ')}
+                </span>
+              )}
+            </p>
+            {referenceDetailLine(x) && (
+              <p className="mt-0.5 text-[11px]">{referenceDetailLine(x)}</p>
+            )}
           </div>
         ))}
       </>

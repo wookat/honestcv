@@ -110,6 +110,21 @@ export interface PublicationItem {
   description: string
 }
 
+export type ReferenceKind = '' | 'personal' | 'professional'
+
+export interface ReferenceItem {
+  id: string
+  /** Reference's full name */
+  name: string
+  /** Their job title */
+  title: string
+  employer: string
+  email: string
+  phone: string
+  /** Personal or professional reference */
+  kind: ReferenceKind
+}
+
 /** User-defined section (e.g. Volunteering, Publications) */
 export interface CustomSection {
   id: string
@@ -132,6 +147,7 @@ export interface Resume {
   coursework?: CourseworkItem[]
   awards?: AwardItem[]
   publications?: PublicationItem[]
+  references?: ReferenceItem[]
   customSections: CustomSection[]
   /** Section keys in render order (see SECTION_KEYS + custom:<id>) */
   sectionOrder: string[]
@@ -211,6 +227,7 @@ export function emptyResume(): Resume {
     coursework: [],
     awards: [],
     publications: [],
+    references: [],
     customSections: [],
     sectionOrder: [...SECTION_KEYS],
     templateId: 'classic',
@@ -285,6 +302,16 @@ export const emptyAward = (): AwardItem => ({
   description: '',
 })
 
+export const emptyReference = (): ReferenceItem => ({
+  id: newId(),
+  name: '',
+  title: '',
+  employer: '',
+  email: '',
+  phone: '',
+  kind: '',
+})
+
 export const emptyPublication = (): PublicationItem => ({
   id: newId(),
   title: '',
@@ -311,6 +338,7 @@ export const SECTION_KEYS = [
   'certifications',
   'awards',
   'publications',
+  'references',
 ] as const
 
 export const SECTION_LABELS: Record<string, string> = {
@@ -324,6 +352,7 @@ export const SECTION_LABELS: Record<string, string> = {
   certifications: 'Certifications',
   awards: 'Awards & Honors',
   publications: 'Publications',
+  references: 'References',
 }
 
 /**
@@ -579,6 +608,15 @@ export function sanitizeResume(input: unknown): Resume | null {
       venue: asStr(p.venue),
       date: asStr(p.date),
       description: asStr(p.description),
+    })),
+    references: asObjArr(raw.references).map((x) => ({
+      id: asStr(x.id) || newId(),
+      name: asStr(x.name),
+      title: asStr(x.title),
+      employer: asStr(x.employer),
+      email: asStr(x.email),
+      phone: asStr(x.phone),
+      kind: x.kind === 'personal' || x.kind === 'professional' ? x.kind : '',
     })),
     customSections: asObjArr(raw.customSections).map((s) => ({
       id: asStr(s.id) || newId(),
@@ -854,6 +892,27 @@ export function publicationHeadingLine(p: PublicationItem): string {
 export const publicationBullets = (p: PublicationItem): string[] =>
   p.description.split('\n').map((l) => l.trim()).filter(Boolean)
 
+/** Reference entries with a name */
+export const referenceEntries = (r: Resume): ReferenceItem[] =>
+  (r.references ?? []).filter((x) => x.name.trim())
+
+/** Heading line for a reference entry: name — title, employer */
+export function referenceHeadingLine(x: ReferenceItem): string {
+  const role = [x.title.trim(), x.employer.trim()].filter(Boolean).join(', ')
+  return [x.name.trim(), role].filter(Boolean).join(' — ')
+}
+
+/** Contact detail line for a reference entry: email · phone · kind */
+export function referenceDetailLine(x: ReferenceItem): string {
+  const kind =
+    x.kind === 'personal'
+      ? 'Personal reference'
+      : x.kind === 'professional'
+        ? 'Professional reference'
+        : ''
+  return [x.email.trim(), x.phone.trim(), kind].filter(Boolean).join(' · ')
+}
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume): string {
   const lines: string[] = []
@@ -930,6 +989,13 @@ export function resumeToPlainText(r: Resume): string {
       for (const p of publicationEntries(r)) {
         lines.push(publicationHeadingLine(p) + (p.date.trim() ? ` (${p.date.trim()})` : ''))
         for (const b of publicationBullets(p)) lines.push(`- ${b}`)
+      }
+    } else if (key === 'references' && referenceEntries(r).length > 0) {
+      lines.push('', 'REFERENCES')
+      for (const x of referenceEntries(r)) {
+        lines.push(referenceHeadingLine(x))
+        const detail = referenceDetailLine(x)
+        if (detail) lines.push(`- ${detail}`)
       }
     } else if (key.startsWith('custom:')) {
       const s = r.customSections.find((x) => `custom:${x.id}` === key)
@@ -1033,6 +1099,13 @@ export function resumeToMarkdown(r: Resume): string {
         )
         for (const b of publicationBullets(p)) lines.push(`- ${b}`)
         lines.push('')
+      }
+    } else if (key === 'references' && referenceEntries(r).length > 0) {
+      heading('References')
+      for (const x of referenceEntries(r)) {
+        lines.push(`### ${referenceHeadingLine(x)}`, '')
+        const detail = referenceDetailLine(x)
+        if (detail) lines.push(`- ${detail}`, '')
       }
     } else if (key.startsWith('custom:')) {
       const s = r.customSections.find((x) => `custom:${x.id}` === key)

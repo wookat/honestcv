@@ -23,6 +23,8 @@ import {
   awardEntries,
   publicationBullets,
   publicationEntries,
+  referenceDetailLine,
+  referenceEntries,
   certEntries,
   certHeadingLine,
   courseworkBullets,
@@ -369,6 +371,25 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
           })
         )
         for (const b of publicationBullets(p)) children.push(body(b, { bullet: true }))
+      }
+    } else if (key === 'references' && referenceEntries(resume).length > 0) {
+      children.push(heading('References'))
+      for (const x of referenceEntries(resume)) {
+        const role = [x.title.trim(), x.employer.trim()].filter(Boolean).join(', ')
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 20 },
+            keepNext: true,
+            children: [
+              new TextRun({ text: x.name.trim(), bold: true, size: sz(22), font }),
+              ...(role
+                ? [new TextRun({ text: ` — ${role}`, size: sz(21), font })]
+                : []),
+            ],
+          })
+        )
+        const detail = referenceDetailLine(x)
+        if (detail) children.push(body(detail))
       }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)
