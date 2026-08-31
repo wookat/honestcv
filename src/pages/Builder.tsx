@@ -3642,6 +3642,7 @@ export default function Builder() {
         onClose={() => setHealthOpen(false)}
         health={health}
         ats={ats}
+        onJump={jumpToSection}
       />
       {historyOpen && (
         <HistoryDialog
@@ -4877,13 +4878,24 @@ function HealthDialog({
   onClose,
   health,
   ats,
+  onJump,
 }: {
   open: boolean
   onClose: () => void
   health: HealthReport
   ats: AtsResult
+  onJump: (anchor: SectionAnchor) => void
 }) {
-  const atsDimensions: HealthDimension[] = [
+  const jump = (anchor: SectionAnchor) => {
+    onClose()
+    requestAnimationFrame(() => onJump(anchor))
+  }
+  const structureFindings = ats.checks
+    .filter((c) => !c.pass)
+    .map((c) => ({ text: `${c.label} \u2014 ${c.hint}`, anchor: c.anchor }))
+  const atsDimensions: (HealthDimension & {
+    richFindings?: { text: string; anchor?: SectionAnchor }[]
+  })[] = [
     ...(ats.keywordScore !== null
       ? [
           {
@@ -4904,7 +4916,8 @@ function HealthDialog({
       summary: `${ats.checks.filter((c) => c.pass).length} of ${ats.checks.length} structure checks passing`,
       plain:
         'Standard sections and complete contact details are what resume parsers latch onto first.',
-      findings: ats.checks.filter((c) => !c.pass).map((c) => `${c.label} \u2014 ${c.hint}`),
+      findings: structureFindings.map((f) => f.text),
+      richFindings: structureFindings,
     },
   ]
   return (
@@ -4920,10 +4933,26 @@ function HealthDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          {[...atsDimensions, ...health.dimensions].map((d) => (
+          {[
+            ...atsDimensions,
+            ...(health.dimensions as (HealthDimension & {
+              richFindings?: { text: string; anchor?: SectionAnchor }[]
+            })[]),
+          ].map((d) => (
             <div key={d.id} className="rounded-lg border p-3">
               <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="font-medium">{d.label}</span>
+                <span className="font-medium">
+                  {d.label}
+                  {d.anchor && d.score < 100 && d.findings.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-primary ml-1.5 inline-flex min-h-10 items-center text-xs font-normal underline sm:min-h-0"
+                      onClick={() => d.anchor && jump(d.anchor)}
+                    >
+                      Fix →
+                    </button>
+                  )}
+                </span>
                 <span
                   className={`tnum text-xs font-semibold ${
                     d.score >= 80
@@ -4959,9 +4988,22 @@ function HealthDialog({
               <p className="text-muted-foreground/80 mt-1 text-xs italic">{d.plain}</p>
               {d.findings.length > 0 && (
                 <ul className="text-muted-foreground mt-1.5 list-disc space-y-0.5 pl-4 text-xs">
-                  {d.findings.map((f) => (
-                    <li key={f}>{f}</li>
-                  ))}
+                  {(d.richFindings ?? d.findings.map((text) => ({ text, anchor: undefined }))).map(
+                    (f) => (
+                      <li key={f.text}>
+                        {f.text}
+                        {f.anchor && (
+                          <button
+                            type="button"
+                            className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                            onClick={() => f.anchor && jump(f.anchor)}
+                          >
+                            Fix →
+                          </button>
+                        )}
+                      </li>
+                    )
+                  )}
                 </ul>
               )}
             </div>
