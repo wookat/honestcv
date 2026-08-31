@@ -4045,6 +4045,7 @@ export default function Builder() {
         resume={resume}
         jobDescription={resume.jobDescription}
         scoreSummary={atsScoreSummary(ats)}
+        ats={ats}
         onQuota={setFreeLeft}
         onPaymentRequired={(msg) => {
           if (!freeMode) requireUnlock(msg)
