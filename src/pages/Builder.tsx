@@ -55,6 +55,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { MonthYearField } from '@/components/MonthYearField'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
@@ -1950,15 +1951,16 @@ export default function Builder() {
                     onChange={(ev) => setExp(e.id, { location: ev.target.value })}
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    <Input
+                    <MonthYearField
                       placeholder="Start (Jun 2023)"
                       value={e.startDate}
-                      onChange={(ev) => setExp(e.id, { startDate: ev.target.value })}
+                      onChange={(v) => setExp(e.id, { startDate: v })}
                     />
-                    <Input
+                    <MonthYearField
+                      allowPresent
                       placeholder="End (Present)"
                       value={e.endDate}
-                      onChange={(ev) => setExp(e.id, { endDate: ev.target.value })}
+                      onChange={(v) => setExp(e.id, { endDate: v })}
                     />
                   </div>
                 </div>
@@ -2194,26 +2196,27 @@ export default function Builder() {
                     }
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    <Input
+                    <MonthYearField
                       placeholder="Start (2017)"
                       value={e.startDate}
-                      onChange={(ev) =>
+                      onChange={(v) =>
                         setResume((r) => ({
                           ...r,
                           education: r.education.map((x) =>
-                            x.id === e.id ? { ...x, startDate: ev.target.value } : x
+                            x.id === e.id ? { ...x, startDate: v } : x
                           ),
                         }))
                       }
                     />
-                    <Input
+                    <MonthYearField
+                      allowPresent
                       placeholder="End (2021)"
                       value={e.endDate}
-                      onChange={(ev) =>
+                      onChange={(v) =>
                         setResume((r) => ({
                           ...r,
                           education: r.education.map((x) =>
-                            x.id === e.id ? { ...x, endDate: ev.target.value } : x
+                            x.id === e.id ? { ...x, endDate: v } : x
                           ),
                         }))
                       }
@@ -2536,26 +2539,27 @@ export default function Builder() {
                     }
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    <Input
+                    <MonthYearField
                       placeholder="Start (2024)"
                       value={p.startDate ?? ''}
-                      onChange={(ev) =>
+                      onChange={(v) =>
                         setResume((r) => ({
                           ...r,
                           projects: r.projects.map((x) =>
-                            x.id === p.id ? { ...x, startDate: ev.target.value } : x
+                            x.id === p.id ? { ...x, startDate: v } : x
                           ),
                         }))
                       }
                     />
-                    <Input
+                    <MonthYearField
+                      allowPresent
                       placeholder="End"
                       value={p.endDate ?? ''}
-                      onChange={(ev) =>
+                      onChange={(v) =>
                         setResume((r) => ({
                           ...r,
                           projects: r.projects.map((x) =>
-                            x.id === p.id ? { ...x, endDate: ev.target.value } : x
+                            x.id === p.id ? { ...x, endDate: v } : x
                           ),
                         }))
                       }
@@ -2717,26 +2721,27 @@ export default function Builder() {
                     }
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    <Input
+                    <MonthYearField
                       placeholder="Start (2024)"
                       value={inv.startDate}
-                      onChange={(ev) =>
+                      onChange={(v) =>
                         setResume((r) => ({
                           ...r,
                           involvement: (r.involvement ?? []).map((x) =>
-                            x.id === inv.id ? { ...x, startDate: ev.target.value } : x
+                            x.id === inv.id ? { ...x, startDate: v } : x
                           ),
                         }))
                       }
                     />
-                    <Input
+                    <MonthYearField
+                      allowPresent
                       placeholder="End"
                       value={inv.endDate}
-                      onChange={(ev) =>
+                      onChange={(v) =>
                         setResume((r) => ({
                           ...r,
                           involvement: (r.involvement ?? []).map((x) =>
-                            x.id === inv.id ? { ...x, endDate: ev.target.value } : x
+                            x.id === inv.id ? { ...x, endDate: v } : x
                           ),
                         }))
                       }
@@ -3748,26 +3753,27 @@ export default function Builder() {
                     }
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    <Input
+                    <MonthYearField
                       placeholder="Start (2020)"
                       value={m.startDate}
-                      onChange={(ev) =>
+                      onChange={(v) =>
                         setResume((r) => ({
                           ...r,
                           military: (r.military ?? []).map((x) =>
-                            x.id === m.id ? { ...x, startDate: ev.target.value } : x
+                            x.id === m.id ? { ...x, startDate: v } : x
                           ),
                         }))
                       }
                     />
-                    <Input
+                    <MonthYearField
+                      allowPresent
                       placeholder="End"
                       value={m.endDate}
-                      onChange={(ev) =>
+                      onChange={(v) =>
                         setResume((r) => ({
                           ...r,
                           military: (r.military ?? []).map((x) =>
-                            x.id === m.id ? { ...x, endDate: ev.target.value } : x
+                            x.id === m.id ? { ...x, endDate: v } : x
                           ),
                         }))
                       }
