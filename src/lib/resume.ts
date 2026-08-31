@@ -1403,6 +1403,70 @@ export function deleteLibraryCoursework(id: string): SavedCoursework[] {
   return items
 }
 
+/** A single polished award entry saved for reuse across resume copies. */
+export interface SavedAward {
+  id: string
+  savedAt: number
+  data: AwardItem
+}
+
+const AWARD_LIBRARY_KEY = 'honestcv.awardLibrary'
+const AWARD_LIBRARY_MAX = 30
+
+function sanitizeAwardItem(input: unknown): AwardItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: AwardItem = {
+    id: asStr(v.id) || newId(),
+    name: asStr(v.name),
+    organization: asStr(v.organization),
+    date: asStr(v.date),
+    description: asStr(v.description),
+  }
+  return item.name.trim() || item.organization.trim() || item.description.trim() ? item : null
+}
+
+export function listAwardLibrary(): SavedAward[] {
+  try {
+    const raw = localStorage.getItem(AWARD_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedAward[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeAwardItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistAwardLibrary(items: SavedAward[]) {
+  try {
+    localStorage.setItem(AWARD_LIBRARY_KEY, JSON.stringify(items.slice(0, AWARD_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveAwardToLibrary(entry: AwardItem): SavedAward[] {
+  const data = sanitizeAwardItem(entry)
+  if (!data) return listAwardLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listAwardLibrary(),
+  ].slice(0, AWARD_LIBRARY_MAX)
+  persistAwardLibrary(items)
+  return items
+}
+
+export function deleteLibraryAward(id: string): SavedAward[] {
+  const items = listAwardLibrary().filter((s) => s.id !== id)
+  persistAwardLibrary(items)
+  return items
+}
+
 /** A polished skills text block saved for reuse across resume copies. */
 export interface SavedSkills {
   id: string
