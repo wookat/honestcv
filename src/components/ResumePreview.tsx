@@ -42,6 +42,57 @@ import {
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
+/** Click-to-type text in the preview: commits on blur/Enter, reverts on Escape. */
+function InlineText({
+  value,
+  fallback = '',
+  onCommit,
+}: {
+  value: string
+  fallback?: string
+  /** When set, the span is contentEditable and commits plain text edits */
+  onCommit?: (next: string) => void
+}) {
+  const shown = value || fallback
+  if (!onCommit) return <>{shown}</>
+  return (
+    <span
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      role="textbox"
+      aria-label="Edit text"
+      className="cursor-text rounded-sm outline-none focus:bg-sky-100/70 focus:ring-1 focus:ring-sky-300"
+      onClick={(e) => e.stopPropagation()}
+      onPaste={(e) => {
+        e.preventDefault()
+        document.execCommand('insertText', false, e.clipboardData.getData('text/plain'))
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          e.currentTarget.blur()
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          e.currentTarget.textContent = shown
+          e.currentTarget.blur()
+        }
+      }}
+      onBlur={(e) => {
+        const next = (e.currentTarget.textContent ?? '').replace(/\s+/g, ' ').trim()
+        if (next === shown || (next === fallback && !value)) {
+          e.currentTarget.textContent = shown
+          return
+        }
+        onCommit(next)
+      }}
+    >
+      {shown}
+    </span>
+  )
+}
+
+
 function ContactIcon({ kind }: { kind: ContactIconKind }) {
   return (
     <svg
@@ -65,11 +116,14 @@ export function ResumePreview({
   resume,
   paginated = false,
   onSectionJump,
+  onEdit,
 }: {
   resume: Resume
   paginated?: boolean
   /** When set, clicking a section in the preview jumps to its editor card */
   onSectionJump?: (key: string) => void
+  /** When set, common text fields become editable in place */
+  onEdit?: (next: Resume) => void
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const c = resume.contact
@@ -140,13 +194,24 @@ export function ResumePreview({
           />
         )}
         <h2 className="text-2xl font-bold">
-          {tpl.nameCase === 'upper'
-            ? (c.fullName || 'Your Name').toUpperCase()
-            : c.fullName || 'Your Name'}
+          <InlineText
+            value={tpl.nameCase === 'upper' ? c.fullName.toUpperCase() : c.fullName}
+            fallback={tpl.nameCase === 'upper' ? 'YOUR NAME' : 'Your Name'}
+            onCommit={
+              onEdit &&
+              ((v) => onEdit({ ...resume, contact: { ...resume.contact, fullName: v } }))
+            }
+          />
         </h2>
         {c.title && (
           <p className="mt-0.5 text-sm" style={{ color: tpl.accent }}>
-            {c.title}
+            <InlineText
+              value={c.title}
+              onCommit={
+                onEdit &&
+                ((v) => onEdit({ ...resume, contact: { ...resume.contact, title: v } }))
+              }
+            />
           </p>
         )}
         {contactLine &&
@@ -170,7 +235,7 @@ export function ResumePreview({
 
       {orderedSectionKeys(resume).map((key) => (
         <div key={key} {...jumpProps(key, sectionLabel(resume, key))}>
-          <SectionBlock sectionKey={key} resume={resume} heading={heading} />
+          <SectionBlock sectionKey={key} resume={resume} heading={heading} onEdit={onEdit} />
         </div>
       ))}
     </>
@@ -297,10 +362,12 @@ function SectionBlock({
   sectionKey,
   resume,
   heading,
+  onEdit,
 }: {
   sectionKey: string
   resume: Resume
   heading: (label: string) => React.ReactNode
+  onEdit?: (next: Resume) => void
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const ulIndent = bulletIndentOf(resume) ? { paddingLeft: 12 } : undefined
@@ -308,7 +375,12 @@ function SectionBlock({
     return resume.summary.trim() ? (
       <>
         {heading('Summary')}
-        <p className="text-[11px]">{resume.summary.trim()}</p>
+        <p className="text-[11px]">
+          <InlineText
+            value={resume.summary.trim()}
+            onCommit={onEdit && ((v) => onEdit({ ...resume, summary: v }))}
+          />
+        </p>
       </>
     ) : null
   if (sectionKey === 'experience')
@@ -320,10 +392,35 @@ function SectionBlock({
               <div key={e.id} className="mb-2">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <p className="text-[11.5px] font-bold">
-                    {e.role || 'Role'}
+                    <InlineText
+                      value={e.role}
+                      fallback="Role"
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            experience: resume.experience.map((x) =>
+                              x.id === e.id ? { ...x, role: v } : x
+                            ),
+                          }))
+                      }
+                    />
                     <span className="font-normal">
                       {'  ·  '}
-                      {e.company}
+                      <InlineText
+                        value={e.company}
+                        onCommit={
+                          onEdit &&
+                          ((v) =>
+                            onEdit({
+                              ...resume,
+                              experience: resume.experience.map((x) =>
+                                x.id === e.id ? { ...x, company: v } : x
+                              ),
+                            }))
+                        }
+                      />
                       {e.location ? `, ${e.location}` : ''}
                     </span>
                   </p>
@@ -339,7 +436,28 @@ function SectionBlock({
                       b.trim() && (
                         <li key={i} className="flex gap-1.5 text-[11px]">
                           <span style={{ color: tpl.accent }}>•</span>
-                          <span>{b.trim()}</span>
+                          <span>
+                            <InlineText
+                              value={b.trim()}
+                              onCommit={
+                                onEdit &&
+                                ((v) =>
+                                  onEdit({
+                                    ...resume,
+                                    experience: resume.experience.map((x) =>
+                                      x.id === e.id
+                                        ? {
+                                            ...x,
+                                            bullets: x.bullets.map((bb, bi) =>
+                                              bi === i ? v : bb
+                                            ),
+                                          }
+                                        : x
+                                    ),
+                                  }))
+                              }
+                            />
+                          </span>
                         </li>
                       )
                   )}
@@ -358,7 +476,19 @@ function SectionBlock({
               <div key={p.id} className="mb-1.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <p className="text-[11px] font-bold">
-                    {p.name}
+                    <InlineText
+                      value={p.name}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            projects: resume.projects.map((x) =>
+                              x.id === p.id ? { ...x, name: v } : x
+                            ),
+                          }))
+                      }
+                    />
                     {p.org?.trim() && <span className="font-normal">{'  ·  '}{p.org.trim()}</span>}
                     {p.link && <span className="font-normal"> — {p.link}</span>}
                   </p>
@@ -367,7 +497,21 @@ function SectionBlock({
                   )}
                 </div>
                 {p.description.trim() && (
-                  <p className="text-[11px]">{p.description.trim()}</p>
+                  <p className="text-[11px]">
+                    <InlineText
+                      value={p.description.trim()}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            projects: resume.projects.map((x) =>
+                              x.id === p.id ? { ...x, description: v } : x
+                            ),
+                          }))
+                      }
+                    />
+                  </p>
                 )}
               </div>
           )
@@ -418,10 +562,35 @@ function SectionBlock({
               <div key={e.id} className="mb-1.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <p className="text-[11px] font-bold">
-                    {e.degree || 'Degree'}
+                    <InlineText
+                      value={e.degree}
+                      fallback="Degree"
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            education: resume.education.map((x) =>
+                              x.id === e.id ? { ...x, degree: v } : x
+                            ),
+                          }))
+                      }
+                    />
                     <span className="font-normal">
                       {'  ·  '}
-                      {e.school}
+                      <InlineText
+                        value={e.school}
+                        onCommit={
+                          onEdit &&
+                          ((v) =>
+                            onEdit({
+                              ...resume,
+                              education: resume.education.map((x) =>
+                                x.id === e.id ? { ...x, school: v } : x
+                              ),
+                            }))
+                        }
+                      />
                       {e.location ? `, ${e.location}` : ''}
                     </span>
                   </p>
