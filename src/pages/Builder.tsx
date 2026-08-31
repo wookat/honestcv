@@ -4747,6 +4747,11 @@ function BundleToolDialog({
   const [feedbackError, setFeedbackError] = useState('')
   const [suggested, setSuggested] = useState<string[]>([])
   const [suggestBusy, setSuggestBusy] = useState(false)
+  const [session, setSession] = useState<{
+    questions: string[]
+    idx: number
+    entries: { q: string; a: string; fb: string }[]
+  } | null>(null)
   const [lastKind, setLastKind] = useState(kind)
 
   if (kind !== lastKind) {
@@ -4760,6 +4765,52 @@ function BundleToolDialog({
     setFeedbackBusy(false)
     setSuggested([])
     setSuggestBusy(false)
+    setSession(null)
+    setQuestion('')
+    setAnswer('')
+  }
+
+  type PracticeSession = { questions: string[]; idx: number; entries: { q: string; a: string; fb: string }[] }
+
+  const sessionEntries = (s: PracticeSession) => {
+    const entries = [...s.entries]
+    if (answer.trim() || feedback) {
+      entries.push({ q: s.questions[s.idx], a: answer.trim(), fb: feedback })
+    }
+    return entries
+  }
+
+  const finishSession = (s: PracticeSession, entries: { q: string; a: string; fb: string }[]) => {
+    const role = aiTargetRole(resume) || 'your target job'
+    const transcript = entries
+      .map(
+        (e, i) =>
+          `Q${i + 1}. ${e.q}\n\nYour answer:\n${e.a || '[skipped]'}${e.fb ? `\n\nAI coaching:\n${e.fb}` : ''}`
+      )
+      .join('\n\n---\n\n')
+    setResult(
+      `Practice session — ${role}\n${entries.length} of ${s.questions.length} questions answered\n\n${transcript}`
+    )
+    setSavedId(null)
+    setSession(null)
+    setQuestion('')
+    setAnswer('')
+    setFeedback('')
+    setFeedbackError('')
+  }
+
+  const advanceSession = (s: PracticeSession) => {
+    const entries = sessionEntries(s)
+    if (s.idx + 1 >= s.questions.length) {
+      finishSession(s, entries)
+      return
+    }
+    const next = { ...s, idx: s.idx + 1, entries }
+    setSession(next)
+    setQuestion(next.questions[next.idx])
+    setAnswer('')
+    setFeedback('')
+    setFeedbackError('')
   }
 
   const suggestQuestions = async () => {
@@ -5077,7 +5128,15 @@ function BundleToolDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="practice-question">Interview question</Label>
-              {suggested.length > 0 && (
+              {session && (
+                <div className="bg-muted/50 space-y-1 rounded-md border px-3 py-2">
+                  <p className="text-muted-foreground text-xs">
+                    Question {session.idx + 1} of {session.questions.length}
+                  </p>
+                  <p className="text-sm">{session.questions[session.idx]}</p>
+                </div>
+              )}
+              {!session && suggested.length > 0 && (
                 <ul className="space-y-1">
                   {suggested.map((q) => (
                     <li key={q}>
@@ -5096,14 +5155,32 @@ function BundleToolDialog({
                   ))}
                 </ul>
               )}
-              <Input
-                id="practice-question"
-                placeholder="e.g. Tell me about a time you led a difficult project"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                maxLength={300}
-                className="min-h-10 sm:min-h-9"
-              />
+              {!session && suggested.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  onClick={() => {
+                    setSession({ questions: suggested, idx: 0, entries: [] })
+                    setQuestion(suggested[0])
+                    setAnswer('')
+                    setFeedback('')
+                    setFeedbackError('')
+                  }}
+                >
+                  <ListChecks /> Practice all {suggested.length}
+                </Button>
+              )}
+              {!session && (
+                <Input
+                  id="practice-question"
+                  placeholder="e.g. Tell me about a time you led a difficult project"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  maxLength={300}
+                  className="min-h-10 sm:min-h-9"
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="practice-answer">Your answer</Label>
@@ -5125,15 +5202,38 @@ function BundleToolDialog({
                 {feedbackBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
                 {feedbackBusy ? 'Coaching…' : 'Get AI feedback'}
               </Button>
-              <Button
-                onClick={() => void suggestQuestions()}
-                disabled={feedbackBusy || suggestBusy}
-                variant="outline"
-                className="min-h-10 sm:min-h-9"
-              >
-                {suggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                {suggestBusy ? 'Thinking…' : 'Suggest questions'}
-              </Button>
+              {!session && (
+                <Button
+                  onClick={() => void suggestQuestions()}
+                  disabled={feedbackBusy || suggestBusy}
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                >
+                  {suggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {suggestBusy ? 'Thinking…' : 'Suggest questions'}
+                </Button>
+              )}
+              {session && (
+                <>
+                  <Button
+                    onClick={() => advanceSession(session)}
+                    disabled={feedbackBusy}
+                    className="min-h-10 sm:min-h-9"
+                  >
+                    {session.idx + 1 >= session.questions.length
+                      ? 'Finish session'
+                      : 'Next question'}
+                  </Button>
+                  <Button
+                    onClick={() => finishSession(session, sessionEntries(session))}
+                    disabled={feedbackBusy}
+                    variant="outline"
+                    className="min-h-10 sm:min-h-9"
+                  >
+                    End early
+                  </Button>
+                </>
+              )}
             </div>
             {feedbackBusy && (
               <p className="text-muted-foreground text-xs" role="status">
