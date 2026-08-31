@@ -24,6 +24,8 @@ import {
   militaryBullets,
   militaryDates,
   militaryEntries,
+  agentBullets,
+  agentEntries,
   fontScaleOf,
   lineSpacingOf,
   educationDetailLine,
@@ -539,6 +541,32 @@ function SectionBlock({
             </div>
             <ul className="mt-0.5 space-y-0.5">
               {militaryBullets(m).map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11px]">
+                  <span style={{ color: tpl.accent }}>•</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </>
+    ) : null
+  }
+  if (sectionKey === 'agents') {
+    const items = agentEntries(resume)
+    return items.length > 0 ? (
+      <>
+        {heading('Agents')}
+        {items.map((a) => (
+          <div key={a.id} className="mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <p className="text-[11.5px] font-bold">{a.name.trim()}</p>
+              {a.date.trim() && (
+                <p className="text-[10px] text-neutral-500 italic">{a.date.trim()}</p>
+              )}
+            </div>
+            <ul className="mt-0.5 space-y-0.5">
+              {agentBullets(a).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
                   <span>{b}</span>

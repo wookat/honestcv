@@ -212,6 +212,9 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - **CSP pitfall (cross-origin features)**: cv.zalize.com ships a strict `Content-Security-Policy` with `connect-src 'self'` (check with `curl -sI https://cv.zalize.com/builder | grep -i content-security-policy`). Any new feature that fetches an external API from the browser (e.g. "pull from Resume Center" hitting resume-forge.wookat520.workers.dev) will fail with a generic `Failed to fetch` even when the remote API sends `Access-Control-Allow-Origin: *`. When you see `Failed to fetch`, always distinguish CSP vs CORS: curl the API with an `Origin:` header (CORS OK ⇒ suspect CSP), then check the CSP header. Fix requires adding the API origin to `connect-src` in the server/edge config that sets the CSP.
 - **Import dialog (Builder)**: open via the `Import resume (PDF/DOCX/text)` button. The "or pull from Resume Center" row sits between the Upload button row and the paste textarea; error text inserts below that row and shifts layout, so re-locate elements after an error appears. `parseShareId` (src/lib/resumeCenter.ts) accepts bare 4–64 char ids and URLs containing `/s/` or `/api/export/` — as of Aug 2026 it rejected canonical resume-forge `/share/:id` links (and the `/s/:id` route 404s on resume-forge itself); re-check both if testing this feature.
 
+- Byte-level restore proof: before deleting the `qa.<round>.backup` key, compute `diffs`/`extra` against it in the same CDP evaluation (restore → compare → only then remove `qa.*`) so restoration is provable rather than inferred from key counts.
+- Ending mobile emulation: a plain pkill of the CDP-hold process has restored desktop width cleanly in recent rounds — try that first, and fall back to the documented metric-reset workaround only if `innerWidth` stays 375.
+
 ## Devin Secrets Needed
 
 None — the seeded test license key is provided by the user per run.

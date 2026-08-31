@@ -29,6 +29,8 @@ import {
   militaryDates,
   militaryEntries,
   militaryHeadingLine,
+  agentBullets,
+  agentEntries,
   dividerOf,
   educationDetailLine,
   fontScaleOf,
@@ -468,6 +470,15 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
         w.titleLine(militaryHeadingLine(m), militaryDates(m), { size: 10.5 })
         w.gap(2)
         for (const b of militaryBullets(m)) w.bullet(b)
+      }
+    } else if (key === 'agents' && agentEntries(resume).length > 0) {
+      w.heading('Agents')
+      for (const a of agentEntries(resume)) {
+        w.gap(4)
+        w.ensure(34)
+        w.titleLine(a.name.trim(), a.date.trim(), { size: 10.5 })
+        w.gap(2)
+        for (const b of agentBullets(a)) w.bullet(b)
       }
     } else if (key.startsWith('custom:')) {
       const s = resume.customSections.find((x) => `custom:${x.id}` === key)
