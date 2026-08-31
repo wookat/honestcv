@@ -156,6 +156,10 @@ import {
   saveEducationToLibrary,
   deleteLibraryEducation,
   type SavedEducation,
+  listProjectLibrary,
+  saveProjectToLibrary,
+  deleteLibraryProject,
+  type SavedProject,
   listSkillsLibrary,
   saveSkillsToLibrary,
   deleteLibrarySkills,
@@ -629,6 +633,9 @@ export default function Builder() {
   const [eduLibrary, setEduLibrary] = useState<SavedEducation[]>(() => listEducationLibrary())
   const [eduLibraryOpen, setEduLibraryOpen] = useState(false)
   const [eduLibrarySavedId, setEduLibrarySavedId] = useState<string | null>(null)
+  const [projLibrary, setProjLibrary] = useState<SavedProject[]>(() => listProjectLibrary())
+  const [projLibraryOpen, setProjLibraryOpen] = useState(false)
+  const [projLibrarySavedId, setProjLibrarySavedId] = useState<string | null>(null)
   const [skillsLibrary, setSkillsLibrary] = useState<SavedSkills[]>(() => listSkillsLibrary())
   const [skillsLibraryOpen, setSkillsLibraryOpen] = useState(false)
   const [skillsLibrarySaved, setSkillsLibrarySaved] = useState(false)
@@ -2310,6 +2317,29 @@ export default function Builder() {
                     >
                       <Copy className="size-3.5" />
                     </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 sm:h-7"
+                      title="Save project to library — reuse it in other resume copies"
+                      aria-label={`Save project ${pIdx + 1} to library`}
+                      disabled={!p.name.trim() && !p.link.trim() && !p.description.trim()}
+                      onClick={() => {
+                        setProjLibrary(saveProjectToLibrary(p))
+                        setProjLibrarySavedId(p.id)
+                        window.setTimeout(
+                          () => setProjLibrarySavedId((v) => (v === p.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {projLibrarySavedId === p.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -2411,16 +2441,80 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setResume((r) => ({ ...r, projects: [...r.projects, emptyProject()] }))
-              }
-            >
-              <Plus className="size-4" /> Add project
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setResume((r) => ({ ...r, projects: [...r.projects, emptyProject()] }))
+                }
+              >
+                <Plus className="size-4" /> Add project
+              </Button>
+              {projLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title="Insert a project you saved from any resume copy"
+                  onClick={() => setProjLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({projLibrary.length})
+                </Button>
+              )}
+            </div>
+            {projLibraryOpen && projLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved projects</p>
+                {projLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {s.data.name.trim() ||
+                          s.data.description.split('\n').map((l) => l.trim()).filter(Boolean)[0] ||
+                          'Untitled project'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            projects: [
+                              ...r.projects.filter(
+                                (x) => x.name.trim() || x.link.trim() || x.description.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved project ${s.data.name.trim() || 'Untitled project'}`}
+                        onClick={() => setProjLibrary(deleteLibraryProject(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Involvement" icon={<Users className="size-4" />}>

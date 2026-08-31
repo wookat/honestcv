@@ -1197,6 +1197,75 @@ export function deleteLibraryEducation(id: string): SavedEducation[] {
   return items
 }
 
+/** A single polished project entry saved for reuse across resume copies. */
+export interface SavedProject {
+  id: string
+  savedAt: number
+  data: ProjectItem
+}
+
+const PROJECT_LIBRARY_KEY = 'honestcv.projectLibrary'
+const PROJECT_LIBRARY_MAX = 30
+
+function sanitizeProjectItem(input: unknown): ProjectItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const p = input as Record<string, unknown>
+  const item: ProjectItem = {
+    id: asStr(p.id) || newId(),
+    name: asStr(p.name),
+    link: asStr(p.link),
+    description: asStr(p.description),
+  }
+  const org = asStr(p.org)
+  if (org) item.org = org
+  const startDate = asStr(p.startDate)
+  if (startDate) item.startDate = startDate
+  const endDate = asStr(p.endDate)
+  if (endDate) item.endDate = endDate
+  return item.name.trim() || item.link.trim() || item.description.trim() ? item : null
+}
+
+export function listProjectLibrary(): SavedProject[] {
+  try {
+    const raw = localStorage.getItem(PROJECT_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedProject[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeProjectItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistProjectLibrary(items: SavedProject[]) {
+  try {
+    localStorage.setItem(PROJECT_LIBRARY_KEY, JSON.stringify(items.slice(0, PROJECT_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveProjectToLibrary(entry: ProjectItem): SavedProject[] {
+  const data = sanitizeProjectItem(entry)
+  if (!data) return listProjectLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listProjectLibrary(),
+  ].slice(0, PROJECT_LIBRARY_MAX)
+  persistProjectLibrary(items)
+  return items
+}
+
+export function deleteLibraryProject(id: string): SavedProject[] {
+  const items = listProjectLibrary().filter((s) => s.id !== id)
+  persistProjectLibrary(items)
+  return items
+}
+
 /** A polished skills text block saved for reuse across resume copies. */
 export interface SavedSkills {
   id: string
