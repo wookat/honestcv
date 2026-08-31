@@ -920,7 +920,7 @@ export function duplicateResumeVersion(id: string): ResumeVersion[] {
   const source = listResumeVersions().find((v) => v.id === id)
   if (!source) return listResumeVersions()
   const versions = [
-    { id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now(), data: source.data },
+    { ...source, id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now() },
     ...listResumeVersions(),
   ]
   persistVersions(versions)
