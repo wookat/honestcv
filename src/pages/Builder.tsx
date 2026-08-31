@@ -1415,6 +1415,15 @@ export default function Builder() {
                 />
               </div>
               <div className="space-y-1.5">
+                <Label htmlFor="targetCompany">Company</Label>
+                <Input
+                  id="targetCompany"
+                  placeholder="e.g. Acme Corp"
+                  value={resume.targetCompany ?? ''}
+                  onChange={(e) => set('targetCompany', e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
                 <Label htmlFor="experienceLevel">Experience level</Label>
                 <select
                   id="experienceLevel"
@@ -3995,7 +4004,9 @@ export default function Builder() {
       />
       <BundleToolDialog
         kind={toolOpen}
-        initialCompany={toolCompany}
+        initialCompany={
+          toolOpen === 'cover' ? toolCompany || (resume.targetCompany ?? '') : toolCompany
+        }
         onClose={() => setToolOpen(null)}
         resume={resume}
         onQuota={setFreeLeft}
