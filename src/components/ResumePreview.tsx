@@ -86,7 +86,7 @@ function InlineText({
       }}
       onBlur={(e) => {
         const next = (e.currentTarget.textContent ?? '').replace(/\s+/g, ' ').trim()
-        if (next === shown || (next === fallback && !value)) {
+        if (next === shown || next === value || (next === fallback && !value)) {
           e.currentTarget.textContent = shown
           return
         }
