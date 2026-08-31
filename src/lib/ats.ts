@@ -144,6 +144,19 @@ export function extractKeywords(jd: string, limit = 30): string[] {
     .map(([k]) => k)
 }
 
+/** Percentage of a job description's keywords found in the resume text */
+export function matchScore(resumeTextRaw: string, jd: string): number | null {
+  const keywords = jd.trim() ? extractKeywords(jd) : []
+  if (keywords.length === 0) return null
+  const resumeText = resumeTextRaw.toLowerCase()
+  const resumeTokens = new Set(tokenize(resumeText))
+  let matched = 0
+  for (const kw of keywords) {
+    if (kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)) matched++
+  }
+  return Math.round((matched / keywords.length) * 100)
+}
+
 /** Score pasted resume text (standalone ATS checker page) */
 export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
   const resumeText = resumeTextRaw.toLowerCase()
