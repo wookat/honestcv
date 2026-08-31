@@ -131,6 +131,7 @@ export default function Dashboard() {
   const [examples, setExamples] = useState<ExampleEntry[]>([])
   const [exampleQuery, setExampleQuery] = useState('')
   const [exampleSector, setExampleSector] = useState('All')
+  const [previewExample, setPreviewExample] = useState<ExampleEntry | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [newKeepCopy, setNewKeepCopy] = useState(true)
   const [newRole, setNewRole] = useState('')
@@ -839,10 +840,23 @@ export default function Dashboard() {
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredExamples.slice(0, 9).map((e) => (
                   <div key={e.slug} className="bg-card flex flex-col rounded-md border shadow-sm">
-                    <Thumb resume={exampleToResume(e.person)} />
+                    <button
+                      type="button"
+                      onClick={() => setPreviewExample(e)}
+                      aria-label={`Preview ${e.role} sample`}
+                      className="focus-visible:ring-ring cursor-pointer rounded-t-md text-left focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                      <Thumb resume={exampleToResume(e.person)} />
+                    </button>
                     <div className="flex flex-1 flex-col gap-2 p-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{e.role}</p>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewExample(e)}
+                          className="block w-full cursor-pointer truncate text-left text-sm font-medium hover:underline"
+                        >
+                          {e.role}
+                        </button>
                         <p className="text-muted-foreground text-xs">{e.sector}</p>
                       </div>
                       <div className="mt-auto">
@@ -868,6 +882,37 @@ export default function Dashboard() {
         </div>
       </main>
       <SiteFooter />
+
+      <Dialog open={previewExample !== null} onOpenChange={(o) => !o && setPreviewExample(null)}>
+        <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-3xl">
+          {previewExample && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{previewExample.role}</DialogTitle>
+                <DialogDescription>
+                  {previewExample.sector} sample — read it in full, then load it into the editor.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-md border bg-slate-100 p-3 sm:p-5">
+                <ResumePreview resume={exampleToResume(previewExample.person)} paginated />
+              </div>
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                  onClick={() => setPreviewExample(null)}
+                >
+                  Close
+                </Button>
+                <Button asChild className="min-h-10 sm:min-h-9">
+                  <Link to={`/builder?example=${previewExample.slug}`}>Use this example</Link>
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={newOpen} onOpenChange={(o) => (o ? setNewOpen(true) : closeNewDialog())}>
         <DialogContent className="sm:max-w-md">
