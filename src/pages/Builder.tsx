@@ -295,6 +295,9 @@ const FIT_COMBOS: Array<
   ['xs', 'compact'],
 ]
 
+/** Combos from this index on are retried at tighter section spacing when nothing fits one page. */
+const TIGHT_COMBO_START = 7
+
 const SCALE_NAME = {
   xs: 'extra small',
   s: 'small',
@@ -612,27 +615,53 @@ export default function Builder() {
     setFitMsg('')
     try {
       const { countResumePdfPages } = await import('@/lib/pdf')
+      const currentSections = resume.sectionSpacing ?? 'normal'
+      const spacingStages: Array<NonNullable<Resume['sectionSpacing']>> = [currentSections]
+      for (const s of ['tight', 'xtight'] as const) {
+        if (SECTION_STEPS.indexOf(s) < SECTION_STEPS.indexOf(currentSections))
+          spacingStages.push(s)
+      }
       let best: {
         fontScale: NonNullable<Resume['fontScale']>
         lineSpacing: NonNullable<Resume['lineSpacing']>
+        sectionSpacing: NonNullable<Resume['sectionSpacing']>
         pages: number
       } | null = null
-      for (const [fontScale, lineSpacing] of FIT_COMBOS) {
-        const pages = await countResumePdfPages({ ...resume, fontScale, lineSpacing })
-        if (!best || pages < best.pages) best = { fontScale, lineSpacing, pages }
-        if (pages === 1) break
+      outer: for (let stage = 0; stage < spacingStages.length; stage++) {
+        const sectionSpacing = spacingStages[stage]
+        const combos = stage === 0 ? FIT_COMBOS : FIT_COMBOS.slice(TIGHT_COMBO_START)
+        for (const [fontScale, lineSpacing] of combos) {
+          const pages = await countResumePdfPages({
+            ...resume,
+            fontScale,
+            lineSpacing,
+            sectionSpacing,
+          })
+          if (!best || pages < best.pages)
+            best = { fontScale, lineSpacing, sectionSpacing, pages }
+          if (pages === 1) break outer
+        }
       }
       if (!best) return
       const same =
         best.fontScale === (resume.fontScale ?? 'm') &&
-        best.lineSpacing === (resume.lineSpacing ?? 'normal')
+        best.lineSpacing === (resume.lineSpacing ?? 'normal') &&
+        best.sectionSpacing === currentSections
       if (!same) {
-        setResume((r) => ({ ...r, fontScale: best.fontScale, lineSpacing: best.lineSpacing }))
+        setResume((r) => ({
+          ...r,
+          fontScale: best.fontScale,
+          lineSpacing: best.lineSpacing,
+          sectionSpacing: best.sectionSpacing,
+        }))
       }
+      const parts = [`${SCALE_NAME[best.fontScale]} text`, `${best.lineSpacing} spacing`]
+      if (best.sectionSpacing !== currentSections)
+        parts.push(`${best.sectionSpacing} sections`)
       setFitMsg(
         same
           ? `Already at the best fit — ${best.pages} page${best.pages === 1 ? '' : 's'}`
-          : `Fits ${best.pages} page${best.pages === 1 ? '' : 's'} — set ${SCALE_NAME[best.fontScale]} text, ${best.lineSpacing} spacing`
+          : `Fits ${best.pages} page${best.pages === 1 ? '' : 's'} — set ${parts.join(', ')}`
       )
     } catch {
       setFitMsg('Auto-fit failed — please try again')
