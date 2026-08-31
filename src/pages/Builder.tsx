@@ -3284,7 +3284,7 @@ export default function Builder() {
                 </button>
               ))}
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex flex-wrap items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Font</span>
               {(
