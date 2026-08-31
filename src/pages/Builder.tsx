@@ -690,8 +690,8 @@ export default function Builder() {
     }
   }
 
-  const runSuggestBullet = async (e: ExperienceItem) => {
-    const tag = `exp-${e.id}-suggest`
+  const runSuggestBullet = async (e: ExperienceItem, variant?: 'key-numbers') => {
+    const tag = variant ? `exp-${e.id}-suggest-nums` : `exp-${e.id}-suggest`
     if (!e.role.trim() && !e.company.trim()) {
       setAiErrorTag(tag)
       setAiError('Add a job title or company first — the bullet is drafted for that role.')
@@ -706,6 +706,7 @@ export default function Builder() {
         company: e.company,
         bullets: e.bullets.filter((b) => b.trim()),
         resumeText: resumeToPlainText(resume),
+        variant,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
@@ -1595,6 +1596,12 @@ export default function Builder() {
                   `exp-${e.id}-suggest`,
                   'Suggest a bullet',
                   () => void runSuggestBullet(e),
+                  !e.role.trim() && !e.company.trim()
+                )}
+                {aiButton(
+                  `exp-${e.id}-suggest-nums`,
+                  '…with key numbers',
+                  () => void runSuggestBullet(e, 'key-numbers'),
                   !e.role.trim() && !e.company.trim()
                 )}
                 {aiButton(`exp-${e.id}`, 'AI rewrite bullets', () =>

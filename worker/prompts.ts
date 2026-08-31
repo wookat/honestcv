@@ -163,7 +163,8 @@ export function buildSuggestBulletMessages(
   role: string,
   company: string,
   existingBullets: string[],
-  resumeText: string
+  resumeText: string,
+  variant?: 'key-numbers'
 ): ChatMessage[] {
   const existing = existingBullets
     .filter((b) => b.trim())
@@ -176,7 +177,11 @@ export function buildSuggestBulletMessages(
 Draft exactly ONE work-experience bullet for the role described by the user, describing a typical, checkable achievement for that kind of role.
 Ground the bullet only in what the resume already shows; where a specific project, metric or scope is unknown, use bracketed placeholders such as [project name] or [add %] for the user to fill in — never invent specifics.
 Do not repeat or lightly rephrase any of the existing bullets; cover a different responsibility or outcome.
-Start with a strong action verb. Output the single bullet as one line of plain text ending with a period. No leading dash, no quotes, no commentary.`,
+Start with a strong action verb. Output the single bullet as one line of plain text ending with a period. No leading dash, no quotes, no commentary.${
+        variant === 'key-numbers'
+          ? '\nThis bullet must be a KEY-NUMBER bullet: lead with a measurable outcome (percentage, money, time saved, volume, team size). You do not know the real figures, so every number MUST be a bracketed placeholder such as [add %], [add $ amount] or [add number] for the user to fill in — never a concrete number.'
+          : ''
+      }`,
     },
     {
       role: 'user',
