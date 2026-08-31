@@ -48,11 +48,14 @@ function InlineText({
   value,
   fallback = '',
   onCommit,
+  onEnterNext,
 }: {
   value: string
   fallback?: string
   /** When set, the span is contentEditable and commits plain text edits */
   onCommit?: (next: string) => void
+  /** Called after an Enter-commit, e.g. to open a draft bullet below */
+  onEnterNext?: () => void
 }) {
   const shown = value || fallback
   if (!onCommit) return <>{shown}</>
@@ -73,6 +76,7 @@ function InlineText({
         if (e.key === 'Enter') {
           e.preventDefault()
           e.currentTarget.blur()
+          onEnterNext?.()
         } else if (e.key === 'Escape') {
           e.preventDefault()
           e.currentTarget.textContent = shown
@@ -93,6 +97,62 @@ function InlineText({
   )
 }
 
+
+/** Uncommitted bullet row: Enter/blur commits non-empty text, Escape or empty blur discards. */
+function DraftBullet({
+  accent,
+  onCommit,
+  onClose,
+}: {
+  accent: string
+  onCommit: (text: string) => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    ref.current?.focus()
+  }, [])
+  return (
+    <li className="flex gap-1.5 text-[11px]">
+      <span style={{ color: accent }}>•</span>
+      <span
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck={false}
+        role="textbox"
+        aria-label="New bullet"
+        className="min-w-[60px] cursor-text rounded-sm outline-none focus:bg-sky-100/70 focus:ring-1 focus:ring-sky-300"
+        onClick={(e) => e.stopPropagation()}
+        onPaste={(e) => {
+          e.preventDefault()
+          document.execCommand('insertText', false, e.clipboardData.getData('text/plain'))
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            const text = (e.currentTarget.textContent ?? '').replace(/\s+/g, ' ').trim()
+            if (text) {
+              onCommit(text)
+              e.currentTarget.textContent = ''
+            } else {
+              onClose()
+            }
+          } else if (e.key === 'Escape') {
+            e.preventDefault()
+            e.currentTarget.textContent = ''
+            onClose()
+          }
+        }}
+        onBlur={(e) => {
+          const text = (e.currentTarget.textContent ?? '').replace(/\s+/g, ' ').trim()
+          if (text) onCommit(text)
+          onClose()
+        }}
+      />
+    </li>
+  )
+}
 
 function ContactIcon({ kind }: { kind: ContactIconKind }) {
   return (
@@ -389,6 +449,7 @@ function SectionBlock({
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const ulIndent = bulletIndentOf(resume) ? { paddingLeft: 12 } : undefined
+  const [draft, setDraft] = useState<{ entryId: string; seq: number } | null>(null)
   if (sectionKey === 'summary')
     return resume.summary.trim() ? (
       <>
@@ -474,10 +535,33 @@ function SectionBlock({
                                     ),
                                   }))
                               }
+                              onEnterNext={
+                                onEdit &&
+                                (() =>
+                                  setDraft((d) => ({
+                                    entryId: e.id,
+                                    seq: (d?.seq ?? 0) + 1,
+                                  })))
+                              }
                             />
                           </span>
                         </li>
                       )
+                  )}
+                  {onEdit && draft?.entryId === e.id && (
+                    <DraftBullet
+                      key={draft.seq}
+                      accent={tpl.accent}
+                      onCommit={(text) =>
+                        onEdit({
+                          ...resume,
+                          experience: resume.experience.map((x) =>
+                            x.id === e.id ? { ...x, bullets: [...x.bullets, text] } : x
+                          ),
+                        })
+                      }
+                      onClose={() => setDraft(null)}
+                    />
                   )}
                 </ul>
               </div>
