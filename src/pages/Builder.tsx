@@ -176,6 +176,10 @@ import {
   saveReferenceToLibrary,
   deleteLibraryReference,
   type SavedReference,
+  listCertLibrary,
+  saveCertToLibrary,
+  deleteLibraryCert,
+  type SavedCertification,
   listSkillsLibrary,
   saveSkillsToLibrary,
   deleteLibrarySkills,
@@ -661,6 +665,9 @@ export default function Builder() {
   const [awardLibrary, setAwardLibrary] = useState<SavedAward[]>(() => listAwardLibrary())
   const [awardLibraryOpen, setAwardLibraryOpen] = useState(false)
   const [awardLibrarySavedId, setAwardLibrarySavedId] = useState<string | null>(null)
+  const [certLibrary, setCertLibrary] = useState<SavedCertification[]>(() => listCertLibrary())
+  const [certLibraryOpen, setCertLibraryOpen] = useState(false)
+  const [certLibrarySavedId, setCertLibrarySavedId] = useState<string | null>(null)
   const [refLibrary, setRefLibrary] = useState<SavedReference[]>(() => listReferenceLibrary())
   const [refLibraryOpen, setRefLibraryOpen] = useState(false)
   const [refLibrarySavedId, setRefLibrarySavedId] = useState<string | null>(null)
@@ -3815,7 +3822,7 @@ export default function Builder() {
             </div>
             <div className="space-y-2">
               <Label>Certifications (optional)</Label>
-              {(resume.certItems ?? []).map((c) => (
+              {(resume.certItems ?? []).map((c, cIdx) => (
                 <div key={c.id} className="space-y-2 rounded-md border p-3">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Input
@@ -3876,6 +3883,29 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      title="Save certification to library — reuse it in other resume copies"
+                      aria-label={`Save certification ${cIdx + 1} to library`}
+                      disabled={!c.name.trim() && !c.issuer.trim() && !c.description.trim()}
+                      onClick={() => {
+                        setCertLibrary(saveCertToLibrary(c))
+                        setCertLibrarySavedId(c.id)
+                        window.setTimeout(
+                          () => setCertLibrarySavedId((v) => (v === c.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {certLibrarySavedId === c.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
                       className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                       title="Delete certification"
                       aria-label="Delete certification"
@@ -3891,20 +3921,87 @@ export default function Builder() {
                   </div>
                 </div>
               ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-h-10 sm:min-h-8"
-                onClick={() =>
-                  setResume((r) => ({
-                    ...r,
-                    certItems: [...(r.certItems ?? []), emptyCertification()],
-                  }))
-                }
-              >
-                <Plus className="size-4" /> Add certification
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  onClick={() =>
+                    setResume((r) => ({
+                      ...r,
+                      certItems: [...(r.certItems ?? []), emptyCertification()],
+                    }))
+                  }
+                >
+                  <Plus className="size-4" /> Add certification
+                </Button>
+                {certLibrary.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    title="Insert a certification you saved from any resume copy"
+                    onClick={() => setCertLibraryOpen((v) => !v)}
+                  >
+                    <Bookmark className="size-4" /> From library ({certLibrary.length})
+                  </Button>
+                )}
+              </div>
+              {certLibraryOpen && certLibrary.length > 0 && (
+                <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                  <p className="text-muted-foreground text-xs font-medium">
+                    Saved certifications
+                  </p>
+                  {certLibrary.map((s) => (
+                    <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm">
+                          {[s.data.name, s.data.issuer]
+                            .filter((x) => x.trim())
+                            .join(' — ') || 'Untitled certification'}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          Saved {new Date(s.savedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-10 text-xs sm:h-7"
+                          onClick={() =>
+                            setResume((r) => ({
+                              ...r,
+                              certItems: [
+                                ...(r.certItems ?? []).filter(
+                                  (x) => x.name.trim() || x.issuer.trim() || x.description.trim()
+                                ),
+                                { ...s.data, id: newId() },
+                              ],
+                            }))
+                          }
+                        >
+                          Insert
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive h-10 sm:h-7"
+                          title="Remove from library"
+                          aria-label={`Remove saved certification ${[s.data.name, s.data.issuer].filter((x) => x.trim()).join(' — ') || 'Untitled certification'}`}
+                          onClick={() => setCertLibrary(deleteLibraryCert(s.id))}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="certs">Additional certifications (free text, optional)</Label>

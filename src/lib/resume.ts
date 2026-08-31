@@ -1536,6 +1536,70 @@ export function deleteLibraryReference(id: string): SavedReference[] {
   return items
 }
 
+/** A single polished certification entry saved for reuse across resume copies. */
+export interface SavedCertification {
+  id: string
+  savedAt: number
+  data: CertificationItem
+}
+
+const CERT_LIBRARY_KEY = 'honestcv.certLibrary'
+const CERT_LIBRARY_MAX = 30
+
+function sanitizeCertificationItem(input: unknown): CertificationItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: CertificationItem = {
+    id: asStr(v.id) || newId(),
+    name: asStr(v.name),
+    issuer: asStr(v.issuer),
+    date: asStr(v.date),
+    description: asStr(v.description),
+  }
+  return item.name.trim() || item.issuer.trim() || item.description.trim() ? item : null
+}
+
+export function listCertLibrary(): SavedCertification[] {
+  try {
+    const raw = localStorage.getItem(CERT_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedCertification[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeCertificationItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistCertLibrary(items: SavedCertification[]) {
+  try {
+    localStorage.setItem(CERT_LIBRARY_KEY, JSON.stringify(items.slice(0, CERT_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveCertToLibrary(entry: CertificationItem): SavedCertification[] {
+  const data = sanitizeCertificationItem(entry)
+  if (!data) return listCertLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listCertLibrary(),
+  ].slice(0, CERT_LIBRARY_MAX)
+  persistCertLibrary(items)
+  return items
+}
+
+export function deleteLibraryCert(id: string): SavedCertification[] {
+  const items = listCertLibrary().filter((s) => s.id !== id)
+  persistCertLibrary(items)
+  return items
+}
+
 /** A polished skills text block saved for reuse across resume copies. */
 export interface SavedSkills {
   id: string
