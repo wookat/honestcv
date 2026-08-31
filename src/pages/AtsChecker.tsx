@@ -12,7 +12,7 @@ import { ScoreRing } from '@/components/ScoreRing'
 import { scoreResumeText } from '@/lib/ats'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { parseResumeText } from '@/lib/importText'
-import { loadResume, saveResume } from '@/lib/resume'
+import { loadResume, saveResume, setActiveVersionId } from '@/lib/resume'
 
 const EXAMPLE_RESUME = `Jordan Reyes
 Software Engineer
@@ -115,6 +115,7 @@ export default function AtsChecker() {
     ) {
       const parsed = parseResumeText(resumeText)
       parsed.jobDescription = jd
+      setActiveVersionId(null)
       saveResume(parsed)
     } else if (existing) {
       existing.jobDescription = jd

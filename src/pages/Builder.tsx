@@ -11,6 +11,8 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Bookmark,
+  BookmarkPlus,
   ClipboardPaste,
   Download,
   FileText,
@@ -32,6 +34,7 @@ import {
   Lock,
   MessagesSquare,
   Plus,
+  Pencil,
   Sparkles,
   Target,
   Trash2,
@@ -114,7 +117,11 @@ import {
   type ExperienceItem,
   type Resume,
   type ResumeVersion,
+  aiTargetRole,
   deleteResumeVersion,
+  EXPERIENCE_LEVELS,
+  EXPERIENCE_LEVEL_LABELS,
+  duplicateResumeVersion,
   emptyAward,
   emptyCertification,
   emptyPublication,
@@ -130,11 +137,57 @@ import {
   emptyProject,
   emptyResume,
   exampleToResume,
+  FONT_SCALE,
+  LINE_SPACING,
+  SECTION_SPACING,
   loadResume,
   newId,
   orderedSectionKeys,
   listResumeVersions,
   listResumeHistory,
+  getActiveVersionId,
+  setActiveVersionId,
+  syncActiveVersion,
+  listExperienceLibrary,
+  saveExperienceToLibrary,
+  deleteLibraryExperience,
+  type SavedExperience,
+  listEducationLibrary,
+  saveEducationToLibrary,
+  deleteLibraryEducation,
+  type SavedEducation,
+  listProjectLibrary,
+  saveProjectToLibrary,
+  deleteLibraryProject,
+  type SavedProject,
+  listInvolvementLibrary,
+  saveInvolvementToLibrary,
+  deleteLibraryInvolvement,
+  type SavedInvolvement,
+  listCourseworkLibrary,
+  saveCourseworkToLibrary,
+  deleteLibraryCoursework,
+  type SavedCoursework,
+  listAwardLibrary,
+  saveAwardToLibrary,
+  deleteLibraryAward,
+  type SavedAward,
+  listReferenceLibrary,
+  saveReferenceToLibrary,
+  deleteLibraryReference,
+  type SavedReference,
+  listCertLibrary,
+  saveCertToLibrary,
+  deleteLibraryCert,
+  type SavedCertification,
+  listSkillsLibrary,
+  saveSkillsToLibrary,
+  deleteLibrarySkills,
+  type SavedSkills,
+  listSummaryLibrary,
+  saveSummaryToLibrary,
+  deleteLibrarySummary,
+  type SavedSummary,
   recordResumeSnapshot,
   type ResumeSnapshot,
   resumeToPlainText,
@@ -143,7 +196,11 @@ import {
   saveResume,
   type ExamplePerson,
   saveResumeVersion,
+  updateResumeVersion,
   sectionLabel,
+  skillLines,
+  sortEntriesByDate,
+  TEXT_INKS,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
@@ -164,6 +221,7 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     window.clearTimeout(t.current)
     t.current = window.setTimeout(() => {
       saveResume(resume)
+      syncActiveVersion(resume)
       recordResumeSnapshot(resume)
       pending.current = null
       setState('saved')
@@ -175,6 +233,7 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     const flush = () => {
       if (pending.current) {
         saveResume(pending.current)
+        syncActiveVersion(pending.current)
         recordResumeSnapshot(pending.current)
         pending.current = null
       }
@@ -214,18 +273,36 @@ function usePdfPageCount(resume: Resume): number | null {
 const FIT_COMBOS: Array<
   [NonNullable<Resume['fontScale']>, NonNullable<Resume['lineSpacing']>]
 > = [
+  ['xl', 'relaxed'],
   ['l', 'relaxed'],
-  ['l', 'normal'],
+  ['xl', 'normal'],
   ['m', 'relaxed'],
-  ['l', 'compact'],
-  ['m', 'normal'],
+  ['l', 'normal'],
+  ['xl', 'compact'],
   ['s', 'relaxed'],
-  ['m', 'compact'],
+  ['m', 'normal'],
+  ['l', 'compact'],
+  ['xs', 'relaxed'],
   ['s', 'normal'],
+  ['m', 'compact'],
+  ['xs', 'normal'],
   ['s', 'compact'],
+  ['xs', 'compact'],
 ]
 
-const SCALE_NAME = { s: 'small', m: 'medium', l: 'large' } as const
+const SCALE_NAME = {
+  xs: 'extra small',
+  s: 'small',
+  m: 'medium',
+  l: 'large',
+  xl: 'extra large',
+} as const
+
+const SCALE_STEPS = ['xs', 's', 'm', 'l', 'xl'] as const
+
+const SPACING_STEPS = ['xtight', 'compact', 'normal', 'relaxed', 'loose'] as const
+
+const SECTION_STEPS = ['xtight', 'tight', 'normal', 'roomy', 'xroomy'] as const
 
 /** Global undo: snapshots resume state (throttled) and restores on Ctrl/Cmd+Z */
 function useUndo(
@@ -492,6 +569,31 @@ export default function Builder() {
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [versionName, setVersionName] = useState('')
+  const [activeVersionId, setActiveVersionIdState] = useState<string | null>(() =>
+    getActiveVersionId()
+  )
+  const linkVersion = (id: string | null) => {
+    setActiveVersionId(id)
+    setActiveVersionIdState(id)
+  }
+  const activeVersion = activeVersionId
+    ? (versions.find((v) => v.id === activeVersionId) ?? null)
+    : null
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameText, setRenameText] = useState('')
+  const [renameFolder, setRenameFolder] = useState('')
+  const versionFolders = useMemo(() => {
+    const names = new Set<string>()
+    for (const v of versions) if (v.folder) names.add(v.folder)
+    return [...names].sort((a, b) => a.localeCompare(b))
+  }, [versions])
+  const commitRename = (v: ResumeVersion) => {
+    const name = renameText.trim() || v.name
+    const folder = renameFolder.trim() || undefined
+    if (name !== v.name || folder !== v.folder)
+      setVersions(updateResumeVersion(v.id, { name, folder }))
+    setRenamingId(null)
+  }
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
   const finalCheckFmt = useRef<'pdf' | 'docx' | 'txt' | 'md' | null>(null)
   const freeMode = useFreeMode()
@@ -505,7 +607,11 @@ export default function Builder() {
     setFitMsg('')
     try {
       const { countResumePdfPages } = await import('@/lib/pdf')
-      let best: { fontScale: 's' | 'm' | 'l'; lineSpacing: 'compact' | 'normal' | 'relaxed'; pages: number } | null = null
+      let best: {
+        fontScale: NonNullable<Resume['fontScale']>
+        lineSpacing: NonNullable<Resume['lineSpacing']>
+        pages: number
+      } | null = null
       for (const [fontScale, lineSpacing] of FIT_COMBOS) {
         const pages = await countResumePdfPages({ ...resume, fontScale, lineSpacing })
         if (!best || pages < best.pages) best = { fontScale, lineSpacing, pages }
@@ -541,6 +647,36 @@ export default function Builder() {
   }
   const { undo, canUndo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [expLibrary, setExpLibrary] = useState<SavedExperience[]>(() => listExperienceLibrary())
+  const [expLibraryOpen, setExpLibraryOpen] = useState(false)
+  const [expLibrarySavedId, setExpLibrarySavedId] = useState<string | null>(null)
+  const [eduLibrary, setEduLibrary] = useState<SavedEducation[]>(() => listEducationLibrary())
+  const [eduLibraryOpen, setEduLibraryOpen] = useState(false)
+  const [eduLibrarySavedId, setEduLibrarySavedId] = useState<string | null>(null)
+  const [projLibrary, setProjLibrary] = useState<SavedProject[]>(() => listProjectLibrary())
+  const [projLibraryOpen, setProjLibraryOpen] = useState(false)
+  const [projLibrarySavedId, setProjLibrarySavedId] = useState<string | null>(null)
+  const [invLibrary, setInvLibrary] = useState<SavedInvolvement[]>(() => listInvolvementLibrary())
+  const [invLibraryOpen, setInvLibraryOpen] = useState(false)
+  const [invLibrarySavedId, setInvLibrarySavedId] = useState<string | null>(null)
+  const [cwLibrary, setCwLibrary] = useState<SavedCoursework[]>(() => listCourseworkLibrary())
+  const [cwLibraryOpen, setCwLibraryOpen] = useState(false)
+  const [cwLibrarySavedId, setCwLibrarySavedId] = useState<string | null>(null)
+  const [awardLibrary, setAwardLibrary] = useState<SavedAward[]>(() => listAwardLibrary())
+  const [awardLibraryOpen, setAwardLibraryOpen] = useState(false)
+  const [awardLibrarySavedId, setAwardLibrarySavedId] = useState<string | null>(null)
+  const [certLibrary, setCertLibrary] = useState<SavedCertification[]>(() => listCertLibrary())
+  const [certLibraryOpen, setCertLibraryOpen] = useState(false)
+  const [certLibrarySavedId, setCertLibrarySavedId] = useState<string | null>(null)
+  const [refLibrary, setRefLibrary] = useState<SavedReference[]>(() => listReferenceLibrary())
+  const [refLibraryOpen, setRefLibraryOpen] = useState(false)
+  const [refLibrarySavedId, setRefLibrarySavedId] = useState<string | null>(null)
+  const [skillsLibrary, setSkillsLibrary] = useState<SavedSkills[]>(() => listSkillsLibrary())
+  const [skillsLibraryOpen, setSkillsLibraryOpen] = useState(false)
+  const [skillsLibrarySaved, setSkillsLibrarySaved] = useState(false)
+  const [summaryLibrary, setSummaryLibrary] = useState<SavedSummary[]>(() => listSummaryLibrary())
+  const [summaryLibraryOpen, setSummaryLibraryOpen] = useState(false)
+  const [summaryLibrarySaved, setSummaryLibrarySaved] = useState(false)
   // ?assistant=1 deep link from the workspace sidebar / mobile menu "AI assistant" entries
   const [assistantOpen, setAssistantOpen] = useState(
     () => new URLSearchParams(window.location.search).get('assistant') === '1'
@@ -580,6 +716,7 @@ export default function Builder() {
         )
       )
         return cur
+      linkVersion(null)
       return {
         ...exampleToResume(person),
         // Keep a template the user deliberately picked
@@ -667,7 +804,7 @@ export default function Builder() {
         kind,
         text,
         {
-          role: resume.targetRole,
+          role: aiTargetRole(resume),
           jobDescription: resume.jobDescription,
         },
         wantVariants
@@ -690,8 +827,8 @@ export default function Builder() {
     }
   }
 
-  const runSuggestBullet = async (e: ExperienceItem) => {
-    const tag = `exp-${e.id}-suggest`
+  const runSuggestBullet = async (e: ExperienceItem, variant?: 'key-numbers') => {
+    const tag = variant ? `exp-${e.id}-suggest-nums` : `exp-${e.id}-suggest`
     if (!e.role.trim() && !e.company.trim()) {
       setAiErrorTag(tag)
       setAiError('Add a job title or company first — the bullet is drafted for that role.')
@@ -706,6 +843,7 @@ export default function Builder() {
         company: e.company,
         bullets: e.bullets.filter((b) => b.trim()),
         resumeText: resumeToPlainText(resume),
+        variant,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
@@ -735,7 +873,7 @@ export default function Builder() {
     try {
       const { texts, freeRemaining } = await aiSummaryDraft({
         resumeText: resumeToPlainText({ ...resume, summary: '' }),
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setVariantPick({
@@ -766,7 +904,7 @@ export default function Builder() {
     try {
       const { skills, freeRemaining } = await aiSkillSuggest({
         skills: resume.skills,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
         jobDescription: resume.jobDescription,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
@@ -1044,7 +1182,7 @@ export default function Builder() {
       <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 pb-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:pb-6">
         <h1 className="sr-only">Resume builder</h1>
         {/* ---- Left: editor ---- */}
-        <div className={`space-y-4 ${mobilePane === 'edit' ? '' : 'hidden lg:block'}`}>
+        <div className={`min-w-0 space-y-4 ${mobilePane === 'edit' ? '' : 'hidden lg:block'}`}>
           {resume === null ||
             (!resume.contact.fullName && !resume.summary && (
               <div className="rounded-lg border border-dashed p-3 text-center text-sm">
@@ -1210,11 +1348,18 @@ export default function Builder() {
               title="Save and switch between copies tailored to different jobs"
               onClick={() => {
                 setVersions(listResumeVersions())
+                setActiveVersionIdState(getActiveVersionId())
                 setVersionName(resume.targetRole || '')
+                setRenamingId(null)
                 setVersionsOpen(true)
               }}
             >
-              <Copy className="size-3" /> Copies{versions.length > 0 ? ` (${versions.length})` : ''}
+              <Copy className="size-3" />{' '}
+              {activeVersion ? (
+                <span className="max-w-28 truncate">{activeVersion.name}</span>
+              ) : (
+                <>Copies{versions.length > 0 ? ` (${versions.length})` : ''}</>
+              )}
             </Button>
             <Button
               type="button"
@@ -1258,6 +1403,7 @@ export default function Builder() {
                       return
                     }
                     setRestoreError('')
+                    linkVersion(null)
                     setResume({ ...emptyResume(), ...parsed })
                   } catch {
                     setRestoreError('That file is not a RezUp backup.')
@@ -1326,10 +1472,39 @@ export default function Builder() {
                 <Label htmlFor="targetRole">Target role</Label>
                 <Input
                   id="targetRole"
+                  className="h-11 sm:h-9"
                   placeholder="e.g. Frontend Engineer"
                   value={resume.targetRole}
                   onChange={(e) => set('targetRole', e.target.value)}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="targetCompany">Company</Label>
+                <Input
+                  id="targetCompany"
+                  className="h-11 sm:h-9"
+                  placeholder="e.g. Acme Corp"
+                  value={resume.targetCompany ?? ''}
+                  onChange={(e) => set('targetCompany', e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="experienceLevel">Experience level</Label>
+                <select
+                  id="experienceLevel"
+                  className="h-11 w-full rounded-md border bg-transparent px-2 text-sm sm:h-9"
+                  value={resume.experienceLevel ?? ''}
+                  onChange={(e) =>
+                    set('experienceLevel', e.target.value as Resume['experienceLevel'])
+                  }
+                >
+                  <option value="">Auto</option>
+                  {EXPERIENCE_LEVELS.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {EXPERIENCE_LEVEL_LABELS[lvl]}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="space-y-1.5">
@@ -1411,7 +1586,7 @@ export default function Builder() {
               value={resume.summary}
               onChange={(e) => set('summary', e.target.value)}
             />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {resume.summary.trim()
                 ? aiButton('summary', 'AI polish summary', () =>
                     void runRewrite('summary', 'summary', resume.summary, (out) =>
@@ -1419,10 +1594,111 @@ export default function Builder() {
                     )
                   )
                 : aiButton('summary-draft', 'Draft from my resume', () => void runSummaryDraft())}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9"
+                title="Save summary to library — reuse it in other resume copies"
+                aria-label="Save summary to library"
+                disabled={!resume.summary.trim()}
+                onClick={() => {
+                  setSummaryLibrary(saveSummaryToLibrary(resume.summary))
+                  setSummaryLibrarySaved(true)
+                  window.setTimeout(() => setSummaryLibrarySaved(false), 1600)
+                }}
+              >
+                {summaryLibrarySaved ? (
+                  <Check className="size-3.5 text-green-600" />
+                ) : (
+                  <BookmarkPlus className="size-3.5" />
+                )}
+              </Button>
+              {summaryLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title="Insert a summary you saved from any resume copy"
+                  onClick={() => setSummaryLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({summaryLibrary.length})
+                </Button>
+              )}
             </div>
+            {summaryLibraryOpen && summaryLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved summaries</p>
+                {summaryLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {s.summary.split('\n').map((l) => l.trim()).filter(Boolean)[0] ??
+                          'Untitled summary'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            summary: r.summary.trim()
+                              ? `${r.summary.replace(/\s+$/, '')}\n${s.summary}`
+                              : s.summary,
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved summary ${s.summary.split('\n').map((l) => l.trim()).filter(Boolean)[0] ?? 'Untitled summary'}`}
+                        onClick={() => setSummaryLibrary(deleteLibrarySummary(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Experience" icon={<Briefcase className="size-4" />} anchor="experience">
+            {resume.experience.length > 1 && (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 text-xs sm:h-7"
+                  title="Reorder roles newest first — ongoing roles on top"
+                  onClick={() =>
+                    setResume((r) => ({
+                      ...r,
+                      experience: sortEntriesByDate(
+                        r.experience,
+                        (x) => x.startDate,
+                        (x) => x.endDate
+                      ),
+                    }))
+                  }
+                >
+                  <ArrowDown className="size-3.5" /> Sort by date
+                </Button>
+              </div>
+            )}
             {resume.experience.map((e, idx) => (
               <div
                 key={e.id}
@@ -1499,6 +1775,26 @@ export default function Builder() {
                       }
                     >
                       <Copy className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 sm:h-7"
+                      title="Save role to library — reuse it in other resume copies"
+                      aria-label={`Save role ${idx + 1} to library`}
+                      disabled={!e.role.trim() && !e.company.trim() && !e.bullets.some((b) => b.trim())}
+                      onClick={() => {
+                        setExpLibrary(saveExperienceToLibrary(e))
+                        setExpLibrarySavedId(e.id)
+                        window.setTimeout(() => setExpLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
+                      }}
+                    >
+                      {expLibrarySavedId === e.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
                     </Button>
                     <Button
                       type="button"
@@ -1597,6 +1893,12 @@ export default function Builder() {
                   () => void runSuggestBullet(e),
                   !e.role.trim() && !e.company.trim()
                 )}
+                {aiButton(
+                  `exp-${e.id}-suggest-nums`,
+                  '…with key numbers',
+                  () => void runSuggestBullet(e, 'key-numbers'),
+                  !e.role.trim() && !e.company.trim()
+                )}
                 {aiButton(`exp-${e.id}`, 'AI rewrite bullets', () =>
                   void runRewrite(
                     `exp-${e.id}`,
@@ -1613,19 +1915,108 @@ export default function Builder() {
                 )}
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setResume((r) => ({ ...r, experience: [...r.experience, emptyExperience()] }))
-              }
-            >
-              <Plus className="size-4" /> Add role
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setResume((r) => ({ ...r, experience: [...r.experience, emptyExperience()] }))
+                }
+              >
+                <Plus className="size-4" /> Add role
+              </Button>
+              {expLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title="Insert a role you saved from any resume copy"
+                  onClick={() => setExpLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({expLibrary.length})
+                </Button>
+              )}
+            </div>
+            {expLibraryOpen && expLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved roles</p>
+                {expLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.role, s.data.company].filter((x) => x.trim()).join(' — ') ||
+                          'Untitled role'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            experience: [
+                              ...r.experience.filter(
+                                (x) =>
+                                  x.role.trim() ||
+                                  x.company.trim() ||
+                                  x.bullets.some((b) => b.trim())
+                              ),
+                              { ...s.data, id: newId(), bullets: [...s.data.bullets] },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved role ${[s.data.role, s.data.company].filter((x) => x.trim()).join(' — ') || 'Untitled role'}`}
+                        onClick={() => setExpLibrary(deleteLibraryExperience(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Education" icon={<GraduationCap className="size-4" />} anchor="education">
+            {resume.education.length > 1 && (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 text-xs sm:h-7"
+                  title="Reorder education newest first — ongoing studies on top"
+                  onClick={() =>
+                    setResume((r) => ({
+                      ...r,
+                      education: sortEntriesByDate(
+                        r.education,
+                        (x) => x.startDate,
+                        (x) => x.endDate
+                      ),
+                    }))
+                  }
+                >
+                  <ArrowDown className="size-3.5" /> Sort by date
+                </Button>
+              </div>
+            )}
             {resume.education.map((e, idx) => (
               <div
                 key={e.id}
@@ -1798,6 +2189,26 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="h-9 shrink-0"
+                    title="Save education to library — reuse it in other resume copies"
+                    aria-label={`Save education ${idx + 1} to library`}
+                    disabled={!e.school.trim() && !e.degree.trim() && !e.details.trim()}
+                    onClick={() => {
+                      setEduLibrary(saveEducationToLibrary(e))
+                      setEduLibrarySavedId(e.id)
+                      window.setTimeout(() => setEduLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
+                    }}
+                  >
+                    {eduLibrarySavedId === e.id ? (
+                      <Check className="size-3.5 text-green-600" />
+                    ) : (
+                      <BookmarkPlus className="size-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive h-9 shrink-0"
                     title="Delete education"
                     aria-label={`Delete education ${idx + 1}`}
@@ -1813,16 +2224,79 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setResume((r) => ({ ...r, education: [...r.education, emptyEducation()] }))
-              }
-            >
-              <Plus className="size-4" /> Add education
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setResume((r) => ({ ...r, education: [...r.education, emptyEducation()] }))
+                }
+              >
+                <Plus className="size-4" /> Add education
+              </Button>
+              {eduLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title="Insert an education entry you saved from any resume copy"
+                  onClick={() => setEduLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({eduLibrary.length})
+                </Button>
+              )}
+            </div>
+            {eduLibraryOpen && eduLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved education</p>
+                {eduLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.degree, s.data.school].filter((x) => x.trim()).join(' — ') ||
+                          'Untitled education'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            education: [
+                              ...r.education.filter(
+                                (x) => x.school.trim() || x.degree.trim() || x.details.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved education ${[s.data.degree, s.data.school].filter((x) => x.trim()).join(' — ') || 'Untitled education'}`}
+                        onClick={() => setEduLibrary(deleteLibraryEducation(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Projects (optional)" icon={<FileText className="size-4" />} defaultOpen={false}>
@@ -1877,6 +2351,29 @@ export default function Builder() {
                       }
                     >
                       <Copy className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 sm:h-7"
+                      title="Save project to library — reuse it in other resume copies"
+                      aria-label={`Save project ${pIdx + 1} to library`}
+                      disabled={!p.name.trim() && !p.link.trim() && !p.description.trim()}
+                      onClick={() => {
+                        setProjLibrary(saveProjectToLibrary(p))
+                        setProjLibrarySavedId(p.id)
+                        window.setTimeout(
+                          () => setProjLibrarySavedId((v) => (v === p.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {projLibrarySavedId === p.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -1979,23 +2476,87 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setResume((r) => ({ ...r, projects: [...r.projects, emptyProject()] }))
-              }
-            >
-              <Plus className="size-4" /> Add project
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setResume((r) => ({ ...r, projects: [...r.projects, emptyProject()] }))
+                }
+              >
+                <Plus className="size-4" /> Add project
+              </Button>
+              {projLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title="Insert a project you saved from any resume copy"
+                  onClick={() => setProjLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({projLibrary.length})
+                </Button>
+              )}
+            </div>
+            {projLibraryOpen && projLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved projects</p>
+                {projLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {s.data.name.trim() ||
+                          s.data.description.split('\n').map((l) => l.trim()).filter(Boolean)[0] ||
+                          'Untitled project'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            projects: [
+                              ...r.projects.filter(
+                                (x) => x.name.trim() || x.link.trim() || x.description.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved project ${s.data.name.trim() || 'Untitled project'}`}
+                        onClick={() => setProjLibrary(deleteLibraryProject(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Involvement" icon={<Users className="size-4" />}>
             <p className="text-muted-foreground text-xs">
               Campus or community organizations — clubs, societies, volunteering.
             </p>
-            {(resume.involvement ?? []).map((inv) => (
+            {(resume.involvement ?? []).map((inv, invIdx) => (
               <div key={inv.id} className="space-y-2 rounded-lg border p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
@@ -2081,6 +2642,31 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title="Save involvement to library — reuse it in other resume copies"
+                    aria-label={`Save involvement ${invIdx + 1} to library`}
+                    disabled={
+                      !inv.role.trim() && !inv.organization.trim() && !inv.description.trim()
+                    }
+                    onClick={() => {
+                      setInvLibrary(saveInvolvementToLibrary(inv))
+                      setInvLibrarySavedId(inv.id)
+                      window.setTimeout(
+                        () => setInvLibrarySavedId((v) => (v === inv.id ? null : v)),
+                        1600
+                      )
+                    }}
+                  >
+                    {invLibrarySavedId === inv.id ? (
+                      <Check className="size-3.5 text-green-600" />
+                    ) : (
+                      <BookmarkPlus className="size-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                     title="Delete involvement"
                     aria-label="Delete involvement"
@@ -2096,27 +2682,93 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-10 sm:min-h-8"
-              onClick={() =>
-                setResume((r) => ({
-                  ...r,
-                  involvement: [...(r.involvement ?? []), emptyInvolvement()],
-                }))
-              }
-            >
-              <Plus className="size-4" /> Add involvement
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                onClick={() =>
+                  setResume((r) => ({
+                    ...r,
+                    involvement: [...(r.involvement ?? []), emptyInvolvement()],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Add involvement
+              </Button>
+              {invLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  title="Insert an involvement entry you saved from any resume copy"
+                  onClick={() => setInvLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({invLibrary.length})
+                </Button>
+              )}
+            </div>
+            {invLibraryOpen && invLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved involvement</p>
+                {invLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.role, s.data.organization]
+                          .filter((x) => x.trim())
+                          .join(' — ') || 'Untitled involvement'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            involvement: [
+                              ...(r.involvement ?? []).filter(
+                                (x) =>
+                                  x.role.trim() || x.organization.trim() || x.description.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved involvement ${[s.data.role, s.data.organization].filter((x) => x.trim()).join(' — ') || 'Untitled involvement'}`}
+                        onClick={() => setInvLibrary(deleteLibraryInvolvement(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Coursework" icon={<BookOpen className="size-4" />}>
             <p className="text-muted-foreground text-xs">
               Relevant courses — useful when you have little work experience.
             </p>
-            {(resume.coursework ?? []).map((cw) => (
+            {(resume.coursework ?? []).map((cw, cwIdx) => (
               <div key={cw.id} className="space-y-2 rounded-lg border p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
@@ -2188,6 +2840,31 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title="Save coursework to library — reuse it in other resume copies"
+                    aria-label={`Save coursework ${cwIdx + 1} to library`}
+                    disabled={
+                      !cw.name.trim() && !cw.institution.trim() && !cw.description.trim()
+                    }
+                    onClick={() => {
+                      setCwLibrary(saveCourseworkToLibrary(cw))
+                      setCwLibrarySavedId(cw.id)
+                      window.setTimeout(
+                        () => setCwLibrarySavedId((v) => (v === cw.id ? null : v)),
+                        1600
+                      )
+                    }}
+                  >
+                    {cwLibrarySavedId === cw.id ? (
+                      <Check className="size-3.5 text-green-600" />
+                    ) : (
+                      <BookmarkPlus className="size-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                     title="Delete coursework"
                     aria-label="Delete coursework"
@@ -2203,27 +2880,93 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-10 sm:min-h-8"
-              onClick={() =>
-                setResume((r) => ({
-                  ...r,
-                  coursework: [...(r.coursework ?? []), emptyCoursework()],
-                }))
-              }
-            >
-              <Plus className="size-4" /> Add coursework
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                onClick={() =>
+                  setResume((r) => ({
+                    ...r,
+                    coursework: [...(r.coursework ?? []), emptyCoursework()],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Add coursework
+              </Button>
+              {cwLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  title="Insert a coursework entry you saved from any resume copy"
+                  onClick={() => setCwLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({cwLibrary.length})
+                </Button>
+              )}
+            </div>
+            {cwLibraryOpen && cwLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved coursework</p>
+                {cwLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.name, s.data.institution]
+                          .filter((x) => x.trim())
+                          .join(' — ') || 'Untitled course'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            coursework: [
+                              ...(r.coursework ?? []).filter(
+                                (x) =>
+                                  x.name.trim() || x.institution.trim() || x.description.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved coursework ${[s.data.name, s.data.institution].filter((x) => x.trim()).join(' — ') || 'Untitled course'}`}
+                        onClick={() => setCwLibrary(deleteLibraryCoursework(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Awards & honors" icon={<Award className="size-4" />}>
             <p className="text-muted-foreground text-xs">
               Awards, honors and recognitions that back up your track record.
             </p>
-            {(resume.awards ?? []).map((a) => (
+            {(resume.awards ?? []).map((a, aIdx) => (
               <div key={a.id} className="space-y-2 rounded-lg border p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
@@ -2283,6 +3026,31 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title="Save award to library — reuse it in other resume copies"
+                    aria-label={`Save award ${aIdx + 1} to library`}
+                    disabled={
+                      !a.name.trim() && !a.organization.trim() && !a.description.trim()
+                    }
+                    onClick={() => {
+                      setAwardLibrary(saveAwardToLibrary(a))
+                      setAwardLibrarySavedId(a.id)
+                      window.setTimeout(
+                        () => setAwardLibrarySavedId((v) => (v === a.id ? null : v)),
+                        1600
+                      )
+                    }}
+                  >
+                    {awardLibrarySavedId === a.id ? (
+                      <Check className="size-3.5 text-green-600" />
+                    ) : (
+                      <BookmarkPlus className="size-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                     title="Delete award"
                     aria-label="Delete award"
@@ -2298,20 +3066,86 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-10 sm:min-h-8"
-              onClick={() =>
-                setResume((r) => ({
-                  ...r,
-                  awards: [...(r.awards ?? []), emptyAward()],
-                }))
-              }
-            >
-              <Plus className="size-4" /> Add award
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                onClick={() =>
+                  setResume((r) => ({
+                    ...r,
+                    awards: [...(r.awards ?? []), emptyAward()],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Add award
+              </Button>
+              {awardLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  title="Insert an award entry you saved from any resume copy"
+                  onClick={() => setAwardLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({awardLibrary.length})
+                </Button>
+              )}
+            </div>
+            {awardLibraryOpen && awardLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved awards</p>
+                {awardLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.name, s.data.organization]
+                          .filter((x) => x.trim())
+                          .join(' — ') || 'Untitled award'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            awards: [
+                              ...(r.awards ?? []).filter(
+                                (x) =>
+                                  x.name.trim() || x.organization.trim() || x.description.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved award ${[s.data.name, s.data.organization].filter((x) => x.trim()).join(' — ') || 'Untitled award'}`}
+                        onClick={() => setAwardLibrary(deleteLibraryAward(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Publications" icon={<BookText className="size-4" />}>
@@ -2413,7 +3247,7 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               People who can vouch for you — with their role and how to reach them.
             </p>
-            {(resume.references ?? []).map((ref) => (
+            {(resume.references ?? []).map((ref, refIdx) => (
               <div key={ref.id} className="space-y-2 rounded-lg border p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
@@ -2506,6 +3340,31 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title="Save reference to library — reuse it in other resume copies"
+                    aria-label={`Save reference ${refIdx + 1} to library`}
+                    disabled={
+                      !ref.name.trim() && !ref.employer.trim() && !ref.email.trim()
+                    }
+                    onClick={() => {
+                      setRefLibrary(saveReferenceToLibrary(ref))
+                      setRefLibrarySavedId(ref.id)
+                      window.setTimeout(
+                        () => setRefLibrarySavedId((v) => (v === ref.id ? null : v)),
+                        1600
+                      )
+                    }}
+                  >
+                    {refLibrarySavedId === ref.id ? (
+                      <Check className="size-3.5 text-green-600" />
+                    ) : (
+                      <BookmarkPlus className="size-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                     title="Delete reference"
                     aria-label="Delete reference"
@@ -2521,20 +3380,86 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-10 sm:min-h-8"
-              onClick={() =>
-                setResume((r) => ({
-                  ...r,
-                  references: [...(r.references ?? []), emptyReference()],
-                }))
-              }
-            >
-              <Plus className="size-4" /> Add reference
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                onClick={() =>
+                  setResume((r) => ({
+                    ...r,
+                    references: [...(r.references ?? []), emptyReference()],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Add reference
+              </Button>
+              {refLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  title="Insert a reference you saved from any resume copy"
+                  onClick={() => setRefLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({refLibrary.length})
+                </Button>
+              )}
+            </div>
+            {refLibraryOpen && refLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved references</p>
+                {refLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.name, s.data.employer]
+                          .filter((x) => x.trim())
+                          .join(' — ') || 'Untitled reference'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            references: [
+                              ...(r.references ?? []).filter(
+                                (x) =>
+                                  x.name.trim() || x.employer.trim() || x.email.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved reference ${[s.data.name, s.data.employer].filter((x) => x.trim()).join(' — ') || 'Untitled reference'}`}
+                        onClick={() => setRefLibrary(deleteLibraryReference(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Military service" icon={<Shield className="size-4" />}>
@@ -2761,6 +3686,14 @@ export default function Builder() {
                 value={resume.skills}
                 onChange={(e) => set('skills', e.target.value)}
               />
+              {resume.skills.split(/[,\n]/).filter((s) => s.trim()).length >= 8 &&
+                !skillLines(resume).some((l) => l.label) && (
+                  <p className="text-muted-foreground text-xs">
+                    Tip: recruiters scan long skill lists faster when they're grouped —
+                    put each category on its own line, e.g. “Languages: Python,
+                    TypeScript” then “Cloud: AWS, Terraform”.
+                  </p>
+                )}
               <div className="flex flex-wrap items-center gap-2">
                 {aiButton('skills', 'AI clean up skills', () =>
                   void runRewrite('skills', 'skills', resume.skills, (out) =>
@@ -2770,7 +3703,85 @@ export default function Builder() {
                 {aiButton('skill-suggest', 'AI suggest related skills', () =>
                   void runSkillSuggest()
                 )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9"
+                  title="Save skills to library — reuse them in other resume copies"
+                  aria-label="Save skills to library"
+                  disabled={!resume.skills.trim()}
+                  onClick={() => {
+                    setSkillsLibrary(saveSkillsToLibrary(resume.skills))
+                    setSkillsLibrarySaved(true)
+                    window.setTimeout(() => setSkillsLibrarySaved(false), 1600)
+                  }}
+                >
+                  {skillsLibrarySaved ? (
+                    <Check className="size-3.5 text-green-600" />
+                  ) : (
+                    <BookmarkPlus className="size-3.5" />
+                  )}
+                </Button>
+                {skillsLibrary.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    title="Insert a skills set you saved from any resume copy"
+                    onClick={() => setSkillsLibraryOpen((v) => !v)}
+                  >
+                    <Bookmark className="size-4" /> From library ({skillsLibrary.length})
+                  </Button>
+                )}
               </div>
+              {skillsLibraryOpen && skillsLibrary.length > 0 && (
+                <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                  <p className="text-muted-foreground text-xs font-medium">Saved skills</p>
+                  {skillsLibrary.map((s) => (
+                    <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm">
+                          {s.skills.split('\n').map((l) => l.trim()).filter(Boolean)[0] ??
+                            'Untitled skills'}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          Saved {new Date(s.savedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-10 text-xs sm:h-7"
+                          onClick={() =>
+                            setResume((r) => ({
+                              ...r,
+                              skills: r.skills.trim()
+                                ? `${r.skills.replace(/\s+$/, '')}\n${s.skills}`
+                                : s.skills,
+                            }))
+                          }
+                        >
+                          Insert
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive h-10 sm:h-7"
+                          title="Remove from library"
+                          aria-label={`Remove saved skills ${s.skills.split('\n').map((l) => l.trim()).filter(Boolean)[0] ?? 'Untitled skills'}`}
+                          onClick={() => setSkillsLibrary(deleteLibrarySkills(s.id))}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {(() => {
                 const have = new Set(
                   resume.skills.split(/[,\n]/).map((s) => s.trim().toLowerCase())
@@ -2811,7 +3822,7 @@ export default function Builder() {
             </div>
             <div className="space-y-2">
               <Label>Certifications (optional)</Label>
-              {(resume.certItems ?? []).map((c) => (
+              {(resume.certItems ?? []).map((c, cIdx) => (
                 <div key={c.id} className="space-y-2 rounded-md border p-3">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Input
@@ -2872,6 +3883,29 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      title="Save certification to library — reuse it in other resume copies"
+                      aria-label={`Save certification ${cIdx + 1} to library`}
+                      disabled={!c.name.trim() && !c.issuer.trim() && !c.description.trim()}
+                      onClick={() => {
+                        setCertLibrary(saveCertToLibrary(c))
+                        setCertLibrarySavedId(c.id)
+                        window.setTimeout(
+                          () => setCertLibrarySavedId((v) => (v === c.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {certLibrarySavedId === c.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
                       className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                       title="Delete certification"
                       aria-label="Delete certification"
@@ -2887,20 +3921,87 @@ export default function Builder() {
                   </div>
                 </div>
               ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-h-10 sm:min-h-8"
-                onClick={() =>
-                  setResume((r) => ({
-                    ...r,
-                    certItems: [...(r.certItems ?? []), emptyCertification()],
-                  }))
-                }
-              >
-                <Plus className="size-4" /> Add certification
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  onClick={() =>
+                    setResume((r) => ({
+                      ...r,
+                      certItems: [...(r.certItems ?? []), emptyCertification()],
+                    }))
+                  }
+                >
+                  <Plus className="size-4" /> Add certification
+                </Button>
+                {certLibrary.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    title="Insert a certification you saved from any resume copy"
+                    onClick={() => setCertLibraryOpen((v) => !v)}
+                  >
+                    <Bookmark className="size-4" /> From library ({certLibrary.length})
+                  </Button>
+                )}
+              </div>
+              {certLibraryOpen && certLibrary.length > 0 && (
+                <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                  <p className="text-muted-foreground text-xs font-medium">
+                    Saved certifications
+                  </p>
+                  {certLibrary.map((s) => (
+                    <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm">
+                          {[s.data.name, s.data.issuer]
+                            .filter((x) => x.trim())
+                            .join(' — ') || 'Untitled certification'}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          Saved {new Date(s.savedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-10 text-xs sm:h-7"
+                          onClick={() =>
+                            setResume((r) => ({
+                              ...r,
+                              certItems: [
+                                ...(r.certItems ?? []).filter(
+                                  (x) => x.name.trim() || x.issuer.trim() || x.description.trim()
+                                ),
+                                { ...s.data, id: newId() },
+                              ],
+                            }))
+                          }
+                        >
+                          Insert
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive h-10 sm:h-7"
+                          title="Remove from library"
+                          aria-label={`Remove saved certification ${[s.data.name, s.data.issuer].filter((x) => x.trim()).join(' — ') || 'Untitled certification'}`}
+                          onClick={() => setCertLibrary(deleteLibraryCert(s.id))}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="certs">Additional certifications (free text, optional)</Label>
@@ -3176,6 +4277,38 @@ export default function Builder() {
             </span>
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Text color</span>
+              {(
+                [
+                  ['default', 'Default — soft near-black body text'],
+                  ['black', 'Black — maximum-contrast print look'],
+                  ['navy', 'Navy — deep blue body text'],
+                ] as const
+              ).map(([value, hint]) => {
+                const active = (resume.textColor ?? 'default') === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    title={`${hint} — applies to preview, PDF and DOCX`}
+                    aria-label={`Text color ${value}`}
+                    aria-pressed={active}
+                    onClick={() => set('textColor', value)}
+                    className="-m-0.5 flex size-10 items-center justify-center rounded-full sm:size-8"
+                  >
+                    <span
+                      aria-hidden
+                      className={`block size-5 rounded-full border-2 transition ${
+                        active ? 'border-primary scale-110' : 'border-transparent hover:scale-110'
+                      }`}
+                      style={{ background: TEXT_INKS[value] }}
+                    />
+                  </button>
+                )
+              })}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
               {(['letter', 'a4'] as const).map((size) => (
                 <button
                   key={size}
@@ -3197,7 +4330,7 @@ export default function Builder() {
                 </button>
               ))}
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex flex-wrap items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Font</span>
               {(
@@ -3206,6 +4339,9 @@ export default function Builder() {
                   ['serif', 'Serif', 'Georgia / Times — traditional look'],
                   ['sans', 'Sans', 'Inter / Calibri — modern look'],
                   ['mono', 'Mono', 'Courier — typewriter look'],
+                  ['merriweather', 'Merri', 'Merriweather — classic resume serif'],
+                  ['sourcesans', 'Source', 'Source Sans — modern humanist sans'],
+                  ['robotomono', 'Roboto', 'Roboto Mono — clean monospace'],
                 ] as const
               ).map(([value, label, hint]) => (
                 <button
@@ -3227,75 +4363,113 @@ export default function Builder() {
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Text</span>
-              {(['s', 'm', 'l'] as const).map((scale) => (
-                <button
-                  key={scale}
-                  type="button"
-                  title={`Text size ${scale.toUpperCase()} — applies to preview, PDF and DOCX`}
-                  aria-label={`Text size ${scale === 's' ? 'small' : scale === 'l' ? 'large' : 'medium'}`}
-                  aria-pressed={(resume.fontScale ?? 'm') === scale}
-                  onClick={() => set('fontScale', scale)}
-                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
-                    (resume.fontScale ?? 'm') === scale
-                      ? 'border-primary ring-primary/40 ring-2'
-                      : 'hover:border-muted-foreground/40'
-                  }`}
-                >
-                  {scale.toUpperCase()}
-                </button>
-              ))}
+              <button
+                type="button"
+                aria-label="Decrease text size"
+                title="Smaller text — applies to preview, PDF and DOCX"
+                disabled={(resume.fontScale ?? 'm') === 'xs'}
+                onClick={() => {
+                  const i = SCALE_STEPS.indexOf(resume.fontScale ?? 'm')
+                  if (i > 0) set('fontScale', SCALE_STEPS[i - 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                A−
+              </button>
+              <span
+                title={`Text size: ${SCALE_NAME[resume.fontScale ?? 'm']}`}
+                aria-live="polite"
+                className="min-w-10 text-center text-[11px] font-medium tabular-nums"
+              >
+                {Math.round(FONT_SCALE[resume.fontScale ?? 'm'] * 100)}%
+              </span>
+              <button
+                type="button"
+                aria-label="Increase text size"
+                title="Larger text — applies to preview, PDF and DOCX"
+                disabled={(resume.fontScale ?? 'm') === 'xl'}
+                onClick={() => {
+                  const i = SCALE_STEPS.indexOf(resume.fontScale ?? 'm')
+                  if (i < SCALE_STEPS.length - 1) set('fontScale', SCALE_STEPS[i + 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                A+
+              </button>
             </span>
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Spacing</span>
-              {(
-                [
-                  ['compact', 'Compact'],
-                  ['normal', 'Normal'],
-                  ['relaxed', 'Relaxed'],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  title={`${label} line spacing — applies to preview, PDF and DOCX`}
-                  aria-pressed={(resume.lineSpacing ?? 'normal') === value}
-                  onClick={() => set('lineSpacing', value)}
-                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
-                    (resume.lineSpacing ?? 'normal') === value
-                      ? 'border-primary ring-primary/40 ring-2'
-                      : 'hover:border-muted-foreground/40'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              <button
+                type="button"
+                aria-label="Decrease line spacing"
+                title="Tighter lines — applies to preview, PDF and DOCX"
+                disabled={(resume.lineSpacing ?? 'normal') === 'xtight'}
+                onClick={() => {
+                  const i = SPACING_STEPS.indexOf(resume.lineSpacing ?? 'normal')
+                  if (i > 0) set('lineSpacing', SPACING_STEPS[i - 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                −
+              </button>
+              <span
+                title={`Line spacing: ${resume.lineSpacing ?? 'normal'}`}
+                aria-live="polite"
+                className="min-w-10 text-center text-[11px] font-medium tabular-nums"
+              >
+                {LINE_SPACING[resume.lineSpacing ?? 'normal'].toFixed(2)}
+              </span>
+              <button
+                type="button"
+                aria-label="Increase line spacing"
+                title="Looser lines — applies to preview, PDF and DOCX"
+                disabled={(resume.lineSpacing ?? 'normal') === 'loose'}
+                onClick={() => {
+                  const i = SPACING_STEPS.indexOf(resume.lineSpacing ?? 'normal')
+                  if (i < SPACING_STEPS.length - 1) set('lineSpacing', SPACING_STEPS[i + 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                +
+              </button>
             </span>
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Sections</span>
-              {(
-                [
-                  ['tight', 'Tight'],
-                  ['normal', 'Normal'],
-                  ['roomy', 'Roomy'],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  title={`${label} space between sections — applies to preview, PDF and DOCX`}
-                  aria-pressed={(resume.sectionSpacing ?? 'normal') === value}
-                  onClick={() => set('sectionSpacing', value)}
-                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
-                    (resume.sectionSpacing ?? 'normal') === value
-                      ? 'border-primary ring-primary/40 ring-2'
-                      : 'hover:border-muted-foreground/40'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              <button
+                type="button"
+                aria-label="Decrease section spacing"
+                title="Less space between sections — applies to preview, PDF and DOCX"
+                disabled={(resume.sectionSpacing ?? 'normal') === 'xtight'}
+                onClick={() => {
+                  const i = SECTION_STEPS.indexOf(resume.sectionSpacing ?? 'normal')
+                  if (i > 0) set('sectionSpacing', SECTION_STEPS[i - 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                −
+              </button>
+              <span
+                title={`Section spacing: ${resume.sectionSpacing ?? 'normal'}`}
+                aria-live="polite"
+                className="min-w-10 text-center text-[11px] font-medium tabular-nums"
+              >
+                {SECTION_SPACING[resume.sectionSpacing ?? 'normal'].toFixed(2)}
+              </span>
+              <button
+                type="button"
+                aria-label="Increase section spacing"
+                title="More space between sections — applies to preview, PDF and DOCX"
+                disabled={(resume.sectionSpacing ?? 'normal') === 'xroomy'}
+                onClick={() => {
+                  const i = SECTION_STEPS.indexOf(resume.sectionSpacing ?? 'normal')
+                  if (i < SECTION_STEPS.length - 1) set('sectionSpacing', SECTION_STEPS[i + 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                +
+              </button>
             </span>
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
@@ -3315,6 +4489,56 @@ export default function Builder() {
                   onClick={() => set('sectionDivider', value)}
                   className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
                     (resume.sectionDivider ?? 'auto') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Indent</span>
+              {(
+                [
+                  ['off', 'Off', 'Bullets flush with the section text'],
+                  ['on', 'On', 'Indent bullet lists'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — applies to preview, PDF and DOCX`}
+                  aria-pressed={(resume.bulletIndent ?? 'off') === value}
+                  onClick={() => set('bulletIndent', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.bulletIndent ?? 'off') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Icons</span>
+              {(
+                [
+                  ['off', 'Off', 'Contact line with text separators'],
+                  ['on', 'On', 'Small icons before each contact field'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — applies to preview and PDF (DOCX keeps text separators)`}
+                  aria-pressed={(resume.contactIcons ?? 'off') === value}
+                  onClick={() => set('contactIcons', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.contactIcons ?? 'off') === value
                       ? 'border-primary ring-primary/40 ring-2'
                       : 'hover:border-muted-foreground/40'
                   }`}
@@ -3625,7 +4849,9 @@ export default function Builder() {
       />
       <BundleToolDialog
         kind={toolOpen}
-        initialCompany={toolCompany}
+        initialCompany={
+          toolOpen === 'cover' ? toolCompany || (resume.targetCompany ?? '') : toolCompany
+        }
         onClose={() => setToolOpen(null)}
         resume={resume}
         onQuota={setFreeLeft}
@@ -3662,6 +4888,7 @@ export default function Builder() {
         resume={resume}
         jobDescription={resume.jobDescription}
         scoreSummary={atsScoreSummary(ats)}
+        ats={ats}
         onQuota={setFreeLeft}
         onPaymentRequired={(msg) => {
           if (!freeMode) requireUnlock(msg)
@@ -3730,7 +4957,15 @@ export default function Builder() {
         }}
       />
       <Dialog open={versionsOpen} onOpenChange={setVersionsOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent
+          className="sm:max-w-lg"
+          onEscapeKeyDown={(e) => {
+            if (renamingId) {
+              e.preventDefault()
+              setRenamingId(null)
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Resume copies</DialogTitle>
             <DialogDescription>
@@ -3751,9 +4986,12 @@ export default function Builder() {
               size="sm"
               className="shrink-0"
               onClick={() => {
-                setVersions(
-                  saveResumeVersion(versionName.trim() || 'Untitled copy', resume)
+                const next = saveResumeVersion(
+                  versionName.trim() || 'Untitled copy',
+                  resume
                 )
+                setVersions(next)
+                linkVersion(next[0]?.id ?? null)
                 setVersionName('')
               }}
             >
@@ -3769,32 +5007,103 @@ export default function Builder() {
                   key={v.id}
                   className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{v.name}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {new Date(v.updatedAt).toLocaleString()} · ATS{' '}
+                  <div className="min-w-0 flex-1">
+                    {renamingId === v.id ? (
+                      <div
+                        className="space-y-1.5"
+                        onBlur={(e) => {
+                          if (!e.currentTarget.contains(e.relatedTarget as Node))
+                            commitRename(v)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitRename(v)
+                        }}
+                      >
+                        <Input
+                          autoFocus
+                          value={renameText}
+                          onChange={(e) => setRenameText(e.target.value)}
+                          className="h-8"
+                          aria-label={`Rename ${v.name}`}
+                        />
+                        <Input
+                          value={renameFolder}
+                          onChange={(e) => setRenameFolder(e.target.value)}
+                          list="builder-version-folders"
+                          placeholder="Folder (optional)"
+                          className="h-8"
+                          aria-label={`Folder for ${v.name}`}
+                        />
+                        <datalist id="builder-version-folders">
+                          {versionFolders.map((f) => (
+                            <option key={f} value={f} />
+                          ))}
+                        </datalist>
+                      </div>
+                    ) : (
+                      <p className="truncate font-medium">
+                        {v.name}
+                        {v.id === activeVersionId && (
+                          <span className="text-primary ml-1.5 text-xs font-normal">
+                            · editing
+                          </span>
+                        )}
+                      </p>
+                    )}
+                    <p className="text-muted-foreground truncate text-xs">
+                      {new Date(v.updatedAt).toLocaleString()}
+                      {v.folder ? ` · ${v.folder}` : ''} · ATS{' '}
                       {scoreResume(v.data, v.data.jobDescription).score}/100
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 w-10 p-0 text-xs sm:h-7 sm:w-7"
+                      aria-label={`Rename copy ${v.name}`}
+                      onClick={() => {
+                        setRenameText(v.name)
+                        setRenameFolder(v.folder ?? '')
+                        setRenamingId(v.id)
+                      }}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 w-10 p-0 text-xs sm:h-7 sm:w-7"
+                      aria-label={`Duplicate copy ${v.name}`}
+                      onClick={() => setVersions(duplicateResumeVersion(v.id))}
+                    >
+                      <Copy className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
                       variant="outline"
                       size="sm"
                       className="h-10 text-xs sm:h-7"
+                      disabled={v.id === activeVersionId}
                       onClick={() => {
+                        linkVersion(v.id)
                         setResume({ ...emptyResume(), ...v.data })
                         setVersionsOpen(false)
                       }}
                     >
-                      Load
+                      Open
                     </Button>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="text-destructive h-10 text-xs sm:h-7"
-                      onClick={() => setVersions(deleteResumeVersion(v.id))}
+                      onClick={() => {
+                        setVersions(deleteResumeVersion(v.id))
+                        if (v.id === activeVersionId) linkVersion(null)
+                      }}
                     >
                       Delete
                     </Button>
@@ -3804,8 +5113,9 @@ export default function Builder() {
             </ul>
           )}
           <p className="text-muted-foreground text-xs">
-            Loading a copy replaces what's in the editor — save the current
-            resume as a copy first if you want to keep it.
+            {activeVersion
+              ? `Edits save to "${activeVersion.name}" automatically — open another copy to switch without losing work.`
+              : "Opening a copy replaces what's in the editor — save the current resume as a copy first if you want to keep it."}
           </p>
         </DialogContent>
       </Dialog>
@@ -4028,6 +5338,7 @@ export default function Builder() {
                   setImportError('')
                   fetchZalizePrimary()
                     .then((rp) => {
+                      linkVersion(null)
                       setResume(resumeFromProfile(rp))
                       setImportOpen(false)
                     })
@@ -4064,6 +5375,7 @@ export default function Builder() {
                 setImportError('')
                 fetchResumeProfile(shareId)
                   .then((rp) => {
+                    linkVersion(null)
                     setResume(resumeFromProfile(rp))
                     setImportOpen(false)
                     setRcInput('')
@@ -4088,6 +5400,7 @@ export default function Builder() {
           <Button
             onClick={() => {
               if (!importText.trim()) return
+              linkVersion(null)
               setResume(parseResumeText(importText))
               setImportOpen(false)
               setImportText('')
@@ -4278,11 +5591,16 @@ function BundleToolDialog({
   const [feedbackError, setFeedbackError] = useState('')
   const [suggested, setSuggested] = useState<string[]>([])
   const [suggestBusy, setSuggestBusy] = useState(false)
+  const [session, setSession] = useState<{
+    questions: string[]
+    idx: number
+    entries: { q: string; a: string; fb: string }[]
+  } | null>(null)
   const [lastKind, setLastKind] = useState(kind)
 
   if (kind !== lastKind) {
     setLastKind(kind)
-    if (kind !== null && initialCompany) setCompany(initialCompany)
+    if (kind !== null) setCompany(initialCompany)
     setResult('')
     setError('')
     setSavedId(null)
@@ -4291,6 +5609,52 @@ function BundleToolDialog({
     setFeedbackBusy(false)
     setSuggested([])
     setSuggestBusy(false)
+    setSession(null)
+    setQuestion('')
+    setAnswer('')
+  }
+
+  type PracticeSession = { questions: string[]; idx: number; entries: { q: string; a: string; fb: string }[] }
+
+  const sessionEntries = (s: PracticeSession) => {
+    const entries = [...s.entries]
+    if (answer.trim() || feedback) {
+      entries.push({ q: s.questions[s.idx], a: answer.trim(), fb: feedback })
+    }
+    return entries
+  }
+
+  const finishSession = (s: PracticeSession, entries: { q: string; a: string; fb: string }[]) => {
+    const role = aiTargetRole(resume) || 'your target job'
+    const transcript = entries
+      .map(
+        (e, i) =>
+          `Q${i + 1}. ${e.q}\n\nYour answer:\n${e.a || '[skipped]'}${e.fb ? `\n\nAI coaching:\n${e.fb}` : ''}`
+      )
+      .join('\n\n---\n\n')
+    setResult(
+      `Practice session — ${role}\n${entries.length} of ${s.questions.length} questions answered\n\n${transcript}`
+    )
+    setSavedId(null)
+    setSession(null)
+    setQuestion('')
+    setAnswer('')
+    setFeedback('')
+    setFeedbackError('')
+  }
+
+  const advanceSession = (s: PracticeSession) => {
+    const entries = sessionEntries(s)
+    if (s.idx + 1 >= s.questions.length) {
+      finishSession(s, entries)
+      return
+    }
+    const next = { ...s, idx: s.idx + 1, entries }
+    setSession(next)
+    setQuestion(next.questions[next.idx])
+    setAnswer('')
+    setFeedback('')
+    setFeedbackError('')
   }
 
   const suggestQuestions = async () => {
@@ -4304,7 +5668,7 @@ function BundleToolDialog({
       const { questions, freeRemaining } = await aiInterviewQuestions({
         resumeText: resumeToPlainText(resume),
         jobDescription: resume.jobDescription,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
       })
       setSuggested(questions)
       if (freeRemaining !== null) onQuota(freeRemaining)
@@ -4332,7 +5696,7 @@ function BundleToolDialog({
         answer,
         resumeText: resumeToPlainText(resume),
         jobDescription: resume.jobDescription,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
       })
       setFeedback(text)
       if (freeRemaining !== null) onQuota(freeRemaining)
@@ -4376,12 +5740,12 @@ function BundleToolDialog({
               resumeText,
               jobDescription: jd,
               company,
-              role: resume.targetRole,
+              role: aiTargetRole(resume),
             })
           : await aiInterviewBrief({
               resumeText,
               jobDescription: jd,
-              role: resume.targetRole,
+              role: aiTargetRole(resume),
             })
       setResult(text)
       setSavedId(null)
@@ -4608,7 +5972,15 @@ function BundleToolDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="practice-question">Interview question</Label>
-              {suggested.length > 0 && (
+              {session && (
+                <div className="bg-muted/50 space-y-1 rounded-md border px-3 py-2">
+                  <p className="text-muted-foreground text-xs">
+                    Question {session.idx + 1} of {session.questions.length}
+                  </p>
+                  <p className="text-sm">{session.questions[session.idx]}</p>
+                </div>
+              )}
+              {!session && suggested.length > 0 && (
                 <ul className="space-y-1">
                   {suggested.map((q) => (
                     <li key={q}>
@@ -4627,14 +5999,32 @@ function BundleToolDialog({
                   ))}
                 </ul>
               )}
-              <Input
-                id="practice-question"
-                placeholder="e.g. Tell me about a time you led a difficult project"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                maxLength={300}
-                className="min-h-10 sm:min-h-9"
-              />
+              {!session && suggested.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  onClick={() => {
+                    setSession({ questions: suggested, idx: 0, entries: [] })
+                    setQuestion(suggested[0])
+                    setAnswer('')
+                    setFeedback('')
+                    setFeedbackError('')
+                  }}
+                >
+                  <ListChecks /> Practice all {suggested.length}
+                </Button>
+              )}
+              {!session && (
+                <Input
+                  id="practice-question"
+                  placeholder="e.g. Tell me about a time you led a difficult project"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  maxLength={300}
+                  className="min-h-10 sm:min-h-9"
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="practice-answer">Your answer</Label>
@@ -4656,15 +6046,38 @@ function BundleToolDialog({
                 {feedbackBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
                 {feedbackBusy ? 'Coaching…' : 'Get AI feedback'}
               </Button>
-              <Button
-                onClick={() => void suggestQuestions()}
-                disabled={feedbackBusy || suggestBusy}
-                variant="outline"
-                className="min-h-10 sm:min-h-9"
-              >
-                {suggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                {suggestBusy ? 'Thinking…' : 'Suggest questions'}
-              </Button>
+              {!session && (
+                <Button
+                  onClick={() => void suggestQuestions()}
+                  disabled={feedbackBusy || suggestBusy}
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                >
+                  {suggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {suggestBusy ? 'Thinking…' : 'Suggest questions'}
+                </Button>
+              )}
+              {session && (
+                <>
+                  <Button
+                    onClick={() => advanceSession(session)}
+                    disabled={feedbackBusy}
+                    className="min-h-10 sm:min-h-9"
+                  >
+                    {session.idx + 1 >= session.questions.length
+                      ? 'Finish session'
+                      : 'Next question'}
+                  </Button>
+                  <Button
+                    onClick={() => finishSession(session, sessionEntries(session))}
+                    disabled={feedbackBusy}
+                    variant="outline"
+                    className="min-h-10 sm:min-h-9"
+                  >
+                    End early
+                  </Button>
+                </>
+              )}
             </div>
             {feedbackBusy && (
               <p className="text-muted-foreground text-xs" role="status">
@@ -4742,7 +6155,7 @@ function TailorDialog({
       const { suggestions, freeRemaining } = await aiTailor({
         items,
         jobDescription: resume.jobDescription,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
       const byId = new Map(items.map((i) => [i.id, i.text]))
@@ -5121,7 +6534,7 @@ function KeywordBulletDialog({
         keyword,
         resumeText: resumeToPlainText(resume),
         jobDescription: resume.jobDescription,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
       setText(drafted)

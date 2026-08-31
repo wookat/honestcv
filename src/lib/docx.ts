@@ -45,11 +45,22 @@ import {
   projectDates,
   projectHeadingLine,
   sectionSpacingOf,
+  skillLines,
+  bulletIndentOf,
   familyOf,
+  TEXT_INKS,
+  textInkOf,
 } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
-const FONT_BY_KIND = { serif: 'Georgia', sans: 'Calibri', mono: 'Courier New' } as const
+const FONT_BY_KIND = {
+  serif: 'Georgia',
+  sans: 'Calibri',
+  mono: 'Courier New',
+  merriweather: 'Merriweather',
+  sourcesans: 'Source Sans 3',
+  robotomono: 'Roboto Mono',
+} as const
 // Page width in twips minus the 864-twip left/right margins
 const PAGE_TWIPS = {
   letter: { width: 12240, height: 15840 },
@@ -67,7 +78,9 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   // docx line spacing: 240 twips = single; scale by the user's line-spacing setting
   const lineTwips = Math.round(240 * (lineSpacingOf(resume) / 1.35))
   const divider = dividerOf(resume, tpl.divider)
+  const ink = textInkOf(resume)
   const headingBefore = Math.round(240 * sectionSpacingOf(resume))
+  const bulletInd = bulletIndentOf(resume) ? { left: 920, hanging: 360 } : undefined
   const heading = (text: string) =>
     new Paragraph({
       spacing: { before: headingBefore, after: 80 },
@@ -109,6 +122,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       spacing: { after: opts.after ?? 60, line: lineTwips, lineRule: LineRuleType.AUTO },
       keepNext: opts.keepNext,
       bullet: opts.bullet ? { level: 0 } : undefined,
+      indent: opts.bullet ? bulletInd : undefined,
       children: [
         new TextRun({
           text,
@@ -302,7 +316,24 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         for (const b of courseworkBullets(cw)) children.push(body(b, { bullet: true }))
       }
     } else if (key === 'skills' && resume.skills.trim()) {
-      children.push(heading('Skills'), body(resume.skills.trim(), { after: 100 }))
+      children.push(heading('Skills'))
+      const lines = skillLines(resume)
+      lines.forEach((line, i) => {
+        const after = i === lines.length - 1 ? 100 : 60
+        if (!line.label) {
+          children.push(body(line.text, { after }))
+          return
+        }
+        children.push(
+          new Paragraph({
+            spacing: { after, line: lineTwips, lineRule: LineRuleType.AUTO },
+            children: [
+              new TextRun({ text: `${line.label}: `, bold: true, size: sz(21), font }),
+              new TextRun({ text: line.text, size: sz(21), font }),
+            ],
+          })
+        )
+      })
     } else if (
       key === 'certifications' &&
       (certEntries(resume).length > 0 || resume.certifications.trim())
@@ -459,6 +490,10 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   }
 
   const doc = new Document({
+    styles:
+      ink === TEXT_INKS.default
+        ? undefined
+        : { default: { document: { run: { color: ink.replace('#', '') } } } },
     sections: [
       {
         properties: {

@@ -4,6 +4,7 @@
  */
 
 import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
 import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
@@ -39,8 +40,14 @@ import {
   projectDates,
   projectHeadingLine,
   sectionSpacingOf,
+  skillLines,
+  bulletIndentOf,
+  contactIconsOf,
   familyOf,
+  textInkOf,
+  type FontFamilyKind,
 } from '@/lib/resume'
+import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_SIZES = {
@@ -60,13 +67,26 @@ interface Fonts {
   italic: PDFFont
 }
 
+/**
+ * Width of text as pdf-lib actually draws it. `widthOfTextAtSize` applies AFM
+ * kern pairs for standard fonts while `drawText` emits un-kerned advances, so
+ * wide lines render several points wider than measured; the per-character sum
+ * matches the drawn advances for standard fonts, and embedded fonts measure
+ * whole-string exactly, so the max of the two is correct for both.
+ */
+function drawnWidth(font: PDFFont, text: string, size: number): number {
+  let sum = 0
+  for (const ch of text) sum += font.widthOfTextAtSize(ch, size)
+  return Math.max(sum, font.widthOfTextAtSize(text, size))
+}
+
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const words = text.split(/\s+/).filter(Boolean)
   const lines: string[] = []
   let line = ''
   for (const word of words) {
     const candidate = line ? `${line} ${word}` : word
-    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+    if (drawnWidth(font, candidate, size) <= maxWidth) {
       line = candidate
     } else {
       if (line) lines.push(line)
@@ -97,6 +117,8 @@ class PdfWriter {
   ss = 1
   /** Section divider rule (user override applied over the template) */
   divider: 'line' | 'thick' | 'none' = 'line'
+  /** Extra left indent (pt) applied to bullet lists */
+  bi = 0
 
   constructor(doc: PDFDocument, fonts: Fonts, tpl: TemplateMeta, size: 'letter' | 'a4') {
     this.doc = doc
@@ -137,7 +159,7 @@ class PdfWriter {
     const lineHeight = size * this.lh + (opts.lineGap ?? 0)
     for (const line of wrapText(text, font, size, maxWidth)) {
       this.ensure(lineHeight)
-      const width = font.widthOfTextAtSize(line, size)
+      const width = drawnWidth(font, line, size)
       const x = opts.center ? (this.pageW - width) / 2 : MARGIN + indent
       this.y -= lineHeight
       this.page.drawText(line, {
@@ -150,6 +172,33 @@ class PdfWriter {
     }
   }
 
+  /** Line with a bold "Label:" prefix; the rest wraps at the left margin. */
+  labelledLine(label: string, rest: string, opts: { size?: number } = {}) {
+    const size = (opts.size ?? 10) * this.fs
+    const prefix = `${label}: `
+    const prefixW = drawnWidth(this.fonts.bold, prefix, size)
+    const lineHeight = size * this.lh
+    const restLines = wrapText(rest, this.fonts.regular, size, this.contentW - prefixW)
+    this.ensure(lineHeight)
+    this.y -= lineHeight
+    this.page.drawText(prefix, {
+      x: MARGIN,
+      y: this.y,
+      size,
+      font: this.fonts.bold,
+      color: this.ink,
+    })
+    this.page.drawText(restLines[0], {
+      x: MARGIN + prefixW,
+      y: this.y,
+      size,
+      font: this.fonts.regular,
+      color: this.ink,
+    })
+    if (restLines.length > 1)
+      this.text(restLines.slice(1).join(' '), { size: size / this.fs })
+  }
+
   gap(h: number) {
     this.y -= h
   }
@@ -159,9 +208,9 @@ class PdfWriter {
   titleLine(left: string, right: string, opts: { size?: number } = {}) {
     const size = (opts.size ?? 10.5) * this.fs
     const dateSize = 9 * this.fs
-    const rightWidth = right ? this.fonts.italic.widthOfTextAtSize(right, dateSize) : 0
+    const rightWidth = right ? drawnWidth(this.fonts.italic, right, dateSize) : 0
     const leftMax = this.contentW - (right ? rightWidth + 12 : 0)
-    if (!right || this.fonts.bold.widthOfTextAtSize(left, size) > leftMax) {
+    if (!right || drawnWidth(this.fonts.bold, left, size) > leftMax) {
       this.text(left, { font: this.fonts.bold, size: size / this.fs })
       if (right) {
         this.gap(1)
@@ -189,17 +238,31 @@ class PdfWriter {
   }
 
   /** One line of segments where some are clickable links; falls back to plain
-   *  wrapped text when the line is too wide for link geometry. */
+   *  wrapped text when the line is too wide for link geometry. With `icons`,
+   *  each segment is prefixed by a small stroke icon instead of separators. */
   linkLine(
-    segments: { text: string; url?: string }[],
-    opts: { size?: number; color?: ReturnType<typeof rgb>; center?: boolean } = {}
+    segments: { text: string; url?: string; icon?: ContactIconKind }[],
+    opts: {
+      size?: number
+      color?: ReturnType<typeof rgb>
+      center?: boolean
+      icons?: boolean
+    } = {}
   ) {
     const font = this.fonts.regular
     const size = (opts.size ?? 9) * this.fs
     const sep = '  |  '
-    const full = segments.map((s) => s.text).join(sep)
-    const totalWidth = font.widthOfTextAtSize(full, size)
+    const useIcons = opts.icons === true
+    const iconSize = size * 0.82
+    const iconGap = size * 0.28
+    const segGap = size * 0.9
+    const segW = (s: { text: string; icon?: ContactIconKind }) =>
+      (useIcons && s.icon ? iconSize + iconGap : 0) + drawnWidth(font, s.text, size)
+    const totalWidth = useIcons
+      ? segments.reduce((a, s) => a + segW(s), 0) + segGap * (segments.length - 1)
+      : drawnWidth(font, segments.map((s) => s.text).join(sep), size)
     if (totalWidth > this.contentW) {
+      const full = segments.map((s) => s.text).join(sep)
       this.text(full, { size: size / this.fs, color: opts.color, center: opts.center })
       return
     }
@@ -208,7 +271,17 @@ class PdfWriter {
     this.y -= lineHeight
     let x = opts.center ? (this.pageW - totalWidth) / 2 : MARGIN
     segments.forEach((s, i) => {
-      const withSep = i < segments.length - 1 ? s.text + sep : s.text
+      const segStart = x
+      if (useIcons && s.icon) {
+        this.page.drawSvgPath(CONTACT_ICON_PATHS[s.icon], {
+          x,
+          y: this.y + size * 0.75,
+          scale: iconSize / 24,
+          borderColor: opts.color ?? this.ink,
+          borderWidth: 0.75,
+        })
+        x += iconSize + iconGap
+      }
       this.page.drawText(s.text, {
         x,
         y: this.y,
@@ -216,20 +289,22 @@ class PdfWriter {
         font,
         color: opts.color ?? this.ink,
       })
+      const textW = drawnWidth(font, s.text, size)
       if (s.url) {
-        const w = font.widthOfTextAtSize(s.text, size)
         const annot = this.doc.context.register(
           this.doc.context.obj({
             Type: 'Annot',
             Subtype: 'Link',
-            Rect: [x, this.y - 2, x + w, this.y + size + 2],
+            Rect: [segStart, this.y - 2, x + textW, this.y + size + 2],
             Border: [0, 0, 0],
             A: { Type: 'Action', S: 'URI', URI: PDFString.of(s.url) },
           })
         )
         this.page.node.addAnnot(annot)
       }
-      x += font.widthOfTextAtSize(withSep, size)
+      x += textW
+      if (i < segments.length - 1)
+        x += useIcons ? segGap : drawnWidth(font, sep, size)
     })
   }
 
@@ -281,7 +356,7 @@ class PdfWriter {
   bullet(text: string) {
     const size = 10 * this.fs
     const font = this.fonts.regular
-    const indent = 14
+    const indent = 14 + this.bi
     const lines = wrapText(text, font, size, this.contentW - indent)
     const lineHeight = size * this.lh
     lines.forEach((line, i) => {
@@ -289,7 +364,7 @@ class PdfWriter {
       this.y -= lineHeight
       if (i === 0) {
         this.page.drawText('•', {
-          x: MARGIN + 2,
+          x: MARGIN + 2 + this.bi,
           y: this.y,
           size,
           font,
@@ -320,8 +395,50 @@ const STANDARD_FONTS_BY_KIND = {
   },
 } as const
 
+const WEB_FONT_FILES = {
+  merriweather: {
+    regular: '/fonts/merriweather-regular.ttf',
+    bold: '/fonts/merriweather-bold.ttf',
+    italic: '/fonts/merriweather-italic.ttf',
+  },
+  sourcesans: {
+    regular: '/fonts/sourcesans3-regular.ttf',
+    bold: '/fonts/sourcesans3-bold.ttf',
+    italic: '/fonts/sourcesans3-italic.ttf',
+  },
+  robotomono: {
+    regular: '/fonts/robotomono-regular.ttf',
+    bold: '/fonts/robotomono-bold.ttf',
+    italic: '/fonts/robotomono-italic.ttf',
+  },
+} as const
+
+const isWebFamily = (f: FontFamilyKind): f is keyof typeof WEB_FONT_FILES =>
+  f === 'merriweather' || f === 'sourcesans' || f === 'robotomono'
+
+async function fetchFontBytes(url: string): Promise<ArrayBuffer> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Failed to load font ${url}: ${res.status}`)
+  return res.arrayBuffer()
+}
+
 async function embedFontsFor(doc: PDFDocument, resume: Resume, tplSerif: boolean): Promise<Fonts> {
-  const kind = STANDARD_FONTS_BY_KIND[familyOf(resume, tplSerif)]
+  const family = familyOf(resume, tplSerif)
+  if (isWebFamily(family)) {
+    doc.registerFontkit(fontkit)
+    const files = WEB_FONT_FILES[family]
+    const [regular, bold, italic] = await Promise.all([
+      fetchFontBytes(files.regular),
+      fetchFontBytes(files.bold),
+      fetchFontBytes(files.italic),
+    ])
+    return {
+      regular: await doc.embedFont(regular, { subset: true }),
+      bold: await doc.embedFont(bold, { subset: true }),
+      italic: await doc.embedFont(italic, { subset: true }),
+    }
+  }
+  const kind = STANDARD_FONTS_BY_KIND[family]
   return {
     regular: await doc.embedFont(kind.regular),
     bold: await doc.embedFont(kind.bold),
@@ -334,9 +451,11 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
   const doc = await PDFDocument.create()
   const fonts: Fonts = await embedFontsFor(doc, resume, tpl.serif)
   const w = new PdfWriter(doc, fonts, tpl, resume.pageSize === 'a4' ? 'a4' : 'letter')
+  w.ink = hexToRgb(textInkOf(resume))
   w.fs = fontScaleOf(resume)
   w.lh = lineSpacingOf(resume)
   w.ss = sectionSpacingOf(resume)
+  w.bi = bulletIndentOf(resume) ? 9 : 0
   w.divider = dividerOf(resume, tpl.divider)
   const c = resume.contact
 
@@ -351,16 +470,23 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
     w.text(c.title, { size: 12, color: w.accent, center: centerHeader })
   }
   const httpUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
-  const contactSegments = [
-    c.email ? { text: c.email, url: `mailto:${c.email}` } : null,
-    c.phone ? { text: c.phone } : null,
-    c.location ? { text: c.location } : null,
-    c.website ? { text: c.website, url: httpUrl(c.website) } : null,
-    c.linkedin ? { text: c.linkedin, url: httpUrl(c.linkedin) } : null,
-  ].filter((s): s is { text: string; url?: string } => s !== null)
+  type ContactSegment = { text: string; url?: string; icon: ContactIconKind }
+  const rawSegments: (ContactSegment | null)[] = [
+    c.email ? { text: c.email, url: `mailto:${c.email}`, icon: 'mail' } : null,
+    c.phone ? { text: c.phone, icon: 'phone' } : null,
+    c.location ? { text: c.location, icon: 'pin' } : null,
+    c.website ? { text: c.website, url: httpUrl(c.website), icon: 'globe' } : null,
+    c.linkedin ? { text: c.linkedin, url: httpUrl(c.linkedin), icon: 'linkedin' } : null,
+  ]
+  const contactSegments = rawSegments.filter((s): s is ContactSegment => s !== null)
   if (contactSegments.length > 0) {
     w.gap(2)
-    w.linkLine(contactSegments, { size: 9, color: w.soft, center: centerHeader })
+    w.linkLine(contactSegments, {
+      size: 9,
+      color: w.soft,
+      center: centerHeader,
+      icons: contactIconsOf(resume),
+    })
   }
   w.gap(6)
 
@@ -430,7 +556,10 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
       }
     } else if (key === 'skills' && resume.skills.trim()) {
       w.heading('Skills')
-      w.text(resume.skills.trim(), { size: 10 })
+      for (const line of skillLines(resume)) {
+        if (line.label) w.labelledLine(line.label, line.text, { size: 10 })
+        else w.text(line.text, { size: 10 })
+      }
     } else if (
       key === 'certifications' &&
       (certEntries(resume).length > 0 || resume.certifications.trim())

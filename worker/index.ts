@@ -693,7 +693,7 @@ app.post('/api/ai/keyword-bullet', async (c) => {
 // free AI quota.
 app.post('/api/ai/suggest-bullet', async (c) => {
   const body = await c.req
-    .json<{ role?: string; company?: string; bullets?: string[]; resumeText?: string }>()
+    .json<{ role?: string; company?: string; bullets?: string[]; resumeText?: string; variant?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const role = body.role?.trim() ?? ''
   const company = body.company?.trim() ?? ''
@@ -707,6 +707,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
     ? body.bullets.filter((b): b is string => typeof b === 'string').slice(0, 12)
     : []
   const resumeText = body.resumeText?.trim() ?? ''
+  const variant = body.variant === 'key-numbers' ? 'key-numbers' : undefined
 
   const ent = await entitlementFromRequest(c)
   let freeRemaining: number | null = null
@@ -726,7 +727,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
 
   const result = await callLlm(
     c.env,
-    buildSuggestBulletMessages(role, company, bullets, resumeText),
+    buildSuggestBulletMessages(role, company, bullets, resumeText, variant),
     0.6,
     400
   )

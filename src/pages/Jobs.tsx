@@ -33,7 +33,8 @@ import {
   searchJobs,
   upsertPipeline,
 } from '@/lib/jobs'
-import { emptyResume, loadResume, saveResume } from '@/lib/resume'
+import { matchScore } from '@/lib/ats'
+import { emptyResume, loadResume, resumeToPlainText, saveResume, syncActiveVersion } from '@/lib/resume'
 
 type Tab = 'all' | JobStatus
 
@@ -61,7 +62,7 @@ export default function Jobs() {
   const [query, setQuery] = useState(() => loadResume()?.targetRole ?? '')
   const [category, setCategory] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
-  const [sort, setSort] = useState<'relevance' | 'newest'>('relevance')
+  const [sort, setSort] = useState<'relevance' | 'newest' | 'match'>('relevance')
   const [excluded, setExcluded] = useState<ReadonlySet<JobStatus>>(new Set())
   const [jobs, setJobs] = useState<JobListing[]>([])
   const [loading, setLoading] = useState(true)
@@ -105,6 +106,22 @@ export default function Jobs() {
     return map
   }, [pipeline])
 
+  const resumeText = useMemo(() => {
+    const draft = loadResume()
+    return draft ? resumeToPlainText(draft) : ''
+  }, [])
+
+  const matchOf = useMemo(() => {
+    const map = new Map<string, number>()
+    if (!resumeText.trim()) return map
+    for (const j of [...jobs, ...pipeline.map((e) => e.job)]) {
+      if (map.has(j.id)) continue
+      const m = matchScore(resumeText, j.description)
+      if (m !== null) map.set(j.id, m)
+    }
+    return map
+  }, [resumeText, jobs, pipeline])
+
   const loc = locationFilter.trim().toLowerCase()
   const base: JobListing[] =
     tab === 'all' ? jobs : pipeline.filter((e) => e.status === tab).map((e) => e.job)
@@ -124,7 +141,13 @@ export default function Jobs() {
       ? [...filtered].sort(
           (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
         )
-      : filtered
+      : tab === 'all' && sort === 'match'
+        ? [...filtered].sort(
+            (a, b) =>
+              (matchOf.get(b.id) ?? -1) - (matchOf.get(a.id) ?? -1) ||
+              new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
+          )
+        : filtered
   const selected =
     shown.find((j) => j.id === selectedId) ??
     jobs.find((j) => j.id === selectedId) ??
@@ -143,7 +166,14 @@ export default function Jobs() {
 
   const targetResume = (job: JobListing, intent: 'target' | 'cover') => {
     const draft = loadResume() ?? emptyResume()
-    saveResume({ ...draft, targetRole: job.title, jobDescription: job.description })
+    const next = {
+      ...draft,
+      targetRole: job.title,
+      targetCompany: job.company,
+      jobDescription: job.description,
+    }
+    saveResume(next)
+    syncActiveVersion(next)
     void navigate(
       intent === 'cover'
         ? `/builder?doc=cover&company=${encodeURIComponent(job.company)}`
@@ -255,6 +285,7 @@ export default function Jobs() {
             >
               <option value="relevance">Relevance</option>
               <option value="newest">Newest</option>
+              {matchOf.size > 0 && <option value="match">Best match</option>}
             </select>
           </form>
         )}
@@ -344,12 +375,17 @@ export default function Jobs() {
                                 }}
                               />
                             )}
-                            <span className="min-w-0">
+                            <span className="min-w-0 flex-1">
                               <p className="truncate text-sm font-medium">{j.title}</p>
                               <p className="text-muted-foreground truncate text-xs">
                                 {j.company} · {j.location}
                               </p>
                             </span>
+                            {matchOf.has(j.id) && (
+                              <span className="bg-primary/10 text-primary mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-medium">
+                                {matchOf.get(j.id)}% match
+                              </span>
+                            )}
                           </span>
                           <p className="text-muted-foreground mt-0.5 text-xs">
                             {postedAgo(j.postedAt)}
@@ -426,6 +462,11 @@ export default function Jobs() {
                   {selected.company} · {selected.location}
                   {selected.type && ` · ${selected.type}`}
                   {selected.salary && ` · ${selected.salary}`}
+                  {matchOf.has(selected.id) && (
+                    <span className="text-primary ml-2 font-medium">
+                      {matchOf.get(selected.id)}% keyword match with your resume
+                    </span>
+                  )}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   <Button

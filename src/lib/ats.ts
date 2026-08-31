@@ -96,6 +96,20 @@ function keywordDetailFor(
     .sort((a, b) => (a.inResume === 0 ? 0 : 1) - (b.inResume === 0 ? 0 : 1) || b.inJobAd - a.inJobAd)
 }
 
+const WORD_COUNT_MIN = 400
+const WORD_COUNT_MAX = 800
+
+function wordCountCheck(text: string, anchor?: SectionAnchor): AtsResult['checks'][number] {
+  const words = text.trim().split(/\s+/).filter(Boolean).length
+  const pass = words >= WORD_COUNT_MIN && words <= WORD_COUNT_MAX
+  const hint = pass
+    ? `${words} words — within the ${WORD_COUNT_MIN}–${WORD_COUNT_MAX} range recruiters expect.`
+    : words < WORD_COUNT_MIN
+      ? `Your resume is ${words} words — recruiters and ATS systems expect at least ~${WORD_COUNT_MIN}; expand your experience bullets.`
+      : `Your resume is ${words} words — trim to under ~${WORD_COUNT_MAX} so recruiters can scan it.`
+  return { label: 'Word count in recommended range', pass, hint, anchor }
+}
+
 function tokenize(text: string): string[] {
   return (
     text
@@ -128,6 +142,19 @@ export function extractKeywords(jd: string, limit = 30): string[] {
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([k]) => k)
+}
+
+/** Percentage of a job description's keywords found in the resume text */
+export function matchScore(resumeTextRaw: string, jd: string): number | null {
+  const keywords = jd.trim() ? extractKeywords(jd) : []
+  if (keywords.length === 0) return null
+  const resumeText = resumeTextRaw.toLowerCase()
+  const resumeTokens = new Set(tokenize(resumeText))
+  let matched = 0
+  for (const kw of keywords) {
+    if (kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)) matched++
+  }
+  return Math.round((matched / keywords.length) * 100)
 }
 
 /** Score pasted resume text (standalone ATS checker page) */
@@ -183,6 +210,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
       pass: resumeTextRaw.trim().length >= 400,
       hint: 'Very short resumes give ATS systems too little to match on.',
     },
+    wordCountCheck(resumeTextRaw),
   ]
 
   return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
@@ -281,6 +309,7 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       hint: 'Most ATS templates expect an education section.',
       anchor: 'education',
     },
+    wordCountCheck(resumeText, 'experience'),
   ]
 
   return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))

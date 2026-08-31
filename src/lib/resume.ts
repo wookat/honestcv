@@ -185,46 +185,111 @@ export interface Resume {
   /** Export paper size: US Letter (US/Canada) or A4 (rest of world) */
   pageSize: 'letter' | 'a4'
   /** Body text size across preview and exports */
-  fontScale?: 's' | 'm' | 'l'
+  fontScale?: 'xs' | 's' | 'm' | 'l' | 'xl'
   /** Line spacing across preview and exports */
-  lineSpacing?: 'compact' | 'normal' | 'relaxed'
+  lineSpacing?: 'xtight' | 'compact' | 'normal' | 'relaxed' | 'loose'
   /** Font family across preview and exports; 'auto' follows the template */
-  fontFamily?: 'auto' | 'serif' | 'sans' | 'mono'
+  fontFamily?: 'auto' | 'serif' | 'sans' | 'mono' | 'merriweather' | 'sourcesans' | 'robotomono'
   /** Vertical space before each section heading */
-  sectionSpacing?: 'tight' | 'normal' | 'roomy'
+  sectionSpacing?: 'xtight' | 'tight' | 'normal' | 'roomy' | 'xroomy'
   /** Section divider rule; 'auto' follows the template */
   sectionDivider?: 'auto' | 'on' | 'off'
+  /** Indent bullet lists relative to the section text */
+  bulletIndent?: 'off' | 'on'
+  /** Show small icons before contact fields (preview and PDF) */
+  contactIcons?: 'off' | 'on'
+  /** Body text color across preview, PDF and DOCX */
+  textColor?: 'default' | 'black' | 'navy'
   /** JD keywords the user marked as not relevant — excluded from ATS keyword coverage */
   ignoredKeywords?: string[]
   /** Target role + JD used for tailoring and the ATS score */
   targetRole: string
   jobDescription: string
+  /** Candidate seniority for the target job; grounds AI drafts ('' = unset) */
+  experienceLevel?: '' | 'internship' | 'entry' | 'mid' | 'senior' | 'executive'
+  /** Company the resume targets; grounds AI drafts and prefills cover letters */
+  targetCompany?: string
 }
 
 export const newId = () => Math.random().toString(36).slice(2, 10)
 
+export const EXPERIENCE_LEVELS = ['internship', 'entry', 'mid', 'senior', 'executive'] as const
+export const EXPERIENCE_LEVEL_LABELS: Record<(typeof EXPERIENCE_LEVELS)[number], string> = {
+  internship: 'Internship',
+  entry: 'Entry level',
+  mid: 'Mid level',
+  senior: 'Senior',
+  executive: 'Executive',
+}
+
+/** Target role annotated with the experience level, for AI prompt context. */
+export function aiTargetRole(r: Resume): string {
+  const role = r.targetRole.trim()
+  const lvl = r.experienceLevel
+  const base = !lvl
+    ? role
+    : role
+      ? `${role} (${EXPERIENCE_LEVEL_LABELS[lvl]})`
+      : `${EXPERIENCE_LEVEL_LABELS[lvl]} position`
+  const company = (r.targetCompany ?? '').trim()
+  if (!company) return base
+  return base ? `${base} at ${company}` : `Position at ${company}`
+}
+
 /** Multipliers applied to font sizes in the preview, PDF and DOCX. */
-export const FONT_SCALE = { s: 0.92, m: 1, l: 1.08 } as const
+export const FONT_SCALE = { xs: 0.84, s: 0.92, m: 1, l: 1.08, xl: 1.16 } as const
 /** Line-height multipliers applied in the preview, PDF and DOCX. */
-export const LINE_SPACING = { compact: 1.22, normal: 1.35, relaxed: 1.52 } as const
+export const LINE_SPACING = {
+  xtight: 1.12,
+  compact: 1.22,
+  normal: 1.35,
+  relaxed: 1.52,
+  loose: 1.65,
+} as const
 
 export const fontScaleOf = (r: Resume) => FONT_SCALE[r.fontScale ?? 'm']
 export const lineSpacingOf = (r: Resume) => LINE_SPACING[r.lineSpacing ?? 'normal']
 
-export type FontFamilyKind = 'serif' | 'sans' | 'mono'
+export type FontFamilyKind =
+  | 'serif'
+  | 'sans'
+  | 'mono'
+  | 'merriweather'
+  | 'sourcesans'
+  | 'robotomono'
 
 /** Font family to render with, honouring the user's override; 'auto' follows the template. */
 export const familyOf = (r: Resume, tplSerif: boolean): FontFamilyKind =>
-  r.fontFamily === 'serif' || r.fontFamily === 'sans' || r.fontFamily === 'mono'
+  r.fontFamily === 'serif' ||
+  r.fontFamily === 'sans' ||
+  r.fontFamily === 'mono' ||
+  r.fontFamily === 'merriweather' ||
+  r.fontFamily === 'sourcesans' ||
+  r.fontFamily === 'robotomono'
     ? r.fontFamily
     : tplSerif
       ? 'serif'
       : 'sans'
 
 /** Multipliers applied to the space before section headings. */
-export const SECTION_SPACING = { tight: 0.6, normal: 1, roomy: 1.4 } as const
+export const SECTION_SPACING = {
+  xtight: 0.35,
+  tight: 0.6,
+  normal: 1,
+  roomy: 1.4,
+  xroomy: 1.7,
+} as const
 
 export const sectionSpacingOf = (r: Resume) => SECTION_SPACING[r.sectionSpacing ?? 'normal']
+
+export const bulletIndentOf = (r: Resume) => r.bulletIndent === 'on'
+
+export const contactIconsOf = (r: Resume) => r.contactIcons === 'on'
+
+/** Body text ink (hex) per text-color setting. */
+export const TEXT_INKS = { default: '#1f1f1f', black: '#000000', navy: '#1f3a5c' } as const
+
+export const textInkOf = (r: Resume) => TEXT_INKS[r.textColor ?? 'default']
 
 /** Section divider to render, honouring the user's override of the template rule. */
 export const dividerOf = (
@@ -456,6 +521,55 @@ export function sectionLabel(r: Resume, key: string): string {
     return s?.title.trim() || 'Custom section'
   }
   return SECTION_LABELS[key] ?? key
+}
+
+const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+const ONGOING_RE = /\b(present|current|now|ongoing)\b/i
+
+/**
+ * Ordinal (year*12 + month) for a free-text date like "Jun 2023", "08/2021" or
+ * "2019". Month unknown → mid-year. No recognizable year → null.
+ */
+export function dateSortValue(text: string): number | null {
+  const t = text.trim().toLowerCase()
+  const year = /(?:19|20)\d{2}/.exec(t)
+  if (!year) return null
+  let month = 6
+  const named = MONTH_NAMES.findIndex((m) => t.includes(m))
+  if (named >= 0) month = named + 1
+  else {
+    const numeric = /\b(0?[1-9]|1[0-2])\s*[/.-]/.exec(t)
+    if (numeric) month = Number(numeric[1])
+  }
+  return Number(year[0]) * 12 + month
+}
+
+/**
+ * Stable newest-first sort for dated entries. Ongoing entries (end date reads
+ * "Present"/"Current"/…) come first ranked by start date; then by end date
+ * (falling back to start date) descending; entries with no parseable date keep
+ * their relative order at the end.
+ */
+export function sortEntriesByDate<T>(
+  items: T[],
+  startOf: (item: T) => string,
+  endOf: (item: T) => string
+): T[] {
+  const keyed = items.map((item, index) => {
+    const start = dateSortValue(startOf(item))
+    const end = ONGOING_RE.test(endOf(item)) ? Number.MAX_SAFE_INTEGER : dateSortValue(endOf(item))
+    const primary = end ?? start
+    return { item, index, primary, start: start ?? end ?? Number.MIN_SAFE_INTEGER }
+  })
+  keyed.sort((a, b) => {
+    if (a.primary === null && b.primary === null) return a.index - b.index
+    if (a.primary === null) return 1
+    if (b.primary === null) return -1
+    if (a.primary !== b.primary) return b.primary - a.primary
+    if (a.start !== b.start) return b.start - a.start
+    return a.index - b.index
+  })
+  return keyed.map((k) => k.item)
 }
 
 export function sampleResume(): Resume {
@@ -718,13 +832,30 @@ export function sanitizeResume(input: unknown): Resume | null {
     accentColor: asStr(raw.accentColor),
     ignoredKeywords: asStrArr(raw.ignoredKeywords),
     pageSize: asEnum(raw.pageSize, ['letter', 'a4'] as const) ?? 'letter',
-    fontScale: asEnum(raw.fontScale, ['s', 'm', 'l'] as const),
-    lineSpacing: asEnum(raw.lineSpacing, ['compact', 'normal', 'relaxed'] as const),
-    fontFamily: asEnum(raw.fontFamily, ['auto', 'serif', 'sans', 'mono'] as const),
-    sectionSpacing: asEnum(raw.sectionSpacing, ['tight', 'normal', 'roomy'] as const),
+    fontScale: asEnum(raw.fontScale, ['xs', 's', 'm', 'l', 'xl'] as const),
+    lineSpacing: asEnum(
+      raw.lineSpacing,
+      ['xtight', 'compact', 'normal', 'relaxed', 'loose'] as const
+    ),
+    fontFamily: asEnum(
+      raw.fontFamily,
+      ['auto', 'serif', 'sans', 'mono', 'merriweather', 'sourcesans', 'robotomono'] as const
+    ),
+    sectionSpacing: asEnum(
+      raw.sectionSpacing,
+      ['xtight', 'tight', 'normal', 'roomy', 'xroomy'] as const
+    ),
     sectionDivider: asEnum(raw.sectionDivider, ['auto', 'on', 'off'] as const),
+    bulletIndent: asEnum(raw.bulletIndent, ['off', 'on'] as const),
+    contactIcons: asEnum(raw.contactIcons, ['off', 'on'] as const),
+    textColor: asEnum(raw.textColor, ['default', 'black', 'navy'] as const),
     targetRole: asStr(raw.targetRole),
     jobDescription: asStr(raw.jobDescription),
+    experienceLevel: asEnum(
+      raw.experienceLevel,
+      ['internship', 'entry', 'mid', 'senior', 'executive'] as const
+    ),
+    targetCompany: asStr(raw.targetCompany) || undefined,
   }
   resume.sectionOrder = orderedSectionKeys(resume)
   return resume
@@ -821,7 +952,7 @@ export function duplicateResumeVersion(id: string): ResumeVersion[] {
   const source = listResumeVersions().find((v) => v.id === id)
   if (!source) return listResumeVersions()
   const versions = [
-    { id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now(), data: source.data },
+    { ...source, id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now() },
     ...listResumeVersions(),
   ]
   persistVersions(versions)
@@ -832,6 +963,44 @@ export function deleteResumeVersion(id: string): ResumeVersion[] {
   const versions = listResumeVersions().filter((v) => v.id !== id)
   persistVersions(versions)
   return versions
+}
+
+/**
+ * Link between the working editor draft and the saved copy it was opened from.
+ * While linked, autosaves write the draft back into that copy so it never goes
+ * stale — matching how each resume is a live document in tools like Rezi.
+ */
+const ACTIVE_VERSION_KEY = 'honestcv.activeVersionId'
+
+export function getActiveVersionId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_VERSION_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setActiveVersionId(id: string | null) {
+  try {
+    if (id) localStorage.setItem(ACTIVE_VERSION_KEY, id)
+    else localStorage.removeItem(ACTIVE_VERSION_KEY)
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+/** Write the draft back into its linked copy; unlink if the copy is gone. */
+export function syncActiveVersion(data: Resume) {
+  const id = getActiveVersionId()
+  if (!id) return
+  const versions = listResumeVersions()
+  if (!versions.some((v) => v.id === id)) {
+    setActiveVersionId(null)
+    return
+  }
+  persistVersions(
+    versions.map((v) => (v.id === id ? { ...v, data, updatedAt: Date.now() } : v))
+  )
 }
 
 /** Automatic edit-history checkpoints of the single builder draft. */
@@ -885,6 +1054,650 @@ export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapsho
   const next = [{ id: newId(), at: Date.now(), data: JSON.parse(json) as Resume }, ...history]
   persistHistory(next)
   return next.slice(0, HISTORY_MAX)
+}
+
+/** A single polished role saved for reuse across resume copies. */
+export interface SavedExperience {
+  id: string
+  savedAt: number
+  data: ExperienceItem
+}
+
+const EXPERIENCE_LIBRARY_KEY = 'honestcv.experienceLibrary'
+const EXPERIENCE_LIBRARY_MAX = 30
+
+function sanitizeExperienceItem(input: unknown): ExperienceItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const e = input as Record<string, unknown>
+  const item: ExperienceItem = {
+    id: asStr(e.id) || newId(),
+    company: asStr(e.company),
+    role: asStr(e.role),
+    location: asStr(e.location),
+    startDate: asStr(e.startDate),
+    endDate: asStr(e.endDate),
+    bullets: asStrArr(e.bullets),
+  }
+  return item.company.trim() || item.role.trim() || item.bullets.some((b) => b.trim())
+    ? item
+    : null
+}
+
+export function listExperienceLibrary(): SavedExperience[] {
+  try {
+    const raw = localStorage.getItem(EXPERIENCE_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedExperience[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeExperienceItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistExperienceLibrary(items: SavedExperience[]) {
+  try {
+    localStorage.setItem(
+      EXPERIENCE_LIBRARY_KEY,
+      JSON.stringify(items.slice(0, EXPERIENCE_LIBRARY_MAX))
+    )
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveExperienceToLibrary(entry: ExperienceItem): SavedExperience[] {
+  const data = sanitizeExperienceItem(entry)
+  if (!data) return listExperienceLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listExperienceLibrary(),
+  ].slice(0, EXPERIENCE_LIBRARY_MAX)
+  persistExperienceLibrary(items)
+  return items
+}
+
+export function deleteLibraryExperience(id: string): SavedExperience[] {
+  const items = listExperienceLibrary().filter((s) => s.id !== id)
+  persistExperienceLibrary(items)
+  return items
+}
+
+/** A single polished education entry saved for reuse across resume copies. */
+export interface SavedEducation {
+  id: string
+  savedAt: number
+  data: EducationItem
+}
+
+const EDUCATION_LIBRARY_KEY = 'honestcv.educationLibrary'
+const EDUCATION_LIBRARY_MAX = 30
+
+function sanitizeEducationItem(input: unknown): EducationItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const e = input as Record<string, unknown>
+  const item: EducationItem = {
+    id: asStr(e.id) || newId(),
+    school: asStr(e.school),
+    degree: asStr(e.degree),
+    location: asStr(e.location),
+    startDate: asStr(e.startDate),
+    endDate: asStr(e.endDate),
+    details: asStr(e.details),
+  }
+  const gpa = asStr(e.gpa)
+  if (gpa) item.gpa = gpa
+  const minor = asStr(e.minor)
+  if (minor) item.minor = minor
+  return item.school.trim() || item.degree.trim() || item.details.trim() ? item : null
+}
+
+export function listEducationLibrary(): SavedEducation[] {
+  try {
+    const raw = localStorage.getItem(EDUCATION_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedEducation[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeEducationItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistEducationLibrary(items: SavedEducation[]) {
+  try {
+    localStorage.setItem(EDUCATION_LIBRARY_KEY, JSON.stringify(items.slice(0, EDUCATION_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveEducationToLibrary(entry: EducationItem): SavedEducation[] {
+  const data = sanitizeEducationItem(entry)
+  if (!data) return listEducationLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listEducationLibrary(),
+  ].slice(0, EDUCATION_LIBRARY_MAX)
+  persistEducationLibrary(items)
+  return items
+}
+
+export function deleteLibraryEducation(id: string): SavedEducation[] {
+  const items = listEducationLibrary().filter((s) => s.id !== id)
+  persistEducationLibrary(items)
+  return items
+}
+
+/** A single polished project entry saved for reuse across resume copies. */
+export interface SavedProject {
+  id: string
+  savedAt: number
+  data: ProjectItem
+}
+
+const PROJECT_LIBRARY_KEY = 'honestcv.projectLibrary'
+const PROJECT_LIBRARY_MAX = 30
+
+function sanitizeProjectItem(input: unknown): ProjectItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const p = input as Record<string, unknown>
+  const item: ProjectItem = {
+    id: asStr(p.id) || newId(),
+    name: asStr(p.name),
+    link: asStr(p.link),
+    description: asStr(p.description),
+  }
+  const org = asStr(p.org)
+  if (org) item.org = org
+  const startDate = asStr(p.startDate)
+  if (startDate) item.startDate = startDate
+  const endDate = asStr(p.endDate)
+  if (endDate) item.endDate = endDate
+  return item.name.trim() || item.link.trim() || item.description.trim() ? item : null
+}
+
+export function listProjectLibrary(): SavedProject[] {
+  try {
+    const raw = localStorage.getItem(PROJECT_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedProject[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeProjectItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistProjectLibrary(items: SavedProject[]) {
+  try {
+    localStorage.setItem(PROJECT_LIBRARY_KEY, JSON.stringify(items.slice(0, PROJECT_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveProjectToLibrary(entry: ProjectItem): SavedProject[] {
+  const data = sanitizeProjectItem(entry)
+  if (!data) return listProjectLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listProjectLibrary(),
+  ].slice(0, PROJECT_LIBRARY_MAX)
+  persistProjectLibrary(items)
+  return items
+}
+
+export function deleteLibraryProject(id: string): SavedProject[] {
+  const items = listProjectLibrary().filter((s) => s.id !== id)
+  persistProjectLibrary(items)
+  return items
+}
+
+/** A single polished involvement entry saved for reuse across resume copies. */
+export interface SavedInvolvement {
+  id: string
+  savedAt: number
+  data: InvolvementItem
+}
+
+const INVOLVEMENT_LIBRARY_KEY = 'honestcv.involvementLibrary'
+const INVOLVEMENT_LIBRARY_MAX = 30
+
+function sanitizeInvolvementItem(input: unknown): InvolvementItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: InvolvementItem = {
+    id: asStr(v.id) || newId(),
+    role: asStr(v.role),
+    organization: asStr(v.organization),
+    location: asStr(v.location),
+    startDate: asStr(v.startDate),
+    endDate: asStr(v.endDate),
+    description: asStr(v.description),
+  }
+  return item.role.trim() || item.organization.trim() || item.description.trim() ? item : null
+}
+
+export function listInvolvementLibrary(): SavedInvolvement[] {
+  try {
+    const raw = localStorage.getItem(INVOLVEMENT_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedInvolvement[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeInvolvementItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistInvolvementLibrary(items: SavedInvolvement[]) {
+  try {
+    localStorage.setItem(
+      INVOLVEMENT_LIBRARY_KEY,
+      JSON.stringify(items.slice(0, INVOLVEMENT_LIBRARY_MAX))
+    )
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveInvolvementToLibrary(entry: InvolvementItem): SavedInvolvement[] {
+  const data = sanitizeInvolvementItem(entry)
+  if (!data) return listInvolvementLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listInvolvementLibrary(),
+  ].slice(0, INVOLVEMENT_LIBRARY_MAX)
+  persistInvolvementLibrary(items)
+  return items
+}
+
+export function deleteLibraryInvolvement(id: string): SavedInvolvement[] {
+  const items = listInvolvementLibrary().filter((s) => s.id !== id)
+  persistInvolvementLibrary(items)
+  return items
+}
+
+/** A single polished coursework entry saved for reuse across resume copies. */
+export interface SavedCoursework {
+  id: string
+  savedAt: number
+  data: CourseworkItem
+}
+
+const COURSEWORK_LIBRARY_KEY = 'honestcv.courseworkLibrary'
+const COURSEWORK_LIBRARY_MAX = 30
+
+function sanitizeCourseworkItem(input: unknown): CourseworkItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: CourseworkItem = {
+    id: asStr(v.id) || newId(),
+    name: asStr(v.name),
+    institution: asStr(v.institution),
+    date: asStr(v.date),
+    skill: asStr(v.skill),
+    description: asStr(v.description),
+  }
+  return item.name.trim() || item.institution.trim() || item.description.trim() ? item : null
+}
+
+export function listCourseworkLibrary(): SavedCoursework[] {
+  try {
+    const raw = localStorage.getItem(COURSEWORK_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedCoursework[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeCourseworkItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistCourseworkLibrary(items: SavedCoursework[]) {
+  try {
+    localStorage.setItem(
+      COURSEWORK_LIBRARY_KEY,
+      JSON.stringify(items.slice(0, COURSEWORK_LIBRARY_MAX))
+    )
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveCourseworkToLibrary(entry: CourseworkItem): SavedCoursework[] {
+  const data = sanitizeCourseworkItem(entry)
+  if (!data) return listCourseworkLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listCourseworkLibrary(),
+  ].slice(0, COURSEWORK_LIBRARY_MAX)
+  persistCourseworkLibrary(items)
+  return items
+}
+
+export function deleteLibraryCoursework(id: string): SavedCoursework[] {
+  const items = listCourseworkLibrary().filter((s) => s.id !== id)
+  persistCourseworkLibrary(items)
+  return items
+}
+
+/** A single polished award entry saved for reuse across resume copies. */
+export interface SavedAward {
+  id: string
+  savedAt: number
+  data: AwardItem
+}
+
+const AWARD_LIBRARY_KEY = 'honestcv.awardLibrary'
+const AWARD_LIBRARY_MAX = 30
+
+function sanitizeAwardItem(input: unknown): AwardItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: AwardItem = {
+    id: asStr(v.id) || newId(),
+    name: asStr(v.name),
+    organization: asStr(v.organization),
+    date: asStr(v.date),
+    description: asStr(v.description),
+  }
+  return item.name.trim() || item.organization.trim() || item.description.trim() ? item : null
+}
+
+export function listAwardLibrary(): SavedAward[] {
+  try {
+    const raw = localStorage.getItem(AWARD_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedAward[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeAwardItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistAwardLibrary(items: SavedAward[]) {
+  try {
+    localStorage.setItem(AWARD_LIBRARY_KEY, JSON.stringify(items.slice(0, AWARD_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveAwardToLibrary(entry: AwardItem): SavedAward[] {
+  const data = sanitizeAwardItem(entry)
+  if (!data) return listAwardLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listAwardLibrary(),
+  ].slice(0, AWARD_LIBRARY_MAX)
+  persistAwardLibrary(items)
+  return items
+}
+
+export function deleteLibraryAward(id: string): SavedAward[] {
+  const items = listAwardLibrary().filter((s) => s.id !== id)
+  persistAwardLibrary(items)
+  return items
+}
+
+/** A single polished reference entry saved for reuse across resume copies. */
+export interface SavedReference {
+  id: string
+  savedAt: number
+  data: ReferenceItem
+}
+
+const REFERENCE_LIBRARY_KEY = 'honestcv.referenceLibrary'
+const REFERENCE_LIBRARY_MAX = 30
+
+function sanitizeReferenceItem(input: unknown): ReferenceItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: ReferenceItem = {
+    id: asStr(v.id) || newId(),
+    name: asStr(v.name),
+    title: asStr(v.title),
+    employer: asStr(v.employer),
+    email: asStr(v.email),
+    phone: asStr(v.phone),
+    kind: v.kind === 'personal' || v.kind === 'professional' ? v.kind : '',
+  }
+  return item.name.trim() || item.employer.trim() || item.email.trim() ? item : null
+}
+
+export function listReferenceLibrary(): SavedReference[] {
+  try {
+    const raw = localStorage.getItem(REFERENCE_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedReference[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeReferenceItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistReferenceLibrary(items: SavedReference[]) {
+  try {
+    localStorage.setItem(
+      REFERENCE_LIBRARY_KEY,
+      JSON.stringify(items.slice(0, REFERENCE_LIBRARY_MAX))
+    )
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveReferenceToLibrary(entry: ReferenceItem): SavedReference[] {
+  const data = sanitizeReferenceItem(entry)
+  if (!data) return listReferenceLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listReferenceLibrary(),
+  ].slice(0, REFERENCE_LIBRARY_MAX)
+  persistReferenceLibrary(items)
+  return items
+}
+
+export function deleteLibraryReference(id: string): SavedReference[] {
+  const items = listReferenceLibrary().filter((s) => s.id !== id)
+  persistReferenceLibrary(items)
+  return items
+}
+
+/** A single polished certification entry saved for reuse across resume copies. */
+export interface SavedCertification {
+  id: string
+  savedAt: number
+  data: CertificationItem
+}
+
+const CERT_LIBRARY_KEY = 'honestcv.certLibrary'
+const CERT_LIBRARY_MAX = 30
+
+function sanitizeCertificationItem(input: unknown): CertificationItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: CertificationItem = {
+    id: asStr(v.id) || newId(),
+    name: asStr(v.name),
+    issuer: asStr(v.issuer),
+    date: asStr(v.date),
+    description: asStr(v.description),
+  }
+  return item.name.trim() || item.issuer.trim() || item.description.trim() ? item : null
+}
+
+export function listCertLibrary(): SavedCertification[] {
+  try {
+    const raw = localStorage.getItem(CERT_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedCertification[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeCertificationItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistCertLibrary(items: SavedCertification[]) {
+  try {
+    localStorage.setItem(CERT_LIBRARY_KEY, JSON.stringify(items.slice(0, CERT_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveCertToLibrary(entry: CertificationItem): SavedCertification[] {
+  const data = sanitizeCertificationItem(entry)
+  if (!data) return listCertLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listCertLibrary(),
+  ].slice(0, CERT_LIBRARY_MAX)
+  persistCertLibrary(items)
+  return items
+}
+
+export function deleteLibraryCert(id: string): SavedCertification[] {
+  const items = listCertLibrary().filter((s) => s.id !== id)
+  persistCertLibrary(items)
+  return items
+}
+
+/** A polished skills text block saved for reuse across resume copies. */
+export interface SavedSkills {
+  id: string
+  savedAt: number
+  skills: string
+}
+
+const SKILLS_LIBRARY_KEY = 'honestcv.skillsLibrary'
+const SKILLS_LIBRARY_MAX = 30
+
+export function listSkillsLibrary(): SavedSkills[] {
+  try {
+    const raw = localStorage.getItem(SKILLS_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedSkills[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const skills = asStr(s.skills)
+      return skills.trim() ? [{ id: s.id, savedAt: s.savedAt, skills }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistSkillsLibrary(items: SavedSkills[]) {
+  try {
+    localStorage.setItem(SKILLS_LIBRARY_KEY, JSON.stringify(items.slice(0, SKILLS_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveSkillsToLibrary(skills: string): SavedSkills[] {
+  if (!skills.trim()) return listSkillsLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), skills },
+    ...listSkillsLibrary(),
+  ].slice(0, SKILLS_LIBRARY_MAX)
+  persistSkillsLibrary(items)
+  return items
+}
+
+export function deleteLibrarySkills(id: string): SavedSkills[] {
+  const items = listSkillsLibrary().filter((s) => s.id !== id)
+  persistSkillsLibrary(items)
+  return items
+}
+
+/** A polished summary text block saved for reuse across resume copies. */
+export interface SavedSummary {
+  id: string
+  savedAt: number
+  summary: string
+}
+
+const SUMMARY_LIBRARY_KEY = 'honestcv.summaryLibrary'
+const SUMMARY_LIBRARY_MAX = 30
+
+export function listSummaryLibrary(): SavedSummary[] {
+  try {
+    const raw = localStorage.getItem(SUMMARY_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedSummary[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const summary = asStr(s.summary)
+      return summary.trim() ? [{ id: s.id, savedAt: s.savedAt, summary }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistSummaryLibrary(items: SavedSummary[]) {
+  try {
+    localStorage.setItem(SUMMARY_LIBRARY_KEY, JSON.stringify(items.slice(0, SUMMARY_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveSummaryToLibrary(summary: string): SavedSummary[] {
+  if (!summary.trim()) return listSummaryLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), summary },
+    ...listSummaryLibrary(),
+  ].slice(0, SUMMARY_LIBRARY_MAX)
+  persistSummaryLibrary(items)
+  return items
+}
+
+export function deleteLibrarySummary(id: string): SavedSummary[] {
+  const items = listSummaryLibrary().filter((s) => s.id !== id)
+  persistSummaryLibrary(items)
+  return items
 }
 
 /** Detail line under an education entry: details · Minor in X · GPA: Y */
@@ -955,6 +1768,20 @@ export const courseworkBullets = (c: CourseworkItem): string[] => [
   ...(c.skill.trim() ? [`Skill: ${c.skill.trim()}`] : []),
   ...c.description.split('\n').map((l) => l.trim()).filter(Boolean),
 ]
+
+/**
+ * Skills split into display lines. A line written as "Category: a, b, c"
+ * carries a `label` so renderers can bold the category prefix; a skills
+ * value with no newlines stays a single unlabelled line (legacy format).
+ */
+export function skillLines(r: Resume): { label?: string; text: string }[] {
+  const lines = r.skills.split('\n').map((l) => l.trim()).filter(Boolean)
+  if (lines.length <= 1) return lines.map((text) => ({ text }))
+  return lines.map((line) => {
+    const m = /^([^:]{1,40}):\s*(.+)$/.exec(line)
+    return m ? { label: m[1].trim(), text: m[2].trim() } : { text: line }
+  })
+}
 
 /** Award entries with any content */
 export const awardEntries = (r: Resume): AwardItem[] =>

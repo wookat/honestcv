@@ -15,7 +15,8 @@ import {
   type AssistantAction,
   type AssistantTurnInput,
 } from '@/lib/api'
-import { resumeToPlainText, type Resume } from '@/lib/resume'
+import { aiTargetRole, resumeToPlainText, type Resume } from '@/lib/resume'
+import type { AtsResult } from '@/lib/ats'
 
 const CHAT_KEY = 'honestcv.assistantChat'
 const CHAT_MAX = 40
@@ -93,6 +94,7 @@ export function AssistantPanel({
   resume,
   jobDescription,
   scoreSummary,
+  ats,
   onQuota,
   onPaymentRequired,
   onApply,
@@ -102,6 +104,7 @@ export function AssistantPanel({
   resume: Resume
   jobDescription: string
   scoreSummary: string
+  ats: AtsResult
   onQuota: (remaining: number) => void
   onPaymentRequired: (message: string) => void
   onApply: (action: AssistantAction) => void
@@ -132,7 +135,7 @@ export function AssistantPanel({
         turns: next.slice(-12).map((t) => ({ role: t.role, content: t.content })),
         resumeText: resumeToPlainText(resume),
         jobDescription,
-        role: resume.targetRole,
+        role: aiTargetRole(resume),
         scoreSummary,
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
@@ -209,6 +212,28 @@ export function AssistantPanel({
               I can see your current draft and target job. I&rsquo;ll suggest changes — you stay in
               control of every edit.
             </p>
+            <div className="bg-muted mt-4 rounded-lg px-3 py-2 text-left">
+              <p className="text-sm">
+                Your ATS score is <span className="font-semibold">{ats.score}/100</span>.
+              </p>
+              {ats.checks.some((c) => !c.pass) ? (
+                <>
+                  <p className="text-muted-foreground mt-1 text-xs">To raise it:</p>
+                  <ul className="text-muted-foreground mt-0.5 list-disc space-y-0.5 pl-4 text-xs">
+                    {ats.checks
+                      .filter((c) => !c.pass)
+                      .slice(0, 3)
+                      .map((c) => (
+                        <li key={c.label}>{c.hint}</li>
+                      ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="text-muted-foreground mt-1 text-xs">
+                  All structure checks pass — ask me how to sharpen the content.
+                </p>
+              )}
+            </div>
             <div className="mt-4 flex flex-col items-stretch gap-1.5">
               {QUICK_TASKS.map((t) => (
                 <Button

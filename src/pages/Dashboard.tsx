@@ -52,6 +52,8 @@ import {
   updateCareerDoc,
 } from '@/lib/documents'
 import {
+  EXPERIENCE_LEVELS,
+  EXPERIENCE_LEVEL_LABELS,
   type ExamplePerson,
   type Resume,
   type ResumeVersion,
@@ -63,6 +65,7 @@ import {
   loadResume,
   saveResume,
   saveResumeVersion,
+  setActiveVersionId,
   updateResumeVersion,
 } from '@/lib/resume'
 
@@ -111,6 +114,8 @@ export default function Dashboard() {
     name: string
     folder: string
     targetRole: string
+    targetCompany: string
+    experienceLevel: NonNullable<Resume['experienceLevel']>
     jobDescription: string
   } | null>(null)
   const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
@@ -126,9 +131,12 @@ export default function Dashboard() {
   const [examples, setExamples] = useState<ExampleEntry[]>([])
   const [exampleQuery, setExampleQuery] = useState('')
   const [exampleSector, setExampleSector] = useState('All')
+  const [previewExample, setPreviewExample] = useState<ExampleEntry | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [newKeepCopy, setNewKeepCopy] = useState(true)
   const [newRole, setNewRole] = useState('')
+  const [newCompany, setNewCompany] = useState('')
+  const [newLevel, setNewLevel] = useState<NonNullable<Resume['experienceLevel']>>('')
   const [newJd, setNewJd] = useState('')
   const freeMode = useFreeMode()
   const { license } = useLicense()
@@ -282,6 +290,8 @@ export default function Dashboard() {
   const closeNewDialog = () => {
     setNewOpen(false)
     setNewRole('')
+    setNewCompany('')
+    setNewLevel('')
     setNewJd('')
     setNewKeepCopy(true)
   }
@@ -292,16 +302,25 @@ export default function Dashboard() {
         saveResumeVersion(draft.targetRole || draft.contact.fullName || 'Untitled resume', draft)
       )
     }
-    saveResume({ ...emptyResume(), targetRole: newRole.trim(), jobDescription: newJd.trim() })
+    setActiveVersionId(null)
+    saveResume({
+      ...emptyResume(),
+      targetRole: newRole.trim(),
+      targetCompany: newCompany.trim() || undefined,
+      experienceLevel: newLevel,
+      jobDescription: newJd.trim(),
+    })
     void navigate('/builder')
   }
 
   const openCopy = (v: ResumeVersion) => {
+    setActiveVersionId(v.id)
     saveResume({ ...emptyResume(), ...v.data })
     void navigate('/builder')
   }
 
   const openImported = (r: Resume) => {
+    setActiveVersionId(null)
     saveResume(r)
     void navigate('/builder')
   }
@@ -341,6 +360,8 @@ export default function Dashboard() {
             name: v.name,
             folder: v.folder || '',
             targetRole: v.data.targetRole || '',
+            targetCompany: v.data.targetCompany || '',
+            experienceLevel: v.data.experienceLevel || '',
             jobDescription: v.data.jobDescription || '',
           })
         }
@@ -642,6 +663,7 @@ export default function Dashboard() {
                   <p className="text-muted-foreground text-xs">
                     {editedAgo(v.updatedAt)} · ATS{' '}
                     {scoreResume(v.data, v.data.jobDescription).score}/100
+                    {v.folder ? ` · ${v.folder}` : ''}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">{versionActions(v)}</div>
@@ -818,10 +840,23 @@ export default function Dashboard() {
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredExamples.slice(0, 9).map((e) => (
                   <div key={e.slug} className="bg-card flex flex-col rounded-md border shadow-sm">
-                    <Thumb resume={exampleToResume(e.person)} />
+                    <button
+                      type="button"
+                      onClick={() => setPreviewExample(e)}
+                      aria-label={`Preview ${e.role} sample`}
+                      className="focus-visible:ring-ring cursor-pointer rounded-t-md text-left focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                      <Thumb resume={exampleToResume(e.person)} />
+                    </button>
                     <div className="flex flex-1 flex-col gap-2 p-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{e.role}</p>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewExample(e)}
+                          className="block w-full cursor-pointer truncate text-left text-sm font-medium hover:underline"
+                        >
+                          {e.role}
+                        </button>
                         <p className="text-muted-foreground text-xs">{e.sector}</p>
                       </div>
                       <div className="mt-auto">
@@ -848,6 +883,37 @@ export default function Dashboard() {
       </main>
       <SiteFooter />
 
+      <Dialog open={previewExample !== null} onOpenChange={(o) => !o && setPreviewExample(null)}>
+        <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-3xl">
+          {previewExample && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{previewExample.role}</DialogTitle>
+                <DialogDescription>
+                  {previewExample.sector} sample — read it in full, then load it into the editor.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-md border bg-slate-100 p-3 sm:p-5">
+                <ResumePreview resume={exampleToResume(previewExample.person)} paginated />
+              </div>
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                  onClick={() => setPreviewExample(null)}
+                >
+                  Close
+                </Button>
+                <Button asChild className="min-h-10 sm:min-h-9">
+                  <Link to={`/builder?example=${previewExample.slug}`}>Use this example</Link>
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={newOpen} onOpenChange={(o) => (o ? setNewOpen(true) : closeNewDialog())}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -858,18 +924,54 @@ export default function Dashboard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="new-resume-role" className="text-sm font-medium">
+                  Target role
+                </label>
+                <Input
+                  id="new-resume-role"
+                  name="new-resume-role"
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value)}
+                  placeholder="e.g. Senior Frontend Engineer"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="new-resume-company" className="text-sm font-medium">
+                  Company
+                </label>
+                <Input
+                  id="new-resume-company"
+                  name="new-resume-company"
+                  value={newCompany}
+                  onChange={(e) => setNewCompany(e.target.value)}
+                  placeholder="e.g. Acme Corp"
+                  className="h-10"
+                />
+              </div>
+            </div>
             <div className="space-y-1.5">
-              <label htmlFor="new-resume-role" className="text-sm font-medium">
-                Target role
+              <label htmlFor="new-resume-level" className="text-sm font-medium">
+                Experience level
               </label>
-              <Input
-                id="new-resume-role"
-                name="new-resume-role"
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value)}
-                placeholder="e.g. Senior Frontend Engineer"
-                className="h-10"
-              />
+              <select
+                id="new-resume-level"
+                name="new-resume-level"
+                className="h-10 w-full rounded-md border bg-transparent px-2 text-sm"
+                value={newLevel}
+                onChange={(e) =>
+                  setNewLevel(e.target.value as NonNullable<Resume['experienceLevel']>)
+                }
+              >
+                <option value="">Auto</option>
+                {EXPERIENCE_LEVELS.map((lvl) => (
+                  <option key={lvl} value={lvl}>
+                    {EXPERIENCE_LEVEL_LABELS[lvl]}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-1.5">
               <label htmlFor="new-resume-jd" className="text-sm font-medium">
@@ -936,18 +1038,57 @@ export default function Dashboard() {
                   className="h-10"
                 />
               </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-version-role" className="text-sm font-medium">
+                    Target role
+                  </label>
+                  <Input
+                    id="edit-version-role"
+                    name="edit-version-role"
+                    value={editing.targetRole}
+                    onChange={(e) => setEditing({ ...editing, targetRole: e.target.value })}
+                    placeholder="e.g. Senior Frontend Engineer"
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-version-company" className="text-sm font-medium">
+                    Company
+                  </label>
+                  <Input
+                    id="edit-version-company"
+                    name="edit-version-company"
+                    value={editing.targetCompany}
+                    onChange={(e) => setEditing({ ...editing, targetCompany: e.target.value })}
+                    placeholder="e.g. Acme Corp"
+                    className="h-10"
+                  />
+                </div>
+              </div>
               <div className="space-y-1.5">
-                <label htmlFor="edit-version-role" className="text-sm font-medium">
-                  Target role
+                <label htmlFor="edit-version-level" className="text-sm font-medium">
+                  Experience level
                 </label>
-                <Input
-                  id="edit-version-role"
-                  name="edit-version-role"
-                  value={editing.targetRole}
-                  onChange={(e) => setEditing({ ...editing, targetRole: e.target.value })}
-                  placeholder="e.g. Senior Frontend Engineer"
-                  className="h-10"
-                />
+                <select
+                  id="edit-version-level"
+                  name="edit-version-level"
+                  className="h-10 w-full rounded-md border bg-transparent px-2 text-sm"
+                  value={editing.experienceLevel}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      experienceLevel: e.target.value as NonNullable<Resume['experienceLevel']>,
+                    })
+                  }
+                >
+                  <option value="">Auto</option>
+                  {EXPERIENCE_LEVELS.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {EXPERIENCE_LEVEL_LABELS[lvl]}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-1.5">
                 <label htmlFor="edit-version-folder" className="text-sm font-medium">
@@ -1007,6 +1148,8 @@ export default function Dashboard() {
                       data: {
                         ...current.data,
                         targetRole: editing.targetRole.trim(),
+                        targetCompany: editing.targetCompany.trim() || undefined,
+                        experienceLevel: editing.experienceLevel,
                         jobDescription: editing.jobDescription,
                       },
                     })

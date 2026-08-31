@@ -32,9 +32,33 @@ import {
   orderedSectionKeys,
   projectDates,
   sectionSpacingOf,
+  skillLines,
+  bulletIndentOf,
+  contactIconsOf,
   familyOf,
+  textInkOf,
 } from '@/lib/resume'
+import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { accentTint, resolveTemplate } from '@/lib/templates'
+
+function ContactIcon({ kind }: { kind: ContactIconKind }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={10}
+      height={10}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      style={{ flexShrink: 0 }}
+    >
+      <path d={CONTACT_ICON_PATHS[kind]} />
+    </svg>
+  )
+}
 
 export function ResumePreview({
   resume,
@@ -49,10 +73,18 @@ export function ResumePreview({
     serif: 'Georgia, "Times New Roman", serif',
     sans: 'Inter, Arial, sans-serif',
     mono: '"Courier New", ui-monospace, monospace',
+    merriweather: 'Merriweather, Georgia, serif',
+    sourcesans: '"Source Sans 3", "Source Sans Pro", Inter, Arial, sans-serif',
+    robotomono: '"Roboto Mono", "Courier New", ui-monospace, monospace',
   }[familyOf(resume, tpl.serif)]
-  const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]
-    .filter(Boolean)
-    .join('  |  ')
+  const contactFields: { text: string; icon: ContactIconKind }[] = [
+    { text: c.email, icon: 'mail' as const },
+    { text: c.phone, icon: 'phone' as const },
+    { text: c.location, icon: 'pin' as const },
+    { text: c.website, icon: 'globe' as const },
+    { text: c.linkedin, icon: 'linkedin' as const },
+  ].filter((f) => f.text)
+  const contactLine = contactFields.map((f) => f.text).join('  |  ')
 
   const divider = tpl.band ? 'none' : dividerOf(resume, tpl.divider)
   const headingMarginTop = 16 * sectionSpacingOf(resume)
@@ -93,9 +125,23 @@ export function ResumePreview({
             {c.title}
           </p>
         )}
-        {contactLine && (
-          <p className="mt-1 text-[10px] text-neutral-500">{contactLine}</p>
-        )}
+        {contactLine &&
+          (contactIconsOf(resume) ? (
+            <p
+              className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-neutral-500 ${
+                tpl.headerAlign === 'left' ? 'justify-start' : 'justify-center'
+              }`}
+            >
+              {contactFields.map((f) => (
+                <span key={f.icon} className="inline-flex items-center gap-1">
+                  <ContactIcon kind={f.icon} />
+                  {f.text}
+                </span>
+              ))}
+            </p>
+          ) : (
+            <p className="mt-1 text-[10px] text-neutral-500">{contactLine}</p>
+          ))}
       </div>
 
       {orderedSectionKeys(resume).map((key) => (
@@ -108,8 +154,8 @@ export function ResumePreview({
     return (
       <div
         data-resume-preview
-        className="mx-auto w-full rounded-md border bg-white p-8 text-[#1f1f1f] shadow-sm"
-        style={{ fontFamily, aspectRatio, overflow: 'hidden', ...contentStyle }}
+        className="mx-auto w-full rounded-md border bg-white p-8 shadow-sm"
+        style={{ fontFamily, color: textInkOf(resume), aspectRatio, overflow: 'hidden', ...contentStyle }}
         aria-label="Resume preview"
       >
         {content}
@@ -173,9 +219,10 @@ function PaginatedPages({
           key={i}
           ref={i === 0 ? frameRef : undefined}
           data-resume-preview={i === 0 ? '' : undefined}
-          className="relative mx-auto w-full rounded-md border bg-white text-[#1f1f1f] shadow-sm"
+          className="relative mx-auto w-full rounded-md border bg-white shadow-sm"
           style={{
             fontFamily,
+            color: textInkOf(resume),
             overflow: 'hidden',
             ...(scale > 0
               ? { height: baseH * scale }
@@ -230,6 +277,7 @@ function SectionBlock({
   heading: (label: string) => React.ReactNode
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
+  const ulIndent = bulletIndentOf(resume) ? { paddingLeft: 12 } : undefined
   if (sectionKey === 'summary')
     return resume.summary.trim() ? (
       <>
@@ -259,7 +307,7 @@ function SectionBlock({
                     </p>
                   )}
                 </div>
-                <ul className="mt-0.5 space-y-0.5">
+                <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
                   {e.bullets.map(
                     (b, i) =>
                       b.trim() && (
@@ -322,7 +370,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{involvementDates(inv)}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {involvementBullets(inv).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -386,7 +434,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{cw.date.trim()}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {courseworkBullets(cw).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -403,7 +451,12 @@ function SectionBlock({
     return resume.skills.trim() ? (
       <>
         {heading('Skills')}
-        <p className="text-[11px]">{resume.skills.trim()}</p>
+        {skillLines(resume).map((line, i) => (
+          <p key={i} className="text-[11px]">
+            {line.label ? <span className="font-semibold">{line.label}: </span> : null}
+            {line.text}
+          </p>
+        ))}
       </>
     ) : null
   if (sectionKey === 'certifications') {
@@ -451,7 +504,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{a.date.trim()}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {awardBullets(a).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -482,7 +535,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{p.date.trim()}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {publicationBullets(p).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -541,7 +594,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{militaryDates(m)}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {militaryBullets(m).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -567,7 +620,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{a.date.trim()}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {agentBullets(a).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -586,7 +639,7 @@ function SectionBlock({
     return (
       <>
         {heading(s.title.trim() || 'Additional')}
-        <ul className="mt-0.5 space-y-0.5">
+        <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
           {s.bullets.map(
             (b, i) =>
               b.trim() && (
