@@ -914,6 +914,8 @@ export interface ResumeVersion {
   id: string
   name: string
   updatedAt: number
+  /** When the copy was first saved; older copies may lack it */
+  createdAt?: number
   folder?: string
   data: Resume
 }
@@ -931,7 +933,11 @@ export function listResumeVersions(): ResumeVersion[] {
       const data = sanitizeResume(v.data)
       if (!data) return []
       const folder = typeof v.folder === 'string' && v.folder.trim() ? v.folder : undefined
-      return [{ ...v, folder, data }]
+      const createdAt =
+        typeof v.createdAt === 'number' && Number.isFinite(v.createdAt) && v.createdAt > 0
+          ? v.createdAt
+          : undefined
+      return [{ ...v, folder, createdAt, data }]
     })
   } catch {
     return []
@@ -948,7 +954,7 @@ function persistVersions(versions: ResumeVersion[]) {
 
 export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
   const versions = [
-    { id: newId(), name, updatedAt: Date.now(), data },
+    { id: newId(), name, updatedAt: Date.now(), createdAt: Date.now(), data },
     ...listResumeVersions(),
   ]
   persistVersions(versions)
@@ -978,7 +984,7 @@ export function duplicateResumeVersion(id: string): ResumeVersion[] {
   const source = listResumeVersions().find((v) => v.id === id)
   if (!source) return listResumeVersions()
   const versions = [
-    { ...source, id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now() },
+    { ...source, id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now(), createdAt: Date.now() },
     ...listResumeVersions(),
   ]
   persistVersions(versions)

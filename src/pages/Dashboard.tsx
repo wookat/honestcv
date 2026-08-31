@@ -152,7 +152,7 @@ export default function Dashboard() {
     setView(v)
     localStorage.setItem('honestcv.dashboardView', v)
   }
-  const [sortBy, setSortBy] = useState<'edited' | 'name'>('edited')
+  const [sortBy, setSortBy] = useState<'edited' | 'created' | 'name'>('edited')
   const [folderFilter, setFolderFilter] = useState<string>('all')
   const folders = useMemo(() => {
     const names = new Set<string>()
@@ -168,6 +168,8 @@ export default function Dashboard() {
       activeFolder === 'all' ? true : activeFolder === 'none' ? !v.folder : v.folder === activeFolder
     )
     if (sortBy === 'name') arr.sort((a, b) => a.name.localeCompare(b.name))
+    else if (sortBy === 'created')
+      arr.sort((a, b) => (b.createdAt ?? b.updatedAt) - (a.createdAt ?? a.updatedAt))
     else arr.sort((a, b) => b.updatedAt - a.updatedAt)
     return arr
   }, [versions, sortBy, activeFolder])
@@ -461,10 +463,11 @@ export default function Dashboard() {
               <select
                 id="version-sort"
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'edited' | 'name')}
+                onChange={(e) => setSortBy(e.target.value as 'edited' | 'created' | 'name')}
                 className="bg-card min-h-10 rounded-md border px-2 text-sm sm:min-h-8"
               >
                 <option value="edited">Last edited</option>
+                <option value="created">Date created</option>
                 <option value="name">Name A–Z</option>
               </select>
             </div>
