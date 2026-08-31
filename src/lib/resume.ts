@@ -1846,6 +1846,26 @@ export function involvementDates(i: InvolvementItem): string {
   return start || end ? `${start} – ${end}` : ''
 }
 
+/**
+ * Replace the `index`-th non-empty line of a multi-line description with
+ * `next`, or delete that line when `next` is empty. Other lines untouched.
+ */
+export function editDescriptionLine(description: string, index: number, next: string): string {
+  let seen = -1
+  const out: string[] = []
+  for (const l of description.split('\n')) {
+    if (l.trim()) {
+      seen++
+      if (seen === index) {
+        if (next) out.push(next)
+        continue
+      }
+    }
+    out.push(l)
+  }
+  return out.join('\n')
+}
+
 /** Non-empty description lines of an involvement entry, rendered as bullets */
 export const involvementBullets = (i: InvolvementItem): string[] =>
   i.description.split('\n').map((l) => l.trim()).filter(Boolean)
