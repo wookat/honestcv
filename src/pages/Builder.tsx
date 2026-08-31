@@ -41,6 +41,7 @@ import {
   Target,
   Trash2,
   Undo2,
+  Redo2,
   Unlock,
   Users,
   Wand2,
@@ -320,16 +321,18 @@ const SPACING_STEPS = ['xtight', 'compact', 'normal', 'relaxed', 'loose'] as con
 
 const SECTION_STEPS = ['xtight', 'tight', 'normal', 'roomy', 'xroomy'] as const
 
-/** Global undo: snapshots resume state (throttled) and restores on Ctrl/Cmd+Z */
+/** Global undo/redo: snapshots resume state (throttled), Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y */
 function useUndo(
   resume: Resume,
   setResume: React.Dispatch<React.SetStateAction<Resume>>
 ) {
   const history = useRef<Resume[]>([])
+  const future = useRef<Resume[]>([])
   const last = useRef(resume)
   const lastPush = useRef(0)
   const restoring = useRef(false)
   const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
 
   useEffect(() => {
     if (restoring.current) {
@@ -338,6 +341,10 @@ function useUndo(
       return
     }
     if (resume === last.current) return
+    if (future.current.length > 0) {
+      future.current = []
+      setCanRedo(false)
+    }
     const now = Date.now()
     if (now - lastPush.current > 700) {
       history.current.push(last.current)
@@ -351,24 +358,43 @@ function useUndo(
   const undo = useCallback(() => {
     const prev = history.current.pop()
     if (!prev) return
+    future.current.push(last.current)
+    if (future.current.length > 50) future.current.shift()
     restoring.current = true
     setCanUndo(history.current.length > 0)
+    setCanRedo(true)
     setResume(prev)
+  }, [setResume])
+
+  const redo = useCallback(() => {
+    const next = future.current.pop()
+    if (!next) return
+    history.current.push(last.current)
+    if (history.current.length > 50) history.current.shift()
+    restoring.current = true
+    setCanUndo(true)
+    setCanRedo(future.current.length > 0)
+    setResume(next)
   }, [setResume])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return
+      if (!(e.ctrlKey || e.metaKey)) return
+      const key = e.key.toLowerCase()
+      const isUndo = key === 'z' && !e.shiftKey
+      const isRedo = (key === 'z' && e.shiftKey) || key === 'y'
+      if (!isUndo && !isRedo) return
       const el = document.activeElement
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return
       e.preventDefault()
-      undo()
+      if (isRedo) redo()
+      else undo()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo])
+  }, [undo, redo])
 
-  return { undo, canUndo }
+  return { undo, canUndo, redo, canRedo }
 }
 
 function moveItem<T>(arr: T[], index: number, delta: number): T[] {
@@ -689,7 +715,7 @@ export default function Builder() {
       window.dispatchEvent(new CustomEvent(JUMP_EVENT, { detail: anchor }))
     )
   }
-  const { undo, canUndo } = useUndo(resume, setResume)
+  const { undo, canUndo, redo, canRedo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [expLibrary, setExpLibrary] = useState<SavedExperience[]>(() => listExperienceLibrary())
   const [expLibraryOpen, setExpLibraryOpen] = useState(false)
@@ -1132,6 +1158,16 @@ export default function Builder() {
               className="hidden min-h-10 min-w-10 sm:inline-flex sm:min-h-8 sm:min-w-8"
             >
               <Undo2 className="size-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Shift+Z)"
+              className="hidden min-h-10 min-w-10 sm:inline-flex sm:min-h-8 sm:min-w-8"
+            >
+              <Redo2 className="size-3.5" />
             </Button>
             <Button
               size="sm"
