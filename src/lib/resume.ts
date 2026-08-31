@@ -1335,6 +1335,74 @@ export function deleteLibraryInvolvement(id: string): SavedInvolvement[] {
   return items
 }
 
+/** A single polished coursework entry saved for reuse across resume copies. */
+export interface SavedCoursework {
+  id: string
+  savedAt: number
+  data: CourseworkItem
+}
+
+const COURSEWORK_LIBRARY_KEY = 'honestcv.courseworkLibrary'
+const COURSEWORK_LIBRARY_MAX = 30
+
+function sanitizeCourseworkItem(input: unknown): CourseworkItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: CourseworkItem = {
+    id: asStr(v.id) || newId(),
+    name: asStr(v.name),
+    institution: asStr(v.institution),
+    date: asStr(v.date),
+    skill: asStr(v.skill),
+    description: asStr(v.description),
+  }
+  return item.name.trim() || item.institution.trim() || item.description.trim() ? item : null
+}
+
+export function listCourseworkLibrary(): SavedCoursework[] {
+  try {
+    const raw = localStorage.getItem(COURSEWORK_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedCoursework[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeCourseworkItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistCourseworkLibrary(items: SavedCoursework[]) {
+  try {
+    localStorage.setItem(
+      COURSEWORK_LIBRARY_KEY,
+      JSON.stringify(items.slice(0, COURSEWORK_LIBRARY_MAX))
+    )
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveCourseworkToLibrary(entry: CourseworkItem): SavedCoursework[] {
+  const data = sanitizeCourseworkItem(entry)
+  if (!data) return listCourseworkLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listCourseworkLibrary(),
+  ].slice(0, COURSEWORK_LIBRARY_MAX)
+  persistCourseworkLibrary(items)
+  return items
+}
+
+export function deleteLibraryCoursework(id: string): SavedCoursework[] {
+  const items = listCourseworkLibrary().filter((s) => s.id !== id)
+  persistCourseworkLibrary(items)
+  return items
+}
+
 /** A polished skills text block saved for reuse across resume copies. */
 export interface SavedSkills {
   id: string
