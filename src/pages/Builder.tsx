@@ -541,9 +541,17 @@ export default function Builder() {
     : null
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
+  const [renameFolder, setRenameFolder] = useState('')
+  const versionFolders = useMemo(() => {
+    const names = new Set<string>()
+    for (const v of versions) if (v.folder) names.add(v.folder)
+    return [...names].sort((a, b) => a.localeCompare(b))
+  }, [versions])
   const commitRename = (v: ResumeVersion) => {
-    const name = renameText.trim()
-    if (name && name !== v.name) setVersions(updateResumeVersion(v.id, { name }))
+    const name = renameText.trim() || v.name
+    const folder = renameFolder.trim() || undefined
+    if (name !== v.name || folder !== v.folder)
+      setVersions(updateResumeVersion(v.id, { name, folder }))
     setRenamingId(null)
   }
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
@@ -4122,17 +4130,37 @@ export default function Builder() {
                 >
                   <div className="min-w-0 flex-1">
                     {renamingId === v.id ? (
-                      <Input
-                        autoFocus
-                        value={renameText}
-                        onChange={(e) => setRenameText(e.target.value)}
+                      <div
+                        className="space-y-1.5"
+                        onBlur={(e) => {
+                          if (!e.currentTarget.contains(e.relatedTarget as Node))
+                            commitRename(v)
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') commitRename(v)
                         }}
-                        onBlur={() => commitRename(v)}
-                        className="h-8"
-                        aria-label={`Rename ${v.name}`}
-                      />
+                      >
+                        <Input
+                          autoFocus
+                          value={renameText}
+                          onChange={(e) => setRenameText(e.target.value)}
+                          className="h-8"
+                          aria-label={`Rename ${v.name}`}
+                        />
+                        <Input
+                          value={renameFolder}
+                          onChange={(e) => setRenameFolder(e.target.value)}
+                          list="builder-version-folders"
+                          placeholder="Folder (optional)"
+                          className="h-8"
+                          aria-label={`Folder for ${v.name}`}
+                        />
+                        <datalist id="builder-version-folders">
+                          {versionFolders.map((f) => (
+                            <option key={f} value={f} />
+                          ))}
+                        </datalist>
+                      </div>
                     ) : (
                       <p className="truncate font-medium">
                         {v.name}
@@ -4143,8 +4171,9 @@ export default function Builder() {
                         )}
                       </p>
                     )}
-                    <p className="text-muted-foreground text-xs">
-                      {new Date(v.updatedAt).toLocaleString()} · ATS{' '}
+                    <p className="text-muted-foreground truncate text-xs">
+                      {new Date(v.updatedAt).toLocaleString()}
+                      {v.folder ? ` · ${v.folder}` : ''} · ATS{' '}
                       {scoreResume(v.data, v.data.jobDescription).score}/100
                     </p>
                   </div>
@@ -4157,6 +4186,7 @@ export default function Builder() {
                       aria-label={`Rename copy ${v.name}`}
                       onClick={() => {
                         setRenameText(v.name)
+                        setRenameFolder(v.folder ?? '')
                         setRenamingId(v.id)
                       }}
                     >

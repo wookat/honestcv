@@ -646,6 +646,7 @@ export default function Dashboard() {
                   <p className="text-muted-foreground text-xs">
                     {editedAgo(v.updatedAt)} · ATS{' '}
                     {scoreResume(v.data, v.data.jobDescription).score}/100
+                    {v.folder ? ` · ${v.folder}` : ''}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">{versionActions(v)}</div>
