@@ -246,6 +246,9 @@ app.use('*', async (c, next) => {
     h.set('Cache-Control', 'public, max-age=31536000, immutable')
   } else if (c.req.path.startsWith('/fonts/')) {
     h.set('Cache-Control', 'public, max-age=604800')
+  } else if (c.req.path.startsWith('/s/')) {
+    // Shared-resume shells stay uncached so a revoked link 404s immediately
+    h.set('Cache-Control', 'no-store')
   } else if (c.req.method === 'GET' && !c.req.path.startsWith('/api/') && c.res.status === 200) {
     // Pages: short TTLs everywhere (s-maxage also opts the response into the
     // cache middleware above). The zone edge cache sits in front of the Worker
@@ -1255,6 +1258,132 @@ app.post('/api/leads', async (c) => {
   return c.json({ ok: true })
 })
 
+// Shareable read-only resume links: capability URLs backed by KV. The id is
+// the read capability, the token (returned once, never stored raw) is the
+// revoke capability. Snapshots expire unless re-shared.
+const SHARE_MAX_BODY_BYTES = 120_000
+const SHARE_TTL_SECONDS = 60 * 60 * 24 * 180
+const SHARE_CLIENT_DAILY_LIMIT = 20
+const SHARE_ID_RE = /^[A-Za-z0-9_-]{10,64}$/
+
+const randomB64url = (bytes: number) =>
+  btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(bytes))))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+
+const sha256Hex = async (s: string) => {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+interface ShareRecord {
+  resume?: unknown
+  tokenHash?: string
+  createdAt?: number
+}
+
+const parseShareRecord = (raw: string): ShareRecord | null => {
+  try {
+    const v = JSON.parse(raw) as unknown
+    return typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as ShareRecord) : null
+  } catch {
+    return null
+  }
+}
+
+app.post('/api/share', async (c) => {
+  const length = Number(c.req.header('content-length') ?? '0')
+  if (length > SHARE_MAX_BODY_BYTES) {
+    return c.json({ error: 'This resume is too large to share.' }, 413)
+  }
+  const fp = c.req.header('x-client-id')?.trim()
+  if (!fp || fp.length < 8 || fp.length > 128) {
+    return c.json({ error: 'Sharing is unavailable — please reload and retry.' }, 400)
+  }
+  const day = new Date().toISOString().slice(0, 10)
+  const rlKey = `rl:share:${day}:${fp}`
+  const used = Number((await c.env.KV.get(rlKey)) ?? '0')
+  if (used >= SHARE_CLIENT_DAILY_LIMIT) {
+    return c.json({ error: 'Daily share limit reached — please try again tomorrow.' }, 429)
+  }
+  // content-length can be absent (chunked bodies), so enforce the cap on the
+  // actual bytes too before parsing.
+  const text = await c.req.text().catch(() => '')
+  if (new TextEncoder().encode(text).length > SHARE_MAX_BODY_BYTES) {
+    return c.json({ error: 'This resume is too large to share.' }, 413)
+  }
+  let body: { resume?: unknown; id?: string; token?: string } | null
+  try {
+    body = JSON.parse(text) as { resume?: unknown; id?: string; token?: string }
+  } catch {
+    body = null
+  }
+  const resume = body?.resume
+  if (typeof resume !== 'object' || resume === null || Array.isArray(resume)) {
+    return c.json({ error: 'Invalid resume payload.' }, 400)
+  }
+  // Re-publish keeps the recipient's URL stable: with a valid id+token pair
+  // the existing snapshot is overwritten (and its TTL refreshed) in place.
+  let id = ''
+  let token = ''
+  if (
+    typeof body?.id === 'string' &&
+    typeof body?.token === 'string' &&
+    SHARE_ID_RE.test(body.id)
+  ) {
+    const existing = await c.env.KV.get(`share:${body.id}`)
+    if (existing) {
+      const rec = parseShareRecord(existing)
+      if (rec && rec.tokenHash === (await sha256Hex(body.token))) {
+        id = body.id
+        token = body.token
+      }
+    }
+  }
+  if (!id) {
+    id = randomB64url(16)
+    token = randomB64url(16)
+  }
+  await c.env.KV.put(
+    `share:${id}`,
+    JSON.stringify({ resume, tokenHash: await sha256Hex(token), createdAt: Date.now() }),
+    { expirationTtl: SHARE_TTL_SECONDS }
+  )
+  await c.env.KV.put(rlKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+  return c.json({ id, token, url: `https://cv.zalize.com/s/${id}` })
+})
+
+app.get('/api/share/:id', async (c) => {
+  const id = c.req.param('id')
+  if (!SHARE_ID_RE.test(id)) return c.json({ error: 'Not Found' }, 404)
+  const raw = await c.env.KV.get(`share:${id}`)
+  if (!raw) return c.json({ error: 'Not Found' }, 404)
+  const rec = parseShareRecord(raw)
+  if (!rec) return c.json({ error: 'Not Found' }, 404)
+  c.header('Cache-Control', 'no-store')
+  return c.json({ resume: rec.resume, createdAt: rec.createdAt ?? 0 })
+})
+
+app.delete('/api/share/:id', async (c) => {
+  const id = c.req.param('id')
+  const token = c.req.header('x-share-token')?.trim() ?? ''
+  if (!SHARE_ID_RE.test(id) || !token) return c.json({ error: 'Not Found' }, 404)
+  const raw = await c.env.KV.get(`share:${id}`)
+  if (!raw) return c.json({ ok: true })
+  const rec = parseShareRecord(raw)
+  if (!rec) {
+    // Corrupt record: unreadable by GET anyway, so allow cleanup.
+    await c.env.KV.delete(`share:${id}`)
+    return c.json({ ok: true })
+  }
+  if (rec.tokenHash !== (await sha256Hex(token))) {
+    return c.json({ error: 'Not authorized.' }, 403)
+  }
+  await c.env.KV.delete(`share:${id}`)
+  return c.json({ ok: true })
+})
+
 interface OrderRecord {
   transactionId: string
   licenseKey?: string
@@ -1478,9 +1607,16 @@ app.notFound(async (c) => {
   // spa.html is the empty shell (index.html carries the prerendered landing)
   let shell = await c.env.ASSETS.fetch(new Request(new URL('/spa.html', c.req.url)))
   if (shell.status !== 200) shell = await c.env.ASSETS.fetch(new Request(new URL('/', c.req.url)))
+  // Shared-resume pages resolve to the SPA shell too, but must never be indexed
+  const isShare = /^\/s\/[A-Za-z0-9_-]{10,64}$/.test(path)
+  const headers: Record<string, string> = { 'content-type': 'text/html; charset=utf-8' }
+  if (path.startsWith('/s/')) {
+    headers['X-Robots-Tag'] = 'noindex'
+    headers['Cache-Control'] = 'no-store'
+  }
   return new Response(shell.body, {
-    status: SPA_ROUTES.has(path) ? 200 : 404,
-    headers: { 'content-type': 'text/html; charset=utf-8' },
+    status: SPA_ROUTES.has(path) || isShare ? 200 : 404,
+    headers,
   })
 })
 

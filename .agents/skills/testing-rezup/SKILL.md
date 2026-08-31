@@ -17,6 +17,12 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 - Clearing `honestcv.*` (e.g. for fresh-resume tests) also wipes the download-unlock flag — re-set `honestcv.shared='1'` before export tests, and expect the pre-existing "Final check before download" nudge on sparse resumes (click "Download anyway").
 - A fresh resume does not write `honestcv.resume` until the first edit — assert its default section order from the rendered Section order panel, not storage.
 
+## R76 share-link QA notes
+
+- The share dialog's Link access control is a native `<select aria-label="Link access">` — click the select, then click the option; the first click sometimes closes without selecting, so retry. Verify Copy via `xclip -selection clipboard -o`, not in-page `navigator.clipboard.readText()` (hangs on a permission prompt under CDP).
+- Incognito windows (Ctrl+Shift+N) appear on the same CDP :9222 endpoint — select targets by URL substring, never "first page" (`/tmp/cdp.py` grabs the first target and can hit the wrong window). An incognito RezUp page immediately writes `honestcv.firstSeen`, so "fresh context" means only that key present.
+- Worker code lives behind a redirected wrangler config (`dist/honestcv/wrangler.json` from the Vite Cloudflare plugin): `wrangler dev`/`deploy` serve the *built* worker, so run `npm run build` after any `worker/index.ts` edit before local smoke tests or deploys.
+
 ## QA traffic marking (unified convention)
 
 - Real-browser QA: set `localStorage['honestcv.qa']='1'` via `context.addInitScript()` BEFORE the first `goto` — this suppresses the first-party `/api/hit` pageview beacon and all `/api/ev` funnel events client-side.
