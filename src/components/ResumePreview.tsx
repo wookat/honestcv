@@ -32,6 +32,7 @@ import {
   orderedSectionKeys,
   projectDates,
   sectionSpacingOf,
+  skillLines,
   bulletIndentOf,
   contactIconsOf,
   familyOf,
@@ -450,7 +451,12 @@ function SectionBlock({
     return resume.skills.trim() ? (
       <>
         {heading('Skills')}
-        <p className="text-[11px]">{resume.skills.trim()}</p>
+        {skillLines(resume).map((line, i) => (
+          <p key={i} className="text-[11px]">
+            {line.label ? <span className="font-semibold">{line.label}: </span> : null}
+            {line.text}
+          </p>
+        ))}
       </>
     ) : null
   if (sectionKey === 'certifications') {

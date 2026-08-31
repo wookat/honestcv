@@ -147,6 +147,7 @@ import {
   type ExamplePerson,
   saveResumeVersion,
   sectionLabel,
+  skillLines,
   sortEntriesByDate,
   TEXT_INKS,
 } from '@/lib/resume'
@@ -2841,6 +2842,14 @@ export default function Builder() {
                 value={resume.skills}
                 onChange={(e) => set('skills', e.target.value)}
               />
+              {resume.skills.split(/[,\n]/).filter((s) => s.trim()).length >= 8 &&
+                !skillLines(resume).some((l) => l.label) && (
+                  <p className="text-muted-foreground text-xs">
+                    Tip: recruiters scan long skill lists faster when they're grouped —
+                    put each category on its own line, e.g. “Languages: Python,
+                    TypeScript” then “Cloud: AWS, Terraform”.
+                  </p>
+                )}
               <div className="flex flex-wrap items-center gap-2">
                 {aiButton('skills', 'AI clean up skills', () =>
                   void runRewrite('skills', 'skills', resume.skills, (out) =>

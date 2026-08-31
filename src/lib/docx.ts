@@ -45,6 +45,7 @@ import {
   projectDates,
   projectHeadingLine,
   sectionSpacingOf,
+  skillLines,
   bulletIndentOf,
   familyOf,
   TEXT_INKS,
@@ -315,7 +316,24 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         for (const b of courseworkBullets(cw)) children.push(body(b, { bullet: true }))
       }
     } else if (key === 'skills' && resume.skills.trim()) {
-      children.push(heading('Skills'), body(resume.skills.trim(), { after: 100 }))
+      children.push(heading('Skills'))
+      const lines = skillLines(resume)
+      lines.forEach((line, i) => {
+        const after = i === lines.length - 1 ? 100 : 60
+        if (!line.label) {
+          children.push(body(line.text, { after }))
+          return
+        }
+        children.push(
+          new Paragraph({
+            spacing: { after, line: lineTwips, lineRule: LineRuleType.AUTO },
+            children: [
+              new TextRun({ text: `${line.label}: `, bold: true, size: sz(21), font }),
+              new TextRun({ text: line.text, size: sz(21), font }),
+            ],
+          })
+        )
+      })
     } else if (
       key === 'certifications' &&
       (certEntries(resume).length > 0 || resume.certifications.trim())
