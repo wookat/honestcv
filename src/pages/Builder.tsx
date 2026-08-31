@@ -1724,10 +1724,10 @@ export default function Builder() {
               )}
             </div>
             {expLibraryOpen && expLibrary.length > 0 && (
-              <div className="space-y-2 rounded-lg border p-3">
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
                 <p className="text-muted-foreground text-xs font-medium">Saved roles</p>
                 {expLibrary.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-2">
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
                     <div className="min-w-0">
                       <p className="truncate text-sm">
                         {[s.data.role, s.data.company].filter((x) => x.trim()).join(' — ') ||
