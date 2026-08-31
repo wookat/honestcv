@@ -1247,6 +1247,56 @@ export function deleteLibrarySkills(id: string): SavedSkills[] {
   return items
 }
 
+/** A polished summary text block saved for reuse across resume copies. */
+export interface SavedSummary {
+  id: string
+  savedAt: number
+  summary: string
+}
+
+const SUMMARY_LIBRARY_KEY = 'honestcv.summaryLibrary'
+const SUMMARY_LIBRARY_MAX = 30
+
+export function listSummaryLibrary(): SavedSummary[] {
+  try {
+    const raw = localStorage.getItem(SUMMARY_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedSummary[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const summary = asStr(s.summary)
+      return summary.trim() ? [{ id: s.id, savedAt: s.savedAt, summary }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistSummaryLibrary(items: SavedSummary[]) {
+  try {
+    localStorage.setItem(SUMMARY_LIBRARY_KEY, JSON.stringify(items.slice(0, SUMMARY_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveSummaryToLibrary(summary: string): SavedSummary[] {
+  if (!summary.trim()) return listSummaryLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), summary },
+    ...listSummaryLibrary(),
+  ].slice(0, SUMMARY_LIBRARY_MAX)
+  persistSummaryLibrary(items)
+  return items
+}
+
+export function deleteLibrarySummary(id: string): SavedSummary[] {
+  const items = listSummaryLibrary().filter((s) => s.id !== id)
+  persistSummaryLibrary(items)
+  return items
+}
+
 /** Detail line under an education entry: details · Minor in X · GPA: Y */
 export function educationDetailLine(e: EducationItem): string {
   return [
