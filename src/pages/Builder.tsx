@@ -1409,9 +1409,20 @@ export default function Builder() {
                 <Label htmlFor="targetRole">Target role</Label>
                 <Input
                   id="targetRole"
+                  className="h-11 sm:h-9"
                   placeholder="e.g. Frontend Engineer"
                   value={resume.targetRole}
                   onChange={(e) => set('targetRole', e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="targetCompany">Company</Label>
+                <Input
+                  id="targetCompany"
+                  className="h-11 sm:h-9"
+                  placeholder="e.g. Acme Corp"
+                  value={resume.targetCompany ?? ''}
+                  onChange={(e) => set('targetCompany', e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
@@ -3995,7 +4006,9 @@ export default function Builder() {
       />
       <BundleToolDialog
         kind={toolOpen}
-        initialCompany={toolCompany}
+        initialCompany={
+          toolOpen === 'cover' ? toolCompany || (resume.targetCompany ?? '') : toolCompany
+        }
         onClose={() => setToolOpen(null)}
         resume={resume}
         onQuota={setFreeLeft}
@@ -4738,7 +4751,7 @@ function BundleToolDialog({
 
   if (kind !== lastKind) {
     setLastKind(kind)
-    if (kind !== null && initialCompany) setCompany(initialCompany)
+    if (kind !== null) setCompany(initialCompany)
     setResult('')
     setError('')
     setSavedId(null)

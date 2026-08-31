@@ -143,7 +143,12 @@ export default function Jobs() {
 
   const targetResume = (job: JobListing, intent: 'target' | 'cover') => {
     const draft = loadResume() ?? emptyResume()
-    const next = { ...draft, targetRole: job.title, jobDescription: job.description }
+    const next = {
+      ...draft,
+      targetRole: job.title,
+      targetCompany: job.company,
+      jobDescription: job.description,
+    }
     saveResume(next)
     syncActiveVersion(next)
     void navigate(

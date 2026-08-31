@@ -207,6 +207,8 @@ export interface Resume {
   jobDescription: string
   /** Candidate seniority for the target job; grounds AI drafts ('' = unset) */
   experienceLevel?: '' | 'internship' | 'entry' | 'mid' | 'senior' | 'executive'
+  /** Company the resume targets; grounds AI drafts and prefills cover letters */
+  targetCompany?: string
 }
 
 export const newId = () => Math.random().toString(36).slice(2, 10)
@@ -224,9 +226,14 @@ export const EXPERIENCE_LEVEL_LABELS: Record<(typeof EXPERIENCE_LEVELS)[number],
 export function aiTargetRole(r: Resume): string {
   const role = r.targetRole.trim()
   const lvl = r.experienceLevel
-  if (!lvl) return role
-  const label = EXPERIENCE_LEVEL_LABELS[lvl]
-  return role ? `${role} (${label})` : `${label} position`
+  const base = !lvl
+    ? role
+    : role
+      ? `${role} (${EXPERIENCE_LEVEL_LABELS[lvl]})`
+      : `${EXPERIENCE_LEVEL_LABELS[lvl]} position`
+  const company = (r.targetCompany ?? '').trim()
+  if (!company) return base
+  return base ? `${base} at ${company}` : `Position at ${company}`
 }
 
 /** Multipliers applied to font sizes in the preview, PDF and DOCX. */
@@ -848,6 +855,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       raw.experienceLevel,
       ['internship', 'entry', 'mid', 'senior', 'executive'] as const
     ),
+    targetCompany: asStr(raw.targetCompany) || undefined,
   }
   resume.sectionOrder = orderedSectionKeys(resume)
   return resume
