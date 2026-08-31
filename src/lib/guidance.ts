@@ -28,6 +28,7 @@ export interface BulletIssue {
     | 'filler'
     | 'first-person'
     | 'buzzword'
+    | 'passive'
     | 'punctuation'
   message: string
 }
@@ -71,6 +72,13 @@ export function checkBullet(bullet: string): BulletIssue[] {
       message: `"${buzz}" is an empty claim — replace it with a concrete, checkable fact`,
     })
   }
+  const passive = findPassive(text)
+  if (passive) {
+    issues.push({
+      kind: 'passive',
+      message: `Passive voice ("${passive}") hides who did the work — rewrite with an active verb`,
+    })
+  }
   if (!/^[A-Z0-9]/.test(text) || !/[.!?]$/.test(text)) {
     issues.push({
       kind: 'punctuation',
@@ -106,6 +114,21 @@ export function checkBullets(bullets: string[]): { index: number; issues: Bullet
 const STRONG_VERB_SET = new Set(
   ACTION_VERBS.flatMap((g) => g.verbs.map((v) => v.toLowerCase()))
 )
+
+/** Irregular participles; the first group also matches prefixed forms (rebuilt, rewritten). */
+const IRREGULAR_PARTICIPLES =
+  '[a-z]*(?:built|made|given|done|taken|chosen|driven|written|held|kept|brought|taught|seen|shown|known|grown|sent|found|paid|sold|told)|led|won|run|set|put'
+
+const PASSIVE_RE = new RegExp(
+  `\\b(was|were|is|are|been|being)\\s+(?:\\w+ly\\s+)?([a-z]{2,}ed|${IRREGULAR_PARTICIPLES})\\b`,
+  'i'
+)
+
+/** Returns the matched passive phrase (e.g. "was built"), or null. */
+function findPassive(text: string): string | null {
+  const m = PASSIVE_RE.exec(text)
+  return m ? m[0].replace(/\s+/g, ' ') : null
+}
 
 const BUZZWORDS = [
   'synergy',
