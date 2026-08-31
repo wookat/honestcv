@@ -986,6 +986,77 @@ export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapsho
   return next.slice(0, HISTORY_MAX)
 }
 
+/** A single polished role saved for reuse across resume copies. */
+export interface SavedExperience {
+  id: string
+  savedAt: number
+  data: ExperienceItem
+}
+
+const EXPERIENCE_LIBRARY_KEY = 'honestcv.experienceLibrary'
+const EXPERIENCE_LIBRARY_MAX = 30
+
+function sanitizeExperienceItem(input: unknown): ExperienceItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const e = input as Record<string, unknown>
+  const item: ExperienceItem = {
+    id: asStr(e.id) || newId(),
+    company: asStr(e.company),
+    role: asStr(e.role),
+    location: asStr(e.location),
+    startDate: asStr(e.startDate),
+    endDate: asStr(e.endDate),
+    bullets: asStrArr(e.bullets),
+  }
+  return item.company.trim() || item.role.trim() || item.bullets.some((b) => b.trim())
+    ? item
+    : null
+}
+
+export function listExperienceLibrary(): SavedExperience[] {
+  try {
+    const raw = localStorage.getItem(EXPERIENCE_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedExperience[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeExperienceItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistExperienceLibrary(items: SavedExperience[]) {
+  try {
+    localStorage.setItem(
+      EXPERIENCE_LIBRARY_KEY,
+      JSON.stringify(items.slice(0, EXPERIENCE_LIBRARY_MAX))
+    )
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveExperienceToLibrary(entry: ExperienceItem): SavedExperience[] {
+  const data = sanitizeExperienceItem(entry)
+  if (!data) return listExperienceLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listExperienceLibrary(),
+  ].slice(0, EXPERIENCE_LIBRARY_MAX)
+  persistExperienceLibrary(items)
+  return items
+}
+
+export function deleteLibraryExperience(id: string): SavedExperience[] {
+  const items = listExperienceLibrary().filter((s) => s.id !== id)
+  persistExperienceLibrary(items)
+  return items
+}
+
 /** Detail line under an education entry: details · Minor in X · GPA: Y */
 export function educationDetailLine(e: EducationItem): string {
   return [
