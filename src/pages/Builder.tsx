@@ -1005,13 +1005,15 @@ export default function Builder() {
   const finalCheckIssues = useMemo(() => {
     const issues: string[] = []
     for (const c of ats.checks) if (!c.pass) issues.push(`${c.label} — ${c.hint}`)
-    const bulletIssueCount = resume.experience.reduce(
-      (n, e) => n + checkBullets(e.bullets).reduce((m, r) => m + r.issues.length, 0),
-      0
-    )
+    const countIssues = (lines: string[]) =>
+      checkBullets(lines).reduce((m, r) => m + r.issues.length, 0)
+    const bulletIssueCount =
+      resume.experience.reduce((n, e) => n + countIssues(e.bullets), 0) +
+      resume.projects.reduce((n, p) => n + countIssues(p.description.split('\n')), 0) +
+      (resume.involvement ?? []).reduce((n, i) => n + countIssues(i.description.split('\n')), 0)
     if (bulletIssueCount > 0)
       issues.push(
-        `${bulletIssueCount} bullet-quality warning${bulletIssueCount === 1 ? '' : 's'} in Experience (weak openers, missing numbers…)`
+        `${bulletIssueCount} bullet-quality warning${bulletIssueCount === 1 ? '' : 's'} in Experience/Projects/Involvement (weak openers, missing numbers…)`
       )
     const placeholderCount = resumeToPlainText(resume).match(/\[[^\]\n]{1,60}\]/g)?.length ?? 0
     if (placeholderCount > 0)
@@ -2695,6 +2697,42 @@ export default function Builder() {
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
+                <BulletGuidance
+                  bullets={p.description.split('\n')}
+                  busyLine={
+                    aiBusy?.startsWith(`proj-${p.id}-line-`)
+                      ? Number(aiBusy.slice(`proj-${p.id}-line-`.length))
+                      : null
+                  }
+                  onFix={(idx) =>
+                    void runRewrite(
+                      `proj-${p.id}-line-${idx}`,
+                      'bullets',
+                      p.description.split('\n')[idx] ?? '',
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          projects: r.projects.map((x) =>
+                            x.id === p.id
+                              ? {
+                                  ...x,
+                                  description: x.description
+                                    .split('\n')
+                                    .map((b, i) =>
+                                      i === idx
+                                        ? (out.split('\n')[0] ?? '')
+                                            .replace(/^[-•]\s*/, '')
+                                            .trim() || b
+                                        : b
+                                    )
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        }))
+                    )
+                  }
+                />
                   </>
                 )}
               </div>
@@ -2904,6 +2942,42 @@ export default function Builder() {
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
+                <BulletGuidance
+                  bullets={inv.description.split('\n')}
+                  busyLine={
+                    aiBusy?.startsWith(`inv-${inv.id}-line-`)
+                      ? Number(aiBusy.slice(`inv-${inv.id}-line-`.length))
+                      : null
+                  }
+                  onFix={(idx) =>
+                    void runRewrite(
+                      `inv-${inv.id}-line-${idx}`,
+                      'bullets',
+                      inv.description.split('\n')[idx] ?? '',
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id
+                              ? {
+                                  ...x,
+                                  description: x.description
+                                    .split('\n')
+                                    .map((b, i) =>
+                                      i === idx
+                                        ? (out.split('\n')[0] ?? '')
+                                            .replace(/^[-•]\s*/, '')
+                                            .trim() || b
+                                        : b
+                                    )
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        }))
+                    )
+                  }
+                />
               </div>
             ))}
             <div className="flex flex-wrap items-center gap-2">
