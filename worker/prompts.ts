@@ -154,6 +154,37 @@ Output the single bullet as one line of plain text. No leading dash, no quotes, 
   ]
 }
 
+/**
+ * Draft one work-experience bullet for a specific role, grounded strictly in
+ * the candidate's existing resume (bracketed placeholders where specifics are
+ * unknown, never invented facts).
+ */
+export function buildSuggestBulletMessages(
+  role: string,
+  company: string,
+  existingBullets: string[],
+  resumeText: string
+): ChatMessage[] {
+  const existing = existingBullets
+    .filter((b) => b.trim())
+    .map((b) => `- ${b.slice(0, 300)}`)
+    .join('\n')
+  return [
+    {
+      role: 'system',
+      content: `${SYSTEM_WRITER}
+Draft exactly ONE work-experience bullet for the role described by the user, describing a typical, checkable achievement for that kind of role.
+Ground the bullet only in what the resume already shows; where a specific project, metric or scope is unknown, use bracketed placeholders such as [project name] or [add %] for the user to fill in — never invent specifics.
+Do not repeat or lightly rephrase any of the existing bullets; cover a different responsibility or outcome.
+Start with a strong action verb. Output the single bullet as one line of plain text ending with a period. No leading dash, no quotes, no commentary.`,
+    },
+    {
+      role: 'user',
+      content: `Role: ${role || 'not specified'}\nCompany: ${company || 'not specified'}\n\nExisting bullets for this role:\n${existing || '(none yet)'}\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
+    },
+  ]
+}
+
 export function buildCoverLetterMessages(
   resumeText: string,
   jobDescription: string,
