@@ -45,6 +45,7 @@ import {
   projectDates,
   projectHeadingLine,
   sectionSpacingOf,
+  bulletIndentOf,
   familyOf,
   TEXT_INKS,
   textInkOf,
@@ -78,6 +79,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   const divider = dividerOf(resume, tpl.divider)
   const ink = textInkOf(resume)
   const headingBefore = Math.round(240 * sectionSpacingOf(resume))
+  const bulletInd = bulletIndentOf(resume) ? { left: 920, hanging: 360 } : undefined
   const heading = (text: string) =>
     new Paragraph({
       spacing: { before: headingBefore, after: 80 },
@@ -119,6 +121,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       spacing: { after: opts.after ?? 60, line: lineTwips, lineRule: LineRuleType.AUTO },
       keepNext: opts.keepNext,
       bullet: opts.bullet ? { level: 0 } : undefined,
+      indent: opts.bullet ? bulletInd : undefined,
       children: [
         new TextRun({
           text,

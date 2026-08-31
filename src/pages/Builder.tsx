@@ -3476,6 +3476,31 @@ export default function Builder() {
                 </button>
               ))}
             </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Indent</span>
+              {(
+                [
+                  ['off', 'Off', 'Bullets flush with the section text'],
+                  ['on', 'On', 'Indent bullet lists'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — applies to preview, PDF and DOCX`}
+                  aria-pressed={(resume.bulletIndent ?? 'off') === value}
+                  onClick={() => set('bulletIndent', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.bulletIndent ?? 'off') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
           </div>
 
           <Card className="py-0">
