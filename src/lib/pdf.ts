@@ -67,13 +67,26 @@ interface Fonts {
   italic: PDFFont
 }
 
+/**
+ * Width of text as pdf-lib actually draws it. `widthOfTextAtSize` applies AFM
+ * kern pairs for standard fonts while `drawText` emits un-kerned advances, so
+ * wide lines render several points wider than measured; the per-character sum
+ * matches the drawn advances for standard fonts, and embedded fonts measure
+ * whole-string exactly, so the max of the two is correct for both.
+ */
+function drawnWidth(font: PDFFont, text: string, size: number): number {
+  let sum = 0
+  for (const ch of text) sum += font.widthOfTextAtSize(ch, size)
+  return Math.max(sum, font.widthOfTextAtSize(text, size))
+}
+
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const words = text.split(/\s+/).filter(Boolean)
   const lines: string[] = []
   let line = ''
   for (const word of words) {
     const candidate = line ? `${line} ${word}` : word
-    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+    if (drawnWidth(font, candidate, size) <= maxWidth) {
       line = candidate
     } else {
       if (line) lines.push(line)
@@ -146,7 +159,7 @@ class PdfWriter {
     const lineHeight = size * this.lh + (opts.lineGap ?? 0)
     for (const line of wrapText(text, font, size, maxWidth)) {
       this.ensure(lineHeight)
-      const width = font.widthOfTextAtSize(line, size)
+      const width = drawnWidth(font, line, size)
       const x = opts.center ? (this.pageW - width) / 2 : MARGIN + indent
       this.y -= lineHeight
       this.page.drawText(line, {
@@ -163,7 +176,7 @@ class PdfWriter {
   labelledLine(label: string, rest: string, opts: { size?: number } = {}) {
     const size = (opts.size ?? 10) * this.fs
     const prefix = `${label}: `
-    const prefixW = this.fonts.bold.widthOfTextAtSize(prefix, size)
+    const prefixW = drawnWidth(this.fonts.bold, prefix, size)
     const lineHeight = size * this.lh
     const restLines = wrapText(rest, this.fonts.regular, size, this.contentW - prefixW)
     this.ensure(lineHeight)
@@ -195,9 +208,9 @@ class PdfWriter {
   titleLine(left: string, right: string, opts: { size?: number } = {}) {
     const size = (opts.size ?? 10.5) * this.fs
     const dateSize = 9 * this.fs
-    const rightWidth = right ? this.fonts.italic.widthOfTextAtSize(right, dateSize) : 0
+    const rightWidth = right ? drawnWidth(this.fonts.italic, right, dateSize) : 0
     const leftMax = this.contentW - (right ? rightWidth + 12 : 0)
-    if (!right || this.fonts.bold.widthOfTextAtSize(left, size) > leftMax) {
+    if (!right || drawnWidth(this.fonts.bold, left, size) > leftMax) {
       this.text(left, { font: this.fonts.bold, size: size / this.fs })
       if (right) {
         this.gap(1)
@@ -244,10 +257,10 @@ class PdfWriter {
     const iconGap = size * 0.28
     const segGap = size * 0.9
     const segW = (s: { text: string; icon?: ContactIconKind }) =>
-      (useIcons && s.icon ? iconSize + iconGap : 0) + font.widthOfTextAtSize(s.text, size)
+      (useIcons && s.icon ? iconSize + iconGap : 0) + drawnWidth(font, s.text, size)
     const totalWidth = useIcons
       ? segments.reduce((a, s) => a + segW(s), 0) + segGap * (segments.length - 1)
-      : font.widthOfTextAtSize(segments.map((s) => s.text).join(sep), size)
+      : drawnWidth(font, segments.map((s) => s.text).join(sep), size)
     if (totalWidth > this.contentW) {
       const full = segments.map((s) => s.text).join(sep)
       this.text(full, { size: size / this.fs, color: opts.color, center: opts.center })
@@ -276,7 +289,7 @@ class PdfWriter {
         font,
         color: opts.color ?? this.ink,
       })
-      const textW = font.widthOfTextAtSize(s.text, size)
+      const textW = drawnWidth(font, s.text, size)
       if (s.url) {
         const annot = this.doc.context.register(
           this.doc.context.obj({
@@ -291,7 +304,7 @@ class PdfWriter {
       }
       x += textW
       if (i < segments.length - 1)
-        x += useIcons ? segGap : font.widthOfTextAtSize(sep, size)
+        x += useIcons ? segGap : drawnWidth(font, sep, size)
     })
   }
 
