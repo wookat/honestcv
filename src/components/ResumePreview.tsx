@@ -33,10 +33,31 @@ import {
   projectDates,
   sectionSpacingOf,
   bulletIndentOf,
+  contactIconsOf,
   familyOf,
   textInkOf,
 } from '@/lib/resume'
+import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { accentTint, resolveTemplate } from '@/lib/templates'
+
+function ContactIcon({ kind }: { kind: ContactIconKind }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={10}
+      height={10}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      style={{ flexShrink: 0 }}
+    >
+      <path d={CONTACT_ICON_PATHS[kind]} />
+    </svg>
+  )
+}
 
 export function ResumePreview({
   resume,
@@ -55,9 +76,14 @@ export function ResumePreview({
     sourcesans: '"Source Sans 3", "Source Sans Pro", Inter, Arial, sans-serif',
     robotomono: '"Roboto Mono", "Courier New", ui-monospace, monospace',
   }[familyOf(resume, tpl.serif)]
-  const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]
-    .filter(Boolean)
-    .join('  |  ')
+  const contactFields: { text: string; icon: ContactIconKind }[] = [
+    { text: c.email, icon: 'mail' as const },
+    { text: c.phone, icon: 'phone' as const },
+    { text: c.location, icon: 'pin' as const },
+    { text: c.website, icon: 'globe' as const },
+    { text: c.linkedin, icon: 'linkedin' as const },
+  ].filter((f) => f.text)
+  const contactLine = contactFields.map((f) => f.text).join('  |  ')
 
   const divider = tpl.band ? 'none' : dividerOf(resume, tpl.divider)
   const headingMarginTop = 16 * sectionSpacingOf(resume)
@@ -98,9 +124,23 @@ export function ResumePreview({
             {c.title}
           </p>
         )}
-        {contactLine && (
-          <p className="mt-1 text-[10px] text-neutral-500">{contactLine}</p>
-        )}
+        {contactLine &&
+          (contactIconsOf(resume) ? (
+            <p
+              className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-neutral-500 ${
+                tpl.headerAlign === 'left' ? 'justify-start' : 'justify-center'
+              }`}
+            >
+              {contactFields.map((f) => (
+                <span key={f.icon} className="inline-flex items-center gap-1">
+                  <ContactIcon kind={f.icon} />
+                  {f.text}
+                </span>
+              ))}
+            </p>
+          ) : (
+            <p className="mt-1 text-[10px] text-neutral-500">{contactLine}</p>
+          ))}
       </div>
 
       {orderedSectionKeys(resume).map((key) => (
