@@ -894,7 +894,7 @@ export default function Dashboard() {
                 </DialogDescription>
               </DialogHeader>
               <div className="min-h-0 flex-1 overflow-y-auto rounded-md border bg-slate-100 p-3 sm:p-5">
-                <ResumePreview resume={exampleToResume(previewExample.person)} />
+                <ResumePreview resume={exampleToResume(previewExample.person)} paginated />
               </div>
               <DialogFooter className="gap-2">
                 <Button
