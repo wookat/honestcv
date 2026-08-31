@@ -194,6 +194,8 @@ export interface Resume {
   sectionSpacing?: 'xtight' | 'tight' | 'normal' | 'roomy' | 'xroomy'
   /** Section divider rule; 'auto' follows the template */
   sectionDivider?: 'auto' | 'on' | 'off'
+  /** Indent bullet lists relative to the section text */
+  bulletIndent?: 'off' | 'on'
   /** Body text color across preview, PDF and DOCX */
   textColor?: 'default' | 'black' | 'navy'
   /** JD keywords the user marked as not relevant — excluded from ATS keyword coverage */
@@ -250,6 +252,8 @@ export const SECTION_SPACING = {
 } as const
 
 export const sectionSpacingOf = (r: Resume) => SECTION_SPACING[r.sectionSpacing ?? 'normal']
+
+export const bulletIndentOf = (r: Resume) => r.bulletIndent === 'on'
 
 /** Body text ink (hex) per text-color setting. */
 export const TEXT_INKS = { default: '#1f1f1f', black: '#000000', navy: '#1f3a5c' } as const
@@ -811,6 +815,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       ['xtight', 'tight', 'normal', 'roomy', 'xroomy'] as const
     ),
     sectionDivider: asEnum(raw.sectionDivider, ['auto', 'on', 'off'] as const),
+    bulletIndent: asEnum(raw.bulletIndent, ['off', 'on'] as const),
     textColor: asEnum(raw.textColor, ['default', 'black', 'navy'] as const),
     targetRole: asStr(raw.targetRole),
     jobDescription: asStr(raw.jobDescription),

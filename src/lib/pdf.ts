@@ -40,6 +40,7 @@ import {
   projectDates,
   projectHeadingLine,
   sectionSpacingOf,
+  bulletIndentOf,
   familyOf,
   textInkOf,
   type FontFamilyKind,
@@ -100,6 +101,8 @@ class PdfWriter {
   ss = 1
   /** Section divider rule (user override applied over the template) */
   divider: 'line' | 'thick' | 'none' = 'line'
+  /** Extra left indent (pt) applied to bullet lists */
+  bi = 0
 
   constructor(doc: PDFDocument, fonts: Fonts, tpl: TemplateMeta, size: 'letter' | 'a4') {
     this.doc = doc
@@ -284,7 +287,7 @@ class PdfWriter {
   bullet(text: string) {
     const size = 10 * this.fs
     const font = this.fonts.regular
-    const indent = 14
+    const indent = 14 + this.bi
     const lines = wrapText(text, font, size, this.contentW - indent)
     const lineHeight = size * this.lh
     lines.forEach((line, i) => {
@@ -292,7 +295,7 @@ class PdfWriter {
       this.y -= lineHeight
       if (i === 0) {
         this.page.drawText('•', {
-          x: MARGIN + 2,
+          x: MARGIN + 2 + this.bi,
           y: this.y,
           size,
           font,
@@ -383,6 +386,7 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
   w.fs = fontScaleOf(resume)
   w.lh = lineSpacingOf(resume)
   w.ss = sectionSpacingOf(resume)
+  w.bi = bulletIndentOf(resume) ? 9 : 0
   w.divider = dividerOf(resume, tpl.divider)
   const c = resume.contact
 

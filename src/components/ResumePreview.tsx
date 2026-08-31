@@ -32,6 +32,7 @@ import {
   orderedSectionKeys,
   projectDates,
   sectionSpacingOf,
+  bulletIndentOf,
   familyOf,
   textInkOf,
 } from '@/lib/resume'
@@ -235,6 +236,7 @@ function SectionBlock({
   heading: (label: string) => React.ReactNode
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
+  const ulIndent = bulletIndentOf(resume) ? { paddingLeft: 12 } : undefined
   if (sectionKey === 'summary')
     return resume.summary.trim() ? (
       <>
@@ -264,7 +266,7 @@ function SectionBlock({
                     </p>
                   )}
                 </div>
-                <ul className="mt-0.5 space-y-0.5">
+                <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
                   {e.bullets.map(
                     (b, i) =>
                       b.trim() && (
@@ -327,7 +329,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{involvementDates(inv)}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {involvementBullets(inv).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -391,7 +393,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{cw.date.trim()}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {courseworkBullets(cw).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -456,7 +458,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{a.date.trim()}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {awardBullets(a).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -487,7 +489,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{p.date.trim()}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {publicationBullets(p).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -546,7 +548,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{militaryDates(m)}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {militaryBullets(m).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -572,7 +574,7 @@ function SectionBlock({
                 <p className="text-[10px] text-neutral-500 italic">{a.date.trim()}</p>
               )}
             </div>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
               {agentBullets(a).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
@@ -591,7 +593,7 @@ function SectionBlock({
     return (
       <>
         {heading(s.title.trim() || 'Additional')}
-        <ul className="mt-0.5 space-y-0.5">
+        <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
           {s.bullets.map(
             (b, i) =>
               b.trim() && (
