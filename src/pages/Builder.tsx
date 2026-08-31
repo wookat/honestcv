@@ -168,6 +168,10 @@ import {
   saveCourseworkToLibrary,
   deleteLibraryCoursework,
   type SavedCoursework,
+  listAwardLibrary,
+  saveAwardToLibrary,
+  deleteLibraryAward,
+  type SavedAward,
   listSkillsLibrary,
   saveSkillsToLibrary,
   deleteLibrarySkills,
@@ -650,6 +654,9 @@ export default function Builder() {
   const [cwLibrary, setCwLibrary] = useState<SavedCoursework[]>(() => listCourseworkLibrary())
   const [cwLibraryOpen, setCwLibraryOpen] = useState(false)
   const [cwLibrarySavedId, setCwLibrarySavedId] = useState<string | null>(null)
+  const [awardLibrary, setAwardLibrary] = useState<SavedAward[]>(() => listAwardLibrary())
+  const [awardLibraryOpen, setAwardLibraryOpen] = useState(false)
+  const [awardLibrarySavedId, setAwardLibrarySavedId] = useState<string | null>(null)
   const [skillsLibrary, setSkillsLibrary] = useState<SavedSkills[]>(() => listSkillsLibrary())
   const [skillsLibraryOpen, setSkillsLibraryOpen] = useState(false)
   const [skillsLibrarySaved, setSkillsLibrarySaved] = useState(false)
@@ -2945,7 +2952,7 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               Awards, honors and recognitions that back up your track record.
             </p>
-            {(resume.awards ?? []).map((a) => (
+            {(resume.awards ?? []).map((a, aIdx) => (
               <div key={a.id} className="space-y-2 rounded-lg border p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
@@ -3005,6 +3012,31 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title="Save award to library — reuse it in other resume copies"
+                    aria-label={`Save award ${aIdx + 1} to library`}
+                    disabled={
+                      !a.name.trim() && !a.organization.trim() && !a.description.trim()
+                    }
+                    onClick={() => {
+                      setAwardLibrary(saveAwardToLibrary(a))
+                      setAwardLibrarySavedId(a.id)
+                      window.setTimeout(
+                        () => setAwardLibrarySavedId((v) => (v === a.id ? null : v)),
+                        1600
+                      )
+                    }}
+                  >
+                    {awardLibrarySavedId === a.id ? (
+                      <Check className="size-3.5 text-green-600" />
+                    ) : (
+                      <BookmarkPlus className="size-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                     title="Delete award"
                     aria-label="Delete award"
@@ -3020,20 +3052,86 @@ export default function Builder() {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-10 sm:min-h-8"
-              onClick={() =>
-                setResume((r) => ({
-                  ...r,
-                  awards: [...(r.awards ?? []), emptyAward()],
-                }))
-              }
-            >
-              <Plus className="size-4" /> Add award
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
+                onClick={() =>
+                  setResume((r) => ({
+                    ...r,
+                    awards: [...(r.awards ?? []), emptyAward()],
+                  }))
+                }
+              >
+                <Plus className="size-4" /> Add award
+              </Button>
+              {awardLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  title="Insert an award entry you saved from any resume copy"
+                  onClick={() => setAwardLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({awardLibrary.length})
+                </Button>
+              )}
+            </div>
+            {awardLibraryOpen && awardLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved awards</p>
+                {awardLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.name, s.data.organization]
+                          .filter((x) => x.trim())
+                          .join(' — ') || 'Untitled award'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            awards: [
+                              ...(r.awards ?? []).filter(
+                                (x) =>
+                                  x.name.trim() || x.organization.trim() || x.description.trim()
+                              ),
+                              { ...s.data, id: newId() },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved award ${[s.data.name, s.data.organization].filter((x) => x.trim()).join(' — ') || 'Untitled award'}`}
+                        onClick={() => setAwardLibrary(deleteLibraryAward(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Publications" icon={<BookText className="size-4" />}>
