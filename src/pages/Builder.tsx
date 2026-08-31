@@ -1835,8 +1835,8 @@ export default function Builder() {
                   expDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
+                <div className="flex min-w-0 items-center justify-between">
+                  <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs font-medium">
                     <span
                       {...expDrag.handleProps(idx)}
                       role="button"
@@ -1853,7 +1853,7 @@ export default function Builder() {
                       </span>
                     )}
                   </p>
-                  <div className="flex items-center">
+                  <div className="flex shrink-0 items-center">
                     <Button
                       type="button"
                       variant="ghost"
