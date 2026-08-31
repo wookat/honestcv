@@ -263,6 +263,22 @@ export function AssistantPanel({
         )}
         {error && <p className="text-destructive text-xs">{error}</p>}
       </div>
+      {turns.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 border-t px-4 py-2">
+          {QUICK_TASKS.map((t) => (
+            <Button
+              key={t.label}
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              className="min-h-10 rounded-full text-xs sm:min-h-7"
+              onClick={() => void send(t.prompt)}
+            >
+              {t.label}
+            </Button>
+          ))}
+        </div>
+      )}
       <form
         className="flex items-end gap-2 border-t px-4 py-3"
         onSubmit={(e) => {
