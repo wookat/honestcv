@@ -458,6 +458,55 @@ export function sectionLabel(r: Resume, key: string): string {
   return SECTION_LABELS[key] ?? key
 }
 
+const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+const ONGOING_RE = /\b(present|current|now|ongoing)\b/i
+
+/**
+ * Ordinal (year*12 + month) for a free-text date like "Jun 2023", "08/2021" or
+ * "2019". Month unknown → mid-year. No recognizable year → null.
+ */
+export function dateSortValue(text: string): number | null {
+  const t = text.trim().toLowerCase()
+  const year = /(?:19|20)\d{2}/.exec(t)
+  if (!year) return null
+  let month = 6
+  const named = MONTH_NAMES.findIndex((m) => t.includes(m))
+  if (named >= 0) month = named + 1
+  else {
+    const numeric = /\b(0?[1-9]|1[0-2])\s*[/.-]/.exec(t)
+    if (numeric) month = Number(numeric[1])
+  }
+  return Number(year[0]) * 12 + month
+}
+
+/**
+ * Stable newest-first sort for dated entries. Ongoing entries (end date reads
+ * "Present"/"Current"/…) come first ranked by start date; then by end date
+ * (falling back to start date) descending; entries with no parseable date keep
+ * their relative order at the end.
+ */
+export function sortEntriesByDate<T>(
+  items: T[],
+  startOf: (item: T) => string,
+  endOf: (item: T) => string
+): T[] {
+  const keyed = items.map((item, index) => {
+    const start = dateSortValue(startOf(item))
+    const end = ONGOING_RE.test(endOf(item)) ? Number.MAX_SAFE_INTEGER : dateSortValue(endOf(item))
+    const primary = end ?? start
+    return { item, index, primary, start: start ?? end ?? Number.MIN_SAFE_INTEGER }
+  })
+  keyed.sort((a, b) => {
+    if (a.primary === null && b.primary === null) return a.index - b.index
+    if (a.primary === null) return 1
+    if (b.primary === null) return -1
+    if (a.primary !== b.primary) return b.primary - a.primary
+    if (a.start !== b.start) return b.start - a.start
+    return a.index - b.index
+  })
+  return keyed.map((k) => k.item)
+}
+
 export function sampleResume(): Resume {
   return {
     ...emptyResume(),

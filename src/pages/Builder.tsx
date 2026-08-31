@@ -144,6 +144,7 @@ import {
   type ExamplePerson,
   saveResumeVersion,
   sectionLabel,
+  sortEntriesByDate,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
@@ -1424,6 +1425,29 @@ export default function Builder() {
           </Section>
 
           <Section title="Experience" icon={<Briefcase className="size-4" />} anchor="experience">
+            {resume.experience.length > 1 && (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 text-xs sm:h-7"
+                  title="Reorder roles newest first — ongoing roles on top"
+                  onClick={() =>
+                    setResume((r) => ({
+                      ...r,
+                      experience: sortEntriesByDate(
+                        r.experience,
+                        (x) => x.startDate,
+                        (x) => x.endDate
+                      ),
+                    }))
+                  }
+                >
+                  <ArrowDown className="size-3.5" /> Sort by date
+                </Button>
+              </div>
+            )}
             {resume.experience.map((e, idx) => (
               <div
                 key={e.id}
@@ -1633,6 +1657,29 @@ export default function Builder() {
           </Section>
 
           <Section title="Education" icon={<GraduationCap className="size-4" />} anchor="education">
+            {resume.education.length > 1 && (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 text-xs sm:h-7"
+                  title="Reorder education newest first — ongoing studies on top"
+                  onClick={() =>
+                    setResume((r) => ({
+                      ...r,
+                      education: sortEntriesByDate(
+                        r.education,
+                        (x) => x.startDate,
+                        (x) => x.endDate
+                      ),
+                    }))
+                  }
+                >
+                  <ArrowDown className="size-3.5" /> Sort by date
+                </Button>
+              </div>
+            )}
             {resume.education.map((e, idx) => (
               <div
                 key={e.id}
