@@ -11,6 +11,8 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Bookmark,
+  BookmarkPlus,
   ClipboardPaste,
   Download,
   FileText,
@@ -138,6 +140,10 @@ import {
   orderedSectionKeys,
   listResumeVersions,
   listResumeHistory,
+  listExperienceLibrary,
+  saveExperienceToLibrary,
+  deleteLibraryExperience,
+  type SavedExperience,
   recordResumeSnapshot,
   type ResumeSnapshot,
   resumeToPlainText,
@@ -569,6 +575,9 @@ export default function Builder() {
   }
   const { undo, canUndo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [expLibrary, setExpLibrary] = useState<SavedExperience[]>(() => listExperienceLibrary())
+  const [expLibraryOpen, setExpLibraryOpen] = useState(false)
+  const [expLibrarySavedId, setExpLibrarySavedId] = useState<string | null>(null)
   // ?assistant=1 deep link from the workspace sidebar / mobile menu "AI assistant" entries
   const [assistantOpen, setAssistantOpen] = useState(
     () => new URLSearchParams(window.location.search).get('assistant') === '1'
@@ -1073,7 +1082,7 @@ export default function Builder() {
       <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 pb-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:pb-6">
         <h1 className="sr-only">Resume builder</h1>
         {/* ---- Left: editor ---- */}
-        <div className={`space-y-4 ${mobilePane === 'edit' ? '' : 'hidden lg:block'}`}>
+        <div className={`min-w-0 space-y-4 ${mobilePane === 'edit' ? '' : 'hidden lg:block'}`}>
           {resume === null ||
             (!resume.contact.fullName && !resume.summary && (
               <div className="rounded-lg border border-dashed p-3 text-center text-sm">
@@ -1556,6 +1565,26 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      className="h-10 sm:h-7"
+                      title="Save role to library — reuse it in other resume copies"
+                      aria-label={`Save role ${idx + 1} to library`}
+                      disabled={!e.role.trim() && !e.company.trim() && !e.bullets.some((b) => b.trim())}
+                      onClick={() => {
+                        setExpLibrary(saveExperienceToLibrary(e))
+                        setExpLibrarySavedId(e.id)
+                        window.setTimeout(() => setExpLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
+                      }}
+                    >
+                      {expLibrarySavedId === e.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
                       className="text-destructive h-10 sm:h-7"
                       title="Delete role"
                       aria-label={`Delete role ${idx + 1}`}
@@ -1671,16 +1700,82 @@ export default function Builder() {
                 )}
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setResume((r) => ({ ...r, experience: [...r.experience, emptyExperience()] }))
-              }
-            >
-              <Plus className="size-4" /> Add role
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setResume((r) => ({ ...r, experience: [...r.experience, emptyExperience()] }))
+                }
+              >
+                <Plus className="size-4" /> Add role
+              </Button>
+              {expLibrary.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title="Insert a role you saved from any resume copy"
+                  onClick={() => setExpLibraryOpen((v) => !v)}
+                >
+                  <Bookmark className="size-4" /> From library ({expLibrary.length})
+                </Button>
+              )}
+            </div>
+            {expLibraryOpen && expLibrary.length > 0 && (
+              <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border p-3">
+                <p className="text-muted-foreground text-xs font-medium">Saved roles</p>
+                {expLibrary.map((s) => (
+                  <div key={s.id} className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {[s.data.role, s.data.company].filter((x) => x.trim()).join(' — ') ||
+                          'Untitled role'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Saved {new Date(s.savedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs sm:h-7"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            experience: [
+                              ...r.experience.filter(
+                                (x) =>
+                                  x.role.trim() ||
+                                  x.company.trim() ||
+                                  x.bullets.some((b) => b.trim())
+                              ),
+                              { ...s.data, id: newId(), bullets: [...s.data.bullets] },
+                            ],
+                          }))
+                        }
+                      >
+                        Insert
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive h-10 sm:h-7"
+                        title="Remove from library"
+                        aria-label={`Remove saved role ${[s.data.role, s.data.company].filter((x) => x.trim()).join(' — ') || 'Untitled role'}`}
+                        onClick={() => setExpLibrary(deleteLibraryExperience(s.id))}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Education" icon={<GraduationCap className="size-4" />} anchor="education">
