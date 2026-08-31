@@ -1127,6 +1127,76 @@ export function deleteLibraryExperience(id: string): SavedExperience[] {
   return items
 }
 
+/** A single polished education entry saved for reuse across resume copies. */
+export interface SavedEducation {
+  id: string
+  savedAt: number
+  data: EducationItem
+}
+
+const EDUCATION_LIBRARY_KEY = 'honestcv.educationLibrary'
+const EDUCATION_LIBRARY_MAX = 30
+
+function sanitizeEducationItem(input: unknown): EducationItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const e = input as Record<string, unknown>
+  const item: EducationItem = {
+    id: asStr(e.id) || newId(),
+    school: asStr(e.school),
+    degree: asStr(e.degree),
+    location: asStr(e.location),
+    startDate: asStr(e.startDate),
+    endDate: asStr(e.endDate),
+    details: asStr(e.details),
+  }
+  const gpa = asStr(e.gpa)
+  if (gpa) item.gpa = gpa
+  const minor = asStr(e.minor)
+  if (minor) item.minor = minor
+  return item.school.trim() || item.degree.trim() || item.details.trim() ? item : null
+}
+
+export function listEducationLibrary(): SavedEducation[] {
+  try {
+    const raw = localStorage.getItem(EDUCATION_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedEducation[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizeEducationItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistEducationLibrary(items: SavedEducation[]) {
+  try {
+    localStorage.setItem(EDUCATION_LIBRARY_KEY, JSON.stringify(items.slice(0, EDUCATION_LIBRARY_MAX)))
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function saveEducationToLibrary(entry: EducationItem): SavedEducation[] {
+  const data = sanitizeEducationItem(entry)
+  if (!data) return listEducationLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listEducationLibrary(),
+  ].slice(0, EDUCATION_LIBRARY_MAX)
+  persistEducationLibrary(items)
+  return items
+}
+
+export function deleteLibraryEducation(id: string): SavedEducation[] {
+  const items = listEducationLibrary().filter((s) => s.id !== id)
+  persistEducationLibrary(items)
+  return items
+}
+
 /** Detail line under an education entry: details · Minor in X · GPA: Y */
 export function educationDetailLine(e: EducationItem): string {
   return [
