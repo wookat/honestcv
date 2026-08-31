@@ -145,6 +145,7 @@ import {
   saveResumeVersion,
   sectionLabel,
   sortEntriesByDate,
+  TEXT_INKS,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
@@ -3223,6 +3224,38 @@ export default function Builder() {
                         active ? 'border-primary scale-110' : 'border-transparent hover:scale-110'
                       }`}
                       style={{ background: color }}
+                    />
+                  </button>
+                )
+              })}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Text color</span>
+              {(
+                [
+                  ['default', 'Default — soft near-black body text'],
+                  ['black', 'Black — maximum-contrast print look'],
+                  ['navy', 'Navy — deep blue body text'],
+                ] as const
+              ).map(([value, hint]) => {
+                const active = (resume.textColor ?? 'default') === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    title={`${hint} — applies to preview, PDF and DOCX`}
+                    aria-label={`Text color ${value}`}
+                    aria-pressed={active}
+                    onClick={() => set('textColor', value)}
+                    className="-m-0.5 flex size-10 items-center justify-center rounded-full sm:size-8"
+                  >
+                    <span
+                      aria-hidden
+                      className={`block size-5 rounded-full border-2 transition ${
+                        active ? 'border-primary scale-110' : 'border-transparent hover:scale-110'
+                      }`}
+                      style={{ background: TEXT_INKS[value] }}
                     />
                   </button>
                 )

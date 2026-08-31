@@ -16,6 +16,8 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 - Clicking multiple export buttons in a row: Chrome's downloads popup can cover the later buttons so only the first file lands — press Escape and click each export separately, verifying `~/Downloads` between clicks.
 - Clearing `honestcv.*` (e.g. for fresh-resume tests) also wipes the download-unlock flag — re-set `honestcv.shared='1'` before export tests, and expect the pre-existing "Final check before download" nudge on sparse resumes (click "Download anyway").
 - A fresh resume does not write `honestcv.resume` until the first edit — assert its default section order from the rendered Section order panel, not storage.
+- Export ink colors can be verified objectively: render the downloaded PDF with `pdftoppm -png -r 150` and take a PIL `Counter` over non-white pixels — the top dark colors map 1:1 to body ink, accent hex and soft-gray dates. For DOCX, the default body ink lives in `word/styles.xml` `<w:docDefaults><w:rPrDefault><w:rPr><w:color>` (absent/empty in Default mode); accent colors are per-run `w:color` in `document.xml`.
+- Design-toolbar swatches (`button[aria-label^="Text color"]`, accent swatches) are compact 32px circles on desktop; Text color swatches grow to 40px below the `sm` breakpoint.
 
 ## R76 share-link QA notes
 
