@@ -19,7 +19,15 @@ const WEAK_OPENERS = [
 const FILLER_WORDS = ['various', 'several', 'stuff', 'things', 'etc']
 
 export interface BulletIssue {
-  kind: 'weak-opener' | 'no-metric' | 'too-long' | 'too-short' | 'filler' | 'first-person'
+  kind:
+    | 'weak-opener'
+    | 'no-metric'
+    | 'too-long'
+    | 'too-short'
+    | 'filler'
+    | 'first-person'
+    | 'buzzword'
+    | 'punctuation'
   message: string
 }
 
@@ -53,6 +61,19 @@ export function checkBullet(bullet: string): BulletIssue[] {
     issues.push({
       kind: 'filler',
       message: `"${filler}" is vague — name the specific tools or outcomes`,
+    })
+  }
+  const buzz = BUZZWORDS.find((w) => new RegExp(`\\b${w}\\b`).test(lower))
+  if (buzz) {
+    issues.push({
+      kind: 'buzzword',
+      message: `"${buzz}" is an empty claim — replace it with a concrete, checkable fact`,
+    })
+  }
+  if (!/^[A-Z0-9]/.test(text) || !/[.!?]$/.test(text)) {
+    issues.push({
+      kind: 'punctuation',
+      message: 'Capitalize the first letter and end with a period',
     })
   }
   const words = text.split(/\s+/).length

@@ -1501,6 +1501,7 @@ export default function Builder() {
                 />
                 <BulletGuidance
                   bullets={e.bullets}
+                  entryFilled={Boolean(e.role.trim() || e.company.trim())}
                   busyLine={
                     aiBusy?.startsWith(`exp-${e.id}-line-`)
                       ? Number(aiBusy.slice(`exp-${e.id}-line-`.length))
@@ -4122,15 +4123,24 @@ function BulletGuidance({
   bullets,
   onFix,
   busyLine,
+  entryFilled = false,
 }: {
   bullets: string[]
   onFix?: (index: number) => void
   busyLine?: number | null
+  entryFilled?: boolean
 }) {
   const results = useMemo(() => checkBullets(bullets), [bullets])
-  if (results.length === 0) return null
+  const count = bullets.filter((b) => b.trim()).length
+  const countNote = entryFilled && (count < 3 || count > 6)
+  if (results.length === 0 && !countNote) return null
   return (
     <ul className="space-y-0.5 text-xs">
+      {countNote && (
+        <li className="text-amber-700">
+          ⚠ Include 3–6 bullet points per role — {count === 0 ? 'none' : count} found in this one.
+        </li>
+      )}
       {results.slice(0, 4).map((r) => (
         <li key={r.index} className="text-amber-700">
           {r.issues.slice(0, 2).map((issue) => (
