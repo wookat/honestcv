@@ -933,6 +933,44 @@ export function deleteResumeVersion(id: string): ResumeVersion[] {
   return versions
 }
 
+/**
+ * Link between the working editor draft and the saved copy it was opened from.
+ * While linked, autosaves write the draft back into that copy so it never goes
+ * stale — matching how each resume is a live document in tools like Rezi.
+ */
+const ACTIVE_VERSION_KEY = 'honestcv.activeVersionId'
+
+export function getActiveVersionId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_VERSION_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setActiveVersionId(id: string | null) {
+  try {
+    if (id) localStorage.setItem(ACTIVE_VERSION_KEY, id)
+    else localStorage.removeItem(ACTIVE_VERSION_KEY)
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+/** Write the draft back into its linked copy; unlink if the copy is gone. */
+export function syncActiveVersion(data: Resume) {
+  const id = getActiveVersionId()
+  if (!id) return
+  const versions = listResumeVersions()
+  if (!versions.some((v) => v.id === id)) {
+    setActiveVersionId(null)
+    return
+  }
+  persistVersions(
+    versions.map((v) => (v.id === id ? { ...v, data, updatedAt: Date.now() } : v))
+  )
+}
+
 /** Automatic edit-history checkpoints of the single builder draft. */
 export interface ResumeSnapshot {
   id: string

@@ -33,7 +33,7 @@ import {
   searchJobs,
   upsertPipeline,
 } from '@/lib/jobs'
-import { emptyResume, loadResume, saveResume } from '@/lib/resume'
+import { emptyResume, loadResume, saveResume, syncActiveVersion } from '@/lib/resume'
 
 type Tab = 'all' | JobStatus
 
@@ -143,7 +143,9 @@ export default function Jobs() {
 
   const targetResume = (job: JobListing, intent: 'target' | 'cover') => {
     const draft = loadResume() ?? emptyResume()
-    saveResume({ ...draft, targetRole: job.title, jobDescription: job.description })
+    const next = { ...draft, targetRole: job.title, jobDescription: job.description }
+    saveResume(next)
+    syncActiveVersion(next)
     void navigate(
       intent === 'cover'
         ? `/builder?doc=cover&company=${encodeURIComponent(job.company)}`
