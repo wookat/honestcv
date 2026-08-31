@@ -191,7 +191,7 @@ export interface Resume {
   /** Font family across preview and exports; 'auto' follows the template */
   fontFamily?: 'auto' | 'serif' | 'sans' | 'mono' | 'merriweather' | 'sourcesans' | 'robotomono'
   /** Vertical space before each section heading */
-  sectionSpacing?: 'tight' | 'normal' | 'roomy'
+  sectionSpacing?: 'xtight' | 'tight' | 'normal' | 'roomy' | 'xroomy'
   /** Section divider rule; 'auto' follows the template */
   sectionDivider?: 'auto' | 'on' | 'off'
   /** Body text color across preview, PDF and DOCX */
@@ -241,7 +241,13 @@ export const familyOf = (r: Resume, tplSerif: boolean): FontFamilyKind =>
       : 'sans'
 
 /** Multipliers applied to the space before section headings. */
-export const SECTION_SPACING = { tight: 0.6, normal: 1, roomy: 1.4 } as const
+export const SECTION_SPACING = {
+  xtight: 0.35,
+  tight: 0.6,
+  normal: 1,
+  roomy: 1.4,
+  xroomy: 1.7,
+} as const
 
 export const sectionSpacingOf = (r: Resume) => SECTION_SPACING[r.sectionSpacing ?? 'normal']
 
@@ -800,7 +806,10 @@ export function sanitizeResume(input: unknown): Resume | null {
       raw.fontFamily,
       ['auto', 'serif', 'sans', 'mono', 'merriweather', 'sourcesans', 'robotomono'] as const
     ),
-    sectionSpacing: asEnum(raw.sectionSpacing, ['tight', 'normal', 'roomy'] as const),
+    sectionSpacing: asEnum(
+      raw.sectionSpacing,
+      ['xtight', 'tight', 'normal', 'roomy', 'xroomy'] as const
+    ),
     sectionDivider: asEnum(raw.sectionDivider, ['auto', 'on', 'off'] as const),
     textColor: asEnum(raw.textColor, ['default', 'black', 'navy'] as const),
     targetRole: asStr(raw.targetRole),
