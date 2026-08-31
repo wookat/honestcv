@@ -42,6 +42,7 @@ import {
   sectionSpacingOf,
   familyOf,
   textInkOf,
+  type FontFamilyKind,
 } from '@/lib/resume'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
@@ -328,7 +329,20 @@ const WEB_FONT_FILES = {
     bold: '/fonts/merriweather-bold.ttf',
     italic: '/fonts/merriweather-italic.ttf',
   },
+  sourcesans: {
+    regular: '/fonts/sourcesans3-regular.ttf',
+    bold: '/fonts/sourcesans3-bold.ttf',
+    italic: '/fonts/sourcesans3-italic.ttf',
+  },
+  robotomono: {
+    regular: '/fonts/robotomono-regular.ttf',
+    bold: '/fonts/robotomono-bold.ttf',
+    italic: '/fonts/robotomono-italic.ttf',
+  },
 } as const
+
+const isWebFamily = (f: FontFamilyKind): f is keyof typeof WEB_FONT_FILES =>
+  f === 'merriweather' || f === 'sourcesans' || f === 'robotomono'
 
 async function fetchFontBytes(url: string): Promise<ArrayBuffer> {
   const res = await fetch(url)
@@ -338,9 +352,9 @@ async function fetchFontBytes(url: string): Promise<ArrayBuffer> {
 
 async function embedFontsFor(doc: PDFDocument, resume: Resume, tplSerif: boolean): Promise<Fonts> {
   const family = familyOf(resume, tplSerif)
-  if (family === 'merriweather') {
+  if (isWebFamily(family)) {
     doc.registerFontkit(fontkit)
-    const files = WEB_FONT_FILES.merriweather
+    const files = WEB_FONT_FILES[family]
     const [regular, bold, italic] = await Promise.all([
       fetchFontBytes(files.regular),
       fetchFontBytes(files.bold),

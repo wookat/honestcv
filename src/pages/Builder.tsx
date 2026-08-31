@@ -3284,7 +3284,7 @@ export default function Builder() {
                 </button>
               ))}
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex flex-wrap items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Font</span>
               {(
@@ -3294,6 +3294,8 @@ export default function Builder() {
                   ['sans', 'Sans', 'Inter / Calibri — modern look'],
                   ['mono', 'Mono', 'Courier — typewriter look'],
                   ['merriweather', 'Merri', 'Merriweather — classic resume serif'],
+                  ['sourcesans', 'Source', 'Source Sans — modern humanist sans'],
+                  ['robotomono', 'Roboto', 'Roboto Mono — clean monospace'],
                 ] as const
               ).map(([value, label, hint]) => (
                 <button

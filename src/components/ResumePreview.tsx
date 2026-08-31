@@ -51,6 +51,8 @@ export function ResumePreview({
     sans: 'Inter, Arial, sans-serif',
     mono: '"Courier New", ui-monospace, monospace',
     merriweather: 'Merriweather, Georgia, serif',
+    sourcesans: '"Source Sans 3", "Source Sans Pro", Inter, Arial, sans-serif',
+    robotomono: '"Roboto Mono", "Courier New", ui-monospace, monospace',
   }[familyOf(resume, tpl.serif)]
   const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]
     .filter(Boolean)
