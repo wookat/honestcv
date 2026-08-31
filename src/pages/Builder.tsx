@@ -3501,6 +3501,31 @@ export default function Builder() {
                 </button>
               ))}
             </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Icons</span>
+              {(
+                [
+                  ['off', 'Off', 'Contact line with text separators'],
+                  ['on', 'On', 'Small icons before each contact field'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — applies to preview and PDF (DOCX keeps text separators)`}
+                  aria-pressed={(resume.contactIcons ?? 'off') === value}
+                  onClick={() => set('contactIcons', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.contactIcons ?? 'off') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
           </div>
 
           <Card className="py-0">

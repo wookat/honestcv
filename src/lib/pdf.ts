@@ -41,10 +41,12 @@ import {
   projectHeadingLine,
   sectionSpacingOf,
   bulletIndentOf,
+  contactIconsOf,
   familyOf,
   textInkOf,
   type FontFamilyKind,
 } from '@/lib/resume'
+import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_SIZES = {
@@ -195,17 +197,31 @@ class PdfWriter {
   }
 
   /** One line of segments where some are clickable links; falls back to plain
-   *  wrapped text when the line is too wide for link geometry. */
+   *  wrapped text when the line is too wide for link geometry. With `icons`,
+   *  each segment is prefixed by a small stroke icon instead of separators. */
   linkLine(
-    segments: { text: string; url?: string }[],
-    opts: { size?: number; color?: ReturnType<typeof rgb>; center?: boolean } = {}
+    segments: { text: string; url?: string; icon?: ContactIconKind }[],
+    opts: {
+      size?: number
+      color?: ReturnType<typeof rgb>
+      center?: boolean
+      icons?: boolean
+    } = {}
   ) {
     const font = this.fonts.regular
     const size = (opts.size ?? 9) * this.fs
     const sep = '  |  '
-    const full = segments.map((s) => s.text).join(sep)
-    const totalWidth = font.widthOfTextAtSize(full, size)
+    const useIcons = opts.icons === true
+    const iconSize = size * 0.82
+    const iconGap = size * 0.28
+    const segGap = size * 0.9
+    const segW = (s: { text: string; icon?: ContactIconKind }) =>
+      (useIcons && s.icon ? iconSize + iconGap : 0) + font.widthOfTextAtSize(s.text, size)
+    const totalWidth = useIcons
+      ? segments.reduce((a, s) => a + segW(s), 0) + segGap * (segments.length - 1)
+      : font.widthOfTextAtSize(segments.map((s) => s.text).join(sep), size)
     if (totalWidth > this.contentW) {
+      const full = segments.map((s) => s.text).join(sep)
       this.text(full, { size: size / this.fs, color: opts.color, center: opts.center })
       return
     }
@@ -214,7 +230,17 @@ class PdfWriter {
     this.y -= lineHeight
     let x = opts.center ? (this.pageW - totalWidth) / 2 : MARGIN
     segments.forEach((s, i) => {
-      const withSep = i < segments.length - 1 ? s.text + sep : s.text
+      const segStart = x
+      if (useIcons && s.icon) {
+        this.page.drawSvgPath(CONTACT_ICON_PATHS[s.icon], {
+          x,
+          y: this.y + size * 0.75,
+          scale: iconSize / 24,
+          borderColor: opts.color ?? this.ink,
+          borderWidth: 0.75,
+        })
+        x += iconSize + iconGap
+      }
       this.page.drawText(s.text, {
         x,
         y: this.y,
@@ -222,20 +248,22 @@ class PdfWriter {
         font,
         color: opts.color ?? this.ink,
       })
+      const textW = font.widthOfTextAtSize(s.text, size)
       if (s.url) {
-        const w = font.widthOfTextAtSize(s.text, size)
         const annot = this.doc.context.register(
           this.doc.context.obj({
             Type: 'Annot',
             Subtype: 'Link',
-            Rect: [x, this.y - 2, x + w, this.y + size + 2],
+            Rect: [segStart, this.y - 2, x + textW, this.y + size + 2],
             Border: [0, 0, 0],
             A: { Type: 'Action', S: 'URI', URI: PDFString.of(s.url) },
           })
         )
         this.page.node.addAnnot(annot)
       }
-      x += font.widthOfTextAtSize(withSep, size)
+      x += textW
+      if (i < segments.length - 1)
+        x += useIcons ? segGap : font.widthOfTextAtSize(sep, size)
     })
   }
 
@@ -401,16 +429,23 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
     w.text(c.title, { size: 12, color: w.accent, center: centerHeader })
   }
   const httpUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
-  const contactSegments = [
-    c.email ? { text: c.email, url: `mailto:${c.email}` } : null,
-    c.phone ? { text: c.phone } : null,
-    c.location ? { text: c.location } : null,
-    c.website ? { text: c.website, url: httpUrl(c.website) } : null,
-    c.linkedin ? { text: c.linkedin, url: httpUrl(c.linkedin) } : null,
-  ].filter((s): s is { text: string; url?: string } => s !== null)
+  type ContactSegment = { text: string; url?: string; icon: ContactIconKind }
+  const rawSegments: (ContactSegment | null)[] = [
+    c.email ? { text: c.email, url: `mailto:${c.email}`, icon: 'mail' } : null,
+    c.phone ? { text: c.phone, icon: 'phone' } : null,
+    c.location ? { text: c.location, icon: 'pin' } : null,
+    c.website ? { text: c.website, url: httpUrl(c.website), icon: 'globe' } : null,
+    c.linkedin ? { text: c.linkedin, url: httpUrl(c.linkedin), icon: 'linkedin' } : null,
+  ]
+  const contactSegments = rawSegments.filter((s): s is ContactSegment => s !== null)
   if (contactSegments.length > 0) {
     w.gap(2)
-    w.linkLine(contactSegments, { size: 9, color: w.soft, center: centerHeader })
+    w.linkLine(contactSegments, {
+      size: 9,
+      color: w.soft,
+      center: centerHeader,
+      icons: contactIconsOf(resume),
+    })
   }
   w.gap(6)
 
