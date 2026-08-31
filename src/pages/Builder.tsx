@@ -130,6 +130,7 @@ import {
   emptyProject,
   emptyResume,
   exampleToResume,
+  FONT_SCALE,
   loadResume,
   newId,
   orderedSectionKeys,
@@ -216,18 +217,32 @@ function usePdfPageCount(resume: Resume): number | null {
 const FIT_COMBOS: Array<
   [NonNullable<Resume['fontScale']>, NonNullable<Resume['lineSpacing']>]
 > = [
+  ['xl', 'relaxed'],
   ['l', 'relaxed'],
-  ['l', 'normal'],
+  ['xl', 'normal'],
   ['m', 'relaxed'],
-  ['l', 'compact'],
-  ['m', 'normal'],
+  ['l', 'normal'],
+  ['xl', 'compact'],
   ['s', 'relaxed'],
-  ['m', 'compact'],
+  ['m', 'normal'],
+  ['l', 'compact'],
+  ['xs', 'relaxed'],
   ['s', 'normal'],
+  ['m', 'compact'],
+  ['xs', 'normal'],
   ['s', 'compact'],
+  ['xs', 'compact'],
 ]
 
-const SCALE_NAME = { s: 'small', m: 'medium', l: 'large' } as const
+const SCALE_NAME = {
+  xs: 'extra small',
+  s: 'small',
+  m: 'medium',
+  l: 'large',
+  xl: 'extra large',
+} as const
+
+const SCALE_STEPS = ['xs', 's', 'm', 'l', 'xl'] as const
 
 /** Global undo: snapshots resume state (throttled) and restores on Ctrl/Cmd+Z */
 function useUndo(
@@ -507,7 +522,11 @@ export default function Builder() {
     setFitMsg('')
     try {
       const { countResumePdfPages } = await import('@/lib/pdf')
-      let best: { fontScale: 's' | 'm' | 'l'; lineSpacing: 'compact' | 'normal' | 'relaxed'; pages: number } | null = null
+      let best: {
+        fontScale: NonNullable<Resume['fontScale']>
+        lineSpacing: NonNullable<Resume['lineSpacing']>
+        pages: number
+      } | null = null
       for (const [fontScale, lineSpacing] of FIT_COMBOS) {
         const pages = await countResumePdfPages({ ...resume, fontScale, lineSpacing })
         if (!best || pages < best.pages) best = { fontScale, lineSpacing, pages }
@@ -3317,23 +3336,39 @@ export default function Builder() {
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Text</span>
-              {(['s', 'm', 'l'] as const).map((scale) => (
-                <button
-                  key={scale}
-                  type="button"
-                  title={`Text size ${scale.toUpperCase()} — applies to preview, PDF and DOCX`}
-                  aria-label={`Text size ${scale === 's' ? 'small' : scale === 'l' ? 'large' : 'medium'}`}
-                  aria-pressed={(resume.fontScale ?? 'm') === scale}
-                  onClick={() => set('fontScale', scale)}
-                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
-                    (resume.fontScale ?? 'm') === scale
-                      ? 'border-primary ring-primary/40 ring-2'
-                      : 'hover:border-muted-foreground/40'
-                  }`}
-                >
-                  {scale.toUpperCase()}
-                </button>
-              ))}
+              <button
+                type="button"
+                aria-label="Decrease text size"
+                title="Smaller text — applies to preview, PDF and DOCX"
+                disabled={(resume.fontScale ?? 'm') === 'xs'}
+                onClick={() => {
+                  const i = SCALE_STEPS.indexOf(resume.fontScale ?? 'm')
+                  if (i > 0) set('fontScale', SCALE_STEPS[i - 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                A−
+              </button>
+              <span
+                title={`Text size: ${SCALE_NAME[resume.fontScale ?? 'm']}`}
+                aria-live="polite"
+                className="min-w-10 text-center text-[11px] font-medium tabular-nums"
+              >
+                {Math.round(FONT_SCALE[resume.fontScale ?? 'm'] * 100)}%
+              </span>
+              <button
+                type="button"
+                aria-label="Increase text size"
+                title="Larger text — applies to preview, PDF and DOCX"
+                disabled={(resume.fontScale ?? 'm') === 'xl'}
+                onClick={() => {
+                  const i = SCALE_STEPS.indexOf(resume.fontScale ?? 'm')
+                  if (i < SCALE_STEPS.length - 1) set('fontScale', SCALE_STEPS[i + 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                A+
+              </button>
             </span>
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />

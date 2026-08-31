@@ -22,6 +22,7 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 - At emulated mobile widths, judge horizontal overflow by `document.documentElement.scrollWidth` vs `visualViewport.width` — `innerWidth` reports the (expanded) layout viewport (e.g. 414 at a 375 device width) and masks overflow. Design-toolbar group spans (Font/Text/Spacing) are individual flex spans: any pill added there needs the span to have `flex-wrap` or it overflows 375px.
 - Chrome may speculatively preload fonts used in a previous session on the same origin (initiator "link", crossorigin-mismatch console warning) — exclude such entries when asserting lazy loading; assert on the specific new-family files instead.
 - Don't combine `pkill -f <script>` with follow-up commands in one shell invocation — pkill matches its own wrapper and kills the whole command; kill and verify in separate calls.
+- Text-size scaling in the preview is applied via CSS `zoom` on the ResumePreview root (not font-size), so computed `font-size` stays constant across scales — assert on the root's computed `zoom` or on `getBoundingClientRect()` of preview text. For exports, `pdftotext -bbox` word heights give exact glyph-size ratios, and DOCX `w:sz` values are `Math.round(base × fontScaleOf)` with base half-points 40/24/22/21/19.
 
 ## R76 share-link QA notes
 
