@@ -4070,7 +4070,15 @@ export default function Builder() {
         }}
       />
       <Dialog open={versionsOpen} onOpenChange={setVersionsOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent
+          className="sm:max-w-lg"
+          onEscapeKeyDown={(e) => {
+            if (renamingId) {
+              e.preventDefault()
+              setRenamingId(null)
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Resume copies</DialogTitle>
             <DialogDescription>
@@ -4120,10 +4128,6 @@ export default function Builder() {
                         onChange={(e) => setRenameText(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') commitRename(v)
-                          if (e.key === 'Escape') {
-                            e.stopPropagation()
-                            setRenamingId(null)
-                          }
                         }}
                         onBlur={() => commitRename(v)}
                         className="h-8"
