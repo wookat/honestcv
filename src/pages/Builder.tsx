@@ -118,6 +118,7 @@ import {
   type Resume,
   type ResumeVersion,
   deleteResumeVersion,
+  duplicateResumeVersion,
   emptyAward,
   emptyCertification,
   emptyPublication,
@@ -4191,6 +4192,16 @@ export default function Builder() {
                       }}
                     >
                       <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 w-10 p-0 text-xs sm:h-7 sm:w-7"
+                      aria-label={`Duplicate copy ${v.name}`}
+                      onClick={() => setVersions(duplicateResumeVersion(v.id))}
+                    >
+                      <Copy className="size-3.5" />
                     </Button>
                     <Button
                       type="button"
