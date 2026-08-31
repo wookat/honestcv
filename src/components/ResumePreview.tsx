@@ -32,7 +32,7 @@ import {
   orderedSectionKeys,
   projectDates,
   sectionSpacingOf,
-  serifOf,
+  familyOf,
 } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
@@ -45,9 +45,11 @@ export function ResumePreview({
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const c = resume.contact
-  const fontFamily = serifOf(resume, tpl.serif)
-    ? 'Georgia, "Times New Roman", serif'
-    : 'Inter, Arial, sans-serif'
+  const fontFamily = {
+    serif: 'Georgia, "Times New Roman", serif',
+    sans: 'Inter, Arial, sans-serif',
+    mono: '"Courier New", ui-monospace, monospace',
+  }[familyOf(resume, tpl.serif)]
   const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin]
     .filter(Boolean)
     .join('  |  ')

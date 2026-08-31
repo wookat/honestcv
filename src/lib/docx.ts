@@ -45,12 +45,11 @@ import {
   projectDates,
   projectHeadingLine,
   sectionSpacingOf,
-  serifOf,
+  familyOf,
 } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
-const FONT_SERIF = 'Georgia'
-const FONT_SANS = 'Calibri'
+const FONT_BY_KIND = { serif: 'Georgia', sans: 'Calibri', mono: 'Courier New' } as const
 // Page width in twips minus the 864-twip left/right margins
 const PAGE_TWIPS = {
   letter: { width: 12240, height: 15840 },
@@ -59,7 +58,7 @@ const PAGE_TWIPS = {
 
 export async function downloadResumeDocx(resume: Resume, filename: string) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
-  const font = serifOf(resume, tpl.serif) ? FONT_SERIF : FONT_SANS
+  const font = FONT_BY_KIND[familyOf(resume, tpl.serif)]
   const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
   const rightTab = pageSize.width - 864 * 2
   const accent = tpl.accent.replace('#', '')
@@ -485,7 +484,7 @@ export async function downloadTextDocx(
   const paragraphs: Paragraph[] = [
     new Paragraph({
       spacing: { after: 300 },
-      children: [new TextRun({ text: title, bold: true, size: 30, font: FONT_SANS })],
+      children: [new TextRun({ text: title, bold: true, size: 30, font: FONT_BY_KIND.sans })],
     }),
   ]
   for (const block of text.split(/\n{2,}/)) {
@@ -498,7 +497,7 @@ export async function downloadTextDocx(
           .split('\n')
           .map(
             (line, i) =>
-              new TextRun({ text: line, size: 22, font: FONT_SANS, break: i > 0 ? 1 : 0 })
+              new TextRun({ text: line, size: 22, font: FONT_BY_KIND.sans, break: i > 0 ? 1 : 0 })
           ),
       })
     )
@@ -512,7 +511,7 @@ export async function downloadTextDocx(
  *  resume's template accent, font family and page size. */
 export async function downloadLetterDocx(resume: Resume, body: string, filename: string) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
-  const font = serifOf(resume, tpl.serif) ? FONT_SERIF : FONT_SANS
+  const font = FONT_BY_KIND[familyOf(resume, tpl.serif)]
   const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
   const accent = tpl.accent.replace('#', '')
   const c = resume.contact

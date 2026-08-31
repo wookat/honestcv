@@ -3205,6 +3205,7 @@ export default function Builder() {
                   ['auto', 'Auto', 'Follow the template’s font'],
                   ['serif', 'Serif', 'Georgia / Times — traditional look'],
                   ['sans', 'Sans', 'Inter / Calibri — modern look'],
+                  ['mono', 'Mono', 'Courier — typewriter look'],
                 ] as const
               ).map(([value, label, hint]) => (
                 <button
