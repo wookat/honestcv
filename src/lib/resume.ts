@@ -104,6 +104,8 @@ export interface PublicationItem {
   title: string
   /** Journal or conference name */
   venue: string
+  /** Publication type, e.g. "Journal Article" — free text */
+  kind?: string
   /** When it was published, e.g. "2026" */
   date: string
   /** Additional information; one bullet per line */
@@ -796,6 +798,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       id: asStr(p.id) || newId(),
       title: asStr(p.title),
       venue: asStr(p.venue),
+      kind: asStr(p.kind).trim() ? asStr(p.kind) : undefined,
       date: asStr(p.date),
       description: asStr(p.description),
     })),
@@ -1620,10 +1623,13 @@ function sanitizePublicationItem(input: unknown): PublicationItem | null {
     id: asStr(v.id) || newId(),
     title: asStr(v.title),
     venue: asStr(v.venue),
+    ...(asStr(v.kind).trim() ? { kind: asStr(v.kind) } : {}),
     date: asStr(v.date),
     description: asStr(v.description),
   }
-  return item.title.trim() || item.venue.trim() || item.description.trim() ? item : null
+  return item.title.trim() || item.venue.trim() || (item.kind ?? '').trim() || item.description.trim()
+    ? item
+    : null
 }
 
 export function listPublicationLibrary(): SavedPublication[] {
@@ -1870,9 +1876,12 @@ export const awardBullets = (a: AwardItem): string[] =>
 export const publicationEntries = (r: Resume): PublicationItem[] =>
   (r.publications ?? []).filter((p) => p.title.trim() || p.venue.trim())
 
-/** Heading line for a publication entry: title — venue */
+/** Heading line for a publication entry: title — venue (Kind) */
 export function publicationHeadingLine(p: PublicationItem): string {
-  return [p.title.trim(), p.venue.trim()].filter(Boolean).join(' — ')
+  const base = [p.title.trim(), p.venue.trim()].filter(Boolean).join(' — ')
+  const kind = (p.kind ?? '').trim()
+  if (!kind) return base
+  return base ? `${base} (${kind})` : kind
 }
 
 /** Non-empty description lines of a publication entry, rendered as bullets */

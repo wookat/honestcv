@@ -537,6 +537,9 @@ function SectionBlock({
                 {p.venue.trim() && (
                   <span className="font-normal"> — {p.venue.trim()}</span>
                 )}
+                {(p.kind ?? '').trim() && (
+                  <span className="font-normal italic"> ({(p.kind ?? '').trim()})</span>
+                )}
               </p>
               {p.date.trim() && (
                 <p className="text-[10px] text-neutral-500 italic">{p.date.trim()}</p>

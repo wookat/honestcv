@@ -3242,6 +3242,17 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               Papers, articles and talks — with the journal or conference they appeared in.
             </p>
+            <datalist id="publication-kinds">
+              <option value="Journal Article" />
+              <option value="Conference Paper" />
+              <option value="Book" />
+              <option value="Book Chapter" />
+              <option value="Thesis" />
+              <option value="Patent" />
+              <option value="Preprint" />
+              <option value="Magazine Article" />
+              <option value="Blog Post" />
+            </datalist>
             {(resume.publications ?? []).map((pub, pubIdx) => (
               <div key={pub.id} className="space-y-2 rounded-lg border p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -3283,6 +3294,19 @@ export default function Builder() {
                       }
                     />
                   </div>
+                  <Input
+                    placeholder="Type — e.g. Journal Article"
+                    list="publication-kinds"
+                    value={pub.kind ?? ''}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).map((x) =>
+                          x.id === pub.id ? { ...x, kind: ev.target.value || undefined } : x
+                        ),
+                      }))
+                    }
+                  />
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
@@ -3306,7 +3330,10 @@ export default function Builder() {
                     title="Save publication to library — reuse it in other resume copies"
                     aria-label={`Save publication ${pubIdx + 1} to library`}
                     disabled={
-                      !pub.title.trim() && !pub.venue.trim() && !pub.description.trim()
+                      !pub.title.trim() &&
+                      !pub.venue.trim() &&
+                      !(pub.kind ?? '').trim() &&
+                      !pub.description.trim()
                     }
                     onClick={() => {
                       setPubLibrary(savePublicationToLibrary(pub))
@@ -3397,7 +3424,10 @@ export default function Builder() {
                             publications: [
                               ...(r.publications ?? []).filter(
                                 (x) =>
-                                  x.title.trim() || x.venue.trim() || x.description.trim()
+                                  x.title.trim() ||
+                                  x.venue.trim() ||
+                                  (x.kind ?? '').trim() ||
+                                  x.description.trim()
                               ),
                               { ...s.data, id: newId() },
                             ],
