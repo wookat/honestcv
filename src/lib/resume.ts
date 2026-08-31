@@ -1600,6 +1600,73 @@ export function deleteLibraryCert(id: string): SavedCertification[] {
   return items
 }
 
+/** A single polished publication entry saved for reuse across resume copies. */
+export interface SavedPublication {
+  id: string
+  savedAt: number
+  data: PublicationItem
+}
+
+const PUBLICATION_LIBRARY_KEY = 'honestcv.publicationLibrary'
+const PUBLICATION_LIBRARY_MAX = 30
+
+function sanitizePublicationItem(input: unknown): PublicationItem | null {
+  if (typeof input !== 'object' || input === null) return null
+  const v = input as Record<string, unknown>
+  const item: PublicationItem = {
+    id: asStr(v.id) || newId(),
+    title: asStr(v.title),
+    venue: asStr(v.venue),
+    date: asStr(v.date),
+    description: asStr(v.description),
+  }
+  return item.title.trim() || item.venue.trim() || item.description.trim() ? item : null
+}
+
+export function listPublicationLibrary(): SavedPublication[] {
+  try {
+    const raw = localStorage.getItem(PUBLICATION_LIBRARY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as SavedPublication[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((s) => {
+      if (!s || typeof s !== 'object' || !s.id || typeof s.savedAt !== 'number') return []
+      const data = sanitizePublicationItem(s.data)
+      return data ? [{ id: s.id, savedAt: s.savedAt, data }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistPublicationLibrary(items: SavedPublication[]) {
+  try {
+    localStorage.setItem(
+      PUBLICATION_LIBRARY_KEY,
+      JSON.stringify(items.slice(0, PUBLICATION_LIBRARY_MAX))
+    )
+  } catch {
+    // storage full / private mode — ignore
+  }
+}
+
+export function savePublicationToLibrary(entry: PublicationItem): SavedPublication[] {
+  const data = sanitizePublicationItem(entry)
+  if (!data) return listPublicationLibrary()
+  const items = [
+    { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
+    ...listPublicationLibrary(),
+  ].slice(0, PUBLICATION_LIBRARY_MAX)
+  persistPublicationLibrary(items)
+  return items
+}
+
+export function deleteLibraryPublication(id: string): SavedPublication[] {
+  const items = listPublicationLibrary().filter((s) => s.id !== id)
+  persistPublicationLibrary(items)
+  return items
+}
+
 /** A polished skills text block saved for reuse across resume copies. */
 export interface SavedSkills {
   id: string
