@@ -555,3 +555,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R216 — active-voice-in-bullet-points check
 - PASSIVE_RE only matches be-verb + `-ed`/irregular participle (built/made/written/led…), so "was responsible" does NOT trigger — use "was built"/"were written"-style fixtures. Checker feed = bullet-marker lines only (guard pass when text has zero markers; passive summary prose never triggers). Structure rows: checker 16 / Builder 17.
 - The /ats-checker "Uploaded file checks" section only renders after clicking "Check my ATS score" — selecting a file alone doesn't surface it.
+
+## R217 — buzzword check + theme-toggle capture pitfall
+- Scored buzzword list (first match wins, in order): synergy, go-getter, think outside the box, team player, hard worker, detail-oriented, results-driven, self-starter. "Results-driven team player" quotes "team player" (list order, not text order). dynamic/proactive/passionate/motivated are guidance-only, never scored. Rows: checker 17 / Builder 18.
+- The theme toggle's aria-label can match both /dark/ and /light/ patterns depending on state, so scripted toggles can invert. Loop until document.documentElement.className contains/lacks `dark` before capturing theme evidence, and verify the capture's corner pixel (~rgb(18,22,29) dark bg).

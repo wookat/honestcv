@@ -334,6 +334,47 @@ function activeVoiceCheck(lines: string[]): AtsResult['checks'][number] {
   }
 }
 
+/**
+ * Clearly-empty buzzword claims for the scored check. Ambiguous single
+ * adjectives (dynamic, proactive, passionate, motivated) are excluded here —
+ * "dynamic programming" is legitimate content — and stay in the per-bullet
+ * guidance list only.
+ */
+const SCORED_BUZZWORDS = [
+  'synergy',
+  'go-getter',
+  'think outside the box',
+  'team player',
+  'hard worker',
+  'detail-oriented',
+  'results-driven',
+  'self-starter',
+]
+
+/** No empty buzzwords: generic claims crowd out concrete, checkable facts */
+function buzzwordCheck(
+  segments: { text: string; anchor: SectionAnchor }[]
+): AtsResult['checks'][number] {
+  let found = ''
+  let anchor: SectionAnchor = 'summary'
+  for (const seg of segments) {
+    const hit = SCORED_BUZZWORDS.find((w) => new RegExp(`\\b${w}\\b`, 'i').test(seg.text))
+    if (hit) {
+      found = hit
+      anchor = seg.anchor
+      break
+    }
+  }
+  return {
+    label: 'No empty buzzwords',
+    pass: !found,
+    hint: found
+      ? `"${found}" is an empty claim — replace it with a concrete, checkable fact (what you did, for whom, with what result).`
+      : 'No generic buzzwords — your claims stay concrete and checkable.',
+    anchor,
+  }
+}
+
 /** Bullet-marked lines anywhere in pasted text, markers stripped */
 function textBulletLines(raw: string): string[] {
   return raw
@@ -590,6 +631,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     namedMonthDatesCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
     pronounCheck(textPronounSegments(resumeTextRaw)),
     activeVoiceCheck(textBulletLines(resumeTextRaw)),
+    buzzwordCheck(textPronounSegments(resumeTextRaw)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
     entryLocationsCheck(textEntryLocations(resumeTextRaw)),
   ]
@@ -776,6 +818,18 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
       ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
       ...resume.customSections.flatMap((s) => s.bullets),
+    ]),
+    buzzwordCheck([
+      { text: resume.summary, anchor: 'summary' },
+      {
+        text: [
+          ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+          ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+          ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+          ...resume.customSections.flatMap((s) => s.bullets),
+        ].join('\n'),
+        anchor: 'experience',
+      },
     ]),
     linkedinCheck(
       Boolean(resume.contact.linkedin.trim()) &&
