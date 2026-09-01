@@ -346,3 +346,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Preview section headings are contentEditable spans (R128) — focus the span + select contents, then commit with a real Enter keypress.
 - On 375px the Design & layout row (incl. `#resume-language`) only exists in the "Preview & score" tab.
 - `sanitizeResume` (src/lib/resume.ts) runs on every load and share fetch — any new `Resume` field must be added there or it silently drops. Standing regression check for future field-adding rounds: verify new fields survive a Builder reload AND appear on the /s/ share page.
+
+## R168 QA notes (LintedTextarea inline underline)
+- "Projects (optional)" and "Involvement" are collapsible Sections with `defaultOpen={false}` — their children (Add buttons, description textareas) are not in the DOM until the section header is clicked.
+- The LintedTextarea backdrop can be asserted via `textarea.parentElement.querySelector('div[aria-hidden]')` span classes (`decoration-wavy`), plus an amber-pixel scan of a screenshot crop for visual proof.
