@@ -93,6 +93,7 @@ import {
 import { type AtsResult, type SectionAnchor, atsScoreSummary, scoreResume } from '@/lib/ats'
 import {
   ACTION_VERBS,
+  type BulletIssue,
   type HealthDimension,
   type HealthReport,
   checkBullets,
@@ -2043,11 +2044,12 @@ export default function Builder() {
                       <EntryAuditChip
                         findings={[
                           ...((e.role.trim() || e.company.trim()) && !e.startDate.trim()
-                            ? ['Dates are missing — add a start date']
+                            ? [DATE_FINDING]
                             : []),
                           ...bulletFindings(e.bullets, Boolean(e.role.trim() || e.company.trim())),
                         ]}
                         filled={Boolean(e.role.trim() || e.company.trim())}
+                        checks={BULLET_CHECKS + 2}
                         onExpand={() => toggleEntry(e.id)}
                         label={`Role ${idx + 1}`}
                       />
@@ -2422,10 +2424,11 @@ export default function Builder() {
                     <EntryAuditChip
                       findings={
                         (e.degree.trim() || e.school.trim()) && !e.startDate.trim()
-                          ? ['Dates are missing — add a start date']
+                          ? [DATE_FINDING]
                           : []
                       }
                       filled={Boolean(e.degree.trim() || e.school.trim())}
+                      checks={1}
                       onExpand={() => toggleEntry(e.id)}
                       label={`Education ${idx + 1}`}
                     />
@@ -2762,6 +2765,7 @@ export default function Builder() {
                       <EntryAuditChip
                         findings={bulletFindings(p.description.split('\n'), false)}
                         filled={Boolean(p.name.trim())}
+                        checks={BULLET_CHECKS}
                         onExpand={() => toggleEntry(p.id)}
                         label={`Project ${pIdx + 1}`}
                       />
@@ -6574,49 +6578,108 @@ function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void
   )
 }
 
-function bulletFindings(bullets: string[], entryFilled: boolean): string[] {
-  const findings = checkBullets(bullets).flatMap((r) =>
-    r.issues.map((i) => `Line ${r.index + 1}: ${i.message}`)
+type AuditFinding = { category: string; line?: number }
+
+const AUDIT_CATEGORY: Record<BulletIssue['kind'], string> = {
+  'weak-opener': 'Weak bullet points',
+  'first-person': 'Personal pronouns',
+  'no-metric': 'Quantified bullet points',
+  filler: 'Filler words',
+  buzzword: 'Buzzwords',
+  passive: 'Passive voice',
+  punctuation: 'Punctuation & capitalization',
+  'too-long': 'Bullet length',
+  'too-short': 'Bullet length',
+}
+
+/** Distinct bullet-level audit categories (AUDIT_CATEGORY collapses two kinds). */
+const BULLET_CHECKS = 8
+
+const DATE_FINDING: AuditFinding = { category: 'Dates are missing' }
+
+function bulletFindings(bullets: string[], entryFilled: boolean): AuditFinding[] {
+  const findings: AuditFinding[] = checkBullets(bullets).flatMap((r) =>
+    r.issues.map((i) => ({ category: AUDIT_CATEGORY[i.kind], line: r.index + 1 }))
   )
   const count = bullets.filter((b) => b.trim()).length
   if (entryFilled && (count < 3 || count > 6))
-    findings.unshift(`Include 3–6 bullet points — ${count === 0 ? 'none' : count} found`)
+    findings.unshift({ category: 'Number of bullet points' })
   return findings
 }
 
 function EntryAuditChip({
   findings,
   filled,
+  checks,
   onExpand,
   label,
 }: {
-  findings: string[]
+  findings: AuditFinding[]
   filled: boolean
+  /** Total audit categories that apply to this section type. */
+  checks: number
   onExpand: () => void
   label: string
 }) {
+  const groups = new Map<string, number[]>()
+  for (const f of findings) {
+    const lines = groups.get(f.category) ?? []
+    if (f.line !== undefined) lines.push(f.line)
+    groups.set(f.category, lines)
+  }
+  const passed = Math.max(checks - groups.size, 0)
+  const panel = (
+    <div
+      aria-hidden
+      className="bg-popover text-popover-foreground absolute top-full right-0 z-30 mt-1 hidden w-56 rounded-md border p-2 text-left shadow-md group-focus-within:block group-hover:block"
+    >
+      <ul className="space-y-1 text-[11px] leading-snug font-normal">
+        {[...groups.entries()].map(([category, lines]) => (
+          <li key={category} className="text-amber-700">
+            ⚠ {category}
+            {lines.length > 0 && (
+              <span className="text-muted-foreground">
+                {' '}
+                — line{lines.length === 1 ? '' : 's'} {[...new Set(lines)].join(', ')}
+              </span>
+            )}
+          </li>
+        ))}
+        {passed > 0 && (
+          <li className="text-emerald-700">
+            ✓ {passed} best practice{passed === 1 ? '' : 's'} applied
+          </li>
+        )}
+      </ul>
+    </div>
+  )
   if (findings.length === 0) {
     if (!filled) return null
     return (
-      <span
-        className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
-        title="Best practices applied"
-        aria-label={`${label}: best practices applied`}
-      >
-        ✓
+      <span className="group relative flex shrink-0">
+        <span
+          tabIndex={0}
+          className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
+          aria-label={`${label}: ${checks} best practice${checks === 1 ? '' : 's'} applied`}
+        >
+          ✓
+        </span>
+        {panel}
       </span>
     )
   }
   return (
-    <button
-      type="button"
-      className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100"
-      title={findings.join('\n')}
-      aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'} — expand to review`}
-      onClick={onExpand}
-    >
-      ⚠ {findings.length}
-    </button>
+    <span className="group relative flex shrink-0">
+      <button
+        type="button"
+        className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100"
+        aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'} — expand to review`}
+        onClick={onExpand}
+      >
+        ⚠ {findings.length}
+      </button>
+      {panel}
+    </span>
   )
 }
 
