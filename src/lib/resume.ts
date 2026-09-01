@@ -3,6 +3,17 @@
  * the browser — nothing is stored on our servers.
  */
 
+/** Contact fields that can be hidden without deleting the data */
+export type HideableContactField = 'email' | 'phone' | 'location' | 'website' | 'linkedin'
+
+export const HIDEABLE_CONTACT_FIELDS: HideableContactField[] = [
+  'email',
+  'phone',
+  'location',
+  'website',
+  'linkedin',
+]
+
 export interface ContactInfo {
   fullName: string
   title: string
@@ -226,6 +237,8 @@ export interface Resume {
   textColor?: 'default' | 'black' | 'navy'
   /** JD keywords the user marked as not relevant — excluded from ATS keyword coverage */
   ignoredKeywords?: string[]
+  /** Contact fields kept on file but left out of the rendered resume and exports */
+  hiddenContact?: HideableContactField[]
   /** Per-section heading overrides keyed by section key; missing/empty = default label */
   sectionHeadings?: Partial<Record<string, string>>
   /** Target role + JD used for tailoring and the ATS score */
@@ -580,8 +593,16 @@ export function dateSortValue(text: string): number | null {
 
 /** Copy of the resume with hidden entries removed — for preview, exports, scoring, and sharing */
 export function visibleResume(r: Resume): Resume {
+  const hiddenContact = r.hiddenContact ?? []
+  const contact = hiddenContact.length
+    ? {
+        ...r.contact,
+        ...(Object.fromEntries(hiddenContact.map((f) => [f, ''])) as Partial<ContactInfo>),
+      }
+    : r.contact
   return {
     ...r,
+    contact,
     experience: r.experience.filter((e) => !e.hidden),
     education: r.education.filter((e) => !e.hidden),
     projects: r.projects.filter((p) => !p.hidden),
@@ -906,6 +927,9 @@ export function sanitizeResume(input: unknown): Resume | null {
     templateId: asStr(raw.templateId) || base.templateId,
     accentColor: asStr(raw.accentColor),
     ignoredKeywords: asStrArr(raw.ignoredKeywords),
+    hiddenContact: asStrArr(raw.hiddenContact).filter((f, i, arr): f is HideableContactField =>
+      (HIDEABLE_CONTACT_FIELDS as string[]).includes(f) && arr.indexOf(f) === i
+    ),
     sectionHeadings: asSectionHeadings(raw.sectionHeadings),
     pageSize: asEnum(raw.pageSize, ['letter', 'a4'] as const) ?? 'letter',
     fontScale: asEnum(raw.fontScale, ['xs', 's', 'm', 'l', 'xl'] as const),
