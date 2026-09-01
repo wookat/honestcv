@@ -2,27 +2,57 @@ import { unzipSync, strFromU8 } from 'fflate'
 
 export const IMPORT_ACCEPT = '.pdf,.docx,.txt'
 
+/** File-level ATS compatibility check on an uploaded resume file. */
+export type FileCheck = { label: string; pass: boolean; hint: string }
+
+export type ExtractedResumeFile = { text: string; checks: FileCheck[] }
+
+const MAX_FILE_BYTES = 2 * 1024 * 1024
+
+const sizeCheck = (file: File): FileCheck => ({
+  label: 'File size under 2 MB',
+  pass: file.size <= MAX_FILE_BYTES,
+  hint: `This file is ${(file.size / 1024 / 1024).toFixed(1)} MB — many application portals reject large uploads; remove photos or heavy graphics.`,
+})
+
 /**
  * Extracts plain text from an uploaded resume file (.pdf, .docx or .txt),
  * entirely in the browser. The result feeds parseResumeText / the ATS checker.
  */
 export async function extractTextFromFile(file: File): Promise<string> {
+  return (await extractResumeFile(file)).text
+}
+
+/**
+ * Extracts text plus file-level ATS format checks (tables, images, headers,
+ * multi-column layout, page count, size) from an uploaded resume file.
+ */
+export async function extractResumeFile(file: File): Promise<ExtractedResumeFile> {
   const name = file.name.toLowerCase()
   if (name.endsWith('.pdf')) return extractPdf(file)
   if (name.endsWith('.docx')) return extractDocx(file)
-  if (name.endsWith('.txt') || file.type.startsWith('text/')) return file.text()
+  if (name.endsWith('.txt') || file.type.startsWith('text/'))
+    return { text: await file.text(), checks: [sizeCheck(file)] }
   throw new Error('Unsupported file type — please upload a PDF, DOCX or TXT file.')
 }
 
-async function extractPdf(file: File): Promise<string> {
+async function extractPdf(file: File): Promise<ExtractedResumeFile> {
   // legacy build ships polyfills, so it works on browsers without the newest APIs
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
   const worker = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default
   const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise
   const pages: string[] = []
+  let hasImages = false
+  let multiColumn = false
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i)
+    const ops = await page.getOperatorList()
+    if (
+      ops.fnArray.includes(pdfjs.OPS.paintImageXObject) ||
+      ops.fnArray.includes(pdfjs.OPS.paintInlineImageXObject)
+    )
+      hasImages = true
     const content = await page.getTextContent()
     // Group items into lines by their y coordinate so the structure survives.
     const lines = new Map<number, { x: number; w: number; str: string }[]>()
@@ -76,6 +106,7 @@ async function extractPdf(file: File): Promise<string> {
         .map((s) => s.text.replace(/\s+/g, ' ').trim())
         .filter(Boolean)
         .join('\n')
+    if (split !== null) multiColumn = true
     if (split === null) {
       pages.push(inOrder(segments))
     } else {
@@ -88,7 +119,25 @@ async function extractPdf(file: File): Promise<string> {
       pages.push([inOrder(main), inOrder(side)].filter(Boolean).join('\n'))
     }
   }
-  return pages.join('\n\n').trim()
+  const checks: FileCheck[] = [
+    sizeCheck(file),
+    {
+      label: 'Two pages or fewer',
+      pass: doc.numPages <= 2,
+      hint: `This PDF has ${doc.numPages} pages — recruiters expect 1-2; trim older or less relevant entries.`,
+    },
+    {
+      label: 'Single-column layout',
+      pass: !multiColumn,
+      hint: 'A multi-column layout was detected — many ATS parsers read columns in the wrong order; use a single column.',
+    },
+    {
+      label: 'No embedded images',
+      pass: !hasImages,
+      hint: 'Images (photos, icons, charts) were detected — ATS parsers skip them, and any text inside is lost.',
+    },
+  ]
+  return { text: pages.join('\n\n').trim(), checks }
 }
 
 /**
@@ -116,11 +165,39 @@ function detectColumnSplit(segments: { x: number; text: string }[]): number | nu
   return at
 }
 
-async function extractDocx(file: File): Promise<string> {
+async function extractDocx(file: File): Promise<ExtractedResumeFile> {
   const files = unzipSync(new Uint8Array(await file.arrayBuffer()))
   const doc = files['word/document.xml']
   if (!doc) throw new Error('Could not read this DOCX file.')
   const xml = strFromU8(doc)
+  // Text living in Word headers/footers is invisible to most ATS parsers.
+  const headerFooterText = Object.keys(files)
+    .filter((n) => /^word\/(header|footer)\d*\.xml$/.test(n))
+    .map((n) => strFromU8(files[n]))
+    .some((x) => /<w:t[^>]*>[^<]*\S[^<]*<\/w:t>/.test(x))
+  const checks: FileCheck[] = [
+    sizeCheck(file),
+    {
+      label: 'No tables',
+      pass: !/<w:tbl[ >]/.test(xml),
+      hint: 'Tables were detected — ATS parsers often scramble or drop table contents; use plain paragraphs.',
+    },
+    {
+      label: 'No text boxes',
+      pass: !/<w:txbxContent[ >]/.test(xml),
+      hint: 'Text boxes were detected — many ATS parsers cannot read text inside them.',
+    },
+    {
+      label: 'No embedded images',
+      pass: !/<w:drawing[ >]/.test(xml),
+      hint: 'Images (photos, icons, charts) were detected — ATS parsers skip them, and any text inside is lost.',
+    },
+    {
+      label: 'No text in headers or footers',
+      pass: !headerFooterText,
+      hint: 'Text was found in the Word header/footer — contact info there is invisible to many ATS parsers; move it into the document body.',
+    },
+  ]
   const text = xml
     // Tabs typically separate a header from a right-aligned date; a line
     // break keeps them as separate fields for the import parser.
@@ -133,10 +210,13 @@ async function extractDocx(file: File): Promise<string> {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
-  return text
-    .split('\n')
-    .map((l) => l.replace(/\s+/g, ' ').trim())
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
+  return {
+    text: text
+      .split('\n')
+      .map((l) => l.replace(/\s+/g, ' ').trim())
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim(),
+    checks,
+  }
 }

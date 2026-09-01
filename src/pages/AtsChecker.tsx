@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { ScoreRing } from '@/components/ScoreRing'
 import { scoreResumeText } from '@/lib/ats'
-import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
+import { IMPORT_ACCEPT, extractResumeFile, type FileCheck } from '@/lib/extractFile'
 import { parseResumeText } from '@/lib/importText'
 import { loadResume, saveResume, setActiveVersionId } from '@/lib/resume'
 
@@ -79,6 +79,9 @@ export default function AtsChecker() {
   const [linkCopied, setLinkCopied] = useState(false)
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
+  const [fileChecks, setFileChecks] = useState<{ name: string; checks: FileCheck[] } | null>(
+    null
+  )
   const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
@@ -87,13 +90,14 @@ export default function AtsChecker() {
     if (!file || fileBusy) return
     setFileBusy(true)
     setFileError('')
-    extractTextFromFile(file)
-      .then((text) => {
+    extractResumeFile(file)
+      .then(({ text, checks }) => {
         if (!text.trim())
           throw new Error(
             'No text found in this file — it may be a scanned image. Paste the text instead.'
           )
         setResumeText(text)
+        setFileChecks({ name: file.name, checks })
         setChecked(false)
       })
       .catch((err: unknown) =>
@@ -442,6 +446,37 @@ export default function AtsChecker() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
+
+              {fileChecks && (
+                <div className="mt-5 space-y-2">
+                  <p className="text-sm font-medium">
+                    Uploaded file checks{' '}
+                    <span className="text-muted-foreground font-normal">
+                      ({fileChecks.name})
+                    </span>
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    Hidden formatting in the file itself — tables, images, columns,
+                    headers — can break ATS parsing even when the text reads fine. Not
+                    counted in the score.
+                  </p>
+                  {fileChecks.checks.map((c) => (
+                    <div key={c.label} className="flex items-start gap-2 text-sm">
+                      {c.pass ? (
+                        <BadgeCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                      ) : (
+                        <CircleAlert className="text-destructive mt-0.5 size-4 shrink-0" />
+                      )}
+                      <span>
+                        <span className="font-medium">{c.label}</span>
+                        {!c.pass && (
+                          <span className="text-muted-foreground"> — {c.hint}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
 
