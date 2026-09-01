@@ -254,6 +254,8 @@ export interface Resume {
   targetCompany?: string
   /** Profile photo as a data:image/... URL; shown in the preview and PDF only */
   photo?: string
+  /** Resume language: localizes default section headings and AI writer output */
+  language?: ResumeLanguage
 }
 
 export interface ExperienceGroup {
@@ -536,6 +538,20 @@ export const SECTION_KEYS = [
   'agents',
 ] as const
 
+export type ResumeLanguage = 'en' | 'es' | 'fr' | 'de' | 'pt'
+
+/** Supported resume languages, code → native name (also shown to the LLM). */
+export const RESUME_LANGUAGES: Record<ResumeLanguage, string> = {
+  en: 'English',
+  es: 'Español',
+  fr: 'Français',
+  de: 'Deutsch',
+  pt: 'Português',
+}
+
+export const resumeLanguageOf = (r: Resume): ResumeLanguage =>
+  r.language && r.language in RESUME_LANGUAGES ? r.language : 'en'
+
 export const SECTION_LABELS: Record<string, string> = {
   summary: 'Summary',
   experience: 'Experience',
@@ -550,6 +566,78 @@ export const SECTION_LABELS: Record<string, string> = {
   references: 'References',
   military: 'Military service',
   agents: 'Agents',
+}
+
+/** Default section headings per non-English language; keys mirror SECTION_LABELS. */
+const SECTION_LABELS_I18N: Record<Exclude<ResumeLanguage, 'en'>, Record<string, string>> = {
+  es: {
+    summary: 'Resumen',
+    experience: 'Experiencia',
+    projects: 'Proyectos',
+    involvement: 'Actividades',
+    education: 'Educación',
+    coursework: 'Cursos',
+    skills: 'Habilidades',
+    certifications: 'Certificaciones',
+    awards: 'Premios y reconocimientos',
+    publications: 'Publicaciones',
+    references: 'Referencias',
+    military: 'Servicio militar',
+    agents: 'Agentes',
+  },
+  fr: {
+    summary: 'Profil',
+    experience: 'Expérience',
+    projects: 'Projets',
+    involvement: 'Engagements',
+    education: 'Formation',
+    coursework: 'Cours',
+    skills: 'Compétences',
+    certifications: 'Certifications',
+    awards: 'Prix et distinctions',
+    publications: 'Publications',
+    references: 'Références',
+    military: 'Service militaire',
+    agents: 'Agents',
+  },
+  de: {
+    summary: 'Profil',
+    experience: 'Berufserfahrung',
+    projects: 'Projekte',
+    involvement: 'Engagement',
+    education: 'Ausbildung',
+    coursework: 'Kurse',
+    skills: 'Kenntnisse',
+    certifications: 'Zertifikate',
+    awards: 'Auszeichnungen',
+    publications: 'Publikationen',
+    references: 'Referenzen',
+    military: 'Militärdienst',
+    agents: 'Agenten',
+  },
+  pt: {
+    summary: 'Resumo',
+    experience: 'Experiência',
+    projects: 'Projetos',
+    involvement: 'Atividades',
+    education: 'Educação',
+    coursework: 'Cursos',
+    skills: 'Competências',
+    certifications: 'Certificações',
+    awards: 'Prêmios e distinções',
+    publications: 'Publicações',
+    references: 'Referências',
+    military: 'Serviço militar',
+    agents: 'Agentes',
+  },
+}
+
+const CUSTOM_SECTION_FALLBACK: Record<ResumeLanguage, string> = {
+  en: 'Custom section',
+  es: 'Sección personalizada',
+  fr: 'Section personnalisée',
+  de: 'Eigener Abschnitt',
+  pt: 'Seção personalizada',
 }
 
 /**
@@ -590,9 +678,14 @@ export function orderedSectionKeys(r: Resume): string[] {
 }
 
 export function sectionLabel(r: Resume, key: string): string {
+  const lang = resumeLanguageOf(r)
   if (key.startsWith('custom:')) {
     const s = r.customSections.find((x) => `custom:${x.id}` === key)
-    return s?.title.trim() || 'Custom section'
+    return s?.title.trim() || CUSTOM_SECTION_FALLBACK[lang]
+  }
+  if (lang !== 'en') {
+    const localized = SECTION_LABELS_I18N[lang][key]
+    if (localized) return localized
   }
   return SECTION_LABELS[key] ?? key
 }

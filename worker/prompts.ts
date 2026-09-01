@@ -10,6 +10,31 @@ export interface ChatMessage {
 
 export type RewriteKind = 'bullets' | 'summary' | 'skills'
 
+/** Resume output languages the writer endpoints can be asked to reply in. */
+const OUTPUT_LANGUAGES: Record<string, string> = {
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  pt: 'Portuguese',
+}
+
+/**
+ * Ask the writer to reply in the resume's language. Unknown codes and 'en'
+ * are no-ops, so the client can always pass the resume's language through.
+ */
+export function withOutputLanguage(messages: ChatMessage[], language?: string): ChatMessage[] {
+  const name = language ? OUTPUT_LANGUAGES[language] : undefined
+  if (!name) return messages
+  return messages.map((m) =>
+    m.role === 'system'
+      ? {
+          ...m,
+          content: `${m.content}\n- Write your entire output in ${name}. Keep every fact from the input unchanged; translate phrasing, not facts.`,
+        }
+      : m
+  )
+}
+
 const SYSTEM_WRITER = `You are an expert resume writer for the US/international job market.
 Rules:
 - Never invent employers, titles, dates, degrees, metrics, or tools that are not in the input. You may sharpen phrasing, but every fact must come from the user's text.

@@ -219,6 +219,9 @@ import {
   sortEntriesByDate,
   TEXT_INKS,
   visibleResume,
+  RESUME_LANGUAGES,
+  type ResumeLanguage,
+  resumeLanguageOf,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
@@ -1144,6 +1147,7 @@ export default function Builder() {
         {
           role: aiTargetRole(resume),
           jobDescription: resume.jobDescription,
+          language: resume.language,
         },
         wantVariants
       )
@@ -1182,6 +1186,7 @@ export default function Builder() {
         bullets: e.bullets.filter((b) => b.trim()),
         resumeText: resumeToPlainText(shown),
         variant,
+        language: resume.language,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
@@ -1251,6 +1256,7 @@ export default function Builder() {
         resumeText: resumeToPlainText({ ...shown, summary: '' }),
         role: position.trim() || aiTargetRole(resume),
         highlights: highlights.length ? highlights : undefined,
+        language: resume.language,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setVariantPick({
@@ -5654,6 +5660,25 @@ export default function Builder() {
                 </button>
               ))}
             </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <label htmlFor="resume-language" className="text-muted-foreground text-[11px]">
+                Language
+              </label>
+              <select
+                id="resume-language"
+                title="Resume language — localizes default section headings and AI writer output"
+                value={resumeLanguageOf(resume)}
+                onChange={(e) => set('language', e.target.value as ResumeLanguage)}
+                className="bg-background h-7 rounded-md border px-1.5 text-[11px] font-medium"
+              >
+                {(Object.keys(RESUME_LANGUAGES) as ResumeLanguage[]).map((code) => (
+                  <option key={code} value={code}>
+                    {RESUME_LANGUAGES[code]}
+                  </option>
+                ))}
+              </select>
+            </span>
             <span className="flex flex-wrap items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Font</span>
@@ -7552,6 +7577,7 @@ function BundleToolDialog({
               jobDescription: jd,
               company,
               role: aiTargetRole(resume),
+              language: resume.language,
             })
           : await aiInterviewBrief({
               resumeText,
@@ -7967,6 +7993,7 @@ function TailorDialog({
         items,
         jobDescription: resume.jobDescription,
         role: aiTargetRole(resume),
+        language: resume.language,
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
       const byId = new Map(items.map((i) => [i.id, i.text]))
@@ -8483,6 +8510,7 @@ function KeywordBulletDialog({
         resumeText: resumeToPlainText(resume),
         jobDescription: resume.jobDescription,
         role: aiTargetRole(resume),
+        language: resume.language,
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
       setText(drafted)

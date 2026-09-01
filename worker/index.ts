@@ -39,6 +39,7 @@ import {
   buildRewriteMessages,
   buildSkillSuggestMessages,
   buildSummaryDraftMessages,
+  withOutputLanguage,
 } from './prompts'
 
 interface Env extends BillingEnv, LsEnv {
@@ -450,6 +451,7 @@ app.post('/api/ai/rewrite', async (c) => {
       role?: string
       jobDescription?: string
       variants?: boolean
+      language?: string
     }>()
     .catch(() => ({}) as Record<string, never>)
   const kind = body.kind as RewriteKind
@@ -485,11 +487,14 @@ app.post('/api/ai/rewrite', async (c) => {
   const wantVariants = body.variants === true && kind !== 'skills'
   const result = await callLlm(
     c.env,
-    buildRewriteMessages(
-      kind,
-      text,
-      { role: body.role, jobDescription: body.jobDescription },
-      wantVariants
+    withOutputLanguage(
+      buildRewriteMessages(
+        kind,
+        text,
+        { role: body.role, jobDescription: body.jobDescription },
+        wantVariants
+      ),
+      body.language
     ),
     0.5,
     wantVariants ? 2000 : 1200
@@ -512,7 +517,7 @@ app.post('/api/ai/rewrite', async (c) => {
 // strictly in existing content. Shares the free AI quota.
 app.post('/api/ai/summary-draft', async (c) => {
   const body = await c.req
-    .json<{ resumeText?: string; role?: string; highlights?: string[] }>()
+    .json<{ resumeText?: string; role?: string; highlights?: string[]; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const resumeText = body.resumeText?.trim()
   if (!resumeText) {
@@ -547,7 +552,10 @@ app.post('/api/ai/summary-draft', async (c) => {
 
   const result = await callLlm(
     c.env,
-    buildSummaryDraftMessages(resumeText, body.role ?? '', highlights),
+    withOutputLanguage(
+      buildSummaryDraftMessages(resumeText, body.role ?? '', highlights),
+      body.language
+    ),
     0.5,
     900
   )
@@ -659,7 +667,7 @@ app.post('/api/ai/skill-suggest', async (c) => {
 // resume, grounded in existing content. Shares the free AI quota.
 app.post('/api/ai/keyword-bullet', async (c) => {
   const body = await c.req
-    .json<{ keyword?: string; resumeText?: string; jobDescription?: string; role?: string }>()
+    .json<{ keyword?: string; resumeText?: string; jobDescription?: string; role?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const keyword = body.keyword?.trim()
   const resumeText = body.resumeText?.trim()
@@ -690,7 +698,7 @@ app.post('/api/ai/keyword-bullet', async (c) => {
 
   const result = await callLlm(
     c.env,
-    buildKeywordBulletMessages(keyword, resumeText, jd, body.role ?? ''),
+    withOutputLanguage(buildKeywordBulletMessages(keyword, resumeText, jd, body.role ?? ''), body.language),
     0.5,
     400
   )
@@ -706,7 +714,7 @@ app.post('/api/ai/keyword-bullet', async (c) => {
 // free AI quota.
 app.post('/api/ai/suggest-bullet', async (c) => {
   const body = await c.req
-    .json<{ role?: string; company?: string; bullets?: string[]; resumeText?: string; variant?: string }>()
+    .json<{ role?: string; company?: string; bullets?: string[]; resumeText?: string; variant?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const role = body.role?.trim() ?? ''
   const company = body.company?.trim() ?? ''
@@ -740,7 +748,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
 
   const result = await callLlm(
     c.env,
-    buildSuggestBulletMessages(role, company, bullets, resumeText, variant),
+    withOutputLanguage(buildSuggestBulletMessages(role, company, bullets, resumeText, variant), body.language),
     0.6,
     400
   )
@@ -755,7 +763,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
 // returning per-item suggestions. Shares the free AI quota.
 app.post('/api/ai/tailor', async (c) => {
   const body = await c.req
-    .json<{ items?: TailorItem[]; jobDescription?: string; role?: string }>()
+    .json<{ items?: TailorItem[]; jobDescription?: string; role?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const jd = body.jobDescription?.trim()
   const items = (body.items ?? [])
@@ -785,7 +793,12 @@ app.post('/api/ai/tailor', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlm(c.env, buildTailorMessages(items, jd, body.role ?? ''), 0.4, 3000)
+  const result = await callLlm(
+    c.env,
+    withOutputLanguage(buildTailorMessages(items, jd, body.role ?? ''), body.language),
+    0.4,
+    3000
+  )
   // Quota is consumed only after a successful call, so failures cost nothing
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
   const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
@@ -845,7 +858,7 @@ app.post('/api/ai/cover-letter', async (c) => {
     freeRemaining = remaining
   }
   const body = await c.req
-    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string }>()
+    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const resumeText = body.resumeText?.trim()
   const jd = body.jobDescription?.trim()
@@ -853,7 +866,10 @@ app.post('/api/ai/cover-letter', async (c) => {
   if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
   const result = await callLlm(
     c.env,
-    buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? ''),
+    withOutputLanguage(
+      buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? ''),
+      body.language
+    ),
     0.6
   )
   // Quota is consumed only after a successful call, so failures cost nothing
