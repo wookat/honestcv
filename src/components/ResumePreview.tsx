@@ -206,14 +206,21 @@ export function ResumePreview({
     sourcesans: '"Source Sans 3", "Source Sans Pro", Inter, Arial, sans-serif',
     robotomono: '"Roboto Mono", "Courier New", ui-monospace, monospace',
   }[familyOf(resume, tpl.serif)]
-  const contactFields: { text: string; icon: ContactIconKind }[] = [
-    { text: c.email, icon: 'mail' as const },
-    { text: c.phone, icon: 'phone' as const },
-    { text: c.location, icon: 'pin' as const },
-    { text: c.website, icon: 'globe' as const },
-    { text: c.linkedin, icon: 'linkedin' as const },
+  const contactFields: { text: string; icon: ContactIconKind; key: 'email' | 'phone' | 'location' | 'website' | 'linkedin' }[] = [
+    { text: c.email, icon: 'mail' as const, key: 'email' as const },
+    { text: c.phone, icon: 'phone' as const, key: 'phone' as const },
+    { text: c.location, icon: 'pin' as const, key: 'location' as const },
+    { text: c.website, icon: 'globe' as const, key: 'website' as const },
+    { text: c.linkedin, icon: 'linkedin' as const, key: 'linkedin' as const },
   ].filter((f) => f.text)
-  const contactLine = contactFields.map((f) => f.text).join('  |  ')
+  const contactField = (f: (typeof contactFields)[number]) => (
+    <InlineText
+      value={f.text}
+      onCommit={
+        onEdit && ((v) => onEdit({ ...resume, contact: { ...resume.contact, [f.key]: v } }))
+      }
+    />
+  )
 
   const divider = tpl.band ? 'none' : dividerOf(resume, tpl.divider)
   const headingMarginTop = 16 * sectionSpacingOf(resume)
@@ -302,7 +309,7 @@ export function ResumePreview({
             />
           </p>
         )}
-        {contactLine &&
+        {contactFields.length > 0 &&
           (contactIconsOf(resume) ? (
             <p
               className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-neutral-500 ${
@@ -312,12 +319,19 @@ export function ResumePreview({
               {contactFields.map((f) => (
                 <span key={f.icon} className="inline-flex items-center gap-1">
                   <ContactIcon kind={f.icon} />
-                  {f.text}
+                  {contactField(f)}
                 </span>
               ))}
             </p>
           ) : (
-            <p className="mt-1 text-[10px] text-neutral-500">{contactLine}</p>
+            <p className="mt-1 text-[10px] text-neutral-500">
+              {contactFields.map((f, i) => (
+                <Fragment key={f.icon}>
+                  {i > 0 ? '  |  ' : null}
+                  {contactField(f)}
+                </Fragment>
+              ))}
+            </p>
           ))}
       </div>
 
