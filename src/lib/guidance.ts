@@ -339,6 +339,7 @@ export function resumeHealth(r: Resume): HealthReport {
     }
   }
   const placeholders = [r.summary, ...bullets.map((b) => b.text)]
+    .map(stripInlineMarks)
     .join('\n')
     .match(/\[[^\]\n]{1,60}\]/g)
   if (placeholders && placeholders.length > 0)

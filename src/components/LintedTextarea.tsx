@@ -1,11 +1,14 @@
 import { useMemo, useRef } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 import { checkBullet, type BulletIssue } from '@/lib/guidance'
-import { wrapSelection } from '@/lib/marks'
+import { wrapLink, wrapSelection } from '@/lib/marks'
 
-/** Apply a bold/italic/underline mark toggle to the current selection, firing React's onChange. */
-function applyMark(el: HTMLTextAreaElement, mark: '**' | '*' | '__') {
-  const next = wrapSelection(el.value, el.selectionStart, el.selectionEnd, mark)
+/** Apply a bold/italic/underline/link mark toggle to the current selection, firing React's onChange. */
+function applyMark(el: HTMLTextAreaElement, mark: '**' | '*' | '__' | 'link') {
+  const next =
+    mark === 'link'
+      ? wrapLink(el.value, el.selectionStart, el.selectionEnd)
+      : wrapSelection(el.value, el.selectionStart, el.selectionEnd, mark)
   if (!next) return
   const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set
   setter?.call(el, next.value)
@@ -50,9 +53,12 @@ export function LintedTextarea({
         onKeyDown={(ev) => {
           if ((ev.ctrlKey || ev.metaKey) && !ev.altKey) {
             const key = ev.key.toLowerCase()
-            if (key === 'b' || key === 'i' || key === 'u') {
+            if (key === 'b' || key === 'i' || key === 'u' || key === 'k') {
               ev.preventDefault()
-              applyMark(ev.currentTarget, key === 'b' ? '**' : key === 'i' ? '*' : '__')
+              applyMark(
+                ev.currentTarget,
+                key === 'b' ? '**' : key === 'i' ? '*' : key === 'u' ? '__' : 'link'
+              )
               return
             }
           }

@@ -1,8 +1,8 @@
 /**
  * Markdown-style inline marks in resume text: `**bold**`, `*italic*`,
- * `***bold italic***` and `__underline__`. Marks live inside the ordinary
- * string fields — parsing happens at render/export boundaries and unmatched
- * markers stay literal.
+ * `***bold italic***`, `__underline__` and `[text](url)` links. Marks live
+ * inside the ordinary string fields — parsing happens at render/export
+ * boundaries and unmatched markers stay literal.
  */
 
 export interface InlineRun {
@@ -10,15 +10,51 @@ export interface InlineRun {
   bold: boolean
   italic: boolean
   underline: boolean
+  /** Normalized absolute URL when the run is part of a `[text](url)` link. */
+  href?: string
+}
+
+const LINK_RE = /\[([^[\]]+)\]\(([^\s()]+)\)/
+
+/** Light URL shape check; scheme-less hosts like `example.com/x` pass. */
+function linkHref(raw: string): string | null {
+  if (/^https?:\/\/[^\s]+\.[^\s]+/i.test(raw)) return raw
+  if (/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:[/?#][^\s]*)?$/i.test(raw)) return `https://${raw}`
+  return null
 }
 
 const MARK_RE = /(\*\*\*(?:[^*]|\*(?!\*\*))+\*\*\*|\*\*(?:[^*]|\*(?!\*))+\*\*|\*[^*\s](?:[^*]*[^*\s])?\*|__(?:[^_]|_(?!_))+__)/
 
 export function hasInlineMarks(text: string): boolean {
-  return MARK_RE.test(text)
+  if (MARK_RE.test(text)) return true
+  const l = LINK_RE.exec(text)
+  return !!l && linkHref(l[2]) !== null
 }
 
 export function parseInlineMarks(text: string): InlineRun[] {
+  const runs: InlineRun[] = []
+  let rest = text
+  while (rest) {
+    const l = LINK_RE.exec(rest)
+    if (!l) {
+      runs.push(...parseMarkRuns(rest))
+      break
+    }
+    const href = linkHref(l[2])
+    const cut = l.index + l[0].length
+    if (href) {
+      if (l.index > 0) runs.push(...parseMarkRuns(rest.slice(0, l.index)))
+      runs.push(...parseMarkRuns(l[1]).map((r) => ({ ...r, href })))
+    } else {
+      runs.push(...parseMarkRuns(rest.slice(0, cut)))
+    }
+    rest = rest.slice(cut)
+  }
+  return runs.length ? runs : [{ text: '', bold: false, italic: false, underline: false }]
+}
+
+/** Bold/italic/underline parsing for link-free text. */
+function parseMarkRuns(text: string): InlineRun[] {
   const runs: InlineRun[] = []
   let rest = text
   while (rest) {
@@ -35,14 +71,14 @@ export function parseInlineMarks(text: string): InlineRun[] {
       runs.push(...innerRuns(token.slice(2, -2), { bold: true, italic: false }))
     } else if (token.startsWith('__')) {
       runs.push(
-        ...parseInlineMarks(token.slice(2, -2)).map((r) => ({ ...r, underline: true }))
+        ...parseMarkRuns(token.slice(2, -2)).map((r) => ({ ...r, underline: true }))
       )
     } else {
       runs.push(...innerRuns(token.slice(1, -1), { bold: false, italic: true }))
     }
     rest = rest.slice(m.index + token.length)
   }
-  return runs.length ? runs : [{ text: '', bold: false, italic: false, underline: false }]
+  return runs
 }
 
 const UNDER_RE = /(__(?:[^_]|_(?!_))+__)/
@@ -108,8 +144,34 @@ export function wrapSelection(
   return { value: next, start, end: end + mark.length * 2 }
 }
 
+/** Toggle-wrap a textarea selection as a `[text](url)` link. Wrapping leaves
+ *  the `url` placeholder selected for immediate typing; a selection that is
+ *  already a full link token unwraps back to its label. */
+export function wrapLink(
+  value: string,
+  start: number,
+  end: number
+): { value: string; start: number; end: number } | null {
+  if (start === end) return null
+  const before = value.slice(0, start)
+  const sel = value.slice(start, end)
+  const after = value.slice(end)
+  const full = new RegExp(`^${LINK_RE.source}$`).exec(sel)
+  if (full) {
+    return { value: before + full[1] + after, start, end: start + full[1].length }
+  }
+  const core = sel.trim()
+  if (!core || /[[\]]/.test(core)) return null
+  const lead = sel.slice(0, sel.length - sel.trimStart().length)
+  const trail = sel.slice(sel.trimEnd().length)
+  const next = before + lead + `[${core}](url)` + trail + after
+  const urlStart = start + lead.length + core.length + 3
+  return { value: next, start: urlStart, end: urlStart + 3 }
+}
+
 /** Serialize a contentEditable subtree back to marked-up text, mapping
- *  B/STRONG → `**`, I/EM → `*` and U → `__` so native Ctrl+B/I/U edits round-trip. */
+ *  B/STRONG → `**`, I/EM → `*`, U → `__` and A → `[text](href)` so native
+ *  Ctrl+B/I/U edits and existing links round-trip. */
 export function domToMarks(node: Node): string {
   const walk = (n: Node, bold: boolean, italic: boolean, under: boolean): string => {
     if (n.nodeType === Node.TEXT_NODE) {
@@ -128,6 +190,14 @@ export function domToMarks(node: Node): string {
     const el = n as HTMLElement
     const tag = el.tagName
     if (tag === 'BR') return ' '
+    if (tag === 'A') {
+      const href = el.getAttribute('href') ?? ''
+      let label = ''
+      for (const child of Array.from(el.childNodes)) label += walk(child, bold, italic, under)
+      const core = label.trim()
+      if (!core) return label
+      return href ? `[${core}](${href})` : core
+    }
     const b = bold || tag === 'B' || tag === 'STRONG' || /bold/.test(el.style.fontWeight)
     const i = italic || tag === 'I' || tag === 'EM' || el.style.fontStyle === 'italic'
     const u = under || tag === 'U' || /underline/.test(el.style.textDecoration)

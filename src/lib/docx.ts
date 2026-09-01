@@ -126,17 +126,18 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       keepNext: opts.keepNext,
       bullet: opts.bullet ? { level: 0 } : undefined,
       indent: opts.bullet ? bulletInd : undefined,
-      children: parseInlineMarks(text).map(
-        (r) =>
-          new TextRun({
-            text: r.text,
-            bold: opts.bold || r.bold,
-            italics: opts.italic || r.italic,
-            underline: r.underline ? {} : undefined,
-            size: sz(21),
-            font,
-          })
-      ),
+      children: parseInlineMarks(text).map((r) => {
+        const run = new TextRun({
+          text: r.text,
+          bold: opts.bold || r.bold,
+          italics: opts.italic || r.italic,
+          underline: r.underline ? {} : undefined,
+          style: r.href ? 'Hyperlink' : undefined,
+          size: sz(21),
+          font,
+        })
+        return r.href ? new ExternalHyperlink({ link: r.href, children: [run] }) : run
+      }),
     })
 
   const children: Paragraph[] = []
