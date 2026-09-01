@@ -152,7 +152,7 @@ const PAGES = [
       'We tested Rezi ourselves: the free tier caps you at 1 resume, 3 PDF downloads, 10 AI generations and 1 template; DOCX is paywalled. RezUp has none of those limits and no subscription.',
     h1: 'RezUp vs Rezi: what the free tier actually lets you do',
     intro:
-      'We registered for Rezi and ran the full flow ourselves (August 2026). It is a polished product — the Rezi Score and keyword targeting are genuinely good. But the free tier is tightly rationed: one resume, three PDF downloads, ten AI generations, one template (the other ten are Pro-locked), and DOCX export sits behind a hard paywall. Full access is a subscription at $29/month (or $149 lifetime). RezUp takes the opposite approach: unlimited resumes and downloads, real text-based PDF and DOCX export, a free ATS match score against any job description you paste, and 22 templates you can switch between freely — with your data staying in your browser instead of an account.',
+      'We registered for Rezi and ran the full flow ourselves (August 2026). It is a polished product — the Rezi Score and keyword targeting are genuinely good. But the free tier is tightly rationed: one resume, three PDF downloads, ten AI generations, one template (the other ten are Pro-locked), and DOCX export sits behind a hard paywall. Full access is a subscription at $29/month (or $149 lifetime). RezUp takes the opposite approach: unlimited resumes and downloads, real text-based PDF and DOCX export, a free ATS match score against any job description you paste, and 24 templates you can switch between freely — with your data staying in your browser instead of an account.',
     bullets: [
       'No caps: Rezi free tier = 1 resume, 3 PDF downloads, 10 AI generations, 1 of 11 templates; DOCX paywalled',
       'No subscription vs $29/month (or a $149 lifetime plan)',
@@ -588,7 +588,7 @@ const GUIDES = [
       ['The hybrid that keeps the look without the risk', 'Want visual structure without parser risk? Use full-width sections with a strong heading hierarchy, a horizontal skills line under the summary, and generous white space. Banded headings give the "designed" feel while keeping one text flow.'],
       ['What recruiters think of two-column resumes', 'Mixed — some find them scannable, many find sidebars cramped at 9pt. What they agree on: they read top-to-bottom-left-to-right, so anything in a sidebar gets skimmed last or not at all. Your best evidence belongs in the main flow either way.'],
       ['If you keep two columns, build them right', 'Use real column objects (not text boxes), keep all experience — titles, employers, dates, bullets — in one column, keep contact info out of the header/footer region, export to PDF, and run the copy-paste test before every send.'],
-      ['The single-column rule we build on', 'All 22 RezUp templates are single-column real text by design — the one layout rule that removes ATS parsing risk entirely. The visual variety comes from typography, accent color and banded headings, not from layout mechanics that parsers trip on.'],
+      ['The single-column rule we build on', 'All 24 RezUp templates are single-column real text by design — the one layout rule that removes ATS parsing risk entirely. The visual variety comes from typography, accent color and banded headings, not from layout mechanics that parsers trip on.'],
     ],
   },
   {
@@ -609,7 +609,7 @@ const GUIDES = [
       ['Consistency beats beauty', 'One font family (or one serif + one sans pairing), one body size, one date format, one bullet style. Recruiters can\u2019t articulate why a mixed-format resume feels off — but it does, and it reads as carelessness before they\u2019ve read a word.'],
       ['Print and screen both matter', 'On-site interviewers still print resumes. Check yours at 100% zoom on a laptop and as a physical printout: thin grays vanish on paper, 10pt text that looked fine on a 27-inch monitor doesn\u2019t on A4/Letter. Dark text on white remains the only safe bet.'],
       ['PDF export is where fonts break', 'Export as PDF with fonts embedded (any mainstream builder or word processor does this by default) and open the file once before sending — a substituted font shows up immediately as shifted layout. If a portal demands DOCX, stick to system fonts so the receiving machine renders what you saw.'],
-      ['Or let the template decide', 'All 22 RezUp templates use pre-tested font pairings, sizes and margins that pass ATS parsing and print cleanly — with S/M/L text and spacing controls inside the safe ranges, so you can compress to one page without breaking the rules above.'],
+      ['Or let the template decide', 'All 24 RezUp templates use pre-tested font pairings, sizes and margins that pass ATS parsing and print cleanly — with S/M/L text and spacing controls inside the safe ranges, so you can compress to one page without breaking the rules above.'],
     ],
   },
   {
@@ -1039,6 +1039,8 @@ const TEMPLATE_META = {
   quartz: { accent: '#57534e', serif: true, divider: 'none', headerAlign: 'left', nameCase: 'normal' },
   ruby: { accent: '#9f1239', serif: true, divider: 'none', band: true, headerAlign: 'center', nameCase: 'normal' },
   cobalt: { accent: '#312e81', serif: false, divider: 'thick', headerAlign: 'left', nameCase: 'upper' },
+  circuit: { accent: '#0369a1', serif: false, divider: 'line', headerAlign: 'left', nameCase: 'normal', entryDivider: true },
+  ledger: { accent: '#3f3f46', serif: true, divider: 'none', headerAlign: 'left', nameCase: 'normal', entryDivider: true },
 }
 
 /** Light tint of an accent color (mirrors accentTint in src/lib/templates.ts) */
@@ -1104,7 +1106,11 @@ function templateThumbSvg(slug, width = 96) {
   }
   y += 4
   heading('Experience')
-  for (const [job, bullets] of s.jobs) {
+  s.jobs.forEach(([job, bullets], ji) => {
+    if (m.entryDivider && ji > 0) {
+      parts.push(`<rect x="${L}" y="${y - 4}" width="${R - L}" height="0.5" fill="#d4d4d4"/>`)
+      y += 1.5
+    }
     text(L, y, 3.9, '#333', job, 'font-weight="600"')
     y += 5.5
     for (const b of bullets) {
@@ -1112,7 +1118,7 @@ function templateThumbSvg(slug, width = 96) {
       y += 5.5
     }
     y += 1.5
-  }
+  })
   y += 2.5
   heading('Skills')
   text(L, y, 3.8, '#444', s.skills)
@@ -1299,6 +1305,22 @@ const TEMPLATE_PAGES = [
     description:
       'An assertive resume template with indigo accents, thick rules and an uppercase name — modern and fully ATS-parseable. Use it free in your browser.',
     blurb: 'The Cobalt template combines indigo accents, thick rules and an uppercase name for an assertive, modern presence. Best for product, sales engineering and go-to-market roles.',
+  },
+  {
+    path: '/templates/circuit',
+    name: 'Circuit',
+    title: 'Circuit Resume Template — Free to Use Online | RezUp',
+    description:
+      'A full-width developer resume template with light horizontal dividers between entries — dense content stays readable and fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Circuit template separates every role and project with a light hairline, so dense technical resumes stay scannable without losing page width. Best for developers and engineers with detailed project descriptions.',
+  },
+  {
+    path: '/templates/ledger',
+    name: 'Ledger',
+    title: 'Ledger Resume Template — Free to Use Online | RezUp',
+    description:
+      'A serif resume template with ruled entries and quiet headings — editorial structure without heavy lines, fully ATS-parseable. Use it free in your browser.',
+    blurb: 'The Ledger template drops heading rules entirely and lets light hairlines between entries carry the structure — an editorial, understated look. Best for experienced candidates with long work histories.',
   },
 ]
 
@@ -3269,7 +3291,7 @@ ${doc}
 <p style="color:var(--muted);font-size:.8rem">Fictional example for illustration — names, employers and numbers are invented, but every bullet follows the honest formula: action + scope + verifiable result. Never copy claims you can't defend in an interview.</p>
 ${p.tips.map(([h, t]) => `<h2 style="margin-top:1.75rem;font-size:1.2rem">${esc(h)}</h2>\n<p>${esc(t)}</p>`).join('\n')}
 <div class="cta">
-<p>${FREE_MODE ? 'Build yours in the same clean, ATS-safe layout — RezUp is free during beta: 22 templates, AI rewrites of your real experience, ATS match score and PDF/DOCX downloads.' : 'Build yours in the same clean, ATS-safe layout — free to try, one-time $9.99 download, no subscription.'}</p>
+<p>${FREE_MODE ? 'Build yours in the same clean, ATS-safe layout — RezUp is free during beta: 24 templates, AI rewrites of your real experience, ATS match score and PDF/DOCX downloads.' : 'Build yours in the same clean, ATS-safe layout — free to try, one-time $9.99 download, no subscription.'}</p>
 <a class="btn" href="/builder?example=${p.slug}">Edit this example in the builder</a> &nbsp; <a class="btn" href="/ats-checker" style="background:transparent;color:var(--primary);border:1px solid var(--border)">Check my ATS score</a>
 </div>
 <div class="related">
@@ -3394,12 +3416,12 @@ const TEMPLATE_CURATED = [
   [
     'Tech & startup roles',
     'Contemporary, engineering-flavored looks for product, dev and startup applications.',
-    ['engineer', 'startup', 'slate', 'cobalt', 'metro', 'bold'],
+    ['engineer', 'circuit', 'startup', 'slate', 'cobalt', 'metro', 'bold'],
   ],
   [
     'High-density for experienced candidates',
     'Layouts tuned to fit long careers onto one page without shrinking below readable.',
-    ['compact', 'atlas', 'corporate', 'scholar', 'horizon'],
+    ['compact', 'ledger', 'atlas', 'corporate', 'scholar', 'horizon'],
   ],
   [
     'Distinctive accents',
@@ -3512,7 +3534,7 @@ const HUBS = [
     pathname: '/templates/',
     title: 'ATS-Friendly Resume Templates (Free) — RezUp',
     description:
-      'All 22 RezUp resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Fully included free during beta — no account, no subscription.',
+      'All 24 RezUp resume templates: single-column, ATS-safe layouts with real text-based PDF and DOCX export. Fully included free during beta — no account, no subscription.',
     h1: 'ATS-friendly resume templates',
     intro:
       'Every RezUp template follows one rule: strictly single-column real text, the layout ATS parsers read most reliably. Pick a look below — you can switch templates any time without retyping.',

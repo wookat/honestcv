@@ -391,6 +391,19 @@ class PdfWriter {
     }
   }
 
+  /** Light hairline between entries (templates with entryDivider) */
+  entryRule() {
+    this.ensure(10)
+    this.gap(4)
+    this.page.drawLine({
+      start: { x: MARGIN, y: this.y },
+      end: { x: this.pageW - MARGIN, y: this.y },
+      thickness: 0.5,
+      color: hexToRgb('#d4d4d4'),
+    })
+    this.gap(2)
+  }
+
   bullet(text: string) {
     const size = 10 * this.fs
     const font = this.fonts.regular
@@ -596,19 +609,27 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
   }
   w.gap(6)
 
+  const entryRule = (i: number) => {
+    if (tpl.entryDivider && i > 0) w.entryRule()
+  }
+
   for (const key of orderedSectionKeys(resume)) {
     if (key === 'summary' && resume.summary.trim()) {
       w.heading(sectionHeading(resume, 'summary'))
       w.text(resume.summary.trim(), { size: 10 })
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
       w.heading(sectionHeading(resume, 'experience'))
+      let gi = 0
       for (const g of experienceGroups(resume.experience, resume.groupByCompany === 'on')) {
+        entryRule(gi++)
         if (g.grouped) {
           w.gap(4)
           w.ensure(34)
           w.titleLine(g.company.trim(), '', { size: 10.5 })
         }
+        let ei = 0
         for (const e of g.entries) {
+          if (g.grouped) entryRule(ei++)
           w.gap(g.grouped ? 2 : 4)
           w.ensure(34) // keep the entry header with its first bullet
           const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
@@ -626,8 +647,10 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       }
     } else if (key === 'projects' && resume.projects.some((p) => p.name)) {
       w.heading(sectionHeading(resume, 'projects'))
+      let pi = 0
       for (const p of resume.projects) {
         if (!p.name) continue
+        entryRule(pi++)
         w.gap(2)
         w.ensure(30) // keep the project name with its description
         w.titleLine(projectHeadingLine(p), projectDates(p), { size: 10 })
@@ -638,7 +661,9 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       }
     } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'involvement'))
+      let ii = 0
       for (const i of involvementEntries(resume)) {
+        entryRule(ii++)
         w.gap(4)
         w.ensure(34)
         w.titleLine(involvementHeadingLine(i), involvementDates(i), { size: 10.5 })
@@ -647,8 +672,10 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       }
     } else if (key === 'education' && resume.education.some((e) => e.school)) {
       w.heading(sectionHeading(resume, 'education'))
+      let edi = 0
       for (const e of resume.education) {
         if (!e.school) continue
+        entryRule(edi++)
         w.gap(2)
         w.ensure(34)
         const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
@@ -665,7 +692,9 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       }
     } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'coursework'))
+      let cwi = 0
       for (const cw of courseworkEntries(resume)) {
+        entryRule(cwi++)
         w.gap(4)
         w.ensure(34)
         w.titleLine(courseworkHeadingLine(cw), cw.date.trim(), { size: 10.5 })
@@ -683,7 +712,9 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       (certEntries(resume).length > 0 || resume.certifications.trim())
     ) {
       w.heading(sectionHeading(resume, 'certifications'))
+      let cti = 0
       for (const c of certEntries(resume)) {
+        entryRule(cti++)
         w.gap(2)
         w.ensure(30)
         w.titleLine(certHeadingLine(c), c.date.trim(), { size: 10 })
@@ -698,7 +729,9 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       }
     } else if (key === 'awards' && awardEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'awards'))
+      let awi = 0
       for (const a of awardEntries(resume)) {
+        entryRule(awi++)
         w.gap(4)
         w.ensure(34)
         w.titleLine(awardHeadingLine(a), a.date.trim(), { size: 10.5 })
@@ -707,7 +740,9 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       }
     } else if (key === 'publications' && publicationEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'publications'))
+      let pbi = 0
       for (const p of publicationEntries(resume)) {
+        entryRule(pbi++)
         w.gap(4)
         w.ensure(34)
         w.titleLine(publicationHeadingLine(p), p.date.trim(), { size: 10.5 })
@@ -716,7 +751,9 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       }
     } else if (key === 'references' && referenceEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'references'))
+      let rfi = 0
       for (const x of referenceEntries(resume)) {
+        entryRule(rfi++)
         w.gap(4)
         w.ensure(34)
         w.titleLine(referenceHeadingLine(x), '', { size: 10.5 })
@@ -728,7 +765,9 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       }
     } else if (key === 'military' && militaryEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'military'))
+      let mli = 0
       for (const m of militaryEntries(resume)) {
+        entryRule(mli++)
         w.gap(4)
         w.ensure(34)
         w.titleLine(militaryHeadingLine(m), militaryDates(m), { size: 10.5 })
@@ -737,7 +776,9 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       }
     } else if (key === 'agents' && agentEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'agents'))
+      let agi = 0
       for (const a of agentEntries(resume)) {
+        entryRule(agi++)
         w.gap(4)
         w.ensure(34)
         w.titleLine(a.name.trim(), a.date.trim(), { size: 10.5 })

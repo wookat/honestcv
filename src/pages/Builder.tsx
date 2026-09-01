@@ -725,7 +725,7 @@ function AiWaitHint() {
 export default function Builder() {
   usePageMeta(
     'Resume Builder — RezUp',
-    'Build an ATS-friendly resume in your browser: 22 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
+    'Build an ATS-friendly resume in your browser: 24 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
   )
   useEffect(() => trackEvent('builder-start'), [])
   const [resume, setResumeRaw] = useState<Resume>(() => {
