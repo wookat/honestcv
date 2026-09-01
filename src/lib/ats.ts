@@ -19,7 +19,14 @@ required requirements responsibilities qualifications skills apply applicants
 must may new us we're you'll looking join per day help make take across within
 using use based least good great well knowledge understanding familiarity
 excellent communication written verbal bonus nice benefits salary equal
-opportunity employer diverse remote hybrid onsite full-time part-time`.split(/\s+/)
+opportunity employer diverse remote hybrid onsite full-time part-time
+need needs needed want wants wanted seek seeking hire hiring hires hired
+offer offers offering
+candidates applicant someone person people employees staff opportunities
+career mission culture location office schedule compensation pay perks
+package eligible employment key core top best right related relevant similar
+many multiple several various successful proven passionate motivated driven
+day days week weeks month months`.split(/\s+/)
 )
 
 /** Multi-word tech/business phrases worth matching as units */
