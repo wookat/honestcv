@@ -2039,6 +2039,19 @@ export default function Builder() {
                         Hidden
                       </span>
                     )}
+                    {collapsedEntries.has(e.id) && (
+                      <EntryAuditChip
+                        findings={[
+                          ...((e.role.trim() || e.company.trim()) && !e.startDate.trim()
+                            ? ['Dates are missing — add a start date']
+                            : []),
+                          ...bulletFindings(e.bullets, Boolean(e.role.trim() || e.company.trim())),
+                        ]}
+                        filled={Boolean(e.role.trim() || e.company.trim())}
+                        onExpand={() => toggleEntry(e.id)}
+                        label={`Role ${idx + 1}`}
+                      />
+                    )}
                   </p>
                   <div className="ml-auto flex shrink-0 items-center">
                     <Button
@@ -2405,6 +2418,18 @@ export default function Builder() {
                       Hidden
                     </span>
                   )}
+                  {collapsedEntries.has(e.id) && (
+                    <EntryAuditChip
+                      findings={
+                        (e.degree.trim() || e.school.trim()) && !e.startDate.trim()
+                          ? ['Dates are missing — add a start date']
+                          : []
+                      }
+                      filled={Boolean(e.degree.trim() || e.school.trim())}
+                      onExpand={() => toggleEntry(e.id)}
+                      label={`Education ${idx + 1}`}
+                    />
+                  )}
                   <span className="grow" />
                   <Button
                     type="button"
@@ -2732,6 +2757,14 @@ export default function Builder() {
                       <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase">
                         Hidden
                       </span>
+                    )}
+                    {collapsedEntries.has(p.id) && (
+                      <EntryAuditChip
+                        findings={bulletFindings(p.description.split('\n'), false)}
+                        filled={Boolean(p.name.trim())}
+                        onExpand={() => toggleEntry(p.id)}
+                        label={`Project ${pIdx + 1}`}
+                      />
                     )}
                   </p>
                   <div className="flex items-center">
@@ -6538,6 +6571,52 @@ function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void
         </ul>
       )}
     </div>
+  )
+}
+
+function bulletFindings(bullets: string[], entryFilled: boolean): string[] {
+  const findings = checkBullets(bullets).flatMap((r) =>
+    r.issues.map((i) => `Line ${r.index + 1}: ${i.message}`)
+  )
+  const count = bullets.filter((b) => b.trim()).length
+  if (entryFilled && (count < 3 || count > 6))
+    findings.unshift(`Include 3–6 bullet points — ${count === 0 ? 'none' : count} found`)
+  return findings
+}
+
+function EntryAuditChip({
+  findings,
+  filled,
+  onExpand,
+  label,
+}: {
+  findings: string[]
+  filled: boolean
+  onExpand: () => void
+  label: string
+}) {
+  if (findings.length === 0) {
+    if (!filled) return null
+    return (
+      <span
+        className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
+        title="Best practices applied"
+        aria-label={`${label}: best practices applied`}
+      >
+        ✓
+      </span>
+    )
+  }
+  return (
+    <button
+      type="button"
+      className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100"
+      title={findings.join('\n')}
+      aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'} — expand to review`}
+      onClick={onExpand}
+    >
+      ⚠ {findings.length}
+    </button>
   )
 }
 
