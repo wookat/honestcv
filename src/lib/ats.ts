@@ -236,7 +236,7 @@ function finalize(
 }
 
 import type { Resume } from './resume'
-import { resumeToPlainText } from './resume'
+import { resumeToPlainText, skillLines } from './resume'
 
 export function scoreResume(resume: Resume, jd: string): AtsResult {
   const resumeText = resumeToPlainText(resume).toLowerCase()
@@ -301,6 +301,14 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       label: 'Skills section filled',
       pass: resume.skills.trim().length >= 10,
       hint: 'A dedicated skills list is the easiest keyword match for ATS.',
+      anchor: 'skills',
+    },
+    {
+      label: 'Skills grouped into categories',
+      pass:
+        resume.skills.split(/[,\n]/).filter((s) => s.trim()).length < 8 ||
+        skillLines(resume).some((l) => l.label),
+      hint: 'Condense long skill lists into categories (e.g. "Languages: …", "Cloud: …") so recruiters can scan them.',
       anchor: 'skills',
     },
     {
