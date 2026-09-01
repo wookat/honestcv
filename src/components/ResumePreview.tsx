@@ -4,7 +4,7 @@
  * to show every page of a long resume instead of clipping after page one.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 
 import {
   type Resume,
@@ -101,17 +101,21 @@ function InlineText({
 /** Uncommitted bullet row: Enter/blur commits non-empty text, Escape or empty blur discards. */
 function DraftBullet({
   accent,
+  position = 0,
   onCommit,
   onClose,
 }: {
   accent: string
+  /** Where the row sits in the list; refocuses when a commit moves the row */
+  position?: number
   onCommit: (text: string) => void
   onClose: () => void
 }) {
   const ref = useRef<HTMLSpanElement>(null)
+  const justCommitted = useRef(false)
   useEffect(() => {
     ref.current?.focus()
-  }, [])
+  }, [position])
   return (
     <li className="flex gap-1.5 text-[11px]">
       <span style={{ color: accent }}>•</span>
@@ -133,6 +137,7 @@ function DraftBullet({
             e.preventDefault()
             const text = (e.currentTarget.textContent ?? '').replace(/\s+/g, ' ').trim()
             if (text) {
+              justCommitted.current = true
               onCommit(text)
               e.currentTarget.textContent = ''
             } else {
@@ -145,6 +150,10 @@ function DraftBullet({
           }
         }}
         onBlur={(e) => {
+          if (justCommitted.current) {
+            justCommitted.current = false
+            return
+          }
           const text = (e.currentTarget.textContent ?? '').replace(/\s+/g, ' ').trim()
           if (text) onCommit(text)
           onClose()
@@ -449,7 +458,7 @@ function SectionBlock({
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const ulIndent = bulletIndentOf(resume) ? { paddingLeft: 12 } : undefined
-  const [draft, setDraft] = useState<{ entryId: string; seq: number } | null>(null)
+  const [draft, setDraft] = useState<{ entryId: string; at: number; seq: number } | null>(null)
   if (sectionKey === 'summary')
     return resume.summary.trim() ? (
       <>
@@ -510,10 +519,10 @@ function SectionBlock({
                   )}
                 </div>
                 <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
-                  {e.bullets.map(
-                    (b, i) =>
-                      b.trim() && (
-                        <li key={i} className="flex gap-1.5 text-[11px]">
+                  {e.bullets.map((b, i) => (
+                    <Fragment key={i}>
+                      {b.trim() && (
+                        <li className="flex gap-1.5 text-[11px]">
                           <span style={{ color: tpl.accent }}>•</span>
                           <span>
                             <InlineText
@@ -540,26 +549,57 @@ function SectionBlock({
                                 (() =>
                                   setDraft((d) => ({
                                     entryId: e.id,
+                                    at: i + 1,
                                     seq: (d?.seq ?? 0) + 1,
                                   })))
                               }
                             />
                           </span>
                         </li>
-                      )
-                  )}
-                  {onEdit && draft?.entryId === e.id && (
+                      )}
+                      {onEdit && draft?.entryId === e.id && draft.at === i + 1 && (
+                        <DraftBullet
+                          key={`draft-${draft.seq}`}
+                          accent={tpl.accent}
+                          position={draft.at}
+                          onCommit={(text) => {
+                            const at = Math.min(draft.at, e.bullets.length)
+                            onEdit({
+                              ...resume,
+                              experience: resume.experience.map((x) =>
+                                x.id === e.id
+                                  ? {
+                                      ...x,
+                                      bullets: [
+                                        ...x.bullets.slice(0, at),
+                                        text,
+                                        ...x.bullets.slice(at),
+                                      ],
+                                    }
+                                  : x
+                              ),
+                            })
+                            setDraft((d) => (d ? { ...d, at: at + 1 } : d))
+                          }}
+                          onClose={() => setDraft(null)}
+                        />
+                      )}
+                    </Fragment>
+                  ))}
+                  {onEdit && draft?.entryId === e.id && draft.at > e.bullets.length && (
                     <DraftBullet
-                      key={draft.seq}
+                      key={`draft-${draft.seq}`}
                       accent={tpl.accent}
-                      onCommit={(text) =>
+                      position={draft.at}
+                      onCommit={(text) => {
                         onEdit({
                           ...resume,
                           experience: resume.experience.map((x) =>
                             x.id === e.id ? { ...x, bullets: [...x.bullets, text] } : x
                           ),
                         })
-                      }
+                        setDraft((d) => (d ? { ...d, at: d.at + 1 } : d))
+                      }}
                       onClose={() => setDraft(null)}
                     />
                   )}
