@@ -559,3 +559,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R217 — buzzword check + theme-toggle capture pitfall
 - Scored buzzword list (first match wins, in order): synergy, go-getter, think outside the box, team player, hard worker, detail-oriented, results-driven, self-starter. "Results-driven team player" quotes "team player" (list order, not text order). dynamic/proactive/passionate/motivated are guidance-only, never scored. Rows: checker 17 / Builder 18.
 - The theme toggle's aria-label can match both /dark/ and /light/ patterns depending on state, so scripted toggles can invert. Loop until document.documentElement.className contains/lacks `dark` before capturing theme evidence, and verify the capture's corner pixel (~rgb(18,22,29) dark bg).
+
+## R218 — quantified-bullets check
+- Pass rule: bullet lines with a digit ≥ max(1, ceil(total/3)); zero lines guard-pass. Checker counts only bullet-marker lines (header/date/phone digits never count). Rows: checker 18 / Builder 19.
+- For exact-ratio Builder fixtures, empty r.projects / r.involvement / r.customSections first — each project/involvement description counts as one line in the bullet feed, so leftover sample content skews totals.
+- The R203 "Quantified impact" writing dimension renders on /ats-checker (health dimensions), not the Builder breakdown.

@@ -375,6 +375,22 @@ function buzzwordCheck(
   }
 }
 
+/** Quantified bullet points: at least a third of bullets should carry a real number */
+function quantifiedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
+  const total = lines.length
+  const quantified = lines.filter((l) => /\d/.test(l)).length
+  const needed = Math.max(1, Math.ceil(total / 3))
+  const pass = total === 0 || quantified >= needed
+  return {
+    label: 'Quantified bullet points',
+    pass,
+    hint: pass
+      ? 'Enough bullets carry real numbers — your achievements are concrete and comparable.'
+      : `Only ${quantified} of ${total} bullets ${quantified === 1 ? 'carries' : 'carry'} a number — quantify at least a third (scope, scale, %, time or money) so achievements are concrete.`,
+    anchor: 'experience',
+  }
+}
+
 /** Bullet-marked lines anywhere in pasted text, markers stripped */
 function textBulletLines(raw: string): string[] {
   return raw
@@ -631,6 +647,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     namedMonthDatesCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
     pronounCheck(textPronounSegments(resumeTextRaw)),
     activeVoiceCheck(textBulletLines(resumeTextRaw)),
+    quantifiedBulletsCheck(textBulletLines(resumeTextRaw)),
     buzzwordCheck(textPronounSegments(resumeTextRaw)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
     entryLocationsCheck(textEntryLocations(resumeTextRaw)),
@@ -814,6 +831,12 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       },
     ]),
     activeVoiceCheck([
+      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+      ...resume.customSections.flatMap((s) => s.bullets),
+    ]),
+    quantifiedBulletsCheck([
       ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
       ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
       ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
