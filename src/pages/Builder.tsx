@@ -23,6 +23,7 @@ import {
   FileUp,
   GraduationCap,
   GripVertical,
+  HeartPulse,
   History,
   LayoutGrid,
   LayoutTemplate,
@@ -567,9 +568,13 @@ function Section({
 function SectionNav({
   sections,
   onJump,
+  score,
+  onOpenReport,
 }: {
   sections: { key: string; label: string }[]
   onJump: (key: string) => void
+  score: number
+  onOpenReport: () => void
 }) {
   const keyList = sections.map((s) => s.key).join('|')
   const keys = useMemo(() => keyList.split('|'), [keyList])
@@ -598,25 +603,43 @@ function SectionNav({
   return (
     <nav
       aria-label="Resume sections"
-      className="bg-background/85 sticky top-14 z-10 overflow-x-auto rounded-lg border px-1 py-1 backdrop-blur [scrollbar-width:none]"
+      className="bg-background/85 sticky top-14 z-10 flex items-center gap-1 rounded-lg border px-1 py-1 backdrop-blur"
     >
-      <div className="flex w-max gap-0.5">
-        {sections.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            aria-current={active === s.key ? 'true' : undefined}
-            className={`min-h-10 rounded-md px-2.5 text-xs whitespace-nowrap transition-colors sm:min-h-8 ${
-              active === s.key
-                ? 'bg-secondary text-foreground font-medium'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-            }`}
-            onClick={() => onJump(s.key)}
-          >
-            {s.label}
-          </button>
-        ))}
+      <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
+        <div className="flex w-max gap-0.5">
+          {sections.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              aria-current={active === s.key ? 'true' : undefined}
+              className={`min-h-10 rounded-md px-2.5 text-xs whitespace-nowrap transition-colors sm:min-h-8 ${
+                active === s.key
+                  ? 'bg-secondary text-foreground font-medium'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}
+              onClick={() => onJump(s.key)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
       </div>
+      <button
+        type="button"
+        aria-label={`Resume health score ${score} out of 100 — open full report`}
+        title="Resume health — open full report"
+        className={`inline-flex min-h-10 shrink-0 items-center gap-1 rounded-md border px-2 text-xs font-medium tabular-nums transition-colors sm:min-h-8 ${
+          score >= 80
+            ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+            : score >= 50
+              ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+              : 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'
+        }`}
+        onClick={onOpenReport}
+      >
+        <HeartPulse aria-hidden className="size-3.5" />
+        {score}
+      </button>
     </nav>
   )
 }
@@ -1723,7 +1746,16 @@ export default function Builder() {
             </button>
           </div>
 
-          <SectionNav sections={navSections} onJump={jumpToSection} />
+          <SectionNav
+            sections={navSections}
+            onJump={jumpToSection}
+            score={health.score}
+            onOpenReport={() => {
+              localStorage.setItem('honestcv.seen.health', '1')
+              setHealthSeen(true)
+              setHealthOpen(true)
+            }}
+          />
 
           <Section title="Target job (powers AI + ATS score)" icon={<Target className="size-4" />}>
             <div className="grid gap-3 sm:grid-cols-2">
