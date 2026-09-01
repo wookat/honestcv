@@ -7963,6 +7963,91 @@ const snapshotAgo = (ms: number) => {
   return days === 1 ? '1 day ago' : `${days} days ago`
 }
 
+/** Entry-list sections compared by entry id in checkpoint summaries */
+const SNAPSHOT_ENTRY_SECTIONS: { key: keyof Resume; label: string }[] = [
+  { key: 'experience', label: 'Experience' },
+  { key: 'education', label: 'Education' },
+  { key: 'projects', label: 'Projects' },
+  { key: 'certItems', label: 'Certifications' },
+  { key: 'involvement', label: 'Involvement' },
+  { key: 'coursework', label: 'Coursework' },
+  { key: 'awards', label: 'Awards' },
+  { key: 'publications', label: 'Publications' },
+  { key: 'references', label: 'References' },
+  { key: 'military', label: 'Military service' },
+  { key: 'agents', label: 'Agents' },
+  { key: 'customSections', label: 'Custom sections' },
+]
+
+const SNAPSHOT_TARGET_KEYS: (keyof Resume)[] = [
+  'targetRole',
+  'jobDescription',
+  'experienceLevel',
+  'targetCompany',
+  'ignoredKeywords',
+]
+
+/** Section-level summary of what restoring `snap` would change vs `current`. */
+function snapshotChanges(snap: Resume, current: Resume): string[] {
+  const changes: string[] = []
+  const handled = new Set<string>(['summary', 'skills', 'contact', 'hiddenContact'])
+  if (
+    JSON.stringify(snap.contact) !== JSON.stringify(current.contact) ||
+    JSON.stringify(snap.hiddenContact ?? []) !== JSON.stringify(current.hiddenContact ?? [])
+  )
+    changes.push('Contact')
+  if (snap.summary !== current.summary) changes.push('Summary')
+  if (snap.skills !== current.skills) changes.push('Skills')
+  for (const { key, label } of SNAPSHOT_ENTRY_SECTIONS) {
+    handled.add(key)
+    const a = (snap[key] ?? []) as { id: string }[]
+    const b = (current[key] ?? []) as { id: string }[]
+    const bById = new Map(b.map((e) => [e.id, JSON.stringify(e)]))
+    let added = 0
+    let removed = 0
+    let edited = 0
+    for (const entry of a) {
+      const other = bById.get(entry.id)
+      if (other === undefined) added += 1
+      else if (other !== JSON.stringify(entry)) edited += 1
+    }
+    const aIds = new Set(a.map((e) => e.id))
+    for (const entry of b) if (!aIds.has(entry.id)) removed += 1
+    let differs = added > 0 || removed > 0 || edited > 0
+    if (key === 'certItems') {
+      handled.add('certifications')
+      if (snap.certifications !== current.certifications) differs = true
+    }
+    if (differs) {
+      const parts = [
+        edited > 0 ? `${edited} edited` : '',
+        added > 0 ? `+${added}` : '',
+        removed > 0 ? `\u2212${removed}` : '',
+      ].filter(Boolean)
+      changes.push(parts.length > 0 ? `${label} (${parts.join(', ')})` : label)
+    }
+  }
+  if (
+    SNAPSHOT_TARGET_KEYS.some(
+      (k) => JSON.stringify(snap[k] ?? null) !== JSON.stringify(current[k] ?? null)
+    )
+  )
+    changes.push('Target job')
+  for (const k of SNAPSHOT_TARGET_KEYS) handled.add(k)
+  const rest = new Set([...Object.keys(snap), ...Object.keys(current)])
+  for (const k of rest) {
+    if (handled.has(k)) continue
+    if (
+      JSON.stringify(snap[k as keyof Resume] ?? null) !==
+      JSON.stringify(current[k as keyof Resume] ?? null)
+    ) {
+      changes.push('Design & layout')
+      break
+    }
+  }
+  return changes
+}
+
 /** Automatic checkpoints of the draft — restore rolls the builder back;
  * the pre-restore draft is checkpointed first so restores are reversible. */
 function HistoryDialog({
@@ -7994,7 +8079,9 @@ function HistoryDialog({
         ) : (
           <ul className="space-y-2">
             {snapshots.map((s) => {
-              const isCurrent = JSON.stringify(s.data) === currentJson
+              const changes =
+                JSON.stringify(s.data) === currentJson ? [] : snapshotChanges(s.data, resume)
+              const isCurrent = changes.length === 0
               return (
                 <li
                   key={s.id}
@@ -8007,6 +8094,13 @@ function HistoryDialog({
                         .filter(Boolean)
                         .join(' — ')}
                     </p>
+                    {changes.length > 0 && (
+                      <p className="text-muted-foreground text-xs">
+                        Differs from current:{' '}
+                        {changes.slice(0, 4).join(' · ')}
+                        {changes.length > 4 ? ` · +${changes.length - 4} more` : ''}
+                      </p>
+                    )}
                   </div>
                   {isCurrent ? (
                     <span className="text-muted-foreground shrink-0 text-xs">Current</span>
