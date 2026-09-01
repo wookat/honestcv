@@ -31,8 +31,10 @@ Rezi flow is missing.
   (fallback: first entry); the matching option label gets a " — best match"
   suffix, and a muted hint line explains the preselection ("Preselected the
   role that best matches this keyword — change it if you disagree").
-- Hidden experience entries are excluded from scoring but stay selectable in
-  the dropdown (unchanged options list).
+- Hidden experience entries are excluded from scoring; the dialog already
+  receives `visibleResume`, so they don't appear in the dropdown either.
+- The " — best match" suffix and the hint line only appear when there is more
+  than one experience entry (a lone option needs no label).
 - No worker/AI/prompt changes; the AI keeps receiving the whole resume text.
 
 ## Acceptance

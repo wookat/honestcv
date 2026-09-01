@@ -386,3 +386,11 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Real hover in the VM: `Input.dispatchMouseEvent {type:'mouseMoved'}` at the warning `<li>` center reliably fires React mouseenter/mouseleave; moving the mouse to an empty area clears it. Keyboard path: `.focus()` on the "Fix line N with AI" button also sets the highlight and `.blur()` clears — no Tab simulation needed.
 - Project/Involvement description textareas have NO id (placeholders: "What it does and your impact" / "What you did there — one bullet per line..."). Sections are collapsed behind "Projects (optional)" / "Involvement" toggle buttons, then "Add project"/"Add involvement".
 - Highlight state is keyed per entry (exp-/proj-/inv-<id>) — hovering one entry's warning must not light other textareas; verify cross-entry isolation.
+
+## R185 KeywordBulletDialog preselect + AI-mocking technique
+
+- The "Add to" select (`#kwBulletExp`) only renders AFTER a draft exists. To test dialog structure without burning AI quota, intercept via CDP `Fetch.enable` pattern `*keyword-bullet*` + `Fetch.fulfillRequest` with `{"text":"...","freeRemaining":null}`. Pitfall: `Fetch.requestPaused` events can arrive during an unrelated Runtime.evaluate round-trip and get discarded by a naive recv loop — buffer events in cmd().
+- Do NOT seed `honestcv.resume` with a hand-written shape: sanitizeResume expects `contact` object / `skills` string etc. and silently drops mismatched fields — the page then looks fine (localStorage reads back) but the draft is empty and AI endpoints 400 with "Add some resume content first". Build fixtures through the UI (Add role, `exp-<id>-role/-company/-bullets`, `#c-fullName`, `#jd`).
+- A keyword can only be "missing" yet best-match an entry via KNOWN_PHRASES bigrams (e.g. "machine learning"): put both tokens in one entry's bullets without the phrase.
+- Dialog receives `visibleResume(resume)` — hidden entries are absent from the Add-to dropdown entirely (not merely excluded from scoring).
+- Real `/api/ai/keyword-bullet` calls can take ~2 minutes — poll the dialog for up to 3 min before concluding failure. Chip micro-buttons: `button[aria-label^="Draft a bullet using"]`; triage card button "Yes — draft a bullet". Delete roles via `button[aria-label="Delete role N"]` (no confirm needed).

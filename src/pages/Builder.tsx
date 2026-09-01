@@ -8798,7 +8798,7 @@ function KeywordBulletDialog({
                 {resume.experience.map((e) => (
                   <option key={e.id} value={e.id}>
                     {([e.role, e.company].filter(Boolean).join(' at ') || 'Experience') +
-                      (e.id === bestId ? ' — best match' : '')}
+                      (e.id === bestId && resume.experience.length > 1 ? ' — best match' : '')}
                   </option>
                 ))}
               </select>
