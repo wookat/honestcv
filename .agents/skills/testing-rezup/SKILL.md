@@ -430,3 +430,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Dialog selectors: `[role=dialog] h2` = `Stop tracking "{title}"?`; first `[role=dialog] p` = description ("its application timeline (N status changes)" and/or "your notes" + "Targeted resume copies stay on your dashboard."); buttons "Cancel" (outline) and "Stop tracking" (`bg-destructive`), both `min-h-10` (40px). Radix adds a 16px "Close" button — exclude it from touch-target assertions.
 - Guard fires only when notes non-blank OR timeline >1 step; fresh saves and legacy synthesized 1-step entries delete immediately with no dialog. On Cancel the row `<select>` still shows the current status (controlled component).
 - R188 chips only render in LIST rows — go Back to list / All jobs before asserting `Tailoring · NN%`; it won't match while a detail pane is open.
+
+## R192 row track-toggle on /jobs
+- Row button is a pure tracking toggle: untracked→"Save"; saved→"Saved" (pressed + `ring-primary/40`); any other status→"Tracked" (pressed + ring). Clicking a tracked state calls setStatus 'none' (routes through the R191 guard) — it never demotes to saved or writes a timeline step.
+- Selector pitfall: a bare `find(b=>['Save','Saved','Tracked'].includes(text))` can hit the detail-pane "Saved" STATUS button — scope to the job row (`rows[0].parentElement.querySelectorAll('button')` where rows = buttons containing the job's `<p>` title).
+- Button heights: `min-h-10 sm:min-h-7` → 40px at 375px viewport, 28px at desktop; assert 40px only under mobile emulation.
