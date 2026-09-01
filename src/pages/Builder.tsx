@@ -208,6 +208,8 @@ import {
   saveResumeVersion,
   updateResumeVersion,
   sectionLabel,
+  HIDEABLE_CONTACT_FIELDS,
+  type HideableContactField,
   skillLines,
   sortEntriesByDate,
   TEXT_INKS,
@@ -1664,17 +1666,64 @@ export default function Builder() {
                   ['website', 'Website (optional)', 'yoursite.com'],
                   ['linkedin', 'LinkedIn (optional)', 'linkedin.com/in/you'],
                 ] as const
-              ).map(([key, label, ph]) => (
-                <div key={key} className="space-y-1.5">
-                  <Label htmlFor={`c-${key}`}>{label}</Label>
-                  <Input
-                    id={`c-${key}`}
-                    placeholder={ph}
-                    value={resume.contact[key]}
-                    onChange={(e) => setContact(key, e.target.value)}
-                  />
-                </div>
-              ))}
+              ).map(([key, label, ph]) => {
+                const hideable = (HIDEABLE_CONTACT_FIELDS as string[]).includes(key)
+                const fieldHidden =
+                  hideable && (resume.hiddenContact ?? []).includes(key as HideableContactField)
+                return (
+                  <div key={key} className={`space-y-1.5 ${fieldHidden ? 'opacity-60' : ''}`}>
+                    <div className="flex items-center justify-between gap-1">
+                      <Label htmlFor={`c-${key}`}>
+                        {label}
+                        {fieldHidden && (
+                          <span className="text-muted-foreground ml-1.5 text-[10px] font-semibold uppercase">
+                            Hidden
+                          </span>
+                        )}
+                      </Label>
+                      {hideable && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 shrink-0 p-0"
+                          title={
+                            fieldHidden
+                              ? 'Show on resume'
+                              : 'Hide from resume — kept here, left out of the resume'
+                          }
+                          aria-pressed={fieldHidden}
+                          aria-label={`${fieldHidden ? 'Show' : 'Hide'} ${label} ${fieldHidden ? 'on' : 'from'} resume`}
+                          onClick={() =>
+                            setResume((r) => {
+                              const cur = r.hiddenContact ?? []
+                              const f = key as HideableContactField
+                              return {
+                                ...r,
+                                hiddenContact: cur.includes(f)
+                                  ? cur.filter((x) => x !== f)
+                                  : [...cur, f],
+                              }
+                            })
+                          }
+                        >
+                          {fieldHidden ? (
+                            <EyeOff className="size-3.5" />
+                          ) : (
+                            <Eye className="size-3.5" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    <Input
+                      id={`c-${key}`}
+                      placeholder={ph}
+                      value={resume.contact[key]}
+                      onChange={(e) => setContact(key, e.target.value)}
+                    />
+                  </div>
+                )
+              })}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {resume.photo && (
