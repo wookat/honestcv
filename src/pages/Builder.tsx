@@ -7996,6 +7996,19 @@ interface TailorSuggestion {
   status: 'pending' | 'accepted' | 'skipped'
 }
 
+/** Apply accepted tailoring suggestions to a copy of the resume (for the report). */
+function applyTailored(resume: Resume, accepted: TailorSuggestion[]): Resume {
+  const byId = new Map(accepted.map((r) => [r.id, r.suggestion]))
+  return {
+    ...resume,
+    summary: byId.get('summary') ?? resume.summary,
+    experience: resume.experience.map((e) => ({
+      ...e,
+      bullets: e.bullets.map((b, i) => byId.get(`${e.id}:${i}`) ?? b),
+    })),
+  }
+}
+
 function tailorItemsFrom(resume: Resume): { items: TailorItemInput[]; where: Map<string, string> } {
   const items: TailorItemInput[] = []
   const where = new Map<string, string>()
@@ -8029,8 +8042,10 @@ function TailorDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [rows, setRows] = useState<TailorSuggestion[] | null>(null)
+  const [snapshot, setSnapshot] = useState<Resume>(resume)
 
   const run = async () => {
+    setSnapshot(resume)
     setBusy(true)
     setError('')
     try {
@@ -8074,6 +8089,22 @@ function TailorDialog({
   }
 
   const pending = rows?.filter((r) => r.status === 'pending') ?? []
+  const jd = snapshot.jobDescription
+  const report = useMemo(() => {
+    if (!rows || rows.length === 0 || !jd.trim()) return null
+    const before = scoreResume(snapshot, jd)
+    if (before.keywordScore === null) return null
+    const accepted = rows.filter((r) => r.status === 'accepted')
+    const after = scoreResume(applyTailored(snapshot, accepted), jd)
+    const beforeSet = new Set(before.matched)
+    return {
+      before,
+      after,
+      gained: after.matched.filter((k) => !beforeSet.has(k)),
+      accepted: accepted.length,
+      kept: rows.filter((r) => r.status === 'skipped').length,
+    }
+  }, [rows, jd, snapshot])
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
@@ -8105,6 +8136,65 @@ function TailorDialog({
             No changes suggested — your summary and bullets already read well against this job
             description.
           </p>
+        )}
+        {report && (
+          <div className="space-y-2 rounded-lg border bg-muted/40 p-3 text-sm" data-testid="tailor-report">
+            <p className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
+              Tailoring report
+            </p>
+            <p>
+              Keyword match:{' '}
+              <span className="font-medium">
+                {report.before.matched.length} of{' '}
+                {report.before.matched.length + report.before.missing.length} ·{' '}
+                {report.before.keywordScore}%
+              </span>
+              {' → '}
+              <span
+                className={`font-medium ${
+                  (report.after.keywordScore ?? 0) > (report.before.keywordScore ?? 0)
+                    ? 'text-emerald-700'
+                    : ''
+                }`}
+              >
+                {report.after.matched.length} of{' '}
+                {report.after.matched.length + report.after.missing.length} ·{' '}
+                {report.after.keywordScore}%
+              </span>
+              <span className="text-muted-foreground">
+                {' '}
+                with {report.accepted} accepted · {report.kept} kept
+              </span>
+            </p>
+            {report.gained.length > 0 && (
+              <p className="flex flex-wrap items-center gap-1 text-xs">
+                <span className="text-muted-foreground">Newly covered:</span>
+                {report.gained.map((k) => (
+                  <span
+                    key={k}
+                    className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800"
+                  >
+                    {k}
+                  </span>
+                ))}
+              </p>
+            )}
+            {report.after.missing.length > 0 && (
+              <p className="flex flex-wrap items-center gap-1 text-xs">
+                <span className="text-muted-foreground">Still missing:</span>
+                {report.after.missing.slice(0, 6).map((k) => (
+                  <span key={k} className="rounded-full bg-muted px-2 py-0.5">
+                    {k}
+                  </span>
+                ))}
+                {report.after.missing.length > 6 && (
+                  <span className="text-muted-foreground">
+                    +{report.after.missing.length - 6} more
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
         )}
         {rows !== null && rows.length > 0 && (
           <>
