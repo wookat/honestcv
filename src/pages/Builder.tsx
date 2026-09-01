@@ -1297,6 +1297,7 @@ export default function Builder() {
         resumeText: resumeToPlainText({ ...shown, summary: '' }),
         role: position.trim() || aiTargetRole(resume),
         highlights: highlights.length ? highlights : undefined,
+        jobDescription: resume.jobDescription.trim() || undefined,
         language: resume.language,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
@@ -6583,6 +6584,8 @@ export default function Builder() {
             <DialogDescription>
               Pick the position to frame the summary around and up to 5 skills to emphasize.
               Drafts use only facts already on your resume.
+              {resume.jobDescription.trim() &&
+                ' Wording is tailored toward your target job description.'}
             </DialogDescription>
           </DialogHeader>
           {summaryDraftSetup && (

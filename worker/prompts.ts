@@ -83,12 +83,18 @@ export function buildRewriteMessages(
 export function buildSummaryDraftMessages(
   resumeText: string,
   role: string,
-  highlights: string[] = []
+  highlights: string[] = [],
+  jobDescription = ''
 ): ChatMessage[] {
   const parts = [`Target role: ${role || 'not specified'}`]
   if (highlights.length)
     parts.push(
       `Emphasize these skills, but only as the resume actually supports them: ${highlights.join(', ')}`
+    )
+  const jd = jobDescription.trim()
+  if (jd)
+    parts.push(
+      `Tailor wording toward this job description (mirror its keywords only where the resume truthfully supports them):\n"""\n${jd.slice(0, 4000)}\n"""`
     )
   parts.push(`Candidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`)
   return [
