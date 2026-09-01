@@ -8033,8 +8033,8 @@ function BundleToolDialog({
                       title={ok ? undefined : hint}
                       className={
                         ok
-                          ? 'rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                          : 'rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                          ? 'rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
+                          : 'rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-400'
                       }
                     >
                       {ok ? '✓' : '·'} {label}
