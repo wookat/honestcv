@@ -462,18 +462,33 @@ function useDragReorder(onReorder: (from: number, to: number) => void) {
 /** Event dispatched by ATS-check "Fix" links to scroll the matching editor section into view */
 const JUMP_EVENT = 'honestcv:jump-section'
 
+/** Optional editor sections that stay out of the way until they have content or are added */
+const OPTIONAL_SECTION_META: { key: string; label: string; icon: React.ReactNode }[] = [
+  { key: 'involvement', label: 'Involvement', icon: <Users className="size-3.5" /> },
+  { key: 'coursework', label: 'Coursework', icon: <BookOpen className="size-3.5" /> },
+  { key: 'awards', label: 'Awards & honors', icon: <Award className="size-3.5" /> },
+  { key: 'publications', label: 'Publications', icon: <BookText className="size-3.5" /> },
+  { key: 'references', label: 'References', icon: <Contact className="size-3.5" /> },
+  { key: 'military', label: 'Military service', icon: <Shield className="size-3.5" /> },
+  { key: 'agents', label: 'Agents', icon: <Bot className="size-3.5" /> },
+]
+const OPTIONAL_SECTION_KEYS = OPTIONAL_SECTION_META.map((s) => s.key)
+
 function Section({
   title,
   icon,
   children,
   defaultOpen = true,
   anchor,
+  hidden = false,
 }: {
   title: string
   icon: React.ReactNode
   children: React.ReactNode
   defaultOpen?: boolean
   anchor?: string
+  /** Render nothing (optional section without content that the user hasn't added) */
+  hidden?: boolean
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const [flash, setFlash] = useState(false)
@@ -492,6 +507,7 @@ function Section({
     window.addEventListener(JUMP_EVENT, onJump)
     return () => window.removeEventListener(JUMP_EVENT, onJump)
   }, [anchor])
+  if (hidden) return null
   return (
     <Card
       ref={ref}
@@ -714,13 +730,21 @@ export default function Builder() {
   const [templateRecents, setTemplateRecents] = useState<string[]>(loadTemplateRecents)
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
+  /** Optional sections the user added this visit — shown even while still empty */
+  const [addedSections, setAddedSections] = useState<string[]>([])
   /** Scroll the editor section that fixes a failing ATS check into view */
   const jumpToSection = (anchor: string) => {
     setMobilePane('edit')
+    if (OPTIONAL_SECTION_KEYS.includes(anchor))
+      setAddedSections((s) => (s.includes(anchor) ? s : [...s, anchor]))
     requestAnimationFrame(() =>
       window.dispatchEvent(new CustomEvent(JUMP_EVENT, { detail: anchor }))
     )
   }
+  /** An optional section card renders when it has entries or was added this visit */
+  const sectionShown = (key: string) =>
+    ((resume[key as keyof Resume] as unknown[] | undefined)?.length ?? 0) > 0 ||
+    addedSections.includes(key)
   const { undo, canUndo, redo, canRedo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [expLibrary, setExpLibrary] = useState<SavedExperience[]>(() => listExperienceLibrary())
@@ -2977,7 +3001,12 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Involvement" icon={<Users className="size-4" />} anchor="involvement">
+          <Section
+            title="Involvement"
+            icon={<Users className="size-4" />}
+            anchor="involvement"
+            hidden={!sectionShown('involvement')}
+          >
             <p className="text-muted-foreground text-xs">
               Campus or community organizations — clubs, societies, volunteering.
             </p>
@@ -3253,7 +3282,12 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Coursework" icon={<BookOpen className="size-4" />} anchor="coursework">
+          <Section
+            title="Coursework"
+            icon={<BookOpen className="size-4" />}
+            anchor="coursework"
+            hidden={!sectionShown('coursework')}
+          >
             <p className="text-muted-foreground text-xs">
               Relevant courses — useful when you have little work experience.
             </p>
@@ -3478,7 +3512,12 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Awards & honors" icon={<Award className="size-4" />} anchor="awards">
+          <Section
+            title="Awards & honors"
+            icon={<Award className="size-4" />}
+            anchor="awards"
+            hidden={!sectionShown('awards')}
+          >
             <p className="text-muted-foreground text-xs">
               Awards, honors and recognitions that back up your track record.
             </p>
@@ -3691,7 +3730,12 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Publications" icon={<BookText className="size-4" />} anchor="publications">
+          <Section
+            title="Publications"
+            icon={<BookText className="size-4" />}
+            anchor="publications"
+            hidden={!sectionShown('publications')}
+          >
             <p className="text-muted-foreground text-xs">
               Papers, articles and talks — with the journal or conference they appeared in.
             </p>
@@ -3934,7 +3978,12 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="References" icon={<Contact className="size-4" />} anchor="references">
+          <Section
+            title="References"
+            icon={<Contact className="size-4" />}
+            anchor="references"
+            hidden={!sectionShown('references')}
+          >
             <p className="text-muted-foreground text-xs">
               People who can vouch for you — with their role and how to reach them.
             </p>
@@ -4180,7 +4229,12 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Military service" icon={<Shield className="size-4" />} anchor="military">
+          <Section
+            title="Military service"
+            icon={<Shield className="size-4" />}
+            anchor="military"
+            hidden={!sectionShown('military')}
+          >
             <p className="text-muted-foreground text-xs">
               Your service record — rank, branch, where you were stationed and what you did.
             </p>
@@ -4329,7 +4383,12 @@ export default function Builder() {
             </Button>
           </Section>
 
-          <Section title="Agents" icon={<Bot className="size-4" />} anchor="agents">
+          <Section
+            title="Agents"
+            icon={<Bot className="size-4" />}
+            anchor="agents"
+            hidden={!sectionShown('agents')}
+          >
             <p className="text-muted-foreground text-xs">
               AI agents you built — what they were called, when, and why they mattered.
             </p>
@@ -4448,6 +4507,34 @@ export default function Builder() {
               <Plus className="size-4" /> Add agent
             </Button>
           </Section>
+
+          {OPTIONAL_SECTION_META.some((s) => !sectionShown(s.key)) && (
+            <Card className="py-0">
+              <CardContent className="p-4">
+                <p className="flex items-center gap-2 font-medium">
+                  <Plus className="size-4" />
+                  Add a section
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Optional sections appear here until you need them.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {OPTIONAL_SECTION_META.filter((s) => !sectionShown(s.key)).map((s) => (
+                    <Button
+                      key={s.key}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-10 sm:min-h-8"
+                      onClick={() => jumpToSection(s.key)}
+                    >
+                      {s.icon} {s.label}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Section title="Skills & certifications" icon={<Sparkles className="size-4" />} anchor="skills">
             <div className="space-y-1.5">
