@@ -99,6 +99,7 @@ import {
   type HealthDimension,
   type HealthFinding,
   type HealthReport,
+  bulletMix,
   checkBullets,
   resumeHealth,
   resumeStrength,
@@ -1342,7 +1343,8 @@ export default function Builder() {
     const issues: string[] = []
     for (const c of ats.checks) if (!c.pass) issues.push(`${c.label} — ${c.hint}`)
     const countIssues = (lines: string[]) =>
-      checkBullets(lines).reduce((m, r) => m + r.issues.length, 0)
+      checkBullets(lines).reduce((m, r) => m + r.issues.length, 0) +
+      (bulletMix(lines).balanced ? 0 : 1)
     const bulletIssueCount =
       shown.experience.reduce((n, e) => n + countIssues(e.bullets), 0) +
       shown.projects.reduce((n, p) => n + countIssues(p.description.split('\n')), 0) +
@@ -7239,6 +7241,7 @@ function bulletFindings(bullets: string[], entryFilled: boolean): AuditFinding[]
   const findings: AuditFinding[] = checkBullets(bullets).flatMap((r) =>
     r.issues.map((i) => ({ category: AUDIT_CATEGORY[i.kind], line: r.index + 1 }))
   )
+  if (!bulletMix(bullets).balanced) findings.push({ category: 'Quantified bullet points' })
   const count = bullets.filter((b) => b.trim()).length
   if (entryFilled && (count < 3 || count > 6))
     findings.unshift({ category: 'Number of bullet points' })
@@ -7358,9 +7361,10 @@ function BulletGuidance({
   entryFilled?: boolean
 }) {
   const results = useMemo(() => checkBullets(bullets), [bullets])
+  const mix = useMemo(() => bulletMix(bullets), [bullets])
   const count = bullets.filter((b) => b.trim()).length
   const countNote = entryFilled && (count < 3 || count > 6)
-  if (results.length === 0 && !countNote) {
+  if (results.length === 0 && !countNote && mix.balanced) {
     if (!entryFilled || count === 0) return null
     return (
       <p className="text-xs text-emerald-700">
@@ -7373,6 +7377,13 @@ function BulletGuidance({
       {countNote && (
         <li className="text-amber-700">
           ⚠ Include 3–6 bullet points per role — {count === 0 ? 'none' : count} found in this one.
+        </li>
+      )}
+      {!mix.balanced && (
+        <li className="text-amber-700">
+          ⚠ Key numbers in {mix.quantified} of {mix.total} bullet
+          {mix.total === 1 ? '' : 's'} — aim for a balanced mix of descriptive and key-number
+          bullets (%, $, count or timeframe).
         </li>
       )}
       {results.slice(0, 4).map((r) => (

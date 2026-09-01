@@ -105,10 +105,37 @@ export const ACTION_VERBS: { group: string; verbs: string[] }[] = [
   { group: 'Initiative', verbs: ['Initiated', 'Pioneered', 'Introduced', 'Founded', 'Spearheaded', 'Proposed'] },
 ]
 
+/**
+ * Per-line issues for a bullet list. Quantification (`no-metric`) is excluded
+ * here — a bullet list needs a balanced mix of descriptive and key-number
+ * bullets, not a number on every line; see {@link bulletMix}.
+ */
 export function checkBullets(bullets: string[]): { index: number; issues: BulletIssue[] }[] {
   return bullets
-    .map((b, index) => ({ index, issues: checkBullet(b) }))
+    .map((b, index) => ({
+      index,
+      issues: checkBullet(b).filter((i) => i.kind !== 'no-metric'),
+    }))
     .filter((r) => r.issues.length > 0)
+}
+
+/**
+ * Entry-level key-number mix: balanced when at least one bullet in three
+ * (minimum one) carries a digit — %, $, count or timeframe.
+ */
+export function bulletMix(bullets: string[]): {
+  total: number
+  quantified: number
+  balanced: boolean
+} {
+  const lines = bullets.map((b) => b.trim()).filter(Boolean)
+  const quantified = lines.filter((l) => /\d/.test(l)).length
+  const total = lines.length
+  return {
+    total,
+    quantified,
+    balanced: total === 0 || quantified >= Math.max(1, Math.ceil(total / 3)),
+  }
 }
 
 const STRONG_VERB_SET = new Set(
