@@ -3,7 +3,7 @@
  * the browser — nothing is stored on our servers.
  */
 
-import { stripInlineMarks } from '@/lib/marks'
+import { marksToMarkdown, stripInlineMarks } from '@/lib/marks'
 
 /** Contact fields that can be hidden without deleting the data */
 export type HideableContactField = 'email' | 'phone' | 'location' | 'website' | 'linkedin'
@@ -2529,5 +2529,11 @@ export function resumeToMarkdown(r: Resume): string {
       for (const b of s.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
     }
   }
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n'
+  return (
+    lines
+      .map((l) => (l.startsWith('- ') ? marksToMarkdown(l) : l))
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim() + '\n'
+  )
 }

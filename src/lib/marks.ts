@@ -1,16 +1,18 @@
 /**
- * Markdown-style inline marks in resume text: `**bold**`, `*italic*`, and
- * `***bold italic***`. Marks live inside the ordinary string fields — parsing
- * happens at render/export boundaries and unmatched asterisks stay literal.
+ * Markdown-style inline marks in resume text: `**bold**`, `*italic*`,
+ * `***bold italic***` and `__underline__`. Marks live inside the ordinary
+ * string fields — parsing happens at render/export boundaries and unmatched
+ * markers stay literal.
  */
 
 export interface InlineRun {
   text: string
   bold: boolean
   italic: boolean
+  underline: boolean
 }
 
-const MARK_RE = /(\*\*\*(?:[^*]|\*(?!\*\*))+\*\*\*|\*\*(?:[^*]|\*(?!\*))+\*\*|\*[^*\s](?:[^*]*[^*\s])?\*)/
+const MARK_RE = /(\*\*\*(?:[^*]|\*(?!\*\*))+\*\*\*|\*\*(?:[^*]|\*(?!\*))+\*\*|\*[^*\s](?:[^*]*[^*\s])?\*|__(?:[^_]|_(?!_))+__)/
 
 export function hasInlineMarks(text: string): boolean {
   return MARK_RE.test(text)
@@ -22,21 +24,50 @@ export function parseInlineMarks(text: string): InlineRun[] {
   while (rest) {
     const m = MARK_RE.exec(rest)
     if (!m) {
-      runs.push({ text: rest, bold: false, italic: false })
+      runs.push(...plainRuns(rest))
       break
     }
-    if (m.index > 0) runs.push({ text: rest.slice(0, m.index), bold: false, italic: false })
+    if (m.index > 0) runs.push(...plainRuns(rest.slice(0, m.index)))
     const token = m[0]
     if (token.startsWith('***')) {
-      runs.push({ text: token.slice(3, -3), bold: true, italic: true })
+      runs.push(...innerRuns(token.slice(3, -3), { bold: true, italic: true }))
     } else if (token.startsWith('**')) {
-      runs.push({ text: token.slice(2, -2), bold: true, italic: false })
+      runs.push(...innerRuns(token.slice(2, -2), { bold: true, italic: false }))
+    } else if (token.startsWith('__')) {
+      runs.push(
+        ...parseInlineMarks(token.slice(2, -2)).map((r) => ({ ...r, underline: true }))
+      )
     } else {
-      runs.push({ text: token.slice(1, -1), bold: false, italic: true })
+      runs.push(...innerRuns(token.slice(1, -1), { bold: false, italic: true }))
     }
     rest = rest.slice(m.index + token.length)
   }
-  return runs.length ? runs : [{ text: '', bold: false, italic: false }]
+  return runs.length ? runs : [{ text: '', bold: false, italic: false, underline: false }]
+}
+
+const UNDER_RE = /(__(?:[^_]|_(?!_))+__)/
+
+/** Plain (asterisk-free) text may still carry `__underline__` tokens. */
+function plainRuns(text: string): InlineRun[] {
+  const runs: InlineRun[] = []
+  let rest = text
+  while (rest) {
+    const m = UNDER_RE.exec(rest)
+    if (!m) {
+      runs.push({ text: rest, bold: false, italic: false, underline: false })
+      break
+    }
+    if (m.index > 0)
+      runs.push({ text: rest.slice(0, m.index), bold: false, italic: false, underline: false })
+    runs.push({ text: m[0].slice(2, -2), bold: false, italic: false, underline: true })
+    rest = rest.slice(m.index + m[0].length)
+  }
+  return runs
+}
+
+/** Text inside a bold/italic token may nest `__underline__`. */
+function innerRuns(text: string, style: { bold: boolean; italic: boolean }): InlineRun[] {
+  return plainRuns(text).map((r) => ({ ...r, bold: style.bold, italic: style.italic }))
 }
 
 export function stripInlineMarks(text: string): string {
@@ -51,7 +82,7 @@ export function wrapSelection(
   value: string,
   start: number,
   end: number,
-  mark: '**' | '*'
+  mark: '**' | '*' | '__'
 ): { value: string; start: number; end: number } | null {
   if (start === end) return null
   const before = value.slice(0, start)
@@ -78,9 +109,9 @@ export function wrapSelection(
 }
 
 /** Serialize a contentEditable subtree back to marked-up text, mapping
- *  B/STRONG → `**` and I/EM → `*` so native Ctrl+B/Ctrl+I edits round-trip. */
+ *  B/STRONG → `**`, I/EM → `*` and U → `__` so native Ctrl+B/I/U edits round-trip. */
 export function domToMarks(node: Node): string {
-  const walk = (n: Node, bold: boolean, italic: boolean): string => {
+  const walk = (n: Node, bold: boolean, italic: boolean, under: boolean): string => {
     if (n.nodeType === Node.TEXT_NODE) {
       const t = n.textContent ?? ''
       if (!t) return ''
@@ -90,7 +121,8 @@ export function domToMarks(node: Node): string {
       const lead = trimmed.slice(0, trimmed.length - trimmed.trimStart().length)
       const trail = trimmed.slice(trimmed.trimEnd().length)
       const mark = bold && italic ? '***' : bold ? '**' : italic ? '*' : ''
-      return lead + mark + core + mark + trail
+      const marked = mark + core + mark
+      return lead + (under ? `__${marked}__` : marked) + trail
     }
     if (n.nodeType !== Node.ELEMENT_NODE) return ''
     const el = n as HTMLElement
@@ -98,17 +130,25 @@ export function domToMarks(node: Node): string {
     if (tag === 'BR') return ' '
     const b = bold || tag === 'B' || tag === 'STRONG' || /bold/.test(el.style.fontWeight)
     const i = italic || tag === 'I' || tag === 'EM' || el.style.fontStyle === 'italic'
+    const u = under || tag === 'U' || /underline/.test(el.style.textDecoration)
     let out = ''
-    for (const child of Array.from(el.childNodes)) out += walk(child, b, i)
+    for (const child of Array.from(el.childNodes)) out += walk(child, b, i, u)
     return out
   }
   let out = ''
-  for (const child of Array.from(node.childNodes)) out += walk(child, false, false)
+  for (const child of Array.from(node.childNodes)) out += walk(child, false, false, false)
   // merge adjacent same-mark runs produced by fragmented DOM text nodes
   return out
+    .replace(/__ __/g, ' ')
     .replace(/\*\*\* \*\*\*/g, ' ')
     .replace(/\*\* \*\*/g, ' ')
     .replace(/(?<![*])\* \*(?![*])/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** Rewrite `__underline__` tokens for Markdown output (`__` means bold in
+ *  CommonMark) as inline-HTML `<u>…</u>`; bold/italic marks pass through. */
+export function marksToMarkdown(text: string): string {
+  return text.replace(/__((?:[^_]|_(?!_))+)__/g, '<u>$1</u>')
 }

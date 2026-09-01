@@ -132,6 +132,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             text: r.text,
             bold: opts.bold || r.bold,
             italics: opts.italic || r.italic,
+            underline: r.underline ? {} : undefined,
             size: sz(21),
             font,
           })
