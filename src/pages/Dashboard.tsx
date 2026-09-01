@@ -7,11 +7,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   BriefcaseBusiness,
+  ChevronDown,
+  ChevronRight,
   Copy,
   FileDown,
   FilePlus2,
   FileText,
   FileUp,
+  FolderInput,
   LayoutGrid,
   List,
   Loader2,
@@ -155,6 +158,49 @@ export default function Dashboard() {
   }
   const [sortBy, setSortBy] = useState<'edited' | 'created' | 'name'>('edited')
   const [folderFilter, setFolderFilter] = useState<string>('all')
+  const [moving, setMoving] = useState<ResumeVersion | null>(null)
+  const [moveNewName, setMoveNewName] = useState('')
+  const [renamingFolder, setRenamingFolder] = useState<{ from: string; to: string } | null>(null)
+  const [confirmRemoveFolder, setConfirmRemoveFolder] = useState<string | null>(null)
+  const [collapsedFolders, setCollapsedFolders] = useState<string[]>(() => {
+    try {
+      const parsed: unknown = JSON.parse(
+        localStorage.getItem('honestcv.dashboardFoldersCollapsed') || '[]'
+      )
+      return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []
+    } catch {
+      return []
+    }
+  })
+  const toggleFolder = (f: string) =>
+    setCollapsedFolders((c) => {
+      const next = c.includes(f) ? c.filter((x) => x !== f) : [...c, f]
+      localStorage.setItem('honestcv.dashboardFoldersCollapsed', JSON.stringify(next))
+      return next
+    })
+  const moveVersionTo = (folder: string | undefined) => {
+    if (!moving) return
+    setVersions(updateResumeVersion(moving.id, { folder }))
+    setMoving(null)
+    setMoveNewName('')
+  }
+  const renameFolder = (from: string, to: string) => {
+    let next: ResumeVersion[] = versions
+    for (const v of versions)
+      if (v.folder === from) next = updateResumeVersion(v.id, { folder: to })
+    setVersions(next)
+    setCollapsedFolders((c) => {
+      const updated = c.map((x) => (x === from ? to : x))
+      localStorage.setItem('honestcv.dashboardFoldersCollapsed', JSON.stringify(updated))
+      return updated
+    })
+  }
+  const removeFolder = (name: string) => {
+    let next: ResumeVersion[] = versions
+    for (const v of versions)
+      if (v.folder === name) next = updateResumeVersion(v.id, { folder: undefined })
+    setVersions(next)
+  }
   const folders = useMemo(() => {
     const names = new Set<string>()
     for (const v of versions) if (v.folder) names.add(v.folder)
@@ -174,6 +220,16 @@ export default function Dashboard() {
     else arr.sort((a, b) => b.updatedAt - a.updatedAt)
     return arr
   }, [versions, sortBy, activeFolder])
+  const folderGroups = useMemo(() => {
+    if (activeFolder !== 'all' || folders.length === 0) return []
+    return folders
+      .map((f) => [f, sortedVersions.filter((v) => v.folder === f)] as const)
+      .filter(([, list]) => list.length > 0)
+  }, [activeFolder, folders, sortedVersions])
+  const ungroupedVersions = useMemo(
+    () => (folderGroups.length > 0 ? sortedVersions.filter((v) => !v.folder) : sortedVersions),
+    [folderGroups, sortedVersions]
+  )
 
   const docDownload = (d: CareerDoc, text: string, fmt: 'pdf' | 'docx', key: string) => (
     <Button
@@ -357,6 +413,20 @@ export default function Dashboard() {
         variant="outline"
         size="sm"
         className="min-h-10 sm:min-h-8"
+        title="Move to folder"
+        onClick={() => {
+          setMoveNewName('')
+          setMoving(v)
+        }}
+      >
+        <FolderInput className="size-3.5" />
+        <span className="sr-only">Move {v.name} to a folder</span>
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="min-h-10 sm:min-h-8"
         title="Edit name & target job"
         onClick={() =>
           setEditing({
@@ -385,6 +455,40 @@ export default function Dashboard() {
         <span className="sr-only">Delete {v.name}</span>
       </Button>
     </>
+  )
+
+  const versionCard = (v: ResumeVersion) => (
+    <div key={v.id} className="bg-card flex flex-col rounded-md border shadow-sm">
+      <Thumb resume={{ ...emptyResume(), ...v.data }} />
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{v.name}</p>
+          <p className="text-muted-foreground text-xs">
+            {editedAgo(v.updatedAt)} · ATS{' '}
+            {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+            {v.folder ? ` · ${v.folder}` : ''}
+          </p>
+        </div>
+        <div className="mt-auto flex flex-wrap gap-1.5">{versionActions(v)}</div>
+      </div>
+    </div>
+  )
+
+  const versionRow = (v: ResumeVersion) => (
+    <li
+      key={v.id}
+      className="bg-card flex flex-col gap-2 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between"
+    >
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">{v.name}</p>
+        <p className="text-muted-foreground text-xs">
+          {editedAgo(v.updatedAt)} · ATS{' '}
+          {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+          {v.folder ? ` · ${v.folder}` : ''}
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-1.5">{versionActions(v)}</div>
+    </li>
   )
 
   const handleImportFile = (file: File | undefined) => {
@@ -637,45 +741,66 @@ export default function Dashboard() {
             />
           </div>
 
-          {view === 'grid' &&
-            sortedVersions.map((v) => (
-              <div key={v.id} className="bg-card flex flex-col rounded-md border shadow-sm">
-                <Thumb resume={{ ...emptyResume(), ...v.data }} />
-                <div className="flex flex-1 flex-col gap-2 p-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{v.name}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {editedAgo(v.updatedAt)} · ATS{' '}
-                      {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
-                      {v.folder ? ` · ${v.folder}` : ''}
-                    </p>
-                  </div>
-                  <div className="mt-auto flex flex-wrap gap-1.5">{versionActions(v)}</div>
-                </div>
-              </div>
-            ))}
+          {view === 'grid' && ungroupedVersions.map((v) => versionCard(v))}
         </div>
 
-        {view === 'list' && sortedVersions.length > 0 && (
-          <ul className="mt-4 space-y-2">
-            {sortedVersions.map((v) => (
-              <li
-                key={v.id}
-                className="bg-card flex flex-col gap-2 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{v.name}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {editedAgo(v.updatedAt)} · ATS{' '}
-                    {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
-                    {v.folder ? ` · ${v.folder}` : ''}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5">{versionActions(v)}</div>
-              </li>
-            ))}
-          </ul>
+        {view === 'list' && ungroupedVersions.length > 0 && (
+          <ul className="mt-4 space-y-2">{ungroupedVersions.map((v) => versionRow(v))}</ul>
         )}
+
+        {folderGroups.map(([f, list]) => {
+          const isCollapsed = collapsedFolders.includes(f)
+          return (
+            <section key={f} className="mt-6">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-expanded={!isCollapsed}
+                  onClick={() => toggleFolder(f)}
+                  className="hover:bg-accent flex min-h-10 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold sm:min-h-8"
+                >
+                  {isCollapsed ? (
+                    <ChevronRight className="size-4" aria-hidden />
+                  ) : (
+                    <ChevronDown className="size-4" aria-hidden />
+                  )}
+                  {f}
+                  <span className="text-muted-foreground font-normal">({list.length})</span>
+                </button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  title={`Rename folder ${f}`}
+                  onClick={() => setRenamingFolder({ from: f, to: f })}
+                >
+                  <Pencil className="size-3.5" />
+                  <span className="sr-only">Rename folder {f}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive min-h-10 sm:min-h-8"
+                  title={`Remove folder ${f}`}
+                  onClick={() => setConfirmRemoveFolder(f)}
+                >
+                  <Trash2 className="size-3.5" />
+                  <span className="sr-only">Remove folder {f}</span>
+                </Button>
+              </div>
+              {!isCollapsed &&
+                (view === 'grid' ? (
+                  <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {list.map((v) => versionCard(v))}
+                  </div>
+                ) : (
+                  <ul className="mt-2 space-y-2">{list.map((v) => versionRow(v))}</ul>
+                ))}
+            </section>
+          )
+        })}
 
         <h2 id="documents" className="mt-10 scroll-mt-20 text-lg font-semibold">Career documents</h2>
         <p className="text-muted-foreground mt-1 text-sm">
@@ -1336,6 +1461,129 @@ export default function Dashboard() {
               }}
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={moving !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setMoving(null)
+            setMoveNewName('')
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Move "{moving?.name}" to a folder</DialogTitle>
+            <DialogDescription>
+              Folders group your saved copies on this dashboard — the copy itself is unchanged.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            {folders.map((f) => (
+              <Button
+                key={f}
+                type="button"
+                variant={moving?.folder === f ? 'default' : 'outline'}
+                className="min-h-10 justify-start sm:min-h-8"
+                onClick={() => moveVersionTo(f)}
+              >
+                {f}
+              </Button>
+            ))}
+            {moving?.folder && (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-10 justify-start sm:min-h-8"
+                onClick={() => moveVersionTo(undefined)}
+              >
+                Remove from folder
+              </Button>
+            )}
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (moveNewName.trim()) moveVersionTo(moveNewName.trim())
+              }}
+            >
+              <Input
+                value={moveNewName}
+                onChange={(e) => setMoveNewName(e.target.value)}
+                placeholder="New folder name…"
+                aria-label="New folder name"
+              />
+              <Button type="submit" variant="outline" disabled={!moveNewName.trim()}>
+                Create &amp; move
+              </Button>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={renamingFolder !== null} onOpenChange={(o) => !o && setRenamingFolder(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename folder "{renamingFolder?.from}"</DialogTitle>
+            <DialogDescription>All copies in this folder move with it.</DialogDescription>
+          </DialogHeader>
+          <form
+            className="grid gap-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (renamingFolder && renamingFolder.to.trim()) {
+                renameFolder(renamingFolder.from, renamingFolder.to.trim())
+                setRenamingFolder(null)
+              }
+            }}
+          >
+            <Input
+              value={renamingFolder?.to ?? ''}
+              onChange={(e) =>
+                setRenamingFolder((r) => (r ? { ...r, to: e.target.value } : r))
+              }
+              aria-label="Folder name"
+            />
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setRenamingFolder(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!renamingFolder?.to.trim()}>
+                Rename
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmRemoveFolder !== null}
+        onOpenChange={(o) => !o && setConfirmRemoveFolder(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove folder "{confirmRemoveFolder}"?</DialogTitle>
+            <DialogDescription>
+              The copies inside are kept — they just won't be in a folder anymore.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setConfirmRemoveFolder(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (confirmRemoveFolder) removeFolder(confirmRemoveFolder)
+                setConfirmRemoveFolder(null)
+              }}
+            >
+              Remove folder
             </Button>
           </DialogFooter>
         </DialogContent>
