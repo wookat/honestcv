@@ -1,6 +1,17 @@
 import { useMemo, useRef } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 import { checkBullet, type BulletIssue } from '@/lib/guidance'
+import { wrapSelection } from '@/lib/marks'
+
+/** Apply a bold/italic mark toggle to the current selection, firing React's onChange. */
+function applyMark(el: HTMLTextAreaElement, mark: '**' | '*') {
+  const next = wrapSelection(el.value, el.selectionStart, el.selectionEnd, mark)
+  if (!next) return
+  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set
+  setter?.call(el, next.value)
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+  el.setSelectionRange(next.start, next.end)
+}
 
 /** Issue kinds that point at the wording of a specific line, worth underlining in place. */
 const UNDERLINED_KINDS: ReadonlySet<BulletIssue['kind']> = new Set([
@@ -36,6 +47,17 @@ export function LintedTextarea({
           if (backdropRef.current) backdropRef.current.scrollTop = ev.currentTarget.scrollTop
         }}
         {...props}
+        onKeyDown={(ev) => {
+          if ((ev.ctrlKey || ev.metaKey) && !ev.altKey) {
+            const key = ev.key.toLowerCase()
+            if (key === 'b' || key === 'i') {
+              ev.preventDefault()
+              applyMark(ev.currentTarget, key === 'b' ? '**' : '*')
+              return
+            }
+          }
+          props.onKeyDown?.(ev)
+        }}
       />
       <div
         ref={backdropRef}

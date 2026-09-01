@@ -17,6 +17,7 @@ import {
   TextRun,
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
+import { parseInlineMarks } from '@/lib/marks'
 import {
   type Resume,
   awardBullets,
@@ -125,15 +126,16 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       keepNext: opts.keepNext,
       bullet: opts.bullet ? { level: 0 } : undefined,
       indent: opts.bullet ? bulletInd : undefined,
-      children: [
-        new TextRun({
-          text,
-          bold: opts.bold,
-          italics: opts.italic,
-          size: sz(21),
-          font,
-        }),
-      ],
+      children: parseInlineMarks(text).map(
+        (r) =>
+          new TextRun({
+            text: r.text,
+            bold: opts.bold || r.bold,
+            italics: opts.italic || r.italic,
+            size: sz(21),
+            font,
+          })
+      ),
     })
 
   const children: Paragraph[] = []

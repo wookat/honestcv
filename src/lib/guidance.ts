@@ -4,6 +4,7 @@
  */
 import type { Resume } from '@/lib/resume'
 import type { AtsResult, SectionAnchor } from '@/lib/ats'
+import { stripInlineMarks } from '@/lib/marks'
 
 const WEAK_OPENERS = [
   'responsible for',
@@ -34,7 +35,7 @@ export interface BulletIssue {
 }
 
 export function checkBullet(bullet: string): BulletIssue[] {
-  const text = bullet.trim()
+  const text = stripInlineMarks(bullet).trim()
   if (!text) return []
   const lower = text.toLowerCase()
   const issues: BulletIssue[] = []
