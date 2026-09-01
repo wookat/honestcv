@@ -239,6 +239,8 @@ export interface Resume {
   ignoredKeywords?: string[]
   /** Contact fields kept on file but left out of the rendered resume and exports */
   hiddenContact?: HideableContactField[]
+  /** Sections kept auto-sorted newest-first as entries are added or re-dated */
+  autoSortByDate?: AutoSortSection[]
   /** Per-section heading overrides keyed by section key; missing/empty = default label */
   sectionHeadings?: Partial<Record<string, string>>
   /** Target role + JD used for tailoring and the ATS score */
@@ -251,6 +253,11 @@ export interface Resume {
   /** Profile photo as a data:image/... URL; shown in the preview and PDF only */
   photo?: string
 }
+
+/** Sections that support the persistent "Sort by date" toggle */
+export type AutoSortSection = 'experience' | 'education'
+
+export const AUTO_SORT_SECTIONS: AutoSortSection[] = ['experience', 'education']
 
 export const newId = () => Math.random().toString(36).slice(2, 10)
 
@@ -929,6 +936,10 @@ export function sanitizeResume(input: unknown): Resume | null {
     ignoredKeywords: asStrArr(raw.ignoredKeywords),
     hiddenContact: asStrArr(raw.hiddenContact).filter((f, i, arr): f is HideableContactField =>
       (HIDEABLE_CONTACT_FIELDS as string[]).includes(f) && arr.indexOf(f) === i
+    ),
+    autoSortByDate: asStrArr(raw.autoSortByDate).filter(
+      (f, i, arr): f is AutoSortSection =>
+        (AUTO_SORT_SECTIONS as string[]).includes(f) && arr.indexOf(f) === i
     ),
     sectionHeadings: asSectionHeadings(raw.sectionHeadings),
     pageSize: asEnum(raw.pageSize, ['letter', 'a4'] as const) ?? 'letter',
