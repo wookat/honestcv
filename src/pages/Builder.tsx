@@ -117,6 +117,7 @@ import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import { trackEvent } from '@/lib/track'
 import {
   type ShareLink,
+  SHARE_SLUG_RE,
   createShareLink,
   loadShareLink,
   revokeShareLink,
@@ -757,6 +758,7 @@ export default function Builder() {
   const [shareBusy, setShareBusy] = useState(false)
   const [shareError, setShareError] = useState('')
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
+  const [shareSlug, setShareSlug] = useState('')
   // ?doc=cover&company=<name> deep link from the /jobs board's "Cover letter" action
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(() => {
     const doc = new URLSearchParams(window.location.search).get('doc')
@@ -6805,8 +6807,15 @@ export default function Builder() {
                 setShareError('')
                 setShareLinkCopied(false)
                 if (e.target.value === 'view') {
+                  const slug = shareSlug.trim()
+                  if (slug && !SHARE_SLUG_RE.test(slug)) {
+                    setShareError(
+                      'Custom links use 3–40 lowercase letters, numbers and hyphens.'
+                    )
+                    return
+                  }
                   setShareBusy(true)
-                  createShareLink(shown)
+                  createShareLink(shown, slug || undefined)
                     .then((link) => setShareLink(link))
                     .catch((err: unknown) =>
                       setShareError(err instanceof Error ? err.message : 'Sharing failed.')
@@ -6824,6 +6833,37 @@ export default function Builder() {
               <option value="view">Can view</option>
             </select>
           </div>
+          {!shareLink && !shareBusy && (
+            <div className="space-y-1">
+              <label
+                htmlFor="share-custom-slug"
+                className="text-sm font-medium"
+              >
+                Custom link <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground shrink-0 text-sm">
+                  cv.zalize.com/s/
+                </span>
+                <Input
+                  id="share-custom-slug"
+                  value={shareSlug}
+                  placeholder="jordan-reyes"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  onChange={(e) => {
+                    setShareError('')
+                    setShareSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))
+                  }}
+                />
+              </div>
+              <p className="text-muted-foreground text-xs">
+                Pick a memorable address, or leave blank for a private random
+                link. 3–40 lowercase letters, numbers and hyphens.
+              </p>
+            </div>
+          )}
           {shareBusy && (
             <p className="text-muted-foreground text-sm" role="status">
               {shareLink ? 'Turning off…' : 'Creating link…'}

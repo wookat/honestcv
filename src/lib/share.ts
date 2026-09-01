@@ -31,13 +31,20 @@ function persistShareLink(link: ShareLink | null) {
   else localStorage.removeItem(SHARE_LINK_KEY)
 }
 
-/** Publish a snapshot of the resume; re-publishing keeps the same URL. */
-export async function createShareLink(resume: Resume): Promise<ShareLink> {
+/** Lowercase letters, numbers and hyphens, 3-40 chars, no edge hyphens. */
+export const SHARE_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/
+
+/** Publish a snapshot of the resume; re-publishing keeps the same URL.
+ *  A slug (only used when creating a new link) requests a custom URL. */
+export async function createShareLink(resume: Resume, slug?: string): Promise<ShareLink> {
   const prev = loadShareLink()
   const res = await fetch('/api/share', {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...licenseHeaders() },
-    body: JSON.stringify({ resume, ...(prev ? { id: prev.id, token: prev.token } : {}) }),
+    body: JSON.stringify({
+      resume,
+      ...(prev ? { id: prev.id, token: prev.token } : slug ? { slug } : {}),
+    }),
   })
   const data = (await res.json().catch(() => ({}))) as {
     id?: string
