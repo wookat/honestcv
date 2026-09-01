@@ -5,6 +5,18 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 
 # Testing RezUp
 
+## R198 lessons — ruled-entry templates (Circuit/Ledger) & preview/export divider QA
+
+- Builder template gallery cards: the card name lives in the sibling `[aria-label="Save <Name> template"]` button; the clickable card itself is the adjacent button whose `title` is the template *description* (e.g. "Serif with ruled entries…") — matching by name text or thumb SVG picks the wrong element.
+- Preview entry dividers are inline styles: select with `d.style.borderTop === '1px solid rgb(228, 228, 228)'` (attribute-regex on `#e4e4e4` misses because React serializes rgb()). Count expectation = (entries−1) per multi-entry section; grouped experience adds one per 2nd+ role inside a group plus one per 2nd+ company group, with no nesting.
+- The preview paper is ~1600px tall — divider rows sit far below the 761px viewport and normal screenshots won't show them; use `Page.captureScreenshot` with `clip` + `captureBeyondViewport:true` around the divider rects for visual proof. `scrollIntoView`/`window.scrollTo` doesn't move them (sticky preview column).
+- PDF rule audit: inflate content streams, track `R G B RG` color state and `x1 y1 m x2 y2 l S` segments — hairlines are (0.831,0.831,0.831)=#d4d4d4 at 0.5w spanning 54→558pt; Circuit also has 5 accent heading rules, Ledger none. Verify pixels via `pdftoppm -r 100`: line y_px = (792−y_pt)*100/72 ±3px, color (212,212,212).
+- DOCX rule audit: grep `<w:top w:val="single" w:color="D4D4D4" w:sz="4" w:space="4"/>` — attribute order is color-BEFORE-sz (grepping `w:sz="4"[^/]*w:color` finds 0).
+- Byte-identity checks (TXT/MD across templates) work: sha256 equal across circuit/ledger/classic. ATS score visible as "NN/100" only after pasting a JD into the "Paste the job posting…" textarea.
+- "Stack roles" (groupByCompany) toggle is in the format toolbar: span with text `Stack roles` + Off/On buttons (aria-pressed). Grouping only stacks *consecutive* same-company entries — reorder experience first.
+- Builder "Save current as copy" lives under the header `Copies` dropdown (two clicks: `Copies` → `Save current as copy`).
+- /builder at 375px emulation should have `scrollWidth` 375 (the old 388 overflow was fixed in R199 by hiding the "by Zalize" header tagline below `sm`); only the section-navigator chip scroller may exceed the viewport internally (overflow-x-auto, clipped).
+
 ## CDP mobile-emulation & deep-link pitfalls
 
 - `Emulation.setDeviceMetricsOverride` reverts when the websocket that set it closes — hold a single CDP connection open for the whole mobile pass, and re-check `innerWidth` before judging layout. Pair with `Emulation.setPageScaleFactor(1)` for stable layout metrics.
