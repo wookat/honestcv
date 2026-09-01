@@ -714,10 +714,11 @@ app.post('/api/ai/keyword-bullet', async (c) => {
 // free AI quota.
 app.post('/api/ai/suggest-bullet', async (c) => {
   const body = await c.req
-    .json<{ role?: string; company?: string; bullets?: string[]; resumeText?: string; variant?: string; language?: string }>()
+    .json<{ role?: string; company?: string; companyInfo?: string; bullets?: string[]; resumeText?: string; variant?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const role = body.role?.trim() ?? ''
   const company = body.company?.trim() ?? ''
+  const companyInfo = (body.companyInfo?.trim() ?? '').slice(0, 300)
   if (!role && !company) {
     return c.json({ error: 'Add a job title or company first — the bullet is drafted for that role.' }, 400)
   }
@@ -748,7 +749,10 @@ app.post('/api/ai/suggest-bullet', async (c) => {
 
   const result = await callLlm(
     c.env,
-    withOutputLanguage(buildSuggestBulletMessages(role, company, bullets, resumeText, variant), body.language),
+    withOutputLanguage(
+      buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo),
+      body.language
+    ),
     0.6,
     400
   )

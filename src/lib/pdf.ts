@@ -616,6 +616,10 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
             ? `${e.role || 'Role'}${e.location ? `  ·  ${e.location}` : ''}`
             : `${e.role || 'Role'}  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`
           w.titleLine(left, dates, { size: 10.5 })
+          if (e.companyInfo?.trim()) {
+            w.gap(1)
+            w.text(e.companyInfo.trim(), { font: w.fonts.italic, size: 9, color: w.soft })
+          }
           w.gap(2)
           for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
         }

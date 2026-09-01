@@ -1187,6 +1187,7 @@ export default function Builder() {
       const { text, freeRemaining } = await aiSuggestBullet({
         role: e.role,
         company: e.company,
+        companyInfo: e.companyInfo?.trim() || undefined,
         bullets: e.bullets.filter((b) => b.trim()),
         resumeText: resumeToPlainText(shown),
         variant,
@@ -2481,6 +2482,23 @@ export default function Builder() {
                       />
                     </div>
                   </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`exp-${e.id}-companyinfo`}>
+                    {e.company.trim()
+                      ? `About ${e.company.trim()} (optional)`
+                      : 'About the company (optional)'}
+                  </Label>
+                  <Input
+                    id={`exp-${e.id}-companyinfo`}
+                    placeholder="e.g. Series B fintech, ~200 people, B2B payments"
+                    value={e.companyInfo ?? ''}
+                    onChange={(ev) => setExp(e.id, { companyInfo: ev.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    One line of context shown under the role — helps recruiters place unknown
+                    companies and gives the AI writer better context.
+                  </p>
                 </div>
                 {(e.role.trim() || e.company.trim()) && !e.startDate.trim() && (
                   <p className="text-xs text-amber-700">
