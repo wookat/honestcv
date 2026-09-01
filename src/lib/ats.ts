@@ -285,6 +285,61 @@ function linkedinCheck(pass: boolean): AtsResult['checks'][number] {
   }
 }
 
+const ENTRY_LOCATIONS_LABEL = 'Locations on each entry'
+const ENTRY_LOCATIONS_PASS_HINT =
+  'Every entry lists a location — employers can validate your experience at a glance.'
+
+/** Locations on each entry: work, involvement and education entries should carry one */
+function entryLocationsCheck(
+  entries: { name: string; located: boolean; anchor: SectionAnchor }[]
+): AtsResult['checks'][number] {
+  const offender = entries.find((e) => !e.located)
+  return {
+    label: ENTRY_LOCATIONS_LABEL,
+    pass: !offender,
+    hint: offender
+      ? `"${offender.name}" has no location — add a city (or "Remote") to every entry so employers can validate your experience.`
+      : ENTRY_LOCATIONS_PASS_HINT,
+    anchor: offender?.anchor ?? 'experience',
+  }
+}
+
+const LOCATION_LIKE_RE =
+  /\b(?:Remote|Hybrid)\b|\b[A-Z][A-Za-z.]+,\s*(?:[A-Z]{2}\b|[A-Z][A-Za-z]+)/
+
+/**
+ * Per-entry location presence in pasted text. Each entry's segment runs from
+ * up to two lines above its date range (role/company header lines often carry
+ * the location, e.g. "Company — Austin, TX" above the dates) to the next
+ * range's header, never reaching into the previous entry. Empty when there is
+ * no experience heading or no date ranges (never false-alarm on unparseable
+ * text).
+ */
+function textEntryLocations(
+  raw: string
+): { name: string; located: boolean; anchor: SectionAnchor }[] {
+  const block = experienceBlock(raw)
+  if (block === null) return []
+  const matches = [...block.matchAll(DATE_RANGE_RE)]
+  const headerStart = (m: RegExpExecArray | RegExpMatchArray, floor: number) => {
+    let start = block.lastIndexOf('\n', m.index!) + 1
+    for (let up = 0; up < 2 && start - 1 > floor; up++) {
+      start = block.lastIndexOf('\n', start - 2) + 1
+    }
+    return Math.max(start, floor)
+  }
+  return matches.map((m, i) => {
+    const prevEnd = i > 0 ? matches[i - 1].index! + matches[i - 1][0].length : 0
+    const from = headerStart(m, prevEnd)
+    const to = i + 1 < matches.length ? headerStart(matches[i + 1], m.index! + m[0].length) : block.length
+    return {
+      name: m[0],
+      located: LOCATION_LIKE_RE.test(block.slice(from, to)),
+      anchor: 'experience' as const,
+    }
+  })
+}
+
 const BULLETS_PER_ENTRY_LABEL = '3–6 bullet points per role'
 
 /** Per-entry bullet-count check: every role should carry 3–6 bullet points */
@@ -465,6 +520,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     dateFormatCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
     pronounCheck(textPronounSegments(resumeTextRaw)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
+    entryLocationsCheck(textEntryLocations(resumeTextRaw)),
   ]
 
   return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
@@ -643,6 +699,29 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       Boolean(resume.contact.linkedin.trim()) &&
         !(resume.hiddenContact ?? []).includes('linkedin')
     ),
+    entryLocationsCheck([
+      ...resume.experience
+        .filter((e) => !e.hidden && (e.role.trim() || e.company.trim()))
+        .map((e) => ({
+          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at '),
+          located: Boolean(e.location.trim()),
+          anchor: 'experience' as const,
+        })),
+      ...(resume.involvement ?? [])
+        .filter((i) => !i.hidden && (i.role.trim() || i.organization.trim()))
+        .map((i) => ({
+          name: [i.role.trim(), i.organization.trim()].filter(Boolean).join(' at '),
+          located: Boolean(i.location.trim()),
+          anchor: 'experience' as const,
+        })),
+      ...resume.education
+        .filter((e) => !e.hidden && e.school.trim())
+        .map((e) => ({
+          name: e.school.trim(),
+          located: Boolean(e.location.trim()),
+          anchor: 'education' as const,
+        })),
+    ]),
   ]
 
   return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))

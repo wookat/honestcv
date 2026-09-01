@@ -542,3 +542,6 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 
 ## R211 — no-first-person-pronouns check
 - "Part I <lowercase word>" matches PRONOUN_RE by design (subject-verb pattern); for negative fixtures use trailing "Part I." or "Phase I of" forms. Checker structure has 12 checks, Builder breakdown 13 rows.
+
+## R213 — locations-on-each-entry check
+- Checker fixtures exercising the fail path must use comma-free headers ("Role at Company") — "Role, Company" headers match LOCATION_LIKE_RE and false-pass by design (lenient direction). Segments include up to 2 header lines above each date range. `/api/ai/quota` fires on Builder load — exclude it from zero-AI assertions. Checker structure has 14 checks, Builder breakdown 15 rows.
