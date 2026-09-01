@@ -16,6 +16,7 @@ import {
   ImagePlus,
   ClipboardPaste,
   Download,
+  ExternalLink,
   Eye,
   EyeOff,
   FileText,
@@ -216,6 +217,7 @@ import {
   sectionLabel,
   HIDEABLE_CONTACT_FIELDS,
   type HideableContactField,
+  normalizeContactLink,
   type AutoSortSection,
   skillLines,
   sortEntriesByDate,
@@ -2025,12 +2027,35 @@ export default function Builder() {
                         </Button>
                       )}
                     </div>
-                    <Input
-                      id={`c-${key}`}
-                      placeholder={ph}
-                      value={resume.contact[key]}
-                      onChange={(e) => setContact(key, e.target.value)}
-                    />
+                    <div className="flex items-center gap-1">
+                      <Input
+                        id={`c-${key}`}
+                        placeholder={ph}
+                        value={resume.contact[key]}
+                        onChange={(e) => setContact(key, e.target.value)}
+                        onBlur={
+                          key === 'website' || key === 'linkedin'
+                            ? () => {
+                                const clean = normalizeContactLink(key, resume.contact[key])
+                                if (clean !== resume.contact[key]) setContact(key, clean)
+                              }
+                            : undefined
+                        }
+                      />
+                      {(key === 'website' || key === 'linkedin') &&
+                        resume.contact[key].trim() && (
+                          <a
+                            href={`https://${normalizeContactLink(key, resume.contact[key])}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Open link in a new tab"
+                            aria-label={`Open ${label} in a new tab`}
+                            className="text-muted-foreground hover:text-foreground flex size-10 shrink-0 items-center justify-center rounded-md sm:size-8"
+                          >
+                            <ExternalLink className="size-4" />
+                          </a>
+                        )}
+                    </div>
                   </div>
                 )
               })}
