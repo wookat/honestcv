@@ -482,3 +482,31 @@ export function resumeStrength(r: Resume): StrengthResult {
   }
   return { score, missing }
 }
+
+/**
+ * Split a rewrite candidate into whitespace-preserving chunks, marking words
+ * that don't appear in the original text (normalized: lowercased, inline marks
+ * and edge punctuation stripped) so changes are scannable at a glance.
+ */
+export function diffNewWords(
+  original: string,
+  candidate: string
+): { text: string; added: boolean }[] {
+  const norm = (w: string) =>
+    stripInlineMarks(w)
+      .toLowerCase()
+      .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+  const have = new Set(
+    stripInlineMarks(original)
+      .split(/\s+/)
+      .map(norm)
+      .filter(Boolean)
+  )
+  return candidate
+    .split(/(\s+)/)
+    .filter((c) => c.length > 0)
+    .map((chunk) => {
+      const w = norm(chunk)
+      return { text: chunk, added: w.length > 0 && !have.has(w) }
+    })
+}
