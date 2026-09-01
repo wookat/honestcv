@@ -31,10 +31,20 @@ import {
   listPipeline,
   removeFromPipeline,
   searchJobs,
+  setPipelineVersion,
   upsertPipeline,
 } from '@/lib/jobs'
 import { matchScore } from '@/lib/ats'
-import { emptyResume, loadResume, resumeToPlainText, saveResume, syncActiveVersion } from '@/lib/resume'
+import {
+  createResumeVersion,
+  emptyResume,
+  listResumeVersions,
+  loadResume,
+  resumeToPlainText,
+  saveResume,
+  setActiveVersionId,
+  syncActiveVersion,
+} from '@/lib/resume'
 
 type Tab = 'all' | JobStatus
 
@@ -160,11 +170,47 @@ export default function Jobs() {
     return c
   }, [pipeline])
 
+  /** The job's targeted copy if the pipeline links one that still exists. */
+  const linkedVersion = (jobId: string) => {
+    const id = pipeline.find((e) => e.job.id === jobId)?.resumeVersionId
+    return id ? listResumeVersions().find((v) => v.id === id) : undefined
+  }
+
+  /** Prepare a saved copy of the current draft targeted at this job. */
+  const prepareTargetedCopy = (job: JobListing) => {
+    const draft = loadResume() ?? emptyResume()
+    const version = createResumeVersion(
+      `${job.title} — ${job.company}`,
+      {
+        ...draft,
+        targetRole: job.title,
+        targetCompany: job.company,
+        jobDescription: job.description,
+      },
+      'Job applications'
+    )
+    if (!listPipeline().some((e) => e.job.id === job.id)) upsertPipeline(job, 'saved')
+    setPipeline(setPipelineVersion(job.id, version.id))
+    return version
+  }
+
   const setStatus = (job: JobListing, status: JobStatus | 'none') => {
-    setPipeline(status === 'none' ? removeFromPipeline(job.id) : upsertPipeline(job, status))
+    if (status === 'none') {
+      setPipeline(removeFromPipeline(job.id))
+      return
+    }
+    setPipeline(upsertPipeline(job, status))
+    if (status === 'saved' && !linkedVersion(job.id)) prepareTargetedCopy(job)
   }
 
   const targetResume = (job: JobListing, intent: 'target' | 'cover') => {
+    if (intent === 'target') {
+      const version = linkedVersion(job.id) ?? prepareTargetedCopy(job)
+      saveResume(version.data)
+      setActiveVersionId(version.id)
+      void navigate('/builder')
+      return
+    }
     const draft = loadResume() ?? emptyResume()
     const next = {
       ...draft,
@@ -174,11 +220,7 @@ export default function Jobs() {
     }
     saveResume(next)
     syncActiveVersion(next)
-    void navigate(
-      intent === 'cover'
-        ? `/builder?doc=cover&company=${encodeURIComponent(job.company)}`
-        : '/builder'
-    )
+    void navigate(`/builder?doc=cover&company=${encodeURIComponent(job.company)}`)
   }
 
   return (
@@ -475,7 +517,8 @@ export default function Jobs() {
                     className="min-h-10 gap-1.5 sm:min-h-8"
                     onClick={() => setConfirmTarget({ job: selected, intent: 'target' })}
                   >
-                    <BriefcaseBusiness className="size-4" /> Target my resume
+                    <BriefcaseBusiness className="size-4" />{' '}
+                    {linkedVersion(selected.id) ? 'Open targeted resume' : 'Target my resume'}
                   </Button>
                   <Button
                     type="button"
@@ -535,14 +578,14 @@ export default function Jobs() {
             <DialogTitle>
               {confirmTarget?.intent === 'cover'
                 ? `Write a cover letter for "${confirmTarget.job.title}"?`
-                : `Target "${confirmTarget?.job.title}"?`}
+                : `Open a resume targeted at "${confirmTarget?.job.title}"?`}
             </DialogTitle>
             <DialogDescription>
-              This sets the job title and description on your current draft so the ATS score and
-              AI tailoring in the editor aim at this posting. It replaces the draft's current
-              target job, if any.
-              {confirmTarget?.intent === 'cover' &&
-                ' The editor opens with the cover letter tool pre-filled for this company.'}
+              {confirmTarget?.intent === 'cover'
+                ? "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any."
+                : confirmTarget && linkedVersion(confirmTarget.job.id)
+                  ? 'This job already has a targeted copy of your resume — the editor opens that copy. Your other resumes keep their own target jobs.'
+                  : 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard) and opens it in the editor. Your current draft keeps its own target job.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -555,7 +598,9 @@ export default function Jobs() {
             >
               {confirmTarget?.intent === 'cover'
                 ? 'Open cover letter tool'
-                : 'Target and open editor'}
+                : confirmTarget && linkedVersion(confirmTarget.job.id)
+                  ? 'Open targeted copy'
+                  : 'Create copy and open editor'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1173,6 +1173,20 @@ export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
   return versions
 }
 
+/** Save a new copy and return it (unlike saveResumeVersion, which returns the list). */
+export function createResumeVersion(name: string, data: Resume, folder?: string): ResumeVersion {
+  const version: ResumeVersion = {
+    id: newId(),
+    name,
+    updatedAt: Date.now(),
+    createdAt: Date.now(),
+    ...(folder?.trim() ? { folder: folder.trim() } : {}),
+    data,
+  }
+  persistVersions([version, ...listResumeVersions()])
+  return version
+}
+
 export function renameResumeVersion(id: string, name: string): ResumeVersion[] {
   const versions = listResumeVersions().map((v) =>
     v.id === id ? { ...v, name, updatedAt: Date.now() } : v

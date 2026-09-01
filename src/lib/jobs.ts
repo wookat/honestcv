@@ -34,6 +34,8 @@ export interface PipelineEntry {
   job: JobListing
   status: JobStatus
   updatedAt: number
+  /** Saved resume copy targeted at this job, prepared when the job is saved */
+  resumeVersionId?: string
 }
 
 const PIPELINE_KEY = 'honestcv.jobPipeline'
@@ -83,8 +85,25 @@ function savePipeline(entries: PipelineEntry[]): PipelineEntry[] {
 }
 
 export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntry[] {
-  const rest = listPipeline().filter((e) => e.job.id !== job.id)
-  return savePipeline([{ job, status, updatedAt: Date.now() }, ...rest])
+  const all = listPipeline()
+  const prev = all.find((e) => e.job.id === job.id)
+  const rest = all.filter((e) => e.job.id !== job.id)
+  return savePipeline([
+    {
+      job,
+      status,
+      updatedAt: Date.now(),
+      ...(prev?.resumeVersionId ? { resumeVersionId: prev.resumeVersionId } : {}),
+    },
+    ...rest,
+  ])
+}
+
+/** Link the pipeline entry for a job to its targeted resume copy. */
+export function setPipelineVersion(jobId: string, resumeVersionId: string): PipelineEntry[] {
+  return savePipeline(
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, resumeVersionId } : e))
+  )
 }
 
 export function removeFromPipeline(id: string): PipelineEntry[] {
