@@ -514,3 +514,11 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - /ats-checker: editing a textarea hides the results card — click "Check my ATS score" again to re-render. For "Nothing missing", set JD to a word-boundary-safe slice of the resume textarea (mid-word cuts create bogus missing tokens like "depl").
 - Mobile builder: score breakdown lives in the right pane — tap the bottom-bar button labeled "Preview & score" (not "Preview") to reveal it at 375px.
 - CDP screenshot pitfall: with `captureBeyondViewport:true` the clip is in PAGE coordinates — use `getBoundingClientRect() + scrollX/scrollY`, not raw viewport coords, or you'll capture the wrong region.
+
+## R205 — JD-aware "Draft my summary" (Builder → Summary)
+- Trigger: Summary section shows "Draft from my resume" only when summary is EMPTY (clear the textarea after "Load an example resume"). Dialog title "Draft my summary"; action button is **"Write 3 drafts"** (not "Draft").
+- JD note gating: dialog description appends " Wording is tailored toward your target job description." iff resume.jobDescription.trim() is nonempty (set via the Target job textarea, `[data-section-anchor="target"] textarea`).
+- Payload: POST /api/ai/summary-draft includes `jobDescription` verbatim only when a JD is loaded; omitted entirely otherwise. Intercept with Fetch pattern `*summary-draft*`; mock response shape `{"text":"…","texts":["a","b","c"],"freeRemaining":null}` renders 3 candidates labeled Concise / Impact-focused / Keyword-focused.
+- CRITICAL Fetch-intercept pitfall (cost 1 quota here): after clicking, check the helper's `c.events` buffer BEFORE calling `ws.recv()` — the `Fetch.requestPaused` event is often swallowed by the click's Runtime.evaluate round-trip and stored there. If your script exits with a request still paused, the session close auto-continues it as a REAL call.
+- Quota: production runs in launch mode — `/api/ai/quota` returns `{"freeRemaining":null}` and the "N free AI uses left" label never renders, so quota decrement is NOT observable on prod.
+- The page-wide scrollWidth 1457@1440 is pre-existing (scrollbar-related), not a dialog overflow; dialog rect fits.
