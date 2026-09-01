@@ -106,6 +106,7 @@ export default function Jobs() {
     intent: 'target' | 'cover'
   } | null>(null)
   const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
+  const [confirmUntrack, setConfirmUntrack] = useState<JobListing | null>(null)
 
   const fetchJobs = (q: string, cat = '') =>
     searchJobs(q, cat)
@@ -238,6 +239,11 @@ export default function Jobs() {
 
   const setStatus = (job: JobListing, status: JobStatus | 'none') => {
     if (status === 'none') {
+      const entry = pipeline.find((e) => e.job.id === job.id)
+      if (entry && (entry.notes?.trim() || timelineOf(entry).length > 1)) {
+        setConfirmUntrack(job)
+        return
+      }
       setPipeline(removeFromPipeline(job.id))
       return
     }
@@ -728,6 +734,48 @@ export default function Jobs() {
                 : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'Open targeted copy'
                   : 'Create copy and open editor'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmUntrack !== null} onOpenChange={(o) => !o && setConfirmUntrack(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{`Stop tracking "${confirmUntrack?.title ?? ''}"?`}</DialogTitle>
+            <DialogDescription>
+              {(() => {
+                const entry = confirmUntrack
+                  ? pipeline.find((e) => e.job.id === confirmUntrack.id)
+                  : undefined
+                const steps = entry ? timelineOf(entry).length : 0
+                const parts = [
+                  steps > 1 ? `its application timeline (${steps} status changes)` : '',
+                  entry?.notes?.trim() ? 'your notes' : '',
+                ].filter(Boolean)
+                return `This removes the job from your pipeline and deletes ${parts.join(' and ')}. Targeted resume copies stay on your dashboard.`
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-10"
+              onClick={() => setConfirmUntrack(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="min-h-10"
+              onClick={() => {
+                if (confirmUntrack) setPipeline(removeFromPipeline(confirmUntrack.id))
+                setConfirmUntrack(null)
+              }}
+            >
+              Stop tracking
             </Button>
           </DialogFooter>
         </DialogContent>
