@@ -350,3 +350,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R168 QA notes (LintedTextarea inline underline)
 - "Projects (optional)" and "Involvement" are collapsible Sections with `defaultOpen={false}` — their children (Add buttons, description textareas) are not in the DOM until the section header is clicked.
 - The LintedTextarea backdrop can be asserted via `textarea.parentElement.querySelector('div[aria-hidden]')` span classes (`decoration-wavy`), plus an amber-pixel scan of a screenshot crop for visual proof.
+
+## R169 QA notes (audit chips + clean bullet fixtures)
+- Entry audit chips (`EntryAuditChip`) are spans with `aria-label` starting "Role N:"/"Project N:"; their popover panel (a sibling `div`) shows on hover/focus — dispatch a CDP `mouseMoved` over the chip or focus the tabIndex=0 span to reveal it.
+- A no-digit "clean" test bullet that trips no other lint rule: "Led design reviews across frontend guild teams." (strong opener, capitalized, period, 4+ words).
