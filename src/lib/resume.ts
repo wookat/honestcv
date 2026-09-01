@@ -63,6 +63,8 @@ export interface CertificationItem {
   date: string
   /** How the certificate is relevant */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface InvolvementItem {
@@ -76,6 +78,8 @@ export interface InvolvementItem {
   endDate: string
   /** What you did there; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface CourseworkItem {
@@ -90,6 +94,8 @@ export interface CourseworkItem {
   skill: string
   /** How the skill was applied; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface AwardItem {
@@ -102,6 +108,8 @@ export interface AwardItem {
   date: string
   /** How the award is relevant; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface PublicationItem {
@@ -116,6 +124,8 @@ export interface PublicationItem {
   date: string
   /** Additional information; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export type ReferenceKind = '' | 'personal' | 'professional'
@@ -131,6 +141,8 @@ export interface ReferenceItem {
   phone: string
   /** Personal or professional reference */
   kind: ReferenceKind
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface MilitaryServiceItem {
@@ -145,6 +157,8 @@ export interface MilitaryServiceItem {
   endDate: string
   /** Responsibilities and accomplishments; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 /** User-defined section (e.g. Volunteering, Publications) */
@@ -165,6 +179,8 @@ export interface AgentItem {
   skills: string
   /** How building the agent was relevant; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface Resume {
@@ -569,6 +585,14 @@ export function visibleResume(r: Resume): Resume {
     experience: r.experience.filter((e) => !e.hidden),
     education: r.education.filter((e) => !e.hidden),
     projects: r.projects.filter((p) => !p.hidden),
+    certItems: r.certItems?.filter((c) => !c.hidden),
+    involvement: r.involvement?.filter((i) => !i.hidden),
+    coursework: r.coursework?.filter((c) => !c.hidden),
+    awards: r.awards?.filter((a) => !a.hidden),
+    publications: r.publications?.filter((p) => !p.hidden),
+    references: r.references?.filter((x) => !x.hidden),
+    military: r.military?.filter((m) => !m.hidden),
+    agents: r.agents?.filter((a) => !a.hidden),
   }
 }
 
@@ -807,6 +831,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       issuer: asStr(c.issuer),
       date: asStr(c.date),
       description: asStr(c.description),
+      ...(c.hidden === true ? { hidden: true } : {}),
     })),
     involvement: asObjArr(raw.involvement).map((i) => ({
       id: asStr(i.id) || newId(),
@@ -816,6 +841,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       startDate: asStr(i.startDate),
       endDate: asStr(i.endDate),
       description: asStr(i.description),
+      ...(i.hidden === true ? { hidden: true } : {}),
     })),
     coursework: asObjArr(raw.coursework).map((c) => ({
       id: asStr(c.id) || newId(),
@@ -824,6 +850,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       date: asStr(c.date),
       skill: asStr(c.skill),
       description: asStr(c.description),
+      ...(c.hidden === true ? { hidden: true } : {}),
     })),
     awards: asObjArr(raw.awards).map((a) => ({
       id: asStr(a.id) || newId(),
@@ -831,6 +858,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       organization: asStr(a.organization),
       date: asStr(a.date),
       description: asStr(a.description),
+      ...(a.hidden === true ? { hidden: true } : {}),
     })),
     publications: asObjArr(raw.publications).map((p) => ({
       id: asStr(p.id) || newId(),
@@ -839,6 +867,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       kind: asStr(p.kind).trim() ? asStr(p.kind) : undefined,
       date: asStr(p.date),
       description: asStr(p.description),
+      ...(p.hidden === true ? { hidden: true } : {}),
     })),
     references: asObjArr(raw.references).map((x) => ({
       id: asStr(x.id) || newId(),
@@ -848,6 +877,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       email: asStr(x.email),
       phone: asStr(x.phone),
       kind: x.kind === 'personal' || x.kind === 'professional' ? x.kind : '',
+      ...(x.hidden === true ? { hidden: true } : {}),
     })),
     military: asObjArr(raw.military).map((m) => ({
       id: asStr(m.id) || newId(),
@@ -857,6 +887,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       startDate: asStr(m.startDate),
       endDate: asStr(m.endDate),
       description: asStr(m.description),
+      ...(m.hidden === true ? { hidden: true } : {}),
     })),
     agents: asObjArr(raw.agents).map((a) => ({
       id: asStr(a.id) || newId(),
@@ -864,6 +895,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       date: asStr(a.date),
       skills: asStr(a.skills),
       description: asStr(a.description),
+      ...(a.hidden === true ? { hidden: true } : {}),
     })),
     customSections: asObjArr(raw.customSections).map((s) => ({
       id: asStr(s.id) || newId(),

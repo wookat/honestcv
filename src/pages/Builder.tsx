@@ -2933,7 +2933,15 @@ export default function Builder() {
               Campus or community organizations — clubs, societies, volunteering.
             </p>
             {(resume.involvement ?? []).map((inv, invIdx) => (
-              <div key={inv.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={inv.id}
+                className={`space-y-2 rounded-lg border p-3 ${inv.hidden ? 'opacity-60' : ''}`}
+              >
+                {inv.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Role (e.g. Selected Member)"
@@ -3015,6 +3023,25 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={inv.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={inv.hidden === true}
+                    aria-label={`${inv.hidden ? 'Show' : 'Hide'} involvement ${invIdx + 1} ${inv.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {inv.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -3182,7 +3209,15 @@ export default function Builder() {
               Relevant courses — useful when you have little work experience.
             </p>
             {(resume.coursework ?? []).map((cw, cwIdx) => (
-              <div key={cw.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={cw.id}
+                className={`space-y-2 rounded-lg border p-3 ${cw.hidden ? 'opacity-60' : ''}`}
+              >
+                {cw.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Course name (e.g. Intro to Computer Systems)"
@@ -3249,6 +3284,25 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={cw.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={cw.hidden === true}
+                    aria-label={`${cw.hidden ? 'Show' : 'Hide'} coursework ${cwIdx + 1} ${cw.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).map((x) =>
+                          x.id === cw.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {cw.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -3380,7 +3434,15 @@ export default function Builder() {
               Awards, honors and recognitions that back up your track record.
             </p>
             {(resume.awards ?? []).map((a, aIdx) => (
-              <div key={a.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={a.id}
+                className={`space-y-2 rounded-lg border p-3 ${a.hidden ? 'opacity-60' : ''}`}
+              >
+                {a.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Award name (e.g. Dean's List)"
@@ -3435,6 +3497,25 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={a.hidden === true}
+                    aria-label={`${a.hidden ? 'Show' : 'Hide'} award ${aIdx + 1} ${a.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: (r.awards ?? []).map((x) =>
+                          x.id === a.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {a.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -3577,7 +3658,15 @@ export default function Builder() {
               <option value="Blog Post" />
             </datalist>
             {(resume.publications ?? []).map((pub, pubIdx) => (
-              <div key={pub.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={pub.id}
+                className={`space-y-2 rounded-lg border p-3 ${pub.hidden ? 'opacity-60' : ''}`}
+              >
+                {pub.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Publication title"
@@ -3645,6 +3734,25 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={pub.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={pub.hidden === true}
+                    aria-label={`${pub.hidden ? 'Show' : 'Hide'} publication ${pubIdx + 1} ${pub.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).map((x) =>
+                          x.id === pub.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {pub.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -3782,7 +3890,15 @@ export default function Builder() {
               People who can vouch for you — with their role and how to reach them.
             </p>
             {(resume.references ?? []).map((ref, refIdx) => (
-              <div key={ref.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={ref.id}
+                className={`space-y-2 rounded-lg border p-3 ${ref.hidden ? 'opacity-60' : ''}`}
+              >
+                {ref.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Full name"
@@ -3870,6 +3986,25 @@ export default function Builder() {
                     <option value="professional">Professional</option>
                     <option value="personal">Personal</option>
                   </select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={ref.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={ref.hidden === true}
+                    aria-label={`${ref.hidden ? 'Show' : 'Hide'} reference ${refIdx + 1} ${ref.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        references: (r.references ?? []).map((x) =>
+                          x.id === ref.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {ref.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -4001,7 +4136,15 @@ export default function Builder() {
               Your service record — rank, branch, where you were stationed and what you did.
             </p>
             {(resume.military ?? []).map((m) => (
-              <div key={m.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={m.id}
+                className={`space-y-2 rounded-lg border p-3 ${m.hidden ? 'opacity-60' : ''}`}
+              >
+                {m.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Rank or position (e.g. Sergeant)"
@@ -4087,6 +4230,25 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={m.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={m.hidden === true}
+                    aria-label={`${m.hidden ? 'Show' : 'Hide'} military service ${m.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        military: (r.military ?? []).map((x) =>
+                          x.id === m.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {m.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                     title="Delete military service"
                     aria-label="Delete military service"
@@ -4123,7 +4285,15 @@ export default function Builder() {
               AI agents you built — what they were called, when, and why they mattered.
             </p>
             {(resume.agents ?? []).map((a) => (
-              <div key={a.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={a.id}
+                className={`space-y-2 rounded-lg border p-3 ${a.hidden ? 'opacity-60' : ''}`}
+              >
+                {a.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Agent name, e.g. Support Triage Agent"
@@ -4176,6 +4346,25 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={a.hidden === true}
+                    aria-label={`${a.hidden ? 'Show' : 'Hide'} agent ${a.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        agents: (r.agents ?? []).map((x) =>
+                          x.id === a.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {a.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -4358,7 +4547,15 @@ export default function Builder() {
             <div className="space-y-2">
               <Label>Certifications (optional)</Label>
               {(resume.certItems ?? []).map((c, cIdx) => (
-                <div key={c.id} className="space-y-2 rounded-md border p-3">
+                <div
+                  key={c.id}
+                  className={`space-y-2 rounded-md border p-3 ${c.hidden ? 'opacity-60' : ''}`}
+                >
+                  {c.hidden && (
+                    <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                      Hidden — left out of the resume
+                    </p>
+                  )}
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Input
                       placeholder="Certificate name (AWS Solutions Architect)"
@@ -4414,6 +4611,25 @@ export default function Builder() {
                         }))
                       }
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      title={c.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={c.hidden === true}
+                      aria-label={`${c.hidden ? 'Show' : 'Hide'} certification ${cIdx + 1} ${c.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: (r.certItems ?? []).map((x) =>
+                            x.id === c.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {c.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
