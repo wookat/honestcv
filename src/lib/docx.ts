@@ -243,6 +243,17 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
               ],
             })
           )
+          if (e.companyInfo?.trim()) {
+            children.push(
+              new Paragraph({
+                spacing: { after: 20 },
+                keepNext: true,
+                children: [
+                  new TextRun({ text: e.companyInfo.trim(), italics: true, size: sz(19), font }),
+                ],
+              })
+            )
+          }
           for (const b of e.bullets) {
             if (b.trim()) children.push(body(b.trim(), { bullet: true }))
           }

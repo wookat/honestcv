@@ -34,6 +34,8 @@ export interface ExperienceItem {
   startDate: string
   endDate: string
   bullets: string[]
+  /** One short line of context about the company (industry, size, market) */
+  companyInfo?: string
   /** Kept in the editor but left out of the rendered resume and exports */
   hidden?: boolean
 }
@@ -947,6 +949,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       startDate: asStr(e.startDate),
       endDate: asStr(e.endDate),
       bullets: asStrArr(e.bullets),
+      ...(asStr(e.companyInfo) ? { companyInfo: asStr(e.companyInfo) } : {}),
       ...(e.hidden === true ? { hidden: true } : {}),
     })),
     education: asObjArr(raw.education).map((e) => ({
@@ -1333,6 +1336,8 @@ function sanitizeExperienceItem(input: unknown): ExperienceItem | null {
     endDate: asStr(e.endDate),
     bullets: asStrArr(e.bullets),
   }
+  const companyInfo = asStr(e.companyInfo)
+  if (companyInfo) item.companyInfo = companyInfo
   return item.company.trim() || item.role.trim() || item.bullets.some((b) => b.trim())
     ? item
     : null
@@ -2325,6 +2330,7 @@ export function resumeToPlainText(r: Resume): string {
               : [e.role, e.company].filter(Boolean).join(' at ')) +
               (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
           )
+          if (e.companyInfo?.trim()) lines.push(e.companyInfo.trim())
           for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
         }
       }
@@ -2438,6 +2444,7 @@ export function resumeToMarkdown(r: Resume): string {
             ? e.role || 'Role'
             : [e.role, e.company].filter(Boolean).join(' — ')
           lines.push(`${g.grouped ? '####' : '###'} ${title}${dates}`, '')
+          if (e.companyInfo?.trim()) lines.push(`*${e.companyInfo.trim()}*`, '')
           for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
           lines.push('')
         }
