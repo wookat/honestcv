@@ -627,7 +627,7 @@ function SectionNav({
       </div>
       <button
         type="button"
-        aria-label={`Resume health score ${score} out of 100 — open full report`}
+        aria-label={`Resume health score ${score} out of 100 — ${scoreVerdict(score)} — open full report`}
         title="Resume health — open full report"
         className={`inline-flex min-h-10 shrink-0 items-center gap-1 rounded-md border px-2 text-xs font-medium tabular-nums transition-colors sm:min-h-8 ${
           score >= 80
@@ -640,10 +640,15 @@ function SectionNav({
       >
         <HeartPulse aria-hidden className="size-3.5" />
         {score}
+        <span className="hidden font-normal sm:inline">· {scoreVerdict(score)}</span>
       </button>
     </nav>
   )
 }
+
+/** Plain-words tier for a 0-100 score, matching the three color bands */
+const scoreVerdict = (score: number) =>
+  score >= 80 ? 'Strong' : score >= 50 ? 'Getting there' : 'Needs work'
 
 /** Elapsed-time wait hint shown while an AI call is in flight */
 function AiWaitHint() {
@@ -1721,7 +1726,9 @@ export default function Builder() {
           <div className="bg-card rounded-lg border p-3">
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="font-medium">Resume strength</span>
-              <span className="text-muted-foreground text-xs">{strength.score}%</span>
+              <span className="text-muted-foreground text-xs">
+                {strength.score}% — {scoreVerdict(strength.score)}
+              </span>
             </div>
             <div
               className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full"
@@ -7832,7 +7839,8 @@ function HealthDialog({
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Score breakdown — ATS {ats.score}/100 · Writing {health.score}/100
+            Score breakdown — ATS {ats.score}/100 · Writing{' '}
+            {`${health.score}/100 (${scoreVerdict(health.score)})`}
           </DialogTitle>
           <DialogDescription>
             Every check is rule-based and computed in your browser — a transparent heuristic, not
