@@ -16,6 +16,8 @@ import {
   ImagePlus,
   ClipboardPaste,
   Download,
+  Eye,
+  EyeOff,
   FileText,
   Copy,
   FileUp,
@@ -209,6 +211,7 @@ import {
   skillLines,
   sortEntriesByDate,
   TEXT_INKS,
+  visibleResume,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
@@ -641,7 +644,8 @@ export default function Builder() {
   const freeMode = useFreeMode()
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
-  const pdfPages = usePdfPageCount(resume)
+  const shown = useMemo(() => visibleResume(resume), [resume])
+  const pdfPages = usePdfPageCount(shown)
   const [fitBusy, setFitBusy] = useState(false)
   const [fitMsg, setFitMsg] = useState('')
   const autoFit = useCallback(async () => {
@@ -666,7 +670,7 @@ export default function Builder() {
         const combos = stage === 0 ? FIT_COMBOS : FIT_COMBOS.slice(TIGHT_COMBO_START)
         for (const [fontScale, lineSpacing] of combos) {
           const pages = await countResumePdfPages({
-            ...resume,
+            ...shown,
             fontScale,
             lineSpacing,
             sectionSpacing,
@@ -702,7 +706,7 @@ export default function Builder() {
     } finally {
       setFitBusy(false)
     }
-  }, [resume, setResume])
+  }, [resume, shown, setResume])
   const [templateFilter, setTemplateFilter] = useState('all')
   const [templateFavs, setTemplateFavs] = useState<string[]>(loadTemplateFavorites)
   const [templateRecents, setTemplateRecents] = useState<string[]>(loadTemplateRecents)
@@ -841,8 +845,8 @@ export default function Builder() {
     }
   }, [unlocked])
   const ats = useMemo(
-    () => scoreResume(resume, resume.jobDescription),
-    [resume]
+    () => scoreResume(shown, shown.jobDescription),
+    [shown]
   )
 
   const set = useCallback(<K extends keyof Resume>(key: K, value: Resume[K]) => {
@@ -925,7 +929,7 @@ export default function Builder() {
         role: e.role,
         company: e.company,
         bullets: e.bullets.filter((b) => b.trim()),
-        resumeText: resumeToPlainText(resume),
+        resumeText: resumeToPlainText(shown),
         variant,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
@@ -955,7 +959,7 @@ export default function Builder() {
     setAiErrorTag(tag)
     try {
       const { texts, freeRemaining } = await aiSummaryDraft({
-        resumeText: resumeToPlainText({ ...resume, summary: '' }),
+        resumeText: resumeToPlainText({ ...shown, summary: '' }),
         role: aiTargetRole(resume),
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
@@ -1034,20 +1038,20 @@ export default function Builder() {
     const countIssues = (lines: string[]) =>
       checkBullets(lines).reduce((m, r) => m + r.issues.length, 0)
     const bulletIssueCount =
-      resume.experience.reduce((n, e) => n + countIssues(e.bullets), 0) +
-      resume.projects.reduce((n, p) => n + countIssues(p.description.split('\n')), 0) +
-      (resume.involvement ?? []).reduce((n, i) => n + countIssues(i.description.split('\n')), 0)
+      shown.experience.reduce((n, e) => n + countIssues(e.bullets), 0) +
+      shown.projects.reduce((n, p) => n + countIssues(p.description.split('\n')), 0) +
+      (shown.involvement ?? []).reduce((n, i) => n + countIssues(i.description.split('\n')), 0)
     if (bulletIssueCount > 0)
       issues.push(
         `${bulletIssueCount} bullet-quality warning${bulletIssueCount === 1 ? '' : 's'} in Experience/Projects/Involvement (weak openers, missing numbers…)`
       )
-    const placeholderCount = resumeToPlainText(resume).match(/\[[^\]\n]{1,60}\]/g)?.length ?? 0
+    const placeholderCount = resumeToPlainText(shown).match(/\[[^\]\n]{1,60}\]/g)?.length ?? 0
     if (placeholderCount > 0)
       issues.push(
         `${placeholderCount} bracket placeholder${placeholderCount === 1 ? '' : 's'} like [add %] still in the resume — replace with your real details`
       )
     return issues
-  }, [ats, resume])
+  }, [ats, shown])
 
   const download = async (fmt: 'pdf' | 'docx' | 'txt' | 'md', skipFinalCheck = false) => {
     if (!unlocked) {
@@ -1074,12 +1078,12 @@ export default function Builder() {
     try {
       const name = (resume.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
       if (fmt === 'pdf')
-        await (await import('@/lib/pdf')).downloadResumePdf(resume, `${name}-resume.pdf`)
+        await (await import('@/lib/pdf')).downloadResumePdf(shown, `${name}-resume.pdf`)
       else if (fmt === 'docx')
-        await (await import('@/lib/docx')).downloadResumeDocx(resume, `${name}-resume.docx`)
+        await (await import('@/lib/docx')).downloadResumeDocx(shown, `${name}-resume.docx`)
       else if (fmt === 'md')
-        downloadText(resumeToMarkdown(resume), `${name}-resume.md`, 'text/markdown')
-      else downloadText(resumeToPlainText(resume), `${name}-resume.txt`)
+        downloadText(resumeToMarkdown(shown), `${name}-resume.md`, 'text/markdown')
+      else downloadText(resumeToPlainText(shown), `${name}-resume.txt`)
       setDlDone(true)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
@@ -1880,7 +1884,7 @@ export default function Builder() {
                 {...expDrag.dropProps(idx)}
                 className={`space-y-2 rounded-lg border p-3 transition ${
                   expDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
-                }`}
+                } ${e.hidden ? 'opacity-60' : ''}`}
               >
                 <div className="flex min-w-0 flex-wrap items-center justify-between">
                   <p className="text-muted-foreground flex min-w-0 basis-full items-center gap-1 text-xs font-medium sm:basis-auto">
@@ -1897,6 +1901,11 @@ export default function Builder() {
                     {(e.role.trim() || e.company.trim()) && (
                       <span className="text-foreground min-w-0 truncate font-normal">
                         — {[e.role, e.company].filter((x) => x.trim()).join(', ')}
+                      </span>
+                    )}
+                    {e.hidden && (
+                      <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                        Hidden
                       </span>
                     )}
                   </p>
@@ -1975,6 +1984,25 @@ export default function Builder() {
                       ) : (
                         <BookmarkPlus className="size-3.5" />
                       )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 sm:h-7"
+                      title={e.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={e.hidden === true}
+                      aria-label={`${e.hidden ? 'Show' : 'Hide'} role ${idx + 1} ${e.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          experience: r.experience.map((x) =>
+                            x.id === e.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {e.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                     </Button>
                     <Button
                       type="button"
@@ -2224,7 +2252,7 @@ export default function Builder() {
                 {...eduDrag.dropProps(idx)}
                 className={`space-y-2 rounded-lg border p-3 transition ${
                   eduDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
-                }`}
+                } ${e.hidden ? 'opacity-60' : ''}`}
               >
                 <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
                   <span
@@ -2242,7 +2270,31 @@ export default function Builder() {
                       — {[e.degree, e.school].filter((x) => x.trim()).join(', ')}
                     </span>
                   )}
+                  {e.hidden && (
+                    <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                      Hidden
+                    </span>
+                  )}
                   <span className="grow" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="-my-2 h-10 shrink-0 sm:h-7"
+                    title={e.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={e.hidden === true}
+                    aria-label={`${e.hidden ? 'Show' : 'Hide'} education ${idx + 1} ${e.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        education: r.education.map((x) =>
+                          x.id === e.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {e.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -2534,13 +2586,21 @@ export default function Builder() {
             anchor="projects"
           >
             {resume.projects.map((p, pIdx) => (
-              <div key={p.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={p.id}
+                className={`space-y-2 rounded-lg border p-3 ${p.hidden ? 'opacity-60' : ''}`}
+              >
                 <div className="flex items-center justify-between">
                   <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs font-medium">
                     <span className="shrink-0">Project {pIdx + 1}</span>
                     {p.name.trim() && (
                       <span className="text-foreground min-w-0 truncate font-normal">
                         — {p.name.trim()}
+                      </span>
+                    )}
+                    {p.hidden && (
+                      <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                        Hidden
                       </span>
                     )}
                   </p>
@@ -2614,6 +2674,25 @@ export default function Builder() {
                       ) : (
                         <BookmarkPlus className="size-3.5" />
                       )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 sm:h-7"
+                      title={p.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={p.hidden === true}
+                      aria-label={`${p.hidden ? 'Show' : 'Hide'} project ${pIdx + 1} ${p.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          projects: r.projects.map((x) =>
+                            x.id === p.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {p.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                     </Button>
                     <Button
                       type="button"
@@ -5247,7 +5326,7 @@ export default function Builder() {
           <div className="rounded-lg border bg-slate-100/90 p-3 sm:p-6 dark:bg-slate-900/40">
             <div className="shadow-lg">
               <ResumePreview
-                resume={resume}
+                resume={shown}
                 paginated
                 onSectionJump={(key) =>
                   jumpToSection(
@@ -5368,12 +5447,12 @@ export default function Builder() {
           toolOpen === 'cover' ? toolCompany || (resume.targetCompany ?? '') : toolCompany
         }
         onClose={() => setToolOpen(null)}
-        resume={resume}
+        resume={shown}
         onQuota={setFreeLeft}
       />
       {tailorOpen && (
         <TailorDialog
-          resume={resume}
+          resume={shown}
           onClose={() => setTailorOpen(false)}
           onQuota={setFreeLeft}
           onApply={applyTailorSuggestion}
@@ -5400,7 +5479,7 @@ export default function Builder() {
       <AssistantPanel
         open={assistantOpen}
         onClose={() => setAssistantOpen(false)}
-        resume={resume}
+        resume={shown}
         jobDescription={resume.jobDescription}
         scoreSummary={atsScoreSummary(ats)}
         ats={ats}
@@ -5427,7 +5506,7 @@ export default function Builder() {
       {kwBulletFor !== null && (
         <KeywordBulletDialog
           keyword={kwBulletFor}
-          resume={resume}
+          resume={shown}
           onClose={() => setKwBulletFor(null)}
           onQuota={setFreeLeft}
           onInsert={insertKeywordBullet}
@@ -5568,7 +5647,7 @@ export default function Builder() {
                     <p className="text-muted-foreground truncate text-xs">
                       {new Date(v.updatedAt).toLocaleString()}
                       {v.folder ? ` · ${v.folder}` : ''} · ATS{' '}
-                      {scoreResume(v.data, v.data.jobDescription).score}/100
+                      {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
@@ -5705,7 +5784,7 @@ export default function Builder() {
                 setShareLinkCopied(false)
                 if (e.target.value === 'view') {
                   setShareBusy(true)
-                  createShareLink(resume)
+                  createShareLink(shown)
                     .then((link) => setShareLink(link))
                     .catch((err: unknown) =>
                       setShareError(err instanceof Error ? err.message : 'Sharing failed.')
@@ -5771,7 +5850,7 @@ export default function Builder() {
                   setShareError('')
                   setShareLinkCopied(false)
                   setShareBusy(true)
-                  createShareLink(resume)
+                  createShareLink(shown)
                     .then((link) => setShareLink(link))
                     .catch((err: unknown) =>
                       setShareError(err instanceof Error ? err.message : 'Sharing failed.')

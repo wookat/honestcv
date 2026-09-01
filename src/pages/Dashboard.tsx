@@ -67,6 +67,7 @@ import {
   saveResumeVersion,
   setActiveVersionId,
   updateResumeVersion,
+  visibleResume,
 } from '@/lib/resume'
 
 interface ExampleEntry {
@@ -89,7 +90,7 @@ function Thumb({ resume }: { resume: Resume }) {
       className="pointer-events-none relative h-44 select-none overflow-hidden rounded-t-md border-b bg-slate-100"
     >
       <div className="absolute inset-x-4 top-3 origin-top" style={{ zoom: 0.35 }}>
-        <ResumePreview resume={resume} />
+        <ResumePreview resume={visibleResume(resume)} />
       </div>
     </div>
   )
@@ -219,9 +220,10 @@ export default function Dashboard() {
     setDownloading(key)
     try {
       const name = (r.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
+      const out = visibleResume(r)
       if (fmt === 'pdf')
-        await (await import('@/lib/pdf')).downloadResumePdf(r, `${name}-resume.pdf`)
-      else await (await import('@/lib/docx')).downloadResumeDocx(r, `${name}-resume.docx`)
+        await (await import('@/lib/pdf')).downloadResumePdf(out, `${name}-resume.pdf`)
+      else await (await import('@/lib/docx')).downloadResumeDocx(out, `${name}-resume.docx`)
       if (!localStorage.getItem('honestcv.shared')) localStorage.setItem('honestcv.shared', '1')
     } finally {
       setDownloading(null)
@@ -540,7 +542,7 @@ export default function Dashboard() {
                     {draft.targetRole || draft.contact.fullName || 'Current draft'}
                   </p>
                   <p className="text-muted-foreground text-xs">
-                    Current draft · ATS {scoreResume(draft, draft.jobDescription).score}/100
+                    Current draft · ATS {scoreResume(visibleResume(draft), draft.jobDescription).score}/100
                   </p>
                 </div>
                 <div className="mt-auto flex flex-wrap gap-1.5">
@@ -644,7 +646,7 @@ export default function Dashboard() {
                     <p className="truncate text-sm font-medium">{v.name}</p>
                     <p className="text-muted-foreground text-xs">
                       {editedAgo(v.updatedAt)} · ATS{' '}
-                      {scoreResume(v.data, v.data.jobDescription).score}/100
+                      {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
                       {v.folder ? ` · ${v.folder}` : ''}
                     </p>
                   </div>
@@ -665,7 +667,7 @@ export default function Dashboard() {
                   <p className="truncate text-sm font-medium">{v.name}</p>
                   <p className="text-muted-foreground text-xs">
                     {editedAgo(v.updatedAt)} · ATS{' '}
-                    {scoreResume(v.data, v.data.jobDescription).score}/100
+                    {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
                     {v.folder ? ` · ${v.folder}` : ''}
                   </p>
                 </div>

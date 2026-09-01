@@ -21,6 +21,8 @@ export interface ExperienceItem {
   startDate: string
   endDate: string
   bullets: string[]
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface EducationItem {
@@ -35,6 +37,8 @@ export interface EducationItem {
   gpa?: string
   /** Minor field of study */
   minor?: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface ProjectItem {
@@ -46,6 +50,8 @@ export interface ProjectItem {
   org?: string
   startDate?: string
   endDate?: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface CertificationItem {
@@ -556,6 +562,16 @@ export function dateSortValue(text: string): number | null {
   return Number(year[0]) * 12 + month
 }
 
+/** Copy of the resume with hidden entries removed — for preview, exports, scoring, and sharing */
+export function visibleResume(r: Resume): Resume {
+  return {
+    ...r,
+    experience: r.experience.filter((e) => !e.hidden),
+    education: r.education.filter((e) => !e.hidden),
+    projects: r.projects.filter((p) => !p.hidden),
+  }
+}
+
 /**
  * Stable newest-first sort for dated entries. Ongoing entries (end date reads
  * "Present"/"Current"/…) come first ranked by start date; then by end date
@@ -758,6 +774,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       startDate: asStr(e.startDate),
       endDate: asStr(e.endDate),
       bullets: asStrArr(e.bullets),
+      ...(e.hidden === true ? { hidden: true } : {}),
     })),
     education: asObjArr(raw.education).map((e) => ({
       id: asStr(e.id) || newId(),
@@ -769,6 +786,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       details: asStr(e.details),
       gpa: asStr(e.gpa),
       minor: asStr(e.minor),
+      ...(e.hidden === true ? { hidden: true } : {}),
     })),
     projects: asObjArr(raw.projects).map((p) => ({
       id: asStr(p.id) || newId(),
@@ -778,6 +796,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       org: asStr(p.org),
       startDate: asStr(p.startDate),
       endDate: asStr(p.endDate),
+      ...(p.hidden === true ? { hidden: true } : {}),
     })),
     // legacy/hand-edited data may hold skills as a string array
     skills: Array.isArray(raw.skills) ? asStrArr(raw.skills).join(', ') : asStr(raw.skills),
