@@ -629,11 +629,36 @@ function SectionBlock({
           <div key={inv.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
-                {inv.role.trim() || 'Role'}
+                <InlineText
+                  value={inv.role.trim()}
+                  fallback="Role"
+                  onCommit={
+                    onEdit &&
+                    ((v) =>
+                      onEdit({
+                        ...resume,
+                        involvement: (resume.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, role: v } : x
+                        ),
+                      }))
+                  }
+                />
                 {inv.organization.trim() && (
                   <span className="font-normal">
                     {'  ·  '}
-                    {inv.organization.trim()}
+                    <InlineText
+                      value={inv.organization.trim()}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            involvement: (resume.involvement ?? []).map((x) =>
+                              x.id === inv.id ? { ...x, organization: v } : x
+                            ),
+                          }))
+                      }
+                    />
                     {inv.location.trim() ? `, ${inv.location.trim()}` : ''}
                   </span>
                 )}
@@ -719,11 +744,36 @@ function SectionBlock({
           <div key={cw.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
-                {cw.name.trim() || 'Course'}
+                <InlineText
+                  value={cw.name.trim()}
+                  fallback="Course"
+                  onCommit={
+                    onEdit &&
+                    ((v) =>
+                      onEdit({
+                        ...resume,
+                        coursework: (resume.coursework ?? []).map((x) =>
+                          x.id === cw.id ? { ...x, name: v } : x
+                        ),
+                      }))
+                  }
+                />
                 {cw.institution.trim() && (
                   <span className="font-normal">
                     {'  ·  '}
-                    {cw.institution.trim()}
+                    <InlineText
+                      value={cw.institution.trim()}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            coursework: (resume.coursework ?? []).map((x) =>
+                              x.id === cw.id ? { ...x, institution: v } : x
+                            ),
+                          }))
+                      }
+                    />
                   </span>
                 )}
               </p>
@@ -765,8 +815,38 @@ function SectionBlock({
           <div key={c.id} className="mb-1.5">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11px] font-bold">
-                {c.name.trim() || 'Certificate'}
-                {c.issuer.trim() && <span className="font-normal"> — {c.issuer.trim()}</span>}
+                <InlineText
+                  value={c.name.trim()}
+                  fallback="Certificate"
+                  onCommit={
+                    onEdit &&
+                    ((v) =>
+                      onEdit({
+                        ...resume,
+                        certItems: (resume.certItems ?? []).map((x) =>
+                          x.id === c.id ? { ...x, name: v } : x
+                        ),
+                      }))
+                  }
+                />
+                {c.issuer.trim() && (
+                  <span className="font-normal">
+                    {' — '}
+                    <InlineText
+                      value={c.issuer.trim()}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            certItems: (resume.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, issuer: v } : x
+                            ),
+                          }))
+                      }
+                    />
+                  </span>
+                )}
               </p>
               {c.date.trim() && (
                 <p className="text-[10px] text-neutral-500 italic">{c.date.trim()}</p>
@@ -792,9 +872,37 @@ function SectionBlock({
           <div key={a.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
-                {a.name.trim() || 'Award'}
+                <InlineText
+                  value={a.name.trim()}
+                  fallback="Award"
+                  onCommit={
+                    onEdit &&
+                    ((v) =>
+                      onEdit({
+                        ...resume,
+                        awards: (resume.awards ?? []).map((x) =>
+                          x.id === a.id ? { ...x, name: v } : x
+                        ),
+                      }))
+                  }
+                />
                 {a.organization.trim() && (
-                  <span className="font-normal"> — {a.organization.trim()}</span>
+                  <span className="font-normal">
+                    {' — '}
+                    <InlineText
+                      value={a.organization.trim()}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            awards: (resume.awards ?? []).map((x) =>
+                              x.id === a.id ? { ...x, organization: v } : x
+                            ),
+                          }))
+                      }
+                    />
+                  </span>
                 )}
               </p>
               {a.date.trim() && (
@@ -823,9 +931,37 @@ function SectionBlock({
           <div key={p.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
-                {p.title.trim() || 'Publication'}
+                <InlineText
+                  value={p.title.trim()}
+                  fallback="Publication"
+                  onCommit={
+                    onEdit &&
+                    ((v) =>
+                      onEdit({
+                        ...resume,
+                        publications: (resume.publications ?? []).map((x) =>
+                          x.id === p.id ? { ...x, title: v } : x
+                        ),
+                      }))
+                  }
+                />
                 {p.venue.trim() && (
-                  <span className="font-normal"> — {p.venue.trim()}</span>
+                  <span className="font-normal">
+                    {' — '}
+                    <InlineText
+                      value={p.venue.trim()}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            publications: (resume.publications ?? []).map((x) =>
+                              x.id === p.id ? { ...x, venue: v } : x
+                            ),
+                          }))
+                      }
+                    />
+                  </span>
                 )}
                 {(p.kind ?? '').trim() && (
                   <span className="font-normal italic"> ({(p.kind ?? '').trim()})</span>
@@ -856,7 +992,19 @@ function SectionBlock({
         {items.map((x) => (
           <div key={x.id} className="mb-2">
             <p className="text-[11.5px] font-bold">
-              {x.name.trim()}
+              <InlineText
+                value={x.name.trim()}
+                onCommit={
+                  onEdit &&
+                  ((v) =>
+                    onEdit({
+                      ...resume,
+                      references: (resume.references ?? []).map((r) =>
+                        r.id === x.id ? { ...r, name: v } : r
+                      ),
+                    }))
+                }
+              />
               {(x.title.trim() || x.employer.trim()) && (
                 <span className="font-normal">
                   {' — '}
@@ -881,11 +1029,36 @@ function SectionBlock({
           <div key={m.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
-                {m.rank.trim() || 'Rank'}
+                <InlineText
+                  value={m.rank.trim()}
+                  fallback="Rank"
+                  onCommit={
+                    onEdit &&
+                    ((v) =>
+                      onEdit({
+                        ...resume,
+                        military: (resume.military ?? []).map((x) =>
+                          x.id === m.id ? { ...x, rank: v } : x
+                        ),
+                      }))
+                  }
+                />
                 {m.branch.trim() && (
                   <span className="font-normal">
                     {'  ·  '}
-                    {m.branch.trim()}
+                    <InlineText
+                      value={m.branch.trim()}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            military: (resume.military ?? []).map((x) =>
+                              x.id === m.id ? { ...x, branch: v } : x
+                            ),
+                          }))
+                      }
+                    />
                     {m.location.trim() ? `, ${m.location.trim()}` : ''}
                   </span>
                 )}
@@ -915,7 +1088,21 @@ function SectionBlock({
         {items.map((a) => (
           <div key={a.id} className="mb-2">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-              <p className="text-[11.5px] font-bold">{a.name.trim()}</p>
+              <p className="text-[11.5px] font-bold">
+                <InlineText
+                  value={a.name.trim()}
+                  onCommit={
+                    onEdit &&
+                    ((v) =>
+                      onEdit({
+                        ...resume,
+                        agents: (resume.agents ?? []).map((x) =>
+                          x.id === a.id ? { ...x, name: v } : x
+                        ),
+                      }))
+                  }
+                />
+              </p>
               {a.date.trim() && (
                 <p className="text-[10px] text-neutral-500 italic">{a.date.trim()}</p>
               )}
