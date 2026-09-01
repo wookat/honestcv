@@ -9,6 +9,26 @@ export type ExtractedResumeFile = { text: string; checks: FileCheck[] }
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024
 
+// Icon fonts (FontAwesome bullets, star ratings…) map glyphs into the
+// Unicode Private Use Area — ATS parsers read them as unreadable boxes.
+const PUA_RE = /[\uE000-\uF8FF]/
+
+const iconGlyphCheck = (text: string): FileCheck => ({
+  label: 'No icon-font glyphs',
+  pass: !PUA_RE.test(text),
+  hint: 'Icon-font characters (e.g. symbol bullets, rating stars) were detected — ATS parsers read them as unreadable boxes; use plain text characters instead.',
+})
+
+/** Share of characters below 9pt — more than 25% fails the check. */
+const fontSizeCheck = (smallChars: number, totalChars: number): FileCheck => {
+  const share = totalChars > 0 ? smallChars / totalChars : 0
+  return {
+    label: 'Body text at least 9pt',
+    pass: share <= 0.25,
+    hint: `${Math.round(share * 100)}% of the text is smaller than 9pt — many ATS parsers and recruiters struggle with tiny type; use 10–12pt body text.`,
+  }
+}
+
 const sizeCheck = (file: File): FileCheck => ({
   label: 'File size under 2 MB',
   pass: file.size <= MAX_FILE_BYTES,
@@ -45,6 +65,8 @@ async function extractPdf(file: File): Promise<ExtractedResumeFile> {
   const pages: string[] = []
   let hasImages = false
   let multiColumn = false
+  let smallChars = 0
+  let totalChars = 0
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i)
     const ops = await page.getOperatorList()
@@ -58,6 +80,9 @@ async function extractPdf(file: File): Promise<ExtractedResumeFile> {
     const lines = new Map<number, { x: number; w: number; str: string }[]>()
     for (const item of content.items) {
       if (!('str' in item) || !item.str.trim()) continue
+      const chars = item.str.trim().length
+      totalChars += chars
+      if (Math.hypot(item.transform[0], item.transform[1]) < 9) smallChars += chars
       const y = Math.round(item.transform[5])
       let line = lines.get(y)
       if (!line) {
@@ -136,6 +161,8 @@ async function extractPdf(file: File): Promise<ExtractedResumeFile> {
       pass: !hasImages,
       hint: 'Images (photos, icons, charts) were detected — ATS parsers skip them, and any text inside is lost.',
     },
+    fontSizeCheck(smallChars, totalChars),
+    iconGlyphCheck(pages.join('\n')),
   ]
   return { text: pages.join('\n\n').trim(), checks }
 }
@@ -198,6 +225,23 @@ async function extractDocx(file: File): Promise<ExtractedResumeFile> {
       hint: 'Text was found in the Word header/footer — contact info there is invisible to many ATS parsers; move it into the document body.',
     },
   ]
+  // Weight each run's text by its explicit font size (w:sz is in half-points;
+  // runs without w:sz inherit the document default and are assumed fine).
+  let smallChars = 0
+  let totalChars = 0
+  let bodyText = ''
+  for (const run of xml.match(/<w:r\b[\s\S]*?<\/w:r>/g) ?? []) {
+    const text = (run.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) ?? [])
+      .map((t) => t.replace(/<[^>]+>/g, ''))
+      .join('')
+    const chars = text.trim().length
+    if (!chars) continue
+    bodyText += text
+    totalChars += chars
+    const sz = run.match(/<w:sz\b[^>]*w:val="(\d+)"/)
+    if (sz && Number(sz[1]) < 18) smallChars += chars
+  }
+  checks.push(fontSizeCheck(smallChars, totalChars), iconGlyphCheck(bodyText))
   const text = xml
     // Tabs typically separate a header from a right-aligned date; a line
     // break keeps them as separate fields for the import parser.
