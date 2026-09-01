@@ -62,6 +62,8 @@ export async function aiSkillSuggest(input: {
   skills: string
   role: string
   jobDescription: string
+  context?: string
+  category?: string
 }): Promise<{ skills: string[]; freeRemaining: number | null }> {
   return post<{ skills: string[]; freeRemaining: number | null }>(
     '/api/ai/skill-suggest',
