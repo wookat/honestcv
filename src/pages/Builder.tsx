@@ -92,7 +92,13 @@ import {
   aiTailor,
   fetchAiQuota,
 } from '@/lib/api'
-import { type AtsResult, type SectionAnchor, atsScoreSummary, scoreResume } from '@/lib/ats'
+import {
+  type AtsResult,
+  type SectionAnchor,
+  atsScoreSummary,
+  bestExperienceForKeyword,
+  scoreResume,
+} from '@/lib/ats'
 import {
   ACTION_VERBS,
   type BulletIssue,
@@ -8720,7 +8726,19 @@ function KeywordBulletDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [text, setText] = useState<string | null>(null)
-  const [expId, setExpId] = useState(resume.experience[0]?.id ?? '')
+  const [bestId] = useState(() =>
+    bestExperienceForKeyword(
+      resume.experience
+        .filter((e) => !e.hidden)
+        .map((e) => ({
+          id: e.id,
+          text: [e.role, e.company, e.companyInfo ?? '', ...e.bullets].join('\n'),
+        })),
+      keyword,
+      resume.jobDescription
+    )
+  )
+  const [expId, setExpId] = useState(bestId ?? resume.experience[0]?.id ?? '')
   const [inserted, setInserted] = useState(false)
 
   const run = async () => {
@@ -8779,10 +8797,16 @@ function KeywordBulletDialog({
               >
                 {resume.experience.map((e) => (
                   <option key={e.id} value={e.id}>
-                    {[e.role, e.company].filter(Boolean).join(' at ') || 'Experience'}
+                    {([e.role, e.company].filter(Boolean).join(' at ') || 'Experience') +
+                      (e.id === bestId && resume.experience.length > 1 ? ' — best match' : '')}
                   </option>
                 ))}
               </select>
+              {bestId !== null && resume.experience.length > 1 && (
+                <p className="text-muted-foreground text-xs">
+                  Preselected the role that best matches this keyword — change it if you disagree.
+                </p>
+              )}
             </div>
             {inserted ? (
               <p className="text-sm font-medium text-emerald-700">Added to your resume.</p>

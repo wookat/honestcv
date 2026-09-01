@@ -242,6 +242,39 @@ function finalize(
   return { score, matched, missing, ignored, keywordDetail, keywordScore, structureScore, checks }
 }
 
+/**
+ * Pick the entry (e.g. experience) that best fits a JD keyword: keyword-token
+ * occurrences weigh most, other JD keywords found in the entry add context fit,
+ * ties keep resume order. Returns null when there are no entries.
+ */
+export function bestExperienceForKeyword(
+  entries: readonly { id: string; text: string }[],
+  keyword: string,
+  jd: string
+): string | null {
+  if (entries.length === 0) return null
+  const kw = keyword.toLowerCase()
+  const kwTokens = tokenize(kw)
+  const jdKeywords = jd.trim() ? extractKeywords(jd).filter((k) => k !== kw) : []
+  let bestId = entries[0].id
+  let bestScore = -1
+  for (const entry of entries) {
+    const text = entry.text.toLowerCase()
+    const tokens = new Set(tokenize(text))
+    let score = 0
+    if (kw.includes(' ') && text.includes(kw)) score += 3
+    for (const t of kwTokens) if (tokens.has(t)) score += 3
+    for (const k of jdKeywords) {
+      if (k.includes(' ') ? text.includes(k) : tokens.has(k)) score += 1
+    }
+    if (score > bestScore) {
+      bestScore = score
+      bestId = entry.id
+    }
+  }
+  return bestId
+}
+
 import type { Resume } from './resume'
 import { resumeToPlainText, skillLines } from './resume'
 
