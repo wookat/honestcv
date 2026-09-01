@@ -1188,20 +1188,22 @@ export function createResumeVersion(name: string, data: Resume, folder?: string)
 }
 
 export function renameResumeVersion(id: string, name: string): ResumeVersion[] {
-  const versions = listResumeVersions().map((v) =>
-    v.id === id ? { ...v, name, updatedAt: Date.now() } : v
-  )
+  const versions = listResumeVersions().map((v) => (v.id === id ? { ...v, name } : v))
   persistVersions(versions)
   return versions
 }
 
+/** Organizational changes (name/folder) keep the edit timestamp; only content changes bump it. */
 export function updateResumeVersion(
   id: string,
   patch: { name?: string; folder?: string; data?: Resume }
 ): ResumeVersion[] {
-  const versions = listResumeVersions().map((v) =>
-    v.id === id ? { ...v, ...patch, updatedAt: Date.now() } : v
-  )
+  const versions = listResumeVersions().map((v) => {
+    if (v.id !== id) return v
+    const contentChanged =
+      patch.data !== undefined && JSON.stringify(patch.data) !== JSON.stringify(v.data)
+    return { ...v, ...patch, ...(contentChanged ? { updatedAt: Date.now() } : {}) }
+  })
   persistVersions(versions)
   return versions
 }
