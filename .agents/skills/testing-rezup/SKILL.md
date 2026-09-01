@@ -522,3 +522,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - CRITICAL Fetch-intercept pitfall (cost 1 quota here): after clicking, check the helper's `c.events` buffer BEFORE calling `ws.recv()` — the `Fetch.requestPaused` event is often swallowed by the click's Runtime.evaluate round-trip and stored there. If your script exits with a request still paused, the session close auto-continues it as a REAL call.
 - Quota: production runs in launch mode — `/api/ai/quota` returns `{"freeRemaining":null}` and the "N free AI uses left" label never renders, so quota decrement is NOT observable on prod.
 - The page-wide scrollWidth 1457@1440 is pre-existing (scrollbar-related), not a dialog overflow; dialog rect fits.
+
+## R206 — "Suggested bullet" review dialog (Builder → experience entry)
+- Triggers per entry: "Suggest a bullet" and "…with key numbers" buttons; POST /api/ai/suggest-bullet (payload: role, company, bullets[], resumeText, + variant:"key-numbers" for the nums button). Intercept pattern `*suggest-bullet*`; mock shape `{"text":"- …","freeRemaining":null}` — leading "- "/"•" is stripped client-side.
+- Dialog: title "Suggested bullet", textarea `textarea[aria-label="Suggested bullet text"]`, buttons "Apply to entry" (disabled when text empty; appends FIRST LINE only), "Regenerate" (same variant re-call), "Cancel" (no mutation). Apply/Cancel/Regenerate are min-h-10 (40px) on mobile, sm:min-h-9 (36px) desktop.
+- "Need ideas? Show bullet starters" (R186 BulletIdeas) is an inline TOGGLE, not a dialog/popover — after clicking, assert the "Hide bullet ideas" button and "+ [add …]" starter buttons exist.
