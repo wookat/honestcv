@@ -639,6 +639,9 @@ export default function Builder() {
     }
   }, [])
   const [tailorOpen, setTailorOpen] = useState(false)
+  const [previewView, setPreviewView] = useState<'pages' | 'flow'>(() =>
+    localStorage.getItem('honestcv.previewView') === 'flow' ? 'flow' : 'pages'
+  )
   const [healthOpen, setHealthOpen] = useState(false)
   const [kwBulletFor, setKwBulletFor] = useState<string | null>(null)
   const [checklistOpen, setChecklistOpen] = useState(
@@ -5538,6 +5541,34 @@ export default function Builder() {
                 </button>
               ))}
             </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">View</span>
+              {(
+                [
+                  ['pages', 'Pages', 'Preview as separate page frames'],
+                  ['flow', 'Flow', 'Preview as one continuous flow with page-break markers'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — preview only, PDF is unchanged`}
+                  aria-pressed={previewView === value}
+                  onClick={() => {
+                    setPreviewView(value)
+                    localStorage.setItem('honestcv.previewView', value)
+                  }}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    previewView === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
           </div>
 
           <Card className="py-0">
@@ -5734,6 +5765,7 @@ export default function Builder() {
               <ResumePreview
                 resume={shown}
                 paginated
+                view={previewView}
                 onSectionJump={(key) =>
                   jumpToSection(
                     key === 'certifications' ? 'skills' : key.startsWith('custom:') ? 'custom' : key

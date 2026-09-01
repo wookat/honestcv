@@ -186,11 +186,14 @@ function ContactIcon({ kind }: { kind: ContactIconKind }) {
 export function ResumePreview({
   resume,
   paginated = false,
+  view = 'pages',
   onSectionJump,
   onEdit,
 }: {
   resume: Resume
   paginated?: boolean
+  /** Paged stack of page frames, or one continuous flow with break markers */
+  view?: 'pages' | 'flow'
   /** When set, clicking a section in the preview jumps to its editor card */
   onSectionJump?: (key: string) => void
   /** When set, common text fields become editable in place */
@@ -355,6 +358,13 @@ export function ResumePreview({
       </div>
     )
 
+  if (view === 'flow')
+    return (
+      <FlowPage resume={resume} fontFamily={fontFamily} contentStyle={contentStyle}>
+        {content}
+      </FlowPage>
+    )
+
   return (
     <PaginatedPages resume={resume} fontFamily={fontFamily} contentStyle={contentStyle}>
       {content}
@@ -456,6 +466,91 @@ function PaginatedPages({
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+/**
+ * Renders the resume as one continuous flow at the same 96dpi page geometry
+ * as PaginatedPages, with a dashed marker where each PDF page break falls.
+ */
+function FlowPage({
+  resume,
+  fontFamily,
+  contentStyle,
+  children,
+}: {
+  resume: Resume
+  fontFamily: string
+  contentStyle: React.CSSProperties
+  children: React.ReactNode
+}) {
+  const baseW = resume.pageSize === 'a4' ? 794 : 816
+  const baseH = resume.pageSize === 'a4' ? 1123 : 1056
+  const windowH = baseH - PAGE_PAD * 2
+  const frameRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [contentH, setContentH] = useState(windowH)
+  const [scale, setScale] = useState(0)
+
+  useEffect(() => {
+    const frame = frameRef.current
+    const content = contentRef.current
+    if (!frame || !content) return
+    const measure = () => {
+      setScale(frame.clientWidth / baseW)
+      setContentH(Math.max(windowH, content.scrollHeight))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(frame)
+    ro.observe(content)
+    return () => ro.disconnect()
+  }, [resume, baseW, windowH])
+
+  const breaks = Math.max(0, Math.ceil((contentH - 1) / windowH) - 1)
+  return (
+    <div
+      ref={frameRef}
+      data-resume-preview
+      className="relative mx-auto w-full rounded-md border bg-white shadow-sm"
+      style={{
+        fontFamily,
+        color: textInkOf(resume),
+        overflow: 'hidden',
+        ...(scale > 0
+          ? { height: (contentH + PAGE_PAD * 2) * scale }
+          : { aspectRatio: `${baseW} / ${baseH}` }),
+      }}
+      aria-label="Resume preview (continuous)"
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: baseW,
+          padding: PAGE_PAD,
+          transform: `scale(${scale || 1})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        <div ref={contentRef}>
+          <div style={contentStyle}>{children}</div>
+        </div>
+        {Array.from({ length: breaks }, (_, i) => (
+          <div
+            key={i}
+            aria-hidden
+            className="pointer-events-none absolute right-0 left-0 border-t border-dashed border-neutral-300"
+            style={{ top: PAGE_PAD + (i + 1) * windowH }}
+          >
+            <span className="absolute right-1 -top-2 bg-white px-1 text-[9px] text-neutral-400">
+              Page break
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
