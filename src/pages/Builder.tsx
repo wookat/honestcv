@@ -6704,7 +6704,10 @@ function EntryAuditChip({
         type="button"
         className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100"
         aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'} — expand to review`}
-        onClick={onExpand}
+        onPointerDown={onExpand}
+        onClick={(e) => {
+          if (e.detail === 0) onExpand()
+        }}
       >
         ⚠ {findings.length}
       </button>
