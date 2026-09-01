@@ -63,6 +63,7 @@ import { Input } from '@/components/ui/input'
 import { MonthYearField } from '@/components/MonthYearField'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { LintedTextarea } from '@/components/LintedTextarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
   FreeDownloadDialog,
@@ -2489,7 +2490,7 @@ export default function Builder() {
                       ? `What did you achieve at ${e.company.trim()}?`
                       : 'What did you achieve?'}
                   </Label>
-                  <Textarea
+                  <LintedTextarea
                     id={`exp-${e.id}-bullets`}
                     rows={4}
                     placeholder={'One achievement per line, e.g.\nCut deploy time by 60% by introducing CI caching\nLed a team of 3 engineers on the checkout redesign'}
@@ -3243,7 +3244,7 @@ export default function Builder() {
                   </div>
                 </div>
                 <div className="flex items-start justify-between gap-2">
-                  <Textarea
+                  <LintedTextarea
                     rows={2}
                     placeholder="What it does and your impact"
                     value={p.description}
@@ -3476,7 +3477,7 @@ export default function Builder() {
                   </div>
                 </div>
                 <div className="flex items-start justify-between gap-2">
-                  <Textarea
+                  <LintedTextarea
                     rows={2}
                     placeholder="What you did there — one bullet per line"
                     value={inv.description}
