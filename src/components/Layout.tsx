@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, Menu, X } from 'lucide-react'
+import { ChevronDown, Menu, Monitor, Moon, Sun, X } from 'lucide-react'
 import { LogoMark } from '@/components/Logo'
+import { type ThemePref, loadThemePref, saveThemePref } from '@/lib/theme'
 
 /** Sets the document title and meta description for the current route. */
 export function usePageMeta(title: string, description: string) {
@@ -63,6 +64,42 @@ function ResourcesDropdown() {
   )
 }
 
+const THEME_CYCLE: Record<ThemePref, ThemePref> = {
+  light: 'dark',
+  dark: 'system',
+  system: 'light',
+}
+const THEME_LABELS: Record<ThemePref, string> = {
+  light: 'Light theme',
+  dark: 'Dark theme',
+  system: 'System theme',
+}
+const THEME_ICONS: Record<ThemePref, React.ComponentType<{ className?: string }>> = {
+  light: Sun,
+  dark: Moon,
+  system: Monitor,
+}
+
+function ThemeToggle() {
+  const [pref, setPref] = useState<ThemePref>(() => loadThemePref())
+  const Icon = THEME_ICONS[pref]
+  const next = THEME_CYCLE[pref]
+  return (
+    <button
+      type="button"
+      aria-label={`${THEME_LABELS[pref]} — switch to ${THEME_LABELS[next].toLowerCase()}`}
+      title={THEME_LABELS[pref]}
+      onClick={() => {
+        saveThemePref(next)
+        setPref(next)
+      }}
+      className="text-muted-foreground hover:bg-accent hover:text-foreground inline-flex size-10 items-center justify-center rounded-md"
+    >
+      <Icon className="size-4.5" />
+    </button>
+  )
+}
+
 export function SiteHeader({ action }: { action?: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   return (
@@ -82,6 +119,7 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           <a className="hover:text-foreground" href="/pricing/">Pricing</a>
         </nav>
         <div className="flex items-center gap-1">
+          <ThemeToggle />
           {action}
           <button
             type="button"
