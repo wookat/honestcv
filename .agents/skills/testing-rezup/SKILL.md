@@ -354,3 +354,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R169 QA notes (audit chips + clean bullet fixtures)
 - Entry audit chips (`EntryAuditChip`) are spans with `aria-label` starting "Role N:"/"Project N:"; their popover panel (a sibling `div`) shows on hover/focus — dispatch a CDP `mouseMoved` over the chip or focus the tabIndex=0 span to reveal it.
 - A no-digit "clean" test bullet that trips no other lint rule: "Led design reviews across frontend guild teams." (strong opener, capitalized, period, 4+ words).
+
+## R170 QA notes (contact fields + selectors)
+- Contact inputs have stable ids `#c-fullName`/`#c-title`/`#c-email`/`#c-phone`/`#c-location`/`#c-website`/`#c-linkedin`; the R170 external-link icon anchors match `a[aria-label*="new tab"]` and only render when the normalized value is link-like (no spaces, contains a dot).
+- Experience achievements textareas have ids like `exp-<id>-bullets`; the first page textarea `#jd` is the job-description box — never grab textareas by index.
+- CDP `Emulation.setDeviceMetricsOverride` does not survive a fresh websocket connection to the same target — re-apply it at the top of every script.
