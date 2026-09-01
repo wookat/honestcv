@@ -359,3 +359,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Dashboard per-copy action buttons are identified by `title`: "Move to folder", "Duplicate this copy" (not "Duplicate {name}"), "Edit name & target job", "Delete this copy" — sr-only spans carry the copy name.
 - Folder header controls use titles "Rename folder {name}" / "Remove folder {name}"; the header toggle button has aria-expanded and the collapsed set lives in `localStorage['honestcv.dashboardFoldersCollapsed']`.
 - Clicking Open loads the copy into the builder and sets `honestcv.resume` + `honestcv.activeVersionId`, so a current-resume preview card appears on the dashboard afterwards — clean those keys up too.
+
+## R172 QA notes (dashboard sample library saved samples)
+- Industry chips live in `[role=group][aria-label="Filter samples by industry"]`; the Saved chip is the first button in that group.
+- Star toggles are `button[title="Save sample"]` / `button[title="Remove from saved"]` with aria-labels "Save {role} sample"; saved slugs live in `localStorage['honestcv.savedSamples']` — clean this key up after QA.
+- The sample search box is `input[placeholder="Search samples by role or industry"]`; the sample-library empty state is the `p.border-dashed` containing "sample" — the Career-documents section has a similar dashed `p`, so don't match the first `p.text-muted-foreground.mt-4` on the page.
