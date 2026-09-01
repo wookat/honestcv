@@ -31,6 +31,11 @@ export function normalizeContactLink(kind: 'website' | 'linkedin', value: string
   return v
 }
 
+/** True when a normalized link value can plausibly be opened as a URL */
+export function isLinkLike(value: string): boolean {
+  return value.length > 0 && !value.includes(' ') && value.includes('.')
+}
+
 export interface ContactInfo {
   fullName: string
   title: string

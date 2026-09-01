@@ -218,6 +218,7 @@ import {
   HIDEABLE_CONTACT_FIELDS,
   type HideableContactField,
   normalizeContactLink,
+  isLinkLike,
   type AutoSortSection,
   skillLines,
   sortEntriesByDate,
@@ -2043,13 +2044,13 @@ export default function Builder() {
                         }
                       />
                       {(key === 'website' || key === 'linkedin') &&
-                        resume.contact[key].trim() && (
+                        isLinkLike(normalizeContactLink(key, resume.contact[key])) && (
                           <a
                             href={`https://${normalizeContactLink(key, resume.contact[key])}`}
                             target="_blank"
                             rel="noreferrer"
                             title="Open link in a new tab"
-                            aria-label={`Open ${label} in a new tab`}
+                            aria-label={`Open ${label.replace(/\s*\(optional\)/i, '')} in a new tab`}
                             className="text-muted-foreground hover:text-foreground flex size-10 shrink-0 items-center justify-center rounded-md sm:size-8"
                           >
                             <ExternalLink className="size-4" />
