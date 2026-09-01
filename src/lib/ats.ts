@@ -166,6 +166,16 @@ function experienceBlock(raw: string): string | null {
   return next ? after.slice(0, next.index) : after
 }
 
+/** Pasted text split at the experience heading: summary-ish head, experience-onward tail */
+function textPronounSegments(raw: string): { text: string; anchor: SectionAnchor }[] {
+  const heading = EXPERIENCE_HEADING_RE.exec(raw)
+  if (!heading) return [{ text: raw, anchor: 'summary' }]
+  return [
+    { text: raw.slice(0, heading.index), anchor: 'summary' },
+    { text: raw.slice(heading.index), anchor: 'experience' },
+  ]
+}
+
 /** Date ranges ("Jun 2023 – Present", "2019-2021") in the experience block of pasted text */
 function textDateRanges(raw: string): { name: string; start: string; end: string }[] {
   const block = experienceBlock(raw)
@@ -228,6 +238,38 @@ function dateFormatCheck(dates: string[]): AtsResult['checks'][number] {
       ? 'Dates use one format — ATS parsers read your timeline consistently.'
       : `Dates mix formats ("${monthYear}" vs "${numeric}") — pick one style so ATS parsers read your timeline consistently.`,
     anchor: 'experience',
+  }
+}
+
+/**
+ * "I" only counts followed by an apostrophe (I'm) or a lowercase word that is
+ * not a conjunction/preposition — subject "I" precedes a verb, so "I/O",
+ * "Part I" and "Phase I of" never match.
+ */
+const PRONOUN_RE =
+  /\b(?:[Mm]e|[Mm]y|[Mm]yself)\b|\bI(?=['’][a-z]|\s+(?!(?:of|and|or|in|at|on|to|for|the|an?)\b)[a-z])/
+
+/** No first-person pronouns: resumes are written in the implied first person */
+function pronounCheck(
+  segments: { text: string; anchor: SectionAnchor }[]
+): AtsResult['checks'][number] {
+  let found = ''
+  let anchor: SectionAnchor = 'summary'
+  for (const seg of segments) {
+    const m = PRONOUN_RE.exec(seg.text)
+    if (m) {
+      found = m[0]
+      anchor = seg.anchor
+      break
+    }
+  }
+  return {
+    label: 'No first-person pronouns',
+    pass: !found,
+    hint: found
+      ? `Found "${found}" — drop first-person pronouns ("I", "me", "my") and lead with the action itself: "Led a team of 8", not "I led my team".`
+      : 'Written in the implied first person — no "I", "me" or "my" for recruiters to trip over.',
+    anchor,
   }
 }
 
@@ -409,6 +451,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     reverseChronCheck(textDateRanges(resumeTextRaw)),
     bulletsPerEntryCheck(textBulletCounts(resumeTextRaw)),
     dateFormatCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
+    pronounCheck(textPronounSegments(resumeTextRaw)),
   ]
 
   return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
@@ -571,6 +614,18 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
         .filter((e) => !e.hidden)
         .flatMap((e) => [e.startDate, e.endDate])
     ),
+    pronounCheck([
+      { text: resume.summary, anchor: 'summary' },
+      {
+        text: [
+          ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+          ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+          ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+          ...resume.customSections.flatMap((s) => s.bullets),
+        ].join('\n'),
+        anchor: 'experience',
+      },
+    ]),
   ]
 
   return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))

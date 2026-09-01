@@ -539,3 +539,6 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Builder breakdown rows use TEXT glyphs ✓/✗ (no svg) — assert `row.textContent.startsWith('✓'|'✗')` on the `.flex.items-start` ancestor of the label leaf; /ats-checker rows still use svg (emerald vs destructive).
 - priorityFixes caps at top-5 by points (guidance.ts limit=5) — a +3.3 fix is crowded out on weak fixtures; to surface a specific structure fix in the list, use a strong fixture (or no JD) so its points rank top-5.
 - Checker text path only scans date ranges between an Experience heading and the next standard heading; "Work history" is NOT a recognized heading (check passes with no experience heading).
+
+## R211 — no-first-person-pronouns check
+- "Part I <lowercase word>" matches PRONOUN_RE by design (subject-verb pattern); for negative fixtures use trailing "Part I." or "Phase I of" forms. Checker structure has 12 checks, Builder breakdown 13 rows.
