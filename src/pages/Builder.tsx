@@ -99,6 +99,7 @@ import {
   bestExperienceForKeyword,
   scoreResume,
 } from '@/lib/ats'
+import { analyzeAnswer } from '@/lib/interviewAnalysis'
 import {
   ACTION_VERBS,
   type BulletIssue,
@@ -7557,6 +7558,12 @@ function BundleToolDialog({
   } | null>(null)
   const [lastKind, setLastKind] = useState(kind)
 
+  const analysis = useMemo(() => {
+    if (kind !== 'interview') return null
+    if (answer.trim().split(/\s+/).filter(Boolean).length < 10) return null
+    return analyzeAnswer(answer, resume.jobDescription, resume.ignoredKeywords ?? [])
+  }, [kind, answer, resume.jobDescription, resume.ignoredKeywords])
+
   if (kind !== lastKind) {
     setLastKind(kind)
     if (kind !== null) setCompany(initialCompany)
@@ -7996,6 +8003,63 @@ function BundleToolDialog({
                 onChange={(e) => setAnswer(e.target.value)}
               />
             </div>
+            {analysis && (
+              <div className="bg-muted/50 space-y-2 rounded-md border px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">
+                    Practice score: <span className="tabular-nums">{analysis.score}</span>/100
+                  </p>
+                  <p className="text-muted-foreground text-xs">Instant · local — no AI used</p>
+                </div>
+                <p
+                  className={
+                    analysis.lengthBand === 'ideal'
+                      ? 'text-xs text-emerald-700 dark:text-emerald-400'
+                      : 'text-xs text-amber-700 dark:text-amber-400'
+                  }
+                >
+                  {analysis.words} words — {analysis.lengthHint}
+                </p>
+                <div className="flex flex-wrap gap-1.5" aria-label="STAR structure coverage">
+                  {(
+                    [
+                      ['Situation/context', analysis.star.context, 'set the scene: when, where, what was at stake'],
+                      ['Action (yours)', analysis.star.action, 'say what you did — “I led / built / fixed…”'],
+                      ['Result', analysis.star.result, 'end with the outcome — ideally a number'],
+                    ] as const
+                  ).map(([label, ok, hint]) => (
+                    <span
+                      key={label}
+                      title={ok ? undefined : hint}
+                      className={
+                        ok
+                          ? 'rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          : 'rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                      }
+                    >
+                      {ok ? '✓' : '·'} {label}
+                    </span>
+                  ))}
+                </div>
+                {analysis.keywords && (
+                  <p className="text-muted-foreground text-xs">
+                    Job keywords used: {analysis.keywords.covered.length}/
+                    {analysis.keywords.covered.length + analysis.keywords.missing.length}
+                    {analysis.keywords.missing.length > 0 && (
+                      <> — try working in: {analysis.keywords.missing.slice(0, 5).join(', ')}</>
+                    )}
+                  </p>
+                )}
+                {(analysis.fillers.length > 0 || analysis.weHeavy) && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {analysis.fillers.length > 0 && (
+                      <>Hedging words to cut: {analysis.fillers.join(', ')}. </>
+                    )}
+                    {analysis.weHeavy && <>Mostly “we” — interviewers want your part; use “I”.</>}
+                  </p>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => void getFeedback()}
