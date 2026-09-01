@@ -12,6 +12,7 @@ import {
   BriefcaseBusiness,
   ExternalLink,
   FileText,
+  Lightbulb,
   Search,
   StickyNote,
 } from 'lucide-react'
@@ -269,6 +270,64 @@ export default function Jobs() {
     saveResume(next)
     syncActiveVersion(next)
     void navigate(`/builder?doc=cover&company=${encodeURIComponent(job.company)}`)
+  }
+
+  /** Set the draft's target job and open the interview prep tools in the editor. */
+  const openInterviewPrep = (job: JobListing) => {
+    const draft = loadResume() ?? emptyResume()
+    const next = {
+      ...draft,
+      targetRole: job.title,
+      targetCompany: job.company,
+      jobDescription: job.description,
+    }
+    saveResume(next)
+    syncActiveVersion(next)
+    void navigate('/builder?doc=interview')
+  }
+
+  /** The next recommended action for a tracked job, from its status and tailoring progress. */
+  const nextStep = (
+    entry: PipelineEntry
+  ): { text: string; label: string; onClick?: () => void; href?: string } => {
+    const job = entry.job
+    if (entry.status === 'rejected')
+      return {
+        text: 'Keep momentum — look for similar roles.',
+        label: 'Search similar jobs',
+        onClick: () => {
+          setTab('all')
+          setQuery(job.title)
+          runSearch(job.title)
+        },
+      }
+    if (entry.status === 'applied' || entry.status === 'interviewing')
+      return {
+        text:
+          entry.status === 'applied'
+            ? 'Prepare for the interview while the application is fresh.'
+            : 'Practice interview questions before the next round.',
+        label: 'Open interview prep',
+        onClick: () => openInterviewPrep(job),
+      }
+    if (!linkedVersion(job.id))
+      return {
+        text: 'Create a resume targeted at this job.',
+        label: 'Target my resume',
+        onClick: () => setConfirmTarget({ job, intent: 'target' }),
+      }
+    const match = tailoredMatchOf.get(job.id)
+    if (match !== undefined && match < 80)
+      return {
+        text: `Improve your targeted copy — ${match}% keyword match.`,
+        label: 'Open targeted resume',
+        onClick: () => targetResume(job, 'target'),
+      }
+    return {
+      text: 'Your copy is well tailored — apply while the posting is open.',
+      label: 'Apply on site',
+      href: job.url,
+    }
   }
 
   return (
@@ -644,8 +703,38 @@ export default function Jobs() {
                   const steps = timelineOf(entry)
                   const notes =
                     notesDraft?.jobId === selected.id ? notesDraft.text : (entry.notes ?? '')
+                  const step = nextStep(entry)
                   return (
                     <div className="bg-muted/40 mt-4 rounded-md border p-3">
+                      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b pb-3">
+                        <p className="flex items-center gap-1.5 text-sm">
+                          <Lightbulb aria-hidden className="text-primary size-4 shrink-0" />
+                          <span className="font-medium">Next step:</span> {step.text}
+                        </p>
+                        {step.href ? (
+                          <Button
+                            asChild
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="min-h-10 sm:min-h-7"
+                          >
+                            <a href={step.href} target="_blank" rel="noopener noreferrer">
+                              {step.label} <ExternalLink className="size-3.5" />
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="min-h-10 sm:min-h-7"
+                            onClick={step.onClick}
+                          >
+                            {step.label}
+                          </Button>
+                        )}
+                      </div>
                       <p className="text-sm font-medium">Application timeline</p>
                       <ol className="mt-1.5 flex flex-wrap items-center gap-y-1 text-xs">
                         {steps.map((step, i) => (
