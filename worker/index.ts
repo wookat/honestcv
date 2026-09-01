@@ -1331,6 +1331,9 @@ const SHARE_MAX_BODY_BYTES = 120_000
 const SHARE_TTL_SECONDS = 60 * 60 * 24 * 180
 const SHARE_CLIENT_DAILY_LIMIT = 20
 const SHARE_ID_RE = /^[A-Za-z0-9_-]{10,64}$/
+/** User-chosen memorable slugs: lowercase, 3-40 chars, no edge hyphens */
+const SHARE_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])?$/
+const validShareId = (id: string) => SHARE_ID_RE.test(id) || SHARE_SLUG_RE.test(id)
 
 const randomB64url = (bytes: number) =>
   btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(bytes))))
@@ -1379,9 +1382,9 @@ app.post('/api/share', async (c) => {
   if (new TextEncoder().encode(text).length > SHARE_MAX_BODY_BYTES) {
     return c.json({ error: 'This resume is too large to share.' }, 413)
   }
-  let body: { resume?: unknown; id?: string; token?: string } | null
+  let body: { resume?: unknown; id?: string; token?: string; slug?: string } | null
   try {
-    body = JSON.parse(text) as { resume?: unknown; id?: string; token?: string }
+    body = JSON.parse(text) as { resume?: unknown; id?: string; token?: string; slug?: string }
   } catch {
     body = null
   }
@@ -1396,7 +1399,7 @@ app.post('/api/share', async (c) => {
   if (
     typeof body?.id === 'string' &&
     typeof body?.token === 'string' &&
-    SHARE_ID_RE.test(body.id)
+    validShareId(body.id)
   ) {
     const existing = await c.env.KV.get(`share:${body.id}`)
     if (existing) {
@@ -1406,6 +1409,21 @@ app.post('/api/share', async (c) => {
         token = body.token
       }
     }
+  }
+  if (!id && typeof body?.slug === 'string' && body.slug.trim()) {
+    const slug = body.slug.trim().toLowerCase()
+    if (!SHARE_SLUG_RE.test(slug) || slug.length < 3) {
+      return c.json(
+        { error: 'Custom links use 3–40 lowercase letters, numbers and hyphens.' },
+        400
+      )
+    }
+    const existing = await c.env.KV.get(`share:${slug}`)
+    if (existing) {
+      return c.json({ error: 'That custom link is already taken — try another.' }, 409)
+    }
+    id = slug
+    token = randomB64url(16)
   }
   if (!id) {
     id = randomB64url(16)
@@ -1422,7 +1440,7 @@ app.post('/api/share', async (c) => {
 
 app.get('/api/share/:id', async (c) => {
   const id = c.req.param('id')
-  if (!SHARE_ID_RE.test(id)) return c.json({ error: 'Not Found' }, 404)
+  if (!validShareId(id)) return c.json({ error: 'Not Found' }, 404)
   const raw = await c.env.KV.get(`share:${id}`)
   if (!raw) return c.json({ error: 'Not Found' }, 404)
   const rec = parseShareRecord(raw)
@@ -1434,7 +1452,7 @@ app.get('/api/share/:id', async (c) => {
 app.delete('/api/share/:id', async (c) => {
   const id = c.req.param('id')
   const token = c.req.header('x-share-token')?.trim() ?? ''
-  if (!SHARE_ID_RE.test(id) || !token) return c.json({ error: 'Not Found' }, 404)
+  if (!validShareId(id) || !token) return c.json({ error: 'Not Found' }, 404)
   const raw = await c.env.KV.get(`share:${id}`)
   if (!raw) return c.json({ ok: true })
   const rec = parseShareRecord(raw)
@@ -1674,7 +1692,7 @@ app.notFound(async (c) => {
   let shell = await c.env.ASSETS.fetch(new Request(new URL('/spa.html', c.req.url)))
   if (shell.status !== 200) shell = await c.env.ASSETS.fetch(new Request(new URL('/', c.req.url)))
   // Shared-resume pages resolve to the SPA shell too, but must never be indexed
-  const isShare = /^\/s\/[A-Za-z0-9_-]{10,64}$/.test(path)
+  const isShare = path.startsWith('/s/') && validShareId(path.slice(3))
   const headers: Record<string, string> = { 'content-type': 'text/html; charset=utf-8' }
   if (path.startsWith('/s/')) {
     headers['X-Robots-Tag'] = 'noindex'
