@@ -495,6 +495,17 @@ const OPTIONAL_SECTION_META: { key: string; label: string; icon: React.ReactNode
 ]
 const OPTIONAL_SECTION_KEYS = OPTIONAL_SECTION_META.map((s) => s.key)
 
+/** Anchors accepted by the ?jump= deep link from the ATS checker */
+const JUMP_ANCHORS = [
+  'target',
+  'contact',
+  'summary',
+  'experience',
+  'education',
+  'skills',
+  ...OPTIONAL_SECTION_KEYS,
+]
+
 /** True while focus sits inside an entry card of the given auto-sorted section */
 function autoSortHeld(key: AutoSortSection): boolean {
   return !!document.activeElement?.closest(`[data-autosort-scope="${key}"]`)
@@ -943,6 +954,15 @@ export default function Builder() {
       window.dispatchEvent(new CustomEvent(JUMP_EVENT, { detail: anchor }))
     )
   }
+  // ?jump=<anchor> deep link from the ATS checker's per-fix "Fix →" buttons
+  useEffect(() => {
+    const anchor = new URLSearchParams(window.location.search).get('jump')
+    if (anchor === null) return
+    window.history.replaceState(null, '', window.location.pathname)
+    if (!JUMP_ANCHORS.includes(anchor)) return
+    const t = window.setTimeout(() => jumpToSection(anchor), 150)
+    return () => window.clearTimeout(t)
+  }, [])
   /** Entry card currently ring-flashed after a score-finding jump */
   const [flashEntryId, setFlashEntryId] = useState<string | null>(null)
   /** Scroll a specific experience card into view, expanding it if collapsed */
