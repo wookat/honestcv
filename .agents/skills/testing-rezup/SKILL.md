@@ -435,3 +435,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Row button is a pure tracking toggle: untracked→"Save"; saved→"Saved" (pressed + `ring-primary/40`); any other status→"Tracked" (pressed + ring). Clicking a tracked state calls setStatus 'none' (routes through the R191 guard) — it never demotes to saved or writes a timeline step.
 - Selector pitfall: a bare `find(b=>['Save','Saved','Tracked'].includes(text))` can hit the detail-pane "Saved" STATUS button — scope to the job row (`rows[0].parentElement.querySelectorAll('button')` where rows = buttons containing the job's `<p>` title).
 - Button heights: `min-h-10 sm:min-h-7` → 40px at 375px viewport, 28px at desktop; assert 40px only under mobile emulation.
+
+## R193 — Next step row on /jobs detail pane
+- Locate row via `[...document.querySelectorAll('p')].find(p=>p.textContent.startsWith('Next step:'))`; its parent contains the action `<button>` (or `<a target=_blank>` for "Apply on site").
+- States by entry.status: rejected → "Search similar jobs" (sets query + All tab); applied/interviewing → "Open interview prep" (navigates to /builder?doc=interview but the query param is consumed immediately — `location.search` will already be empty; assert instead that the "Interview Prep Brief" dialog opened and honestcv.resume targetRole/targetCompany/jobDescription were set); saved + no surviving copy → "Target my resume" (opens `Open a resume targeted at "…" ?` dialog); saved + copy <80% → "Open targeted resume" (opens the copy — honestcv.activeVersionId is stored as a RAW string, not JSON — compare without JSON.parse); saved + copy ≥80% → "Apply on site" anchor with rel noopener noreferrer.
+- To force ≥80%: paste all missing keywords (from `button[aria-label^="Draft a bullet using"]` labels) into the copy's `#skills` textarea.
+- Dashboard "Delete <copy name>" button: match on aria-label OR textContent (`(aria-label||'')+textContent`).includes — matching only aria-label was flaky; confirm dialog button text is "Delete".
+- Desktop next-step button computes 32px (size=sm h-8; sm:min-h-7 is only a min); mobile 40px (min-h-10).
