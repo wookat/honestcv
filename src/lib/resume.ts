@@ -815,6 +815,7 @@ export function sampleResume(): Resume {
         bullets: [
           'Developed REST APIs in Node.js powering order tracking for 300k customers',
           'Automated regression test suite, cutting release QA time from 2 days to 4 hours',
+          'Instrumented checkout funnel analytics that surfaced a 9% drop-off recovered by a one-day fix',
         ],
       },
     ],
