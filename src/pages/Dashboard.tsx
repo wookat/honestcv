@@ -73,6 +73,7 @@ import {
   updateResumeVersion,
   visibleResume,
 } from '@/lib/resume'
+import { resolveTemplate } from '@/lib/templates'
 
 interface ExampleEntry {
   slug: string
@@ -85,6 +86,65 @@ const editedAgo = (ms: number) => {
   const days = Math.floor((Date.now() - ms) / 86400000)
   if (days <= 0) return 'Edited today'
   return days === 1 ? 'Edited 1 day ago' : `Edited ${days} days ago`
+}
+
+/** Formatted letter preview mirroring the letterhead PDF/DOCX export. */
+function LetterPreview({
+  doc,
+  text,
+  letterhead,
+}: {
+  doc: CareerDoc
+  text: string
+  letterhead: Resume
+}) {
+  const tpl = resolveTemplate(letterhead.templateId, letterhead.accentColor)
+  const c = letterhead.contact
+  const contactLine = [c.email, c.phone, c.location, c.website].filter(Boolean).join(' \u00b7 ')
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+  const date = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  const hasLetterhead = doc.kind !== 'interview' && (c.fullName.trim() !== '' || contactLine !== '')
+  return (
+    <div
+      className={`overflow-y-auto rounded-md border bg-white p-6 text-[13px] leading-relaxed text-neutral-900 shadow-sm sm:p-8 ${
+        tpl.serif ? 'font-serif' : 'font-sans'
+      }`}
+      style={{ maxHeight: '55vh' }}
+    >
+      {doc.kind === 'interview' ? (
+        <p className="text-base font-bold">{doc.title}</p>
+      ) : (
+        <>
+          {c.fullName.trim() !== '' && <p className="text-base font-bold">{c.fullName.trim()}</p>}
+          {contactLine !== '' && (
+            <p className="mt-0.5 text-[11px] text-neutral-500">{contactLine}</p>
+          )}
+          {hasLetterhead && (
+            <hr className="mt-3 border-t" style={{ borderColor: tpl.accent }} aria-hidden />
+          )}
+          <p className={`text-[11px] text-neutral-500 ${hasLetterhead ? 'mt-4' : ''}`}>{date}</p>
+        </>
+      )}
+      {paragraphs.length === 0 ? (
+        <p className="mt-4 text-neutral-400 italic">
+          Nothing to preview yet — write something in the Edit tab.
+        </p>
+      ) : (
+        paragraphs.map((p, i) => (
+          <p key={i} className="mt-4 whitespace-pre-wrap">
+            {p}
+          </p>
+        ))
+      )}
+    </div>
+  )
 }
 
 function Thumb({ resume }: { resume: Resume }) {
@@ -127,6 +187,7 @@ export default function Dashboard() {
   const [docKind, setDocKind] = useState<CareerDocKind | 'all'>('all')
   const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
   const [docText, setDocText] = useState('')
+  const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const [importBusy, setImportBusy] = useState(false)
@@ -920,6 +981,7 @@ export default function Dashboard() {
                     onClick={() => {
                       setOpenDoc(d)
                       setDocText(d.text)
+                      setDocView('edit')
                     }}
                   >
                     Open
@@ -1450,15 +1512,43 @@ export default function Dashboard() {
               — edits are saved to this browser.
             </DialogDescription>
           </DialogHeader>
-          <Textarea
-            id="career-doc-text"
-            name="career-doc-text"
-            rows={14}
-            value={docText}
-            onChange={(e) => setDocText(e.target.value)}
-            className="font-mono text-xs"
-            aria-label="Document text"
-          />
+          <div
+            role="group"
+            aria-label="Switch between editing and preview"
+            className="flex gap-1 rounded-md border p-1 self-start"
+          >
+            {(
+              [
+                ['edit', 'Edit'],
+                ['preview', 'Preview'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={docView === value}
+                onClick={() => setDocView(value)}
+                className={`min-h-10 cursor-pointer rounded px-3 text-xs font-medium transition sm:min-h-8 ${
+                  docView === value ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {docView === 'preview' && openDoc ? (
+            <LetterPreview doc={openDoc} text={docText} letterhead={draft ?? emptyResume()} />
+          ) : (
+            <Textarea
+              id="career-doc-text"
+              name="career-doc-text"
+              rows={14}
+              value={docText}
+              onChange={(e) => setDocText(e.target.value)}
+              className="font-mono text-xs"
+              aria-label="Document text"
+            />
+          )}
           <DialogFooter className="gap-2">
             {openDoc && docDownload(openDoc, docText, 'pdf', 'viewer-pdf')}
             {openDoc && docDownload(openDoc, docText, 'docx', 'viewer-docx')}
