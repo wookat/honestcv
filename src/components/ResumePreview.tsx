@@ -513,7 +513,7 @@ function FlowPage({
     <div
       ref={frameRef}
       data-resume-preview
-      className="mx-auto w-full rounded-md border bg-white shadow-sm"
+      className="relative mx-auto w-full rounded-md border bg-white shadow-sm"
       style={{
         fontFamily,
         color: textInkOf(resume),
@@ -526,7 +526,9 @@ function FlowPage({
     >
       <div
         style={{
-          position: 'relative',
+          position: 'absolute',
+          top: 0,
+          left: 0,
           width: baseW,
           padding: PAGE_PAD,
           transform: `scale(${scale || 1})`,
