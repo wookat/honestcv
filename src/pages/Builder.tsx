@@ -542,7 +542,8 @@ function Section({
   return (
     <Card
       ref={ref}
-      className={`scroll-mt-16 py-0 transition-shadow ${flash ? 'ring-primary/60 ring-2' : ''}`}
+      data-section-anchor={anchor}
+      className={`scroll-mt-28 py-0 transition-shadow ${flash ? 'ring-primary/60 ring-2' : ''}`}
     >
       <CardContent className="p-4">
         <button
@@ -559,6 +560,64 @@ function Section({
         {open && <div className="mt-3 space-y-3">{children}</div>}
       </CardContent>
     </Card>
+  )
+}
+
+/** Sticky chip bar listing the visible editor sections; the section in view is highlighted */
+function SectionNav({
+  sections,
+  onJump,
+}: {
+  sections: { key: string; label: string }[]
+  onJump: (key: string) => void
+}) {
+  const keyList = sections.map((s) => s.key).join('|')
+  const keys = useMemo(() => keyList.split('|'), [keyList])
+  const [active, setActive] = useState(keys[0])
+  useEffect(() => {
+    const visible = new Set<string>()
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const key = (e.target as HTMLElement).dataset.sectionAnchor
+          if (!key) continue
+          if (e.isIntersecting) visible.add(key)
+          else visible.delete(key)
+        }
+        const first = keys.find((k) => visible.has(k))
+        if (first) setActive(first)
+      },
+      { rootMargin: '-110px 0px -55% 0px' }
+    )
+    for (const k of keys) {
+      const el = document.querySelector(`[data-section-anchor="${k}"]`)
+      if (el) io.observe(el)
+    }
+    return () => io.disconnect()
+  }, [keys])
+  return (
+    <nav
+      aria-label="Resume sections"
+      className="bg-background/85 sticky top-14 z-10 overflow-x-auto rounded-lg border px-1 py-1 backdrop-blur [scrollbar-width:none]"
+    >
+      <div className="flex w-max gap-0.5">
+        {sections.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            aria-current={active === s.key ? 'true' : undefined}
+            className={`min-h-10 rounded-md px-2.5 text-xs whitespace-nowrap transition-colors sm:min-h-8 ${
+              active === s.key
+                ? 'bg-secondary text-foreground font-medium'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            }`}
+            onClick={() => onJump(s.key)}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+    </nav>
   )
 }
 
@@ -796,6 +855,19 @@ export default function Builder() {
   const sectionShown = (key: string) =>
     ((resume[key as keyof Resume] as unknown[] | undefined)?.length ?? 0) > 0 ||
     addedSections.includes(key)
+  const navSections = [
+    { key: 'contact', label: 'Contact' },
+    { key: 'summary', label: 'Summary' },
+    { key: 'experience', label: 'Experience' },
+    { key: 'education', label: 'Education' },
+    { key: 'projects', label: 'Projects' },
+    ...OPTIONAL_SECTION_META.filter((s) => sectionShown(s.key)).map((s) => ({
+      key: s.key,
+      label: s.label,
+    })),
+    { key: 'skills', label: 'Skills' },
+    { key: 'custom', label: 'Custom' },
+  ]
   const autoSortOn = (key: AutoSortSection) => (resume.autoSortByDate ?? []).includes(key)
   const toggleAutoSort = (key: AutoSortSection) =>
     setResume((r) => {
@@ -1650,6 +1722,8 @@ export default function Builder() {
               )}
             </button>
           </div>
+
+          <SectionNav sections={navSections} onJump={jumpToSection} />
 
           <Section title="Target job (powers AI + ATS score)" icon={<Target className="size-4" />}>
             <div className="grid gap-3 sm:grid-cols-2">
