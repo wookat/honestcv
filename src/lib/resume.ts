@@ -1201,7 +1201,8 @@ export function updateResumeVersion(
   const versions = listResumeVersions().map((v) => {
     if (v.id !== id) return v
     const contentChanged =
-      patch.data !== undefined && JSON.stringify(patch.data) !== JSON.stringify(v.data)
+      patch.data !== undefined &&
+      JSON.stringify(sanitizeResume(patch.data)) !== JSON.stringify(sanitizeResume(v.data))
     return { ...v, ...patch, ...(contentChanged ? { updatedAt: Date.now() } : {}) }
   })
   persistVersions(versions)
