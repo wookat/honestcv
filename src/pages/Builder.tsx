@@ -475,9 +475,14 @@ const OPTIONAL_SECTION_META: { key: string; label: string; icon: React.ReactNode
 ]
 const OPTIONAL_SECTION_KEYS = OPTIONAL_SECTION_META.map((s) => s.key)
 
+/** True while focus sits inside an entry card of the given auto-sorted section */
+function autoSortHeld(key: AutoSortSection): boolean {
+  return !!document.activeElement?.closest(`[data-autosort-scope="${key}"]`)
+}
+
 /** Re-file experience/education newest-first when their "Sort by date" toggle is on */
-function applyAutoSort(r: Resume): Resume {
-  const keys = r.autoSortByDate ?? []
+function applyAutoSort(r: Resume, isHeld?: (key: AutoSortSection) => boolean): Resume {
+  const keys = (r.autoSortByDate ?? []).filter((k) => !isHeld?.(k))
   if (!keys.length) return r
   let next = r
   if (keys.includes('experience')) {
@@ -587,12 +592,23 @@ export default function Builder() {
     }
     return r
   })
-  /** Every update passes through applyAutoSort so toggled-on sections stay filed */
+  /** Every update passes through applyAutoSort so toggled-on sections stay filed;
+   * a section is held in place while focus is inside one of its entry cards and
+   * re-filed when the card blurs (commit-at-boundary, like Rezi's save). */
   const setResume = useCallback<React.Dispatch<React.SetStateAction<Resume>>>((action) => {
     setResumeRaw((prev) =>
-      applyAutoSort(typeof action === 'function' ? action(prev) : action)
+      applyAutoSort(typeof action === 'function' ? action(prev) : action, autoSortHeld)
     )
   }, [])
+  const releaseAutoSort = useCallback(
+    (key: AutoSortSection) => (e: React.FocusEvent<HTMLDivElement>) => {
+      if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return
+      setResumeRaw((prev) =>
+        (prev.autoSortByDate ?? []).includes(key) ? applyAutoSort(prev) : prev
+      )
+    },
+    []
+  )
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [upgradeReason, setUpgradeReason] = useState('')
   const [aiBusy, setAiBusy] = useState<string | null>(null)
@@ -1992,6 +2008,8 @@ export default function Builder() {
               <div
                 key={e.id}
                 {...expDrag.dropProps(idx)}
+                data-autosort-scope="experience"
+                onBlurCapture={releaseAutoSort('experience')}
                 className={`space-y-2 rounded-lg border p-3 transition ${
                   expDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
                 } ${e.hidden ? 'opacity-60' : ''}`}
@@ -2357,6 +2375,8 @@ export default function Builder() {
               <div
                 key={e.id}
                 {...eduDrag.dropProps(idx)}
+                data-autosort-scope="education"
+                onBlurCapture={releaseAutoSort('education')}
                 className={`space-y-2 rounded-lg border p-3 transition ${
                   eduDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
                 } ${e.hidden ? 'opacity-60' : ''}`}
