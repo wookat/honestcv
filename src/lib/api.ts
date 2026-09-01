@@ -72,6 +72,7 @@ export async function aiSkillSuggest(input: {
 export async function aiSummaryDraft(input: {
   resumeText: string
   role: string
+  highlights?: string[]
 }): Promise<{ text: string; texts: string[]; freeRemaining: number | null }> {
   return post<{ text: string; texts: string[]; freeRemaining: number | null }>(
     '/api/ai/summary-draft',
