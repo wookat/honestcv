@@ -548,3 +548,6 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 
 ## R214 — dates-use-a-written-month check
 - Numeric dates in any of `08/2021`/`08.2021`/`08-2021` forms fail with an "Aug 2021" suggestion; bare years and Present/ongoing are skipped (all-bare-year resumes pass both date checks). On weak fixtures the +6.7 fix can be crowded out of the top-5 priority list (R208 cap) — use a stronger fixture to assert its Fix → deep link. Checker structure has 15 checks, Builder breakdown 16 rows.
+
+## R215 — professional-file-name uploaded-file check
+- File-check row counts: PDF 7 / DOCX 8 / TXT 2 (display-only, never scored — upload score must equal paste score). Fail path needs junk tokens (final/draft/copy/v2/standalone 1–2-digit counter) or a missing resume/cv token; 4-digit years are allowed. The "Uploaded file checks" heading is a `<p>` with a child `<span>` (file name) — locate it via `[...document.querySelectorAll('p')].find(x=>/Uploaded file checks/.test(x.textContent))` and count `.flex.items-start` rows inside its parent.

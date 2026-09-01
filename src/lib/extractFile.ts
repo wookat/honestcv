@@ -29,6 +29,29 @@ const fontSizeCheck = (smallChars: number, totalChars: number): FileCheck => {
   }
 }
 
+const JUNK_NAME_TOKENS = new Set([
+  'untitled', 'document', 'doc', 'copy', 'final', 'draft', 'new', 'updated',
+  'latest', 'edit', 'edited', 'version',
+])
+
+/** Professional file name: full name plus "resume" reads best in a recruiter inbox. */
+const fileNameCheck = (file: File): FileCheck => {
+  const base = file.name.replace(/\.[^.]+$/, '')
+  const tokens = base.toLowerCase().split(/[-_ .,()+]+/).filter(Boolean)
+  const junk = tokens.some(
+    (t) => JUNK_NAME_TOKENS.has(t) || /^v\d{1,2}$/.test(t) || /^\d{1,2}$/.test(t)
+  )
+  const hasKeyword = tokens.includes('resume') || tokens.includes('cv')
+  const pass = hasKeyword && !junk
+  return {
+    label: 'Professional file name',
+    pass,
+    hint: pass
+      ? 'The file name looks simple and professional — recruiters and portals see it first.'
+      : `Rename "${file.name}" to your full name plus "resume" (e.g. "Jane-Doe-Resume.pdf") — recruiters and portals see the file name first.`,
+  }
+}
+
 const sizeCheck = (file: File): FileCheck => ({
   label: 'File size under 2 MB',
   pass: file.size <= MAX_FILE_BYTES,
@@ -52,7 +75,7 @@ export async function extractResumeFile(file: File): Promise<ExtractedResumeFile
   if (name.endsWith('.pdf')) return extractPdf(file)
   if (name.endsWith('.docx')) return extractDocx(file)
   if (name.endsWith('.txt') || file.type.startsWith('text/'))
-    return { text: await file.text(), checks: [sizeCheck(file)] }
+    return { text: await file.text(), checks: [sizeCheck(file), fileNameCheck(file)] }
   throw new Error('Unsupported file type — please upload a PDF, DOCX or TXT file.')
 }
 
@@ -146,6 +169,7 @@ async function extractPdf(file: File): Promise<ExtractedResumeFile> {
   }
   const checks: FileCheck[] = [
     sizeCheck(file),
+    fileNameCheck(file),
     {
       label: 'Two pages or fewer',
       pass: doc.numPages <= 2,
@@ -204,6 +228,7 @@ async function extractDocx(file: File): Promise<ExtractedResumeFile> {
     .some((x) => /<w:t[^>]*>[^<]*\S[^<]*<\/w:t>/.test(x))
   const checks: FileCheck[] = [
     sizeCheck(file),
+    fileNameCheck(file),
     {
       label: 'No tables',
       pass: !/<w:tbl[ >]/.test(xml),
