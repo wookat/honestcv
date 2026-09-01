@@ -3,7 +3,7 @@
  * Flags weak openers, missing quantification, and length problems.
  */
 import type { Resume } from '@/lib/resume'
-import type { SectionAnchor } from '@/lib/ats'
+import type { AtsResult, SectionAnchor } from '@/lib/ats'
 
 const WEAK_OPENERS = [
   'responsible for',
@@ -372,16 +372,78 @@ export function resumeHealth(r: Resume): HealthReport {
   }
 
   const dimensions = [completeness, quantification, verbs, brevity, buzzwords, consistency]
-  const weights: Record<string, number> = {
-    completeness: 0.3,
-    quantification: 0.2,
-    verbs: 0.2,
-    brevity: 0.1,
-    buzzwords: 0.1,
-    consistency: 0.1,
-  }
-  const score = Math.round(dimensions.reduce((s, d) => s + d.score * (weights[d.id] ?? 0), 0))
+  const score = Math.round(
+    dimensions.reduce((s, d) => s + d.score * (HEALTH_WEIGHTS[d.id] ?? 0), 0)
+  )
   return { score, dimensions }
+}
+
+/** Weight of each health dimension in the overall writing score */
+export const HEALTH_WEIGHTS: Record<string, number> = {
+  completeness: 0.3,
+  quantification: 0.2,
+  verbs: 0.2,
+  brevity: 0.1,
+  buzzwords: 0.1,
+  consistency: 0.1,
+}
+
+export interface PriorityFix {
+  text: string
+  impact: 'high' | 'medium'
+  /** Score points recoverable by fixing this item */
+  points: number
+  anchor?: SectionAnchor
+  entryId?: string
+  entryLabel?: string
+}
+
+/**
+ * Cross-dimension triage: the top fixes ranked by how many score points each
+ * one recovers, computed from the existing ATS and health formulas.
+ */
+export function priorityFixes(ats: AtsResult, health: HealthReport, limit = 5): PriorityFix[] {
+  const fixes: PriorityFix[] = []
+
+  const structureWeight = ats.keywordScore !== null ? 30 : 100
+  const perCheck = structureWeight / ats.checks.length
+  for (const check of ats.checks) {
+    if (check.pass) continue
+    fixes.push({
+      text: `${check.label} — ${check.hint}`,
+      impact: perCheck >= 10 ? 'high' : 'medium',
+      points: Math.round(perCheck * 10) / 10,
+      anchor: check.anchor,
+    })
+  }
+
+  if (ats.keywordScore !== null && ats.missing.length > 0) {
+    const total = ats.matched.length + ats.missing.length
+    const points = Math.round((70 * ats.missing.length) / total)
+    const named = ats.missing.slice(0, 3).map((k) => `"${k}"`).join(', ')
+    fixes.push({
+      text: `Add missing job keywords — ${ats.missing.length} of ${total} posting keywords are absent (${named}${ats.missing.length > 3 ? '…' : ''})`,
+      impact: points >= 10 || ats.keywordScore < 50 ? 'high' : 'medium',
+      points,
+    })
+  }
+
+  for (const d of health.dimensions) {
+    if (d.score >= 80) continue
+    const points = Math.round((100 - d.score) * (HEALTH_WEIGHTS[d.id] ?? 0))
+    if (points < 1) continue
+    const first = d.richFindings?.[0]
+    fixes.push({
+      text: `${d.label} — ${d.findings[0] ?? d.summary}`,
+      impact: points >= 10 || d.score < 50 ? 'high' : 'medium',
+      points,
+      anchor: d.anchor,
+      entryId: first?.entryId,
+      entryLabel: first?.entryLabel,
+    })
+  }
+
+  return fixes.sort((a, b) => b.points - a.points).slice(0, limit)
 }
 
 export interface StrengthResult {
