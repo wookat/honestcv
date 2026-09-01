@@ -701,6 +701,23 @@ function SectionBlock({
                     </p>
                   )}
                 </div>
+                {e.companyInfo?.trim() && (
+                  <p className="text-[10px] text-neutral-500 italic">
+                    <InlineText
+                      value={e.companyInfo.trim()}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            experience: resume.experience.map((x) =>
+                              x.id === e.id ? { ...x, companyInfo: v } : x
+                            ),
+                          }))
+                      }
+                    />
+                  </p>
+                )}
                 <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
                   {e.bullets.map((b, i) => (
                     <Fragment key={i}>

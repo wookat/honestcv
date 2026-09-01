@@ -114,6 +114,7 @@ export async function aiKeywordBullet(input: {
 export async function aiSuggestBullet(input: {
   role: string
   company: string
+  companyInfo?: string
   bullets: string[]
   resumeText: string
   variant?: 'key-numbers'

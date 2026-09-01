@@ -200,7 +200,8 @@ export function buildSuggestBulletMessages(
   company: string,
   existingBullets: string[],
   resumeText: string,
-  variant?: 'key-numbers'
+  variant?: 'key-numbers',
+  companyInfo = ''
 ): ChatMessage[] {
   const existing = existingBullets
     .filter((b) => b.trim())
@@ -221,7 +222,9 @@ Start with a strong action verb. Output the single bullet as one line of plain t
     },
     {
       role: 'user',
-      content: `Role: ${role || 'not specified'}\nCompany: ${company || 'not specified'}\n\nExisting bullets for this role:\n${existing || '(none yet)'}\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
+      content: `Role: ${role || 'not specified'}\nCompany: ${company || 'not specified'}${
+        companyInfo ? `\nCompany info: ${companyInfo}` : ''
+      }\n\nExisting bullets for this role:\n${existing || '(none yet)'}\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
     },
   ]
 }
