@@ -516,7 +516,7 @@ export default function AtsChecker() {
                 text: 'One click carries your resume and the job description into the free builder, where AI rewrites target the exact keywords you’re missing.',
               },
             ].map((s) => (
-              <div key={s.step} className="rounded-lg border bg-white p-4">
+              <div key={s.step} className="bg-card rounded-lg border p-4">
                 <div className="bg-primary/10 text-primary flex size-7 items-center justify-center rounded-full text-sm font-semibold">
                   {s.step}
                 </div>
@@ -548,7 +548,7 @@ export default function AtsChecker() {
                 a: 'No — no checker can promise that. A high score means ATS filters and keyword-scanning recruiters are unlikely to skip you for mechanical reasons; the content of your experience still has to earn the interview.',
               },
             ].map((f) => (
-              <details key={f.q} className="rounded-lg border bg-white px-4 py-3">
+              <details key={f.q} className="bg-card rounded-lg border px-4 py-3">
                 <summary className="cursor-pointer text-sm font-medium">{f.q}</summary>
                 <p className="text-muted-foreground mt-2 text-sm">{f.a}</p>
               </details>

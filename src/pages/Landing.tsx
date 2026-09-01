@@ -82,7 +82,7 @@ function ProductMock() {
                 <ResumePreview resume={HERO_RESUME} />
               </div>
             </div>
-            <div className="absolute top-4 right-4 flex items-center gap-3 rounded-lg border bg-white/95 px-3.5 py-2.5 shadow-lg backdrop-blur sm:top-8 sm:right-8">
+            <div className="absolute top-4 right-4 flex items-center gap-3 dark:bg-card/95 rounded-lg border bg-white/95 px-3.5 py-2.5 shadow-lg backdrop-blur sm:top-8 sm:right-8">
               <ScoreRing score={86} size={56} />
               <div className="text-left text-xs">
                 <p className="font-semibold">ATS match score</p>
@@ -388,7 +388,7 @@ function HeroResumeDrop() {
         className={`flex min-h-14 w-full items-center justify-center gap-2.5 rounded-xl border-2 border-dashed px-4 py-3 text-sm transition-colors ${
           dragOver
             ? 'border-primary bg-primary/5 text-foreground'
-            : 'text-muted-foreground hover:border-primary/50 hover:text-foreground border-border bg-white/60'
+            : 'text-muted-foreground hover:border-primary/50 hover:text-foreground border-border dark:bg-card/60 bg-white/60'
         }`}
       >
         <FileUp className="size-4 shrink-0" />
