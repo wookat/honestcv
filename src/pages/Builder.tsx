@@ -5789,6 +5789,56 @@ export default function Builder() {
                     </div>
                   )}
                   {ats.missing.length > 0 && (
+                    <div className="bg-muted/40 rounded-lg border p-2.5">
+                      <p className="font-medium">
+                        Is this missing keyword relevant to your experience?
+                      </p>
+                      <p className="mt-1.5 flex items-center gap-2">
+                        <span className="bg-primary/10 text-foreground inline-flex items-center rounded-full border px-2.5 py-0.5 font-medium">
+                          {ats.missing[0]}
+                        </span>
+                        <span className="text-muted-foreground">1 of {ats.missing.length}</span>
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <Button
+                          size="sm"
+                          className="h-10 text-xs sm:h-7"
+                          onClick={() => setKwBulletFor(ats.missing[0])}
+                        >
+                          <Sparkles aria-hidden className="size-3" /> Yes — draft a bullet
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-10 text-xs sm:h-7"
+                          onClick={() =>
+                            set(
+                              'skills',
+                              resume.skills.trim()
+                                ? `${resume.skills.replace(/,\s*$/, '')}, ${ats.missing[0]}`
+                                : ats.missing[0]
+                            )
+                          }
+                        >
+                          Add to Skills
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground h-10 text-xs sm:h-7"
+                          onClick={() =>
+                            set('ignoredKeywords', [
+                              ...(resume.ignoredKeywords ?? []),
+                              ats.missing[0],
+                            ])
+                          }
+                        >
+                          No — not relevant
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {ats.missing.length > 0 && (
                     <div>
                       <span className="font-medium text-red-700">
                         Missing ({ats.missing.length})
@@ -7599,6 +7649,18 @@ function TailorDialog({
   )
 }
 
+/** Deep-dive guide for each score dimension, served from our own /guides pages. */
+const DIMENSION_GUIDES: Record<string, string> = {
+  keywords: '/guides/resume-keywords',
+  'ats-structure': '/guides/ats-friendly-resume',
+  quantification: '/guides/resume-bullet-points',
+  verbs: '/guides/resume-action-verbs',
+  brevity: '/guides/how-long-should-a-resume-be',
+  buzzwords: '/guides/common-resume-mistakes',
+  consistency: '/guides/best-resume-format',
+  completeness: '/guides/best-resume-format',
+}
+
 /** Rule-based multi-dimension score breakdown — no AI calls, computed locally. */
 function HealthDialog({
   open,
@@ -7678,6 +7740,18 @@ function HealthDialog({
                     >
                       Fix →
                     </button>
+                  )}
+                  {DIMENSION_GUIDES[d.id] && (
+                    <a
+                      href={DIMENSION_GUIDES[d.id]}
+                      target="_blank"
+                      rel="noopener"
+                      aria-label={`Read the ${d.label} guide — opens in a new tab`}
+                      className="text-muted-foreground hover:text-foreground ml-1.5 inline-flex min-h-10 items-center gap-0.5 text-xs font-normal underline sm:min-h-0"
+                    >
+                      <BookOpen aria-hidden className="size-3" />
+                      Guide
+                    </a>
                   )}
                 </span>
                 <span
