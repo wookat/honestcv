@@ -43,7 +43,48 @@ import {
   textInkOf,
 } from '@/lib/resume'
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
+import { domToMarks, hasInlineMarks, parseInlineMarks } from '@/lib/marks'
 import { accentTint, resolveTemplate } from '@/lib/templates'
+
+/** Inline bold/italic marks rendered as styled runs. */
+function MarkedText({ text }: { text: string }) {
+  if (!hasInlineMarks(text)) return <>{text}</>
+  return (
+    <>
+      {parseInlineMarks(text).map((r, i) => {
+        if (r.bold && r.italic)
+          return (
+            <strong key={i}>
+              <em>{r.text}</em>
+            </strong>
+          )
+        if (r.bold) return <strong key={i}>{r.text}</strong>
+        if (r.italic) return <em key={i}>{r.text}</em>
+        return <Fragment key={i}>{r.text}</Fragment>
+      })}
+    </>
+  )
+}
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** Restore an edited contentEditable span to the styled rendering of `text`. */
+function restoreMarkedDom(el: HTMLElement, text: string) {
+  if (!hasInlineMarks(text)) {
+    el.textContent = text
+    return
+  }
+  el.innerHTML = parseInlineMarks(text)
+    .map((r) => {
+      const t = escapeHtml(r.text)
+      if (r.bold && r.italic) return `<strong><em>${t}</em></strong>`
+      if (r.bold) return `<strong>${t}</strong>`
+      if (r.italic) return `<em>${t}</em>`
+      return t
+    })
+    .join('')
+}
 
 /** Click-to-type text in the preview: commits on blur/Enter, reverts on Escape. */
 function InlineText({
@@ -60,7 +101,7 @@ function InlineText({
   onEnterNext?: () => void
 }) {
   const shown = value || fallback
-  if (!onCommit) return <>{shown}</>
+  if (!onCommit) return <MarkedText text={shown} />
   return (
     <span
       contentEditable
@@ -81,20 +122,20 @@ function InlineText({
           onEnterNext?.()
         } else if (e.key === 'Escape') {
           e.preventDefault()
-          e.currentTarget.textContent = shown
+          restoreMarkedDom(e.currentTarget, shown)
           e.currentTarget.blur()
         }
       }}
       onBlur={(e) => {
-        const next = (e.currentTarget.textContent ?? '').replace(/\s+/g, ' ').trim()
+        const next = domToMarks(e.currentTarget)
         if (next === shown || next === value || (next === fallback && !value)) {
-          e.currentTarget.textContent = shown
+          restoreMarkedDom(e.currentTarget, shown)
           return
         }
         onCommit(next)
       }}
     >
-      {shown}
+      <MarkedText text={shown} />
     </span>
   )
 }
