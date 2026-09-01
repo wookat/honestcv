@@ -364,3 +364,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Industry chips live in `[role=group][aria-label="Filter samples by industry"]`; the Saved chip is the first button in that group.
 - Star toggles are `button[title="Save sample"]` / `button[title="Remove from saved"]` with aria-labels "Save {role} sample"; saved slugs live in `localStorage['honestcv.savedSamples']` — clean this key up after QA.
 - The sample search box is `input[placeholder="Search samples by role or industry"]`; the sample-library empty state is the `p.border-dashed` containing "sample" — the Career-documents section has a similar dashed `p`, so don't match the first `p.text-muted-foreground.mt-4` on the page.
+
+## R173 QA notes (career-doc letter preview)
+- Open a career doc via its card's "Open" button (match on card text); the textarea is `#career-doc-text`; docs live in `localStorage['honestcv.careerDocs']` (CareerDoc shape in src/lib/documents.ts) — seedable and must be cleaned up after QA.
+- The R173 Edit/Preview toggle is `[role=group][aria-label="Switch between editing and preview"]` (two aria-pressed buttons); the letterhead sheet is `[role=dialog] div.bg-white` — cover/resignation show name + `·`-joined contact + accent `<hr>` + long-form en-US date, interview briefs show bold title only.
+- Process note: stacked-round deploys can silently drop prior rounds' features — always runtime-smoke the previous 1–2 rounds' UI markers (e.g. Saved chip, folder sections) on the deployed bundle before deep-diving the new feature.
