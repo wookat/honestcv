@@ -189,6 +189,7 @@ export default function Jobs() {
       },
       'Job applications'
     )
+    if (!listPipeline().some((e) => e.job.id === job.id)) upsertPipeline(job, 'saved')
     setPipeline(setPipelineVersion(job.id, version.id))
     return version
   }
