@@ -34,8 +34,9 @@ const UNDERLINED_KINDS: ReadonlySet<BulletIssue['kind']> = new Set([
  */
 export function LintedTextarea({
   value,
+  highlightLine,
   ...props
-}: React.ComponentProps<'textarea'> & { value: string }) {
+}: React.ComponentProps<'textarea'> & { value: string; highlightLine?: number | null }) {
   const backdropRef = useRef<HTMLDivElement>(null)
   const lines = useMemo(() => value.split('\n'), [value])
   const flagged = useMemo(
@@ -74,7 +75,12 @@ export function LintedTextarea({
           <span
             key={i}
             className={
-              flagged[i] ? 'underline decoration-amber-500 decoration-wavy underline-offset-4' : undefined
+              [
+                flagged[i] && 'underline decoration-amber-500 decoration-wavy underline-offset-4',
+                i === highlightLine && 'rounded-sm bg-amber-200/60',
+              ]
+                .filter(Boolean)
+                .join(' ') || undefined
             }
           >
             {i < lines.length - 1 ? l + '\n' : l}
