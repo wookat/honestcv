@@ -106,6 +106,71 @@ function keywordDetailFor(
 const WORD_COUNT_MIN = 400
 const WORD_COUNT_MAX = 800
 
+const REVERSE_CHRON_LABEL = 'Experience in reverse-chronological order'
+const REVERSE_CHRON_PASS_HINT =
+  'Most recent role first — the reverse-chronological layout recruiters and ATS parsers expect.'
+
+/**
+ * Reverse-chronological check over dated periods listed top to bottom.
+ * Ranks like sortEntriesByDate: ongoing = now, else end date (falling back to
+ * start); undated periods are skipped, fewer than 2 dated periods pass.
+ */
+function reverseChronCheck(
+  periods: { name: string; start: string; end: string }[]
+): AtsResult['checks'][number] {
+  const keyed = periods
+    .map((p) => ({
+      name: p.name,
+      primary: ONGOING_RE.test(p.end)
+        ? Number.MAX_SAFE_INTEGER
+        : (dateSortValue(p.end) ?? dateSortValue(p.start)),
+      start: dateSortValue(p.start),
+    }))
+    .filter((p) => p.primary !== null)
+  let offender = ''
+  for (let i = 1; i < keyed.length && !offender; i++) {
+    const prev = keyed[i - 1]
+    const cur = keyed[i]
+    if (
+      cur.primary! > prev.primary! ||
+      (cur.primary === prev.primary &&
+        cur.start !== null &&
+        prev.start !== null &&
+        cur.start > prev.start)
+    ) {
+      offender = cur.name
+    }
+  }
+  return {
+    label: REVERSE_CHRON_LABEL,
+    pass: !offender,
+    hint: offender
+      ? `"${offender}" appears below a less recent role — list your most recent position first (the Sort-by-date toggle fixes this in one click).`
+      : REVERSE_CHRON_PASS_HINT,
+    anchor: 'experience',
+  }
+}
+
+const EXPERIENCE_HEADING_RE = /^\s*(work |professional |employment )?experience\s*:?\s*$/im
+const NEXT_SECTION_RE =
+  /^\s*(education|(technical |core |key )?skills|projects|certifications?|awards|publications|languages|interests|volunteer(ing)?|involvement)\s*:?\s*$/im
+const DATE_RANGE_RE =
+  /((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2})\s*(?:[–—-]|to)\s*((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2}|present|current|now|ongoing)/gi
+
+/** Date ranges ("Jun 2023 – Present", "2019-2021") in the experience block of pasted text */
+function textDateRanges(raw: string): { name: string; start: string; end: string }[] {
+  const heading = EXPERIENCE_HEADING_RE.exec(raw)
+  if (!heading) return []
+  const after = raw.slice(heading.index + heading[0].length)
+  const next = NEXT_SECTION_RE.exec(after)
+  const block = next ? after.slice(0, next.index) : after
+  const ranges: { name: string; start: string; end: string }[] = []
+  for (const m of block.matchAll(DATE_RANGE_RE)) {
+    ranges.push({ name: m[0], start: m[1], end: m[2] })
+  }
+  return ranges
+}
+
 function wordCountCheck(text: string, anchor?: SectionAnchor): AtsResult['checks'][number] {
   const words = text.trim().split(/\s+/).filter(Boolean).length
   const pass = words >= WORD_COUNT_MIN && words <= WORD_COUNT_MAX
@@ -264,6 +329,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
       anchor: 'experience',
     },
     wordCountCheck(resumeTextRaw, 'experience'),
+    reverseChronCheck(textDateRanges(resumeTextRaw)),
   ]
 
   return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
@@ -322,7 +388,7 @@ export function bestExperienceForKeyword(
 }
 
 import type { Resume } from './resume'
-import { resumeToPlainText, skillLines } from './resume'
+import { ONGOING_RE, dateSortValue, resumeToPlainText, skillLines } from './resume'
 
 export function scoreResume(resume: Resume, jd: string): AtsResult {
   const resumeText = resumeToPlainText(resume).toLowerCase()
@@ -404,6 +470,15 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       anchor: 'education',
     },
     wordCountCheck(resumeText, 'experience'),
+    reverseChronCheck(
+      resume.experience
+        .filter((e) => !e.hidden)
+        .map((e) => ({
+          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at ') || 'Untitled role',
+          start: e.startDate,
+          end: e.endDate,
+        }))
+    ),
   ]
 
   return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
