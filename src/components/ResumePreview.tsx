@@ -18,6 +18,7 @@ import {
   courseworkBullets,
   courseworkEntries,
   dividerOf,
+  editDescriptionLine,
   involvementBullets,
   involvementDates,
   involvementEntries,
@@ -711,7 +712,23 @@ function SectionBlock({
               {involvementBullets(inv).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
-                  <span>{b}</span>
+                  <span>
+                    <InlineText
+                      value={b}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            involvement: (resume.involvement ?? []).map((x) =>
+                              x.id === inv.id
+                                ? { ...x, description: editDescriptionLine(x.description, i, v) }
+                                : x
+                            ),
+                          }))
+                      }
+                    />
+                  </span>
                 </li>
               ))}
             </ul>
@@ -822,12 +839,38 @@ function SectionBlock({
               )}
             </div>
             <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
-              {courseworkBullets(cw).map((b, i) => (
-                <li key={i} className="flex gap-1.5 text-[11px]">
-                  <span style={{ color: tpl.accent }}>•</span>
-                  <span>{b}</span>
-                </li>
-              ))}
+              {courseworkBullets(cw).map((b, i) => {
+                const off = cw.skill.trim() ? 1 : 0
+                return (
+                  <li key={i} className="flex gap-1.5 text-[11px]">
+                    <span style={{ color: tpl.accent }}>•</span>
+                    <span>
+                      {i < off ? (
+                        b
+                      ) : (
+                        <InlineText
+                          value={b}
+                          onCommit={
+                            onEdit &&
+                            ((v) =>
+                              onEdit({
+                                ...resume,
+                                coursework: (resume.coursework ?? []).map((x) =>
+                                  x.id === cw.id
+                                    ? {
+                                        ...x,
+                                        description: editDescriptionLine(x.description, i - off, v),
+                                      }
+                                    : x
+                                ),
+                              }))
+                          }
+                        />
+                      )}
+                    </span>
+                  </li>
+                )
+              })}
             </ul>
           </div>
         ))}
@@ -953,7 +996,23 @@ function SectionBlock({
               {awardBullets(a).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
-                  <span>{b}</span>
+                  <span>
+                    <InlineText
+                      value={b}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            awards: (resume.awards ?? []).map((x) =>
+                              x.id === a.id
+                                ? { ...x, description: editDescriptionLine(x.description, i, v) }
+                                : x
+                            ),
+                          }))
+                      }
+                    />
+                  </span>
                 </li>
               ))}
             </ul>
@@ -1015,7 +1074,23 @@ function SectionBlock({
               {publicationBullets(p).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
-                  <span>{b}</span>
+                  <span>
+                    <InlineText
+                      value={b}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            publications: (resume.publications ?? []).map((x) =>
+                              x.id === p.id
+                                ? { ...x, description: editDescriptionLine(x.description, i, v) }
+                                : x
+                            ),
+                          }))
+                      }
+                    />
+                  </span>
                 </li>
               ))}
             </ul>
@@ -1111,7 +1186,23 @@ function SectionBlock({
               {militaryBullets(m).map((b, i) => (
                 <li key={i} className="flex gap-1.5 text-[11px]">
                   <span style={{ color: tpl.accent }}>•</span>
-                  <span>{b}</span>
+                  <span>
+                    <InlineText
+                      value={b}
+                      onCommit={
+                        onEdit &&
+                        ((v) =>
+                          onEdit({
+                            ...resume,
+                            military: (resume.military ?? []).map((x) =>
+                              x.id === m.id
+                                ? { ...x, description: editDescriptionLine(x.description, i, v) }
+                                : x
+                            ),
+                          }))
+                      }
+                    />
+                  </span>
                 </li>
               ))}
             </ul>
@@ -1148,12 +1239,38 @@ function SectionBlock({
               )}
             </div>
             <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
-              {agentBullets(a).map((b, i) => (
-                <li key={i} className="flex gap-1.5 text-[11px]">
-                  <span style={{ color: tpl.accent }}>•</span>
-                  <span>{b}</span>
-                </li>
-              ))}
+              {agentBullets(a).map((b, i) => {
+                const off = a.skills.trim() ? 1 : 0
+                return (
+                  <li key={i} className="flex gap-1.5 text-[11px]">
+                    <span style={{ color: tpl.accent }}>•</span>
+                    <span>
+                      {i < off ? (
+                        b
+                      ) : (
+                        <InlineText
+                          value={b}
+                          onCommit={
+                            onEdit &&
+                            ((v) =>
+                              onEdit({
+                                ...resume,
+                                agents: (resume.agents ?? []).map((x) =>
+                                  x.id === a.id
+                                    ? {
+                                        ...x,
+                                        description: editDescriptionLine(x.description, i - off, v),
+                                      }
+                                    : x
+                                ),
+                              }))
+                          }
+                        />
+                      )}
+                    </span>
+                  </li>
+                )
+              })}
             </ul>
           </div>
         ))}
