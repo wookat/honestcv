@@ -7599,6 +7599,18 @@ function TailorDialog({
   )
 }
 
+/** Deep-dive guide for each score dimension, served from our own /guides pages. */
+const DIMENSION_GUIDES: Record<string, string> = {
+  keywords: '/guides/resume-keywords',
+  'ats-structure': '/guides/ats-friendly-resume',
+  quantification: '/guides/resume-bullet-points',
+  verbs: '/guides/resume-action-verbs',
+  brevity: '/guides/how-long-should-a-resume-be',
+  buzzwords: '/guides/common-resume-mistakes',
+  consistency: '/guides/best-resume-format',
+  completeness: '/guides/best-resume-format',
+}
+
 /** Rule-based multi-dimension score breakdown — no AI calls, computed locally. */
 function HealthDialog({
   open,
@@ -7678,6 +7690,18 @@ function HealthDialog({
                     >
                       Fix →
                     </button>
+                  )}
+                  {DIMENSION_GUIDES[d.id] && (
+                    <a
+                      href={DIMENSION_GUIDES[d.id]}
+                      target="_blank"
+                      rel="noopener"
+                      aria-label={`Read the ${d.label} guide — opens in a new tab`}
+                      className="text-muted-foreground hover:text-foreground ml-1.5 inline-flex min-h-10 items-center gap-0.5 text-xs font-normal underline sm:min-h-0"
+                    >
+                      <BookOpen aria-hidden className="size-3" />
+                      Guide
+                    </a>
                   )}
                 </span>
                 <span
