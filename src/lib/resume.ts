@@ -14,6 +14,23 @@ export const HIDEABLE_CONTACT_FIELDS: HideableContactField[] = [
   'linkedin',
 ]
 
+/**
+ * Clean a pasted profile/site URL for display on the resume: drops the
+ * scheme, `www.` and trailing slash; a bare LinkedIn handle becomes
+ * `linkedin.com/in/<handle>`. Free text that isn't URL-like passes through.
+ */
+export function normalizeContactLink(kind: 'website' | 'linkedin', value: string): string {
+  let v = value.trim()
+  if (!v) return ''
+  v = v
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '')
+    .replace(/\/+$/, '')
+  if (kind === 'linkedin' && !v.includes('/') && !v.includes('.') && !v.includes(' '))
+    v = `linkedin.com/in/${v}`
+  return v
+}
+
 export interface ContactInfo {
   fullName: string
   title: string
