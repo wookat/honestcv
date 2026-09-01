@@ -1209,6 +1209,13 @@ export default function Builder() {
     }
   }
 
+  /** Review dialog for an AI-suggested bullet: apply / edit / regenerate */
+  const [bulletSuggest, setBulletSuggest] = useState<{
+    expId: string
+    variant?: 'key-numbers'
+    text: string
+  } | null>(null)
+
   const runSuggestBullet = async (e: ExperienceItem, variant?: 'key-numbers') => {
     const tag = variant ? `exp-${e.id}-suggest-nums` : `exp-${e.id}-suggest`
     if (!e.role.trim() && !e.company.trim()) {
@@ -1231,7 +1238,7 @@ export default function Builder() {
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
-      if (line) setExp(e.id, { bullets: [...e.bullets.filter((b) => b.trim()), line] })
+      if (line) setBulletSuggest({ expId: e.id, variant, text: line })
     } catch (err) {
       if (err instanceof PaymentRequiredError && !freeMode) requireUnlock(err.message)
       else setAiError((err as Error).message)
@@ -1239,6 +1246,14 @@ export default function Builder() {
       setAiBusy(null)
     }
   }
+
+  const bulletSuggestEntry = bulletSuggest
+    ? resume.experience.find((x) => x.id === bulletSuggest.expId)
+    : undefined
+  const bulletSuggestBusy =
+    bulletSuggest !== null &&
+    (aiBusy === `exp-${bulletSuggest.expId}-suggest` ||
+      aiBusy === `exp-${bulletSuggest.expId}-suggest-nums`)
 
   /** Setup dialog for the summary draft: position framing + skills to emphasize */
   const [summaryDraftSetup, setSummaryDraftSetup] = useState<{
@@ -6572,6 +6587,72 @@ export default function Builder() {
               </button>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={bulletSuggest !== null}
+        onOpenChange={(o) => !o && setBulletSuggest(null)}
+      >
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Suggested bullet</DialogTitle>
+            <DialogDescription>
+              Review the draft before it lands on your resume — edit it, regenerate a new
+              version, or apply it as is.
+            </DialogDescription>
+          </DialogHeader>
+          {bulletSuggest && (
+            <div className="space-y-3">
+              <Textarea
+                rows={3}
+                value={bulletSuggest.text}
+                onChange={(e) => setBulletSuggest({ ...bulletSuggest, text: e.target.value })}
+                aria-label="Suggested bullet text"
+              />
+              {aiError &&
+                aiErrorTag?.startsWith(`exp-${bulletSuggest.expId}-suggest`) && (
+                  <p className="text-destructive text-sm">{aiError}</p>
+                )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  className="min-h-10 sm:min-h-9"
+                  disabled={!bulletSuggest.text.trim() || bulletSuggestBusy || !bulletSuggestEntry}
+                  onClick={() => {
+                    const cur = bulletSuggestEntry
+                    if (!cur) return
+                    const line = bulletSuggest.text.split('\n')[0]?.trim() ?? ''
+                    if (!line) return
+                    setExp(cur.id, { bullets: [...cur.bullets.filter((b) => b.trim()), line] })
+                    setBulletSuggest(null)
+                  }}
+                >
+                  Apply to entry
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                  disabled={bulletSuggestBusy || !bulletSuggestEntry}
+                  onClick={() => {
+                    const cur = bulletSuggestEntry
+                    if (cur) void runSuggestBullet(cur, bulletSuggest.variant)
+                  }}
+                >
+                  {bulletSuggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {bulletSuggestBusy ? 'Writing…' : 'Regenerate'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-10 sm:min-h-9"
+                  onClick={() => setBulletSuggest(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <Dialog
