@@ -249,6 +249,30 @@ function dateFormatCheck(dates: string[]): AtsResult['checks'][number] {
 const PRONOUN_RE =
   /\b(?:[Mm]e|[Mm]y|[Mm]yself)\b|\bI(?=['’][a-z]|\s+(?!(?:of|and|or|in|at|on|to|for|the|an?)\b)[a-z])/
 
+const MONTH_ABBR = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+]
+
+/** Written form suggested for a numeric date, e.g. "08/2021" → "Aug 2021" */
+function namedMonthSuggestion(numericDate: string): string {
+  const m = /^(\d{1,2})[/.-]((?:19|20)\d{2})$/.exec(numericDate)
+  const month = m ? Number(m[1]) : 0
+  return month >= 1 && month <= 12 ? `${MONTH_ABBR[month - 1]} ${m![2]}` : 'a written month like Jan 2021'
+}
+
+/** Dates use a written month: named months read faster than numeric ones */
+function namedMonthDatesCheck(dates: string[]): AtsResult['checks'][number] {
+  const offender = dates.map((d) => d.trim()).find((d) => dateStyle(d) === 'numeric')
+  return {
+    label: 'Dates use a written month',
+    pass: !offender,
+    hint: offender
+      ? `"${offender}" is numeric — write dates with a month name ("${namedMonthSuggestion(offender)}") so employers grasp your timeline at a glance.`
+      : 'Dates use written month names — employers grasp your timeline at a glance.',
+    anchor: 'experience',
+  }
+}
+
 /** No first-person pronouns: resumes are written in the implied first person */
 function pronounCheck(
   segments: { text: string; anchor: SectionAnchor }[]
@@ -518,6 +542,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     reverseChronCheck(textDateRanges(resumeTextRaw)),
     bulletsPerEntryCheck(textBulletCounts(resumeTextRaw)),
     dateFormatCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
+    namedMonthDatesCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
     pronounCheck(textPronounSegments(resumeTextRaw)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
     entryLocationsCheck(textEntryLocations(resumeTextRaw)),
@@ -679,6 +704,11 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
         }))
     ),
     dateFormatCheck(
+      [...resume.experience, ...resume.education]
+        .filter((e) => !e.hidden)
+        .flatMap((e) => [e.startDate, e.endDate])
+    ),
+    namedMonthDatesCheck(
       [...resume.experience, ...resume.education]
         .filter((e) => !e.hidden)
         .flatMap((e) => [e.startDate, e.endDate])

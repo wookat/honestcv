@@ -545,3 +545,6 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 
 ## R213 — locations-on-each-entry check
 - Checker fixtures exercising the fail path must use comma-free headers ("Role at Company") — "Role, Company" headers match LOCATION_LIKE_RE and false-pass by design (lenient direction). Segments include up to 2 header lines above each date range. `/api/ai/quota` fires on Builder load — exclude it from zero-AI assertions. Checker structure has 14 checks, Builder breakdown 15 rows.
+
+## R214 — dates-use-a-written-month check
+- Numeric dates in any of `08/2021`/`08.2021`/`08-2021` forms fail with an "Aug 2021" suggestion; bare years and Present/ongoing are skipped (all-bare-year resumes pass both date checks). On weak fixtures the +6.7 fix can be crowded out of the top-5 priority list (R208 cap) — use a stronger fixture to assert its Fix → deep link. Checker structure has 15 checks, Builder breakdown 16 rows.
