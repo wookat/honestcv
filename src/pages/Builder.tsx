@@ -210,6 +210,7 @@ import {
   sectionLabel,
   HIDEABLE_CONTACT_FIELDS,
   type HideableContactField,
+  type AutoSortSection,
   skillLines,
   sortEntriesByDate,
   TEXT_INKS,
@@ -474,6 +475,30 @@ const OPTIONAL_SECTION_META: { key: string; label: string; icon: React.ReactNode
 ]
 const OPTIONAL_SECTION_KEYS = OPTIONAL_SECTION_META.map((s) => s.key)
 
+/** Re-file experience/education newest-first when their "Sort by date" toggle is on */
+function applyAutoSort(r: Resume): Resume {
+  const keys = r.autoSortByDate ?? []
+  if (!keys.length) return r
+  let next = r
+  if (keys.includes('experience')) {
+    const sorted = sortEntriesByDate(
+      r.experience,
+      (x) => x.startDate,
+      (x) => x.endDate
+    )
+    if (sorted.some((it, i) => it !== r.experience[i])) next = { ...next, experience: sorted }
+  }
+  if (keys.includes('education')) {
+    const sorted = sortEntriesByDate(
+      r.education,
+      (x) => x.startDate,
+      (x) => x.endDate
+    )
+    if (sorted.some((it, i) => it !== r.education[i])) next = { ...next, education: sorted }
+  }
+  return next
+}
+
 function Section({
   title,
   icon,
@@ -551,8 +576,8 @@ export default function Builder() {
     'Build an ATS-friendly resume in your browser: 22 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
   )
   useEffect(() => trackEvent('builder-start'), [])
-  const [resume, setResume] = useState<Resume>(() => {
-    const r = loadResume() ?? emptyResume()
+  const [resume, setResumeRaw] = useState<Resume>(() => {
+    const r = applyAutoSort(loadResume() ?? emptyResume())
     // ?template=<id> deep link from the landing gallery / static template pages
     const wanted = new URLSearchParams(window.location.search).get('template')
     if (wanted && TEMPLATES.some((t) => t.id === wanted) && r.templateId !== wanted) {
@@ -562,6 +587,12 @@ export default function Builder() {
     }
     return r
   })
+  /** Every update passes through applyAutoSort so toggled-on sections stay filed */
+  const setResume = useCallback<React.Dispatch<React.SetStateAction<Resume>>>((action) => {
+    setResumeRaw((prev) =>
+      applyAutoSort(typeof action === 'function' ? action(prev) : action)
+    )
+  }, [])
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [upgradeReason, setUpgradeReason] = useState('')
   const [aiBusy, setAiBusy] = useState<string | null>(null)
@@ -745,6 +776,15 @@ export default function Builder() {
   const sectionShown = (key: string) =>
     ((resume[key as keyof Resume] as unknown[] | undefined)?.length ?? 0) > 0 ||
     addedSections.includes(key)
+  const autoSortOn = (key: AutoSortSection) => (resume.autoSortByDate ?? []).includes(key)
+  const toggleAutoSort = (key: AutoSortSection) =>
+    setResume((r) => {
+      const cur = r.autoSortByDate ?? []
+      return {
+        ...r,
+        autoSortByDate: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
+      }
+    })
   const { undo, canUndo, redo, canRedo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [expLibrary, setExpLibrary] = useState<SavedExperience[]>(() => listExperienceLibrary())
@@ -836,7 +876,7 @@ export default function Builder() {
         ...(cur.templateId !== emptyResume().templateId ? { templateId: cur.templateId } : {}),
       }
     })
-  }, [])
+  }, [setResume])
 
   useEffect(() => {
     let cancelled = false
@@ -877,7 +917,7 @@ export default function Builder() {
 
   const set = useCallback(<K extends keyof Resume>(key: K, value: Resume[K]) => {
     setResume((r) => ({ ...r, [key]: value }))
-  }, [])
+  }, [setResume])
   const setContact = (key: keyof Resume['contact'], value: string) =>
     setResume((r) => ({ ...r, contact: { ...r.contact, [key]: value } }))
   const setExp = (id: string, patch: Partial<ExperienceItem>) =>
@@ -1040,7 +1080,7 @@ export default function Builder() {
         e.id === expId ? { ...e, bullets: [...e.bullets.filter((b) => b.trim()), text] } : e
       ),
     }))
-  }, [])
+  }, [setResume])
 
   const applyTailorSuggestion = useCallback((id: string, text: string) => {
     if (id === 'summary') {
@@ -1056,7 +1096,7 @@ export default function Builder() {
         e.id === expId ? { ...e, bullets: e.bullets.map((b, i) => (i === idx ? text : b)) } : e
       ),
     }))
-  }, [])
+  }, [setResume])
 
   const finalCheckIssues = useMemo(() => {
     const issues: string[] = []
@@ -1935,19 +1975,16 @@ export default function Builder() {
                   variant="outline"
                   size="sm"
                   className="h-10 text-xs sm:h-7"
-                  title="Reorder roles newest first — ongoing roles on top"
-                  onClick={() =>
-                    setResume((r) => ({
-                      ...r,
-                      experience: sortEntriesByDate(
-                        r.experience,
-                        (x) => x.startDate,
-                        (x) => x.endDate
-                      ),
-                    }))
+                  title={
+                    autoSortOn('experience')
+                      ? 'Auto-sort is on — roles stay newest first as you edit'
+                      : 'Keep roles sorted newest first — ongoing roles on top'
                   }
+                  aria-pressed={autoSortOn('experience')}
+                  onClick={() => toggleAutoSort('experience')}
                 >
                   <ArrowDown className="size-3.5" /> Sort by date
+                  {autoSortOn('experience') && <Check className="size-3.5" />}
                 </Button>
               </div>
             )}
@@ -2303,19 +2340,16 @@ export default function Builder() {
                   variant="outline"
                   size="sm"
                   className="h-10 text-xs sm:h-7"
-                  title="Reorder education newest first — ongoing studies on top"
-                  onClick={() =>
-                    setResume((r) => ({
-                      ...r,
-                      education: sortEntriesByDate(
-                        r.education,
-                        (x) => x.startDate,
-                        (x) => x.endDate
-                      ),
-                    }))
+                  title={
+                    autoSortOn('education')
+                      ? 'Auto-sort is on — education stays newest first as you edit'
+                      : 'Keep education sorted newest first — ongoing studies on top'
                   }
+                  aria-pressed={autoSortOn('education')}
+                  onClick={() => toggleAutoSort('education')}
                 >
                   <ArrowDown className="size-3.5" /> Sort by date
+                  {autoSortOn('education') && <Check className="size-3.5" />}
                 </Button>
               </div>
             )}
