@@ -30,12 +30,29 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   rejected: 'Rejected',
 }
 
+/** One status change on an application, oldest first in the entry's history. */
+export interface StatusChange {
+  status: JobStatus
+  at: number
+}
+
 export interface PipelineEntry {
   job: JobListing
   status: JobStatus
   updatedAt: number
   /** Saved resume copy targeted at this job, prepared when the job is saved */
   resumeVersionId?: string
+  /** Status changes in chronological order (entries saved before R190 have none) */
+  history?: StatusChange[]
+  /** Free-form notes: recruiter names, interview dates, follow-ups */
+  notes?: string
+}
+
+/** The entry's status timeline, synthesizing one step for pre-history entries. */
+export function timelineOf(entry: PipelineEntry): StatusChange[] {
+  return entry.history && entry.history.length > 0
+    ? entry.history
+    : [{ status: entry.status, at: entry.updatedAt }]
 }
 
 const PIPELINE_KEY = 'honestcv.jobPipeline'
@@ -88,15 +105,32 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
   const all = listPipeline()
   const prev = all.find((e) => e.job.id === job.id)
   const rest = all.filter((e) => e.job.id !== job.id)
+  const now = Date.now()
+  const base: StatusChange[] = prev ? timelineOf(prev) : []
+  const history =
+    base.length > 0 && base[base.length - 1].status === status
+      ? base
+      : [...base, { status, at: now }]
   return savePipeline([
     {
       job,
       status,
-      updatedAt: Date.now(),
+      updatedAt: now,
+      history,
       ...(prev?.resumeVersionId ? { resumeVersionId: prev.resumeVersionId } : {}),
+      ...(prev?.notes ? { notes: prev.notes } : {}),
     },
     ...rest,
   ])
+}
+
+/** Save free-form notes on the pipeline entry for a job. */
+export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] {
+  return savePipeline(
+    listPipeline().map((e) =>
+      e.job.id === jobId ? { ...e, notes: notes.trim() ? notes : undefined } : e
+    )
+  )
 }
 
 /** Link the pipeline entry for a job to its targeted resume copy. */

@@ -7,7 +7,14 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, BriefcaseBusiness, ExternalLink, FileText, Search } from 'lucide-react'
+import {
+  ArrowLeft,
+  BriefcaseBusiness,
+  ExternalLink,
+  FileText,
+  Search,
+  StickyNote,
+} from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { PlanCard, WorkspaceNav } from '@/components/WorkspaceNav'
@@ -31,7 +38,9 @@ import {
   listPipeline,
   removeFromPipeline,
   searchJobs,
+  setPipelineNotes,
   setPipelineVersion,
+  timelineOf,
   upsertPipeline,
 } from '@/lib/jobs'
 import { matchScore } from '@/lib/ats'
@@ -64,6 +73,9 @@ const postedAgo = (iso: string) => {
   return days === 1 ? '1 day ago' : `${days} days ago`
 }
 
+const shortDate = (ms: number) =>
+  new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+
 const agoFromMs = (ms: number) => {
   const days = Math.floor((Date.now() - ms) / 86_400_000)
   if (!ms || Number.isNaN(days) || days < 0) return ''
@@ -93,6 +105,7 @@ export default function Jobs() {
     job: JobListing
     intent: 'target' | 'cover'
   } | null>(null)
+  const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
 
   const fetchJobs = (q: string, cat = '') =>
     searchJobs(q, cat)
@@ -123,6 +136,12 @@ export default function Jobs() {
     const map = new Map<string, number>()
     for (const e of pipeline) map.set(e.job.id, e.updatedAt)
     return map
+  }, [pipeline])
+
+  const hasNotes = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of pipeline) if (e.notes?.trim()) set.add(e.job.id)
+    return set
   }, [pipeline])
 
   const resumeText = useMemo(() => {
@@ -470,6 +489,13 @@ export default function Jobs() {
                                 {JOB_STATUS_LABELS[status]} {agoFromMs(updated)}
                               </span>
                             )}
+                            {hasNotes.has(j.id) && (
+                              <StickyNote
+                                aria-label="Has notes"
+                                role="img"
+                                className="text-muted-foreground ml-2 inline size-3.5 align-[-2px]"
+                              />
+                            )}
                           </p>
                         </button>
                         <div className="mt-1.5 flex items-center gap-1.5">
@@ -606,6 +632,59 @@ export default function Jobs() {
                     </button>
                   ))}
                 </div>
+                {(() => {
+                  const entry = pipeline.find((e) => e.job.id === selected.id)
+                  if (!entry) return null
+                  const steps = timelineOf(entry)
+                  const notes =
+                    notesDraft?.jobId === selected.id ? notesDraft.text : (entry.notes ?? '')
+                  return (
+                    <div className="bg-muted/40 mt-4 rounded-md border p-3">
+                      <p className="text-sm font-medium">Application timeline</p>
+                      <ol className="mt-1.5 flex flex-wrap items-center gap-y-1 text-xs">
+                        {steps.map((step, i) => (
+                          <li key={`${step.status}-${step.at}`} className="flex items-center">
+                            {i > 0 && (
+                              <span aria-hidden className="text-muted-foreground mx-1.5">
+                                →
+                              </span>
+                            )}
+                            <span
+                              className={
+                                i === steps.length - 1
+                                  ? 'bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium'
+                                  : 'text-muted-foreground'
+                              }
+                            >
+                              {JOB_STATUS_LABELS[step.status]} · {shortDate(step.at)}
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
+                      <label
+                        htmlFor="job-notes"
+                        className="mt-3 block text-sm font-medium"
+                      >
+                        Notes
+                      </label>
+                      <textarea
+                        id="job-notes"
+                        value={notes}
+                        onChange={(e) =>
+                          setNotesDraft({ jobId: selected.id, text: e.target.value })
+                        }
+                        onBlur={() => {
+                          if (notesDraft?.jobId !== selected.id) return
+                          setPipeline(setPipelineNotes(selected.id, notesDraft.text))
+                          setNotesDraft(null)
+                        }}
+                        rows={3}
+                        placeholder="Recruiter name, interview dates, follow-ups… saved in this browser only."
+                        className="border-input bg-background mt-1 w-full rounded-md border px-2.5 py-1.5 text-sm"
+                      />
+                    </div>
+                  )
+                })()}
                 <p className="text-muted-foreground mt-4 whitespace-pre-wrap text-sm">
                   {selected.description}
                 </p>
