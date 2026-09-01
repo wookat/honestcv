@@ -752,6 +752,7 @@ export default function Builder() {
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [upgradeReason, setUpgradeReason] = useState('')
   const [aiBusy, setAiBusy] = useState<string | null>(null)
+  const [hlLine, setHlLine] = useState<{ key: string; line: number } | null>(null)
   const [aiError, setAiError] = useState('')
   const [aiErrorTag, setAiErrorTag] = useState<string | null>(null)
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
@@ -2517,12 +2518,14 @@ export default function Builder() {
                     rows={4}
                     placeholder={'One achievement per line, e.g.\nCut deploy time by 60% by introducing CI caching\nLed a team of 3 engineers on the checkout redesign'}
                     value={e.bullets.join('\n')}
+                    highlightLine={hlLine?.key === `exp-${e.id}` ? hlLine.line : null}
                     onChange={(ev) => setExp(e.id, { bullets: ev.target.value.split('\n') })}
                   />
                 </div>
                 <BulletGuidance
                   bullets={e.bullets}
                   entryFilled={Boolean(e.role.trim() || e.company.trim())}
+                  onHoverLine={(n) => setHlLine(n === null ? null : { key: `exp-${e.id}`, line: n })}
                   busyLine={
                     aiBusy?.startsWith(`exp-${e.id}-line-`)
                       ? Number(aiBusy.slice(`exp-${e.id}-line-`.length))
@@ -3270,6 +3273,7 @@ export default function Builder() {
                     rows={2}
                     placeholder="What it does and your impact"
                     value={p.description}
+                    highlightLine={hlLine?.key === `proj-${p.id}` ? hlLine.line : null}
                     onChange={(ev) =>
                       setResume((r) => ({
                         ...r,
@@ -3298,6 +3302,7 @@ export default function Builder() {
                 </div>
                 <BulletGuidance
                   bullets={p.description.split('\n')}
+                  onHoverLine={(n) => setHlLine(n === null ? null : { key: `proj-${p.id}`, line: n })}
                   busyLine={
                     aiBusy?.startsWith(`proj-${p.id}-line-`)
                       ? Number(aiBusy.slice(`proj-${p.id}-line-`.length))
@@ -3503,6 +3508,7 @@ export default function Builder() {
                     rows={2}
                     placeholder="What you did there — one bullet per line"
                     value={inv.description}
+                    highlightLine={hlLine?.key === `inv-${inv.id}` ? hlLine.line : null}
                     onChange={(ev) =>
                       setResume((r) => ({
                         ...r,
@@ -3575,6 +3581,7 @@ export default function Builder() {
                 </div>
                 <BulletGuidance
                   bullets={inv.description.split('\n')}
+                  onHoverLine={(n) => setHlLine(n === null ? null : { key: `inv-${inv.id}`, line: n })}
                   busyLine={
                     aiBusy?.startsWith(`inv-${inv.id}-line-`)
                       ? Number(aiBusy.slice(`inv-${inv.id}-line-`.length))
@@ -7410,11 +7417,14 @@ function BulletGuidance({
   onFix,
   busyLine,
   entryFilled = false,
+  onHoverLine,
 }: {
   bullets: string[]
   onFix?: (index: number) => void
   busyLine?: number | null
   entryFilled?: boolean
+  /** Highlight the referenced line in the editor while a suggestion is hovered/focused. */
+  onHoverLine?: (line: number | null) => void
 }) {
   const results = useMemo(() => checkBullets(bullets), [bullets])
   const mix = useMemo(() => bulletMix(bullets), [bullets])
@@ -7443,7 +7453,12 @@ function BulletGuidance({
         </li>
       )}
       {results.slice(0, 4).map((r) => (
-        <li key={r.index} className="text-amber-700">
+        <li
+          key={r.index}
+          className="text-amber-700"
+          onMouseEnter={() => onHoverLine?.(r.index)}
+          onMouseLeave={() => onHoverLine?.(null)}
+        >
           {r.issues.slice(0, 2).map((issue) => (
             <span key={issue.kind} className="block">
               ⚠ Line {r.index + 1}: {issue.message}
@@ -7455,6 +7470,8 @@ function BulletGuidance({
               className="text-primary mt-0.5 inline-flex min-h-10 items-center gap-1 underline underline-offset-2 disabled:opacity-50 sm:min-h-0"
               disabled={busyLine !== null && busyLine !== undefined}
               onClick={() => onFix(r.index)}
+              onFocus={() => onHoverLine?.(r.index)}
+              onBlur={() => onHoverLine?.(null)}
               title={`AI rewrites line ${r.index + 1} — you pick from the suggestions`}
             >
               <Sparkles aria-hidden className="size-3" />
