@@ -1229,13 +1229,14 @@ export default function Builder() {
     return out
   }, [resume])
 
+  const resumeHasContent =
+    resume.experience.some((e) => e.role.trim() || e.bullets.some((b) => b.trim())) ||
+    resume.skills.trim().length > 0 ||
+    resume.education.some((e) => e.degree.trim() || e.school.trim())
+
   const runSummaryDraft = async (position: string, highlights: string[]) => {
     const tag = 'summary-draft'
-    const hasContent =
-      resume.experience.some((e) => e.role.trim() || e.bullets.some((b) => b.trim())) ||
-      resume.skills.trim().length > 0 ||
-      resume.education.some((e) => e.degree.trim() || e.school.trim())
-    if (!hasContent) {
+    if (!resumeHasContent) {
       setAiErrorTag(tag)
       setAiError('Add some experience or skills first — the draft is written only from your resume.')
       return
@@ -1393,11 +1394,13 @@ export default function Builder() {
     }
   }
 
+  /** `notReady`: reason the AI action can't run yet — renders the button disabled
+   *  with the reason as visible helper text instead of a post-click error. */
   const aiButton = (
     tag: string,
     label: string,
     onClick: () => void,
-    disabled?: boolean
+    notReady?: string | boolean
   ) => (
     <>
       <Button
@@ -1405,12 +1408,13 @@ export default function Builder() {
         variant="outline"
         size="sm"
         onClick={onClick}
-        disabled={Boolean(aiBusy) || disabled}
+        disabled={Boolean(aiBusy) || Boolean(notReady)}
         className="h-10 gap-1 text-xs sm:h-7"
         title={
-          !unlocked && freeLeft !== null
+          (typeof notReady === 'string' && notReady ? notReady : undefined) ??
+          (!unlocked && freeLeft !== null
             ? `${freeLeft} free AI use${freeLeft === 1 ? '' : 's'} left`
-            : undefined
+            : undefined)
         }
       >
         {aiBusy === tag ? (
@@ -1421,7 +1425,10 @@ export default function Builder() {
         {label}
       </Button>
       {aiBusy === tag && <AiWaitHint />}
-      {aiError && aiErrorTag === tag && (
+      {typeof notReady === 'string' && notReady && (
+        <p className="text-muted-foreground w-full text-xs">{notReady}</p>
+      )}
+      {!notReady && aiError && aiErrorTag === tag && (
         <p className="text-destructive text-xs">{aiError}</p>
       )}
     </>
@@ -2113,11 +2120,16 @@ export default function Builder() {
                       set('summary', out)
                     )
                   )
-                : aiButton('summary-draft', 'Draft from my resume', () =>
-                    setSummaryDraftSetup({
-                      position: aiTargetRole(resume),
-                      picked: [],
-                    })
+                : aiButton(
+                    'summary-draft',
+                    'Draft from my resume',
+                    () =>
+                      setSummaryDraftSetup({
+                        position: aiTargetRole(resume),
+                        picked: [],
+                      }),
+                    !resumeHasContent &&
+                      'Add some experience or skills first — the draft is written only from your resume.'
                   )}
               <Button
                 type="button"
@@ -2513,7 +2525,9 @@ export default function Builder() {
                   `exp-${e.id}-suggest`,
                   'Suggest a bullet',
                   () => void runSuggestBullet(e),
-                  !e.role.trim() && !e.company.trim()
+                  !e.role.trim() &&
+                    !e.company.trim() &&
+                    'Add a job title or company first — the bullet is drafted for that role.'
                 )}
                 {aiButton(
                   `exp-${e.id}-suggest-nums`,
@@ -2521,19 +2535,24 @@ export default function Builder() {
                   () => void runSuggestBullet(e, 'key-numbers'),
                   !e.role.trim() && !e.company.trim()
                 )}
-                {aiButton(`exp-${e.id}`, 'AI rewrite bullets', () =>
-                  void runRewrite(
-                    `exp-${e.id}`,
-                    'bullets',
-                    e.bullets.filter((b) => b.trim()).join('\n'),
-                    (out) =>
-                      setExp(e.id, {
-                        bullets: out
-                          .split('\n')
-                          .map((l) => l.replace(/^[-•]\s*/, '').trim())
-                          .filter(Boolean),
-                      })
-                  )
+                {aiButton(
+                  `exp-${e.id}`,
+                  'AI rewrite bullets',
+                  () =>
+                    void runRewrite(
+                      `exp-${e.id}`,
+                      'bullets',
+                      e.bullets.filter((b) => b.trim()).join('\n'),
+                      (out) =>
+                        setExp(e.id, {
+                          bullets: out
+                            .split('\n')
+                            .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                            .filter(Boolean),
+                        })
+                    ),
+                  !e.bullets.some((b) => b.trim()) &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
                 )}
                   </>
                 )}
@@ -4916,10 +4935,15 @@ export default function Builder() {
                   </p>
                 )}
               <div className="flex flex-wrap items-center gap-2">
-                {aiButton('skills', 'AI clean up skills', () =>
-                  void runRewrite('skills', 'skills', resume.skills, (out) =>
-                    set('skills', out)
-                  )
+                {aiButton(
+                  'skills',
+                  'AI clean up skills',
+                  () =>
+                    void runRewrite('skills', 'skills', resume.skills, (out) =>
+                      set('skills', out)
+                    ),
+                  !resume.skills.trim() &&
+                    'Add some skills first — the AI cleans up your list, it never invents skills.'
                 )}
                 {aiButton('skill-suggest', 'AI suggest related skills', () =>
                   setSkillExploreSetup({ context: '', category: '' })
