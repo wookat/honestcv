@@ -8079,8 +8079,9 @@ function HistoryDialog({
         ) : (
           <ul className="space-y-2">
             {snapshots.map((s) => {
-              const isCurrent = JSON.stringify(s.data) === currentJson
-              const changes = isCurrent ? [] : snapshotChanges(s.data, resume)
+              const changes =
+                JSON.stringify(s.data) === currentJson ? [] : snapshotChanges(s.data, resume)
+              const isCurrent = changes.length === 0
               return (
                 <li
                   key={s.id}
