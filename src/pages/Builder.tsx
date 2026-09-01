@@ -650,6 +650,49 @@ function SectionNav({
 const scoreVerdict = (score: number) =>
   score >= 80 ? 'Strong' : score >= 50 ? 'Getting there' : 'Needs work'
 
+/** Point on the gauge arc for a 0-100 value (semicircle, left = 0) */
+const gaugePoint = (value: number, radius: number): [number, number] => {
+  const rad = ((180 - value * 1.8) * Math.PI) / 180
+  return [100 + radius * Math.cos(rad), 100 - radius * Math.sin(rad)]
+}
+
+const gaugeArc = (from: number, to: number, radius: number) => {
+  const [x1, y1] = gaugePoint(from, radius)
+  const [x2, y2] = gaugePoint(to, radius)
+  return `M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`
+}
+
+/** Semicircular score dial: colored band arc, needle, score + verdict */
+function ScoreGauge({ score }: { score: number }) {
+  const clamped = Math.max(0, Math.min(100, score))
+  const [nx, ny] = gaugePoint(clamped, 62)
+  return (
+    <div
+      role="img"
+      aria-label={`Resume strength ${clamped} out of 100 — ${scoreVerdict(clamped)}`}
+      className="mx-auto w-40 max-w-full"
+    >
+      <svg viewBox="0 0 200 118" aria-hidden className="block w-full">
+        <path d={gaugeArc(0, 50, 80)} fill="none" strokeWidth={12} strokeLinecap="round" className="stroke-red-400" />
+        <path d={gaugeArc(50, 80, 80)} fill="none" strokeWidth={12} className="stroke-amber-400" />
+        <path d={gaugeArc(80, 100, 80)} fill="none" strokeWidth={12} strokeLinecap="round" className="stroke-emerald-500" />
+        <line x1={100} y1={100} x2={nx} y2={ny} strokeWidth={3} strokeLinecap="round" className="stroke-foreground" />
+        <circle cx={100} cy={100} r={5} className="fill-foreground" />
+        <text x={20} y={116} textAnchor="middle" className="fill-muted-foreground text-[11px]">
+          0
+        </text>
+        <text x={180} y={116} textAnchor="middle" className="fill-muted-foreground text-[11px]">
+          100
+        </text>
+      </svg>
+      <div className="-mt-1 text-center">
+        <span className="text-2xl font-semibold tabular-nums">{clamped}</span>
+        <span className="text-muted-foreground block text-xs">{scoreVerdict(clamped)}</span>
+      </div>
+    </div>
+  )
+}
+
 /** Elapsed-time wait hint shown while an AI call is in flight */
 function AiWaitHint() {
   const [seconds, setSeconds] = useState(0)
@@ -1726,28 +1769,9 @@ export default function Builder() {
           <div className="bg-card rounded-lg border p-3">
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="font-medium">Resume strength</span>
-              <span className="text-muted-foreground text-xs">
-                {strength.score}% — {scoreVerdict(strength.score)}
-              </span>
             </div>
-            <div
-              className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full"
-              role="progressbar"
-              aria-label="Resume strength"
-              aria-valuenow={strength.score}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <div
-                className={`h-full rounded-full transition-all ${
-                  strength.score >= 80
-                    ? 'bg-emerald-500'
-                    : strength.score >= 50
-                      ? 'bg-amber-500'
-                      : 'bg-red-400'
-                }`}
-                style={{ width: `${strength.score}%` }}
-              />
+            <div className="mt-1">
+              <ScoreGauge score={strength.score} />
             </div>
             {strength.missing.length > 0 && (
               <p className="text-muted-foreground mt-2 text-xs">
