@@ -583,13 +583,21 @@ app.post('/api/ai/summary-draft', async (c) => {
 // target role — the user confirms each one. Shares the free AI quota.
 app.post('/api/ai/skill-suggest', async (c) => {
   const body = await c.req
-    .json<{ skills?: string; role?: string; jobDescription?: string }>()
+    .json<{
+      skills?: string
+      role?: string
+      jobDescription?: string
+      context?: string
+      category?: string
+    }>()
     .catch(() => ({}) as Record<string, never>)
   const skills = body.skills?.trim() ?? ''
   const role = body.role?.trim() ?? ''
-  if (!skills && !role) {
+  const context = (typeof body.context === 'string' ? body.context : '').trim().slice(0, 200)
+  const category = (typeof body.category === 'string' ? body.category : '').trim().slice(0, 40)
+  if (!skills && !role && !context) {
     return c.json(
-      { error: 'Add a target role or a few skills first — suggestions build on what you already have.' },
+      { error: 'Add a target role, a few skills, or describe what you did — suggestions build on what you already have.' },
       400
     )
   }
@@ -614,7 +622,7 @@ app.post('/api/ai/skill-suggest', async (c) => {
 
   const result = await callLlm(
     c.env,
-    buildSkillSuggestMessages(skills, role, body.jobDescription ?? ''),
+    buildSkillSuggestMessages(skills, role, body.jobDescription ?? '', context, category),
     0.5,
     400
   )

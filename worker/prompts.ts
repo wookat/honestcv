@@ -83,13 +83,17 @@ The user has a filled resume but no professional summary yet. Write 3 alternativ
 export function buildSkillSuggestMessages(
   skills: string,
   role: string,
-  jobDescription: string
+  jobDescription: string,
+  context = '',
+  category = ''
 ): ChatMessage[] {
   const parts = [
     `Suggest up to 12 additional skills this candidate might list on their resume, closely related to their existing skills and target role (adjacent tools, frameworks, methods, and industry-standard names). These are discovery suggestions the user confirms — do NOT repeat skills already listed. Each suggestion must be a short canonical skill name (1-3 words). Reply with ONLY a JSON array of strings — no markdown, no commentary.`,
   ]
   if (role) parts.push(`Target role: ${role}`)
   if (skills) parts.push(`Existing skills: ${skills.slice(0, 1500)}`)
+  if (context) parts.push(`The candidate describes what they did: ${context}`)
+  if (category) parts.push(`Focus suggestions on this kind of skill: ${category}`)
   const jd = jobDescription.trim()
   if (jd) parts.push(`Job description they are targeting:\n"""\n${jd.slice(0, 3000)}\n"""`)
   return [

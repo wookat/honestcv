@@ -1264,12 +1264,19 @@ export default function Builder() {
   }
 
   const [aiSkillChips, setAiSkillChips] = useState<string[] | null>(null)
+  /** Setup dialog for skill suggestions: what the user did + category focus */
+  const [skillExploreSetup, setSkillExploreSetup] = useState<{
+    context: string
+    category: string
+  } | null>(null)
 
-  const runSkillSuggest = async () => {
+  const runSkillSuggest = async (context = '', category = '') => {
     const tag = 'skill-suggest'
-    if (!resume.skills.trim() && !resume.targetRole.trim()) {
+    if (!resume.skills.trim() && !resume.targetRole.trim() && !context.trim()) {
       setAiErrorTag(tag)
-      setAiError('Add a target role or a few skills first — suggestions build on what you already have.')
+      setAiError(
+        'Add a target role, a few skills, or describe what you did — suggestions build on what you already have.'
+      )
       return
     }
     setAiBusy(tag)
@@ -1280,6 +1287,8 @@ export default function Builder() {
         skills: resume.skills,
         role: aiTargetRole(resume),
         jobDescription: resume.jobDescription,
+        context: context.trim() ? context.trim().slice(0, 200) : undefined,
+        category: category.trim() ? category.trim() : undefined,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setAiSkillChips(skills)
@@ -4913,7 +4922,7 @@ export default function Builder() {
                   )
                 )}
                 {aiButton('skill-suggest', 'AI suggest related skills', () =>
-                  void runSkillSuggest()
+                  setSkillExploreSetup({ context: '', category: '' })
                 )}
                 <Button
                   type="button"
@@ -6456,6 +6465,75 @@ export default function Builder() {
                 }}
               >
                 <Sparkles className="size-4" /> Write 3 drafts
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={skillExploreSetup !== null}
+        onOpenChange={(o) => !o && setSkillExploreSetup(null)}
+      >
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Explore skills</DialogTitle>
+            <DialogDescription>
+              Optionally describe what you did and pick a focus — suggestions are ideas to
+              confirm, tap only skills you actually have.
+            </DialogDescription>
+          </DialogHeader>
+          {skillExploreSetup && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="skill-explore-context">What did you do?</Label>
+                <Input
+                  id="skill-explore-context"
+                  placeholder="e.g. built React dashboards"
+                  maxLength={200}
+                  value={skillExploreSetup.context}
+                  onChange={(e) =>
+                    setSkillExploreSetup({ ...skillExploreSetup, context: e.target.value })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const { context, category } = skillExploreSetup
+                      setSkillExploreSetup(null)
+                      void runSkillSuggest(context, category)
+                    }
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="skill-explore-category">
+                  Focus on{' '}
+                  <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <select
+                  id="skill-explore-category"
+                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                  value={skillExploreSetup.category}
+                  onChange={(e) =>
+                    setSkillExploreSetup({ ...skillExploreSetup, category: e.target.value })
+                  }
+                >
+                  <option value="">Any kind of skill</option>
+                  <option value="hard skills">Hard skills</option>
+                  <option value="soft skills">Soft skills</option>
+                  <option value="tools and software">Tools &amp; software</option>
+                  <option value="languages">Languages</option>
+                </select>
+              </div>
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => {
+                  const { context, category } = skillExploreSetup
+                  setSkillExploreSetup(null)
+                  void runSkillSuggest(context, category)
+                }}
+              >
+                <Sparkles className="size-4" /> Suggest skills
               </Button>
             </div>
           )}
