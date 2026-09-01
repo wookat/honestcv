@@ -273,6 +273,18 @@ function pronounCheck(
   }
 }
 
+/** LinkedIn URL: recruiters use it to verify and expand on the resume */
+function linkedinCheck(pass: boolean): AtsResult['checks'][number] {
+  return {
+    label: 'LinkedIn URL',
+    pass,
+    hint: pass
+      ? 'LinkedIn URL found — recruiters can verify and expand on your resume.'
+      : 'Add your LinkedIn URL (linkedin.com/in/yourname) — recruiters use it to verify and expand on your resume.',
+    anchor: 'contact',
+  }
+}
+
 const BULLETS_PER_ENTRY_LABEL = '3–6 bullet points per role'
 
 /** Per-entry bullet-count check: every role should carry 3–6 bullet points */
@@ -452,6 +464,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     bulletsPerEntryCheck(textBulletCounts(resumeTextRaw)),
     dateFormatCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
     pronounCheck(textPronounSegments(resumeTextRaw)),
+    linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
   ]
 
   return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
@@ -626,6 +639,10 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
         anchor: 'experience',
       },
     ]),
+    linkedinCheck(
+      Boolean(resume.contact.linkedin.trim()) &&
+        !(resume.hiddenContact ?? []).includes('linkedin')
+    ),
   ]
 
   return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
