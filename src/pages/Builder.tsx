@@ -1757,7 +1757,11 @@ export default function Builder() {
             }}
           />
 
-          <Section title="Target job (powers AI + ATS score)" icon={<Target className="size-4" />}>
+          <Section
+            title="Target job (powers AI + ATS score)"
+            icon={<Target className="size-4" />}
+            anchor="target"
+          >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="targetRole">Target role</Label>
@@ -5904,6 +5908,7 @@ export default function Builder() {
                             type="button"
                             className="text-muted-foreground hover:bg-primary/10 inline-flex items-center rounded-full border border-dashed px-2 py-0.5 line-through"
                             title={`Restore "${kw}" to the keyword pool`}
+                            aria-label={`Restore ${kw} to the keyword pool`}
                             onClick={() =>
                               set(
                                 'ignoredKeywords',
@@ -5919,10 +5924,25 @@ export default function Builder() {
                       </span>
                     </div>
                   )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-muted-foreground h-10 text-xs sm:h-7"
+                    onClick={() => jumpToSection('target')}
+                  >
+                    Update job description →
+                  </Button>
                 </div>
               ) : (
                 <p className="text-muted-foreground mt-2 text-xs">
-                  Paste a job description in "Target job" to see keyword matches.
+                  Paste a job description in "Target job" to see keyword matches.{' '}
+                  <button
+                    type="button"
+                    className="text-primary inline-flex min-h-10 items-center underline sm:min-h-0"
+                    onClick={() => jumpToSection('target')}
+                  >
+                    Add a job description →
+                  </button>
                 </p>
               )}
               <ul className="mt-3 space-y-1 text-xs">
