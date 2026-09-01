@@ -44,7 +44,16 @@ import {
   saveResume,
   setActiveVersionId,
   syncActiveVersion,
+  visibleResume,
 } from '@/lib/resume'
+
+/** Qualitative tint for a keyword-match percentage (same thresholds as the score bands). */
+const matchTone = (pct: number) =>
+  pct >= 80
+    ? 'bg-emerald-100 text-emerald-800'
+    : pct >= 50
+      ? 'bg-amber-100 text-amber-800'
+      : 'bg-red-100 text-red-800'
 
 type Tab = 'all' | JobStatus
 
@@ -131,6 +140,20 @@ export default function Jobs() {
     }
     return map
   }, [resumeText, jobs, pipeline])
+
+  /** Keyword match of each job's own targeted copy — tailoring progress per application. */
+  const tailoredMatchOf = useMemo(() => {
+    const map = new Map<string, number>()
+    const versions = listResumeVersions()
+    for (const e of pipeline) {
+      if (!e.resumeVersionId) continue
+      const v = versions.find((x) => x.id === e.resumeVersionId)
+      if (!v) continue
+      const m = matchScore(resumeToPlainText(visibleResume(v.data)), e.job.description)
+      if (m !== null) map.set(e.job.id, m)
+    }
+    return map
+  }, [pipeline])
 
   const loc = locationFilter.trim().toLowerCase()
   const base: JobListing[] =
@@ -423,10 +446,21 @@ export default function Jobs() {
                                 {j.company} · {j.location}
                               </p>
                             </span>
-                            {matchOf.has(j.id) && (
-                              <span className="bg-primary/10 text-primary mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-medium">
-                                {matchOf.get(j.id)}% match
+                            {tailoredMatchOf.has(j.id) ? (
+                              <span
+                                className={`mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-medium ${matchTone(tailoredMatchOf.get(j.id) as number)}`}
+                              >
+                                {(tailoredMatchOf.get(j.id) as number) >= 80
+                                  ? 'Tailored'
+                                  : 'Tailoring'}{' '}
+                                · {tailoredMatchOf.get(j.id)}%
                               </span>
+                            ) : (
+                              matchOf.has(j.id) && (
+                                <span className="bg-primary/10 text-primary mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-medium">
+                                  {matchOf.get(j.id)}% match
+                                </span>
+                              )
                             )}
                           </span>
                           <p className="text-muted-foreground mt-0.5 text-xs">
@@ -504,10 +538,24 @@ export default function Jobs() {
                   {selected.company} · {selected.location}
                   {selected.type && ` · ${selected.type}`}
                   {selected.salary && ` · ${selected.salary}`}
-                  {matchOf.has(selected.id) && (
-                    <span className="text-primary ml-2 font-medium">
-                      {matchOf.get(selected.id)}% keyword match with your resume
+                  {tailoredMatchOf.has(selected.id) ? (
+                    <span
+                      className={
+                        (tailoredMatchOf.get(selected.id) as number) >= 80
+                          ? 'ml-2 font-medium text-emerald-700'
+                          : (tailoredMatchOf.get(selected.id) as number) >= 50
+                            ? 'ml-2 font-medium text-amber-700'
+                            : 'ml-2 font-medium text-red-700'
+                      }
+                    >
+                      Targeted copy: {tailoredMatchOf.get(selected.id)}% keyword match
                     </span>
+                  ) : (
+                    matchOf.has(selected.id) && (
+                      <span className="text-primary ml-2 font-medium">
+                        {matchOf.get(selected.id)}% keyword match with your resume
+                      </span>
+                    )
                   )}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
