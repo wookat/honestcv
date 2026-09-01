@@ -96,6 +96,7 @@ import {
   ACTION_VERBS,
   type BulletIssue,
   type HealthDimension,
+  type HealthFinding,
   type HealthReport,
   checkBullets,
   resumeHealth,
@@ -873,6 +874,25 @@ export default function Builder() {
     requestAnimationFrame(() =>
       window.dispatchEvent(new CustomEvent(JUMP_EVENT, { detail: anchor }))
     )
+  }
+  /** Entry card currently ring-flashed after a score-finding jump */
+  const [flashEntryId, setFlashEntryId] = useState<string | null>(null)
+  /** Scroll a specific experience card into view, expanding it if collapsed */
+  const jumpToEntry = (id: string) => {
+    setMobilePane('edit')
+    setCollapsedEntries((s) => {
+      if (!s.has(id)) return s
+      const next = new Set(s)
+      next.delete(id)
+      return next
+    })
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-entry-id="${id}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFlashEntryId(id)
+      window.setTimeout(() => setFlashEntryId((cur) => (cur === id ? null : cur)), 1600)
+    })
   }
   /** An optional section card renders when it has entries or was added this visit */
   const sectionShown = (key: string) =>
@@ -2123,10 +2143,13 @@ export default function Builder() {
                 key={e.id}
                 {...expDrag.dropProps(idx)}
                 data-autosort-scope="experience"
+                data-entry-id={e.id}
                 onBlurCapture={releaseAutoSort('experience')}
                 className={`space-y-2 rounded-lg border p-3 transition ${
                   expDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
-                } ${e.hidden ? 'opacity-60' : ''}`}
+                } ${e.hidden ? 'opacity-60' : ''} ${
+                  flashEntryId === e.id ? 'ring-primary/60 ring-2' : ''
+                }`}
               >
                 <div className="flex min-w-0 flex-wrap items-center justify-between">
                   <p className="text-muted-foreground flex min-w-0 basis-full items-center gap-1 text-xs font-medium sm:basis-auto">
@@ -6112,6 +6135,7 @@ export default function Builder() {
         health={health}
         ats={ats}
         onJump={jumpToSection}
+        onJumpEntry={jumpToEntry}
       />
       {historyOpen && (
         <HistoryDialog
@@ -7702,16 +7726,22 @@ function HealthDialog({
   health,
   ats,
   onJump,
+  onJumpEntry,
 }: {
   open: boolean
   onClose: () => void
   health: HealthReport
   ats: AtsResult
   onJump: (anchor: SectionAnchor) => void
+  onJumpEntry: (id: string) => void
 }) {
   const jump = (anchor: SectionAnchor) => {
     onClose()
     requestAnimationFrame(() => onJump(anchor))
+  }
+  const jumpEntry = (id: string) => {
+    onClose()
+    requestAnimationFrame(() => onJumpEntry(id))
   }
   const structureFindings = ats.checks
     .filter((c) => !c.pass)
@@ -7823,22 +7853,34 @@ function HealthDialog({
               <p className="text-muted-foreground/80 mt-1 text-xs italic">{d.plain}</p>
               {d.findings.length > 0 && (
                 <ul className="text-muted-foreground mt-1.5 list-disc space-y-0.5 pl-4 text-xs">
-                  {(d.richFindings ?? d.findings.map((text) => ({ text, anchor: undefined }))).map(
-                    (f) => (
-                      <li key={f.text}>
-                        {f.text}
-                        {f.anchor && (
-                          <button
-                            type="button"
-                            className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
-                            onClick={() => f.anchor && jump(f.anchor)}
-                          >
-                            Fix →
-                          </button>
-                        )}
-                      </li>
-                    )
-                  )}
+                  {(
+                    (d.richFindings ?? d.findings.map((text) => ({ text }))) as (HealthFinding & {
+                      anchor?: SectionAnchor
+                    })[]
+                  ).map((f) => (
+                    <li key={f.text}>
+                      {f.text}
+                      {f.anchor && (
+                        <button
+                          type="button"
+                          className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                          onClick={() => f.anchor && jump(f.anchor)}
+                        >
+                          Fix →
+                        </button>
+                      )}
+                      {f.entryId && f.entryLabel && (
+                        <button
+                          type="button"
+                          className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                          aria-label={`Go to entry: ${f.entryLabel}`}
+                          onClick={() => f.entryId && jumpEntry(f.entryId)}
+                        >
+                          → {f.entryLabel}
+                        </button>
+                      )}
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
