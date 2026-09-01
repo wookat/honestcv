@@ -39,6 +39,7 @@ import {
   agentEntries,
   dividerOf,
   educationDetailLine,
+  experienceGroups,
   fontScaleOf,
   lineSpacingOf,
   orderedSectionKeys,
@@ -195,29 +196,52 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       children.push(heading(sectionHeading(resume, 'summary')), body(resume.summary.trim(), { after: 100 }))
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
       children.push(heading(sectionHeading(resume, 'experience')))
-      for (const e of resume.experience) {
-        if (!e.company && !e.role) continue
-        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
-        children.push(
-          new Paragraph({
-            spacing: { before: 100, after: 20 },
-            keepNext: true,
-            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
-            children: [
-              new TextRun({ text: e.role || 'Role', bold: true, size: sz(22), font }),
-              new TextRun({
-                text: `  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`,
-                size: sz(21),
-                font,
-              }),
-              ...(dates
-                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
-                : []),
-            ],
-          })
-        )
-        for (const b of e.bullets) {
-          if (b.trim()) children.push(body(b.trim(), { bullet: true }))
+      for (const g of experienceGroups(resume.experience, resume.groupByCompany === 'on')) {
+        if (g.grouped) {
+          children.push(
+            new Paragraph({
+              spacing: { before: 100, after: 20 },
+              keepNext: true,
+              children: [new TextRun({ text: g.company.trim(), bold: true, size: sz(22), font })],
+            })
+          )
+        }
+        for (const e of g.entries) {
+          const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+          children.push(
+            new Paragraph({
+              spacing: { before: g.grouped ? 40 : 100, after: 20 },
+              keepNext: true,
+              tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+              children: [
+                new TextRun({ text: e.role || 'Role', bold: true, size: sz(22), font }),
+                ...(g.grouped
+                  ? e.location
+                    ? [new TextRun({ text: `  ·  ${e.location}`, size: sz(21), font })]
+                    : []
+                  : [
+                      new TextRun({
+                        text: `  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`,
+                        size: sz(21),
+                        font,
+                      }),
+                    ]),
+                ...(dates
+                  ? [
+                      new TextRun({
+                        children: [new Tab(), dates],
+                        italics: true,
+                        size: sz(19),
+                        font,
+                      }),
+                    ]
+                  : []),
+              ],
+            })
+          )
+          for (const b of e.bullets) {
+            if (b.trim()) children.push(body(b.trim(), { bullet: true }))
+          }
         }
       }
     } else if (key === 'projects' && resume.projects.some((p) => p.name)) {

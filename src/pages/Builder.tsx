@@ -5746,6 +5746,31 @@ export default function Builder() {
             </span>
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Stack roles</span>
+              {(
+                [
+                  ['off', 'Off', 'Each experience entry shows its own company line'],
+                  ['on', 'On', 'Consecutive roles at the same company stack under one company heading — great for promotions'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — applies to preview and all exports`}
+                  aria-pressed={(resume.groupByCompany ?? 'off') === value}
+                  onClick={() => set('groupByCompany', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.groupByCompany ?? 'off') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Icons</span>
               {(
                 [

@@ -34,6 +34,7 @@ import {
   agentEntries,
   dividerOf,
   educationDetailLine,
+  experienceGroups,
   fontScaleOf,
   lineSpacingOf,
   orderedSectionKeys,
@@ -517,15 +518,23 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
       w.text(resume.summary.trim(), { size: 10 })
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
       w.heading(sectionHeading(resume, 'experience'))
-      for (const e of resume.experience) {
-        if (!e.company && !e.role) continue
-        w.gap(4)
-        w.ensure(34) // keep the entry header with its first bullet
-        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
-        const left = `${e.role || 'Role'}  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`
-        w.titleLine(left, dates, { size: 10.5 })
-        w.gap(2)
-        for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
+      for (const g of experienceGroups(resume.experience, resume.groupByCompany === 'on')) {
+        if (g.grouped) {
+          w.gap(4)
+          w.ensure(34)
+          w.titleLine(g.company.trim(), '', { size: 10.5 })
+        }
+        for (const e of g.entries) {
+          w.gap(g.grouped ? 2 : 4)
+          w.ensure(34) // keep the entry header with its first bullet
+          const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+          const left = g.grouped
+            ? `${e.role || 'Role'}${e.location ? `  ·  ${e.location}` : ''}`
+            : `${e.role || 'Role'}  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`
+          w.titleLine(left, dates, { size: 10.5 })
+          w.gap(2)
+          for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
+        }
       }
     } else if (key === 'projects' && resume.projects.some((p) => p.name)) {
       w.heading(sectionHeading(resume, 'projects'))
