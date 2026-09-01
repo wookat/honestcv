@@ -3,6 +3,8 @@
  * the browser — nothing is stored on our servers.
  */
 
+import { stripInlineMarks } from '@/lib/marks'
+
 /** Contact fields that can be hidden without deleting the data */
 export type HideableContactField = 'email' | 'phone' | 'location' | 'website' | 'linkedin'
 
@@ -2397,7 +2399,7 @@ export function resumeToPlainText(r: Resume): string {
       for (const b of s.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
     }
   }
-  return lines.join('\n')
+  return lines.map((l) => stripInlineMarks(l)).join('\n')
 }
 
 /** Flatten to Markdown (for AI tools, GitHub profiles and quick edits) */

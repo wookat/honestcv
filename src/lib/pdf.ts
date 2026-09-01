@@ -50,6 +50,7 @@ import {
   type FontFamilyKind,
 } from '@/lib/resume'
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
+import { type InlineRun, hasInlineMarks, parseInlineMarks } from '@/lib/marks'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_SIZES = {
@@ -97,6 +98,38 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
   }
   if (line) lines.push(line)
   return lines.length ? lines : ['']
+}
+
+interface RunWord {
+  text: string
+  font: PDFFont
+}
+
+/** Greedy word wrap across mixed-font runs; returns lines of styled words. */
+function wrapRuns(runs: InlineRun[], fonts: Fonts, size: number, maxWidth: number): RunWord[][] {
+  const words: RunWord[] = []
+  for (const run of runs) {
+    const font = run.bold ? fonts.bold : run.italic ? fonts.italic : fonts.regular
+    for (const w of run.text.split(/\s+/).filter(Boolean)) words.push({ text: w, font })
+  }
+  const spaceW = (f: PDFFont) => drawnWidth(f, ' ', size)
+  const lines: RunWord[][] = []
+  let line: RunWord[] = []
+  let lineW = 0
+  for (const w of words) {
+    const wordW = drawnWidth(w.font, w.text, size)
+    const addW = line.length ? spaceW(w.font) + wordW : wordW
+    if (line.length && lineW + addW > maxWidth) {
+      lines.push(line)
+      line = [w]
+      lineW = wordW
+    } else {
+      line.push(w)
+      lineW += addW
+    }
+  }
+  if (line.length) lines.push(line)
+  return lines.length ? lines : [[]]
 }
 
 class PdfWriter {
@@ -359,20 +392,38 @@ class PdfWriter {
     const size = 10 * this.fs
     const font = this.fonts.regular
     const indent = 14 + this.bi
-    const lines = wrapText(text, font, size, this.contentW - indent)
     const lineHeight = size * this.lh
+    const marker = (first: boolean) => {
+      if (!first) return
+      this.page.drawText('•', {
+        x: MARGIN + 2 + this.bi,
+        y: this.y,
+        size,
+        font,
+        color: this.accent,
+      })
+    }
+    if (hasInlineMarks(text)) {
+      const lines = wrapRuns(parseInlineMarks(text), this.fonts, size, this.contentW - indent)
+      lines.forEach((words, i) => {
+        this.ensure(lineHeight)
+        this.y -= lineHeight
+        marker(i === 0)
+        let x = MARGIN + indent
+        words.forEach((w, j) => {
+          if (j > 0) x += drawnWidth(w.font, ' ', size)
+          this.page.drawText(w.text, { x, y: this.y, size, font: w.font, color: this.ink })
+          x += drawnWidth(w.font, w.text, size)
+        })
+      })
+      this.gap(2)
+      return
+    }
+    const lines = wrapText(text, font, size, this.contentW - indent)
     lines.forEach((line, i) => {
       this.ensure(lineHeight)
       this.y -= lineHeight
-      if (i === 0) {
-        this.page.drawText('•', {
-          x: MARGIN + 2 + this.bi,
-          y: this.y,
-          size,
-          font,
-          color: this.accent,
-        })
-      }
+      marker(i === 0)
       this.page.drawText(line, { x: MARGIN + indent, y: this.y, size, font, color: this.ink })
     })
     this.gap(2)
