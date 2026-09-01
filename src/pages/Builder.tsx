@@ -107,6 +107,7 @@ import {
   type HealthReport,
   bulletMix,
   checkBullets,
+  diffNewWords,
   priorityFixes,
   resumeHealth,
   resumeStrength,
@@ -811,6 +812,7 @@ export default function Builder() {
   const [variantPick, setVariantPick] = useState<{
     title: string
     candidates: string[]
+    original?: string
     apply: (text: string) => void
   } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
@@ -1167,6 +1169,7 @@ export default function Builder() {
         setVariantPick({
           title: kind === 'summary' ? 'Pick a summary' : 'Pick a rewrite',
           candidates: texts,
+          original: text,
           apply,
         })
       } else {
@@ -1274,6 +1277,7 @@ export default function Builder() {
       setVariantPick({
         title: 'Pick a summary',
         candidates: texts,
+        original: resume.summary,
         apply: (out) => set('summary', out),
       })
     } catch (e) {
@@ -6479,6 +6483,21 @@ export default function Builder() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {Boolean(variantPick?.original?.trim()) && (
+              <div className="bg-muted/40 rounded-lg border border-dashed p-3 text-sm">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground text-xs font-medium">Your original</span>
+                  <button
+                    type="button"
+                    className="text-primary min-h-10 text-xs underline underline-offset-2 sm:min-h-0"
+                    onClick={() => setVariantPick(null)}
+                  >
+                    Keep my original
+                  </button>
+                </div>
+                <span className="whitespace-pre-wrap">{variantPick?.original}</span>
+              </div>
+            )}
             {variantPick?.candidates.map((cand, i) => (
               <button
                 key={cand.slice(0, 40) + String(i)}
@@ -6492,7 +6511,20 @@ export default function Builder() {
                 <span className="text-muted-foreground mb-1 block text-xs font-medium">
                   {['Concise', 'Impact-focused', 'Keyword-focused'][i] ?? `Option ${i + 1}`}
                 </span>
-                {cand}
+                {variantPick.original?.trim()
+                  ? diffNewWords(variantPick.original, cand).map((chunk, j) =>
+                      chunk.added ? (
+                        <span
+                          key={String(j)}
+                          className="rounded-sm bg-emerald-100 dark:bg-emerald-900/50"
+                        >
+                          {chunk.text}
+                        </span>
+                      ) : (
+                        chunk.text
+                      )
+                    )
+                  : cand}
               </button>
             ))}
           </div>
