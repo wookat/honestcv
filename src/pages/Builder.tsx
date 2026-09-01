@@ -2146,20 +2146,19 @@ export default function Builder() {
                         Hidden
                       </span>
                     )}
-                    {collapsedEntries.has(e.id) && (
-                      <EntryAuditChip
-                        findings={[
-                          ...((e.role.trim() || e.company.trim()) && !e.startDate.trim()
-                            ? [DATE_FINDING]
-                            : []),
-                          ...bulletFindings(e.bullets, Boolean(e.role.trim() || e.company.trim())),
-                        ]}
-                        filled={Boolean(e.role.trim() || e.company.trim())}
-                        checks={EXPERIENCE_CHECKS}
-                        onExpand={() => toggleEntry(e.id)}
-                        label={`Role ${idx + 1}`}
-                      />
-                    )}
+                    <EntryAuditChip
+                      findings={[
+                        ...((e.role.trim() || e.company.trim()) && !e.startDate.trim()
+                          ? [DATE_FINDING]
+                          : []),
+                        ...bulletFindings(e.bullets, Boolean(e.role.trim() || e.company.trim())),
+                      ]}
+                      filled={Boolean(e.role.trim() || e.company.trim())}
+                      checks={EXPERIENCE_CHECKS}
+                      expandable={collapsedEntries.has(e.id)}
+                      onExpand={() => toggleEntry(e.id)}
+                      label={`Role ${idx + 1}`}
+                    />
                   </p>
                   <div className="ml-auto flex shrink-0 items-center">
                     <Button
@@ -2526,19 +2525,18 @@ export default function Builder() {
                       Hidden
                     </span>
                   )}
-                  {collapsedEntries.has(e.id) && (
-                    <EntryAuditChip
-                      findings={
-                        (e.degree.trim() || e.school.trim()) && !e.startDate.trim()
-                          ? [DATE_FINDING]
-                          : []
-                      }
-                      filled={Boolean(e.degree.trim() || e.school.trim())}
-                      checks={DATE_CHECKS}
-                      onExpand={() => toggleEntry(e.id)}
-                      label={`Education ${idx + 1}`}
-                    />
-                  )}
+                  <EntryAuditChip
+                    findings={
+                      (e.degree.trim() || e.school.trim()) && !e.startDate.trim()
+                        ? [DATE_FINDING]
+                        : []
+                    }
+                    filled={Boolean(e.degree.trim() || e.school.trim())}
+                    checks={DATE_CHECKS}
+                    expandable={collapsedEntries.has(e.id)}
+                    onExpand={() => toggleEntry(e.id)}
+                    label={`Education ${idx + 1}`}
+                  />
                   <span className="grow" />
                   <Button
                     type="button"
@@ -2867,15 +2865,14 @@ export default function Builder() {
                         Hidden
                       </span>
                     )}
-                    {collapsedEntries.has(p.id) && (
-                      <EntryAuditChip
-                        findings={bulletFindings(p.description.split('\n'), false)}
-                        filled={Boolean(p.name.trim())}
-                        checks={BULLET_CATEGORIES}
-                        onExpand={() => toggleEntry(p.id)}
-                        label={`Project ${pIdx + 1}`}
-                      />
-                    )}
+                    <EntryAuditChip
+                      findings={bulletFindings(p.description.split('\n'), false)}
+                      filled={Boolean(p.name.trim())}
+                      checks={BULLET_CATEGORIES}
+                      expandable={collapsedEntries.has(p.id)}
+                      onExpand={() => toggleEntry(p.id)}
+                      label={`Project ${pIdx + 1}`}
+                    />
                   </p>
                   <div className="flex items-center">
                     <Button
@@ -6792,6 +6789,7 @@ function EntryAuditChip({
   findings,
   filled,
   checks,
+  expandable,
   onExpand,
   label,
 }: {
@@ -6799,6 +6797,8 @@ function EntryAuditChip({
   filled: boolean
   /** Ordered audit category names that apply to this section type. */
   checks: string[]
+  /** Whether the card is collapsed, so the warning chip can expand it. */
+  expandable: boolean
   onExpand: () => void
   label: string
 }) {
@@ -6849,6 +6849,20 @@ function EntryAuditChip({
           aria-label={`${label}: ${checks.length} best practice${checks.length === 1 ? '' : 's'} applied`}
         >
           ✓
+        </span>
+        {panel}
+      </span>
+    )
+  }
+  if (!expandable) {
+    return (
+      <span className="group relative flex shrink-0">
+        <span
+          tabIndex={0}
+          className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
+          aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'}`}
+        >
+          ⚠ {findings.length}
         </span>
         {panel}
       </span>
