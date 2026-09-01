@@ -2112,6 +2112,102 @@ export function skillLines(r: Resume): { label?: string; text: string }[] {
   })
 }
 
+const SKILL_CATEGORIES: { label: string; terms: string[] }[] = [
+  {
+    label: 'Languages',
+    terms: [
+      'javascript', 'typescript', 'python', 'java', 'c', 'c++', 'c#', 'go', 'golang',
+      'rust', 'ruby', 'php', 'swift', 'kotlin', 'scala', 'r', 'dart', 'elixir',
+      'haskell', 'perl', 'lua', 'objective-c', 'matlab', 'sql', 'html', 'css',
+      'sass', 'scss', 'bash', 'shell', 'powershell', 'solidity', 'clojure',
+    ],
+  },
+  {
+    label: 'Frameworks & libraries',
+    terms: [
+      'react', 'react native', 'next.js', 'nextjs', 'vue', 'vue.js', 'nuxt',
+      'angular', 'svelte', 'node', 'node.js', 'nodejs', 'express', 'nestjs',
+      'django', 'flask', 'fastapi', 'rails', 'ruby on rails', 'spring',
+      'spring boot', 'laravel', 'symfony', '.net', 'asp.net', 'flutter',
+      'jquery', 'redux', 'tailwind', 'tailwind css', 'bootstrap', 'graphql',
+      'pandas', 'numpy', 'scikit-learn', 'tensorflow', 'pytorch', 'keras',
+      'langchain', 'electron', 'vite', 'webpack', 'remix', 'astro', 'hono',
+    ],
+  },
+  {
+    label: 'Cloud & DevOps',
+    terms: [
+      'aws', 'azure', 'gcp', 'google cloud', 'cloudflare', 'heroku', 'vercel',
+      'netlify', 'docker', 'kubernetes', 'k8s', 'terraform', 'ansible',
+      'jenkins', 'github actions', 'gitlab ci', 'circleci', 'ci/cd', 'cicd',
+      'linux', 'nginx', 'serverless', 'lambda', 'ec2', 's3', 'pulumi',
+      'prometheus', 'grafana', 'datadog', 'helm',
+    ],
+  },
+  {
+    label: 'Databases',
+    terms: [
+      'postgresql', 'postgres', 'mysql', 'sqlite', 'mongodb', 'redis',
+      'elasticsearch', 'dynamodb', 'cassandra', 'oracle', 'sql server',
+      'mariadb', 'firebase', 'firestore', 'supabase', 'snowflake', 'bigquery',
+      'redshift', 'neo4j', 'clickhouse', 'kafka', 'rabbitmq',
+    ],
+  },
+  {
+    label: 'Tools',
+    terms: [
+      'git', 'github', 'gitlab', 'bitbucket', 'jira', 'confluence', 'figma',
+      'sketch', 'photoshop', 'illustrator', 'excel', 'power bi', 'tableau',
+      'looker', 'postman', 'jest', 'cypress', 'playwright', 'selenium',
+      'storybook', 'vs code', 'intellij', 'xcode', 'android studio', 'notion',
+      'slack', 'salesforce', 'hubspot', 'google analytics', 'segment',
+    ],
+  },
+  {
+    label: 'Practices',
+    terms: [
+      'agile', 'scrum', 'kanban', 'tdd', 'test-driven development', 'bdd',
+      'pair programming', 'code review', 'microservices', 'rest', 'rest apis',
+      'restful apis', 'api design', 'system design', 'oop', 'design patterns',
+      'accessibility', 'a11y', 'seo', 'responsive design', 'unit testing',
+      'integration testing', 'e2e testing', 'devops', 'observability',
+      'project management', 'product management', 'data analysis',
+      'machine learning', 'deep learning', 'nlp', 'a/b testing', 'etl',
+      'user research', 'ux design', 'ui design', 'wireframing', 'prototyping',
+    ],
+  },
+]
+
+/**
+ * Deterministic grouping of a flat skills list into `Category: a, b` lines.
+ * Returns null when the list is already categorized, too short (<8 skills),
+ * or too unfamiliar to bucket confidently (less than half recognized).
+ */
+export function categorizeSkills(skills: string): string | null {
+  const lines = skills.split('\n').map((l) => l.trim()).filter(Boolean)
+  if (lines.some((line) => /^[^:]{1,40}:\s*.+$/.test(line)) && lines.length > 1) return null
+  const terms = skills.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
+  if (terms.length < 8) return null
+  const buckets = new Map<string, string[]>()
+  let recognized = 0
+  for (const term of terms) {
+    const lower = term.toLowerCase()
+    const cat = SKILL_CATEGORIES.find((c) => c.terms.includes(lower))
+    const label = cat?.label ?? 'Other'
+    if (cat) recognized++
+    const list = buckets.get(label) ?? []
+    if (!list.some((t) => t.toLowerCase() === lower)) list.push(term)
+    buckets.set(label, list)
+  }
+  const namedBuckets = [...buckets.keys()].filter((k) => k !== 'Other').length
+  if (recognized * 2 < terms.length || namedBuckets < 2) return null
+  const ordered = [
+    ...SKILL_CATEGORIES.map((c) => c.label).filter((l) => buckets.has(l)),
+    ...(buckets.has('Other') ? ['Other'] : []),
+  ]
+  return ordered.map((l) => `${l}: ${buckets.get(l)!.join(', ')}`).join('\n')
+}
+
 /** Award entries with any content */
 export const awardEntries = (r: Resume): AwardItem[] =>
   (r.awards ?? []).filter((a) => a.name.trim() || a.organization.trim())

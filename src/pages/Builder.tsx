@@ -218,6 +218,7 @@ import {
   type HideableContactField,
   type AutoSortSection,
   skillLines,
+  categorizeSkills,
   sortEntriesByDate,
   TEXT_INKS,
   visibleResume,
@@ -4939,11 +4940,27 @@ export default function Builder() {
               />
               {resume.skills.split(/[,\n]/).filter((s) => s.trim()).length >= 8 &&
                 !skillLines(resume).some((l) => l.label) && (
-                  <p className="text-muted-foreground text-xs">
-                    Tip: recruiters scan long skill lists faster when they're grouped —
-                    put each category on its own line, e.g. “Languages: Python,
-                    TypeScript” then “Cloud: AWS, Terraform”.
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-muted-foreground text-xs">
+                      Tip: recruiters scan long skill lists faster when they're grouped —
+                      put each category on its own line, e.g. “Languages: Python,
+                      TypeScript” then “Cloud: AWS, Terraform”.
+                    </p>
+                    {categorizeSkills(resume.skills) !== null && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-10 sm:min-h-8"
+                        onClick={() => {
+                          const grouped = categorizeSkills(resume.skills)
+                          if (grouped !== null) set('skills', grouped)
+                        }}
+                      >
+                        <Sparkles className="size-3.5" /> Group into categories
+                      </Button>
+                    )}
+                  </div>
                 )}
               <div className="flex flex-wrap items-center gap-2">
                 {aiButton(
