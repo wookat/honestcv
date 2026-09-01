@@ -2049,7 +2049,7 @@ export default function Builder() {
                           ...bulletFindings(e.bullets, Boolean(e.role.trim() || e.company.trim())),
                         ]}
                         filled={Boolean(e.role.trim() || e.company.trim())}
-                        checks={BULLET_CHECKS + 2}
+                        checks={EXPERIENCE_CHECKS}
                         onExpand={() => toggleEntry(e.id)}
                         label={`Role ${idx + 1}`}
                       />
@@ -2428,7 +2428,7 @@ export default function Builder() {
                           : []
                       }
                       filled={Boolean(e.degree.trim() || e.school.trim())}
-                      checks={1}
+                      checks={DATE_CHECKS}
                       onExpand={() => toggleEntry(e.id)}
                       label={`Education ${idx + 1}`}
                     />
@@ -2765,7 +2765,7 @@ export default function Builder() {
                       <EntryAuditChip
                         findings={bulletFindings(p.description.split('\n'), false)}
                         filled={Boolean(p.name.trim())}
-                        checks={BULLET_CHECKS}
+                        checks={BULLET_CATEGORIES}
                         onExpand={() => toggleEntry(p.id)}
                         label={`Project ${pIdx + 1}`}
                       />
@@ -6593,9 +6593,34 @@ const AUDIT_CATEGORY: Record<BulletIssue['kind'], string> = {
 }
 
 /** Distinct bullet-level audit categories (AUDIT_CATEGORY collapses two kinds). */
-const BULLET_CHECKS = 8
+const BULLET_CATEGORIES = [
+  'Weak bullet points',
+  'Quantified bullet points',
+  'Personal pronouns',
+  'Filler words',
+  'Buzzwords',
+  'Passive voice',
+  'Punctuation & capitalization',
+  'Bullet length',
+]
+
+const AUDIT_EXPLANATION: Record<string, string> = {
+  'Weak bullet points': 'Open each bullet with a strong action verb instead of "worked" or "was".',
+  'Quantified bullet points': 'Add a number that shows scale or impact — team size, %, time or money.',
+  'Personal pronouns': 'Drop I / me / my — resume bullets are written without pronouns.',
+  'Filler words': 'Cut empty phrases like "responsible for" or "various" — say what you did.',
+  Buzzwords: 'Swap vague buzzwords for the concrete skill or result behind them.',
+  'Passive voice': 'Rewrite in active voice so you — not the task — are the subject.',
+  'Punctuation & capitalization': 'Start with a capital letter and keep end punctuation consistent.',
+  'Bullet length': 'Keep each bullet roughly one line — long enough to be specific, short enough to scan.',
+  'Number of bullet points': 'Aim for 3–6 bullets per role — enough evidence without padding.',
+  'Dates are missing': 'Recruiters need dates to place this on your timeline and verify experience.',
+}
 
 const DATE_FINDING: AuditFinding = { category: 'Dates are missing' }
+
+const EXPERIENCE_CHECKS = ['Number of bullet points', 'Dates are missing', ...BULLET_CATEGORIES]
+const DATE_CHECKS = ['Dates are missing']
 
 function bulletFindings(bullets: string[], entryFilled: boolean): AuditFinding[] {
   const findings: AuditFinding[] = checkBullets(bullets).flatMap((r) =>
@@ -6616,8 +6641,8 @@ function EntryAuditChip({
 }: {
   findings: AuditFinding[]
   filled: boolean
-  /** Total audit categories that apply to this section type. */
-  checks: number
+  /** Ordered audit category names that apply to this section type. */
+  checks: string[]
   onExpand: () => void
   label: string
 }) {
@@ -6627,11 +6652,12 @@ function EntryAuditChip({
     if (f.line !== undefined) lines.push(f.line)
     groups.set(f.category, lines)
   }
-  const passed = Math.max(checks - groups.size, 0)
+  const passedNames = checks.filter((c) => !groups.has(c))
+  const passed = passedNames.length
   const panel = (
     <div
       aria-hidden
-      className="bg-popover text-popover-foreground fixed inset-x-4 bottom-20 z-40 hidden rounded-md border p-2 text-left shadow-md group-focus-within:block group-hover:block sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:bottom-auto sm:mt-1 sm:w-56"
+      className="bg-popover text-popover-foreground fixed inset-x-4 bottom-20 z-40 hidden rounded-md border p-2 text-left shadow-md group-focus-within:block group-hover:block sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:bottom-auto sm:mt-1 sm:w-64"
     >
       <ul className="space-y-1 text-[11px] leading-snug font-normal">
         {[...groups.entries()].map(([category, lines]) => (
@@ -6643,11 +6669,15 @@ function EntryAuditChip({
                 — line{lines.length === 1 ? '' : 's'} {[...new Set(lines)].join(', ')}
               </span>
             )}
+            {AUDIT_EXPLANATION[category] && (
+              <span className="text-muted-foreground block">{AUDIT_EXPLANATION[category]}</span>
+            )}
           </li>
         ))}
         {passed > 0 && (
           <li className="text-emerald-700">
             ✓ {passed} best practice{passed === 1 ? '' : 's'} applied
+            <span className="text-muted-foreground block">{passedNames.join(', ')}</span>
           </li>
         )}
       </ul>
@@ -6660,7 +6690,7 @@ function EntryAuditChip({
         <span
           tabIndex={0}
           className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
-          aria-label={`${label}: ${checks} best practice${checks === 1 ? '' : 's'} applied`}
+          aria-label={`${label}: ${checks.length} best practice${checks.length === 1 ? '' : 's'} applied`}
         >
           ✓
         </span>
