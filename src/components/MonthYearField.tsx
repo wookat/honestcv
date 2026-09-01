@@ -31,11 +31,13 @@ export function MonthYearField({
   onChange,
   placeholder,
   allowPresent = false,
+  id,
 }: {
   value: string
   onChange: (value: string) => void
   placeholder?: string
   allowPresent?: boolean
+  id?: string
 }) {
   const [open, setOpen] = useState(false)
   const [year, setYear] = useState(() => yearOf(value))
@@ -65,6 +67,7 @@ export function MonthYearField({
   return (
     <div ref={ref} className="relative">
       <Input
+        id={id}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
