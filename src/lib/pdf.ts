@@ -448,7 +448,7 @@ async function embedFontsFor(doc: PDFDocument, resume: Resume, tplSerif: boolean
   }
 }
 
-async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
+async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: PdfWriter }> {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const doc = await PDFDocument.create()
   const fonts: Fonts = await embedFontsFor(doc, resume, tpl.serif)
@@ -664,16 +664,31 @@ async function composeResumePdf(resume: Resume): Promise<PDFDocument> {
     }
   }
 
-  return doc
+  return { doc, w }
 }
 
 export async function buildResumePdf(resume: Resume): Promise<Uint8Array> {
-  return (await composeResumePdf(resume)).save()
+  return (await composeResumePdf(resume)).doc.save()
 }
 
-/** Page count of the exported PDF — drives the page indicator in the builder. */
+export interface ResumeLength {
+  pages: number
+  /** Fractional length in pages, e.g. 0.31 or 1.4 — (pages − 1) + fill of the last page. */
+  length: number
+}
+
+/** Fractional length of the exported PDF — drives the length meter in the builder. */
+export async function measureResumePdf(resume: Resume): Promise<ResumeLength> {
+  const { doc, w } = await composeResumePdf(resume)
+  const pages = doc.getPageCount()
+  const usable = w.pageH - MARGIN * 2
+  const fill = Math.min(1, Math.max(0, (w.pageH - MARGIN - w.y) / usable))
+  return { pages, length: pages - 1 + fill }
+}
+
+/** Page count of the exported PDF — drives auto-fit. */
 export async function countResumePdfPages(resume: Resume): Promise<number> {
-  return (await composeResumePdf(resume)).getPageCount()
+  return (await measureResumePdf(resume)).pages
 }
 
 export async function downloadResumePdf(resume: Resume, filename: string) {

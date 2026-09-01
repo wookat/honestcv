@@ -280,23 +280,23 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
   return state
 }
 
-/** Debounced page count of the exported PDF, shown next to the preview. */
-function usePdfPageCount(resume: Resume): number | null {
-  const [pages, setPages] = useState<number | null>(null)
+/** Debounced fractional length of the exported PDF, shown next to the preview. */
+function usePdfLength(resume: Resume): import('@/lib/pdf').ResumeLength | null {
+  const [len, setLen] = useState<import('@/lib/pdf').ResumeLength | null>(null)
   const seq = useRef(0)
   useEffect(() => {
     const id = ++seq.current
     const t = window.setTimeout(() => {
       void import('@/lib/pdf')
-        .then((m) => m.countResumePdfPages(resume))
+        .then((m) => m.measureResumePdf(resume))
         .then((n) => {
-          if (seq.current === id) setPages(n)
+          if (seq.current === id) setLen(n)
         })
         .catch(() => undefined)
     }, 800)
     return () => window.clearTimeout(t)
   }, [resume])
-  return pages
+  return len
 }
 
 const FIT_COMBOS: Array<
@@ -852,7 +852,7 @@ export default function Builder() {
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
   const shown = useMemo(() => visibleResume(resume), [resume])
-  const pdfPages = usePdfPageCount(shown)
+  const pdfLength = usePdfLength(shown)
   const [fitBusy, setFitBusy] = useState(false)
   const [fitMsg, setFitMsg] = useState('')
   const autoFit = useCallback(async () => {
@@ -5457,14 +5457,34 @@ export default function Builder() {
             mobilePane === 'preview' ? '' : 'hidden lg:block'
           }`}
         >
-          {pdfPages !== null && (
+          {pdfLength !== null && (
             <div className="flex flex-wrap items-center gap-2">
-              <p
-                className={`text-xs ${pdfPages > 1 ? 'text-amber-700' : 'text-muted-foreground'}`}
+              <span
+                role="img"
+                aria-label={`Resume fills ${Math.round(Math.min(pdfLength.length, 1) * 100)}% of the first page`}
+                className="bg-muted inline-block h-1.5 w-16 overflow-hidden rounded-full"
               >
-                PDF export: {pdfPages} page{pdfPages === 1 ? '' : 's'}
-                {pdfPages > 1 &&
-                  ' — recruiters prefer one page; consider trimming older roles or long bullets'}
+                <span
+                  className={`block h-full rounded-full ${
+                    pdfLength.pages > 1 || pdfLength.length < 0.45 ? 'bg-amber-500' : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${Math.round(Math.min(pdfLength.length, 1) * 100)}%` }}
+                />
+              </span>
+              <p
+                className={`text-xs ${
+                  pdfLength.pages > 1 || pdfLength.length < 0.45
+                    ? 'text-amber-700'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                Resume length: {pdfLength.length.toFixed(2)} page
+                {pdfLength.length > 1 ? 's' : ''}
+                {pdfLength.pages > 1
+                  ? ' — recruiters prefer one page; consider trimming older roles or long bullets'
+                  : pdfLength.length < 0.45
+                    ? ' — looks sparse; add relevant bullets or roles to fill most of the page'
+                    : ' — one page is ideal for most applications'}
               </p>
               <Button
                 variant="outline"
