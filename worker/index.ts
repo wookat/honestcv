@@ -512,7 +512,7 @@ app.post('/api/ai/rewrite', async (c) => {
 // strictly in existing content. Shares the free AI quota.
 app.post('/api/ai/summary-draft', async (c) => {
   const body = await c.req
-    .json<{ resumeText?: string; role?: string }>()
+    .json<{ resumeText?: string; role?: string; highlights?: string[] }>()
     .catch(() => ({}) as Record<string, never>)
   const resumeText = body.resumeText?.trim()
   if (!resumeText) {
@@ -521,6 +521,11 @@ app.post('/api/ai/summary-draft', async (c) => {
       400
     )
   }
+  const highlights = (Array.isArray(body.highlights) ? body.highlights : [])
+    .filter((h): h is string => typeof h === 'string')
+    .map((h) => h.trim().slice(0, 40))
+    .filter(Boolean)
+    .slice(0, 8)
 
   const ent = await entitlementFromRequest(c)
   let freeRemaining: number | null = null
@@ -542,7 +547,7 @@ app.post('/api/ai/summary-draft', async (c) => {
 
   const result = await callLlm(
     c.env,
-    buildSummaryDraftMessages(resumeText, body.role ?? ''),
+    buildSummaryDraftMessages(resumeText, body.role ?? '', highlights),
     0.5,
     900
   )

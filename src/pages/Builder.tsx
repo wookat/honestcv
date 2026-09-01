@@ -1192,7 +1192,44 @@ export default function Builder() {
     }
   }
 
-  const runSummaryDraft = async () => {
+  /** Setup dialog for the summary draft: position framing + skills to emphasize */
+  const [summaryDraftSetup, setSummaryDraftSetup] = useState<{
+    position: string
+    picked: string[]
+  } | null>(null)
+
+  const summaryPositionOptions = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const role of [resume.targetRole, ...resume.experience.map((e) => e.role)]) {
+      const r = role.trim()
+      const key = r.toLowerCase()
+      if (r && !seen.has(key)) {
+        seen.add(key)
+        out.push(r)
+      }
+    }
+    return out
+  }, [resume.targetRole, resume.experience])
+
+  const summarySkillOptions = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const line of skillLines(resume)) {
+      for (const part of line.text.split(',')) {
+        const s = part.trim()
+        const key = s.toLowerCase()
+        if (s && s.length <= 40 && !seen.has(key)) {
+          seen.add(key)
+          out.push(s)
+        }
+        if (out.length >= 18) return out
+      }
+    }
+    return out
+  }, [resume])
+
+  const runSummaryDraft = async (position: string, highlights: string[]) => {
     const tag = 'summary-draft'
     const hasContent =
       resume.experience.some((e) => e.role.trim() || e.bullets.some((b) => b.trim())) ||
@@ -1209,7 +1246,8 @@ export default function Builder() {
     try {
       const { texts, freeRemaining } = await aiSummaryDraft({
         resumeText: resumeToPlainText({ ...shown, summary: '' }),
-        role: aiTargetRole(resume),
+        role: position.trim() || aiTargetRole(resume),
+        highlights: highlights.length ? highlights : undefined,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setVariantPick({
@@ -2066,7 +2104,12 @@ export default function Builder() {
                       set('summary', out)
                     )
                   )
-                : aiButton('summary-draft', 'Draft from my resume', () => void runSummaryDraft())}
+                : aiButton('summary-draft', 'Draft from my resume', () =>
+                    setSummaryDraftSetup({
+                      position: aiTargetRole(resume),
+                      picked: [],
+                    })
+                  )}
               <Button
                 type="button"
                 variant="ghost"
@@ -6321,6 +6364,101 @@ export default function Builder() {
               </button>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={summaryDraftSetup !== null}
+        onOpenChange={(o) => !o && setSummaryDraftSetup(null)}
+      >
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Draft my summary</DialogTitle>
+            <DialogDescription>
+              Pick the position to frame the summary around and up to 5 skills to emphasize.
+              Drafts use only facts already on your resume.
+            </DialogDescription>
+          </DialogHeader>
+          {summaryDraftSetup && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="summary-draft-position">Position highlight</Label>
+                {summaryPositionOptions.length > 0 ? (
+                  <select
+                    id="summary-draft-position"
+                    className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                    value={summaryDraftSetup.position}
+                    onChange={(e) =>
+                      setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
+                    }
+                  >
+                    {summaryPositionOptions.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    id="summary-draft-position"
+                    placeholder="e.g. Software Engineer"
+                    value={summaryDraftSetup.position}
+                    onChange={(e) =>
+                      setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
+                    }
+                  />
+                )}
+              </div>
+              {summarySkillOptions.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-sm font-medium">
+                    Skills highlight{' '}
+                    <span className="text-muted-foreground font-normal">
+                      (optional, up to 5)
+                    </span>
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {summarySkillOptions.map((s) => {
+                      const on = summaryDraftSetup.picked.includes(s)
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          aria-pressed={on}
+                          disabled={!on && summaryDraftSetup.picked.length >= 5}
+                          className={`rounded-full border px-2.5 py-1 text-xs transition disabled:opacity-40 ${
+                            on
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'hover:border-primary hover:bg-muted/50'
+                          }`}
+                          onClick={() =>
+                            setSummaryDraftSetup({
+                              ...summaryDraftSetup,
+                              picked: on
+                                ? summaryDraftSetup.picked.filter((p) => p !== s)
+                                : [...summaryDraftSetup.picked, s],
+                            })
+                          }
+                        >
+                          {s}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => {
+                  const { position, picked } = summaryDraftSetup
+                  setSummaryDraftSetup(null)
+                  void runSummaryDraft(position, picked)
+                }}
+              >
+                <Sparkles className="size-4" /> Write 3 drafts
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <FreeDownloadDialog
