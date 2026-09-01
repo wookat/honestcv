@@ -108,7 +108,7 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
         <Link to="/" className="flex items-center gap-2 font-semibold">
           <LogoMark className="size-6" />
           RezUp
-          <span className="text-muted-foreground text-xs font-normal">by Zalize</span>
+          <span className="text-muted-foreground hidden text-xs font-normal sm:inline">by Zalize</span>
         </Link>
         <nav aria-label="Main" className="text-muted-foreground hidden items-center gap-5 text-sm md:flex">
           <a className="hover:text-foreground" href="/templates/">Templates</a>
