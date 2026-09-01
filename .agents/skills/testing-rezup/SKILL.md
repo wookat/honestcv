@@ -290,6 +290,14 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - The `type` action into Builder textareas occasionally drops the first character of a line — verify typed text via localStorage/DOM before asserting.
 - The HealthDialog (score breakdown) is reachable two ways: "Full health report — N/100" link in the Resume strength card (desktop left column) and "See full score breakdown" in the ATS score card (the only practical entry on the mobile Preview & score pane). Its Fix buttons are `min-h-10` (40px) on mobile but 16px on desktop (`sm:min-h-0`) — assert touch targets only under 375px emulation.
 
+## R203 /ats-checker Priority fixes notes
+- "Priority fixes" block lives in the results card between the sub-score `<details>` and the keyword tier grid; find via `[...document.querySelectorAll('p')].find(p=>p.textContent.trim()==='Priority fixes')` then `.closest('div.rounded-lg')`.
+- Points math (src/lib/guidance.ts priorityFixes): structure per-check = 30/#checks with JD (Med, 3.8 for 8 checks) vs 100/#checks without JD (High, 12.5); keyword fix = round(70·missing/total); health fix = round((100−score)·HEALTH_WEIGHTS). High iff points≥10 or score<50. Top 5 sorted desc.
+- Emerald empty state needs ALL structure checks passing incl. word count ≥ ~400 words — pad a strong fixture with numbered project bullets to reach it.
+- Check button is disabled while `resumeText.trim().length < 30`; don't mistake that for a broken recompute gate.
+- Uploading a file (DOM.setFileInputFiles on `input[type=file]`) sets checked=false; "Uploaded file checks (name)" only renders inside the results card after clicking Check again.
+- High/Med chips use bg-red-100/text-red-700 with no dark: overrides — the inverted dark palette remaps both (light text on dark bg), measured 7.29:1, OK.
+
 ## Devin Secrets Needed
 
 None — the seeded test license key is provided by the user per run.
