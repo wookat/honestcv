@@ -194,22 +194,37 @@ export default function Jobs() {
           return !(s && excluded.has(s))
         })
       : base
-  const filtered =
+  /** A posting anyone can apply to regardless of where they live. */
+  const isLocationAgnostic = (location: string) => {
+    const l = location.trim().toLowerCase()
+    return l === '' || l === 'remote' || /\b(worldwide|anywhere|global)\b/.test(l)
+  }
+  const directMatches =
     tab === 'all' && loc
       ? afterExclude.filter((j) => j.location.toLowerCase().includes(loc))
       : afterExclude
-  const shown =
+  const anywhereMatches =
+    tab === 'all' && loc
+      ? afterExclude.filter(
+          (j) => !j.location.toLowerCase().includes(loc) && isLocationAgnostic(j.location)
+        )
+      : []
+  const applySort = (list: JobListing[]) =>
     tab === 'all' && sort === 'newest'
-      ? [...filtered].sort(
+      ? [...list].sort(
           (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
         )
       : tab === 'all' && sort === 'match'
-        ? [...filtered].sort(
+        ? [...list].sort(
             (a, b) =>
               (matchOf.get(b.id) ?? -1) - (matchOf.get(a.id) ?? -1) ||
               new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
           )
-        : filtered
+        : list
+  const sortedAnywhere = applySort(anywhereMatches)
+  const shown = [...applySort(directMatches), ...sortedAnywhere]
+  /** Index of the first location-agnostic result when the location input splits the list. */
+  const anywhereStart = sortedAnywhere.length > 0 ? shown.length - sortedAnywhere.length : -1
   const selected =
     shown.find((j) => j.id === selectedId) ??
     jobs.find((j) => j.id === selectedId) ??
@@ -501,11 +516,16 @@ export default function Jobs() {
               </p>
             ) : (
               <ul>
-                {shown.map((j) => {
+                {shown.map((j, i) => {
                   const status = statusOf.get(j.id)
                   const updated = updatedAtOf.get(j.id)
                   return (
                     <li key={j.id} className="border-b last:border-b-0">
+                      {i === anywhereStart && (
+                        <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
+                          Open to any location ({sortedAnywhere.length})
+                        </p>
+                      )}
                       <div
                         className={`hover:bg-accent relative px-4 py-3 ${
                           selected?.id === j.id ? 'bg-accent border-primary border-l-2' : ''
