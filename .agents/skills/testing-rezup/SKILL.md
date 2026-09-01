@@ -354,3 +354,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R169 QA notes (audit chips + clean bullet fixtures)
 - Entry audit chips (`EntryAuditChip`) are spans with `aria-label` starting "Role N:"/"Project N:"; their popover panel (a sibling `div`) shows on hover/focus — dispatch a CDP `mouseMoved` over the chip or focus the tabIndex=0 span to reveal it.
 - A no-digit "clean" test bullet that trips no other lint rule: "Led design reviews across frontend guild teams." (strong opener, capitalized, period, 4+ words).
+
+## R171 QA notes (dashboard folder sections)
+- Dashboard per-copy action buttons are identified by `title`: "Move to folder", "Duplicate this copy" (not "Duplicate {name}"), "Edit name & target job", "Delete this copy" — sr-only spans carry the copy name.
+- Folder header controls use titles "Rename folder {name}" / "Remove folder {name}"; the header toggle button has aria-expanded and the collapsed set lives in `localStorage['honestcv.dashboardFoldersCollapsed']`.
+- Clicking Open loads the copy into the builder and sets `honestcv.resume` + `honestcv.activeVersionId`, so a current-resume preview card appears on the dashboard afterwards — clean those keys up too.
