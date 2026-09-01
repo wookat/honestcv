@@ -20,6 +20,7 @@ import {
   Loader2,
   MessagesSquare,
   Pencil,
+  Star,
   Trash2,
 } from 'lucide-react'
 
@@ -136,6 +137,21 @@ export default function Dashboard() {
   const [exampleQuery, setExampleQuery] = useState('')
   const [exampleSector, setExampleSector] = useState('All')
   const [previewExample, setPreviewExample] = useState<ExampleEntry | null>(null)
+  const [savedSamples, setSavedSamples] = useState<string[]>(() => {
+    try {
+      const parsed: unknown = JSON.parse(localStorage.getItem('honestcv.savedSamples') || '[]')
+      return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []
+    } catch {
+      return []
+    }
+  })
+  const [savedOnly, setSavedOnly] = useState(false)
+  const toggleSavedSample = (slug: string) =>
+    setSavedSamples((s) => {
+      const next = s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug]
+      localStorage.setItem('honestcv.savedSamples', JSON.stringify(next))
+      return next
+    })
   const [newOpen, setNewOpen] = useState(false)
   const [newKeepCopy, setNewKeepCopy] = useState(true)
   const [newRole, setNewRole] = useState('')
@@ -342,10 +358,11 @@ export default function Dashboard() {
     const q = exampleQuery.trim().toLowerCase()
     return examples.filter(
       (e) =>
+        (!savedOnly || savedSamples.includes(e.slug)) &&
         (exampleSector === 'All' || e.sector === exampleSector) &&
         (!q || e.role.toLowerCase().includes(q) || e.sector.toLowerCase().includes(q))
     )
-  }, [examples, exampleQuery, exampleSector])
+  }, [examples, exampleQuery, exampleSector, savedOnly, savedSamples])
 
   const closeNewDialog = () => {
     setNewOpen(false)
@@ -945,6 +962,19 @@ export default function Dashboard() {
                 role="group"
                 aria-label="Filter samples by industry"
               >
+                <button
+                  type="button"
+                  aria-pressed={savedOnly}
+                  onClick={() => setSavedOnly((v) => !v)}
+                  className={`inline-flex min-h-10 items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition sm:min-h-8 ${
+                    savedOnly
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  <Star className="size-3" aria-hidden />
+                  Saved ({savedSamples.length})
+                </button>
                 {sectors.map((s) => (
                   <button
                     key={s}
@@ -964,12 +994,19 @@ export default function Dashboard() {
             </div>
             {filteredExamples.length === 0 ? (
               <p className="text-muted-foreground mt-4 rounded-md border border-dashed p-4 text-sm">
-                No samples match “{exampleQuery}” — try another role or clear the search.
+                {savedOnly && savedSamples.length === 0
+                  ? 'No saved samples yet — tap the star on a sample to keep it here.'
+                  : savedOnly
+                    ? 'No saved samples match these filters — clear the search or industry filter.'
+                    : `No samples match “${exampleQuery}” — try another role or clear the search.`}
               </p>
             ) : (
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredExamples.slice(0, 9).map((e) => (
-                  <div key={e.slug} className="bg-card flex flex-col rounded-md border shadow-sm">
+                  <div
+                    key={e.slug}
+                    className="bg-card relative flex flex-col rounded-md border shadow-sm"
+                  >
                     <button
                       type="button"
                       onClick={() => setPreviewExample(e)}
@@ -977,6 +1014,27 @@ export default function Dashboard() {
                       className="focus-visible:ring-ring cursor-pointer rounded-t-md text-left focus-visible:ring-2 focus-visible:outline-none"
                     >
                       <Thumb resume={exampleToResume(e.person)} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={savedSamples.includes(e.slug)}
+                      aria-label={
+                        savedSamples.includes(e.slug)
+                          ? `Remove ${e.role} sample from saved`
+                          : `Save ${e.role} sample`
+                      }
+                      title={savedSamples.includes(e.slug) ? 'Remove from saved' : 'Save sample'}
+                      onClick={() => toggleSavedSample(e.slug)}
+                      className="bg-background/90 hover:border-muted-foreground/40 absolute top-2 right-2 flex size-10 cursor-pointer items-center justify-center rounded-md border shadow-sm sm:size-8"
+                    >
+                      <Star
+                        className={`size-4 ${
+                          savedSamples.includes(e.slug)
+                            ? 'fill-amber-400 text-amber-500'
+                            : 'text-muted-foreground'
+                        }`}
+                        aria-hidden
+                      />
                     </button>
                     <div className="flex flex-1 flex-col gap-2 p-3">
                       <div className="min-w-0">
@@ -1027,6 +1085,23 @@ export default function Dashboard() {
                 <ResumePreview resume={exampleToResume(previewExample.person)} paginated />
               </div>
               <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-pressed={savedSamples.includes(previewExample.slug)}
+                  className="min-h-10 sm:min-h-9"
+                  onClick={() => toggleSavedSample(previewExample.slug)}
+                >
+                  <Star
+                    className={`size-4 ${
+                      savedSamples.includes(previewExample.slug)
+                        ? 'fill-amber-400 text-amber-500'
+                        : ''
+                    }`}
+                    aria-hidden
+                  />
+                  {savedSamples.includes(previewExample.slug) ? 'Saved' : 'Save sample'}
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
