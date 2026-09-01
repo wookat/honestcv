@@ -19,6 +19,7 @@ import {
   courseworkEntries,
   dividerOf,
   editDescriptionLine,
+  experienceGroups,
   involvementBullets,
   involvementDates,
   involvementEntries,
@@ -585,8 +586,26 @@ function SectionBlock({
     return resume.experience.some((e) => e.company || e.role) ? (
       <>
         {heading(sectionHeading(resume, 'experience'), 'experience')}
-          {resume.experience.map((e) =>
-            !e.company && !e.role ? null : (
+          {experienceGroups(resume.experience, resume.groupByCompany === 'on').map((g) => (
+            <div key={g.entries[0].id}>
+              {g.grouped && (
+                <p className="text-[11.5px] font-bold">
+                  <InlineText
+                    value={g.company}
+                    onCommit={
+                      onEdit &&
+                      ((v) =>
+                        onEdit({
+                          ...resume,
+                          experience: resume.experience.map((x) =>
+                            g.entries.some((e) => e.id === x.id) ? { ...x, company: v } : x
+                          ),
+                        }))
+                    }
+                  />
+                </p>
+              )}
+              {g.entries.map((e) => (
               <div key={e.id} className="mb-2">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <p className="text-[11.5px] font-bold">
@@ -604,23 +623,27 @@ function SectionBlock({
                           }))
                       }
                     />
-                    <span className="font-normal">
-                      {'  ·  '}
-                      <InlineText
-                        value={e.company}
-                        onCommit={
-                          onEdit &&
-                          ((v) =>
-                            onEdit({
-                              ...resume,
-                              experience: resume.experience.map((x) =>
-                                x.id === e.id ? { ...x, company: v } : x
-                              ),
-                            }))
-                        }
-                      />
-                      {e.location ? `, ${e.location}` : ''}
-                    </span>
+                    {g.grouped ? (
+                      e.location && <span className="font-normal">{'  ·  '}{e.location}</span>
+                    ) : (
+                      <span className="font-normal">
+                        {'  ·  '}
+                        <InlineText
+                          value={e.company}
+                          onCommit={
+                            onEdit &&
+                            ((v) =>
+                              onEdit({
+                                ...resume,
+                                experience: resume.experience.map((x) =>
+                                  x.id === e.id ? { ...x, company: v } : x
+                                ),
+                              }))
+                          }
+                        />
+                        {e.location ? `, ${e.location}` : ''}
+                      </span>
+                    )}
                   </p>
                   {(e.startDate || e.endDate) && (
                     <p className="text-[10px] text-neutral-500 italic">
@@ -715,8 +738,9 @@ function SectionBlock({
                   )}
                 </ul>
               </div>
-          )
-        )}
+              ))}
+            </div>
+          ))}
       </>
     ) : null
   if (sectionKey === 'projects')

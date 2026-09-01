@@ -233,6 +233,8 @@ export interface Resume {
   bulletIndent?: 'off' | 'on'
   /** Show small icons before contact fields (preview and PDF) */
   contactIcons?: 'off' | 'on'
+  /** Stack consecutive roles at the same company under one company heading */
+  groupByCompany?: 'off' | 'on'
   /** Body text color across preview, PDF and DOCX */
   textColor?: 'default' | 'black' | 'navy'
   /** JD keywords the user marked as not relevant — excluded from ATS keyword coverage */
@@ -252,6 +254,30 @@ export interface Resume {
   targetCompany?: string
   /** Profile photo as a data:image/... URL; shown in the preview and PDF only */
   photo?: string
+}
+
+export interface ExperienceGroup {
+  company: string
+  /** True when the group stacks 2+ roles under a single company heading */
+  grouped: boolean
+  entries: ExperienceItem[]
+}
+
+/**
+ * Group consecutive experience entries by company for the promotion view.
+ * Empty companies never group; with `on` false every entry is its own group.
+ */
+export function experienceGroups(entries: ExperienceItem[], on: boolean): ExperienceGroup[] {
+  const groups: ExperienceGroup[] = []
+  for (const e of entries) {
+    if (!e.company && !e.role) continue
+    const prev = groups[groups.length - 1]
+    const key = e.company.trim().toLowerCase()
+    if (on && prev && key && prev.company.trim().toLowerCase() === key) prev.entries.push(e)
+    else groups.push({ company: e.company, grouped: false, entries: [e] })
+  }
+  for (const g of groups) g.grouped = on && g.entries.length > 1
+  return groups
 }
 
 /** Sections that support the persistent "Sort by date" toggle */
@@ -959,6 +985,7 @@ export function sanitizeResume(input: unknown): Resume | null {
     sectionDivider: asEnum(raw.sectionDivider, ['auto', 'on', 'off'] as const),
     bulletIndent: asEnum(raw.bulletIndent, ['off', 'on'] as const),
     contactIcons: asEnum(raw.contactIcons, ['off', 'on'] as const),
+    groupByCompany: asEnum(raw.groupByCompany, ['off', 'on'] as const),
     textColor: asEnum(raw.textColor, ['default', 'black', 'navy'] as const),
     targetRole: asStr(raw.targetRole),
     jobDescription: asStr(raw.jobDescription),
@@ -2083,13 +2110,17 @@ export function resumeToPlainText(r: Resume): string {
       lines.push('', sectionHeading(r, 'summary').toUpperCase(), r.summary)
     } else if (key === 'experience' && r.experience.some((e) => e.company || e.role)) {
       lines.push('', sectionHeading(r, 'experience').toUpperCase())
-      for (const e of r.experience) {
-        if (!e.company && !e.role) continue
-        lines.push(
-          [e.role, e.company].filter(Boolean).join(' at ') +
-            (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
-        )
-        for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+      for (const g of experienceGroups(r.experience, r.groupByCompany === 'on')) {
+        if (g.grouped) lines.push(g.company.trim())
+        for (const e of g.entries) {
+          lines.push(
+            (g.grouped
+              ? e.role || 'Role'
+              : [e.role, e.company].filter(Boolean).join(' at ')) +
+              (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
+          )
+          for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+        }
       }
     } else if (key === 'projects' && r.projects.some((p) => p.name)) {
       lines.push('', sectionHeading(r, 'projects').toUpperCase())
@@ -2193,12 +2224,17 @@ export function resumeToMarkdown(r: Resume): string {
       lines.push(r.summary)
     } else if (key === 'experience' && r.experience.some((e) => e.company || e.role)) {
       heading(sectionHeading(r, 'experience'))
-      for (const e of r.experience) {
-        if (!e.company && !e.role) continue
-        const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
-        lines.push(`### ${[e.role, e.company].filter(Boolean).join(' — ')}${dates}`, '')
-        for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
-        lines.push('')
+      for (const g of experienceGroups(r.experience, r.groupByCompany === 'on')) {
+        if (g.grouped) lines.push(`### ${g.company.trim()}`, '')
+        for (const e of g.entries) {
+          const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
+          const title = g.grouped
+            ? e.role || 'Role'
+            : [e.role, e.company].filter(Boolean).join(' — ')
+          lines.push(`${g.grouped ? '####' : '###'} ${title}${dates}`, '')
+          for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+          lines.push('')
+        }
       }
     } else if (key === 'projects' && r.projects.some((p) => p.name)) {
       heading(sectionHeading(r, 'projects'))
