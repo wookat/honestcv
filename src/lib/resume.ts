@@ -3,6 +3,17 @@
  * the browser — nothing is stored on our servers.
  */
 
+/** Contact fields that can be hidden without deleting the data */
+export type HideableContactField = 'email' | 'phone' | 'location' | 'website' | 'linkedin'
+
+export const HIDEABLE_CONTACT_FIELDS: HideableContactField[] = [
+  'email',
+  'phone',
+  'location',
+  'website',
+  'linkedin',
+]
+
 export interface ContactInfo {
   fullName: string
   title: string
@@ -21,6 +32,8 @@ export interface ExperienceItem {
   startDate: string
   endDate: string
   bullets: string[]
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface EducationItem {
@@ -35,6 +48,8 @@ export interface EducationItem {
   gpa?: string
   /** Minor field of study */
   minor?: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface ProjectItem {
@@ -46,6 +61,8 @@ export interface ProjectItem {
   org?: string
   startDate?: string
   endDate?: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface CertificationItem {
@@ -57,6 +74,8 @@ export interface CertificationItem {
   date: string
   /** How the certificate is relevant */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface InvolvementItem {
@@ -70,6 +89,8 @@ export interface InvolvementItem {
   endDate: string
   /** What you did there; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface CourseworkItem {
@@ -84,6 +105,8 @@ export interface CourseworkItem {
   skill: string
   /** How the skill was applied; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface AwardItem {
@@ -96,6 +119,8 @@ export interface AwardItem {
   date: string
   /** How the award is relevant; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface PublicationItem {
@@ -110,6 +135,8 @@ export interface PublicationItem {
   date: string
   /** Additional information; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export type ReferenceKind = '' | 'personal' | 'professional'
@@ -125,6 +152,8 @@ export interface ReferenceItem {
   phone: string
   /** Personal or professional reference */
   kind: ReferenceKind
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface MilitaryServiceItem {
@@ -139,6 +168,8 @@ export interface MilitaryServiceItem {
   endDate: string
   /** Responsibilities and accomplishments; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 /** User-defined section (e.g. Volunteering, Publications) */
@@ -159,6 +190,8 @@ export interface AgentItem {
   skills: string
   /** How building the agent was relevant; one bullet per line */
   description: string
+  /** Kept in the editor but left out of the rendered resume and exports */
+  hidden?: boolean
 }
 
 export interface Resume {
@@ -200,10 +233,18 @@ export interface Resume {
   bulletIndent?: 'off' | 'on'
   /** Show small icons before contact fields (preview and PDF) */
   contactIcons?: 'off' | 'on'
+  /** Stack consecutive roles at the same company under one company heading */
+  groupByCompany?: 'off' | 'on'
   /** Body text color across preview, PDF and DOCX */
   textColor?: 'default' | 'black' | 'navy'
   /** JD keywords the user marked as not relevant — excluded from ATS keyword coverage */
   ignoredKeywords?: string[]
+  /** Contact fields kept on file but left out of the rendered resume and exports */
+  hiddenContact?: HideableContactField[]
+  /** Sections kept auto-sorted newest-first as entries are added or re-dated */
+  autoSortByDate?: AutoSortSection[]
+  /** Per-section heading overrides keyed by section key; missing/empty = default label */
+  sectionHeadings?: Partial<Record<string, string>>
   /** Target role + JD used for tailoring and the ATS score */
   targetRole: string
   jobDescription: string
@@ -213,7 +254,38 @@ export interface Resume {
   targetCompany?: string
   /** Profile photo as a data:image/... URL; shown in the preview and PDF only */
   photo?: string
+  /** Resume language: localizes default section headings and AI writer output */
+  language?: ResumeLanguage
 }
+
+export interface ExperienceGroup {
+  company: string
+  /** True when the group stacks 2+ roles under a single company heading */
+  grouped: boolean
+  entries: ExperienceItem[]
+}
+
+/**
+ * Group consecutive experience entries by company for the promotion view.
+ * Empty companies never group; with `on` false every entry is its own group.
+ */
+export function experienceGroups(entries: ExperienceItem[], on: boolean): ExperienceGroup[] {
+  const groups: ExperienceGroup[] = []
+  for (const e of entries) {
+    if (!e.company && !e.role) continue
+    const prev = groups[groups.length - 1]
+    const key = e.company.trim().toLowerCase()
+    if (on && prev && key && prev.company.trim().toLowerCase() === key) prev.entries.push(e)
+    else groups.push({ company: e.company, grouped: false, entries: [e] })
+  }
+  for (const g of groups) g.grouped = on && g.entries.length > 1
+  return groups
+}
+
+/** Sections that support the persistent "Sort by date" toggle */
+export type AutoSortSection = 'experience' | 'education'
+
+export const AUTO_SORT_SECTIONS: AutoSortSection[] = ['experience', 'education']
 
 export const newId = () => Math.random().toString(36).slice(2, 10)
 
@@ -466,6 +538,20 @@ export const SECTION_KEYS = [
   'agents',
 ] as const
 
+export type ResumeLanguage = 'en' | 'es' | 'fr' | 'de' | 'pt'
+
+/** Supported resume languages, code → native name (also shown to the LLM). */
+export const RESUME_LANGUAGES: Record<ResumeLanguage, string> = {
+  en: 'English',
+  es: 'Español',
+  fr: 'Français',
+  de: 'Deutsch',
+  pt: 'Português',
+}
+
+export const resumeLanguageOf = (r: Resume): ResumeLanguage =>
+  r.language && r.language in RESUME_LANGUAGES ? r.language : 'en'
+
 export const SECTION_LABELS: Record<string, string> = {
   summary: 'Summary',
   experience: 'Experience',
@@ -480,6 +566,78 @@ export const SECTION_LABELS: Record<string, string> = {
   references: 'References',
   military: 'Military service',
   agents: 'Agents',
+}
+
+/** Default section headings per non-English language; keys mirror SECTION_LABELS. */
+const SECTION_LABELS_I18N: Record<Exclude<ResumeLanguage, 'en'>, Record<string, string>> = {
+  es: {
+    summary: 'Resumen',
+    experience: 'Experiencia',
+    projects: 'Proyectos',
+    involvement: 'Actividades',
+    education: 'Educación',
+    coursework: 'Cursos',
+    skills: 'Habilidades',
+    certifications: 'Certificaciones',
+    awards: 'Premios y reconocimientos',
+    publications: 'Publicaciones',
+    references: 'Referencias',
+    military: 'Servicio militar',
+    agents: 'Agentes',
+  },
+  fr: {
+    summary: 'Profil',
+    experience: 'Expérience',
+    projects: 'Projets',
+    involvement: 'Engagements',
+    education: 'Formation',
+    coursework: 'Cours',
+    skills: 'Compétences',
+    certifications: 'Certifications',
+    awards: 'Prix et distinctions',
+    publications: 'Publications',
+    references: 'Références',
+    military: 'Service militaire',
+    agents: 'Agents',
+  },
+  de: {
+    summary: 'Profil',
+    experience: 'Berufserfahrung',
+    projects: 'Projekte',
+    involvement: 'Engagement',
+    education: 'Ausbildung',
+    coursework: 'Kurse',
+    skills: 'Kenntnisse',
+    certifications: 'Zertifikate',
+    awards: 'Auszeichnungen',
+    publications: 'Publikationen',
+    references: 'Referenzen',
+    military: 'Militärdienst',
+    agents: 'Agenten',
+  },
+  pt: {
+    summary: 'Resumo',
+    experience: 'Experiência',
+    projects: 'Projetos',
+    involvement: 'Atividades',
+    education: 'Educação',
+    coursework: 'Cursos',
+    skills: 'Competências',
+    certifications: 'Certificações',
+    awards: 'Prêmios e distinções',
+    publications: 'Publicações',
+    references: 'Referências',
+    military: 'Serviço militar',
+    agents: 'Agentes',
+  },
+}
+
+const CUSTOM_SECTION_FALLBACK: Record<ResumeLanguage, string> = {
+  en: 'Custom section',
+  es: 'Sección personalizada',
+  fr: 'Section personnalisée',
+  de: 'Eigener Abschnitt',
+  pt: 'Seção personalizada',
 }
 
 /**
@@ -520,11 +678,22 @@ export function orderedSectionKeys(r: Resume): string[] {
 }
 
 export function sectionLabel(r: Resume, key: string): string {
+  const lang = resumeLanguageOf(r)
   if (key.startsWith('custom:')) {
     const s = r.customSections.find((x) => `custom:${x.id}` === key)
-    return s?.title.trim() || 'Custom section'
+    return s?.title.trim() || CUSTOM_SECTION_FALLBACK[lang]
+  }
+  if (lang !== 'en') {
+    const localized = SECTION_LABELS_I18N[lang][key]
+    if (localized) return localized
   }
   return SECTION_LABELS[key] ?? key
+}
+
+/** The heading rendered for a section: the user's override, else the default label. */
+export function sectionHeading(r: Resume, key: string): string {
+  const custom = (r.sectionHeadings?.[key] ?? '').trim()
+  return custom || sectionLabel(r, key)
 }
 
 const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
@@ -546,6 +715,32 @@ export function dateSortValue(text: string): number | null {
     if (numeric) month = Number(numeric[1])
   }
   return Number(year[0]) * 12 + month
+}
+
+/** Copy of the resume with hidden entries removed — for preview, exports, scoring, and sharing */
+export function visibleResume(r: Resume): Resume {
+  const hiddenContact = r.hiddenContact ?? []
+  const contact = hiddenContact.length
+    ? {
+        ...r.contact,
+        ...(Object.fromEntries(hiddenContact.map((f) => [f, ''])) as Partial<ContactInfo>),
+      }
+    : r.contact
+  return {
+    ...r,
+    contact,
+    experience: r.experience.filter((e) => !e.hidden),
+    education: r.education.filter((e) => !e.hidden),
+    projects: r.projects.filter((p) => !p.hidden),
+    certItems: r.certItems?.filter((c) => !c.hidden),
+    involvement: r.involvement?.filter((i) => !i.hidden),
+    coursework: r.coursework?.filter((c) => !c.hidden),
+    awards: r.awards?.filter((a) => !a.hidden),
+    publications: r.publications?.filter((p) => !p.hidden),
+    references: r.references?.filter((x) => !x.hidden),
+    military: r.military?.filter((m) => !m.hidden),
+    agents: r.agents?.filter((a) => !a.hidden),
+  }
 }
 
 /**
@@ -708,6 +903,17 @@ const asObjArr = (v: unknown): Record<string, unknown>[] =>
     : []
 const asEnum = <T extends string>(v: unknown, allowed: readonly T[]): T | undefined =>
   allowed.includes(v as T) ? (v as T) : undefined
+/** Heading overrides: known built-in keys with non-empty, non-default strings only. */
+const asSectionHeadings = (v: unknown): Partial<Record<string, string>> | undefined => {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return undefined
+  const out: Record<string, string> = {}
+  for (const [key, val] of Object.entries(v)) {
+    if (typeof val !== 'string' || !(key in SECTION_LABELS)) continue
+    const t = val.trim()
+    if (t && t !== SECTION_LABELS[key]) out[key] = t
+  }
+  return Object.keys(out).length ? out : undefined
+}
 
 /**
  * Coerce untrusted stored data into a valid Resume, field by field, so a
@@ -739,6 +945,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       startDate: asStr(e.startDate),
       endDate: asStr(e.endDate),
       bullets: asStrArr(e.bullets),
+      ...(e.hidden === true ? { hidden: true } : {}),
     })),
     education: asObjArr(raw.education).map((e) => ({
       id: asStr(e.id) || newId(),
@@ -750,6 +957,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       details: asStr(e.details),
       gpa: asStr(e.gpa),
       minor: asStr(e.minor),
+      ...(e.hidden === true ? { hidden: true } : {}),
     })),
     projects: asObjArr(raw.projects).map((p) => ({
       id: asStr(p.id) || newId(),
@@ -759,6 +967,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       org: asStr(p.org),
       startDate: asStr(p.startDate),
       endDate: asStr(p.endDate),
+      ...(p.hidden === true ? { hidden: true } : {}),
     })),
     // legacy/hand-edited data may hold skills as a string array
     skills: Array.isArray(raw.skills) ? asStrArr(raw.skills).join(', ') : asStr(raw.skills),
@@ -769,6 +978,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       issuer: asStr(c.issuer),
       date: asStr(c.date),
       description: asStr(c.description),
+      ...(c.hidden === true ? { hidden: true } : {}),
     })),
     involvement: asObjArr(raw.involvement).map((i) => ({
       id: asStr(i.id) || newId(),
@@ -778,6 +988,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       startDate: asStr(i.startDate),
       endDate: asStr(i.endDate),
       description: asStr(i.description),
+      ...(i.hidden === true ? { hidden: true } : {}),
     })),
     coursework: asObjArr(raw.coursework).map((c) => ({
       id: asStr(c.id) || newId(),
@@ -786,6 +997,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       date: asStr(c.date),
       skill: asStr(c.skill),
       description: asStr(c.description),
+      ...(c.hidden === true ? { hidden: true } : {}),
     })),
     awards: asObjArr(raw.awards).map((a) => ({
       id: asStr(a.id) || newId(),
@@ -793,6 +1005,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       organization: asStr(a.organization),
       date: asStr(a.date),
       description: asStr(a.description),
+      ...(a.hidden === true ? { hidden: true } : {}),
     })),
     publications: asObjArr(raw.publications).map((p) => ({
       id: asStr(p.id) || newId(),
@@ -801,6 +1014,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       kind: asStr(p.kind).trim() ? asStr(p.kind) : undefined,
       date: asStr(p.date),
       description: asStr(p.description),
+      ...(p.hidden === true ? { hidden: true } : {}),
     })),
     references: asObjArr(raw.references).map((x) => ({
       id: asStr(x.id) || newId(),
@@ -810,6 +1024,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       email: asStr(x.email),
       phone: asStr(x.phone),
       kind: x.kind === 'personal' || x.kind === 'professional' ? x.kind : '',
+      ...(x.hidden === true ? { hidden: true } : {}),
     })),
     military: asObjArr(raw.military).map((m) => ({
       id: asStr(m.id) || newId(),
@@ -819,6 +1034,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       startDate: asStr(m.startDate),
       endDate: asStr(m.endDate),
       description: asStr(m.description),
+      ...(m.hidden === true ? { hidden: true } : {}),
     })),
     agents: asObjArr(raw.agents).map((a) => ({
       id: asStr(a.id) || newId(),
@@ -826,6 +1042,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       date: asStr(a.date),
       skills: asStr(a.skills),
       description: asStr(a.description),
+      ...(a.hidden === true ? { hidden: true } : {}),
     })),
     customSections: asObjArr(raw.customSections).map((s) => ({
       id: asStr(s.id) || newId(),
@@ -836,6 +1053,14 @@ export function sanitizeResume(input: unknown): Resume | null {
     templateId: asStr(raw.templateId) || base.templateId,
     accentColor: asStr(raw.accentColor),
     ignoredKeywords: asStrArr(raw.ignoredKeywords),
+    hiddenContact: asStrArr(raw.hiddenContact).filter((f, i, arr): f is HideableContactField =>
+      (HIDEABLE_CONTACT_FIELDS as string[]).includes(f) && arr.indexOf(f) === i
+    ),
+    autoSortByDate: asStrArr(raw.autoSortByDate).filter(
+      (f, i, arr): f is AutoSortSection =>
+        (AUTO_SORT_SECTIONS as string[]).includes(f) && arr.indexOf(f) === i
+    ),
+    sectionHeadings: asSectionHeadings(raw.sectionHeadings),
     pageSize: asEnum(raw.pageSize, ['letter', 'a4'] as const) ?? 'letter',
     fontScale: asEnum(raw.fontScale, ['xs', 's', 'm', 'l', 'xl'] as const),
     lineSpacing: asEnum(
@@ -853,7 +1078,9 @@ export function sanitizeResume(input: unknown): Resume | null {
     sectionDivider: asEnum(raw.sectionDivider, ['auto', 'on', 'off'] as const),
     bulletIndent: asEnum(raw.bulletIndent, ['off', 'on'] as const),
     contactIcons: asEnum(raw.contactIcons, ['off', 'on'] as const),
+    groupByCompany: asEnum(raw.groupByCompany, ['off', 'on'] as const),
     textColor: asEnum(raw.textColor, ['default', 'black', 'navy'] as const),
+    language: asEnum(raw.language, ['en', 'es', 'fr', 'de', 'pt'] as const),
     targetRole: asStr(raw.targetRole),
     jobDescription: asStr(raw.jobDescription),
     experienceLevel: asEnum(
@@ -894,6 +1121,8 @@ export interface ResumeVersion {
   id: string
   name: string
   updatedAt: number
+  /** When the copy was first saved; older copies may lack it */
+  createdAt?: number
   folder?: string
   data: Resume
 }
@@ -911,7 +1140,11 @@ export function listResumeVersions(): ResumeVersion[] {
       const data = sanitizeResume(v.data)
       if (!data) return []
       const folder = typeof v.folder === 'string' && v.folder.trim() ? v.folder : undefined
-      return [{ ...v, folder, data }]
+      const createdAt =
+        typeof v.createdAt === 'number' && Number.isFinite(v.createdAt) && v.createdAt > 0
+          ? v.createdAt
+          : undefined
+      return [{ ...v, folder, createdAt, data }]
     })
   } catch {
     return []
@@ -928,7 +1161,7 @@ function persistVersions(versions: ResumeVersion[]) {
 
 export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
   const versions = [
-    { id: newId(), name, updatedAt: Date.now(), data },
+    { id: newId(), name, updatedAt: Date.now(), createdAt: Date.now(), data },
     ...listResumeVersions(),
   ]
   persistVersions(versions)
@@ -958,7 +1191,7 @@ export function duplicateResumeVersion(id: string): ResumeVersion[] {
   const source = listResumeVersions().find((v) => v.id === id)
   if (!source) return listResumeVersions()
   const versions = [
-    { ...source, id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now() },
+    { ...source, id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now(), createdAt: Date.now() },
     ...listResumeVersions(),
   ]
   persistVersions(versions)
@@ -1826,6 +2059,26 @@ export function involvementDates(i: InvolvementItem): string {
   return start || end ? `${start} – ${end}` : ''
 }
 
+/**
+ * Replace the `index`-th non-empty line of a multi-line description with
+ * `next`, or delete that line when `next` is empty. Other lines untouched.
+ */
+export function editDescriptionLine(description: string, index: number, next: string): string {
+  let seen = -1
+  const out: string[] = []
+  for (const l of description.split('\n')) {
+    if (l.trim()) {
+      seen++
+      if (seen === index) {
+        if (next) out.push(next)
+        continue
+      }
+    }
+    out.push(l)
+  }
+  return out.join('\n')
+}
+
 /** Non-empty description lines of an involvement entry, rendered as bullets */
 export const involvementBullets = (i: InvolvementItem): string[] =>
   i.description.split('\n').map((l) => l.trim()).filter(Boolean)
@@ -1948,19 +2201,23 @@ export function resumeToPlainText(r: Resume): string {
   lines.push([c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean).join(' | '))
   for (const key of orderedSectionKeys(r)) {
     if (key === 'summary' && r.summary) {
-      lines.push('', 'SUMMARY', r.summary)
+      lines.push('', sectionHeading(r, 'summary').toUpperCase(), r.summary)
     } else if (key === 'experience' && r.experience.some((e) => e.company || e.role)) {
-      lines.push('', 'EXPERIENCE')
-      for (const e of r.experience) {
-        if (!e.company && !e.role) continue
-        lines.push(
-          [e.role, e.company].filter(Boolean).join(' at ') +
-            (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
-        )
-        for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+      lines.push('', sectionHeading(r, 'experience').toUpperCase())
+      for (const g of experienceGroups(r.experience, r.groupByCompany === 'on')) {
+        if (g.grouped) lines.push(g.company.trim())
+        for (const e of g.entries) {
+          lines.push(
+            (g.grouped
+              ? e.role || 'Role'
+              : [e.role, e.company].filter(Boolean).join(' at ')) +
+              (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
+          )
+          for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+        }
       }
     } else if (key === 'projects' && r.projects.some((p) => p.name)) {
-      lines.push('', 'PROJECTS')
+      lines.push('', sectionHeading(r, 'projects').toUpperCase())
       for (const p of r.projects) {
         if (!p.name) continue
         const dates = projectDates(p)
@@ -1973,14 +2230,14 @@ export function resumeToPlainText(r: Resume): string {
         if (p.description) lines.push(p.description)
       }
     } else if (key === 'involvement' && involvementEntries(r).length > 0) {
-      lines.push('', 'INVOLVEMENT')
+      lines.push('', sectionHeading(r, 'involvement').toUpperCase())
       for (const i of involvementEntries(r)) {
         const dates = involvementDates(i)
         lines.push(involvementHeadingLine(i) + (dates ? ` (${dates})` : ''))
         for (const b of involvementBullets(i)) lines.push(`- ${b}`)
       }
     } else if (key === 'education' && r.education.some((e) => e.school)) {
-      lines.push('', 'EDUCATION')
+      lines.push('', sectionHeading(r, 'education').toUpperCase())
       for (const e of r.education) {
         if (!e.school) continue
         lines.push(
@@ -1991,48 +2248,48 @@ export function resumeToPlainText(r: Resume): string {
         if (detail) lines.push(detail)
       }
     } else if (key === 'coursework' && courseworkEntries(r).length > 0) {
-      lines.push('', 'COURSEWORK')
+      lines.push('', sectionHeading(r, 'coursework').toUpperCase())
       for (const cw of courseworkEntries(r)) {
         lines.push(courseworkHeadingLine(cw) + (cw.date.trim() ? ` (${cw.date.trim()})` : ''))
         for (const b of courseworkBullets(cw)) lines.push(`- ${b}`)
       }
     } else if (key === 'skills' && r.skills) {
-      lines.push('', 'SKILLS', r.skills)
+      lines.push('', sectionHeading(r, 'skills').toUpperCase(), r.skills)
     } else if (key === 'certifications' && (certEntries(r).length > 0 || r.certifications)) {
-      lines.push('', 'CERTIFICATIONS')
+      lines.push('', sectionHeading(r, 'certifications').toUpperCase())
       for (const c of certEntries(r)) {
         lines.push(certHeadingLine(c) + (c.date.trim() ? ` (${c.date.trim()})` : ''))
         if (c.description.trim()) lines.push(c.description.trim())
       }
       if (r.certifications) lines.push(r.certifications)
     } else if (key === 'awards' && awardEntries(r).length > 0) {
-      lines.push('', 'AWARDS & HONORS')
+      lines.push('', sectionHeading(r, 'awards').toUpperCase())
       for (const a of awardEntries(r)) {
         lines.push(awardHeadingLine(a) + (a.date.trim() ? ` (${a.date.trim()})` : ''))
         for (const b of awardBullets(a)) lines.push(`- ${b}`)
       }
     } else if (key === 'publications' && publicationEntries(r).length > 0) {
-      lines.push('', 'PUBLICATIONS')
+      lines.push('', sectionHeading(r, 'publications').toUpperCase())
       for (const p of publicationEntries(r)) {
         lines.push(publicationHeadingLine(p) + (p.date.trim() ? ` (${p.date.trim()})` : ''))
         for (const b of publicationBullets(p)) lines.push(`- ${b}`)
       }
     } else if (key === 'references' && referenceEntries(r).length > 0) {
-      lines.push('', 'REFERENCES')
+      lines.push('', sectionHeading(r, 'references').toUpperCase())
       for (const x of referenceEntries(r)) {
         lines.push(referenceHeadingLine(x))
         const detail = referenceDetailLine(x)
         if (detail) lines.push(`- ${detail}`)
       }
     } else if (key === 'military' && militaryEntries(r).length > 0) {
-      lines.push('', 'MILITARY SERVICE')
+      lines.push('', sectionHeading(r, 'military').toUpperCase())
       for (const m of militaryEntries(r)) {
         const dates = militaryDates(m)
         lines.push(militaryHeadingLine(m) + (dates ? ` (${dates})` : ''))
         for (const b of militaryBullets(m)) lines.push(`- ${b}`)
       }
     } else if (key === 'agents' && agentEntries(r).length > 0) {
-      lines.push('', 'AGENTS')
+      lines.push('', sectionHeading(r, 'agents').toUpperCase())
       for (const a of agentEntries(r)) {
         lines.push(a.name.trim() + (a.date.trim() ? ` (${a.date.trim()})` : ''))
         for (const b of agentBullets(a)) lines.push(`- ${b}`)
@@ -2057,19 +2314,24 @@ export function resumeToMarkdown(r: Resume): string {
   const heading = (t: string) => lines.push('', `## ${t}`, '')
   for (const key of orderedSectionKeys(r)) {
     if (key === 'summary' && r.summary) {
-      heading('Summary')
+      heading(sectionHeading(r, 'summary'))
       lines.push(r.summary)
     } else if (key === 'experience' && r.experience.some((e) => e.company || e.role)) {
-      heading('Experience')
-      for (const e of r.experience) {
-        if (!e.company && !e.role) continue
-        const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
-        lines.push(`### ${[e.role, e.company].filter(Boolean).join(' — ')}${dates}`, '')
-        for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
-        lines.push('')
+      heading(sectionHeading(r, 'experience'))
+      for (const g of experienceGroups(r.experience, r.groupByCompany === 'on')) {
+        if (g.grouped) lines.push(`### ${g.company.trim()}`, '')
+        for (const e of g.entries) {
+          const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
+          const title = g.grouped
+            ? e.role || 'Role'
+            : [e.role, e.company].filter(Boolean).join(' — ')
+          lines.push(`${g.grouped ? '####' : '###'} ${title}${dates}`, '')
+          for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
+          lines.push('')
+        }
       }
     } else if (key === 'projects' && r.projects.some((p) => p.name)) {
-      heading('Projects')
+      heading(sectionHeading(r, 'projects'))
       for (const p of r.projects) {
         if (!p.name) continue
         const title = p.org?.trim() ? `${p.name} · ${p.org.trim()}` : p.name
@@ -2081,7 +2343,7 @@ export function resumeToMarkdown(r: Resume): string {
         if (p.description) lines.push(p.description, '')
       }
     } else if (key === 'involvement' && involvementEntries(r).length > 0) {
-      heading('Involvement')
+      heading(sectionHeading(r, 'involvement'))
       for (const i of involvementEntries(r)) {
         const dates = involvementDates(i)
         lines.push(`### ${involvementHeadingLine(i)}${dates ? ` *(${dates})*` : ''}`, '')
@@ -2089,7 +2351,7 @@ export function resumeToMarkdown(r: Resume): string {
         lines.push('')
       }
     } else if (key === 'education' && r.education.some((e) => e.school)) {
-      heading('Education')
+      heading(sectionHeading(r, 'education'))
       for (const e of r.education) {
         if (!e.school) continue
         const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
@@ -2098,7 +2360,7 @@ export function resumeToMarkdown(r: Resume): string {
         if (detail) lines.push(detail, '')
       }
     } else if (key === 'coursework' && courseworkEntries(r).length > 0) {
-      heading('Coursework')
+      heading(sectionHeading(r, 'coursework'))
       for (const cw of courseworkEntries(r)) {
         lines.push(
           `### ${courseworkHeadingLine(cw)}${cw.date.trim() ? ` *(${cw.date.trim()})*` : ''}`,
@@ -2108,10 +2370,10 @@ export function resumeToMarkdown(r: Resume): string {
         lines.push('')
       }
     } else if (key === 'skills' && r.skills) {
-      heading('Skills')
+      heading(sectionHeading(r, 'skills'))
       lines.push(r.skills)
     } else if (key === 'certifications' && (certEntries(r).length > 0 || r.certifications)) {
-      heading('Certifications')
+      heading(sectionHeading(r, 'certifications'))
       for (const c of certEntries(r)) {
         lines.push(
           `### ${certHeadingLine(c)}${c.date.trim() ? ` *(${c.date.trim()})*` : ''}`,
@@ -2121,7 +2383,7 @@ export function resumeToMarkdown(r: Resume): string {
       }
       if (r.certifications) lines.push(r.certifications)
     } else if (key === 'awards' && awardEntries(r).length > 0) {
-      heading('Awards & Honors')
+      heading(sectionHeading(r, 'awards'))
       for (const a of awardEntries(r)) {
         lines.push(
           `### ${awardHeadingLine(a)}${a.date.trim() ? ` *(${a.date.trim()})*` : ''}`,
@@ -2131,7 +2393,7 @@ export function resumeToMarkdown(r: Resume): string {
         lines.push('')
       }
     } else if (key === 'publications' && publicationEntries(r).length > 0) {
-      heading('Publications')
+      heading(sectionHeading(r, 'publications'))
       for (const p of publicationEntries(r)) {
         lines.push(
           `### ${publicationHeadingLine(p)}${p.date.trim() ? ` *(${p.date.trim()})*` : ''}`,
@@ -2141,14 +2403,14 @@ export function resumeToMarkdown(r: Resume): string {
         lines.push('')
       }
     } else if (key === 'references' && referenceEntries(r).length > 0) {
-      heading('References')
+      heading(sectionHeading(r, 'references'))
       for (const x of referenceEntries(r)) {
         lines.push(`### ${referenceHeadingLine(x)}`, '')
         const detail = referenceDetailLine(x)
         if (detail) lines.push(`- ${detail}`, '')
       }
     } else if (key === 'military' && militaryEntries(r).length > 0) {
-      heading('Military service')
+      heading(sectionHeading(r, 'military'))
       for (const m of militaryEntries(r)) {
         const dates = militaryDates(m)
         lines.push(`### ${militaryHeadingLine(m)}${dates ? ` *(${dates})*` : ''}`, '')
@@ -2156,7 +2418,7 @@ export function resumeToMarkdown(r: Resume): string {
         lines.push('')
       }
     } else if (key === 'agents' && agentEntries(r).length > 0) {
-      heading('Agents')
+      heading(sectionHeading(r, 'agents'))
       for (const a of agentEntries(r)) {
         lines.push(`### ${a.name.trim()}${a.date.trim() ? ` *(${a.date.trim()})*` : ''}`, '')
         for (const b of agentBullets(a)) lines.push(`- ${b}`)

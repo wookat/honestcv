@@ -47,7 +47,7 @@ export type RewriteKind = 'bullets' | 'summary' | 'skills'
 export async function aiRewrite(
   kind: RewriteKind,
   text: string,
-  context: { role?: string; jobDescription?: string },
+  context: { role?: string; jobDescription?: string; language?: string },
   variants = false
 ): Promise<{ text: string; texts?: string[]; freeRemaining: number | null }> {
   const data = await post<{
@@ -62,6 +62,8 @@ export async function aiSkillSuggest(input: {
   skills: string
   role: string
   jobDescription: string
+  context?: string
+  category?: string
 }): Promise<{ skills: string[]; freeRemaining: number | null }> {
   return post<{ skills: string[]; freeRemaining: number | null }>(
     '/api/ai/skill-suggest',
@@ -72,6 +74,8 @@ export async function aiSkillSuggest(input: {
 export async function aiSummaryDraft(input: {
   resumeText: string
   role: string
+  highlights?: string[]
+  language?: string
 }): Promise<{ text: string; texts: string[]; freeRemaining: number | null }> {
   return post<{ text: string; texts: string[]; freeRemaining: number | null }>(
     '/api/ai/summary-draft',
@@ -89,6 +93,7 @@ export async function aiTailor(input: {
   items: TailorItemInput[]
   jobDescription: string
   role: string
+  language?: string
 }): Promise<{ suggestions: { id: string; text: string }[]; freeRemaining: number | null }> {
   return post<{ suggestions: { id: string; text: string }[]; freeRemaining: number | null }>(
     '/api/ai/tailor',
@@ -101,6 +106,7 @@ export async function aiKeywordBullet(input: {
   resumeText: string
   jobDescription: string
   role: string
+  language?: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/keyword-bullet', input)
 }
@@ -111,6 +117,7 @@ export async function aiSuggestBullet(input: {
   bullets: string[]
   resumeText: string
   variant?: 'key-numbers'
+  language?: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/suggest-bullet', input)
 }
@@ -120,6 +127,7 @@ export async function aiCoverLetter(input: {
   jobDescription: string
   company: string
   role: string
+  language?: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/cover-letter', input)
 }

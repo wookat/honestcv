@@ -39,11 +39,13 @@ import {
   agentEntries,
   dividerOf,
   educationDetailLine,
+  experienceGroups,
   fontScaleOf,
   lineSpacingOf,
   orderedSectionKeys,
   projectDates,
   projectHeadingLine,
+  sectionHeading,
   sectionSpacingOf,
   skillLines,
   bulletIndentOf,
@@ -191,36 +193,59 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
 
   for (const key of orderedSectionKeys(resume)) {
     if (key === 'summary' && resume.summary.trim()) {
-      children.push(heading('Summary'), body(resume.summary.trim(), { after: 100 }))
+      children.push(heading(sectionHeading(resume, 'summary')), body(resume.summary.trim(), { after: 100 }))
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
-      children.push(heading('Experience'))
-      for (const e of resume.experience) {
-        if (!e.company && !e.role) continue
-        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
-        children.push(
-          new Paragraph({
-            spacing: { before: 100, after: 20 },
-            keepNext: true,
-            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
-            children: [
-              new TextRun({ text: e.role || 'Role', bold: true, size: sz(22), font }),
-              new TextRun({
-                text: `  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`,
-                size: sz(21),
-                font,
-              }),
-              ...(dates
-                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
-                : []),
-            ],
-          })
-        )
-        for (const b of e.bullets) {
-          if (b.trim()) children.push(body(b.trim(), { bullet: true }))
+      children.push(heading(sectionHeading(resume, 'experience')))
+      for (const g of experienceGroups(resume.experience, resume.groupByCompany === 'on')) {
+        if (g.grouped) {
+          children.push(
+            new Paragraph({
+              spacing: { before: 100, after: 20 },
+              keepNext: true,
+              children: [new TextRun({ text: g.company.trim(), bold: true, size: sz(22), font })],
+            })
+          )
+        }
+        for (const e of g.entries) {
+          const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+          children.push(
+            new Paragraph({
+              spacing: { before: g.grouped ? 40 : 100, after: 20 },
+              keepNext: true,
+              tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+              children: [
+                new TextRun({ text: e.role || 'Role', bold: true, size: sz(22), font }),
+                ...(g.grouped
+                  ? e.location
+                    ? [new TextRun({ text: `  ·  ${e.location}`, size: sz(21), font })]
+                    : []
+                  : [
+                      new TextRun({
+                        text: `  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`,
+                        size: sz(21),
+                        font,
+                      }),
+                    ]),
+                ...(dates
+                  ? [
+                      new TextRun({
+                        children: [new Tab(), dates],
+                        italics: true,
+                        size: sz(19),
+                        font,
+                      }),
+                    ]
+                  : []),
+              ],
+            })
+          )
+          for (const b of e.bullets) {
+            if (b.trim()) children.push(body(b.trim(), { bullet: true }))
+          }
         }
       }
     } else if (key === 'projects' && resume.projects.some((p) => p.name)) {
-      children.push(heading('Projects'))
+      children.push(heading(sectionHeading(resume, 'projects')))
       for (const p of resume.projects) {
         if (!p.name) continue
         const dates = projectDates(p)
@@ -234,7 +259,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
       }
     } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
-      children.push(heading('Involvement'))
+      children.push(heading(sectionHeading(resume, 'involvement')))
       for (const i of involvementEntries(resume)) {
         const dates = involvementDates(i)
         children.push(
@@ -262,7 +287,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         for (const b of involvementBullets(i)) children.push(body(b, { bullet: true }))
       }
     } else if (key === 'education' && resume.education.some((e) => e.school)) {
-      children.push(heading('Education'))
+      children.push(heading(sectionHeading(resume, 'education')))
       for (const e of resume.education) {
         if (!e.school) continue
         const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
@@ -288,7 +313,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         if (detail) children.push(body(detail))
       }
     } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
-      children.push(heading('Coursework'))
+      children.push(heading(sectionHeading(resume, 'coursework')))
       for (const cw of courseworkEntries(resume)) {
         const date = cw.date.trim()
         children.push(
@@ -316,7 +341,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         for (const b of courseworkBullets(cw)) children.push(body(b, { bullet: true }))
       }
     } else if (key === 'skills' && resume.skills.trim()) {
-      children.push(heading('Skills'))
+      children.push(heading(sectionHeading(resume, 'skills')))
       const lines = skillLines(resume)
       lines.forEach((line, i) => {
         const after = i === lines.length - 1 ? 100 : 60
@@ -338,7 +363,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       key === 'certifications' &&
       (certEntries(resume).length > 0 || resume.certifications.trim())
     ) {
-      children.push(heading('Certifications'))
+      children.push(heading(sectionHeading(resume, 'certifications')))
       for (const c of certEntries(resume)) {
         const date = c.date.trim()
         children.push(
@@ -353,7 +378,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       if (resume.certifications.trim())
         children.push(body(resume.certifications.trim(), { after: 100 }))
     } else if (key === 'awards' && awardEntries(resume).length > 0) {
-      children.push(heading('Awards & Honors'))
+      children.push(heading(sectionHeading(resume, 'awards')))
       for (const a of awardEntries(resume)) {
         const date = a.date.trim()
         children.push(
@@ -381,7 +406,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         for (const b of awardBullets(a)) children.push(body(b, { bullet: true }))
       }
     } else if (key === 'publications' && publicationEntries(resume).length > 0) {
-      children.push(heading('Publications'))
+      children.push(heading(sectionHeading(resume, 'publications')))
       for (const p of publicationEntries(resume)) {
         const date = p.date.trim()
         children.push(
@@ -411,7 +436,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         for (const b of publicationBullets(p)) children.push(body(b, { bullet: true }))
       }
     } else if (key === 'references' && referenceEntries(resume).length > 0) {
-      children.push(heading('References'))
+      children.push(heading(sectionHeading(resume, 'references')))
       for (const x of referenceEntries(resume)) {
         const role = [x.title.trim(), x.employer.trim()].filter(Boolean).join(', ')
         children.push(
@@ -430,7 +455,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         if (detail) children.push(body(detail))
       }
     } else if (key === 'military' && militaryEntries(resume).length > 0) {
-      children.push(heading('Military service'))
+      children.push(heading(sectionHeading(resume, 'military')))
       for (const m of militaryEntries(resume)) {
         const dates = militaryDates(m)
         children.push(
@@ -458,7 +483,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         for (const b of militaryBullets(m)) children.push(body(b, { bullet: true }))
       }
     } else if (key === 'agents' && agentEntries(resume).length > 0) {
-      children.push(heading('Agents'))
+      children.push(heading(sectionHeading(resume, 'agents')))
       for (const a of agentEntries(resume)) {
         children.push(
           new Paragraph({

@@ -105,10 +105,37 @@ export const ACTION_VERBS: { group: string; verbs: string[] }[] = [
   { group: 'Initiative', verbs: ['Initiated', 'Pioneered', 'Introduced', 'Founded', 'Spearheaded', 'Proposed'] },
 ]
 
+/**
+ * Per-line issues for a bullet list. Quantification (`no-metric`) is excluded
+ * here — a bullet list needs a balanced mix of descriptive and key-number
+ * bullets, not a number on every line; see {@link bulletMix}.
+ */
 export function checkBullets(bullets: string[]): { index: number; issues: BulletIssue[] }[] {
   return bullets
-    .map((b, index) => ({ index, issues: checkBullet(b) }))
+    .map((b, index) => ({
+      index,
+      issues: checkBullet(b).filter((i) => i.kind !== 'no-metric'),
+    }))
     .filter((r) => r.issues.length > 0)
+}
+
+/**
+ * Entry-level key-number mix: balanced when at least one bullet in three
+ * (minimum one) carries a digit — %, $, count or timeframe.
+ */
+export function bulletMix(bullets: string[]): {
+  total: number
+  quantified: number
+  balanced: boolean
+} {
+  const lines = bullets.map((b) => b.trim()).filter(Boolean)
+  const quantified = lines.filter((l) => /\d/.test(l)).length
+  const total = lines.length
+  return {
+    total,
+    quantified,
+    balanced: total === 0 || quantified >= Math.max(1, Math.ceil(total / 3)),
+  }
 }
 
 const STRONG_VERB_SET = new Set(
@@ -145,6 +172,13 @@ const BUZZWORDS = [
   'motivated',
 ]
 
+export interface HealthFinding {
+  text: string
+  /** Experience entry the finding points at, when it comes from one entry */
+  entryId?: string
+  entryLabel?: string
+}
+
 export interface HealthDimension {
   id: string
   label: string
@@ -156,6 +190,8 @@ export interface HealthDimension {
   plain: string
   /** Specific findings, worst first */
   findings: string[]
+  /** Findings with entry references, parallel to `findings` when present */
+  richFindings?: HealthFinding[]
   /** Builder editor section that fixes the findings, when they all live in one section */
   anchor?: SectionAnchor
 }
@@ -172,7 +208,12 @@ export interface HealthReport {
  */
 export function resumeHealth(r: Resume): HealthReport {
   const bullets = r.experience.flatMap((e) =>
-    e.bullets.filter((b) => b.trim()).map((b) => ({ role: e.role || e.company, text: b.trim() }))
+    e.bullets.filter((b) => b.trim()).map((b) => ({
+      role: e.role || e.company,
+      text: b.trim(),
+      entryId: e.id,
+      entryLabel: [e.role, e.company].filter((x) => x.trim()).join(', '),
+    }))
   )
   const label = (b: { role: string; text: string }) =>
     `${b.role ? `[${b.role}] ` : ''}"${b.text.length > 60 ? b.text.slice(0, 57) + '…' : b.text}"`
@@ -180,6 +221,10 @@ export function resumeHealth(r: Resume): HealthReport {
   // 1. Quantification — % of bullets carrying a number
   const quantified = bullets.filter((b) => /\d/.test(b.text))
   const quantScore = bullets.length === 0 ? 0 : Math.round((quantified.length / bullets.length) * 100)
+  const quantFindings: HealthFinding[] = bullets
+    .filter((b) => !/\d/.test(b.text))
+    .slice(0, 5)
+    .map((b) => ({ text: `No number: ${label(b)}`, entryId: b.entryId, entryLabel: b.entryLabel }))
   const quantification: HealthDimension = {
     id: 'quantification',
     label: 'Quantified impact',
@@ -189,10 +234,8 @@ export function resumeHealth(r: Resume): HealthReport {
       bullets.length === 0
         ? 'No experience bullets yet'
         : `${quantified.length} of ${bullets.length} bullets carry a real number`,
-    findings: bullets
-      .filter((b) => !/\d/.test(b.text))
-      .slice(0, 5)
-      .map((b) => `No number: ${label(b)}`),
+    findings: quantFindings.map((f) => f.text),
+    richFindings: quantFindings,
     anchor: 'experience',
   }
 
@@ -211,6 +254,9 @@ export function resumeHealth(r: Resume): HealthReport {
       : Math.round(
           Math.max(0, (strongOnes.length - weakOnes.length * 0.5) / bullets.length) * 100
         )
+  const verbFindings: HealthFinding[] = weakOnes
+    .slice(0, 5)
+    .map((b) => ({ text: `Weak opener: ${label(b)}`, entryId: b.entryId, entryLabel: b.entryLabel }))
   const verbs: HealthDimension = {
     id: 'verbs',
     label: 'Action verbs',
@@ -220,17 +266,23 @@ export function resumeHealth(r: Resume): HealthReport {
       bullets.length === 0
         ? 'No experience bullets yet'
         : `${strongOnes.length} of ${bullets.length} bullets open with a strong verb`,
-    findings: weakOnes.slice(0, 5).map((b) => `Weak opener: ${label(b)}`),
+    findings: verbFindings.map((f) => f.text),
+    richFindings: verbFindings,
     anchor: 'experience',
   }
 
   // 3. Brevity — bullet and summary length discipline
   const tooLong = bullets.filter((b) => b.text.split(/\s+/).length > 30)
   const summaryWords = r.summary.trim() ? r.summary.trim().split(/\s+/).length : 0
-  const brevityFindings: string[] = tooLong
+  const brevityFindings: HealthFinding[] = tooLong
     .slice(0, 4)
-    .map((b) => `${b.text.split(/\s+/).length} words: ${label(b)}`)
-  if (summaryWords > 80) brevityFindings.unshift(`Summary is ${summaryWords} words — aim for under 60`)
+    .map((b) => ({
+      text: `${b.text.split(/\s+/).length} words: ${label(b)}`,
+      entryId: b.entryId,
+      entryLabel: b.entryLabel,
+    }))
+  if (summaryWords > 80)
+    brevityFindings.unshift({ text: `Summary is ${summaryWords} words — aim for under 60` })
   const brevityScore =
     bullets.length === 0
       ? summaryWords > 0 && summaryWords <= 80
@@ -248,7 +300,8 @@ export function resumeHealth(r: Resume): HealthReport {
       brevityFindings.length === 0
         ? 'Bullets and summary are concise'
         : `${brevityFindings.length} item${brevityFindings.length === 1 ? ' is' : 's are'} running long`,
-    findings: brevityFindings,
+    findings: brevityFindings.map((f) => f.text),
+    richFindings: brevityFindings,
   }
 
   // 4. Buzzwords & filler — vague words that carry no evidence
@@ -269,16 +322,18 @@ export function resumeHealth(r: Resume): HealthReport {
   }
 
   // 5. Consistency — tense discipline and unreplaced placeholders
-  const consistencyFindings: string[] = []
+  const consistencyFindings: HealthFinding[] = []
   for (const e of r.experience) {
     const isCurrent = /present|current/i.test(e.endDate)
     for (const b of e.bullets) {
       const first = b.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
       if (!first) continue
       if (!isCurrent && e.endDate && /^[a-z]+(s|ing)$/.test(first) && !/^[a-z]+ss$/.test(first)) {
-        consistencyFindings.push(
-          `Past role at ${e.company || 'a previous employer'} uses present tense: "${b.trim().slice(0, 50)}…"`
-        )
+        consistencyFindings.push({
+          text: `Past role at ${e.company || 'a previous employer'} uses present tense: "${b.trim().slice(0, 50)}…"`,
+          entryId: e.id,
+          entryLabel: [e.role, e.company].filter((x) => x.trim()).join(', '),
+        })
       }
     }
   }
@@ -286,9 +341,9 @@ export function resumeHealth(r: Resume): HealthReport {
     .join('\n')
     .match(/\[[^\]\n]{1,60}\]/g)
   if (placeholders && placeholders.length > 0)
-    consistencyFindings.unshift(
-      `${placeholders.length} bracket placeholder${placeholders.length === 1 ? '' : 's'} like ${placeholders[0]} still unreplaced`
-    )
+    consistencyFindings.unshift({
+      text: `${placeholders.length} bracket placeholder${placeholders.length === 1 ? '' : 's'} like ${placeholders[0]} still unreplaced`,
+    })
   const consistency: HealthDimension = {
     id: 'consistency',
     label: 'Consistency',
@@ -298,7 +353,8 @@ export function resumeHealth(r: Resume): HealthReport {
       consistencyFindings.length === 0
         ? 'Tenses and placeholders look clean'
         : `${consistencyFindings.length} consistency issue${consistencyFindings.length === 1 ? '' : 's'}`,
-    findings: consistencyFindings.slice(0, 5),
+    findings: consistencyFindings.slice(0, 5).map((f) => f.text),
+    richFindings: consistencyFindings.slice(0, 5),
   }
 
   // 6. Completeness — reuse the strength meter

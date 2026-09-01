@@ -16,11 +16,14 @@ import {
   ImagePlus,
   ClipboardPaste,
   Download,
+  Eye,
+  EyeOff,
   FileText,
   Copy,
   FileUp,
   GraduationCap,
   GripVertical,
+  HeartPulse,
   History,
   LayoutGrid,
   LayoutTemplate,
@@ -37,9 +40,11 @@ import {
   Plus,
   Pencil,
   Sparkles,
+  Star,
   Target,
   Trash2,
   Undo2,
+  Redo2,
   Unlock,
   Users,
   Wand2,
@@ -58,6 +63,7 @@ import { Input } from '@/components/ui/input'
 import { MonthYearField } from '@/components/MonthYearField'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { LintedTextarea } from '@/components/LintedTextarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
   FreeDownloadDialog,
@@ -89,8 +95,11 @@ import {
 import { type AtsResult, type SectionAnchor, atsScoreSummary, scoreResume } from '@/lib/ats'
 import {
   ACTION_VERBS,
+  type BulletIssue,
   type HealthDimension,
+  type HealthFinding,
   type HealthReport,
+  bulletMix,
   checkBullets,
   resumeHealth,
   resumeStrength,
@@ -110,6 +119,7 @@ import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import { trackEvent } from '@/lib/track'
 import {
   type ShareLink,
+  SHARE_SLUG_RE,
   createShareLink,
   loadShareLink,
   revokeShareLink,
@@ -204,13 +214,26 @@ import {
   saveResumeVersion,
   updateResumeVersion,
   sectionLabel,
+  HIDEABLE_CONTACT_FIELDS,
+  type HideableContactField,
+  type AutoSortSection,
   skillLines,
   sortEntriesByDate,
   TEXT_INKS,
+  visibleResume,
+  RESUME_LANGUAGES,
+  type ResumeLanguage,
+  resumeLanguageOf,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
 import { ACCENT_CHOICES, TEMPLATES, TEMPLATE_FILTERS, getTemplate } from '@/lib/templates'
+import {
+  loadTemplateFavorites,
+  loadTemplateRecents,
+  recordTemplateRecent,
+  toggleTemplateFavorite,
+} from '@/lib/templatePrefs'
 
 function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
   const t = useRef<number | undefined>(undefined)
@@ -313,16 +336,18 @@ const SPACING_STEPS = ['xtight', 'compact', 'normal', 'relaxed', 'loose'] as con
 
 const SECTION_STEPS = ['xtight', 'tight', 'normal', 'roomy', 'xroomy'] as const
 
-/** Global undo: snapshots resume state (throttled) and restores on Ctrl/Cmd+Z */
+/** Global undo/redo: snapshots resume state (throttled), Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y */
 function useUndo(
   resume: Resume,
   setResume: React.Dispatch<React.SetStateAction<Resume>>
 ) {
   const history = useRef<Resume[]>([])
+  const future = useRef<Resume[]>([])
   const last = useRef(resume)
   const lastPush = useRef(0)
   const restoring = useRef(false)
   const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
 
   useEffect(() => {
     if (restoring.current) {
@@ -331,6 +356,10 @@ function useUndo(
       return
     }
     if (resume === last.current) return
+    if (future.current.length > 0) {
+      future.current = []
+      setCanRedo(false)
+    }
     const now = Date.now()
     if (now - lastPush.current > 700) {
       history.current.push(last.current)
@@ -344,24 +373,43 @@ function useUndo(
   const undo = useCallback(() => {
     const prev = history.current.pop()
     if (!prev) return
+    future.current.push(last.current)
+    if (future.current.length > 50) future.current.shift()
     restoring.current = true
     setCanUndo(history.current.length > 0)
+    setCanRedo(true)
     setResume(prev)
+  }, [setResume])
+
+  const redo = useCallback(() => {
+    const next = future.current.pop()
+    if (!next) return
+    history.current.push(last.current)
+    if (history.current.length > 50) history.current.shift()
+    restoring.current = true
+    setCanUndo(true)
+    setCanRedo(future.current.length > 0)
+    setResume(next)
   }, [setResume])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return
+      if (!(e.ctrlKey || e.metaKey)) return
+      const key = e.key.toLowerCase()
+      const isUndo = key === 'z' && !e.shiftKey
+      const isRedo = (key === 'z' && e.shiftKey) || key === 'y'
+      if (!isUndo && !isRedo) return
       const el = document.activeElement
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return
       e.preventDefault()
-      undo()
+      if (isRedo) redo()
+      else undo()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo])
+  }, [undo, redo])
 
-  return { undo, canUndo }
+  return { undo, canUndo, redo, canRedo }
 }
 
 function moveItem<T>(arr: T[], index: number, delta: number): T[] {
@@ -424,18 +472,62 @@ function useDragReorder(onReorder: (from: number, to: number) => void) {
 /** Event dispatched by ATS-check "Fix" links to scroll the matching editor section into view */
 const JUMP_EVENT = 'honestcv:jump-section'
 
+/** Optional editor sections that stay out of the way until they have content or are added */
+const OPTIONAL_SECTION_META: { key: string; label: string; icon: React.ReactNode }[] = [
+  { key: 'involvement', label: 'Involvement', icon: <Users className="size-3.5" /> },
+  { key: 'coursework', label: 'Coursework', icon: <BookOpen className="size-3.5" /> },
+  { key: 'awards', label: 'Awards & honors', icon: <Award className="size-3.5" /> },
+  { key: 'publications', label: 'Publications', icon: <BookText className="size-3.5" /> },
+  { key: 'references', label: 'References', icon: <Contact className="size-3.5" /> },
+  { key: 'military', label: 'Military service', icon: <Shield className="size-3.5" /> },
+  { key: 'agents', label: 'Agents', icon: <Bot className="size-3.5" /> },
+]
+const OPTIONAL_SECTION_KEYS = OPTIONAL_SECTION_META.map((s) => s.key)
+
+/** True while focus sits inside an entry card of the given auto-sorted section */
+function autoSortHeld(key: AutoSortSection): boolean {
+  return !!document.activeElement?.closest(`[data-autosort-scope="${key}"]`)
+}
+
+/** Re-file experience/education newest-first when their "Sort by date" toggle is on */
+function applyAutoSort(r: Resume, isHeld?: (key: AutoSortSection) => boolean): Resume {
+  const keys = (r.autoSortByDate ?? []).filter((k) => !isHeld?.(k))
+  if (!keys.length) return r
+  let next = r
+  if (keys.includes('experience')) {
+    const sorted = sortEntriesByDate(
+      r.experience,
+      (x) => x.startDate,
+      (x) => x.endDate
+    )
+    if (sorted.some((it, i) => it !== r.experience[i])) next = { ...next, experience: sorted }
+  }
+  if (keys.includes('education')) {
+    const sorted = sortEntriesByDate(
+      r.education,
+      (x) => x.startDate,
+      (x) => x.endDate
+    )
+    if (sorted.some((it, i) => it !== r.education[i])) next = { ...next, education: sorted }
+  }
+  return next
+}
+
 function Section({
   title,
   icon,
   children,
   defaultOpen = true,
   anchor,
+  hidden = false,
 }: {
   title: string
   icon: React.ReactNode
   children: React.ReactNode
   defaultOpen?: boolean
   anchor?: string
+  /** Render nothing (optional section without content that the user hasn't added) */
+  hidden?: boolean
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const [flash, setFlash] = useState(false)
@@ -454,10 +546,12 @@ function Section({
     window.addEventListener(JUMP_EVENT, onJump)
     return () => window.removeEventListener(JUMP_EVENT, onJump)
   }, [anchor])
+  if (hidden) return null
   return (
     <Card
       ref={ref}
-      className={`scroll-mt-16 py-0 transition-shadow ${flash ? 'ring-primary/60 ring-2' : ''}`}
+      data-section-anchor={anchor}
+      className={`scroll-mt-28 py-0 transition-shadow ${flash ? 'ring-primary/60 ring-2' : ''}`}
     >
       <CardContent className="p-4">
         <button
@@ -474,6 +568,134 @@ function Section({
         {open && <div className="mt-3 space-y-3">{children}</div>}
       </CardContent>
     </Card>
+  )
+}
+
+/** Sticky chip bar listing the visible editor sections; the section in view is highlighted */
+function SectionNav({
+  sections,
+  onJump,
+  score,
+  onOpenReport,
+}: {
+  sections: { key: string; label: string }[]
+  onJump: (key: string) => void
+  score: number
+  onOpenReport: () => void
+}) {
+  const keyList = sections.map((s) => s.key).join('|')
+  const keys = useMemo(() => keyList.split('|'), [keyList])
+  const [active, setActive] = useState(keys[0])
+  useEffect(() => {
+    const visible = new Set<string>()
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const key = (e.target as HTMLElement).dataset.sectionAnchor
+          if (!key) continue
+          if (e.isIntersecting) visible.add(key)
+          else visible.delete(key)
+        }
+        const first = keys.find((k) => visible.has(k))
+        if (first) setActive(first)
+      },
+      { rootMargin: '-110px 0px -55% 0px' }
+    )
+    for (const k of keys) {
+      const el = document.querySelector(`[data-section-anchor="${k}"]`)
+      if (el) io.observe(el)
+    }
+    return () => io.disconnect()
+  }, [keys])
+  return (
+    <nav
+      aria-label="Resume sections"
+      className="bg-background/85 sticky top-14 z-10 flex items-center gap-1 rounded-lg border px-1 py-1 backdrop-blur"
+    >
+      <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
+        <div className="flex w-max gap-0.5">
+          {sections.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              aria-current={active === s.key ? 'true' : undefined}
+              className={`min-h-10 rounded-md px-2.5 text-xs whitespace-nowrap transition-colors sm:min-h-8 ${
+                active === s.key
+                  ? 'bg-secondary text-foreground font-medium'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}
+              onClick={() => onJump(s.key)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <button
+        type="button"
+        aria-label={`Resume health score ${score} out of 100 — ${scoreVerdict(score)} — open full report`}
+        title="Resume health — open full report"
+        className={`inline-flex min-h-10 shrink-0 items-center gap-1 rounded-md border px-2 text-xs font-medium tabular-nums transition-colors sm:min-h-8 ${
+          score >= 80
+            ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+            : score >= 50
+              ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+              : 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'
+        }`}
+        onClick={onOpenReport}
+      >
+        <HeartPulse aria-hidden className="size-3.5" />
+        {score}
+        <span className="hidden font-normal sm:inline">· {scoreVerdict(score)}</span>
+      </button>
+    </nav>
+  )
+}
+
+/** Plain-words tier for a 0-100 score, matching the three color bands */
+const scoreVerdict = (score: number) =>
+  score >= 80 ? 'Strong' : score >= 50 ? 'Getting there' : 'Needs work'
+
+/** Point on the gauge arc for a 0-100 value (semicircle, left = 0) */
+const gaugePoint = (value: number, radius: number): [number, number] => {
+  const rad = ((180 - value * 1.8) * Math.PI) / 180
+  return [100 + radius * Math.cos(rad), 100 - radius * Math.sin(rad)]
+}
+
+const gaugeArc = (from: number, to: number, radius: number) => {
+  const [x1, y1] = gaugePoint(from, radius)
+  const [x2, y2] = gaugePoint(to, radius)
+  return `M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`
+}
+
+/** Semicircular score dial: colored band arc, needle, score + verdict */
+function ScoreGauge({ score }: { score: number }) {
+  const clamped = Math.max(0, Math.min(100, score))
+  const [nx, ny] = gaugePoint(clamped, 62)
+  return (
+    <div
+      role="img"
+      aria-label={`Resume strength ${clamped} out of 100 — ${scoreVerdict(clamped)}`}
+      className="mx-auto w-40 max-w-full"
+    >
+      <svg viewBox="0 0 200 118" aria-hidden className="block w-full">
+        <path d={gaugeArc(0, 50, 80)} fill="none" strokeWidth={12} strokeLinecap="round" className="stroke-red-400" />
+        <path d={gaugeArc(50, 80, 80)} fill="none" strokeWidth={12} className="stroke-amber-400" />
+        <path d={gaugeArc(80, 100, 80)} fill="none" strokeWidth={12} strokeLinecap="round" className="stroke-emerald-500" />
+        <line x1={100} y1={100} x2={nx} y2={ny} strokeWidth={3} strokeLinecap="round" className="stroke-foreground" />
+        <circle cx={100} cy={100} r={5} className="fill-foreground" />
+        <text x={20} y={116} textAnchor="middle" className="fill-muted-foreground text-[11px]">
+          0
+        </text>
+        <text x={180} y={116} textAnchor="middle" className="fill-muted-foreground text-[11px]">
+          100
+        </text>
+      </svg>
+      <div className="-mt-1 text-center">
+        <span className="text-2xl font-semibold tabular-nums">{clamped}</span>
+        <span className="text-muted-foreground block text-xs">{scoreVerdict(clamped)}</span>
+      </div>
+    </div>
   )
 }
 
@@ -497,8 +719,8 @@ export default function Builder() {
     'Build an ATS-friendly resume in your browser: 22 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
   )
   useEffect(() => trackEvent('builder-start'), [])
-  const [resume, setResume] = useState<Resume>(() => {
-    const r = loadResume() ?? emptyResume()
+  const [resume, setResumeRaw] = useState<Resume>(() => {
+    const r = applyAutoSort(loadResume() ?? emptyResume())
     // ?template=<id> deep link from the landing gallery / static template pages
     const wanted = new URLSearchParams(window.location.search).get('template')
     if (wanted && TEMPLATES.some((t) => t.id === wanted) && r.templateId !== wanted) {
@@ -508,6 +730,23 @@ export default function Builder() {
     }
     return r
   })
+  /** Every update passes through applyAutoSort so toggled-on sections stay filed;
+   * a section is held in place while focus is inside one of its entry cards and
+   * re-filed when the card blurs (commit-at-boundary, like Rezi's save). */
+  const setResume = useCallback<React.Dispatch<React.SetStateAction<Resume>>>((action) => {
+    setResumeRaw((prev) =>
+      applyAutoSort(typeof action === 'function' ? action(prev) : action, autoSortHeld)
+    )
+  }, [])
+  const releaseAutoSort = useCallback(
+    (key: AutoSortSection) => (e: React.FocusEvent<HTMLDivElement>) => {
+      if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return
+      setResumeRaw((prev) =>
+        (prev.autoSortByDate ?? []).includes(key) ? applyAutoSort(prev) : prev
+      )
+    },
+    []
+  )
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [upgradeReason, setUpgradeReason] = useState('')
   const [aiBusy, setAiBusy] = useState<string | null>(null)
@@ -524,6 +763,7 @@ export default function Builder() {
   const [shareBusy, setShareBusy] = useState(false)
   const [shareError, setShareError] = useState('')
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
+  const [shareSlug, setShareSlug] = useState('')
   // ?doc=cover&company=<name> deep link from the /jobs board's "Cover letter" action
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(() => {
     const doc = new URLSearchParams(window.location.search).get('doc')
@@ -538,6 +778,9 @@ export default function Builder() {
     }
   }, [])
   const [tailorOpen, setTailorOpen] = useState(false)
+  const [previewView, setPreviewView] = useState<'pages' | 'flow'>(() =>
+    localStorage.getItem('honestcv.previewView') === 'flow' ? 'flow' : 'pages'
+  )
   const [healthOpen, setHealthOpen] = useState(false)
   const [kwBulletFor, setKwBulletFor] = useState<string | null>(null)
   const [checklistOpen, setChecklistOpen] = useState(
@@ -608,7 +851,8 @@ export default function Builder() {
   const freeMode = useFreeMode()
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
-  const pdfPages = usePdfPageCount(resume)
+  const shown = useMemo(() => visibleResume(resume), [resume])
+  const pdfPages = usePdfPageCount(shown)
   const [fitBusy, setFitBusy] = useState(false)
   const [fitMsg, setFitMsg] = useState('')
   const autoFit = useCallback(async () => {
@@ -633,7 +877,7 @@ export default function Builder() {
         const combos = stage === 0 ? FIT_COMBOS : FIT_COMBOS.slice(TIGHT_COMBO_START)
         for (const [fontScale, lineSpacing] of combos) {
           const pages = await countResumePdfPages({
-            ...resume,
+            ...shown,
             fontScale,
             lineSpacing,
             sectionSpacing,
@@ -669,18 +913,69 @@ export default function Builder() {
     } finally {
       setFitBusy(false)
     }
-  }, [resume, setResume])
+  }, [resume, shown, setResume])
   const [templateFilter, setTemplateFilter] = useState('all')
+  const [templateFavs, setTemplateFavs] = useState<string[]>(loadTemplateFavorites)
+  const [templateRecents, setTemplateRecents] = useState<string[]>(loadTemplateRecents)
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
+  /** Optional sections the user added this visit — shown even while still empty */
+  const [addedSections, setAddedSections] = useState<string[]>([])
   /** Scroll the editor section that fixes a failing ATS check into view */
   const jumpToSection = (anchor: string) => {
     setMobilePane('edit')
+    if (OPTIONAL_SECTION_KEYS.includes(anchor))
+      setAddedSections((s) => (s.includes(anchor) ? s : [...s, anchor]))
     requestAnimationFrame(() =>
       window.dispatchEvent(new CustomEvent(JUMP_EVENT, { detail: anchor }))
     )
   }
-  const { undo, canUndo } = useUndo(resume, setResume)
+  /** Entry card currently ring-flashed after a score-finding jump */
+  const [flashEntryId, setFlashEntryId] = useState<string | null>(null)
+  /** Scroll a specific experience card into view, expanding it if collapsed */
+  const jumpToEntry = (id: string) => {
+    setMobilePane('edit')
+    setCollapsedEntries((s) => {
+      if (!s.has(id)) return s
+      const next = new Set(s)
+      next.delete(id)
+      return next
+    })
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-entry-id="${id}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFlashEntryId(id)
+      window.setTimeout(() => setFlashEntryId((cur) => (cur === id ? null : cur)), 1600)
+    })
+  }
+  /** An optional section card renders when it has entries or was added this visit */
+  const sectionShown = (key: string) =>
+    ((resume[key as keyof Resume] as unknown[] | undefined)?.length ?? 0) > 0 ||
+    addedSections.includes(key)
+  const navSections = [
+    { key: 'contact', label: 'Contact' },
+    { key: 'summary', label: 'Summary' },
+    { key: 'experience', label: 'Experience' },
+    { key: 'education', label: 'Education' },
+    { key: 'projects', label: 'Projects' },
+    ...OPTIONAL_SECTION_META.filter((s) => sectionShown(s.key)).map((s) => ({
+      key: s.key,
+      label: s.label,
+    })),
+    { key: 'skills', label: 'Skills' },
+    { key: 'custom', label: 'Custom' },
+  ]
+  const autoSortOn = (key: AutoSortSection) => (resume.autoSortByDate ?? []).includes(key)
+  const toggleAutoSort = (key: AutoSortSection) =>
+    setResume((r) => {
+      const cur = r.autoSortByDate ?? []
+      return {
+        ...r,
+        autoSortByDate: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
+      }
+    })
+  const { undo, canUndo, redo, canRedo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [expLibrary, setExpLibrary] = useState<SavedExperience[]>(() => listExperienceLibrary())
   const [expLibraryOpen, setExpLibraryOpen] = useState(false)
@@ -771,7 +1066,7 @@ export default function Builder() {
         ...(cur.templateId !== emptyResume().templateId ? { templateId: cur.templateId } : {}),
       }
     })
-  }, [])
+  }, [setResume])
 
   useEffect(() => {
     let cancelled = false
@@ -806,13 +1101,13 @@ export default function Builder() {
     }
   }, [unlocked])
   const ats = useMemo(
-    () => scoreResume(resume, resume.jobDescription),
-    [resume]
+    () => scoreResume(shown, shown.jobDescription),
+    [shown]
   )
 
   const set = useCallback(<K extends keyof Resume>(key: K, value: Resume[K]) => {
     setResume((r) => ({ ...r, [key]: value }))
-  }, [])
+  }, [setResume])
   const setContact = (key: keyof Resume['contact'], value: string) =>
     setResume((r) => ({ ...r, contact: { ...r.contact, [key]: value } }))
   const setExp = (id: string, patch: Partial<ExperienceItem>) =>
@@ -854,6 +1149,7 @@ export default function Builder() {
         {
           role: aiTargetRole(resume),
           jobDescription: resume.jobDescription,
+          language: resume.language,
         },
         wantVariants
       )
@@ -890,8 +1186,9 @@ export default function Builder() {
         role: e.role,
         company: e.company,
         bullets: e.bullets.filter((b) => b.trim()),
-        resumeText: resumeToPlainText(resume),
+        resumeText: resumeToPlainText(shown),
         variant,
+        language: resume.language,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
@@ -904,13 +1201,51 @@ export default function Builder() {
     }
   }
 
-  const runSummaryDraft = async () => {
+  /** Setup dialog for the summary draft: position framing + skills to emphasize */
+  const [summaryDraftSetup, setSummaryDraftSetup] = useState<{
+    position: string
+    picked: string[]
+  } | null>(null)
+
+  const summaryPositionOptions = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const role of [resume.targetRole, ...resume.experience.map((e) => e.role)]) {
+      const r = role.trim()
+      const key = r.toLowerCase()
+      if (r && !seen.has(key)) {
+        seen.add(key)
+        out.push(r)
+      }
+    }
+    return out
+  }, [resume.targetRole, resume.experience])
+
+  const summarySkillOptions = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const line of skillLines(resume)) {
+      for (const part of line.text.split(',')) {
+        const s = part.trim()
+        const key = s.toLowerCase()
+        if (s && s.length <= 40 && !seen.has(key)) {
+          seen.add(key)
+          out.push(s)
+        }
+        if (out.length >= 18) return out
+      }
+    }
+    return out
+  }, [resume])
+
+  const resumeHasContent =
+    resume.experience.some((e) => e.role.trim() || e.bullets.some((b) => b.trim())) ||
+    resume.skills.trim().length > 0 ||
+    resume.education.some((e) => e.degree.trim() || e.school.trim())
+
+  const runSummaryDraft = async (position: string, highlights: string[]) => {
     const tag = 'summary-draft'
-    const hasContent =
-      resume.experience.some((e) => e.role.trim() || e.bullets.some((b) => b.trim())) ||
-      resume.skills.trim().length > 0 ||
-      resume.education.some((e) => e.degree.trim() || e.school.trim())
-    if (!hasContent) {
+    if (!resumeHasContent) {
       setAiErrorTag(tag)
       setAiError('Add some experience or skills first — the draft is written only from your resume.')
       return
@@ -920,8 +1255,10 @@ export default function Builder() {
     setAiErrorTag(tag)
     try {
       const { texts, freeRemaining } = await aiSummaryDraft({
-        resumeText: resumeToPlainText({ ...resume, summary: '' }),
-        role: aiTargetRole(resume),
+        resumeText: resumeToPlainText({ ...shown, summary: '' }),
+        role: position.trim() || aiTargetRole(resume),
+        highlights: highlights.length ? highlights : undefined,
+        language: resume.language,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setVariantPick({
@@ -938,12 +1275,19 @@ export default function Builder() {
   }
 
   const [aiSkillChips, setAiSkillChips] = useState<string[] | null>(null)
+  /** Setup dialog for skill suggestions: what the user did + category focus */
+  const [skillExploreSetup, setSkillExploreSetup] = useState<{
+    context: string
+    category: string
+  } | null>(null)
 
-  const runSkillSuggest = async () => {
+  const runSkillSuggest = async (context = '', category = '') => {
     const tag = 'skill-suggest'
-    if (!resume.skills.trim() && !resume.targetRole.trim()) {
+    if (!resume.skills.trim() && !resume.targetRole.trim() && !context.trim()) {
       setAiErrorTag(tag)
-      setAiError('Add a target role or a few skills first — suggestions build on what you already have.')
+      setAiError(
+        'Add a target role, a few skills, or describe what you did — suggestions build on what you already have.'
+      )
       return
     }
     setAiBusy(tag)
@@ -954,6 +1298,8 @@ export default function Builder() {
         skills: resume.skills,
         role: aiTargetRole(resume),
         jobDescription: resume.jobDescription,
+        context: context.trim() ? context.trim().slice(0, 200) : undefined,
+        category: category.trim() ? category.trim() : undefined,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setAiSkillChips(skills)
@@ -975,7 +1321,7 @@ export default function Builder() {
         e.id === expId ? { ...e, bullets: [...e.bullets.filter((b) => b.trim()), text] } : e
       ),
     }))
-  }, [])
+  }, [setResume])
 
   const applyTailorSuggestion = useCallback((id: string, text: string) => {
     if (id === 'summary') {
@@ -991,26 +1337,29 @@ export default function Builder() {
         e.id === expId ? { ...e, bullets: e.bullets.map((b, i) => (i === idx ? text : b)) } : e
       ),
     }))
-  }, [])
+  }, [setResume])
 
   const finalCheckIssues = useMemo(() => {
     const issues: string[] = []
     for (const c of ats.checks) if (!c.pass) issues.push(`${c.label} — ${c.hint}`)
-    const bulletIssueCount = resume.experience.reduce(
-      (n, e) => n + checkBullets(e.bullets).reduce((m, r) => m + r.issues.length, 0),
-      0
-    )
+    const countIssues = (lines: string[]) =>
+      checkBullets(lines).reduce((m, r) => m + r.issues.length, 0) +
+      (bulletMix(lines).balanced ? 0 : 1)
+    const bulletIssueCount =
+      shown.experience.reduce((n, e) => n + countIssues(e.bullets), 0) +
+      shown.projects.reduce((n, p) => n + countIssues(p.description.split('\n')), 0) +
+      (shown.involvement ?? []).reduce((n, i) => n + countIssues(i.description.split('\n')), 0)
     if (bulletIssueCount > 0)
       issues.push(
-        `${bulletIssueCount} bullet-quality warning${bulletIssueCount === 1 ? '' : 's'} in Experience (weak openers, missing numbers…)`
+        `${bulletIssueCount} bullet-quality warning${bulletIssueCount === 1 ? '' : 's'} in Experience/Projects/Involvement (weak openers, missing numbers…)`
       )
-    const placeholderCount = resumeToPlainText(resume).match(/\[[^\]\n]{1,60}\]/g)?.length ?? 0
+    const placeholderCount = resumeToPlainText(shown).match(/\[[^\]\n]{1,60}\]/g)?.length ?? 0
     if (placeholderCount > 0)
       issues.push(
         `${placeholderCount} bracket placeholder${placeholderCount === 1 ? '' : 's'} like [add %] still in the resume — replace with your real details`
       )
     return issues
-  }, [ats, resume])
+  }, [ats, shown])
 
   const download = async (fmt: 'pdf' | 'docx' | 'txt' | 'md', skipFinalCheck = false) => {
     if (!unlocked) {
@@ -1037,12 +1386,12 @@ export default function Builder() {
     try {
       const name = (resume.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
       if (fmt === 'pdf')
-        await (await import('@/lib/pdf')).downloadResumePdf(resume, `${name}-resume.pdf`)
+        await (await import('@/lib/pdf')).downloadResumePdf(shown, `${name}-resume.pdf`)
       else if (fmt === 'docx')
-        await (await import('@/lib/docx')).downloadResumeDocx(resume, `${name}-resume.docx`)
+        await (await import('@/lib/docx')).downloadResumeDocx(shown, `${name}-resume.docx`)
       else if (fmt === 'md')
-        downloadText(resumeToMarkdown(resume), `${name}-resume.md`, 'text/markdown')
-      else downloadText(resumeToPlainText(resume), `${name}-resume.txt`)
+        downloadText(resumeToMarkdown(shown), `${name}-resume.md`, 'text/markdown')
+      else downloadText(resumeToPlainText(shown), `${name}-resume.txt`)
       setDlDone(true)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
@@ -1056,11 +1405,13 @@ export default function Builder() {
     }
   }
 
+  /** `notReady`: reason the AI action can't run yet — renders the button disabled
+   *  with the reason as visible helper text instead of a post-click error. */
   const aiButton = (
     tag: string,
     label: string,
     onClick: () => void,
-    disabled?: boolean
+    notReady?: string | boolean
   ) => (
     <>
       <Button
@@ -1068,12 +1419,13 @@ export default function Builder() {
         variant="outline"
         size="sm"
         onClick={onClick}
-        disabled={Boolean(aiBusy) || disabled}
+        disabled={Boolean(aiBusy) || Boolean(notReady)}
         className="h-10 gap-1 text-xs sm:h-7"
         title={
-          !unlocked && freeLeft !== null
+          (typeof notReady === 'string' && notReady ? notReady : undefined) ??
+          (!unlocked && freeLeft !== null
             ? `${freeLeft} free AI use${freeLeft === 1 ? '' : 's'} left`
-            : undefined
+            : undefined)
         }
       >
         {aiBusy === tag ? (
@@ -1084,7 +1436,10 @@ export default function Builder() {
         {label}
       </Button>
       {aiBusy === tag && <AiWaitHint />}
-      {aiError && aiErrorTag === tag && (
+      {typeof notReady === 'string' && notReady && (
+        <p className="text-muted-foreground w-full text-xs">{notReady}</p>
+      )}
+      {!notReady && aiError && aiErrorTag === tag && (
         <p className="text-destructive text-xs">{aiError}</p>
       )}
     </>
@@ -1121,6 +1476,16 @@ export default function Builder() {
               className="hidden min-h-10 min-w-10 sm:inline-flex sm:min-h-8 sm:min-w-8"
             >
               <Undo2 className="size-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Shift+Z)"
+              className="hidden min-h-10 min-w-10 sm:inline-flex sm:min-h-8 sm:min-w-8"
+            >
+              <Redo2 className="size-3.5" />
             </Button>
             <Button
               size="sm"
@@ -1469,26 +1834,9 @@ export default function Builder() {
           <div className="bg-card rounded-lg border p-3">
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="font-medium">Resume strength</span>
-              <span className="text-muted-foreground text-xs">{strength.score}%</span>
             </div>
-            <div
-              className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full"
-              role="progressbar"
-              aria-label="Resume strength"
-              aria-valuenow={strength.score}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <div
-                className={`h-full rounded-full transition-all ${
-                  strength.score >= 80
-                    ? 'bg-emerald-500'
-                    : strength.score >= 50
-                      ? 'bg-amber-500'
-                      : 'bg-red-400'
-                }`}
-                style={{ width: `${strength.score}%` }}
-              />
+            <div className="mt-1">
+              <ScoreGauge score={strength.score} />
             </div>
             {strength.missing.length > 0 && (
               <p className="text-muted-foreground mt-2 text-xs">
@@ -1514,7 +1862,22 @@ export default function Builder() {
             </button>
           </div>
 
-          <Section title="Target job (powers AI + ATS score)" icon={<Target className="size-4" />}>
+          <SectionNav
+            sections={navSections}
+            onJump={jumpToSection}
+            score={health.score}
+            onOpenReport={() => {
+              localStorage.setItem('honestcv.seen.health', '1')
+              setHealthSeen(true)
+              setHealthOpen(true)
+            }}
+          />
+
+          <Section
+            title="Target job (powers AI + ATS score)"
+            icon={<Target className="size-4" />}
+            anchor="target"
+          >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="targetRole">Target role</Label>
@@ -1613,17 +1976,64 @@ export default function Builder() {
                   ['website', 'Website (optional)', 'yoursite.com'],
                   ['linkedin', 'LinkedIn (optional)', 'linkedin.com/in/you'],
                 ] as const
-              ).map(([key, label, ph]) => (
-                <div key={key} className="space-y-1.5">
-                  <Label htmlFor={`c-${key}`}>{label}</Label>
-                  <Input
-                    id={`c-${key}`}
-                    placeholder={ph}
-                    value={resume.contact[key]}
-                    onChange={(e) => setContact(key, e.target.value)}
-                  />
-                </div>
-              ))}
+              ).map(([key, label, ph]) => {
+                const hideable = (HIDEABLE_CONTACT_FIELDS as string[]).includes(key)
+                const fieldHidden =
+                  hideable && (resume.hiddenContact ?? []).includes(key as HideableContactField)
+                return (
+                  <div key={key} className={`space-y-1.5 ${fieldHidden ? 'opacity-60' : ''}`}>
+                    <div className="flex items-center justify-between gap-1">
+                      <Label htmlFor={`c-${key}`}>
+                        {label}
+                        {fieldHidden && (
+                          <span className="text-muted-foreground ml-1.5 text-[10px] font-semibold uppercase">
+                            Hidden
+                          </span>
+                        )}
+                      </Label>
+                      {hideable && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 shrink-0 p-0"
+                          title={
+                            fieldHidden
+                              ? 'Show on resume'
+                              : 'Hide from resume — kept here, left out of the resume'
+                          }
+                          aria-pressed={fieldHidden}
+                          aria-label={`${fieldHidden ? 'Show' : 'Hide'} ${label} ${fieldHidden ? 'on' : 'from'} resume`}
+                          onClick={() =>
+                            setResume((r) => {
+                              const cur = r.hiddenContact ?? []
+                              const f = key as HideableContactField
+                              return {
+                                ...r,
+                                hiddenContact: cur.includes(f)
+                                  ? cur.filter((x) => x !== f)
+                                  : [...cur, f],
+                              }
+                            })
+                          }
+                        >
+                          {fieldHidden ? (
+                            <EyeOff className="size-3.5" />
+                          ) : (
+                            <Eye className="size-3.5" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    <Input
+                      id={`c-${key}`}
+                      placeholder={ph}
+                      value={resume.contact[key]}
+                      onChange={(e) => setContact(key, e.target.value)}
+                    />
+                  </div>
+                )
+              })}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {resume.photo && (
@@ -1721,7 +2131,17 @@ export default function Builder() {
                       set('summary', out)
                     )
                   )
-                : aiButton('summary-draft', 'Draft from my resume', () => void runSummaryDraft())}
+                : aiButton(
+                    'summary-draft',
+                    'Draft from my resume',
+                    () =>
+                      setSummaryDraftSetup({
+                        position: aiTargetRole(resume),
+                        picked: [],
+                      }),
+                    !resumeHasContent &&
+                      'Add some experience or skills first — the draft is written only from your resume.'
+                  )}
               <Button
                 type="button"
                 variant="ghost"
@@ -1811,19 +2231,16 @@ export default function Builder() {
                   variant="outline"
                   size="sm"
                   className="h-10 text-xs sm:h-7"
-                  title="Reorder roles newest first — ongoing roles on top"
-                  onClick={() =>
-                    setResume((r) => ({
-                      ...r,
-                      experience: sortEntriesByDate(
-                        r.experience,
-                        (x) => x.startDate,
-                        (x) => x.endDate
-                      ),
-                    }))
+                  title={
+                    autoSortOn('experience')
+                      ? 'Auto-sort is on — roles stay newest first as you edit'
+                      : 'Keep roles sorted newest first — ongoing roles on top'
                   }
+                  aria-pressed={autoSortOn('experience')}
+                  onClick={() => toggleAutoSort('experience')}
                 >
                   <ArrowDown className="size-3.5" /> Sort by date
+                  {autoSortOn('experience') && <Check className="size-3.5" />}
                 </Button>
               </div>
             )}
@@ -1831,8 +2248,13 @@ export default function Builder() {
               <div
                 key={e.id}
                 {...expDrag.dropProps(idx)}
+                data-autosort-scope="experience"
+                data-entry-id={e.id}
+                onBlurCapture={releaseAutoSort('experience')}
                 className={`space-y-2 rounded-lg border p-3 transition ${
                   expDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
+                } ${e.hidden ? 'opacity-60' : ''} ${
+                  flashEntryId === e.id ? 'ring-primary/60 ring-2' : ''
                 }`}
               >
                 <div className="flex min-w-0 flex-wrap items-center justify-between">
@@ -1852,6 +2274,24 @@ export default function Builder() {
                         — {[e.role, e.company].filter((x) => x.trim()).join(', ')}
                       </span>
                     )}
+                    {e.hidden && (
+                      <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                        Hidden
+                      </span>
+                    )}
+                    <EntryAuditChip
+                      findings={[
+                        ...((e.role.trim() || e.company.trim()) && !e.startDate.trim()
+                          ? [DATE_FINDING]
+                          : []),
+                        ...bulletFindings(e.bullets, Boolean(e.role.trim() || e.company.trim())),
+                      ]}
+                      filled={Boolean(e.role.trim() || e.company.trim())}
+                      checks={EXPERIENCE_CHECKS}
+                      expandable={collapsedEntries.has(e.id)}
+                      onExpand={() => toggleEntry(e.id)}
+                      label={`Role ${idx + 1}`}
+                    />
                   </p>
                   <div className="ml-auto flex shrink-0 items-center">
                     <Button
@@ -1933,6 +2373,25 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      className="h-10 sm:h-7"
+                      title={e.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={e.hidden === true}
+                      aria-label={`${e.hidden ? 'Show' : 'Hide'} role ${idx + 1} ${e.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          experience: r.experience.map((x) =>
+                            x.id === e.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {e.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
                       className="text-destructive h-10 sm:h-7"
                       title="Delete role"
                       aria-label={`Delete role ${idx + 1}`}
@@ -1966,33 +2425,59 @@ export default function Builder() {
                 {!collapsedEntries.has(e.id) && (
                   <>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    placeholder="Job title"
-                    value={e.role}
-                    onChange={(ev) => setExp(e.id, { role: ev.target.value })}
-                  />
-                  <Input
-                    placeholder="Company"
-                    value={e.company}
-                    onChange={(ev) => setExp(e.id, { company: ev.target.value })}
-                  />
-                  <Input
-                    placeholder="Location"
-                    value={e.location}
-                    onChange={(ev) => setExp(e.id, { location: ev.target.value })}
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <MonthYearField
-                      placeholder="Start (Jun 2023)"
-                      value={e.startDate}
-                      onChange={(v) => setExp(e.id, { startDate: v })}
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`exp-${e.id}-role`}>
+                      {e.company.trim() ? `Your role at ${e.company.trim()}` : 'Your role'}
+                    </Label>
+                    <Input
+                      id={`exp-${e.id}-role`}
+                      placeholder="Job title"
+                      value={e.role}
+                      onChange={(ev) => setExp(e.id, { role: ev.target.value })}
                     />
-                    <MonthYearField
-                      allowPresent
-                      placeholder="End (Present)"
-                      value={e.endDate}
-                      onChange={(v) => setExp(e.id, { endDate: v })}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`exp-${e.id}-company`}>Which company was this?</Label>
+                    <Input
+                      id={`exp-${e.id}-company`}
+                      placeholder="Company"
+                      value={e.company}
+                      onChange={(ev) => setExp(e.id, { company: ev.target.value })}
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`exp-${e.id}-location`}>
+                      {e.company.trim()
+                        ? `Where was ${e.company.trim()} based?`
+                        : 'Where was this?'}
+                    </Label>
+                    <Input
+                      id={`exp-${e.id}-location`}
+                      placeholder="Location"
+                      value={e.location}
+                      onChange={(ev) => setExp(e.id, { location: ev.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`exp-${e.id}-start`}>
+                      {e.company.trim()
+                        ? `When were you at ${e.company.trim()}?`
+                        : 'When was this?'}
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <MonthYearField
+                        id={`exp-${e.id}-start`}
+                        placeholder="Start (Jun 2023)"
+                        value={e.startDate}
+                        onChange={(v) => setExp(e.id, { startDate: v })}
+                      />
+                      <MonthYearField
+                        allowPresent
+                        placeholder="End (Present)"
+                        value={e.endDate}
+                        onChange={(v) => setExp(e.id, { endDate: v })}
+                      />
+                    </div>
                   </div>
                 </div>
                 {(e.role.trim() || e.company.trim()) && !e.startDate.trim() && (
@@ -2001,12 +2486,20 @@ export default function Builder() {
                     your timeline.
                   </p>
                 )}
-                <Textarea
-                  rows={4}
-                  placeholder={'One achievement per line, e.g.\nCut deploy time by 60% by introducing CI caching\nLed a team of 3 engineers on the checkout redesign'}
-                  value={e.bullets.join('\n')}
-                  onChange={(ev) => setExp(e.id, { bullets: ev.target.value.split('\n') })}
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor={`exp-${e.id}-bullets`}>
+                    {e.company.trim()
+                      ? `What did you achieve at ${e.company.trim()}?`
+                      : 'What did you achieve?'}
+                  </Label>
+                  <LintedTextarea
+                    id={`exp-${e.id}-bullets`}
+                    rows={4}
+                    placeholder={'One achievement per line, e.g.\nCut deploy time by 60% by introducing CI caching\nLed a team of 3 engineers on the checkout redesign'}
+                    value={e.bullets.join('\n')}
+                    onChange={(ev) => setExp(e.id, { bullets: ev.target.value.split('\n') })}
+                  />
+                </div>
                 <BulletGuidance
                   bullets={e.bullets}
                   entryFilled={Boolean(e.role.trim() || e.company.trim())}
@@ -2043,7 +2536,9 @@ export default function Builder() {
                   `exp-${e.id}-suggest`,
                   'Suggest a bullet',
                   () => void runSuggestBullet(e),
-                  !e.role.trim() && !e.company.trim()
+                  !e.role.trim() &&
+                    !e.company.trim() &&
+                    'Add a job title or company first — the bullet is drafted for that role.'
                 )}
                 {aiButton(
                   `exp-${e.id}-suggest-nums`,
@@ -2051,19 +2546,24 @@ export default function Builder() {
                   () => void runSuggestBullet(e, 'key-numbers'),
                   !e.role.trim() && !e.company.trim()
                 )}
-                {aiButton(`exp-${e.id}`, 'AI rewrite bullets', () =>
-                  void runRewrite(
-                    `exp-${e.id}`,
-                    'bullets',
-                    e.bullets.filter((b) => b.trim()).join('\n'),
-                    (out) =>
-                      setExp(e.id, {
-                        bullets: out
-                          .split('\n')
-                          .map((l) => l.replace(/^[-•]\s*/, '').trim())
-                          .filter(Boolean),
-                      })
-                  )
+                {aiButton(
+                  `exp-${e.id}`,
+                  'AI rewrite bullets',
+                  () =>
+                    void runRewrite(
+                      `exp-${e.id}`,
+                      'bullets',
+                      e.bullets.filter((b) => b.trim()).join('\n'),
+                      (out) =>
+                        setExp(e.id, {
+                          bullets: out
+                            .split('\n')
+                            .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                            .filter(Boolean),
+                        })
+                    ),
+                  !e.bullets.some((b) => b.trim()) &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
                 )}
                   </>
                 )}
@@ -2155,19 +2655,16 @@ export default function Builder() {
                   variant="outline"
                   size="sm"
                   className="h-10 text-xs sm:h-7"
-                  title="Reorder education newest first — ongoing studies on top"
-                  onClick={() =>
-                    setResume((r) => ({
-                      ...r,
-                      education: sortEntriesByDate(
-                        r.education,
-                        (x) => x.startDate,
-                        (x) => x.endDate
-                      ),
-                    }))
+                  title={
+                    autoSortOn('education')
+                      ? 'Auto-sort is on — education stays newest first as you edit'
+                      : 'Keep education sorted newest first — ongoing studies on top'
                   }
+                  aria-pressed={autoSortOn('education')}
+                  onClick={() => toggleAutoSort('education')}
                 >
                   <ArrowDown className="size-3.5" /> Sort by date
+                  {autoSortOn('education') && <Check className="size-3.5" />}
                 </Button>
               </div>
             )}
@@ -2175,9 +2672,11 @@ export default function Builder() {
               <div
                 key={e.id}
                 {...eduDrag.dropProps(idx)}
+                data-autosort-scope="education"
+                onBlurCapture={releaseAutoSort('education')}
                 className={`space-y-2 rounded-lg border p-3 transition ${
                   eduDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
-                }`}
+                } ${e.hidden ? 'opacity-60' : ''}`}
               >
                 <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
                   <span
@@ -2195,7 +2694,43 @@ export default function Builder() {
                       — {[e.degree, e.school].filter((x) => x.trim()).join(', ')}
                     </span>
                   )}
+                  {e.hidden && (
+                    <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                      Hidden
+                    </span>
+                  )}
+                  <EntryAuditChip
+                    findings={
+                      (e.degree.trim() || e.school.trim()) && !e.startDate.trim()
+                        ? [DATE_FINDING]
+                        : []
+                    }
+                    filled={Boolean(e.degree.trim() || e.school.trim())}
+                    checks={DATE_CHECKS}
+                    expandable={collapsedEntries.has(e.id)}
+                    onExpand={() => toggleEntry(e.id)}
+                    label={`Education ${idx + 1}`}
+                  />
                   <span className="grow" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="-my-2 h-10 shrink-0 sm:h-7"
+                    title={e.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={e.hidden === true}
+                    aria-label={`${e.hidden ? 'Show' : 'Hide'} education ${idx + 1} ${e.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        education: r.education.map((x) =>
+                          x.id === e.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {e.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -2216,9 +2751,12 @@ export default function Builder() {
                 {!collapsedEntries.has(e.id) && (
                   <>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    placeholder="Degree (B.S. Computer Science)"
-                    value={e.degree}
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-degree`}>Degree and major</Label>
+                    <Input
+                      id={`edu-${e.id}-degree`}
+                      placeholder="Degree (B.S. Computer Science)"
+                      value={e.degree}
                     onChange={(ev) =>
                       setResume((r) => ({
                         ...r,
@@ -2227,10 +2765,14 @@ export default function Builder() {
                         ),
                       }))
                     }
-                  />
-                  <Input
-                    placeholder="School"
-                    value={e.school}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-school`}>Where did you study?</Label>
+                    <Input
+                      id={`edu-${e.id}-school`}
+                      placeholder="School"
+                      value={e.school}
                     onChange={(ev) =>
                       setResume((r) => ({
                         ...r,
@@ -2239,21 +2781,33 @@ export default function Builder() {
                         ),
                       }))
                     }
-                  />
-                  <Input
-                    placeholder="Location"
-                    value={e.location}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        education: r.education.map((x) =>
-                          x.id === e.id ? { ...x, location: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <div className="grid grid-cols-2 gap-2">
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-location`}>
+                      {e.school.trim()
+                        ? `Where is ${e.school.trim()} located?`
+                        : 'Where is it located?'}
+                    </Label>
+                    <Input
+                      id={`edu-${e.id}-location`}
+                      placeholder="Location"
+                      value={e.location}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.map((x) =>
+                            x.id === e.id ? { ...x, location: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-start`}>When did you study?</Label>
+                    <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      id={`edu-${e.id}-start`}
                       placeholder="Start (2017)"
                       value={e.startDate}
                       onChange={(v) =>
@@ -2278,6 +2832,7 @@ export default function Builder() {
                         }))
                       }
                     />
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -2487,7 +3042,10 @@ export default function Builder() {
             anchor="projects"
           >
             {resume.projects.map((p, pIdx) => (
-              <div key={p.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={p.id}
+                className={`space-y-2 rounded-lg border p-3 ${p.hidden ? 'opacity-60' : ''}`}
+              >
                 <div className="flex items-center justify-between">
                   <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs font-medium">
                     <span className="shrink-0">Project {pIdx + 1}</span>
@@ -2496,6 +3054,19 @@ export default function Builder() {
                         — {p.name.trim()}
                       </span>
                     )}
+                    {p.hidden && (
+                      <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                        Hidden
+                      </span>
+                    )}
+                    <EntryAuditChip
+                      findings={bulletFindings(p.description.split('\n'), false)}
+                      filled={Boolean(p.name.trim())}
+                      checks={BULLET_CATEGORIES}
+                      expandable={collapsedEntries.has(p.id)}
+                      onExpand={() => toggleEntry(p.id)}
+                      label={`Project ${pIdx + 1}`}
+                    />
                   </p>
                   <div className="flex items-center">
                     <Button
@@ -2567,6 +3138,25 @@ export default function Builder() {
                       ) : (
                         <BookmarkPlus className="size-3.5" />
                       )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 sm:h-7"
+                      title={p.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={p.hidden === true}
+                      aria-label={`${p.hidden ? 'Show' : 'Hide'} project ${pIdx + 1} ${p.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          projects: r.projects.map((x) =>
+                            x.id === p.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {p.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                     </Button>
                     <Button
                       type="button"
@@ -2656,7 +3246,7 @@ export default function Builder() {
                   </div>
                 </div>
                 <div className="flex items-start justify-between gap-2">
-                  <Textarea
+                  <LintedTextarea
                     rows={2}
                     placeholder="What it does and your impact"
                     value={p.description}
@@ -2686,6 +3276,42 @@ export default function Builder() {
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
+                <BulletGuidance
+                  bullets={p.description.split('\n')}
+                  busyLine={
+                    aiBusy?.startsWith(`proj-${p.id}-line-`)
+                      ? Number(aiBusy.slice(`proj-${p.id}-line-`.length))
+                      : null
+                  }
+                  onFix={(idx) =>
+                    void runRewrite(
+                      `proj-${p.id}-line-${idx}`,
+                      'bullets',
+                      p.description.split('\n')[idx] ?? '',
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          projects: r.projects.map((x) =>
+                            x.id === p.id
+                              ? {
+                                  ...x,
+                                  description: x.description
+                                    .split('\n')
+                                    .map((b, i) =>
+                                      i === idx
+                                        ? (out.split('\n')[0] ?? '')
+                                            .replace(/^[-•]\s*/, '')
+                                            .trim() || b
+                                        : b
+                                    )
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        }))
+                    )
+                  }
+                />
                   </>
                 )}
               </div>
@@ -2766,12 +3392,25 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Involvement" icon={<Users className="size-4" />} anchor="involvement">
+          <Section
+            title="Involvement"
+            icon={<Users className="size-4" />}
+            anchor="involvement"
+            hidden={!sectionShown('involvement')}
+          >
             <p className="text-muted-foreground text-xs">
               Campus or community organizations — clubs, societies, volunteering.
             </p>
             {(resume.involvement ?? []).map((inv, invIdx) => (
-              <div key={inv.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={inv.id}
+                className={`space-y-2 rounded-lg border p-3 ${inv.hidden ? 'opacity-60' : ''}`}
+              >
+                {inv.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Role (e.g. Selected Member)"
@@ -2840,7 +3479,7 @@ export default function Builder() {
                   </div>
                 </div>
                 <div className="flex items-start justify-between gap-2">
-                  <Textarea
+                  <LintedTextarea
                     rows={2}
                     placeholder="What you did there — one bullet per line"
                     value={inv.description}
@@ -2853,6 +3492,25 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={inv.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={inv.hidden === true}
+                    aria-label={`${inv.hidden ? 'Show' : 'Hide'} involvement ${invIdx + 1} ${inv.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: (r.involvement ?? []).map((x) =>
+                          x.id === inv.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {inv.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -2895,6 +3553,42 @@ export default function Builder() {
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
+                <BulletGuidance
+                  bullets={inv.description.split('\n')}
+                  busyLine={
+                    aiBusy?.startsWith(`inv-${inv.id}-line-`)
+                      ? Number(aiBusy.slice(`inv-${inv.id}-line-`.length))
+                      : null
+                  }
+                  onFix={(idx) =>
+                    void runRewrite(
+                      `inv-${inv.id}-line-${idx}`,
+                      'bullets',
+                      inv.description.split('\n')[idx] ?? '',
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id
+                              ? {
+                                  ...x,
+                                  description: x.description
+                                    .split('\n')
+                                    .map((b, i) =>
+                                      i === idx
+                                        ? (out.split('\n')[0] ?? '')
+                                            .replace(/^[-•]\s*/, '')
+                                            .trim() || b
+                                        : b
+                                    )
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        }))
+                    )
+                  }
+                />
               </div>
             ))}
             <div className="flex flex-wrap items-center gap-2">
@@ -2979,12 +3673,25 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Coursework" icon={<BookOpen className="size-4" />} anchor="coursework">
+          <Section
+            title="Coursework"
+            icon={<BookOpen className="size-4" />}
+            anchor="coursework"
+            hidden={!sectionShown('coursework')}
+          >
             <p className="text-muted-foreground text-xs">
               Relevant courses — useful when you have little work experience.
             </p>
             {(resume.coursework ?? []).map((cw, cwIdx) => (
-              <div key={cw.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={cw.id}
+                className={`space-y-2 rounded-lg border p-3 ${cw.hidden ? 'opacity-60' : ''}`}
+              >
+                {cw.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Course name (e.g. Intro to Computer Systems)"
@@ -3051,6 +3758,25 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={cw.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={cw.hidden === true}
+                    aria-label={`${cw.hidden ? 'Show' : 'Hide'} coursework ${cwIdx + 1} ${cw.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).map((x) =>
+                          x.id === cw.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {cw.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -3177,12 +3903,25 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Awards & honors" icon={<Award className="size-4" />} anchor="awards">
+          <Section
+            title="Awards & honors"
+            icon={<Award className="size-4" />}
+            anchor="awards"
+            hidden={!sectionShown('awards')}
+          >
             <p className="text-muted-foreground text-xs">
               Awards, honors and recognitions that back up your track record.
             </p>
             {(resume.awards ?? []).map((a, aIdx) => (
-              <div key={a.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={a.id}
+                className={`space-y-2 rounded-lg border p-3 ${a.hidden ? 'opacity-60' : ''}`}
+              >
+                {a.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Award name (e.g. Dean's List)"
@@ -3237,6 +3976,25 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={a.hidden === true}
+                    aria-label={`${a.hidden ? 'Show' : 'Hide'} award ${aIdx + 1} ${a.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: (r.awards ?? []).map((x) =>
+                          x.id === a.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {a.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -3363,7 +4121,12 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Publications" icon={<BookText className="size-4" />} anchor="publications">
+          <Section
+            title="Publications"
+            icon={<BookText className="size-4" />}
+            anchor="publications"
+            hidden={!sectionShown('publications')}
+          >
             <p className="text-muted-foreground text-xs">
               Papers, articles and talks — with the journal or conference they appeared in.
             </p>
@@ -3379,7 +4142,15 @@ export default function Builder() {
               <option value="Blog Post" />
             </datalist>
             {(resume.publications ?? []).map((pub, pubIdx) => (
-              <div key={pub.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={pub.id}
+                className={`space-y-2 rounded-lg border p-3 ${pub.hidden ? 'opacity-60' : ''}`}
+              >
+                {pub.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Publication title"
@@ -3447,6 +4218,25 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={pub.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={pub.hidden === true}
+                    aria-label={`${pub.hidden ? 'Show' : 'Hide'} publication ${pubIdx + 1} ${pub.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).map((x) =>
+                          x.id === pub.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {pub.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -3579,12 +4369,25 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="References" icon={<Contact className="size-4" />} anchor="references">
+          <Section
+            title="References"
+            icon={<Contact className="size-4" />}
+            anchor="references"
+            hidden={!sectionShown('references')}
+          >
             <p className="text-muted-foreground text-xs">
               People who can vouch for you — with their role and how to reach them.
             </p>
             {(resume.references ?? []).map((ref, refIdx) => (
-              <div key={ref.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={ref.id}
+                className={`space-y-2 rounded-lg border p-3 ${ref.hidden ? 'opacity-60' : ''}`}
+              >
+                {ref.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Full name"
@@ -3672,6 +4475,25 @@ export default function Builder() {
                     <option value="professional">Professional</option>
                     <option value="personal">Personal</option>
                   </select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={ref.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={ref.hidden === true}
+                    aria-label={`${ref.hidden ? 'Show' : 'Hide'} reference ${refIdx + 1} ${ref.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        references: (r.references ?? []).map((x) =>
+                          x.id === ref.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {ref.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -3798,12 +4620,25 @@ export default function Builder() {
             )}
           </Section>
 
-          <Section title="Military service" icon={<Shield className="size-4" />} anchor="military">
+          <Section
+            title="Military service"
+            icon={<Shield className="size-4" />}
+            anchor="military"
+            hidden={!sectionShown('military')}
+          >
             <p className="text-muted-foreground text-xs">
               Your service record — rank, branch, where you were stationed and what you did.
             </p>
             {(resume.military ?? []).map((m) => (
-              <div key={m.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={m.id}
+                className={`space-y-2 rounded-lg border p-3 ${m.hidden ? 'opacity-60' : ''}`}
+              >
+                {m.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Rank or position (e.g. Sergeant)"
@@ -3889,6 +4724,25 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={m.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={m.hidden === true}
+                    aria-label={`${m.hidden ? 'Show' : 'Hide'} military service ${m.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        military: (r.military ?? []).map((x) =>
+                          x.id === m.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {m.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                     title="Delete military service"
                     aria-label="Delete military service"
@@ -3920,12 +4774,25 @@ export default function Builder() {
             </Button>
           </Section>
 
-          <Section title="Agents" icon={<Bot className="size-4" />} anchor="agents">
+          <Section
+            title="Agents"
+            icon={<Bot className="size-4" />}
+            anchor="agents"
+            hidden={!sectionShown('agents')}
+          >
             <p className="text-muted-foreground text-xs">
               AI agents you built — what they were called, when, and why they mattered.
             </p>
             {(resume.agents ?? []).map((a) => (
-              <div key={a.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={a.id}
+                className={`space-y-2 rounded-lg border p-3 ${a.hidden ? 'opacity-60' : ''}`}
+              >
+                {a.hidden && (
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                    Hidden — left out of the resume
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Agent name, e.g. Support Triage Agent"
@@ -3982,6 +4849,25 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                    aria-pressed={a.hidden === true}
+                    aria-label={`${a.hidden ? 'Show' : 'Hide'} agent ${a.hidden ? 'on' : 'from'} resume`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        agents: (r.agents ?? []).map((x) =>
+                          x.id === a.id ? { ...x, hidden: !x.hidden } : x
+                        ),
+                      }))
+                    }
+                  >
+                    {a.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive min-h-10 shrink-0 sm:min-h-9"
                     title="Delete agent"
                     aria-label="Delete agent"
@@ -4013,6 +4899,34 @@ export default function Builder() {
             </Button>
           </Section>
 
+          {OPTIONAL_SECTION_META.some((s) => !sectionShown(s.key)) && (
+            <Card className="py-0">
+              <CardContent className="p-4">
+                <p className="flex items-center gap-2 font-medium">
+                  <Plus className="size-4" />
+                  Add a section
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Optional sections appear here until you need them.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {OPTIONAL_SECTION_META.filter((s) => !sectionShown(s.key)).map((s) => (
+                    <Button
+                      key={s.key}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-10 sm:min-h-8"
+                      onClick={() => jumpToSection(s.key)}
+                    >
+                      {s.icon} {s.label}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Section title="Skills & certifications" icon={<Sparkles className="size-4" />} anchor="skills">
             <div className="space-y-1.5">
               <Label htmlFor="skills">Skills (comma-separated)</Label>
@@ -4032,13 +4946,18 @@ export default function Builder() {
                   </p>
                 )}
               <div className="flex flex-wrap items-center gap-2">
-                {aiButton('skills', 'AI clean up skills', () =>
-                  void runRewrite('skills', 'skills', resume.skills, (out) =>
-                    set('skills', out)
-                  )
+                {aiButton(
+                  'skills',
+                  'AI clean up skills',
+                  () =>
+                    void runRewrite('skills', 'skills', resume.skills, (out) =>
+                      set('skills', out)
+                    ),
+                  !resume.skills.trim() &&
+                    'Add some skills first — the AI cleans up your list, it never invents skills.'
                 )}
                 {aiButton('skill-suggest', 'AI suggest related skills', () =>
-                  void runSkillSuggest()
+                  setSkillExploreSetup({ context: '', category: '' })
                 )}
                 <Button
                   type="button"
@@ -4160,7 +5079,15 @@ export default function Builder() {
             <div className="space-y-2">
               <Label>Certifications (optional)</Label>
               {(resume.certItems ?? []).map((c, cIdx) => (
-                <div key={c.id} className="space-y-2 rounded-md border p-3">
+                <div
+                  key={c.id}
+                  className={`space-y-2 rounded-md border p-3 ${c.hidden ? 'opacity-60' : ''}`}
+                >
+                  {c.hidden && (
+                    <p className="text-muted-foreground text-[10px] font-semibold uppercase">
+                      Hidden — left out of the resume
+                    </p>
+                  )}
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Input
                       placeholder="Certificate name (AWS Solutions Architect)"
@@ -4216,6 +5143,25 @@ export default function Builder() {
                         }))
                       }
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      title={c.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={c.hidden === true}
+                      aria-label={`${c.hidden ? 'Show' : 'Hide'} certification ${cIdx + 1} ${c.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: (r.certItems ?? []).map((x) =>
+                            x.id === c.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {c.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
@@ -4542,7 +5488,11 @@ export default function Builder() {
             role="group"
             aria-label="Filter templates by style"
           >
-            {TEMPLATE_FILTERS.map((f) => (
+            {[
+              ...TEMPLATE_FILTERS.map((f) => ({ id: f.id, label: f.label })),
+              { id: 'saved', label: `Saved (${templateFavs.length})` },
+              { id: 'recent', label: 'Recent' },
+            ].map((f) => (
               <button
                 key={f.id}
                 type="button"
@@ -4559,27 +5509,72 @@ export default function Builder() {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {TEMPLATES.filter(
-              (TEMPLATE_FILTERS.find((f) => f.id === templateFilter) ?? TEMPLATE_FILTERS[0]).match,
+            {(templateFilter === 'saved'
+              ? TEMPLATES.filter((t) => templateFavs.includes(t.id))
+              : templateFilter === 'recent'
+                ? templateRecents
+                    .map((id) => TEMPLATES.find((t) => t.id === id))
+                    .filter((t): t is (typeof TEMPLATES)[number] => t !== undefined)
+                : TEMPLATES.filter(
+                    (TEMPLATE_FILTERS.find((f) => f.id === templateFilter) ?? TEMPLATE_FILTERS[0])
+                      .match,
+                  )
             ).map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                title={t.description}
-                aria-pressed={resume.templateId === t.id}
-                onClick={() => set('templateId', t.id)}
-                className={`w-16 rounded-md border p-1 transition ${
-                  resume.templateId === t.id
-                    ? 'border-primary ring-primary/40 ring-2'
-                    : 'hover:border-muted-foreground/40'
-                }`}
-              >
-                <TemplateThumb t={t} />
-                <span className="mt-0.5 block truncate text-center text-[10px] leading-tight">
-                  {t.name}
-                </span>
-              </button>
+              <span key={t.id} className="relative">
+                <button
+                  type="button"
+                  title={t.description}
+                  aria-pressed={resume.templateId === t.id}
+                  onClick={() => {
+                    set('templateId', t.id)
+                    setTemplateRecents(recordTemplateRecent(t.id))
+                  }}
+                  className={`w-16 rounded-md border p-1 transition ${
+                    resume.templateId === t.id
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  <TemplateThumb t={t} />
+                  <span className="mt-0.5 block truncate text-center text-[10px] leading-tight">
+                    {t.name}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  title={templateFavs.includes(t.id) ? 'Remove from saved' : 'Save template'}
+                  aria-label={
+                    templateFavs.includes(t.id)
+                      ? `Remove ${t.name} from saved templates`
+                      : `Save ${t.name} template`
+                  }
+                  aria-pressed={templateFavs.includes(t.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setTemplateFavs(toggleTemplateFavorite(t.id))
+                  }}
+                  className="bg-background/90 absolute -top-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full border shadow-sm"
+                >
+                  <Star
+                    className={`size-3.5 ${
+                      templateFavs.includes(t.id)
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'text-muted-foreground'
+                    }`}
+                  />
+                </button>
+              </span>
             ))}
+            {templateFilter === 'saved' && templateFavs.length === 0 && (
+              <span className="text-muted-foreground w-full text-xs">
+                No saved templates yet — click the star on a template to keep it here.
+              </span>
+            )}
+            {templateFilter === 'recent' && templateRecents.length === 0 && (
+              <span className="text-muted-foreground w-full text-xs">
+                No recently used templates yet — pick a template and it will show up here.
+              </span>
+            )}
             <span className="text-muted-foreground w-full text-xs">
               {getTemplate(resume.templateId).name}:{' '}
               {getTemplate(resume.templateId).description} ·{' '}
@@ -4667,6 +5662,25 @@ export default function Builder() {
                   {size === 'letter' ? 'Letter' : 'A4'}
                 </button>
               ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <label htmlFor="resume-language" className="text-muted-foreground text-[11px]">
+                Language
+              </label>
+              <select
+                id="resume-language"
+                title="Resume language — localizes default section headings and AI writer output"
+                value={resumeLanguageOf(resume)}
+                onChange={(e) => set('language', e.target.value as ResumeLanguage)}
+                className="bg-background h-7 rounded-md border px-1.5 text-[11px] font-medium"
+              >
+                {(Object.keys(RESUME_LANGUAGES) as ResumeLanguage[]).map((code) => (
+                  <option key={code} value={code}>
+                    {RESUME_LANGUAGES[code]}
+                  </option>
+                ))}
+              </select>
             </span>
             <span className="flex flex-wrap items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
@@ -4862,6 +5876,31 @@ export default function Builder() {
             </span>
             <span className="flex items-center gap-1">
               <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Stack roles</span>
+              {(
+                [
+                  ['off', 'Off', 'Each experience entry shows its own company line'],
+                  ['on', 'On', 'Consecutive roles at the same company stack under one company heading — great for promotions'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — applies to preview and all exports`}
+                  aria-pressed={(resume.groupByCompany ?? 'off') === value}
+                  onClick={() => set('groupByCompany', value)}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    (resume.groupByCompany ?? 'off') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
               <span className="text-muted-foreground text-[11px]">Icons</span>
               {(
                 [
@@ -4877,6 +5916,34 @@ export default function Builder() {
                   onClick={() => set('contactIcons', value)}
                   className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
                     (resume.contactIcons ?? 'off') === value
+                      ? 'border-primary ring-primary/40 ring-2'
+                      : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">View</span>
+              {(
+                [
+                  ['pages', 'Pages', 'Preview as separate page frames'],
+                  ['flow', 'Flow', 'Preview as one continuous flow with page-break markers'],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={`${hint} — preview only, PDF is unchanged`}
+                  aria-pressed={previewView === value}
+                  onClick={() => {
+                    setPreviewView(value)
+                    localStorage.setItem('honestcv.previewView', value)
+                  }}
+                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition ${
+                    previewView === value
                       ? 'border-primary ring-primary/40 ring-2'
                       : 'hover:border-muted-foreground/40'
                   }`}
@@ -4962,6 +6029,56 @@ export default function Builder() {
                     </div>
                   )}
                   {ats.missing.length > 0 && (
+                    <div className="bg-muted/40 rounded-lg border p-2.5">
+                      <p className="font-medium">
+                        Is this missing keyword relevant to your experience?
+                      </p>
+                      <p className="mt-1.5 flex items-center gap-2">
+                        <span className="bg-primary/10 text-foreground inline-flex items-center rounded-full border px-2.5 py-0.5 font-medium">
+                          {ats.missing[0]}
+                        </span>
+                        <span className="text-muted-foreground">1 of {ats.missing.length}</span>
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <Button
+                          size="sm"
+                          className="h-10 text-xs sm:h-7"
+                          onClick={() => setKwBulletFor(ats.missing[0])}
+                        >
+                          <Sparkles aria-hidden className="size-3" /> Yes — draft a bullet
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-10 text-xs sm:h-7"
+                          onClick={() =>
+                            set(
+                              'skills',
+                              resume.skills.trim()
+                                ? `${resume.skills.replace(/,\s*$/, '')}, ${ats.missing[0]}`
+                                : ats.missing[0]
+                            )
+                          }
+                        >
+                          Add to Skills
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground h-10 text-xs sm:h-7"
+                          onClick={() =>
+                            set('ignoredKeywords', [
+                              ...(resume.ignoredKeywords ?? []),
+                              ats.missing[0],
+                            ])
+                          }
+                        >
+                          No — not relevant
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {ats.missing.length > 0 && (
                     <div>
                       <span className="font-medium text-red-700">
                         Missing ({ats.missing.length})
@@ -5030,6 +6147,7 @@ export default function Builder() {
                             type="button"
                             className="text-muted-foreground hover:bg-primary/10 inline-flex items-center rounded-full border border-dashed px-2 py-0.5 line-through"
                             title={`Restore "${kw}" to the keyword pool`}
+                            aria-label={`Restore ${kw} to the keyword pool`}
                             onClick={() =>
                               set(
                                 'ignoredKeywords',
@@ -5045,10 +6163,25 @@ export default function Builder() {
                       </span>
                     </div>
                   )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-muted-foreground h-10 text-xs sm:h-7"
+                    onClick={() => jumpToSection('target')}
+                  >
+                    Update job description →
+                  </Button>
                 </div>
               ) : (
                 <p className="text-muted-foreground mt-2 text-xs">
-                  Paste a job description in "Target job" to see keyword matches.
+                  Paste a job description in "Target job" to see keyword matches.{' '}
+                  <button
+                    type="button"
+                    className="text-primary inline-flex min-h-10 items-center underline sm:min-h-0"
+                    onClick={() => jumpToSection('target')}
+                  >
+                    Add a job description →
+                  </button>
                 </p>
               )}
               <ul className="mt-3 space-y-1 text-xs">
@@ -5079,13 +6212,15 @@ export default function Builder() {
           <div className="rounded-lg border bg-slate-100/90 p-3 sm:p-6 dark:bg-slate-900/40">
             <div className="shadow-lg">
               <ResumePreview
-                resume={resume}
+                resume={shown}
                 paginated
+                view={previewView}
                 onSectionJump={(key) =>
                   jumpToSection(
                     key === 'certifications' ? 'skills' : key.startsWith('custom:') ? 'custom' : key
                   )
                 }
+                onEdit={setResume}
               />
             </div>
           </div>
@@ -5199,12 +6334,12 @@ export default function Builder() {
           toolOpen === 'cover' ? toolCompany || (resume.targetCompany ?? '') : toolCompany
         }
         onClose={() => setToolOpen(null)}
-        resume={resume}
+        resume={shown}
         onQuota={setFreeLeft}
       />
       {tailorOpen && (
         <TailorDialog
-          resume={resume}
+          resume={shown}
           onClose={() => setTailorOpen(false)}
           onQuota={setFreeLeft}
           onApply={applyTailorSuggestion}
@@ -5216,6 +6351,7 @@ export default function Builder() {
         health={health}
         ats={ats}
         onJump={jumpToSection}
+        onJumpEntry={jumpToEntry}
       />
       {historyOpen && (
         <HistoryDialog
@@ -5231,7 +6367,7 @@ export default function Builder() {
       <AssistantPanel
         open={assistantOpen}
         onClose={() => setAssistantOpen(false)}
-        resume={resume}
+        resume={shown}
         jobDescription={resume.jobDescription}
         scoreSummary={atsScoreSummary(ats)}
         ats={ats}
@@ -5258,7 +6394,7 @@ export default function Builder() {
       {kwBulletFor !== null && (
         <KeywordBulletDialog
           keyword={kwBulletFor}
-          resume={resume}
+          resume={shown}
           onClose={() => setKwBulletFor(null)}
           onQuota={setFreeLeft}
           onInsert={insertKeywordBullet}
@@ -5291,6 +6427,170 @@ export default function Builder() {
               </button>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={summaryDraftSetup !== null}
+        onOpenChange={(o) => !o && setSummaryDraftSetup(null)}
+      >
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Draft my summary</DialogTitle>
+            <DialogDescription>
+              Pick the position to frame the summary around and up to 5 skills to emphasize.
+              Drafts use only facts already on your resume.
+            </DialogDescription>
+          </DialogHeader>
+          {summaryDraftSetup && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="summary-draft-position">Position highlight</Label>
+                {summaryPositionOptions.length > 0 ? (
+                  <select
+                    id="summary-draft-position"
+                    className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                    value={summaryDraftSetup.position}
+                    onChange={(e) =>
+                      setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
+                    }
+                  >
+                    {summaryPositionOptions.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    id="summary-draft-position"
+                    placeholder="e.g. Software Engineer"
+                    value={summaryDraftSetup.position}
+                    onChange={(e) =>
+                      setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
+                    }
+                  />
+                )}
+              </div>
+              {summarySkillOptions.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-sm font-medium">
+                    Skills highlight{' '}
+                    <span className="text-muted-foreground font-normal">
+                      (optional, up to 5)
+                    </span>
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {summarySkillOptions.map((s) => {
+                      const on = summaryDraftSetup.picked.includes(s)
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          aria-pressed={on}
+                          disabled={!on && summaryDraftSetup.picked.length >= 5}
+                          className={`rounded-full border px-2.5 py-1 text-xs transition disabled:opacity-40 ${
+                            on
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'hover:border-primary hover:bg-muted/50'
+                          }`}
+                          onClick={() =>
+                            setSummaryDraftSetup({
+                              ...summaryDraftSetup,
+                              picked: on
+                                ? summaryDraftSetup.picked.filter((p) => p !== s)
+                                : [...summaryDraftSetup.picked, s],
+                            })
+                          }
+                        >
+                          {s}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => {
+                  const { position, picked } = summaryDraftSetup
+                  setSummaryDraftSetup(null)
+                  void runSummaryDraft(position, picked)
+                }}
+              >
+                <Sparkles className="size-4" /> Write 3 drafts
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={skillExploreSetup !== null}
+        onOpenChange={(o) => !o && setSkillExploreSetup(null)}
+      >
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Explore skills</DialogTitle>
+            <DialogDescription>
+              Optionally describe what you did and pick a focus — suggestions are ideas to
+              confirm, tap only skills you actually have.
+            </DialogDescription>
+          </DialogHeader>
+          {skillExploreSetup && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="skill-explore-context">What did you do?</Label>
+                <Input
+                  id="skill-explore-context"
+                  placeholder="e.g. built React dashboards"
+                  maxLength={200}
+                  value={skillExploreSetup.context}
+                  onChange={(e) =>
+                    setSkillExploreSetup({ ...skillExploreSetup, context: e.target.value })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const { context, category } = skillExploreSetup
+                      setSkillExploreSetup(null)
+                      void runSkillSuggest(context, category)
+                    }
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="skill-explore-category">
+                  Focus on{' '}
+                  <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <select
+                  id="skill-explore-category"
+                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                  value={skillExploreSetup.category}
+                  onChange={(e) =>
+                    setSkillExploreSetup({ ...skillExploreSetup, category: e.target.value })
+                  }
+                >
+                  <option value="">Any kind of skill</option>
+                  <option value="hard skills">Hard skills</option>
+                  <option value="soft skills">Soft skills</option>
+                  <option value="tools and software">Tools &amp; software</option>
+                  <option value="languages">Languages</option>
+                </select>
+              </div>
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => {
+                  const { context, category } = skillExploreSetup
+                  setSkillExploreSetup(null)
+                  void runSkillSuggest(context, category)
+                }}
+              >
+                <Sparkles className="size-4" /> Suggest skills
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <FreeDownloadDialog
@@ -5399,7 +6699,7 @@ export default function Builder() {
                     <p className="text-muted-foreground truncate text-xs">
                       {new Date(v.updatedAt).toLocaleString()}
                       {v.folder ? ` · ${v.folder}` : ''} · ATS{' '}
-                      {scoreResume(v.data, v.data.jobDescription).score}/100
+                      {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
@@ -5535,8 +6835,15 @@ export default function Builder() {
                 setShareError('')
                 setShareLinkCopied(false)
                 if (e.target.value === 'view') {
+                  const slug = shareSlug.trim()
+                  if (slug && !SHARE_SLUG_RE.test(slug)) {
+                    setShareError(
+                      'Custom links use 3–40 lowercase letters, numbers and hyphens.'
+                    )
+                    return
+                  }
                   setShareBusy(true)
-                  createShareLink(resume)
+                  createShareLink(shown, slug || undefined)
                     .then((link) => setShareLink(link))
                     .catch((err: unknown) =>
                       setShareError(err instanceof Error ? err.message : 'Sharing failed.')
@@ -5554,6 +6861,37 @@ export default function Builder() {
               <option value="view">Can view</option>
             </select>
           </div>
+          {!shareLink && !shareBusy && (
+            <div className="space-y-1">
+              <label
+                htmlFor="share-custom-slug"
+                className="text-sm font-medium"
+              >
+                Custom link <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground shrink-0 text-sm">
+                  cv.zalize.com/s/
+                </span>
+                <Input
+                  id="share-custom-slug"
+                  value={shareSlug}
+                  placeholder="jordan-reyes"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  onChange={(e) => {
+                    setShareError('')
+                    setShareSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))
+                  }}
+                />
+              </div>
+              <p className="text-muted-foreground text-xs">
+                Pick a memorable address, or leave blank for a private random
+                link. 3–40 lowercase letters, numbers and hyphens.
+              </p>
+            </div>
+          )}
           {shareBusy && (
             <p className="text-muted-foreground text-sm" role="status">
               {shareLink ? 'Turning off…' : 'Creating link…'}
@@ -5602,7 +6940,7 @@ export default function Builder() {
                   setShareError('')
                   setShareLinkCopied(false)
                   setShareBusy(true)
-                  createShareLink(resume)
+                  createShareLink(shown)
                     .then((link) => setShareLink(link))
                     .catch((err: unknown) =>
                       setShareError(err instanceof Error ? err.message : 'Sharing failed.')
@@ -5855,6 +7193,162 @@ function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void
   )
 }
 
+type AuditFinding = { category: string; line?: number }
+
+const AUDIT_CATEGORY: Record<BulletIssue['kind'], string> = {
+  'weak-opener': 'Weak bullet points',
+  'first-person': 'Personal pronouns',
+  'no-metric': 'Quantified bullet points',
+  filler: 'Filler words',
+  buzzword: 'Buzzwords',
+  passive: 'Passive voice',
+  punctuation: 'Punctuation & capitalization',
+  'too-long': 'Bullet length',
+  'too-short': 'Bullet length',
+}
+
+/** Distinct bullet-level audit categories (AUDIT_CATEGORY collapses two kinds). */
+const BULLET_CATEGORIES = [
+  'Weak bullet points',
+  'Quantified bullet points',
+  'Personal pronouns',
+  'Filler words',
+  'Buzzwords',
+  'Passive voice',
+  'Punctuation & capitalization',
+  'Bullet length',
+]
+
+const AUDIT_EXPLANATION: Record<string, string> = {
+  'Weak bullet points': 'Open each bullet with a strong action verb instead of "worked" or "was".',
+  'Quantified bullet points': 'Add a number that shows scale or impact — team size, %, time or money.',
+  'Personal pronouns': 'Drop I / me / my — resume bullets are written without pronouns.',
+  'Filler words': 'Cut empty phrases like "responsible for" or "various" — say what you did.',
+  Buzzwords: 'Swap vague buzzwords for the concrete skill or result behind them.',
+  'Passive voice': 'Rewrite in active voice so you — not the task — are the subject.',
+  'Punctuation & capitalization': 'Start with a capital letter and keep end punctuation consistent.',
+  'Bullet length': 'Keep each bullet roughly one line — long enough to be specific, short enough to scan.',
+  'Number of bullet points': 'Aim for 3–6 bullets per role — enough evidence without padding.',
+  'Dates are missing': 'Recruiters need dates to place this on your timeline and verify experience.',
+}
+
+const DATE_FINDING: AuditFinding = { category: 'Dates are missing' }
+
+const EXPERIENCE_CHECKS = ['Number of bullet points', 'Dates are missing', ...BULLET_CATEGORIES]
+const DATE_CHECKS = ['Dates are missing']
+
+function bulletFindings(bullets: string[], entryFilled: boolean): AuditFinding[] {
+  const findings: AuditFinding[] = checkBullets(bullets).flatMap((r) =>
+    r.issues.map((i) => ({ category: AUDIT_CATEGORY[i.kind], line: r.index + 1 }))
+  )
+  if (!bulletMix(bullets).balanced) findings.push({ category: 'Quantified bullet points' })
+  const count = bullets.filter((b) => b.trim()).length
+  if (entryFilled && (count < 3 || count > 6))
+    findings.unshift({ category: 'Number of bullet points' })
+  return findings
+}
+
+function EntryAuditChip({
+  findings,
+  filled,
+  checks,
+  expandable,
+  onExpand,
+  label,
+}: {
+  findings: AuditFinding[]
+  filled: boolean
+  /** Ordered audit category names that apply to this section type. */
+  checks: string[]
+  /** Whether the card is collapsed, so the warning chip can expand it. */
+  expandable: boolean
+  onExpand: () => void
+  label: string
+}) {
+  const groups = new Map<string, number[]>()
+  for (const f of findings) {
+    const lines = groups.get(f.category) ?? []
+    if (f.line !== undefined) lines.push(f.line)
+    groups.set(f.category, lines)
+  }
+  const passedNames = checks.filter((c) => !groups.has(c))
+  const passed = passedNames.length
+  const panel = (
+    <div
+      aria-hidden
+      className="bg-popover text-popover-foreground fixed inset-x-4 bottom-20 z-40 hidden rounded-md border p-2 text-left shadow-md group-focus-within:block group-hover:block sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:bottom-auto sm:mt-1 sm:w-64"
+    >
+      <ul className="space-y-1 text-[11px] leading-snug font-normal">
+        {[...groups.entries()].map(([category, lines]) => (
+          <li key={category} className="text-amber-700">
+            ⚠ {category}
+            {lines.length > 0 && (
+              <span className="text-muted-foreground">
+                {' '}
+                — line{lines.length === 1 ? '' : 's'} {[...new Set(lines)].join(', ')}
+              </span>
+            )}
+            {AUDIT_EXPLANATION[category] && (
+              <span className="text-muted-foreground block">{AUDIT_EXPLANATION[category]}</span>
+            )}
+          </li>
+        ))}
+        {passed > 0 && (
+          <li className="text-emerald-700">
+            ✓ {passed} best practice{passed === 1 ? '' : 's'} applied
+            <span className="text-muted-foreground block">{passedNames.join(', ')}</span>
+          </li>
+        )}
+      </ul>
+    </div>
+  )
+  if (findings.length === 0) {
+    if (!filled) return null
+    return (
+      <span className="group relative flex shrink-0">
+        <span
+          tabIndex={0}
+          className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
+          aria-label={`${label}: ${checks.length} best practice${checks.length === 1 ? '' : 's'} applied`}
+        >
+          ✓
+        </span>
+        {panel}
+      </span>
+    )
+  }
+  if (!expandable) {
+    return (
+      <span className="group relative flex shrink-0">
+        <span
+          tabIndex={0}
+          className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
+          aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'}`}
+        >
+          ⚠ {findings.length}
+        </span>
+        {panel}
+      </span>
+    )
+  }
+  return (
+    <span className="group relative flex shrink-0">
+      <button
+        type="button"
+        className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100"
+        aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'} — expand to review`}
+        onPointerDown={onExpand}
+        onClick={(e) => {
+          if (e.detail === 0) onExpand()
+        }}
+      >
+        ⚠ {findings.length}
+      </button>
+      {panel}
+    </span>
+  )
+}
+
 function BulletGuidance({
   bullets,
   onFix,
@@ -5867,9 +7361,10 @@ function BulletGuidance({
   entryFilled?: boolean
 }) {
   const results = useMemo(() => checkBullets(bullets), [bullets])
+  const mix = useMemo(() => bulletMix(bullets), [bullets])
   const count = bullets.filter((b) => b.trim()).length
   const countNote = entryFilled && (count < 3 || count > 6)
-  if (results.length === 0 && !countNote) {
+  if (results.length === 0 && !countNote && mix.balanced) {
     if (!entryFilled || count === 0) return null
     return (
       <p className="text-xs text-emerald-700">
@@ -5882,6 +7377,13 @@ function BulletGuidance({
       {countNote && (
         <li className="text-amber-700">
           ⚠ Include 3–6 bullet points per role — {count === 0 ? 'none' : count} found in this one.
+        </li>
+      )}
+      {!mix.balanced && (
+        <li className="text-amber-700">
+          ⚠ Key numbers in {mix.quantified} of {mix.total} bullet
+          {mix.total === 1 ? '' : 's'} — aim for a balanced mix of descriptive and key-number
+          bullets (%, $, count or timeframe).
         </li>
       )}
       {results.slice(0, 4).map((r) => (
@@ -6087,6 +7589,7 @@ function BundleToolDialog({
               jobDescription: jd,
               company,
               role: aiTargetRole(resume),
+              language: resume.language,
             })
           : await aiInterviewBrief({
               resumeText,
@@ -6502,6 +8005,7 @@ function TailorDialog({
         items,
         jobDescription: resume.jobDescription,
         role: aiTargetRole(resume),
+        language: resume.language,
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
       const byId = new Map(items.map((i) => [i.id, i.text]))
@@ -6632,6 +8136,18 @@ function TailorDialog({
   )
 }
 
+/** Deep-dive guide for each score dimension, served from our own /guides pages. */
+const DIMENSION_GUIDES: Record<string, string> = {
+  keywords: '/guides/resume-keywords',
+  'ats-structure': '/guides/ats-friendly-resume',
+  quantification: '/guides/resume-bullet-points',
+  verbs: '/guides/resume-action-verbs',
+  brevity: '/guides/how-long-should-a-resume-be',
+  buzzwords: '/guides/common-resume-mistakes',
+  consistency: '/guides/best-resume-format',
+  completeness: '/guides/best-resume-format',
+}
+
 /** Rule-based multi-dimension score breakdown — no AI calls, computed locally. */
 function HealthDialog({
   open,
@@ -6639,16 +8155,22 @@ function HealthDialog({
   health,
   ats,
   onJump,
+  onJumpEntry,
 }: {
   open: boolean
   onClose: () => void
   health: HealthReport
   ats: AtsResult
   onJump: (anchor: SectionAnchor) => void
+  onJumpEntry: (id: string) => void
 }) {
   const jump = (anchor: SectionAnchor) => {
     onClose()
     requestAnimationFrame(() => onJump(anchor))
+  }
+  const jumpEntry = (id: string) => {
+    onClose()
+    requestAnimationFrame(() => onJumpEntry(id))
   }
   const structureFindings = ats.checks
     .filter((c) => !c.pass)
@@ -6685,7 +8207,8 @@ function HealthDialog({
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Score breakdown — ATS {ats.score}/100 · Writing {health.score}/100
+            Score breakdown — ATS {ats.score}/100 · Writing{' '}
+            {`${health.score}/100 (${scoreVerdict(health.score)})`}
           </DialogTitle>
           <DialogDescription>
             Every check is rule-based and computed in your browser — a transparent heuristic, not
@@ -6711,6 +8234,18 @@ function HealthDialog({
                     >
                       Fix →
                     </button>
+                  )}
+                  {DIMENSION_GUIDES[d.id] && (
+                    <a
+                      href={DIMENSION_GUIDES[d.id]}
+                      target="_blank"
+                      rel="noopener"
+                      aria-label={`Read the ${d.label} guide — opens in a new tab`}
+                      className="text-muted-foreground hover:text-foreground ml-1.5 inline-flex min-h-10 items-center gap-0.5 text-xs font-normal underline sm:min-h-0"
+                    >
+                      <BookOpen aria-hidden className="size-3" />
+                      Guide
+                    </a>
                   )}
                 </span>
                 <span
@@ -6748,22 +8283,34 @@ function HealthDialog({
               <p className="text-muted-foreground/80 mt-1 text-xs italic">{d.plain}</p>
               {d.findings.length > 0 && (
                 <ul className="text-muted-foreground mt-1.5 list-disc space-y-0.5 pl-4 text-xs">
-                  {(d.richFindings ?? d.findings.map((text) => ({ text, anchor: undefined }))).map(
-                    (f) => (
-                      <li key={f.text}>
-                        {f.text}
-                        {f.anchor && (
-                          <button
-                            type="button"
-                            className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
-                            onClick={() => f.anchor && jump(f.anchor)}
-                          >
-                            Fix →
-                          </button>
-                        )}
-                      </li>
-                    )
-                  )}
+                  {(
+                    (d.richFindings ?? d.findings.map((text) => ({ text }))) as (HealthFinding & {
+                      anchor?: SectionAnchor
+                    })[]
+                  ).map((f) => (
+                    <li key={f.text}>
+                      {f.text}
+                      {f.anchor && (
+                        <button
+                          type="button"
+                          className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                          onClick={() => f.anchor && jump(f.anchor)}
+                        >
+                          Fix →
+                        </button>
+                      )}
+                      {f.entryId && f.entryLabel && (
+                        <button
+                          type="button"
+                          className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                          aria-label={`Go to entry: ${f.entryLabel}`}
+                          onClick={() => f.entryId && jumpEntry(f.entryId)}
+                        >
+                          → {f.entryLabel}
+                        </button>
+                      )}
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
@@ -6782,6 +8329,91 @@ const snapshotAgo = (ms: number) => {
   if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`
   const days = Math.floor(hours / 24)
   return days === 1 ? '1 day ago' : `${days} days ago`
+}
+
+/** Entry-list sections compared by entry id in checkpoint summaries */
+const SNAPSHOT_ENTRY_SECTIONS: { key: keyof Resume; label: string }[] = [
+  { key: 'experience', label: 'Experience' },
+  { key: 'education', label: 'Education' },
+  { key: 'projects', label: 'Projects' },
+  { key: 'certItems', label: 'Certifications' },
+  { key: 'involvement', label: 'Involvement' },
+  { key: 'coursework', label: 'Coursework' },
+  { key: 'awards', label: 'Awards' },
+  { key: 'publications', label: 'Publications' },
+  { key: 'references', label: 'References' },
+  { key: 'military', label: 'Military service' },
+  { key: 'agents', label: 'Agents' },
+  { key: 'customSections', label: 'Custom sections' },
+]
+
+const SNAPSHOT_TARGET_KEYS: (keyof Resume)[] = [
+  'targetRole',
+  'jobDescription',
+  'experienceLevel',
+  'targetCompany',
+  'ignoredKeywords',
+]
+
+/** Section-level summary of what restoring `snap` would change vs `current`. */
+function snapshotChanges(snap: Resume, current: Resume): string[] {
+  const changes: string[] = []
+  const handled = new Set<string>(['summary', 'skills', 'contact', 'hiddenContact'])
+  if (
+    JSON.stringify(snap.contact) !== JSON.stringify(current.contact) ||
+    JSON.stringify(snap.hiddenContact ?? []) !== JSON.stringify(current.hiddenContact ?? [])
+  )
+    changes.push('Contact')
+  if (snap.summary !== current.summary) changes.push('Summary')
+  if (snap.skills !== current.skills) changes.push('Skills')
+  for (const { key, label } of SNAPSHOT_ENTRY_SECTIONS) {
+    handled.add(key)
+    const a = (snap[key] ?? []) as { id: string }[]
+    const b = (current[key] ?? []) as { id: string }[]
+    const bById = new Map(b.map((e) => [e.id, JSON.stringify(e)]))
+    let added = 0
+    let removed = 0
+    let edited = 0
+    for (const entry of a) {
+      const other = bById.get(entry.id)
+      if (other === undefined) added += 1
+      else if (other !== JSON.stringify(entry)) edited += 1
+    }
+    const aIds = new Set(a.map((e) => e.id))
+    for (const entry of b) if (!aIds.has(entry.id)) removed += 1
+    let differs = added > 0 || removed > 0 || edited > 0
+    if (key === 'certItems') {
+      handled.add('certifications')
+      if (snap.certifications !== current.certifications) differs = true
+    }
+    if (differs) {
+      const parts = [
+        edited > 0 ? `${edited} edited` : '',
+        added > 0 ? `+${added}` : '',
+        removed > 0 ? `\u2212${removed}` : '',
+      ].filter(Boolean)
+      changes.push(parts.length > 0 ? `${label} (${parts.join(', ')})` : label)
+    }
+  }
+  if (
+    SNAPSHOT_TARGET_KEYS.some(
+      (k) => JSON.stringify(snap[k] ?? null) !== JSON.stringify(current[k] ?? null)
+    )
+  )
+    changes.push('Target job')
+  for (const k of SNAPSHOT_TARGET_KEYS) handled.add(k)
+  const rest = new Set([...Object.keys(snap), ...Object.keys(current)])
+  for (const k of rest) {
+    if (handled.has(k)) continue
+    if (
+      JSON.stringify(snap[k as keyof Resume] ?? null) !==
+      JSON.stringify(current[k as keyof Resume] ?? null)
+    ) {
+      changes.push('Design & layout')
+      break
+    }
+  }
+  return changes
 }
 
 /** Automatic checkpoints of the draft — restore rolls the builder back;
@@ -6815,7 +8447,9 @@ function HistoryDialog({
         ) : (
           <ul className="space-y-2">
             {snapshots.map((s) => {
-              const isCurrent = JSON.stringify(s.data) === currentJson
+              const changes =
+                JSON.stringify(s.data) === currentJson ? [] : snapshotChanges(s.data, resume)
+              const isCurrent = changes.length === 0
               return (
                 <li
                   key={s.id}
@@ -6828,6 +8462,13 @@ function HistoryDialog({
                         .filter(Boolean)
                         .join(' — ')}
                     </p>
+                    {changes.length > 0 && (
+                      <p className="text-muted-foreground text-xs">
+                        Differs from current:{' '}
+                        {changes.slice(0, 4).join(' · ')}
+                        {changes.length > 4 ? ` · +${changes.length - 4} more` : ''}
+                      </p>
+                    )}
                   </div>
                   {isCurrent ? (
                     <span className="text-muted-foreground shrink-0 text-xs">Current</span>
@@ -6881,6 +8522,7 @@ function KeywordBulletDialog({
         resumeText: resumeToPlainText(resume),
         jobDescription: resume.jobDescription,
         role: aiTargetRole(resume),
+        language: resume.language,
       })
       if (freeRemaining !== null) onQuota(freeRemaining)
       setText(drafted)

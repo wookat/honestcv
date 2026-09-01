@@ -10,6 +10,31 @@ export interface ChatMessage {
 
 export type RewriteKind = 'bullets' | 'summary' | 'skills'
 
+/** Resume output languages the writer endpoints can be asked to reply in. */
+const OUTPUT_LANGUAGES: Record<string, string> = {
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  pt: 'Portuguese',
+}
+
+/**
+ * Ask the writer to reply in the resume's language. Unknown codes and 'en'
+ * are no-ops, so the client can always pass the resume's language through.
+ */
+export function withOutputLanguage(messages: ChatMessage[], language?: string): ChatMessage[] {
+  const name = language ? OUTPUT_LANGUAGES[language] : undefined
+  if (!name) return messages
+  return messages.map((m) =>
+    m.role === 'system'
+      ? {
+          ...m,
+          content: `${m.content}\n- Write your entire output in ${name}. Keep every fact from the input unchanged; translate phrasing, not facts.`,
+        }
+      : m
+  )
+}
+
 const SYSTEM_WRITER = `You are an expert resume writer for the US/international job market.
 Rules:
 - Never invent employers, titles, dates, degrees, metrics, or tools that are not in the input. You may sharpen phrasing, but every fact must come from the user's text.
@@ -55,17 +80,24 @@ export function buildRewriteMessages(
  * Draft candidate summaries from the resume alone (no user draft needed),
  * grounded strictly in the resume's existing content.
  */
-export function buildSummaryDraftMessages(resumeText: string, role: string): ChatMessage[] {
+export function buildSummaryDraftMessages(
+  resumeText: string,
+  role: string,
+  highlights: string[] = []
+): ChatMessage[] {
+  const parts = [`Target role: ${role || 'not specified'}`]
+  if (highlights.length)
+    parts.push(
+      `Emphasize these skills, but only as the resume actually supports them: ${highlights.join(', ')}`
+    )
+  parts.push(`Candidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`)
   return [
     {
       role: 'system',
       content: `${SYSTEM_WRITER}
 The user has a filled resume but no professional summary yet. Write 3 alternative professional summaries (each 2-3 sentences, max 60 words) using ONLY facts present in the resume text — job titles, employers, skills, education, and metrics that appear there. Different emphasis per version (1: concise, 2: impact-focused, 3: keyword/skills-focused). Never invent seniority, metrics, tools, or scope the resume does not show. Reply with ONLY a JSON array of 3 strings — no markdown, no commentary.`,
     },
-    {
-      role: 'user',
-      content: `Target role: ${role || 'not specified'}\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
-    },
+    { role: 'user', content: parts.join('\n\n') },
   ]
 }
 
@@ -76,13 +108,17 @@ The user has a filled resume but no professional summary yet. Write 3 alternativ
 export function buildSkillSuggestMessages(
   skills: string,
   role: string,
-  jobDescription: string
+  jobDescription: string,
+  context = '',
+  category = ''
 ): ChatMessage[] {
   const parts = [
     `Suggest up to 12 additional skills this candidate might list on their resume, closely related to their existing skills and target role (adjacent tools, frameworks, methods, and industry-standard names). These are discovery suggestions the user confirms — do NOT repeat skills already listed. Each suggestion must be a short canonical skill name (1-3 words). Reply with ONLY a JSON array of strings — no markdown, no commentary.`,
   ]
   if (role) parts.push(`Target role: ${role}`)
   if (skills) parts.push(`Existing skills: ${skills.slice(0, 1500)}`)
+  if (context) parts.push(`The candidate describes what they did: ${context}`)
+  if (category) parts.push(`Focus suggestions on this kind of skill: ${category}`)
   const jd = jobDescription.trim()
   if (jd) parts.push(`Job description they are targeting:\n"""\n${jd.slice(0, 3000)}\n"""`)
   return [

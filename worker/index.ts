@@ -39,6 +39,7 @@ import {
   buildRewriteMessages,
   buildSkillSuggestMessages,
   buildSummaryDraftMessages,
+  withOutputLanguage,
 } from './prompts'
 
 interface Env extends BillingEnv, LsEnv {
@@ -450,6 +451,7 @@ app.post('/api/ai/rewrite', async (c) => {
       role?: string
       jobDescription?: string
       variants?: boolean
+      language?: string
     }>()
     .catch(() => ({}) as Record<string, never>)
   const kind = body.kind as RewriteKind
@@ -485,11 +487,14 @@ app.post('/api/ai/rewrite', async (c) => {
   const wantVariants = body.variants === true && kind !== 'skills'
   const result = await callLlm(
     c.env,
-    buildRewriteMessages(
-      kind,
-      text,
-      { role: body.role, jobDescription: body.jobDescription },
-      wantVariants
+    withOutputLanguage(
+      buildRewriteMessages(
+        kind,
+        text,
+        { role: body.role, jobDescription: body.jobDescription },
+        wantVariants
+      ),
+      body.language
     ),
     0.5,
     wantVariants ? 2000 : 1200
@@ -512,7 +517,7 @@ app.post('/api/ai/rewrite', async (c) => {
 // strictly in existing content. Shares the free AI quota.
 app.post('/api/ai/summary-draft', async (c) => {
   const body = await c.req
-    .json<{ resumeText?: string; role?: string }>()
+    .json<{ resumeText?: string; role?: string; highlights?: string[]; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const resumeText = body.resumeText?.trim()
   if (!resumeText) {
@@ -521,6 +526,11 @@ app.post('/api/ai/summary-draft', async (c) => {
       400
     )
   }
+  const highlights = (Array.isArray(body.highlights) ? body.highlights : [])
+    .filter((h): h is string => typeof h === 'string')
+    .map((h) => h.trim().slice(0, 40))
+    .filter(Boolean)
+    .slice(0, 8)
 
   const ent = await entitlementFromRequest(c)
   let freeRemaining: number | null = null
@@ -542,7 +552,10 @@ app.post('/api/ai/summary-draft', async (c) => {
 
   const result = await callLlm(
     c.env,
-    buildSummaryDraftMessages(resumeText, body.role ?? ''),
+    withOutputLanguage(
+      buildSummaryDraftMessages(resumeText, body.role ?? '', highlights),
+      body.language
+    ),
     0.5,
     900
   )
@@ -578,13 +591,21 @@ app.post('/api/ai/summary-draft', async (c) => {
 // target role — the user confirms each one. Shares the free AI quota.
 app.post('/api/ai/skill-suggest', async (c) => {
   const body = await c.req
-    .json<{ skills?: string; role?: string; jobDescription?: string }>()
+    .json<{
+      skills?: string
+      role?: string
+      jobDescription?: string
+      context?: string
+      category?: string
+    }>()
     .catch(() => ({}) as Record<string, never>)
   const skills = body.skills?.trim() ?? ''
   const role = body.role?.trim() ?? ''
-  if (!skills && !role) {
+  const context = (typeof body.context === 'string' ? body.context : '').trim().slice(0, 200)
+  const category = (typeof body.category === 'string' ? body.category : '').trim().slice(0, 40)
+  if (!skills && !role && !context) {
     return c.json(
-      { error: 'Add a target role or a few skills first — suggestions build on what you already have.' },
+      { error: 'Add a target role, a few skills, or describe what you did — suggestions build on what you already have.' },
       400
     )
   }
@@ -609,7 +630,7 @@ app.post('/api/ai/skill-suggest', async (c) => {
 
   const result = await callLlm(
     c.env,
-    buildSkillSuggestMessages(skills, role, body.jobDescription ?? ''),
+    buildSkillSuggestMessages(skills, role, body.jobDescription ?? '', context, category),
     0.5,
     400
   )
@@ -646,7 +667,7 @@ app.post('/api/ai/skill-suggest', async (c) => {
 // resume, grounded in existing content. Shares the free AI quota.
 app.post('/api/ai/keyword-bullet', async (c) => {
   const body = await c.req
-    .json<{ keyword?: string; resumeText?: string; jobDescription?: string; role?: string }>()
+    .json<{ keyword?: string; resumeText?: string; jobDescription?: string; role?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const keyword = body.keyword?.trim()
   const resumeText = body.resumeText?.trim()
@@ -677,7 +698,7 @@ app.post('/api/ai/keyword-bullet', async (c) => {
 
   const result = await callLlm(
     c.env,
-    buildKeywordBulletMessages(keyword, resumeText, jd, body.role ?? ''),
+    withOutputLanguage(buildKeywordBulletMessages(keyword, resumeText, jd, body.role ?? ''), body.language),
     0.5,
     400
   )
@@ -693,7 +714,7 @@ app.post('/api/ai/keyword-bullet', async (c) => {
 // free AI quota.
 app.post('/api/ai/suggest-bullet', async (c) => {
   const body = await c.req
-    .json<{ role?: string; company?: string; bullets?: string[]; resumeText?: string; variant?: string }>()
+    .json<{ role?: string; company?: string; bullets?: string[]; resumeText?: string; variant?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const role = body.role?.trim() ?? ''
   const company = body.company?.trim() ?? ''
@@ -727,7 +748,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
 
   const result = await callLlm(
     c.env,
-    buildSuggestBulletMessages(role, company, bullets, resumeText, variant),
+    withOutputLanguage(buildSuggestBulletMessages(role, company, bullets, resumeText, variant), body.language),
     0.6,
     400
   )
@@ -742,7 +763,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
 // returning per-item suggestions. Shares the free AI quota.
 app.post('/api/ai/tailor', async (c) => {
   const body = await c.req
-    .json<{ items?: TailorItem[]; jobDescription?: string; role?: string }>()
+    .json<{ items?: TailorItem[]; jobDescription?: string; role?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const jd = body.jobDescription?.trim()
   const items = (body.items ?? [])
@@ -772,7 +793,12 @@ app.post('/api/ai/tailor', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlm(c.env, buildTailorMessages(items, jd, body.role ?? ''), 0.4, 3000)
+  const result = await callLlm(
+    c.env,
+    withOutputLanguage(buildTailorMessages(items, jd, body.role ?? ''), body.language),
+    0.4,
+    3000
+  )
   // Quota is consumed only after a successful call, so failures cost nothing
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
   const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
@@ -832,7 +858,7 @@ app.post('/api/ai/cover-letter', async (c) => {
     freeRemaining = remaining
   }
   const body = await c.req
-    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string }>()
+    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const resumeText = body.resumeText?.trim()
   const jd = body.jobDescription?.trim()
@@ -840,7 +866,10 @@ app.post('/api/ai/cover-letter', async (c) => {
   if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
   const result = await callLlm(
     c.env,
-    buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? ''),
+    withOutputLanguage(
+      buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? ''),
+      body.language
+    ),
     0.6
   )
   // Quota is consumed only after a successful call, so failures cost nothing
@@ -1318,6 +1347,9 @@ const SHARE_MAX_BODY_BYTES = 120_000
 const SHARE_TTL_SECONDS = 60 * 60 * 24 * 180
 const SHARE_CLIENT_DAILY_LIMIT = 20
 const SHARE_ID_RE = /^[A-Za-z0-9_-]{10,64}$/
+/** User-chosen memorable slugs: lowercase, 3-40 chars, no edge hyphens */
+const SHARE_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])?$/
+const validShareId = (id: string) => SHARE_ID_RE.test(id) || SHARE_SLUG_RE.test(id)
 
 const randomB64url = (bytes: number) =>
   btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(bytes))))
@@ -1366,9 +1398,9 @@ app.post('/api/share', async (c) => {
   if (new TextEncoder().encode(text).length > SHARE_MAX_BODY_BYTES) {
     return c.json({ error: 'This resume is too large to share.' }, 413)
   }
-  let body: { resume?: unknown; id?: string; token?: string } | null
+  let body: { resume?: unknown; id?: string; token?: string; slug?: string } | null
   try {
-    body = JSON.parse(text) as { resume?: unknown; id?: string; token?: string }
+    body = JSON.parse(text) as { resume?: unknown; id?: string; token?: string; slug?: string }
   } catch {
     body = null
   }
@@ -1383,7 +1415,7 @@ app.post('/api/share', async (c) => {
   if (
     typeof body?.id === 'string' &&
     typeof body?.token === 'string' &&
-    SHARE_ID_RE.test(body.id)
+    validShareId(body.id)
   ) {
     const existing = await c.env.KV.get(`share:${body.id}`)
     if (existing) {
@@ -1393,6 +1425,21 @@ app.post('/api/share', async (c) => {
         token = body.token
       }
     }
+  }
+  if (!id && typeof body?.slug === 'string' && body.slug.trim()) {
+    const slug = body.slug.trim().toLowerCase()
+    if (!SHARE_SLUG_RE.test(slug) || slug.length < 3) {
+      return c.json(
+        { error: 'Custom links use 3–40 lowercase letters, numbers and hyphens.' },
+        400
+      )
+    }
+    const existing = await c.env.KV.get(`share:${slug}`)
+    if (existing) {
+      return c.json({ error: 'That custom link is already taken — try another.' }, 409)
+    }
+    id = slug
+    token = randomB64url(16)
   }
   if (!id) {
     id = randomB64url(16)
@@ -1409,7 +1456,7 @@ app.post('/api/share', async (c) => {
 
 app.get('/api/share/:id', async (c) => {
   const id = c.req.param('id')
-  if (!SHARE_ID_RE.test(id)) return c.json({ error: 'Not Found' }, 404)
+  if (!validShareId(id)) return c.json({ error: 'Not Found' }, 404)
   const raw = await c.env.KV.get(`share:${id}`)
   if (!raw) return c.json({ error: 'Not Found' }, 404)
   const rec = parseShareRecord(raw)
@@ -1421,7 +1468,7 @@ app.get('/api/share/:id', async (c) => {
 app.delete('/api/share/:id', async (c) => {
   const id = c.req.param('id')
   const token = c.req.header('x-share-token')?.trim() ?? ''
-  if (!SHARE_ID_RE.test(id) || !token) return c.json({ error: 'Not Found' }, 404)
+  if (!validShareId(id) || !token) return c.json({ error: 'Not Found' }, 404)
   const raw = await c.env.KV.get(`share:${id}`)
   if (!raw) return c.json({ ok: true })
   const rec = parseShareRecord(raw)
@@ -1661,7 +1708,7 @@ app.notFound(async (c) => {
   let shell = await c.env.ASSETS.fetch(new Request(new URL('/spa.html', c.req.url)))
   if (shell.status !== 200) shell = await c.env.ASSETS.fetch(new Request(new URL('/', c.req.url)))
   // Shared-resume pages resolve to the SPA shell too, but must never be indexed
-  const isShare = /^\/s\/[A-Za-z0-9_-]{10,64}$/.test(path)
+  const isShare = path.startsWith('/s/') && validShareId(path.slice(3))
   const headers: Record<string, string> = { 'content-type': 'text/html; charset=utf-8' }
   if (path.startsWith('/s/')) {
     headers['X-Robots-Tag'] = 'noindex'
