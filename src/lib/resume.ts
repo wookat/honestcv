@@ -1080,6 +1080,7 @@ export function sanitizeResume(input: unknown): Resume | null {
     contactIcons: asEnum(raw.contactIcons, ['off', 'on'] as const),
     groupByCompany: asEnum(raw.groupByCompany, ['off', 'on'] as const),
     textColor: asEnum(raw.textColor, ['default', 'black', 'navy'] as const),
+    language: asEnum(raw.language, ['en', 'es', 'fr', 'de', 'pt'] as const),
     targetRole: asStr(raw.targetRole),
     jobDescription: asStr(raw.jobDescription),
     experienceLevel: asEnum(
