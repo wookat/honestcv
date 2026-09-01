@@ -104,6 +104,7 @@ interface RunWord {
   text: string
   font: PDFFont
   underline: boolean
+  href?: string
 }
 
 /** Greedy word wrap across mixed-font runs; returns lines of styled words. */
@@ -112,7 +113,7 @@ function wrapRuns(runs: InlineRun[], fonts: Fonts, size: number, maxWidth: numbe
   for (const run of runs) {
     const font = run.bold ? fonts.bold : run.italic ? fonts.italic : fonts.regular
     for (const w of run.text.split(/\s+/).filter(Boolean))
-      words.push({ text: w, font, underline: run.underline })
+      words.push({ text: w, font, underline: run.underline, href: run.href })
   }
   const spaceW = (f: PDFFont) => drawnWidth(f, ' ', size)
   const lines: RunWord[][] = []
@@ -415,16 +416,35 @@ class PdfWriter {
         words.forEach((w, j) => {
           const spaceW = j > 0 ? drawnWidth(w.font, ' ', size) : 0
           x += spaceW
-          this.page.drawText(w.text, { x, y: this.y, size, font: w.font, color: this.ink })
+          this.page.drawText(w.text, {
+            x,
+            y: this.y,
+            size,
+            font: w.font,
+            color: w.href ? this.accent : this.ink,
+          })
           const wordW = drawnWidth(w.font, w.text, size)
-          if (w.underline) {
-            const joinPrev = j > 0 && words[j - 1].underline
+          if (w.underline || w.href) {
+            const joinPrev = j > 0 && (words[j - 1].underline || !!words[j - 1].href)
             this.page.drawLine({
               start: { x: joinPrev ? x - spaceW : x, y: this.y - 1.5 },
               end: { x: x + wordW, y: this.y - 1.5 },
               thickness: 0.5,
-              color: this.ink,
+              color: w.href ? this.accent : this.ink,
             })
+          }
+          if (w.href) {
+            const joinPrev = j > 0 && words[j - 1].href === w.href
+            const annot = this.doc.context.register(
+              this.doc.context.obj({
+                Type: 'Annot',
+                Subtype: 'Link',
+                Rect: [joinPrev ? x - spaceW : x, this.y - 2, x + wordW, this.y + size + 2],
+                Border: [0, 0, 0],
+                A: { Type: 'Action', S: 'URI', URI: PDFString.of(w.href) },
+              })
+            )
+            this.page.node.addAnnot(annot)
           }
           x += wordW
         })

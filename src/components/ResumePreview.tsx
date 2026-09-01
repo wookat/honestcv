@@ -46,7 +46,7 @@ import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { domToMarks, hasInlineMarks, parseInlineMarks } from '@/lib/marks'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
-/** Inline bold/italic/underline marks rendered as styled runs. */
+/** Inline bold/italic/underline/link marks rendered as styled runs. */
 function MarkedText({ text }: { text: string }) {
   if (!hasInlineMarks(text)) return <>{text}</>
   return (
@@ -56,6 +56,17 @@ function MarkedText({ text }: { text: string }) {
         if (r.italic) node = <em>{node}</em>
         if (r.bold) node = <strong>{node}</strong>
         if (r.underline) node = <u>{node}</u>
+        if (r.href)
+          node = (
+            <a
+              href={r.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-current/60 underline-offset-2"
+            >
+              {node}
+            </a>
+          )
         return <Fragment key={i}>{node}</Fragment>
       })}
     </>
@@ -77,6 +88,8 @@ function restoreMarkedDom(el: HTMLElement, text: string) {
       if (r.italic) t = `<em>${t}</em>`
       if (r.bold) t = `<strong>${t}</strong>`
       if (r.underline) t = `<u>${t}</u>`
+      if (r.href)
+        t = `<a href="${escapeHtml(r.href).replace(/"/g, '&quot;')}" target="_blank" rel="noopener noreferrer" class="underline decoration-current/60 underline-offset-2">${t}</a>`
       return t
     })
     .join('')
