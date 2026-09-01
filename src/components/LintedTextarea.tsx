@@ -3,8 +3,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { checkBullet, type BulletIssue } from '@/lib/guidance'
 import { wrapSelection } from '@/lib/marks'
 
-/** Apply a bold/italic mark toggle to the current selection, firing React's onChange. */
-function applyMark(el: HTMLTextAreaElement, mark: '**' | '*') {
+/** Apply a bold/italic/underline mark toggle to the current selection, firing React's onChange. */
+function applyMark(el: HTMLTextAreaElement, mark: '**' | '*' | '__') {
   const next = wrapSelection(el.value, el.selectionStart, el.selectionEnd, mark)
   if (!next) return
   const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set
@@ -50,9 +50,9 @@ export function LintedTextarea({
         onKeyDown={(ev) => {
           if ((ev.ctrlKey || ev.metaKey) && !ev.altKey) {
             const key = ev.key.toLowerCase()
-            if (key === 'b' || key === 'i') {
+            if (key === 'b' || key === 'i' || key === 'u') {
               ev.preventDefault()
-              applyMark(ev.currentTarget, key === 'b' ? '**' : '*')
+              applyMark(ev.currentTarget, key === 'b' ? '**' : key === 'i' ? '*' : '__')
               return
             }
           }

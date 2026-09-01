@@ -4,7 +4,7 @@
  * to show every page of a long resume instead of clipping after page one.
  */
 
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react'
 
 import {
   type Resume,
@@ -46,21 +46,17 @@ import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { domToMarks, hasInlineMarks, parseInlineMarks } from '@/lib/marks'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
-/** Inline bold/italic marks rendered as styled runs. */
+/** Inline bold/italic/underline marks rendered as styled runs. */
 function MarkedText({ text }: { text: string }) {
   if (!hasInlineMarks(text)) return <>{text}</>
   return (
     <>
       {parseInlineMarks(text).map((r, i) => {
-        if (r.bold && r.italic)
-          return (
-            <strong key={i}>
-              <em>{r.text}</em>
-            </strong>
-          )
-        if (r.bold) return <strong key={i}>{r.text}</strong>
-        if (r.italic) return <em key={i}>{r.text}</em>
-        return <Fragment key={i}>{r.text}</Fragment>
+        let node: ReactNode = r.text
+        if (r.italic) node = <em>{node}</em>
+        if (r.bold) node = <strong>{node}</strong>
+        if (r.underline) node = <u>{node}</u>
+        return <Fragment key={i}>{node}</Fragment>
       })}
     </>
   )
@@ -77,10 +73,10 @@ function restoreMarkedDom(el: HTMLElement, text: string) {
   }
   el.innerHTML = parseInlineMarks(text)
     .map((r) => {
-      const t = escapeHtml(r.text)
-      if (r.bold && r.italic) return `<strong><em>${t}</em></strong>`
-      if (r.bold) return `<strong>${t}</strong>`
-      if (r.italic) return `<em>${t}</em>`
+      let t = escapeHtml(r.text)
+      if (r.italic) t = `<em>${t}</em>`
+      if (r.bold) t = `<strong>${t}</strong>`
+      if (r.underline) t = `<u>${t}</u>`
       return t
     })
     .join('')

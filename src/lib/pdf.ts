@@ -103,6 +103,7 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
 interface RunWord {
   text: string
   font: PDFFont
+  underline: boolean
 }
 
 /** Greedy word wrap across mixed-font runs; returns lines of styled words. */
@@ -110,7 +111,8 @@ function wrapRuns(runs: InlineRun[], fonts: Fonts, size: number, maxWidth: numbe
   const words: RunWord[] = []
   for (const run of runs) {
     const font = run.bold ? fonts.bold : run.italic ? fonts.italic : fonts.regular
-    for (const w of run.text.split(/\s+/).filter(Boolean)) words.push({ text: w, font })
+    for (const w of run.text.split(/\s+/).filter(Boolean))
+      words.push({ text: w, font, underline: run.underline })
   }
   const spaceW = (f: PDFFont) => drawnWidth(f, ' ', size)
   const lines: RunWord[][] = []
@@ -411,9 +413,20 @@ class PdfWriter {
         marker(i === 0)
         let x = MARGIN + indent
         words.forEach((w, j) => {
-          if (j > 0) x += drawnWidth(w.font, ' ', size)
+          const spaceW = j > 0 ? drawnWidth(w.font, ' ', size) : 0
+          x += spaceW
           this.page.drawText(w.text, { x, y: this.y, size, font: w.font, color: this.ink })
-          x += drawnWidth(w.font, w.text, size)
+          const wordW = drawnWidth(w.font, w.text, size)
+          if (w.underline) {
+            const joinPrev = j > 0 && words[j - 1].underline
+            this.page.drawLine({
+              start: { x: joinPrev ? x - spaceW : x, y: this.y - 1.5 },
+              end: { x: x + wordW, y: this.y - 1.5 },
+              thickness: 0.5,
+              color: this.ink,
+            })
+          }
+          x += wordW
         })
       })
       this.gap(2)
