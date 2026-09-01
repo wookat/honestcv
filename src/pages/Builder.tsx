@@ -6631,7 +6631,7 @@ function EntryAuditChip({
   const panel = (
     <div
       aria-hidden
-      className="bg-popover text-popover-foreground absolute top-full right-0 z-30 mt-1 hidden w-56 rounded-md border p-2 text-left shadow-md group-focus-within:block group-hover:block"
+      className="bg-popover text-popover-foreground fixed inset-x-4 bottom-4 z-30 hidden rounded-md border p-2 text-left shadow-md group-focus-within:block group-hover:block sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:bottom-auto sm:mt-1 sm:w-56"
     >
       <ul className="space-y-1 text-[11px] leading-snug font-normal">
         {[...groups.entries()].map(([category, lines]) => (
