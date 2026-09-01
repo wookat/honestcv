@@ -147,6 +147,8 @@ class PdfWriter {
   pageW: number
   pageH: number
   contentW: number
+  /** Left edge of section content (moves right of the label gutter for sideLabels templates) */
+  x0: number = MARGIN
   /** Font-size multiplier (user text-size setting) */
   fs = 1
   /** Line-height multiplier (user line-spacing setting) */
@@ -198,7 +200,7 @@ class PdfWriter {
     for (const line of wrapText(text, font, size, maxWidth)) {
       this.ensure(lineHeight)
       const width = drawnWidth(font, line, size)
-      const x = opts.center ? (this.pageW - width) / 2 : MARGIN + indent
+      const x = opts.center ? (this.pageW - width) / 2 : this.x0 + indent
       this.y -= lineHeight
       this.page.drawText(line, {
         x,
@@ -220,14 +222,14 @@ class PdfWriter {
     this.ensure(lineHeight)
     this.y -= lineHeight
     this.page.drawText(prefix, {
-      x: MARGIN,
+      x: this.x0,
       y: this.y,
       size,
       font: this.fonts.bold,
       color: this.ink,
     })
     this.page.drawText(restLines[0], {
-      x: MARGIN + prefixW,
+      x: this.x0 + prefixW,
       y: this.y,
       size,
       font: this.fonts.regular,
@@ -260,7 +262,7 @@ class PdfWriter {
     this.ensure(lineHeight)
     this.y -= lineHeight
     this.page.drawText(left, {
-      x: MARGIN,
+      x: this.x0,
       y: this.y,
       size,
       font: this.fonts.bold,
@@ -307,7 +309,7 @@ class PdfWriter {
     const lineHeight = size * this.lh
     this.ensure(lineHeight)
     this.y -= lineHeight
-    let x = opts.center ? (this.pageW - totalWidth) / 2 : MARGIN
+    let x = opts.center ? (this.pageW - totalWidth) / 2 : this.x0
     segments.forEach((s, i) => {
       const segStart = x
       if (useIcons && s.icon) {
@@ -352,12 +354,27 @@ class PdfWriter {
     // alone at the bottom of a page
     this.ensure(52)
     this.gap(10 * this.ss)
+    if (this.tpl.sideLabels && this.x0 > MARGIN) {
+      // Label drawn in the left gutter on the first content baseline; it
+      // consumes no vertical space — content flows beside it at x0.
+      const gutterW = this.x0 - MARGIN - 10
+      let size = 10 * this.fs
+      while (size > 7 && drawnWidth(this.fonts.bold, text, size) > gutterW) size -= 0.5
+      this.page.drawText(text, {
+        x: MARGIN,
+        y: this.y - size * this.lh,
+        size,
+        font: this.fonts.bold,
+        color: this.accent,
+      })
+      return
+    }
     if (this.tpl.band) {
       const size = 11 * this.fs
       const bandH = size * this.lh + 6
       this.ensure(bandH)
       this.page.drawRectangle({
-        x: MARGIN,
+        x: this.x0,
         y: this.y - bandH,
         width: this.contentW,
         height: bandH,
@@ -365,7 +382,7 @@ class PdfWriter {
       })
       this.y -= size * this.lh + 3
       this.page.drawText(text, {
-        x: MARGIN + 6,
+        x: this.x0 + 6,
         y: this.y,
         size,
         font: this.fonts.bold,
@@ -380,7 +397,7 @@ class PdfWriter {
       const thickness = this.divider === 'thick' ? 2 : 0.75
       this.gap(3)
       this.page.drawLine({
-        start: { x: MARGIN, y: this.y },
+        start: { x: this.x0, y: this.y },
         end: { x: this.pageW - MARGIN, y: this.y },
         thickness,
         color: this.accent,
@@ -396,7 +413,7 @@ class PdfWriter {
     this.ensure(10)
     this.gap(4)
     this.page.drawLine({
-      start: { x: MARGIN, y: this.y },
+      start: { x: this.x0, y: this.y },
       end: { x: this.pageW - MARGIN, y: this.y },
       thickness: 0.5,
       color: hexToRgb('#d4d4d4'),
@@ -412,7 +429,7 @@ class PdfWriter {
     const marker = (first: boolean) => {
       if (!first) return
       this.page.drawText('•', {
-        x: MARGIN + 2 + this.bi,
+        x: this.x0 + 2 + this.bi,
         y: this.y,
         size,
         font,
@@ -425,7 +442,7 @@ class PdfWriter {
         this.ensure(lineHeight)
         this.y -= lineHeight
         marker(i === 0)
-        let x = MARGIN + indent
+        let x = this.x0 + indent
         words.forEach((w, j) => {
           const spaceW = j > 0 ? drawnWidth(w.font, ' ', size) : 0
           x += spaceW
@@ -470,7 +487,7 @@ class PdfWriter {
       this.ensure(lineHeight)
       this.y -= lineHeight
       marker(i === 0)
-      this.page.drawText(line, { x: MARGIN + indent, y: this.y, size, font, color: this.ink })
+      this.page.drawText(line, { x: this.x0 + indent, y: this.y, size, font, color: this.ink })
     })
     this.gap(2)
   }
@@ -608,6 +625,12 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
     })
   }
   w.gap(6)
+
+  if (tpl.sideLabels) {
+    // Header spans the full width; section content flows right of the label gutter
+    w.x0 = MARGIN + 96
+    w.contentW = w.pageW - MARGIN - w.x0
+  }
 
   const entryRule = (i: number) => {
     if (tpl.entryDivider && i > 0) w.entryRule()

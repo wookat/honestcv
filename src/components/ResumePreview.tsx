@@ -278,11 +278,15 @@ export function ResumePreview({
 
   const divider = tpl.band ? 'none' : dividerOf(resume, tpl.divider)
   const headingMarginTop = 16 * sectionSpacingOf(resume)
+  const sideLabels = tpl.sideLabels === true
   const heading = (label: React.ReactNode, key?: string) => (
     <h3
       className="mb-1.5 text-[11px] font-bold tracking-wide"
       style={{
-        marginTop: headingMarginTop,
+        marginTop: sideLabels ? 0 : headingMarginTop,
+        ...(sideLabels
+          ? { position: 'absolute' as const, left: 0, top: 0, width: 74, marginBottom: 0, overflowWrap: 'break-word' as const }
+          : {}),
         color: tpl.accent,
         textTransform: tpl.headingCase === 'upper' ? 'uppercase' : undefined,
         borderBottom:
@@ -390,7 +394,11 @@ export function ResumePreview({
       </div>
 
       {orderedSectionKeys(resume).map((key) => (
-        <div key={key} {...jumpProps(key, sectionLabel(resume, key))}>
+        <div
+          key={key}
+          {...jumpProps(key, sectionLabel(resume, key))}
+          style={sideLabels ? { position: 'relative', paddingLeft: 86, marginTop: headingMarginTop } : undefined}
+        >
           <SectionBlock sectionKey={key} resume={resume} heading={heading} onEdit={onEdit} />
         </div>
       ))}

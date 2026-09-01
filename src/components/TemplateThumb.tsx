@@ -43,7 +43,13 @@ export function TemplateThumb({ t }: { t: TemplateMeta }) {
   y += 8
   text(centered ? W / 2 : L, y, 3.6, '#777', SAMPLE.sub, { textAnchor: centered ? 'middle' : 'start' })
   y += 9
+  const cx = t.sideLabels ? L + 24 : L
   const heading = (label: string) => {
+    if (t.sideLabels) {
+      // Label in the left gutter beside the first content line
+      text(L, y, 3.3, t.accent, label.toUpperCase(), { fontWeight: 700, letterSpacing: '.4' })
+      return
+    }
     if (t.band) {
       nodes.push(<rect key={key++} x={L - 3} y={y - 5} width={W - 2 * (L - 3)} height={7.5} rx={1} fill={accentTint(t.accent)} />)
     }
@@ -55,30 +61,30 @@ export function TemplateThumb({ t }: { t: TemplateMeta }) {
   }
   heading('Summary')
   for (const line of SAMPLE.summary) {
-    text(L, y, 3.8, '#444', line)
+    text(cx, y, 3.8, '#444', line)
     y += 5.5
   }
   y += 4
   heading('Experience')
   SAMPLE.jobs.forEach(([job, bullets], ji) => {
     if (t.entryDivider && ji > 0) {
-      nodes.push(<rect key={key++} x={L} y={y - 4} width={W - 2 * L} height={0.5} fill="#d4d4d4" />)
+      nodes.push(<rect key={key++} x={cx} y={y - 4} width={W - L - cx} height={0.5} fill="#d4d4d4" />)
       y += 1.5
     }
-    text(L, y, 3.9, '#333', job, { fontWeight: 600 })
+    text(cx, y, 3.9, '#333', job, { fontWeight: 600 })
     y += 5.5
     for (const b of bullets) {
-      text(L, y, 3.8, '#444', `•  ${b}`)
+      text(cx, y, 3.8, '#444', `•  ${b}`)
       y += 5.5
     }
     y += 1.5
   })
   y += 2.5
   heading('Skills')
-  text(L, y, 3.8, '#444', SAMPLE.skills)
+  text(cx, y, 3.8, '#444', SAMPLE.skills)
   y += 9.5
   heading('Education')
-  text(L, y, 3.8, '#444', SAMPLE.education)
+  text(cx, y, 3.8, '#444', SAMPLE.education)
   return (
     <svg
       aria-hidden

@@ -22,6 +22,8 @@ export interface TemplateMeta {
   band?: boolean
   /** Light hairline between entries within a section (vector line — ATS-safe) */
   entryDivider?: boolean
+  /** Section labels in a left gutter beside the content (reading order stays heading → content) */
+  sideLabels?: boolean
 }
 
 /** Light tint of an accent color (used for heading bands) */
@@ -42,6 +44,7 @@ export const TEMPLATE_FILTERS: { id: string; label: string; match: (t: TemplateM
   { id: 'banded', label: 'Banded headings', match: (t) => t.band === true },
   { id: 'minimal', label: 'Minimal', match: (t) => t.divider === 'none' && !t.band && !t.entryDivider },
   { id: 'ruled', label: 'Ruled entries', match: (t) => t.entryDivider === true },
+  { id: 'side-labels', label: 'Side labels', match: (t) => t.sideLabels === true },
 ]
 
 export const TEMPLATES: TemplateMeta[] = [
@@ -339,6 +342,19 @@ export const TEMPLATES: TemplateMeta[] = [
     headerAlign: 'left',
     nameCase: 'normal',
     entryDivider: true,
+  },
+  {
+    id: 'sidebar',
+    name: 'Sidebar',
+    description: 'Section labels in a left gutter — scannable two-column look, single-column reading order',
+    tags: ['Developers', 'Experienced', 'Scannable'],
+    accent: '#1e3a8a',
+    headingCase: 'upper',
+    serif: false,
+    divider: 'none',
+    headerAlign: 'left',
+    nameCase: 'normal',
+    sideLabels: true,
   },
 ]
 
