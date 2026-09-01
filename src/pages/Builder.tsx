@@ -101,6 +101,7 @@ import {
   type HealthReport,
   bulletMix,
   checkBullets,
+  priorityFixes,
   resumeHealth,
   resumeStrength,
 } from '@/lib/guidance'
@@ -8209,6 +8210,7 @@ function HealthDialog({
     onClose()
     requestAnimationFrame(() => onJumpEntry(id))
   }
+  const fixes = priorityFixes(ats, health)
   const structureFindings = ats.checks
     .filter((c) => !c.pass)
     .map((c) => ({ text: `${c.label} \u2014 ${c.hint}`, anchor: c.anchor }))
@@ -8253,6 +8255,52 @@ function HealthDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="rounded-lg border p-3">
+            <p className="text-sm font-medium">Priority fixes</p>
+            {fixes.length === 0 ? (
+              <p className="mt-1.5 text-xs text-emerald-600">
+                No priority fixes — every check passes and all dimensions score 80+.
+              </p>
+            ) : (
+              <ul className="mt-1.5 space-y-1.5">
+                {fixes.map((f) => (
+                  <li key={f.text} className="flex items-start gap-2 text-xs">
+                    <span
+                      className={`mt-0.5 inline-flex shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                        f.impact === 'high'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {f.impact === 'high' ? 'High' : 'Med'}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {f.text}
+                      {f.anchor && (
+                        <button
+                          type="button"
+                          className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                          onClick={() => f.anchor && jump(f.anchor)}
+                        >
+                          Fix →
+                        </button>
+                      )}
+                      {!f.anchor && f.entryId && f.entryLabel && (
+                        <button
+                          type="button"
+                          className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                          aria-label={`Go to entry: ${f.entryLabel}`}
+                          onClick={() => f.entryId && jumpEntry(f.entryId)}
+                        >
+                          → {f.entryLabel}
+                        </button>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           {[
             ...atsDimensions,
             ...(health.dimensions as (HealthDimension & {
