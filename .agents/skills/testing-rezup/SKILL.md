@@ -455,3 +455,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - When validating row grouping, read FULL row textContent — truncating to the first ~60 chars can miss the location and produce false negatives (locations render late in the row).
 - Divider only on All tab with non-empty location and non-empty agnostic group; status tabs and cleared input never show it. Zero-direct-match term (e.g. "Mars") puts the divider at the top; term+category matching nothing shows "No jobs found — try another search term" with no divider.
 - Sort (Relevance/Newest) applies within each group independently; assert via posted-ages sequences per group, groups never mix.
+
+## R196 — Tracked overview tab on /jobs
+- Tab button text is `Tracked (${pipeline.length})`; sits between "All jobs" and per-status tabs. Group headers reuse the R195 divider styling — selector `ul p.bg-muted\/60`, text `{Status label} ({count})`, rendered only when tab==='tracked' and a row's status differs from the previous row's; zero-count groups get no header.
+- Queue order: JOB_STATUSES order (saved→applied→interviewing→rejected), updatedAt desc within a group. Seed via honestcv.jobPipeline with varied `updatedAt` per SKILL backdating recipe.
+- Caveat: changing a row's status (or any status move) refreshes `updatedAt`/last history step to now, so a previously stale entry loses its R194 nudge — re-backdate after status moves if you need staleness again.
+- Search form, sort select, and the "Hide:" row are All-tab-only — assert their absence on Tracked.
+- Row select on Tracked rows works for live group moves: set value via native setter + change event; headers/counts update immediately without reload.
