@@ -2319,33 +2319,59 @@ export default function Builder() {
                 {!collapsedEntries.has(e.id) && (
                   <>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    placeholder="Job title"
-                    value={e.role}
-                    onChange={(ev) => setExp(e.id, { role: ev.target.value })}
-                  />
-                  <Input
-                    placeholder="Company"
-                    value={e.company}
-                    onChange={(ev) => setExp(e.id, { company: ev.target.value })}
-                  />
-                  <Input
-                    placeholder="Location"
-                    value={e.location}
-                    onChange={(ev) => setExp(e.id, { location: ev.target.value })}
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <MonthYearField
-                      placeholder="Start (Jun 2023)"
-                      value={e.startDate}
-                      onChange={(v) => setExp(e.id, { startDate: v })}
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`exp-${e.id}-role`}>
+                      {e.company.trim() ? `Your role at ${e.company.trim()}` : 'Your role'}
+                    </Label>
+                    <Input
+                      id={`exp-${e.id}-role`}
+                      placeholder="Job title"
+                      value={e.role}
+                      onChange={(ev) => setExp(e.id, { role: ev.target.value })}
                     />
-                    <MonthYearField
-                      allowPresent
-                      placeholder="End (Present)"
-                      value={e.endDate}
-                      onChange={(v) => setExp(e.id, { endDate: v })}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`exp-${e.id}-company`}>Which company was this?</Label>
+                    <Input
+                      id={`exp-${e.id}-company`}
+                      placeholder="Company"
+                      value={e.company}
+                      onChange={(ev) => setExp(e.id, { company: ev.target.value })}
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`exp-${e.id}-location`}>
+                      {e.company.trim()
+                        ? `Where was ${e.company.trim()} based?`
+                        : 'Where was this?'}
+                    </Label>
+                    <Input
+                      id={`exp-${e.id}-location`}
+                      placeholder="Location"
+                      value={e.location}
+                      onChange={(ev) => setExp(e.id, { location: ev.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`exp-${e.id}-start`}>
+                      {e.company.trim()
+                        ? `When were you at ${e.company.trim()}?`
+                        : 'When was this?'}
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <MonthYearField
+                        id={`exp-${e.id}-start`}
+                        placeholder="Start (Jun 2023)"
+                        value={e.startDate}
+                        onChange={(v) => setExp(e.id, { startDate: v })}
+                      />
+                      <MonthYearField
+                        allowPresent
+                        placeholder="End (Present)"
+                        value={e.endDate}
+                        onChange={(v) => setExp(e.id, { endDate: v })}
+                      />
+                    </div>
                   </div>
                 </div>
                 {(e.role.trim() || e.company.trim()) && !e.startDate.trim() && (
@@ -2354,12 +2380,20 @@ export default function Builder() {
                     your timeline.
                   </p>
                 )}
-                <Textarea
-                  rows={4}
-                  placeholder={'One achievement per line, e.g.\nCut deploy time by 60% by introducing CI caching\nLed a team of 3 engineers on the checkout redesign'}
-                  value={e.bullets.join('\n')}
-                  onChange={(ev) => setExp(e.id, { bullets: ev.target.value.split('\n') })}
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor={`exp-${e.id}-bullets`}>
+                    {e.company.trim()
+                      ? `What did you achieve at ${e.company.trim()}?`
+                      : 'What did you achieve?'}
+                  </Label>
+                  <Textarea
+                    id={`exp-${e.id}-bullets`}
+                    rows={4}
+                    placeholder={'One achievement per line, e.g.\nCut deploy time by 60% by introducing CI caching\nLed a team of 3 engineers on the checkout redesign'}
+                    value={e.bullets.join('\n')}
+                    onChange={(ev) => setExp(e.id, { bullets: ev.target.value.split('\n') })}
+                  />
+                </div>
                 <BulletGuidance
                   bullets={e.bullets}
                   entryFilled={Boolean(e.role.trim() || e.company.trim())}
@@ -2604,9 +2638,12 @@ export default function Builder() {
                 {!collapsedEntries.has(e.id) && (
                   <>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    placeholder="Degree (B.S. Computer Science)"
-                    value={e.degree}
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-degree`}>Degree and major</Label>
+                    <Input
+                      id={`edu-${e.id}-degree`}
+                      placeholder="Degree (B.S. Computer Science)"
+                      value={e.degree}
                     onChange={(ev) =>
                       setResume((r) => ({
                         ...r,
@@ -2615,10 +2652,14 @@ export default function Builder() {
                         ),
                       }))
                     }
-                  />
-                  <Input
-                    placeholder="School"
-                    value={e.school}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-school`}>Where did you study?</Label>
+                    <Input
+                      id={`edu-${e.id}-school`}
+                      placeholder="School"
+                      value={e.school}
                     onChange={(ev) =>
                       setResume((r) => ({
                         ...r,
@@ -2627,21 +2668,33 @@ export default function Builder() {
                         ),
                       }))
                     }
-                  />
-                  <Input
-                    placeholder="Location"
-                    value={e.location}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        education: r.education.map((x) =>
-                          x.id === e.id ? { ...x, location: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <div className="grid grid-cols-2 gap-2">
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-location`}>
+                      {e.school.trim()
+                        ? `Where is ${e.school.trim()} located?`
+                        : 'Where is it located?'}
+                    </Label>
+                    <Input
+                      id={`edu-${e.id}-location`}
+                      placeholder="Location"
+                      value={e.location}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.map((x) =>
+                            x.id === e.id ? { ...x, location: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-start`}>When did you study?</Label>
+                    <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      id={`edu-${e.id}-start`}
                       placeholder="Start (2017)"
                       value={e.startDate}
                       onChange={(v) =>
@@ -2666,6 +2719,7 @@ export default function Builder() {
                         }))
                       }
                     />
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
