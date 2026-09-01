@@ -5086,6 +5086,7 @@ export default function Builder() {
                     key === 'certifications' ? 'skills' : key.startsWith('custom:') ? 'custom' : key
                   )
                 }
+                onEdit={setResume}
               />
             </div>
           </div>
