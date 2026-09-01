@@ -97,6 +97,7 @@ import {
   type SectionAnchor,
   atsScoreSummary,
   bestExperienceForKeyword,
+  highPriorityKeywords,
   scoreResume,
 } from '@/lib/ats'
 import { analyzeAnswer } from '@/lib/interviewAnalysis'
@@ -1115,6 +1116,10 @@ export default function Builder() {
   const ats = useMemo(
     () => scoreResume(shown, shown.jobDescription),
     [shown]
+  )
+  const highKw = useMemo(
+    () => highPriorityKeywords(shown.jobDescription, ats.missing),
+    [shown.jobDescription, ats.missing]
   )
 
   const set = useCallback(<K extends keyof Resume>(key: K, value: Resume[K]) => {
@@ -6152,16 +6157,32 @@ export default function Builder() {
                       </div>
                     </div>
                   )}
-                  {ats.missing.length > 0 && (
-                    <div>
-                      <span className="font-medium text-red-700">
-                        Missing ({ats.missing.length})
+                  {(
+                    [
+                      [
+                        'High priority',
+                        ats.missing.filter((kw) => highKw.has(kw)),
+                        'font-medium text-red-700',
+                        '— core terms in this posting (title, requirements, repeated); add to Skills or let AI draft a bullet:',
+                      ],
+                      [
+                        'Remaining',
+                        ats.missing.filter((kw) => !highKw.has(kw)),
+                        'font-medium text-amber-700',
+                        '— also mentioned in the posting; add the ones you genuinely have:',
+                      ],
+                    ] as const
+                  ).map(([label, kws, cls, blurb]) =>
+                    kws.length === 0 ? null : (
+                    <div key={label}>
+                      <span className={cls}>
+                        {label} ({kws.length})
                       </span>{' '}
                       <span className="text-muted-foreground">
-                        — for keywords you genuinely have, add to Skills or let AI draft a bullet:
+                        {blurb}
                       </span>
                       <span className="mt-1 flex flex-wrap gap-1">
-                        {ats.missing.map((kw) => (
+                        {kws.map((kw) => (
                           <span
                             key={kw}
                             className="bg-muted inline-flex items-center overflow-hidden rounded-full border"
@@ -6205,6 +6226,7 @@ export default function Builder() {
                         ))}
                       </span>
                     </div>
+                    )
                   )}
                   {ats.ignored.length > 0 && (
                     <div>

@@ -151,6 +151,45 @@ export function extractKeywords(jd: string, limit = 30): string[] {
     .map(([k]) => k)
 }
 
+const REQUIREMENTS_HEADING_RE =
+  /^.*\b(requirements|qualifications|must[- ]haves?|what you.ll need|what we.re looking for|who you are)\b.*$/im
+
+/**
+ * JD keywords worth prioritizing: known multi-word phrases, keywords repeated
+ * ≥3 times, keywords in the requirements/qualifications block, and keywords in
+ * the JD's first line (usually the job title).
+ */
+export function highPriorityKeywords(jd: string, keywords: string[]): Set<string> {
+  const high = new Set<string>()
+  if (!jd.trim() || keywords.length === 0) return high
+  const lower = jd.toLowerCase()
+  const jdTokens = tokenize(jd)
+  const firstLine = (jd.trim().split(/\n/, 1)[0] ?? '').toLowerCase()
+  const firstLineTokens = new Set(tokenize(firstLine))
+  const headingMatch = REQUIREMENTS_HEADING_RE.exec(jd)
+  const reqBlock = headingMatch
+    ? lower.slice(headingMatch.index + headingMatch[0].length)
+    : ''
+  const reqTokens = new Set(tokenize(reqBlock))
+  for (const kw of keywords) {
+    const phrase = kw.includes(' ')
+    if (phrase && lower.includes(kw)) {
+      high.add(kw)
+      continue
+    }
+    if (countOccurrences(lower, jdTokens, kw) >= 3) {
+      high.add(kw)
+      continue
+    }
+    if (phrase ? reqBlock.includes(kw) : reqTokens.has(kw)) {
+      high.add(kw)
+      continue
+    }
+    if (phrase ? firstLine.includes(kw) : firstLineTokens.has(kw)) high.add(kw)
+  }
+  return high
+}
+
 /** Percentage of a job description's keywords found in the resume text */
 export function matchScore(resumeTextRaw: string, jd: string): number | null {
   const keywords = jd.trim() ? extractKeywords(jd) : []

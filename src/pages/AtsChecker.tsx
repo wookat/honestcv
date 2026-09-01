@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { ScoreRing } from '@/components/ScoreRing'
-import { scoreResumeText } from '@/lib/ats'
+import { highPriorityKeywords, scoreResumeText } from '@/lib/ats'
 import { IMPORT_ACCEPT, extractResumeFile, type FileCheck } from '@/lib/extractFile'
 import { parseResumeText } from '@/lib/importText'
 import { loadResume, saveResume, setActiveVersionId } from '@/lib/resume'
@@ -365,18 +365,45 @@ export default function AtsChecker() {
                     <p className="text-sm font-medium">
                       Missing keywords ({result.missing.length})
                     </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {result.missing.map((k) => (
-                        <Badge key={k} variant="outline">
-                          {k}
-                        </Badge>
-                      ))}
-                      {result.missing.length === 0 && (
-                        <p className="text-muted-foreground text-sm">
-                          Nothing missing — great match!
-                        </p>
-                      )}
-                    </div>
+                    {result.missing.length === 0 ? (
+                      <p className="text-muted-foreground mt-2 text-sm">
+                        Nothing missing — great match!
+                      </p>
+                    ) : (
+                      (() => {
+                        const high = highPriorityKeywords(jd, result.missing)
+                        const groups = [
+                          {
+                            label: 'High priority',
+                            hint: 'title, requirements or repeated in the posting',
+                            kws: result.missing.filter((k) => high.has(k)),
+                            cls: 'border-red-300 text-red-700 dark:border-red-900 dark:text-red-400',
+                          },
+                          {
+                            label: 'Remaining',
+                            hint: 'also mentioned in the posting',
+                            kws: result.missing.filter((k) => !high.has(k)),
+                            cls: '',
+                          },
+                        ]
+                        return groups.map((g) =>
+                          g.kws.length === 0 ? null : (
+                            <div key={g.label} className="mt-2">
+                              <p className="text-muted-foreground text-xs">
+                                {g.label} ({g.kws.length}) — {g.hint}
+                              </p>
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                {g.kws.map((k) => (
+                                  <Badge key={k} variant="outline" className={g.cls}>
+                                    {k}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        )
+                      })()
+                    )}
                   </div>
                 </div>
               )}
