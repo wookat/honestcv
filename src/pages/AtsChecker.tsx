@@ -11,6 +11,7 @@ import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { ScoreRing } from '@/components/ScoreRing'
 import { highPriorityKeywords, scoreResumeText } from '@/lib/ats'
 import { IMPORT_ACCEPT, extractResumeFile, type FileCheck } from '@/lib/extractFile'
+import { priorityFixes, resumeHealth } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
 import { loadResume, saveResume, setActiveVersionId } from '@/lib/resume'
 
@@ -132,6 +133,14 @@ export default function AtsChecker() {
     () => (checked ? scoreResumeText(resumeText, jd) : null),
     [checked, resumeText, jd]
   )
+
+  const analysis = useMemo(() => {
+    if (!result) return null
+    const parsed = parseResumeText(resumeText)
+    parsed.jobDescription = jd
+    const health = resumeHealth(parsed)
+    return { health, fixes: priorityFixes(result, health) }
+  }, [result, resumeText, jd])
 
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">
@@ -343,6 +352,63 @@ export default function AtsChecker() {
                   </li>
                 </ul>
               </details>
+
+              {analysis && (
+                <div className="mt-4 rounded-lg border p-3">
+                  <p className="text-sm font-medium">Priority fixes</p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    What to fix first, ranked by how many score points each item
+                    recovers. Writing-quality items are guidance and not counted
+                    in the ATS score.
+                  </p>
+                  {analysis.fixes.length === 0 ? (
+                    <p className="mt-1.5 text-xs text-emerald-600">
+                      No priority fixes — every check passes and all writing
+                      dimensions score 80+.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-1.5">
+                      {analysis.fixes.map((f) => (
+                        <li key={f.text} className="flex items-start gap-2 text-xs">
+                          <span
+                            className={`mt-0.5 inline-flex shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                              f.impact === 'high'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}
+                          >
+                            {f.impact === 'high' ? 'High' : 'Med'}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {f.text}{' '}
+                            <span className="text-foreground/70 whitespace-nowrap tabular-nums">
+                              +{f.points} pts
+                            </span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+                    {analysis.health.dimensions.map((d) => (
+                      <span key={d.id} className="text-xs">
+                        <span className="text-muted-foreground">{d.label}</span>{' '}
+                        <span
+                          className={`font-semibold tabular-nums ${
+                            d.score < 50
+                              ? 'text-red-700 dark:text-red-400'
+                              : d.score < 80
+                                ? 'text-amber-700 dark:text-amber-400'
+                                : 'text-emerald-700 dark:text-emerald-400'
+                          }`}
+                        >
+                          {d.score}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {jd.trim() && (
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
