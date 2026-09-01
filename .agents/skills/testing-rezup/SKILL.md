@@ -402,3 +402,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - `Emulation.setEmulatedMedia({features:[{name:'prefers-color-scheme',value:'dark'}]})` works for system-mode testing BUT dies when the CDP websocket closes (same pitfall as device metrics) — a later session will see system mode revert to the real OS (light) and dark chips will read as light Tailwind defaults. For dark readability checks, prefer storing `honestcv.theme='dark'` so the state survives reconnects.
 - Dark palette remap check: under `.dark`, `--color-emerald-100` computes to oklch(0.32 …) (dark tint) vs the Tailwind default oklch(0.95 …) — comparing against the stock value is a quick pass/fail for the remap.
 - Resume paper: preview sheet is the ancestor `div.bg-white` (~rounded-md border) around the name element; must stay rgb(255,255,255) in dark mode by design — not a bug.
+
+## R188 tailoring chips on /jobs
+- Copy-based chip: inner `span.rounded-full` inside the job-row button, text `Tailored · NN%` (≥80, emerald-100/800) or `Tailoring · NN%` (amber ≥50 / red below); draft-based fallback keeps `NN% match` in `bg-primary/10 text-primary`. Detail meta span: `Targeted copy: NN% keyword match` in text-emerald/amber/red-700.
+- To prove copy-vs-draft separation: after tailoring the copy, "Create new resume" on the dashboard (dialog confirm "Create resume") makes a fresh keyword-free draft active — the saved job's chip must stay at the copy's %, while other jobs' draft-based chips drop.
+- Dashboard delete pitfall: `button[title]` matching /Delete/ can hit the wrong card — the targeted copy's control is exactly `title="Delete this copy"`; verify which version remains via `honestcv.resumeVersions` before asserting fallback.
+- Opening the copy from /jobs makes it the active version, so the *draft* mirrors the copy afterwards — draft-based chips of other jobs will also change; that's expected, not a leak.
+- Easy 100% tailoring: read all `button[aria-label^="Draft a bullet using"]` labels and paste them into `#skills`.
