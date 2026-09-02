@@ -626,3 +626,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - PDF/DOCX download is email-gated in beta: fill the "Unlock downloads" dialog once (any email; sets `honestcv.subscribed`), then a "Final check before download" dialog needs "Download anyway". Remove `honestcv.subscribed` (and any `resumeHistory`/`shared` side keys) in cleanup.
 - CDP downloads may silently fail with `Browser.setDownloadBehavior behavior:'allow'` — use `allowAndName` and look for a GUID-named file in the download path.
 - `DOM.setFileInputFiles` on the `input[type=file][accept^=image]` reliably drives the photo picker without a native dialog; a deterministic marker fixture (solid color + off-center marker square) lets you assert crop framing by decoding the committed 256×256 JPEG pixel counts.
+
+## R233 — interview timer determinism + zero-AI session flows
+- The practice timer reads `Date.now` inside a 250ms interval — override with `const RD=Date.now; let off=0; Date.now=()=>RD()+off*1000` before starting the timer for deterministic elapsed/auto-expiry tests; restore by reloading the page.
+- Practice sessions ("Next question"/"End early") only exist after AI-suggested questions — stub `window.fetch` for `/api/ai/interview-questions` with canned `{questions:[…],freeRemaining:null}` to exercise session flows with zero AI usage; restore the real fetch afterward.
+- After a viewport reload, wait for state to settle before scripted clicks — a Stop-timer click racing the first interval tick can silently yield no delivery rows.
