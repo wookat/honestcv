@@ -383,3 +383,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：resume.ts 新纯函数 courseworkSkills（逗号拆分、trim、去空、cap 3）；courseworkBullets 单技能保持字节级 `Skill: X`，2–3 个渲染 `Skills: A · B · C`（· 分隔），>3 只渲染前 3；Builder 输入占位改「Skills used (optional, up to 3 — e.g. Teamwork, SQL)」+ >3 时提示行「Only the first 3 skills appear on the resume.」。零 schema/AI/worker/评分改动；preview/PDF/DOCX/TXT/Markdown 全走 courseworkBullets 单汇聚点。
 - QA：生产 bundle index-Dq8jDsMR.js / Builder-hrkCQFgs.js；TXT 全文件字节级吻合 oracle、PDF/DOCX 同行验证；375/375；提示对比度亮 4.63:1 / 暗 5.39:1；零 AI。免费模式下载 QA 可用 honestcv.shared 跳过邮箱门（清理时移除）。
 - 文档：docs/plan-r261-coursework-multi-skills.md、docs/qa-r261-plan.md。
+
+## R262 — experience level 8 tiers + director 2-page allowance (2026-09-02)
+- 证据：Rezi Experience Level 一手指南列出 7 档「Internship, Entry-Level, Associate, Junior Level, Mid-Senior Level, Director, Executive」；我方仅 5 档，且 ats.ts 失败提示已写「(two only at director/executive level)」但 director 不可选（自相矛盾）。
+- 实现：resume.ts experienceLevel 枚举扩为 8 档（新增 associate/junior/director，标签 Associate / Junior level / Director），EXPERIENCE_LEVELS 按职级排序、sanitize 白名单直接复用该数组；ats.ts pageLengthCheck director 与 executive 同享 2 页额度，通过态提示后缀改「at director/executive level」。Builder/Dashboard 两处下拉均 map EXPERIENCE_LEVELS，零 UI 代码改动；零 AI/worker/评分公式/持久化键改动。
+- QA：生产 bundle index-ySebNnJH.js / Builder-YOUTDm4Z.js / Dashboard-DCDPnZPp.js；两处下拉 9 选项字节级、真实 2 页简历 Mid ✗（提示字节级）→ Director ✓ 实时翻转、'principal' 注入被 sanitize 为 Auto、375/375、对比度亮 5.69:1 / 暗 7.69:1、零 AI。注意：checks 卡只渲染失败项 hint，通过态 hint 需用 scoreResume tsx oracle 验证。
+- 文档：docs/plan-r262-experience-level-tiers.md、docs/qa-r262-plan.md。

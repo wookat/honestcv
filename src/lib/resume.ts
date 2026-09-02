@@ -253,7 +253,16 @@ export interface Resume {
   targetRole: string
   jobDescription: string
   /** Candidate seniority for the target job; grounds AI drafts ('' = unset) */
-  experienceLevel?: '' | 'internship' | 'entry' | 'mid' | 'senior' | 'executive'
+  experienceLevel?:
+    | ''
+    | 'internship'
+    | 'entry'
+    | 'associate'
+    | 'junior'
+    | 'mid'
+    | 'senior'
+    | 'director'
+    | 'executive'
   /** Company the resume targets; grounds AI drafts and prefills cover letters */
   targetCompany?: string
   /** Profile photo as a data:image/... URL; shown in the preview and PDF only */
@@ -293,12 +302,24 @@ export const AUTO_SORT_SECTIONS: AutoSortSection[] = ['experience', 'education']
 
 export const newId = () => Math.random().toString(36).slice(2, 10)
 
-export const EXPERIENCE_LEVELS = ['internship', 'entry', 'mid', 'senior', 'executive'] as const
+export const EXPERIENCE_LEVELS = [
+  'internship',
+  'entry',
+  'associate',
+  'junior',
+  'mid',
+  'senior',
+  'director',
+  'executive',
+] as const
 export const EXPERIENCE_LEVEL_LABELS: Record<(typeof EXPERIENCE_LEVELS)[number], string> = {
   internship: 'Internship',
   entry: 'Entry level',
+  associate: 'Associate',
+  junior: 'Junior level',
   mid: 'Mid level',
   senior: 'Senior',
+  director: 'Director',
   executive: 'Executive',
 }
 
@@ -1089,10 +1110,7 @@ export function sanitizeResume(input: unknown): Resume | null {
     language: asEnum(raw.language, ['en', 'es', 'fr', 'de', 'pt'] as const),
     targetRole: asStr(raw.targetRole),
     jobDescription: asStr(raw.jobDescription),
-    experienceLevel: asEnum(
-      raw.experienceLevel,
-      ['internship', 'entry', 'mid', 'senior', 'executive'] as const
-    ),
+    experienceLevel: asEnum(raw.experienceLevel, EXPERIENCE_LEVELS),
     targetCompany: asStr(raw.targetCompany) || undefined,
     photo: asStr(raw.photo).startsWith('data:image/') ? asStr(raw.photo) : undefined,
   }

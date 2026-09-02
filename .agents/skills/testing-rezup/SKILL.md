@@ -729,3 +729,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R261 — coursework multi-skills QA
 - Free-mode download testing: the email gate is skipped when `localStorage['honestcv.shared']` is set (or `hasSubscribed()`); a "Final check before download" dialog may follow — click "Download anyway". Capture files headlessly via CDP `Browser.setDownloadBehavior {behavior:'allow', downloadPath}`. Remove `honestcv.shared` in cleanup.
 - Coursework editor: add via the "Coursework" optional-section chip then "Add coursework"; the skills input placeholder starts "Skills used".
+
+## R262 — experience-level tiers / page-count check QA
+- The ATS checks card renders hints ONLY for failing checks (passing rows are just "✓ label") — verify pass-hint wording via a `scoreResume` tsx oracle, not the DOM.
+- The page-count check consumes `pdfLength.pages` from the live PDF preview — wait for the "Resume length: X page" text before asserting; an easy 2-page fixture: `fontScale:'xl'` + `lineSpacing:'loose'` + ~6 stuffed experience entries.
