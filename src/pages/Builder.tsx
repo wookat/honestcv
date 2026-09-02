@@ -73,6 +73,7 @@ import {
   useLicense,
 } from '@/components/Paywall'
 import { AssistantPanel } from '@/components/AssistantPanel'
+import { PhotoCropDialog, type PhotoDraft } from '@/components/PhotoCropDialog'
 import { DraftIllustration } from '@/components/Illustrations'
 import { ResumePreview } from '@/components/ResumePreview'
 import {
@@ -1043,6 +1044,13 @@ export default function Builder() {
   const [certLibrarySavedId, setCertLibrarySavedId] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement | null>(null)
   const [photoError, setPhotoError] = useState('')
+  const [photoDraft, setPhotoDraft] = useState<PhotoDraft | null>(null)
+  const closePhotoDraft = () => {
+    setPhotoDraft((d) => {
+      if (d) URL.revokeObjectURL(d.url)
+      return null
+    })
+  }
   const [pubLibrary, setPubLibrary] = useState<SavedPublication[]>(() => listPublicationLibrary())
   const [pubLibraryOpen, setPubLibraryOpen] = useState(false)
   const [pubLibrarySavedId, setPubLibrarySavedId] = useState<string | null>(null)
@@ -2181,29 +2189,12 @@ export default function Builder() {
                   const url = URL.createObjectURL(file)
                   const img = new Image()
                   img.onload = () => {
-                    URL.revokeObjectURL(url)
-                    const side = Math.min(img.naturalWidth, img.naturalHeight)
-                    if (side < 1) {
+                    if (Math.min(img.naturalWidth, img.naturalHeight) < 1) {
+                      URL.revokeObjectURL(url)
                       setPhotoError('Could not read that image — try a JPG or PNG.')
                       return
                     }
-                    const canvas = document.createElement('canvas')
-                    canvas.width = 256
-                    canvas.height = 256
-                    const ctx = canvas.getContext('2d')
-                    if (!ctx) return
-                    ctx.drawImage(
-                      img,
-                      (img.naturalWidth - side) / 2,
-                      (img.naturalHeight - side) / 2,
-                      side,
-                      side,
-                      0,
-                      0,
-                      256,
-                      256
-                    )
-                    setResume((r) => ({ ...r, photo: canvas.toDataURL('image/jpeg', 0.85) }))
+                    setPhotoDraft({ url, width: img.naturalWidth, height: img.naturalHeight })
                   }
                   img.onerror = () => {
                     URL.revokeObjectURL(url)
@@ -2213,6 +2204,16 @@ export default function Builder() {
                 }}
               />
               {photoError && <span className="text-destructive text-xs">{photoError}</span>}
+              {photoDraft && (
+                <PhotoCropDialog
+                  draft={photoDraft}
+                  onSave={(dataUrl) => {
+                    setResume((r) => ({ ...r, photo: dataUrl }))
+                    closePhotoDraft()
+                  }}
+                  onCancel={closePhotoDraft}
+                />
+              )}
             </div>
           </Section>
 
