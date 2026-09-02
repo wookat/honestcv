@@ -1,5 +1,7 @@
 /** ATS-friendly resume templates: single-column, real text, no graphics. */
 
+import { resumeToPlainText, type Resume } from '@/lib/resume'
+
 export interface TemplateMeta {
   id: string
   name: string
@@ -371,4 +373,55 @@ export function resolveTemplate(templateId: string, accentColor?: string): Templ
   const tpl = getTemplate(templateId)
   const custom = accentColor?.trim()
   return custom && /^#[0-9a-fA-F]{6}$/.test(custom) ? { ...tpl, accent: custom } : tpl
+}
+
+/** A template suggested for this resume, with a short why. */
+export interface TemplateRecommendation {
+  id: string
+  reason: string
+}
+
+/** Plain-text word count at which a resume counts as dense/content-heavy. */
+const DENSE_WORDS = 450
+
+const TECHNICAL_ROLE = /engineer|developer|programmer|swe|devops|sre|architect/i
+
+/**
+ * Templates recommended for this resume's content, per the Rezi Finish Up
+ * guide ("recommend ATS-friendly templates based on your resume content").
+ * Deterministic and local: picks come from resume density, the target or most
+ * recent role, and the experience level. The currently selected template is
+ * excluded, results are deduped and capped at three.
+ */
+export function recommendedTemplates(r: Resume): TemplateRecommendation[] {
+  const role = r.targetRole.trim() || r.experience.find((e) => !e.hidden)?.role.trim() || ''
+  const technical = TECHNICAL_ROLE.test(role)
+  const words = resumeToPlainText(r).split(/\s+/).filter(Boolean).length
+  const picks: TemplateRecommendation[] = []
+  if (words >= DENSE_WORDS) {
+    picks.push({ id: 'compact', reason: 'fits more content on the page' })
+    if (technical)
+      picks.push({ id: 'circuit', reason: 'ruled entries built for dense technical resumes' })
+  }
+  const level = r.experienceLevel
+  if (level === 'internship' || level === 'entry') {
+    picks.push({ id: 'classic', reason: 'a safe, traditional look for a first resume' })
+    picks.push({ id: 'minimal', reason: 'whitespace-first — keeps a shorter resume from looking empty' })
+  } else if (level === 'associate' || level === 'junior' || level === 'mid' || level === 'senior') {
+    picks.push({ id: 'modern', reason: 'clean sans-serif that suits most industries' })
+    if (technical)
+      picks.push({ id: 'engineer', reason: 'no-nonsense sans built for technical resumes' })
+  } else if (level === 'director' || level === 'executive') {
+    picks.push({ id: 'executive', reason: 'understated and formal for senior roles' })
+    picks.push({ id: 'corporate', reason: 'formal serif with a commanding header' })
+  }
+  const seen = new Set<string>([r.templateId])
+  const out: TemplateRecommendation[] = []
+  for (const p of picks) {
+    if (seen.has(p.id)) continue
+    seen.add(p.id)
+    out.push(p)
+    if (out.length === 3) break
+  }
+  return out
 }

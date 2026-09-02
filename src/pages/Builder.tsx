@@ -264,7 +264,13 @@ import {
   skillBulletStarters,
   skillSuggestionsFor,
 } from '@/lib/bulletStarters'
-import { ACCENT_CHOICES, TEMPLATES, TEMPLATE_FILTERS, getTemplate } from '@/lib/templates'
+import {
+  ACCENT_CHOICES,
+  TEMPLATES,
+  TEMPLATE_FILTERS,
+  getTemplate,
+  recommendedTemplates,
+} from '@/lib/templates'
 import {
   loadTemplateFavorites,
   loadTemplateRecents,
@@ -968,6 +974,7 @@ export default function Builder() {
     }
   }, [resume, shown, setResume])
   const [templateFilter, setTemplateFilter] = useState('all')
+  const templateRecs = useMemo(() => recommendedTemplates(resume), [resume])
   const [templateCompare, setTemplateCompare] = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareOpen, setCompareOpen] = useState(false)
@@ -5746,6 +5753,9 @@ export default function Builder() {
             aria-label="Filter templates by style"
           >
             {[
+              ...(templateRecs.length > 0
+                ? [{ id: 'foryou', label: `For you (${templateRecs.length})` }]
+                : []),
               ...TEMPLATE_FILTERS.map((f) => ({ id: f.id, label: f.label })),
               { id: 'saved', label: `Saved (${templateFavs.length})` },
               { id: 'recent', label: 'Recent' },
@@ -5797,9 +5807,13 @@ export default function Builder() {
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {(templateFilter === 'saved'
-              ? TEMPLATES.filter((t) => templateFavs.includes(t.id))
-              : templateFilter === 'recent'
+            {(templateFilter === 'foryou'
+              ? templateRecs
+                  .map((rec) => TEMPLATES.find((t) => t.id === rec.id))
+                  .filter((t): t is (typeof TEMPLATES)[number] => t !== undefined)
+              : templateFilter === 'saved'
+                ? TEMPLATES.filter((t) => templateFavs.includes(t.id))
+                : templateFilter === 'recent'
                 ? templateRecents
                     .map((id) => TEMPLATES.find((t) => t.id === id))
                     .filter((t): t is (typeof TEMPLATES)[number] => t !== undefined)
@@ -5873,6 +5887,19 @@ export default function Builder() {
                 )}
               </span>
             ))}
+            {templateFilter === 'foryou' && templateRecs.length > 0 && (
+              <span className="text-muted-foreground w-full text-xs">
+                Recommended for your resume:{' '}
+                {templateRecs
+                  .map((rec) => `${getTemplate(rec.id).name} — ${rec.reason}`)
+                  .join(' · ')}
+              </span>
+            )}
+            {templateFilter === 'foryou' && templateRecs.length === 0 && (
+              <span className="text-muted-foreground w-full text-xs">
+                No recommendations right now — set an experience level or browse all templates.
+              </span>
+            )}
             {templateFilter === 'saved' && templateFavs.length === 0 && (
               <span className="text-muted-foreground w-full text-xs">
                 No saved templates yet — click the star on a template to keep it here.
