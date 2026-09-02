@@ -107,3 +107,34 @@ Confirmed defects: **zero P0–P2**. One P3 candidate + subjective notes below.
 ### Cleanup
 - Theme back to System (empty html class); localStorage exactly
   ["honestcv.shared","honestcv.subscribed"]; all paused Fetch events fulfilled; zero real AI calls.
+
+## R295b re-verification (bundle index-CImNVrzq.js / AtsChecker-CwcffMrs.js)
+
+### F1 assistant malformed-reply error — passed
+- {"reply":"hi"} (no text) → inline error "The assistant sent back an empty reply — please
+  try again."; no empty assistant turn; user message kept in UI; after reload the user
+  message persists in honestcv.assistantChat; resend works.
+- {"text":"","action":null,"freeRemaining":41} → same error (empty-string path).
+- Regression {"text":"Real reply [MOCKOK].","freeRemaining":41} → renders; quota banner
+  "41 free AI rewrites left"; stored transcript has 0 empty assistant turns.
+
+### F2 ATS example badge — passed on desktop; **FAILED at 375px**
+- Route note: fix lives at /ats-checker (the React AtsChecker.tsx page);
+  /free-ats-resume-checker is a separate static SEO page without the change.
+- Example click → title "Example ATS match score" + secondary badge "Example report —
+  paste your own resume above to check yours". Edit 1 char + Check → badge gone, title
+  "Your ATS match score". Own resume + JD → real report, no badge. All passed.
+- **P3 (确证): at 375px the badge itself overflows** — Badge base class has
+  `whitespace-nowrap` so the span renders 400px wide; scrollWidth becomes 525 > 375 and
+  mobile viewport zooms out (innerWidth expands to 525). Repro: 375×812 emulation,
+  /ats-checker, click "See an example score first". Clue: computed white-space:nowrap on
+  the badge span; suggest `whitespace-normal max-w-full text-left` on this Badge instance
+  (AtsChecker.tsx ~312) or a shorter label. Screenshot: r295b_f2_375_overflow.png.
+
+### Quick tasks regression — passed
+- Improve my ATS score / Target my job / Find matching jobs: all replied locally,
+  zero /api/ai/* requests paused (turn counts 4→6→8→10).
+
+### Cleanup
+- localStorage exactly ["honestcv.shared","honestcv.subscribed"]; empty html class;
+  all paused requests fulfilled; zero real AI calls.

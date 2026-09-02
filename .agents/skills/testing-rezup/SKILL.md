@@ -827,3 +827,14 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
   DragEvents with a DataTransfer onto `[data-drag-card]` targets instead (disclose as harness).
 - ATS checker upload accepts `.pdf,.docx,.txt` (not .json); `DOM.setFileInputFiles` works;
   beware the "See an example score first" button — its report looks identical to a real one.
+
+## R295b notes
+- The React ATS checker page is `/ats-checker`; `/free-ats-resume-checker` is a separate
+  static SEO page that does NOT include AtsChecker.tsx changes — verify fixes on /ats-checker.
+- Assistant open button: `button[title^="Resume assistant"]` in the Builder header.
+- CDP mobile emulation: set Emulation.setDeviceMetricsOverride BEFORE navigating; applying
+  it to an already-rendered page can leave innerWidth wrong. Also note mobile Chrome expands
+  innerWidth to match scrollWidth when content overflows (e.g. 375 → 525), so
+  scrollWidth<=innerWidth can pass vacuously — assert scrollWidth<=375 explicitly.
+- Badge UI component has `whitespace-nowrap` by default — long badge labels overflow narrow
+  viewports unless the instance overrides with whitespace-normal.

@@ -312,9 +312,12 @@ export default function AtsChecker() {
                     {isExample ? 'Example ATS match score' : 'Your ATS match score'}
                   </h2>
                   {isExample && (
-                    <Badge variant="secondary" className="mt-1 gap-1">
-                      <Target className="size-3" /> Example report — paste your own resume
-                      above to check yours
+                    <Badge
+                      variant="secondary"
+                      className="mt-1 max-w-full gap-1 text-left whitespace-normal"
+                    >
+                      <Target className="size-3 shrink-0" /> Example report — paste your
+                      own resume above to check yours
                     </Badge>
                   )}
                 </div>
