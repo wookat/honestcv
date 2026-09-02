@@ -84,6 +84,14 @@ const agoFromMs = (ms: number) => {
   return days === 1 ? '1 day ago' : `${days} days ago`
 }
 
+/** Days since the last status change when a pending application has gone quiet (≥7d). */
+const staleDays = (entry: PipelineEntry): number | null => {
+  if (entry.status !== 'applied' && entry.status !== 'interviewing') return null
+  const steps = timelineOf(entry)
+  const days = Math.floor((Date.now() - steps[steps.length - 1].at) / 86_400_000)
+  return days >= 7 ? days : null
+}
+
 export default function Jobs() {
   usePageMeta(
     'Job search — RezUp',
@@ -549,11 +557,22 @@ export default function Jobs() {
                           </span>
                           <p className="text-muted-foreground mt-0.5 text-xs">
                             {postedAgo(j.postedAt)}
-                            {status && tab !== 'all' && updated && (
+                            {status && updated && (
                               <span className="text-primary ml-2 font-medium">
                                 {JOB_STATUS_LABELS[status]} {agoFromMs(updated)}
                               </span>
                             )}
+                            {(() => {
+                              const entry = pipeline.find((e) => e.job.id === j.id)
+                              const stale = entry ? staleDays(entry) : null
+                              return (
+                                stale !== null && (
+                                  <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+                                    No update · {stale}d
+                                  </span>
+                                )
+                              )
+                            })()}
                             {hasNotes.has(j.id) && (
                               <StickyNote
                                 aria-label="Has notes"
@@ -756,6 +775,16 @@ export default function Jobs() {
                           </li>
                         ))}
                       </ol>
+                      {(() => {
+                        const stale = staleDays(entry)
+                        return (
+                          stale !== null && (
+                            <p className="mt-1.5 text-xs font-medium text-amber-700">
+                              No update in {stale} days — consider following up.
+                            </p>
+                          )
+                        )
+                      })()}
                       <label
                         htmlFor="job-notes"
                         className="mt-3 block text-sm font-medium"

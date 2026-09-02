@@ -442,3 +442,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - To force ≥80%: paste all missing keywords (from `button[aria-label^="Draft a bullet using"]` labels) into the copy's `#skills` textarea.
 - Dashboard "Delete <copy name>" button: match on aria-label OR textContent (`(aria-label||'')+textContent`).includes — matching only aria-label was flaky; confirm dialog button text is "Delete".
 - Desktop next-step button computes 32px (size=sm h-8; sm:min-h-7 is only a min); mobile 40px (min-h-10).
+
+## R194 — stale-application nudge on /jobs
+- staleDays reads the LAST timelineOf step's `at` (not updatedAt) and only for applied/interviewing; to simulate, edit honestcv.jobPipeline setting both `entry.updatedAt` and `entry.history[last].at` to `Date.now()-N*86400000`, then reload (row recency text reads updatedAt; nudge reads last history step).
+- Row pill selector: `[...document.querySelectorAll('span')].find(s=>/^No update ·/.test(s.textContent.trim()))`; detail line: `p` matching /^No update in/ — sits between the timeline `<ol>` and the "Notes" label.
+- Status recency `"{Status} N days ago"` spans use `span.text-primary` and (since R194) render on the All tab too. Note: `Applied · <date>` timeline chips also match /Applied/ text filters — scope selectors carefully.
+- Dark mode remaps amber via oklch (pill bg oklch(0.33 0.07 80), text oklch(0.88 0.11 88)) — assert computed styles, not Tailwind class names.
