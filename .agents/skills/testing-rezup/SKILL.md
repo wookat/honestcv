@@ -704,3 +704,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R255 — follow-up email drafts / clipboard QA over CDP
 - To verify clipboard writes over CDP: `Browser.grantPermissions {permissions:['clipboardReadWrite','clipboardSanitizedWrite'],origin}` AND `Page.bringToFront` before `navigator.clipboard.readText()` — it hangs indefinitely on an unfocused document (use `Runtime.evaluate` with `awaitPromise` + `.catch`, not the plain eval helper).
 - `loadResume()` requires both `contact` and an `experience` array in `honestcv.resume`; minimal seed: `{contact:{fullName:…},experience:[]}`.
+
+## R256 — interview "Add to your resume" gap line QA
+- When seeding `honestcv.resume` via localStorage, navigate to a non-Builder page (or about:blank) first — a still-mounted Builder instance persists its state on unmount and can clobber the seed; verify the stored summary after reload before asserting.
+- Interview-practice timer button label is "Start 2-minute window" (then "Retime answer"), stop is "Stop timer", running readout is `[role=timer]`.
+- The sky gap-line selector is a `p.text-sky-700` containing "Add to your resume" inside `[role=dialog]`; `jumpToSection('target')` puts `ring-2 ring-ring/50` on the Target-job wrapper.
