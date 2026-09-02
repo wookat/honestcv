@@ -616,3 +616,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Proposal cards carry a ghost MapPin "Show in editor" button pre- AND post-apply; it never mutates the resume (assert `honestcv.resume` byte-identical). Locate ring flash is `ring-primary/60` for ~1.6s — capture it with a MutationObserver/class watcher, not a timed screenshot. <640px closes the panel first; ≥640px keeps it open side-by-side.
 - The standing cv.zalize.com tab can vanish between rounds — reopen with `curl -X PUT "http://localhost:29229/json/new?https://cv.zalize.com/builder"`.
 - When pixel-measuring small/thin UI text (ghost buttons), the most-common-color heuristic returns anti-aliased edge colors and fakes contrast failures — use the lightest (or darkest) text-core pixel plus a `getComputedStyle` cross-check.
+
+## R231 — matched-keyword preview highlight (CSS Custom Highlight API)
+- The Target job / Matched panel lives in the preview column (`hidden lg:block`); at <1024px reach it via the bottom "Edit/Preview" pane switcher (`[aria-label="Switch between editing and preview"]`).
+- `Emulation.clearDeviceMetricsOverride` can silently fail to restore desktop width on this tab — set an explicit 1600×900 override instead, and always assert `innerWidth` before capturing desktop evidence.
+- CSS Highlight ranges are enumerable via `for (const r of CSS.highlights.get('kw-match'))` with `r.toString()` — the cheapest exact assertion of what's painted. Multi-word phrase paint only comes from the KNOWN_PHRASES list in ats.ts; arbitrary JD bigrams tokenize into single words.

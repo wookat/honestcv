@@ -297,3 +297,10 @@
     transform: none !important;
   }
 }
+
+/* Matched job-description keywords painted in the live preview (R231) */
+::highlight(kw-match) {
+  /* The preview paper is white in both themes, so one amber tint works everywhere */
+  background-color: rgb(254 240 138 / 0.85); /* amber-200 */
+  color: inherit;
+}
