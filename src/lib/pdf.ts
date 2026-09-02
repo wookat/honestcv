@@ -51,7 +51,7 @@ import {
   type FontFamilyKind,
 } from '@/lib/resume'
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
-import { type InlineRun, hasInlineMarks, parseInlineMarks } from '@/lib/marks'
+import { type InlineRun, hasInlineMarks, parseInlineMarks, stripInlineMarks } from '@/lib/marks'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_SIZES = {
@@ -276,12 +276,27 @@ class PdfWriter {
     const dateSize = 9 * this.fs
     const rightWidth = right ? drawnWidth(this.fonts.italic, right, dateSize) : 0
     const leftMax = this.contentW - (right ? rightWidth + 12 : 0)
-    if (!right || drawnWidth(this.fonts.bold, left, size) > leftMax) {
-      this.text(left, { font: this.fonts.bold, size: size / this.fs })
+    const marked = hasInlineMarks(left)
+    const boldBase: Fonts = { ...this.fonts, regular: this.fonts.bold }
+    const leftW = drawnWidth(this.fonts.bold, marked ? stripInlineMarks(left) : left, size)
+    if (!right || leftW > leftMax) {
+      if (marked) this.richText(left, size, { fonts: boldBase, gap: 0 })
+      else this.text(left, { font: this.fonts.bold, size: size / this.fs })
       if (right) {
         this.gap(1)
         this.text(right, { font: this.fonts.italic, size: dateSize / this.fs, color: this.soft })
       }
+      return
+    }
+    if (marked) {
+      this.drawRuns(left, size, 0, () => {}, { fonts: boldBase, maxWidth: leftMax })
+      this.page.drawText(right, {
+        x: this.pageW - MARGIN - rightWidth,
+        y: this.y,
+        size: dateSize,
+        font: this.fonts.italic,
+        color: this.soft,
+      })
       return
     }
     const lineHeight = size * this.lh
@@ -492,11 +507,16 @@ class PdfWriter {
     size: number,
     indent: number,
     marker: (first: boolean) => void,
-    opts: { fonts?: Fonts; color?: ReturnType<typeof rgb> } = {}
+    opts: { fonts?: Fonts; color?: ReturnType<typeof rgb>; maxWidth?: number } = {}
   ) {
     const ink = opts.color ?? this.ink
     const lineHeight = size * this.lh
-    const lines = wrapRuns(parseInlineMarks(text), opts.fonts ?? this.fonts, size, this.contentW - indent)
+    const lines = wrapRuns(
+      parseInlineMarks(text),
+      opts.fonts ?? this.fonts,
+      size,
+      opts.maxWidth ?? this.contentW - indent
+    )
     lines.forEach((words, i) => {
       this.ensure(lineHeight)
       this.y -= lineHeight

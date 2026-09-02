@@ -17,7 +17,7 @@ import {
   TextRun,
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
-import { parseInlineMarks } from '@/lib/marks'
+import { hasInlineMarks, parseInlineMarks } from '@/lib/marks'
 import {
   type Resume,
   awardBullets,
@@ -148,6 +148,23 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       }),
     })
 
+  /** Bold headline runs; parses inline marks so they never print literally. */
+  const headRuns = (text: string, size: number) =>
+    !hasInlineMarks(text)
+      ? [new TextRun({ text, bold: true, size: sz(size), font })]
+      : parseInlineMarks(text).map((r) => {
+          const run = new TextRun({
+            text: r.text,
+            bold: true,
+            italics: r.italic,
+            underline: r.underline ? {} : undefined,
+            style: r.href ? 'Hyperlink' : undefined,
+            size: sz(size),
+            font,
+          })
+          return r.href ? new ExternalHyperlink({ link: r.href, children: [run] }) : run
+        })
+
   const children: Paragraph[] = []
   const c = resume.contact
 
@@ -217,7 +234,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
               spacing: { before: 100, after: 20 },
               keepNext: true,
               border: entryBorder(groupIdx),
-              children: [new TextRun({ text: g.company.trim(), bold: true, size: sz(22), font })],
+              children: headRuns(g.company.trim(), 22),
             })
           )
         }
@@ -231,7 +248,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
               border: entryBorder(g.grouped ? ei++ : groupIdx),
               tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
               children: [
-                new TextRun({ text: e.role || 'Role', bold: true, size: sz(22), font }),
+                ...headRuns(e.role || 'Role', 22),
                 ...(g.grouped
                   ? e.location
                     ? [new TextRun({ text: `  ·  ${e.location}`, size: sz(21), font })]
@@ -309,7 +326,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(ii++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              new TextRun({ text: i.role.trim() || 'Role', bold: true, size: sz(22), font }),
+              ...headRuns(i.role.trim() || 'Role', 22),
               ...(i.organization.trim()
                 ? [
                     new TextRun({
@@ -340,7 +357,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(edi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              new TextRun({ text: e.degree || 'Degree', bold: true, size: sz(21), font }),
+              ...headRuns(e.degree || 'Degree', 21),
               new TextRun({
                 text: `  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,
                 size: sz(21),
@@ -367,7 +384,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(cwi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              new TextRun({ text: cw.name.trim() || 'Course', bold: true, size: sz(22), font }),
+              ...headRuns(cw.name.trim() || 'Course', 22),
               ...(cw.institution.trim()
                 ? [
                     new TextRun({
@@ -447,7 +464,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(awi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              new TextRun({ text: a.name.trim() || 'Award', bold: true, size: sz(22), font }),
+              ...headRuns(a.name.trim() || 'Award', 22),
               ...(a.organization.trim()
                 ? [
                     new TextRun({
@@ -477,12 +494,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(pbi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              new TextRun({
-                text: p.title.trim() || 'Publication',
-                bold: true,
-                size: sz(22),
-                font,
-              }),
+              ...headRuns(p.title.trim() || 'Publication', 22),
               ...(p.venue.trim()
                 ? [new TextRun({ text: ` — ${p.venue.trim()}`, size: sz(21), font })]
                 : []),
@@ -508,7 +520,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             keepNext: true,
             border: entryBorder(rfi++),
             children: [
-              new TextRun({ text: x.name.trim(), bold: true, size: sz(22), font }),
+              ...headRuns(x.name.trim(), 22),
               ...(role
                 ? [new TextRun({ text: ` — ${role}`, size: sz(21), font })]
                 : []),
@@ -530,7 +542,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(mli++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              new TextRun({ text: m.rank.trim() || 'Rank', bold: true, size: sz(22), font }),
+              ...headRuns(m.rank.trim() || 'Rank', 22),
               ...(m.branch.trim()
                 ? [
                     new TextRun({
@@ -559,7 +571,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(agi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              new TextRun({ text: a.name.trim(), bold: true, size: sz(22), font }),
+              ...headRuns(a.name.trim(), 22),
               ...(a.date.trim()
                 ? [
                     new TextRun({
