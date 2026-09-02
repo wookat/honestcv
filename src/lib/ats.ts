@@ -375,6 +375,46 @@ function buzzwordCheck(
   }
 }
 
+/**
+ * Filler words for the scored check: Rezi's named examples (just, very,
+ * really) plus the per-bullet guidance list. "stuff" and "things" match
+ * lowercase only so proper nouns ("Internet of Things") don't trigger.
+ */
+const SCORED_FILLERS: { word: string; re: RegExp }[] = [
+  { word: 'just', re: /\bjust\b/i },
+  { word: 'very', re: /\bvery\b/i },
+  { word: 'really', re: /\breally\b/i },
+  { word: 'various', re: /\bvarious\b/i },
+  { word: 'several', re: /\bseveral\b/i },
+  { word: 'stuff', re: /\bstuff\b/ },
+  { word: 'things', re: /\bthings\b/ },
+  { word: 'etc', re: /\betc\b/i },
+]
+
+/** No filler words: they dilute impact and read less confident */
+function fillerWordCheck(
+  segments: { text: string; anchor: SectionAnchor }[]
+): AtsResult['checks'][number] {
+  let found = ''
+  let anchor: SectionAnchor = 'summary'
+  for (const seg of segments) {
+    const hit = SCORED_FILLERS.find((f) => f.re.test(seg.text))
+    if (hit) {
+      found = hit.word
+      anchor = seg.anchor
+      break
+    }
+  }
+  return {
+    label: 'No filler words',
+    pass: !found,
+    hint: found
+      ? `"${found}" is a filler word — cut it and state the concrete fact directly ("Cut load time 40%", not "really improved various things").`
+      : 'No filler words — every word carries weight and reads confident.',
+    anchor,
+  }
+}
+
 /** Quantified bullet points: at least a third of bullets should carry a real number */
 function quantifiedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
   const total = lines.length
@@ -716,6 +756,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     punctuatedBulletsCheck(textBulletLines(resumeTextRaw)),
     bulletLengthCheck(textBulletLines(resumeTextRaw)),
     buzzwordCheck(textPronounSegments(resumeTextRaw)),
+    fillerWordCheck(textPronounSegments(resumeTextRaw)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
     entryLocationsCheck(textEntryLocations(resumeTextRaw)),
   ]
@@ -926,6 +967,18 @@ export function scoreResume(
       ...resume.customSections.flatMap((s) => s.bullets),
     ]),
     buzzwordCheck([
+      { text: resume.summary, anchor: 'summary' },
+      {
+        text: [
+          ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+          ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+          ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+          ...resume.customSections.flatMap((s) => s.bullets),
+        ].join('\n'),
+        anchor: 'experience',
+      },
+    ]),
+    fillerWordCheck([
       { text: resume.summary, anchor: 'summary' },
       {
         text: [
