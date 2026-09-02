@@ -199,6 +199,38 @@ function textBulletCounts(raw: string): { name: string; count: number }[] {
   })
 }
 
+const MONTH_YEAR_RE = /^[a-z]{3,9}\.?[ ,./-]*(?:19|20)\d{2}$/i
+const NUMERIC_DATE_RE = /^\d{1,2}[/.-](?:19|20)\d{2}$/
+
+/** Date style: named month + year vs numeric month + year; anything else is skipped */
+function dateStyle(text: string): 'month-year' | 'numeric' | null {
+  const t = text.trim()
+  if (!t || ONGOING_RE.test(t)) return null
+  if (MONTH_YEAR_RE.test(t)) return 'month-year'
+  if (NUMERIC_DATE_RE.test(t)) return 'numeric'
+  return null
+}
+
+/** Consistent date formatting: fails only on an unambiguous named/numeric month mix */
+function dateFormatCheck(dates: string[]): AtsResult['checks'][number] {
+  let monthYear = ''
+  let numeric = ''
+  for (const d of dates) {
+    const style = dateStyle(d)
+    if (style === 'month-year' && !monthYear) monthYear = d.trim()
+    if (style === 'numeric' && !numeric) numeric = d.trim()
+  }
+  const pass = !(monthYear && numeric)
+  return {
+    label: 'Consistent date formatting',
+    pass,
+    hint: pass
+      ? 'Dates use one format — ATS parsers read your timeline consistently.'
+      : `Dates mix formats ("${monthYear}" vs "${numeric}") — pick one style so ATS parsers read your timeline consistently.`,
+    anchor: 'experience',
+  }
+}
+
 const BULLETS_PER_ENTRY_LABEL = '3–6 bullet points per role'
 
 /** Per-entry bullet-count check: every role should carry 3–6 bullet points */
@@ -376,6 +408,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     wordCountCheck(resumeTextRaw, 'experience'),
     reverseChronCheck(textDateRanges(resumeTextRaw)),
     bulletsPerEntryCheck(textBulletCounts(resumeTextRaw)),
+    dateFormatCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
   ]
 
   return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
@@ -532,6 +565,11 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
           name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at '),
           count: e.bullets.filter((b) => b.trim()).length,
         }))
+    ),
+    dateFormatCheck(
+      [...resume.experience, ...resume.education]
+        .filter((e) => !e.hidden)
+        .flatMap((e) => [e.startDate, e.endDate])
     ),
   ]
 
