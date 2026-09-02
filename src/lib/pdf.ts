@@ -769,7 +769,16 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
   }
   if (c.title) {
     w.gap(2)
-    w.text(c.title, { size: 12, color: w.accent, center: centerHeader })
+    if (hasInlineMarks(c.title)) {
+      const titleSize = 12 * w.fs
+      const plainW = drawnWidth(fonts.regular, stripInlineMarks(c.title), titleSize)
+      const centerShift = centerHeader && plainW <= w.contentW ? (w.contentW - plainW) / 2 : 0
+      w.x0 += centerShift
+      w.richText(c.title, titleSize, { color: w.accent, gap: 0 })
+      w.x0 -= centerShift
+    } else {
+      w.text(c.title, { size: 12, color: w.accent, center: centerHeader })
+    }
   }
   const httpUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
   type ContactSegment = { text: string; url?: string; icon: ContactIconKind }

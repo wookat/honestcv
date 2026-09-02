@@ -205,7 +205,21 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       new Paragraph({
         alignment: headerAlignment,
         spacing: { after: 40 },
-        children: [new TextRun({ text: c.title, size: sz(24), color: accent, font })],
+        children: !hasInlineMarks(c.title)
+          ? [new TextRun({ text: c.title, size: sz(24), color: accent, font })]
+          : parseInlineMarks(c.title).map((r) => {
+              const run = new TextRun({
+                text: r.text,
+                bold: r.bold,
+                italics: r.italic,
+                underline: r.underline ? {} : undefined,
+                style: r.href ? 'Hyperlink' : undefined,
+                size: sz(24),
+                color: accent,
+                font,
+              })
+              return r.href ? new ExternalHyperlink({ link: r.href, children: [run] }) : run
+            }),
       })
     )
   }

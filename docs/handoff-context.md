@@ -514,3 +514,30 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验，两轮）：bundle index-CsNxhC7I.js → index-N_vi6K7U.js / Builder-DUo1y6aS.js；全绿零 P0–P2 零 AI 配额——payload 拦截于网络前（proj 含 section:"project"、inv 含 section:"involvement"、key-numbers 加 variant、经历回归无 section 键）、Fetch.fulfillRequest 假响应验证审阅对话框 Apply 追加行+freeLeft 计数、375px 四按钮堆叠、localStorage/主题还原；QA 发现的 P3（三处 -suggest-nums 按钮 not-ready tooltip 落到配额文案，含既有经历处）当轮修复复验（六按钮同 reason）。
 - 坑（测试代理沉淀）：Fetch.fulfillRequest 假 JSON（{"text":…,"freeRemaining":N}）可在生产安全验证 AI 成功路径（对话框/Apply/配额计数）而零 LLM 调用，配合 r283_lib.py 缓冲助手使用。
 - 文档：docs/plan-r284-project-involvement-suggest-bullet.md、docs/qa-r284-plan.md（测试代理写）。
+
+## R285 — Suggest a bullet 按目标职位/JD 定制 (2026-08-31)
+- Rezi AI Bullet Points 指南「providing your target role and job description… allows the AI to tailor bullet-point suggestions」；buildSuggestBulletMessages 尾部可选 targetRole/jobDescription（前 4000 字符 JD 块，仅在真实支撑时镜像关键词），worker 白名单 trim+cap200，api/Builder 透传（空→undefined 无新键）。PR #505。
+
+## R286 — 变体选择器 Regenerate + Adjust role & skills (2026-08-31)
+- Rezi Summary Writer「regenerate as many times as you want… swap out skills or change the role」；variantPick 增 tag/regenerate/adjust，同参重跑原地替换候选，summary 路径可一键重开预填设置对话框。仅 Builder.tsx。PR #506。
+
+## R287 — 本地即时「Target my job」assistant 回复 (2026-08-31)
+- Rezi AI Resume Agent 内置 prompt「Target My Resume」；guidance.ts 新纯函数 targetJobReply（matchReport 本地计算：匹配率 + High priority/Also missing cap5 + triage 指引；无 JD 引导态；全覆盖祝贺态）。三个内置任务至此全部本地化。PR #507。
+
+## R288 — 关键词 bullet 对话框「Draft another option」(2026-08-31)
+- Rezi Keyword Targeting step 4「rewrite it for more options」；KeywordBulletDialog 草稿态新增 outline 再生成按钮重跑同一 aiKeywordBullet（payload 字节级一致），成功原地替换、失败保留旧稿。仅 Builder.tsx。PR #508。
+
+## R289 — summary 职位选择器自定义标题 (2026-08-31)
+- Rezi Summary Writer step 2「turn off "from resume" and type in the job title」；summaryDraftSetup 增 custom 布尔，select 末尾 sentinel「Type a different title…」(__custom__) 切自由输入、链接切回；同时修复 aiTargetRole 带 (level)/at company 后缀不在选项内导致的受控 select 不一致（不匹配时以预填 Input 打开）。仅 Builder.tsx。PR #509。
+- 坑：CDP 驱动 React 受控 select 须用 HTMLSelectElement 原型 value setter + change 事件。
+
+## R290 — 探索性生产审计（无代码轮）(2026-08-31)
+- 覆盖：Builder 编辑/inline preview/marks 快捷键/section 顺序/隐藏条目、Target job/triage/评分跳转、四格式导出（CJK 名、进行中角色、类目技能、自定义 section、长 URL）、education-only、暗色、375px 三页、零 AI。docs/qa-r290-plan.md。
+- 发现两个 P2：①联系人 title 的 inline marks 在 PDF/DOCX 字面泄漏 `**`（预览/TXT 正确）；②/builder 桌面 1280–1440px 页面级横向溢出（header 动作行 ~1460px 固有宽度，1512 起干净）。
+- 坑：beta 邮箱下载门=honestcv.subscribed='1' 可跳过；section 排序按钮需真实 CDP 鼠标事件；#preview 断言须 scope 到最小含 fixture 的 div。
+
+## R291 — 修复 R290 两个 P2（title marks 导出 + 桌面 header 溢出）(2026-08-31)
+- P2-1：pdf.ts contact title 带 marks 时走 richText(accent 色, 手动居中偏移，同 R279 姓名路径)；docx.ts 走 parseInlineMarks 样式 run（bold/italics/w:u/Hyperlink，保持 sz(24)/accent/font）；无 marks 保持旧字节路径。TXT/MD 本已正确。
+- P2-2：Builder header 四个 PDF/DOCX/TXT/MD 按钮改 hidden 2xl:inline-flex，紧凑下载 dropdown（含全部四格式）改 2xl:hidden——完整按钮行固有宽度 ~1460px，2xl(1536) 是其上最小默认断点；<1536 桌面与移动统一用 dropdown，375px 行为不变。
+- QA（生产复验，bundle index-ClLLZMYm.js / Builder-D0ZWkuSb.js）：全绿零 P0–P3 零 AI——PDF pdfminer 逐字符字体证实 Platform=Bold、下划线精确跨 Cloud、/URI annot 对准 team、accent+居中（Modern 中点 307.8 vs 306）；DOCX 真实 w:b/w:u/hyperlink rel；无 marks 单 run 回归；1280/1366/1440/1512 scrollWidth≤innerWidth 且 dropdown 四格式实下；1536+ 完整按钮；375 回归。docs/plan-r291-audit-fixes.md、docs/qa-r291-plan.md。
+- 坑：模板卡按 button.title==描述识别；honestcv.templateRecents 需清理；Tailwind hidden 包裹层判定用 el.checkVisibility()；pypdf 查 /URI annot（raw grep 会漏 object stream）。
