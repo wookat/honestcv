@@ -9,7 +9,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { ScoreRing } from '@/components/ScoreRing'
-import { CHECK_CATEGORIES, highPriorityKeywords, scoreResumeText } from '@/lib/ats'
+import {
+  CHECK_CATEGORIES,
+  applicationReadiness,
+  highPriorityKeywords,
+  scoreResumeText,
+} from '@/lib/ats'
 import { IMPORT_ACCEPT, extractResumeFile, type FileCheck } from '@/lib/extractFile'
 import { priorityFixes, resumeHealth } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
@@ -606,6 +611,32 @@ export default function AtsChecker() {
 
               <div className="mt-5 space-y-4">
                 <p className="text-sm font-medium">Format &amp; content checks</p>
+                {(() => {
+                  const readiness = applicationReadiness(result)
+                  return (
+                    <div
+                      className={`rounded-md px-2.5 py-1.5 text-xs ${
+                        readiness.tier === 'ready'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : readiness.tier === 'almost'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      <span className="font-semibold">
+                        Application ready:{' '}
+                        {readiness.tier === 'ready'
+                          ? 'Ready to send'
+                          : readiness.tier === 'almost'
+                            ? 'Almost there'
+                            : 'Needs work'}
+                      </span>
+                      {readiness.blockers.length > 0 && (
+                        <span> — {readiness.blockers.join(' · ')}</span>
+                      )}
+                    </div>
+                  )
+                })()}
                 {CHECK_CATEGORIES.map((cat) => {
                   const rows = result.checks.filter((c) => c.category === cat.key)
                   if (rows.length === 0) return null
