@@ -183,10 +183,10 @@ export interface HealthReport {
 export function resumeHealth(r: Resume): HealthReport {
   const bullets = r.experience.flatMap((e) =>
     e.bullets.filter((b) => b.trim()).map((b) => ({
-      role: e.role || e.company,
+      role: stripInlineMarks(e.role || e.company),
       text: b.trim(),
       entryId: e.id,
-      entryLabel: [e.role, e.company].filter((x) => x.trim()).join(', '),
+      entryLabel: [e.role, e.company].map(stripInlineMarks).filter((x) => x.trim()).join(', '),
     }))
   )
   const label = (b: { role: string; text: string }) => {
@@ -309,7 +309,7 @@ export function resumeHealth(r: Resume): HealthReport {
         consistencyFindings.push({
           text: `Past role at ${e.company || 'a previous employer'} uses present tense: "${plain.slice(0, 50)}…"`,
           entryId: e.id,
-          entryLabel: [e.role, e.company].filter((x) => x.trim()).join(', '),
+          entryLabel: [e.role, e.company].map(stripInlineMarks).filter((x) => x.trim()).join(', '),
         })
       }
     }

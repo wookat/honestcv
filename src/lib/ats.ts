@@ -1021,7 +1021,7 @@ export function scoreResume(
       resume.experience
         .filter((e) => !e.hidden)
         .map((e) => ({
-          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at ') || 'Untitled role',
+          name: [stripInlineMarks(e.role).trim(), stripInlineMarks(e.company).trim()].filter(Boolean).join(' at ') || 'Untitled role',
           start: e.startDate,
           end: e.endDate,
         }))
@@ -1030,7 +1030,7 @@ export function scoreResume(
       resume.experience
         .filter((e) => !e.hidden && (e.role.trim() || e.company.trim()))
         .map((e) => ({
-          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at '),
+          name: [stripInlineMarks(e.role).trim(), stripInlineMarks(e.company).trim()].filter(Boolean).join(' at '),
           count: e.bullets.filter((b) => b.trim()).length,
         }))
     ),
@@ -1119,14 +1119,14 @@ export function scoreResume(
       ...resume.experience
         .filter((e) => !e.hidden && (e.role.trim() || e.company.trim()))
         .map((e) => ({
-          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at '),
+          name: [stripInlineMarks(e.role).trim(), stripInlineMarks(e.company).trim()].filter(Boolean).join(' at '),
           located: Boolean(e.location.trim()),
           anchor: 'experience' as const,
         })),
       ...(resume.involvement ?? [])
         .filter((i) => !i.hidden && (i.role.trim() || i.organization.trim()))
         .map((i) => ({
-          name: [i.role.trim(), i.organization.trim()].filter(Boolean).join(' at '),
+          name: [stripInlineMarks(i.role).trim(), stripInlineMarks(i.organization).trim()].filter(Boolean).join(' at '),
           located: Boolean(i.location.trim()),
           anchor: 'experience' as const,
         })),
