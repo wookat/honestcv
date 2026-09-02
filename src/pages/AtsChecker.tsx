@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { ScoreRing } from '@/components/ScoreRing'
-import { highPriorityKeywords, scoreResumeText } from '@/lib/ats'
+import { CHECK_CATEGORIES, highPriorityKeywords, scoreResumeText } from '@/lib/ats'
 import { IMPORT_ACCEPT, extractResumeFile, type FileCheck } from '@/lib/extractFile'
 import { priorityFixes, resumeHealth } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
@@ -587,23 +587,37 @@ export default function AtsChecker() {
                 </div>
               )}
 
-              <div className="mt-5 space-y-2">
+              <div className="mt-5 space-y-4">
                 <p className="text-sm font-medium">Format &amp; content checks</p>
-                {result.checks.map((c) => (
-                  <div key={c.label} className="flex items-start gap-2 text-sm">
-                    {c.pass ? (
-                      <BadgeCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-                    ) : (
-                      <CircleAlert className="text-destructive mt-0.5 size-4 shrink-0" />
-                    )}
-                    <span>
-                      <span className="font-medium">{c.label}</span>
-                      {!c.pass && (
-                        <span className="text-muted-foreground"> — {c.hint}</span>
-                      )}
-                    </span>
-                  </div>
-                ))}
+                {CHECK_CATEGORIES.map((cat) => {
+                  const rows = result.checks.filter((c) => c.category === cat.key)
+                  if (rows.length === 0) return null
+                  return (
+                    <div key={cat.key} className="space-y-2">
+                      <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                        {cat.label}{' '}
+                        <span className="font-normal normal-case">
+                          · {rows.filter((c) => c.pass).length}/{rows.length}
+                        </span>
+                      </p>
+                      {rows.map((c) => (
+                        <div key={c.label} className="flex items-start gap-2 text-sm">
+                          {c.pass ? (
+                            <BadgeCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                          ) : (
+                            <CircleAlert className="text-destructive mt-0.5 size-4 shrink-0" />
+                          )}
+                          <span>
+                            <span className="font-medium">{c.label}</span>
+                            {!c.pass && (
+                              <span className="text-muted-foreground"> — {c.hint}</span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
               </div>
 
               <div className="bg-muted/50 mt-6 rounded-lg border p-4 text-center">
