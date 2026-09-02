@@ -701,7 +701,7 @@ export function sectionHeading(r: Resume, key: string): string {
 }
 
 const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-const ONGOING_RE = /\b(present|current|now|ongoing)\b/i
+export const ONGOING_RE = /\b(present|current|now|ongoing)\b/i
 
 /**
  * Ordinal (year*12 + month) for a free-text date like "Jun 2023", "08/2021" or

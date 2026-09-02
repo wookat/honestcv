@@ -533,3 +533,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Fixture recipes: PDFs via reportlab (`canvas.setFont('Helvetica', 7|10.5)`); a PUA-bearing PDF works with DejaVuSans TTF (`pdfmetrics.registerFont(TTFont(...))`, draw '\uf000') — pdf.js extracts the PUA char intact. DOCX: hand-built zip ([Content_Types].xml, _rels/.rels, word/document.xml) with `<w:rPr><w:sz w:val="14|22"/></w:rPr>` runs.
 - File-check DOM: `p` starting "Uploaded file checks" → parent div → `:scope > div.flex` rows; pass = svg.text-emerald-600, fail hint in `span span.text-muted-foreground`. (They're divs, not li.)
 - Theme control on /ats-checker is a CYCLE TOGGLE button (aria-label like "System theme — switch to light theme"), not a menu — click repeatedly until `documentElement.classList.contains('dark')` flips.
+
+## R208 — reverse-chronological experience check
+- Check "Experience in reverse-chronological order" (anchor 'experience') in BOTH scoreResume and scoreResumeText; checker structure now has 9 checks (fix = 30/9 ≈ +3.3 with JD, 100/9 ≈ +11.1 without), Builder breakdown is a 10-point checklist.
+- Builder breakdown rows use TEXT glyphs ✓/✗ (no svg) — assert `row.textContent.startsWith('✓'|'✗')` on the `.flex.items-start` ancestor of the label leaf; /ats-checker rows still use svg (emerald vs destructive).
+- priorityFixes caps at top-5 by points (guidance.ts limit=5) — a +3.3 fix is crowded out on weak fixtures; to surface a specific structure fix in the list, use a strong fixture (or no JD) so its points rank top-5.
+- Checker text path only scans date ranges between an Experience heading and the next standard heading; "Work history" is NOT a recognized heading (check passes with no experience heading).
