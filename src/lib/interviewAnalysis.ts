@@ -53,6 +53,61 @@ export function analyzeDelivery(
   return { wpm, paceBand, paceHint, windowPct, windowBand, windowHint }
 }
 
+export interface QuickFillerHit {
+  phrase: string
+  count: number
+  atStart: number
+}
+
+export interface QuickFillerAnalysis {
+  hits: QuickFillerHit[]
+  total: number
+  perMinute: number | null
+}
+
+const QUICK_FILLER_PHRASES = [
+  'kind of',
+  'sort of',
+  'i think',
+  'i guess',
+  'i mean',
+  'you know',
+  'at the end of the day',
+  'maybe',
+  'basically',
+  'honestly',
+  'stuff',
+  'things like that',
+  'um',
+  'uhm',
+  'uh',
+  'er',
+]
+
+/** Deterministic quick-filler frequency and placement read — no AI, no network. */
+export function analyzeQuickFillers(answer: string, elapsedSeconds?: number): QuickFillerAnalysis {
+  const hits: QuickFillerHit[] = []
+  for (const phrase of QUICK_FILLER_PHRASES) {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const re = new RegExp(`(^|[.!?]\\s+)?\\b${escaped}\\b`, 'gi')
+    let count = 0
+    let atStart = 0
+    let m: RegExpExecArray | null
+    while ((m = re.exec(answer)) !== null) {
+      count++
+      if (m.index === 0 || m[1] !== undefined) atStart++
+      if (m.index === re.lastIndex) re.lastIndex++
+    }
+    if (count > 0) hits.push({ phrase, count, atStart })
+  }
+  const total = hits.reduce((sum, h) => sum + h.count, 0)
+  const perMinute =
+    elapsedSeconds !== undefined && elapsedSeconds >= 5 && total > 0
+      ? Math.round((total / (elapsedSeconds / 60)) * 10) / 10
+      : null
+  return { hits, total, perMinute }
+}
+
 const CONTEXT_RE =
   /\b(when|while|during|at the time|last (?:year|quarter|month)|my (?:team|role|company|manager)|our (?:team|product|client)|we (?:were|had|needed)|the (?:project|problem|challenge|situation|goal|deadline)|i was (?:working|responsible|tasked|asked))\b/i
 
