@@ -48,7 +48,8 @@ export function buildRewriteMessages(
   kind: RewriteKind,
   text: string,
   context: { role?: string; jobDescription?: string },
-  variants = false
+  variants = false,
+  emphasis?: 'key-numbers'
 ): ChatMessage[] {
   const jd = context.jobDescription?.trim()
   const target = context.role?.trim()
@@ -59,6 +60,9 @@ export function buildRewriteMessages(
     task = `Clean up the following skills list: deduplicate, group related skills, use canonical industry names, order by relevance. Output a single comma-separated list.`
   } else {
     task = `Rewrite the following work-experience bullet points. Return the same number of bullets (or merge only redundant ones), one per line, each starting with "- ".`
+  }
+  if (kind === 'bullets' && emphasis === 'key-numbers') {
+    task += `\nEvery rewritten bullet must emphasize measurable results: lead with a concrete outcome (percentage, money, time saved, volume, team size). Reuse any numbers the input already provides; where a figure is missing, use a bracketed placeholder such as [add %], [add $ amount] or [add number] for the user to fill in — never invent a figure.`
   }
   if (variants && kind !== 'skills') {
     task += `\nProduce 3 alternative versions with different emphasis (1: concise, 2: impact-focused, 3: keyword/skills-focused). Separate the versions with a line containing only "===". No labels or numbering — just the content.`
@@ -197,9 +201,9 @@ Output the single bullet as one line of plain text. No leading dash, no quotes, 
 }
 
 /**
- * Draft one work-experience bullet for a specific role, grounded strictly in
- * the candidate's existing resume (bracketed placeholders where specifics are
- * unknown, never invented facts).
+ * Draft one bullet for a specific experience, project or involvement entry,
+ * grounded strictly in the candidate's existing resume (bracketed placeholders
+ * where specifics are unknown, never invented facts).
  */
 export function buildSuggestBulletMessages(
   role: string,
@@ -207,17 +211,24 @@ export function buildSuggestBulletMessages(
   existingBullets: string[],
   resumeText: string,
   variant?: 'key-numbers',
-  companyInfo = ''
+  companyInfo = '',
+  section?: 'project' | 'involvement'
 ): ChatMessage[] {
   const existing = existingBullets
     .filter((b) => b.trim())
     .map((b) => `- ${b.slice(0, 300)}`)
     .join('\n')
+  const draftLine =
+    section === 'project'
+      ? 'Draft exactly ONE project bullet for the project described by the user, describing a typical, checkable outcome for that kind of project (what was built, improved, or delivered).'
+      : section === 'involvement'
+        ? 'Draft exactly ONE involvement bullet for the volunteer, club or extracurricular role described by the user, describing a typical, checkable contribution for that kind of role.'
+        : 'Draft exactly ONE work-experience bullet for the role described by the user, describing a typical, checkable achievement for that kind of role.'
   return [
     {
       role: 'system',
       content: `${SYSTEM_WRITER}
-Draft exactly ONE work-experience bullet for the role described by the user, describing a typical, checkable achievement for that kind of role.
+${draftLine}
 Ground the bullet only in what the resume already shows; where a specific project, metric or scope is unknown, use bracketed placeholders such as [project name] or [add %] for the user to fill in — never invent specifics.
 Do not repeat or lightly rephrase any of the existing bullets; cover a different responsibility or outcome.
 Start with a strong action verb. Output the single bullet as one line of plain text ending with a period. No leading dash, no quotes, no commentary.${
@@ -228,9 +239,17 @@ Start with a strong action verb. Output the single bullet as one line of plain t
     },
     {
       role: 'user',
-      content: `Role: ${role || 'not specified'}\nCompany: ${company || 'not specified'}${
+      content: `${
+        section === 'project'
+          ? `Project: ${role || 'not specified'}\nOrganization: ${company || 'not specified'}`
+          : section === 'involvement'
+            ? `Role: ${role || 'not specified'}\nOrganization: ${company || 'not specified'}`
+            : `Role: ${role || 'not specified'}\nCompany: ${company || 'not specified'}`
+      }${
         companyInfo ? `\nCompany info: ${companyInfo}` : ''
-      }\n\nExisting bullets for this role:\n${existing || '(none yet)'}\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
+      }\n\nExisting bullets for this ${
+        section === 'project' ? 'project' : 'role'
+      }:\n${existing || '(none yet)'}\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
     },
   ]
 }

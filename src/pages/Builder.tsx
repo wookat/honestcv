@@ -1256,7 +1256,8 @@ export default function Builder() {
     tag: string,
     kind: 'bullets' | 'summary' | 'skills',
     text: string,
-    apply: (out: string) => void
+    apply: (out: string) => void,
+    emphasis?: 'key-numbers'
   ) => {
     if (!text.trim()) {
       setAiErrorTag(tag)
@@ -1282,7 +1283,8 @@ export default function Builder() {
           jobDescription: resume.jobDescription,
           language: resume.language,
         },
-        wantVariants
+        wantVariants,
+        emphasis
       )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       if (texts && texts.length > 1) {
@@ -1305,16 +1307,102 @@ export default function Builder() {
 
   /** Review dialog for an AI-suggested bullet: apply / edit / regenerate */
   const [bulletSuggest, setBulletSuggest] = useState<{
-    expId: string
+    kind: 'exp' | 'proj' | 'inv'
+    entryId: string
     variant?: 'key-numbers'
     text: string
   } | null>(null)
 
-  const runSuggestBullet = async (e: ExperienceItem, variant?: 'key-numbers') => {
-    const tag = variant ? `exp-${e.id}-suggest-nums` : `exp-${e.id}-suggest`
-    if (!e.role.trim() && !e.company.trim()) {
+  /** Where a suggested bullet is drafted from and applied to, per entry kind. */
+  const suggestTargetFor = (
+    kind: 'exp' | 'proj' | 'inv',
+    id: string
+  ):
+    | {
+        role: string
+        company: string
+        companyInfo?: string
+        bullets: string[]
+        section?: 'project' | 'involvement'
+        notReady: string
+        apply: (line: string) => void
+      }
+    | undefined => {
+    if (kind === 'exp') {
+      const e = resume.experience.find((x) => x.id === id)
+      if (!e) return undefined
+      return {
+        role: e.role,
+        company: e.company,
+        companyInfo: e.companyInfo?.trim() || undefined,
+        bullets: e.bullets.filter((b) => b.trim()),
+        notReady: 'Add a job title or company first — the bullet is drafted for that role.',
+        apply: (line) => setExp(id, { bullets: [...e.bullets.filter((b) => b.trim()), line] }),
+      }
+    }
+    if (kind === 'proj') {
+      const p = resume.projects.find((x) => x.id === id)
+      if (!p) return undefined
+      return {
+        role: p.name,
+        company: p.org ?? '',
+        bullets: p.description.split('\n').filter((b) => b.trim()),
+        section: 'project',
+        notReady:
+          'Add a project name or organization first — the bullet is drafted for that project.',
+        apply: (line) =>
+          setResume((r) => ({
+            ...r,
+            projects: r.projects.map((x) =>
+              x.id === id
+                ? {
+                    ...x,
+                    description: [...x.description.split('\n').filter((b) => b.trim()), line].join(
+                      '\n'
+                    ),
+                  }
+                : x
+            ),
+          })),
+      }
+    }
+    const inv = (resume.involvement ?? []).find((x) => x.id === id)
+    if (!inv) return undefined
+    return {
+      role: inv.role,
+      company: inv.organization,
+      bullets: inv.description.split('\n').filter((b) => b.trim()),
+      section: 'involvement',
+      notReady:
+        'Add a role or organization first — the bullet is drafted for that involvement.',
+      apply: (line) =>
+        setResume((r) => ({
+          ...r,
+          involvement: (r.involvement ?? []).map((x) =>
+            x.id === id
+              ? {
+                  ...x,
+                  description: [...x.description.split('\n').filter((b) => b.trim()), line].join(
+                    '\n'
+                  ),
+                }
+              : x
+          ),
+        })),
+    }
+  }
+
+  const runSuggestBullet = async (
+    kind: 'exp' | 'proj' | 'inv',
+    id: string,
+    variant?: 'key-numbers'
+  ) => {
+    const tag = variant ? `${kind}-${id}-suggest-nums` : `${kind}-${id}-suggest`
+    const target = suggestTargetFor(kind, id)
+    if (!target) return
+    if (!target.role.trim() && !target.company.trim()) {
       setAiErrorTag(tag)
-      setAiError('Add a job title or company first — the bullet is drafted for that role.')
+      setAiError(target.notReady)
       return
     }
     setAiBusy(tag)
@@ -1322,17 +1410,18 @@ export default function Builder() {
     setAiErrorTag(tag)
     try {
       const { text, freeRemaining } = await aiSuggestBullet({
-        role: e.role,
-        company: e.company,
-        companyInfo: e.companyInfo?.trim() || undefined,
-        bullets: e.bullets.filter((b) => b.trim()),
+        role: target.role,
+        company: target.company,
+        companyInfo: target.companyInfo,
+        bullets: target.bullets,
         resumeText: resumeToPlainText(shown),
         variant,
         language: resume.language,
+        section: target.section,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
-      if (line) setBulletSuggest({ expId: e.id, variant, text: line })
+      if (line) setBulletSuggest({ kind, entryId: id, variant, text: line })
     } catch (err) {
       if (err instanceof PaymentRequiredError && !freeMode) requireUnlock(err.message)
       else setAiError((err as Error).message)
@@ -1341,13 +1430,13 @@ export default function Builder() {
     }
   }
 
-  const bulletSuggestEntry = bulletSuggest
-    ? resume.experience.find((x) => x.id === bulletSuggest.expId)
+  const bulletSuggestTarget = bulletSuggest
+    ? suggestTargetFor(bulletSuggest.kind, bulletSuggest.entryId)
     : undefined
   const bulletSuggestBusy =
     bulletSuggest !== null &&
-    (aiBusy === `exp-${bulletSuggest.expId}-suggest` ||
-      aiBusy === `exp-${bulletSuggest.expId}-suggest-nums`)
+    (aiBusy === `${bulletSuggest.kind}-${bulletSuggest.entryId}-suggest` ||
+      aiBusy === `${bulletSuggest.kind}-${bulletSuggest.entryId}-suggest-nums`)
 
   /** Setup dialog for the summary draft: position framing + skills to emphasize */
   const [summaryDraftSetup, setSummaryDraftSetup] = useState<{
@@ -2722,7 +2811,7 @@ export default function Builder() {
                 {aiButton(
                   `exp-${e.id}-suggest`,
                   'Suggest a bullet',
-                  () => void runSuggestBullet(e),
+                  () => void runSuggestBullet('exp', e.id),
                   !e.role.trim() &&
                     !e.company.trim() &&
                     'Add a job title or company first — the bullet is drafted for that role.'
@@ -2730,8 +2819,10 @@ export default function Builder() {
                 {aiButton(
                   `exp-${e.id}-suggest-nums`,
                   '…with key numbers',
-                  () => void runSuggestBullet(e, 'key-numbers'),
-                  !e.role.trim() && !e.company.trim()
+                  () => void runSuggestBullet('exp', e.id, 'key-numbers'),
+                  !e.role.trim() &&
+                    !e.company.trim() &&
+                    'Add a job title or company first — the bullet is drafted for that role.'
                 )}
                 {aiButton(
                   `exp-${e.id}`,
@@ -2748,6 +2839,26 @@ export default function Builder() {
                             .map((l) => l.replace(/^[-•]\s*/, '').trim())
                             .filter(Boolean),
                         })
+                    ),
+                  !e.bullets.some((b) => b.trim()) &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+                )}
+                {aiButton(
+                  `exp-${e.id}-nums`,
+                  '…with key numbers',
+                  () =>
+                    void runRewrite(
+                      `exp-${e.id}-nums`,
+                      'bullets',
+                      e.bullets.filter((b) => b.trim()).join('\n'),
+                      (out) =>
+                        setExp(e.id, {
+                          bullets: out
+                            .split('\n')
+                            .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                            .filter(Boolean),
+                        }),
+                      'key-numbers'
                     ),
                   !e.bullets.some((b) => b.trim()) &&
                     'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
@@ -3506,6 +3617,87 @@ export default function Builder() {
                     )
                   }
                 />
+                <div className="flex flex-wrap items-center gap-2">
+                {aiButton(
+                  `proj-${p.id}-suggest`,
+                  'Suggest a bullet',
+                  () => void runSuggestBullet('proj', p.id),
+                  !p.name.trim() &&
+                    !(p.org ?? '').trim() &&
+                    'Add a project name or organization first — the bullet is drafted for that project.'
+                )}
+                {aiButton(
+                  `proj-${p.id}-suggest-nums`,
+                  '…with key numbers',
+                  () => void runSuggestBullet('proj', p.id, 'key-numbers'),
+                  !p.name.trim() &&
+                    !(p.org ?? '').trim() &&
+                    'Add a project name or organization first — the bullet is drafted for that project.'
+                )}
+                {aiButton(
+                  `proj-${p.id}`,
+                  'AI rewrite bullets',
+                  () =>
+                    void runRewrite(
+                      `proj-${p.id}`,
+                      'bullets',
+                      p.description
+                        .split('\n')
+                        .filter((b) => b.trim())
+                        .join('\n'),
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          projects: r.projects.map((x) =>
+                            x.id === p.id
+                              ? {
+                                  ...x,
+                                  description: out
+                                    .split('\n')
+                                    .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                                    .filter(Boolean)
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        }))
+                    ),
+                  !p.description.trim() &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+                )}
+                {aiButton(
+                  `proj-${p.id}-nums`,
+                  '…with key numbers',
+                  () =>
+                    void runRewrite(
+                      `proj-${p.id}-nums`,
+                      'bullets',
+                      p.description
+                        .split('\n')
+                        .filter((b) => b.trim())
+                        .join('\n'),
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          projects: r.projects.map((x) =>
+                            x.id === p.id
+                              ? {
+                                  ...x,
+                                  description: out
+                                    .split('\n')
+                                    .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                                    .filter(Boolean)
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        })),
+                      'key-numbers'
+                    ),
+                  !p.description.trim() &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+                )}
+                </div>
                   </>
                 )}
               </div>
@@ -3787,6 +3979,87 @@ export default function Builder() {
                     )
                   }
                 />
+                <div className="flex flex-wrap items-center gap-2">
+                {aiButton(
+                  `inv-${inv.id}-suggest`,
+                  'Suggest a bullet',
+                  () => void runSuggestBullet('inv', inv.id),
+                  !inv.role.trim() &&
+                    !inv.organization.trim() &&
+                    'Add a role or organization first — the bullet is drafted for that involvement.'
+                )}
+                {aiButton(
+                  `inv-${inv.id}-suggest-nums`,
+                  '…with key numbers',
+                  () => void runSuggestBullet('inv', inv.id, 'key-numbers'),
+                  !inv.role.trim() &&
+                    !inv.organization.trim() &&
+                    'Add a role or organization first — the bullet is drafted for that involvement.'
+                )}
+                {aiButton(
+                  `inv-${inv.id}`,
+                  'AI rewrite bullets',
+                  () =>
+                    void runRewrite(
+                      `inv-${inv.id}`,
+                      'bullets',
+                      inv.description
+                        .split('\n')
+                        .filter((b) => b.trim())
+                        .join('\n'),
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id
+                              ? {
+                                  ...x,
+                                  description: out
+                                    .split('\n')
+                                    .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                                    .filter(Boolean)
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        }))
+                    ),
+                  !inv.description.trim() &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+                )}
+                {aiButton(
+                  `inv-${inv.id}-nums`,
+                  '…with key numbers',
+                  () =>
+                    void runRewrite(
+                      `inv-${inv.id}-nums`,
+                      'bullets',
+                      inv.description
+                        .split('\n')
+                        .filter((b) => b.trim())
+                        .join('\n'),
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id
+                              ? {
+                                  ...x,
+                                  description: out
+                                    .split('\n')
+                                    .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                                    .filter(Boolean)
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        })),
+                      'key-numbers'
+                    ),
+                  !inv.description.trim() &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+                )}
+                </div>
               </div>
             ))}
             <div className="flex flex-wrap items-center gap-2">
@@ -7061,20 +7334,20 @@ export default function Builder() {
                 aria-label="Suggested bullet text"
               />
               {aiError &&
-                aiErrorTag?.startsWith(`exp-${bulletSuggest.expId}-suggest`) && (
-                  <p className="text-destructive text-sm">{aiError}</p>
-                )}
+                aiErrorTag?.startsWith(
+                  `${bulletSuggest.kind}-${bulletSuggest.entryId}-suggest`
+                ) && <p className="text-destructive text-sm">{aiError}</p>}
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   className="min-h-10 sm:min-h-9"
-                  disabled={!bulletSuggest.text.trim() || bulletSuggestBusy || !bulletSuggestEntry}
+                  disabled={!bulletSuggest.text.trim() || bulletSuggestBusy || !bulletSuggestTarget}
                   onClick={() => {
-                    const cur = bulletSuggestEntry
+                    const cur = bulletSuggestTarget
                     if (!cur) return
                     const line = bulletSuggest.text.split('\n')[0]?.trim() ?? ''
                     if (!line) return
-                    setExp(cur.id, { bullets: [...cur.bullets.filter((b) => b.trim()), line] })
+                    cur.apply(line)
                     setBulletSuggest(null)
                   }}
                 >
@@ -7084,11 +7357,14 @@ export default function Builder() {
                   type="button"
                   variant="outline"
                   className="min-h-10 sm:min-h-9"
-                  disabled={bulletSuggestBusy || !bulletSuggestEntry}
-                  onClick={() => {
-                    const cur = bulletSuggestEntry
-                    if (cur) void runSuggestBullet(cur, bulletSuggest.variant)
-                  }}
+                  disabled={bulletSuggestBusy || !bulletSuggestTarget}
+                  onClick={() =>
+                    void runSuggestBullet(
+                      bulletSuggest.kind,
+                      bulletSuggest.entryId,
+                      bulletSuggest.variant
+                    )
+                  }
                 >
                   {bulletSuggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
                   {bulletSuggestBusy ? 'Writing…' : 'Regenerate'}

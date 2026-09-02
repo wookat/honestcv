@@ -48,13 +48,14 @@ export async function aiRewrite(
   kind: RewriteKind,
   text: string,
   context: { role?: string; jobDescription?: string; language?: string },
-  variants = false
+  variants = false,
+  emphasis?: 'key-numbers'
 ): Promise<{ text: string; texts?: string[]; freeRemaining: number | null }> {
   const data = await post<{
     text: string
     texts?: string[]
     freeRemaining: number | null
-  }>('/api/ai/rewrite', { kind, text, variants, ...context })
+  }>('/api/ai/rewrite', { kind, text, variants, ...(emphasis ? { emphasis } : {}), ...context })
   return data
 }
 
@@ -120,6 +121,7 @@ export async function aiSuggestBullet(input: {
   resumeText: string
   variant?: 'key-numbers'
   language?: string
+  section?: 'project' | 'involvement'
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/suggest-bullet', input)
 }

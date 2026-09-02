@@ -493,3 +493,24 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA P3 当轮闭环：R280 一致性扫描此前只扫 summary+bullets，role 等 headline 字段 Ctrl+K 产物无诊断——guidance.ts brokenLinks 改用 unfinishedLinks(resumeToPlainText(r))（全字段原始 marks），bracket-placeholder 扫描保持 summary+bullets 不变（零新误报）。
 - QA（生产复验）：bundle index-DgoqllvV.js / Builder-C9aURCwQ.js；role/companyInfo/自定义 section/姓名快捷键、Ctrl+K url 选中、负例（email/location 不响应）、真实 PDF 零字面 marks、375px、零 AI 全绿（证据在 PR 评论）。
 - 文档：docs/plan-r281-mark-shortcuts-everywhere.md。
+
+## R282 — 经历 bullets「rewrite with key numbers」(2026-08-31)
+- 证据：Rezi 一手 Experience 指南「If you want to emphasize results, use the dropdown menu to rewrite the bullet with key numbers」；我方 suggest-bullet 早有 key-numbers variant，但 /api/ai/rewrite 完全无该模式。
+- 实现：buildRewriteMessages 新 emphasis?: 'key-numbers'（bullets kind 时附加「lead with a concrete outcome；缺数字必须 [add %] 等占位、never invent」指令，变体指令保留）；worker /api/ai/rewrite 白名单解析 emphasis（仅 bullets）；aiRewrite/runRewrite 透传；Builder 每个经历条目在「AI rewrite bullets」后新增「…with key numbers」按钮（复用既有 variant-picker 审阅流）。零 schema/评分/导出/持久化改动。
+- QA（生产复验，两轮）：bundle index-B5znrjI-.js / Builder-fJOLeRYV.js → Builder-BEOIqvM3.js；CDP Fetch 拦截并 failRequest 于网络前，确认新按钮 POST 含 emphasis:"key-numbers" 而旧按钮无该键，零 AI 配额消耗；QA 发现的 P3（空 bullets 时新按钮 tooltip 落到配额文案）当轮修复复验（两按钮同 reason）；4 按钮行序、Summary/skills 回归、R281 Ctrl+B 回归、375px 无溢出、localStorage/主题还原全绿。
+- 坑（测试代理沉淀）：naive CDP cmd() 循环会吞 Fetch.requestPaused 事件，且 Fetch.disable 会把仍 paused 的请求放行到真实网络——先缓冲事件、逐个 failRequest、最后才 disable。
+- 文档：docs/plan-r282-rewrite-key-numbers.md、docs/qa-r282-plan.md（测试代理写）。
+
+## R283 — Projects/Involvement 整条 AI rewrite（含 key numbers）(2026-08-31)
+- 证据：Rezi 一手 AI Bullet Points 指南（rezi.ai/rezi-docs/ai-bullet-points，2026-07-16 更新）「Navigate through the resume tabs to find the AI Bullet Point Writer in sections like: Work experience / Projects / Involvement」+「Rewrite Bullet feature」；我方 Projects/Involvement 此前只有逐行 Fix，无整条 rewrite、无 key-numbers 模式。
+- 实现：仅 Builder.tsx——每个 project/involvement 条目在 guidance 下新增「AI rewrite bullets」+「…with key numbers」按钮对（tags proj-${id}(-nums) / inv-${id}(-nums)），复用 runRewrite('bullets', emphasis?) 与 R282 白名单链路，输出按行清洗（剥 -/•、去空）写回 description。零 worker/prompt/api/schema 改动。
+- QA（生产复验）：bundle index-CEqKDzGO.js / Builder-D8-Dz2hD.js；全绿零 P0–P3 零 AI——四个新按钮 POST 拦截于网络前（plain 无 emphasis 键、key-numbers 含 emphasis:"key-numbers"、text 为条目行）、空 description 双按钮同 reason tooltip、经历 4 按钮行与逐行 Fix 回归、375px 双按钮纵向堆叠无溢出、localStorage/主题还原（证据在 PR 评论）。
+- 坑（测试代理沉淀）：seeding fixture 时 ProjectItem 的组织字段是 org（非 organization）；Projects/Involvement 等可选 section 默认折叠，须先点「<Section> (optional)」按钮才渲染条目；复用型事件缓冲 CDP 拦截助手在 /home/ubuntu/qa/r283_lib.py。
+- 文档：docs/plan-r283-project-involvement-rewrite.md、docs/qa-r283-plan.md（测试代理写）。
+
+## R284 — Projects/Involvement「Suggest a bullet」(含 key numbers) (2026-08-31)
+- 证据：同一 Rezi 一手 AI Bullet Points 指南——AI Bullet Point Writer 是「生成」工具且覆盖 Work experience / Projects / Involvement；R283 只补了 rewrite 半边，空 description 的 project/involvement 条目仍无任何 AI 生成路径（Experience 早有 Suggest a bullet + 审阅对话框）。
+- 实现：worker/prompts.ts buildSuggestBulletMessages 新 section?: 'project'|'involvement'（缺省 experience 提示词字节级不变；project/involvement 分别换 draft 语句与 Project:/Organization: 标签，grounding/占位/key-numbers 规则不变）；worker /api/ai/suggest-bullet 白名单解析 section + section 感知的缺字段错误文案；api.ts aiSuggestBullet 透传 section（缺省时 JSON 无该键，经历 payload 字节级不变）；Builder.tsx bulletSuggest 状态泛化为 {kind:'exp'|'proj'|'inv', entryId}，新 suggestTargetFor() 统一取材/写回（proj/inv Apply 追加行到 description），每条目新增「Suggest a bullet」+「…with key numbers」按钮对渲染在 rewrite 对之前。
+- QA（生产复验，两轮）：bundle index-CsNxhC7I.js → index-N_vi6K7U.js / Builder-DUo1y6aS.js；全绿零 P0–P2 零 AI 配额——payload 拦截于网络前（proj 含 section:"project"、inv 含 section:"involvement"、key-numbers 加 variant、经历回归无 section 键）、Fetch.fulfillRequest 假响应验证审阅对话框 Apply 追加行+freeLeft 计数、375px 四按钮堆叠、localStorage/主题还原；QA 发现的 P3（三处 -suggest-nums 按钮 not-ready tooltip 落到配额文案，含既有经历处）当轮修复复验（六按钮同 reason）。
+- 坑（测试代理沉淀）：Fetch.fulfillRequest 假 JSON（{"text":…,"freeRemaining":N}）可在生产安全验证 AI 成功路径（对话框/Apply/配额计数）而零 LLM 调用，配合 r283_lib.py 缓冲助手使用。
+- 文档：docs/plan-r284-project-involvement-suggest-bullet.md、docs/qa-r284-plan.md（测试代理写）。
