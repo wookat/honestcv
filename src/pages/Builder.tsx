@@ -113,6 +113,7 @@ import {
   RESPONSE_WINDOW_SECONDS,
   analyzeAnswer,
   analyzeDelivery,
+  analyzeFillerSounds,
   analyzeQuickFillers,
 } from '@/lib/interviewAnalysis'
 import {
@@ -7887,6 +7888,11 @@ function BundleToolDialog({
     [kind, analysis, answer, elapsedSec]
   )
 
+  const fillerSounds = useMemo(
+    () => (kind === 'interview' && analysis ? analyzeFillerSounds(answer, elapsedSec ?? undefined) : null),
+    [kind, analysis, answer, elapsedSec]
+  )
+
   if (kind !== lastKind) {
     setLastKind(kind)
     if (kind !== null) setCompany(initialCompany)
@@ -8460,6 +8466,28 @@ function BundleToolDialog({
                       </>
                     )}
                     {analysis.weHeavy && <>Mostly “we” — interviewers want your part; use “I”.</>}
+                  </p>
+                )}
+                {fillerSounds && fillerSounds.total > 0 && (
+                  <p
+                    className={
+                      fillerSounds.band === 'good'
+                        ? 'text-xs text-emerald-700 dark:text-emerald-400'
+                        : 'text-xs text-amber-700 dark:text-amber-400'
+                    }
+                  >
+                    Filler sounds:{' '}
+                    {fillerSounds.hits.map((h) => `“${h.sound}” ×${h.count}`).join(', ')}
+                    {fillerSounds.perMinute !== null && (
+                      <>
+                        {' — '}
+                        {fillerSounds.perMinute}/min
+                        {fillerSounds.band === 'good'
+                          ? ', within the 1–2 per minute guideline.'
+                          : ' — aim for no more than 1–2 per minute; pause instead of filling silence.'}
+                      </>
+                    )}
+                    {fillerSounds.perMinute === null && '.'}
                   </p>
                 )}
               </div>

@@ -78,10 +78,6 @@ const QUICK_FILLER_PHRASES = [
   'honestly',
   'stuff',
   'things like that',
-  'um',
-  'uhm',
-  'uh',
-  'er',
 ]
 
 /** Deterministic quick-filler frequency and placement read — no AI, no network. */
@@ -106,6 +102,37 @@ export function analyzeQuickFillers(answer: string, elapsedSeconds?: number): Qu
       ? Math.round((total / (elapsedSeconds / 60)) * 10) / 10
       : null
   return { hits, total, perMinute }
+}
+
+export interface FillerSoundHit {
+  sound: string
+  count: number
+}
+
+export interface FillerSoundAnalysis {
+  hits: FillerSoundHit[]
+  total: number
+  perMinute: number | null
+  band: 'good' | 'high' | null
+}
+
+const FILLER_SOUNDS = ['um', 'uhm', 'uh', 'er', 'ah', 'hm', 'hmm']
+
+/** Deterministic filler-sound (um/uh/er/ah/hm) frequency read — no AI, no network. */
+export function analyzeFillerSounds(answer: string, elapsedSeconds?: number): FillerSoundAnalysis {
+  const hits: FillerSoundHit[] = []
+  for (const sound of FILLER_SOUNDS) {
+    const re = new RegExp(`\\b${sound}\\b`, 'gi')
+    const count = (answer.match(re) ?? []).length
+    if (count > 0) hits.push({ sound, count })
+  }
+  const total = hits.reduce((sum, h) => sum + h.count, 0)
+  const perMinute =
+    elapsedSeconds !== undefined && elapsedSeconds >= 5 && total > 0
+      ? Math.round((total / (elapsedSeconds / 60)) * 10) / 10
+      : null
+  const band: FillerSoundAnalysis['band'] = perMinute === null ? null : perMinute <= 2 ? 'good' : 'high'
+  return { hits, total, perMinute, band }
 }
 
 const CONTEXT_RE =
