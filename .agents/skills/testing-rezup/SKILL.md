@@ -675,3 +675,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Tab strip: first button is labeled "All jobs" (no count); the rest are "<Label> (N)" — don't regex `/^All \(/`.
 - Bulk bar: `[role=group][aria-label="Bulk actions on tracked jobs"]`; checkboxes `input[aria-label^="Select "]`; move select `select[aria-label="Move selected jobs to a status"]`.
 - Bulk-untrack Cancel preserves the selection; "Clear" empties selection but keeps bulk mode on.
+
+## R250 — interview practice + oracle notes
+- Builder does NOT pick up a `jobDescription` written raw into `honestcv.resume` before load — paste into the visible `#jd` Target-job textarea instead.
+- Deterministic oracle for the local analysis libs: `npx tsx --tsconfig tsconfig.app.json <script importing @/lib/...>` from the repo root (plain tsx fails on the `@/` alias).
+- Interview practice answer field is `#practice-answer` inside the `?doc=interview` dialog; analysis renders only at ≥10 words.
+- Builder editing auto-creates `honestcv.resumeHistory` — remove it during cleanup to hit the exact baseline.
+- For borderline contrast, confirm with exact computed colors composited via canvas — the 2%/98% pixel-percentile method underestimates on thin antialiased text.

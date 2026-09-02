@@ -8567,10 +8567,28 @@ function BundleToolDialog({
                   <p className="text-muted-foreground text-xs">
                     Job keywords used: {analysis.keywords.covered.length}/
                     {analysis.keywords.covered.length + analysis.keywords.missing.length}
-                    {analysis.keywords.missing.length > 0 && (
-                      <> — try working in: {analysis.keywords.missing.slice(0, 5).join(', ')}</>
-                    )}
+                    {analysis.keywords.missing.length > 0 &&
+                      analysis.keywords.highPriorityMissing.length === 0 && (
+                        <> — try working in: {analysis.keywords.missing.slice(0, 5).join(', ')}</>
+                      )}
                   </p>
+                )}
+                {analysis.keywords && analysis.keywords.highPriorityMissing.length > 0 && (
+                  <>
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      High priority: {analysis.keywords.highPriorityMissing.slice(0, 5).join(', ')}
+                    </p>
+                    {analysis.keywords.missing.length >
+                      analysis.keywords.highPriorityMissing.length && (
+                      <p className="text-muted-foreground text-xs">
+                        Also mentioned:{' '}
+                        {analysis.keywords.missing
+                          .filter((k) => !analysis.keywords?.highPriorityMissing.includes(k))
+                          .slice(0, 5)
+                          .join(', ')}
+                      </p>
+                    )}
+                  </>
                 )}
                 {delivery && (
                   <>
