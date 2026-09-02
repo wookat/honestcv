@@ -242,3 +242,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - Builder practice dialog: amber row now `Quick fillers to cut: "kind of" ×2 (1 at sentence start), … — 4.7/min.`; rate suffix only when timed; weHeavy note unchanged.
 - Production QA (index-EfGPBQS_.js / Builder-BDBCmDr-.js): all green, zero P0–P3, zero AI calls — byte-identical row vs precomputed expectation at Timed: 90s, negatives, untimed no-rate, 30/100 score invariance, R233 rows regression, 375px wrap, dark 10.33:1. Details in docs/qa-r234-plan.md.
 - Standing limits unchanged: Cloudflare token route-listing permission gap (partial deploy OK), VM recording down (CDP screenshots), GitHub Actions disabled by policy.
+
+## R235 — filler sounds as a distinct interview delivery metric (2026-08-31)
+- Rezi first-party evidence (AI Interview Filler Words guide): "Filler words refer to unintentional sounds, not conversational phrases" (um/uh/er/ah/hm), guideline "no more than 1–2 filler sounds per minute" — a separate metric from Quick Fillers (phrases). R234 had folded um/uh/er into the phrase row and lacked ah/hm and any threshold.
+- `src/lib/interviewAnalysis.ts`: sounds removed from QUICK_FILLER_PHRASES (12 phrases now); new pure `analyzeFillerSounds(answer, elapsedSeconds?)` → hits {sound,count} over um/uhm/uh/er/ah/hm/hmm, total, perMinute (elapsed≥5), band good(≤2)/high(>2)/null. Scores untouched.
+- Builder practice dialog: separate "Filler sounds:" row under the quick-fillers row — untimed counts only (amber); timed ≤2/min emerald "within the 1–2 per minute guideline"; >2/min amber "pause instead of filling silence".
+- Production QA (index-DLY8gzal.js / Builder-D26y3HFx.js): all green, zero P0–P3, zero AI calls — mixed-fixture separation byte-identical, 2.0/2.1 band boundary, ah/hm/hmm negatives (aha/hmph/ahead clean), untimed, 30/100 score invariance, R233/R234 regression, 375px, dark amber 10.33:1 / emerald 9.18:1. Details in docs/qa-r235-plan.md.
