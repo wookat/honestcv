@@ -656,3 +656,11 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Input ids: company `#company`, addressee `#cover-addressee`, highlights textarea `#cover-highlights`. The AI submit button is labeled "Generate"; the offline path is "Start from a template".
 - The AI call is blocked client-side ("Paste the job description…") unless `resume.jobDescription` is non-empty — seed it via the `honestcv.resume` draft before payload-capture tests.
 - Download filenames: monkey-patch `HTMLAnchorElement.prototype.click` and read `this.download`.
+
+## R247 — /jobs pipeline + Builder param notes
+- Per-row status control on /jobs is a `<select>` (aria-label `Status of <title> at <company>`, options none/saved/applied/interviewing/offer/rejected) plus a Save/Tracked toggle button; the 5 status buttons live only in the detail pane.
+- Timeline `<li>`s after the first are prefixed with "→" — read the whole `<ol>` after the "Application timeline" `<p>` rather than regexing items.
+- Fixture jobs injected for `/api/jobs/search` must include `type` and `category` or the type filter yields 0 rows.
+- Builder strips consumed `?doc=`/`?jump=`/`?example=` params via `history.replaceState` — assert the opened dialog, not the URL.
+- Tracking a job auto-creates a targeted copy in `honestcv.resumeVersions` — remove it during cleanup.
+- CDP websockets on this box need `suppress_origin=True` (Chrome 403s the localhost Origin).

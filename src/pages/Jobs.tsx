@@ -223,7 +223,7 @@ export default function Jobs() {
   }, [pipeline])
 
   const loc = locationFilter.trim().toLowerCase()
-  /** Whole application queue, grouped saved → applied → interviewing → rejected,
+  /** Whole application queue, grouped saved → applied → interviewing → offer → rejected,
    *  most recently updated first within a group. */
   const trackedQueue = useMemo(
     () =>
@@ -311,7 +311,7 @@ export default function Jobs() {
     null
 
   const counts = useMemo(() => {
-    const c = { saved: 0, applied: 0, interviewing: 0, rejected: 0 }
+    const c = { saved: 0, applied: 0, interviewing: 0, offer: 0, rejected: 0 }
     for (const e of pipeline) c[e.status]++
     return c
   }, [pipeline])
@@ -402,6 +402,12 @@ export default function Jobs() {
           setQuery(job.title)
           runSearch(job.title)
         },
+      }
+    if (entry.status === 'offer')
+      return {
+        text: 'You have an offer — leave your current role on good terms.',
+        label: 'Open resignation letter',
+        onClick: () => void navigate('/builder?doc=resignation'),
       }
     if (entry.status === 'applied' || entry.status === 'interviewing')
       return {

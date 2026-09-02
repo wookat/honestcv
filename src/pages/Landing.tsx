@@ -149,7 +149,7 @@ const SUITE = [
   {
     icon: BriefcaseBusiness,
     title: 'Job search',
-    text: 'Browse remote job postings, track applications through a saved-to-interviewing pipeline, and target your resume or a cover letter at any posting in one click.',
+    text: 'Browse remote job postings, track applications through a saved-to-offer pipeline, and target your resume or a cover letter at any posting in one click.',
     cta: 'Search jobs',
     to: '/jobs',
   },

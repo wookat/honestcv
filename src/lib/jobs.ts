@@ -1,6 +1,6 @@
 /**
  * Job search API helper plus the local application pipeline. Pipeline state
- * (saved / applied / interviewing / rejected, including the job's JD text)
+ * (saved / applied / interviewing / offer / rejected, including the job's JD text)
  * lives in localStorage only, like resumes and career documents.
  */
 
@@ -21,14 +21,15 @@ export interface JobListing {
   tags?: string[]
 }
 
-export type JobStatus = 'saved' | 'applied' | 'interviewing' | 'rejected'
+export type JobStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'rejected'
 
-export const JOB_STATUSES: JobStatus[] = ['saved', 'applied', 'interviewing', 'rejected']
+export const JOB_STATUSES: JobStatus[] = ['saved', 'applied', 'interviewing', 'offer', 'rejected']
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   saved: 'Saved',
   applied: 'Applied',
   interviewing: 'Interviewing',
+  offer: 'Offer',
   rejected: 'Rejected',
 }
 
