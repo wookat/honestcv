@@ -3,7 +3,7 @@
  * Flags weak openers, missing quantification, and length problems.
  */
 import type { Resume } from '@/lib/resume'
-import type { AtsResult, SectionAnchor } from '@/lib/ats'
+import { findPassive, type AtsResult, type SectionAnchor } from '@/lib/ats'
 import { stripInlineMarks } from '@/lib/marks'
 
 const WEAK_OPENERS = [
@@ -142,21 +142,6 @@ export function bulletMix(bullets: string[]): {
 const STRONG_VERB_SET = new Set(
   ACTION_VERBS.flatMap((g) => g.verbs.map((v) => v.toLowerCase()))
 )
-
-/** Irregular participles; the first group also matches prefixed forms (rebuilt, rewritten). */
-const IRREGULAR_PARTICIPLES =
-  '[a-z]*(?:built|made|given|done|taken|chosen|driven|written|held|kept|brought|taught|seen|shown|known|grown|sent|found|paid|sold|told)|led|won|run|set|put'
-
-const PASSIVE_RE = new RegExp(
-  `\\b(was|were|is|are|been|being)\\s+(?:\\w+ly\\s+)?([a-z]{2,}ed|${IRREGULAR_PARTICIPLES})\\b`,
-  'i'
-)
-
-/** Returns the matched passive phrase (e.g. "was built"), or null. */
-function findPassive(text: string): string | null {
-  const m = PASSIVE_RE.exec(text)
-  return m ? m[0].replace(/\s+/g, ' ') : null
-}
 
 const BUZZWORDS = [
   'synergy',

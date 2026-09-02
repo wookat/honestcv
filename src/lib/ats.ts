@@ -297,6 +297,51 @@ function pronounCheck(
   }
 }
 
+/** Irregular participles; the first group also matches prefixed forms (rebuilt, rewritten). */
+const IRREGULAR_PARTICIPLES =
+  '[a-z]*(?:built|made|given|done|taken|chosen|driven|written|held|kept|brought|taught|seen|shown|known|grown|sent|found|paid|sold|told)|led|won|run|set|put'
+
+const PASSIVE_RE = new RegExp(
+  `\\b(was|were|is|are|been|being)\\s+(?:\\w+ly\\s+)?([a-z]{2,}ed|${IRREGULAR_PARTICIPLES})\\b`,
+  'i'
+)
+
+/** Returns the matched passive phrase (e.g. "was built"), or null. */
+export function findPassive(text: string): string | null {
+  const m = PASSIVE_RE.exec(text)
+  return m ? m[0].replace(/\s+/g, ' ') : null
+}
+
+/** Active voice in bullet points: passive voice hides who did the work */
+function activeVoiceCheck(lines: string[]): AtsResult['checks'][number] {
+  let phrase = ''
+  let line = ''
+  for (const l of lines) {
+    const p = findPassive(l)
+    if (p) {
+      phrase = p
+      line = l.trim()
+      break
+    }
+  }
+  return {
+    label: 'Active voice in bullet points',
+    pass: !phrase,
+    hint: phrase
+      ? `"${phrase}" is passive voice ("${line.length > 60 ? `${line.slice(0, 60)}…` : line}") — lead with an active verb so employers see your specific contribution.`
+      : 'Bullets use active voice — employers see your specific contributions.',
+    anchor: 'experience',
+  }
+}
+
+/** Bullet-marked lines anywhere in pasted text, markers stripped */
+function textBulletLines(raw: string): string[] {
+  return raw
+    .split(/\n/)
+    .filter((l) => BULLET_LINE_RE.test(l))
+    .map((l) => l.replace(/^\s*[-\u2013\u2014\u2022*\u25aa\u25e6\u00b7]\s*/, ''))
+}
+
 /** LinkedIn URL: recruiters use it to verify and expand on the resume */
 function linkedinCheck(pass: boolean): AtsResult['checks'][number] {
   return {
@@ -544,6 +589,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     dateFormatCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
     namedMonthDatesCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
     pronounCheck(textPronounSegments(resumeTextRaw)),
+    activeVoiceCheck(textBulletLines(resumeTextRaw)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
     entryLocationsCheck(textEntryLocations(resumeTextRaw)),
   ]
@@ -724,6 +770,12 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
         ].join('\n'),
         anchor: 'experience',
       },
+    ]),
+    activeVoiceCheck([
+      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+      ...resume.customSections.flatMap((s) => s.bullets),
     ]),
     linkedinCheck(
       Boolean(resume.contact.linkedin.trim()) &&
