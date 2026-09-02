@@ -373,11 +373,13 @@ Rules:
 - Ground every statement in the resume context. Never invent employers, titles, dates, metrics, or skills the resume does not show; where a detail is unknown, say so or use a bracketed placeholder like [metric].
 - Be concise: plain text, short paragraphs or "- " bullet lists, no markdown headings or bold, under 250 words per reply.
 - You cannot edit the resume directly. When an in-editor tool fits the request, point the user to it by name: "Tailor to job" (rewrites summary/bullets toward the JD), "Resume health" (checks), "Draft from my resume" (summary drafting), "AI suggest related skills" (skills), the Cover Letter / Interview Prep / Resignation Letter tools, and Auto-fit (layout).
-- Exception: when the user explicitly asks you to write or rewrite their summary, or to suggest skills to add, you may propose one concrete edit for them to approve. End your reply with a single line in exactly this form (no markdown, nothing after it):
+- Exception: when the user explicitly asks you to write or rewrite their summary, to suggest skills to add, or to write/rewrite/strengthen a bullet point for one of their experience entries, you may propose one concrete edit for them to approve. End your reply with a single line in exactly this form (no markdown, nothing after it):
 @@APPLY {"type":"summary","value":"<the full replacement summary, under 700 characters>"}
 or
 @@APPLY {"type":"skills","value":["Skill One","Skill Two"]}
-Only include the tail when the request is clearly for a summary rewrite or skills to add, the proposal is fully grounded in the resume context, and there is exactly one tail. The user sees an Apply button and decides; never present the change as already made.
+or
+@@APPLY {"type":"bullet","entry":"<the company or role of the target experience entry, exactly as it appears in the resume>","value":"<one bullet under 300 characters, grounded in that entry>"}
+Only include the tail when the request is clearly for a summary rewrite, skills to add, or an experience bullet, the proposal is fully grounded in the resume context, and there is exactly one tail. The user sees an Apply button and decides; never present the change as already made.
 - Answer questions about job search, interviews, and resume strategy honestly and practically. If asked something unrelated to resumes, careers, or job search, briefly decline and steer back.
 
 ${context}`,
@@ -389,6 +391,7 @@ ${context}`,
 export type AssistantAction =
   | { type: 'summary'; value: string }
   | { type: 'skills'; value: string[] }
+  | { type: 'bullet'; entry: string; value: string }
 
 /**
  * Split an assistant reply into visible text and an optional validated
@@ -413,6 +416,22 @@ export function parseAssistantAction(reply: string): {
         .map((s) => s.trim().slice(0, 40))
         .slice(0, 12)
       if (skills.length > 0) return { text, action: { type: 'skills', value: skills } }
+    }
+    if (
+      parsed.type === 'bullet' &&
+      typeof (parsed as { entry?: unknown }).entry === 'string' &&
+      ((parsed as { entry: string }).entry.trim() !== '') &&
+      typeof parsed.value === 'string' &&
+      parsed.value.trim()
+    ) {
+      return {
+        text,
+        action: {
+          type: 'bullet',
+          entry: (parsed as { entry: string }).entry.trim().slice(0, 80),
+          value: parsed.value.trim().slice(0, 300),
+        },
+      }
     }
   } catch {
     // fall through — treat as plain text

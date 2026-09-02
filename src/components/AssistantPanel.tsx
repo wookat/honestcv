@@ -28,8 +28,15 @@ interface ChatMsg extends AssistantTurnInput {
 
 function validAction(a: unknown): a is AssistantAction {
   if (!a || typeof a !== 'object') return false
-  const action = a as { type?: unknown; value?: unknown }
+  const action = a as { type?: unknown; value?: unknown; entry?: unknown }
   if (action.type === 'summary') return typeof action.value === 'string' && Boolean(action.value)
+  if (action.type === 'bullet')
+    return (
+      typeof action.entry === 'string' &&
+      Boolean(action.entry) &&
+      typeof action.value === 'string' &&
+      Boolean(action.value)
+    )
   if (action.type === 'skills')
     return (
       Array.isArray(action.value) &&
@@ -263,10 +270,14 @@ export function AssistantPanel({
             {t.action && (
               <div className="rounded-lg border px-3 py-2">
                 <p className="text-muted-foreground text-xs font-medium">
-                  {t.action.type === 'summary' ? 'Proposed summary' : 'Proposed skills'}
+                  {t.action.type === 'summary'
+                    ? 'Proposed summary'
+                    : t.action.type === 'bullet'
+                      ? `Proposed bullet \u00b7 ${t.action.entry}`
+                      : 'Proposed skills'}
                 </p>
                 <p className="mt-1 text-sm whitespace-pre-wrap">
-                  {t.action.type === 'summary' ? t.action.value : t.action.value.join(', ')}
+                  {t.action.type === 'skills' ? t.action.value.join(', ') : t.action.value}
                 </p>
                 {t.applied ? (
                   <p className="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
@@ -274,7 +285,11 @@ export function AssistantPanel({
                   </p>
                 ) : (
                   <Button size="sm" className="mt-2 min-h-10 sm:min-h-8" onClick={() => apply(i)}>
-                    {t.action.type === 'summary' ? 'Apply to summary' : 'Add to skills'}
+                    {t.action.type === 'summary'
+                      ? 'Apply to summary'
+                      : t.action.type === 'bullet'
+                        ? 'Add bullet'
+                        : 'Add to skills'}
                   </Button>
                 )}
               </div>
