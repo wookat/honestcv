@@ -1134,8 +1134,8 @@ export default function Builder() {
     }
   }, [unlocked])
   const ats = useMemo(
-    () => scoreResume(shown, shown.jobDescription),
-    [shown]
+    () => scoreResume(shown, shown.jobDescription, pdfLength?.pages ?? null),
+    [shown, pdfLength]
   )
   const highKw = useMemo(
     () => highPriorityKeywords(shown.jobDescription, ats.missing),

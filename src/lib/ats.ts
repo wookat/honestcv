@@ -431,6 +431,31 @@ function bulletLengthCheck(lines: string[]): AtsResult['checks'][number] {
   }
 }
 
+/** Page length: one page, or two for executives with more experience to share */
+function pageLengthCheck(
+  pages: number | null | undefined,
+  level: Resume['experienceLevel']
+): AtsResult['checks'][number] {
+  const allowed = level === 'executive' ? 2 : 1
+  if (pages == null || pages < 1) {
+    return {
+      label: 'Fits the recommended page count',
+      pass: true,
+      hint: 'Page count is measured from the live PDF preview in the builder.',
+      anchor: 'experience',
+    }
+  }
+  const pass = pages <= allowed
+  return {
+    label: 'Fits the recommended page count',
+    pass,
+    hint: pass
+      ? `${pages} page${pages === 1 ? '' : 's'} — within the ${allowed}-page length recruiters expect${allowed === 2 ? ' at executive level' : ''}.`
+      : `Your resume runs ${pages} pages — recruiters expect ${allowed}${allowed === 1 ? ' (two only at director/executive level)' : ''}; use Auto-fit or trim older roles and long bullets.`,
+    anchor: 'experience',
+  }
+}
+
 /** Bullet-marked lines anywhere in pasted text, markers stripped */
 function textBulletLines(raw: string): string[] {
   return raw
@@ -753,7 +778,11 @@ export function bestExperienceForKeyword(
 import type { Resume } from './resume'
 import { ONGOING_RE, dateSortValue, resumeToPlainText, skillLines } from './resume'
 
-export function scoreResume(resume: Resume, jd: string): AtsResult {
+export function scoreResume(
+  resume: Resume,
+  jd: string,
+  pdfPages?: number | null
+): AtsResult {
   const resumeText = resumeToPlainText(resume).toLowerCase()
   const resumeTokenList = tokenize(resumeText)
   const resumeTokens = new Set(resumeTokenList)
@@ -908,6 +937,7 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
         anchor: 'experience',
       },
     ]),
+    pageLengthCheck(pdfPages, resume.experienceLevel),
     linkedinCheck(
       Boolean(resume.contact.linkedin.trim()) &&
         !(resume.hiddenContact ?? []).includes('linkedin')
