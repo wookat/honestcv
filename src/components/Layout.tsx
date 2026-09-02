@@ -117,9 +117,12 @@ function JobsAttentionBadge({ count }: { count: number }) {
   )
 }
 
-export function SiteHeader({ action }: { action?: React.ReactNode }) {
+export function SiteHeader({ action, wideAction = false }: { action?: React.ReactNode; wideAction?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const attention = useSyncExternalStore(subscribeNever, attentionCount, () => 0)
+  // Pages with a wide action cluster (Builder) keep the hamburger up to lg so
+  // the inline nav and the actions never fight for the same header width.
+  const navAt = wideAction ? 'lg' : 'md'
   return (
     <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -128,7 +131,10 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           RezUp
           <span className="text-muted-foreground hidden text-xs font-normal sm:inline">by Zalize</span>
         </Link>
-        <nav aria-label="Main" className="text-muted-foreground hidden items-center gap-5 text-sm md:flex">
+        <nav
+          aria-label="Main"
+          className={`text-muted-foreground hidden items-center gap-5 text-sm ${navAt === 'lg' ? 'lg:flex' : 'md:flex'}`}
+        >
           <a className="hover:text-foreground" href="/templates/">Templates</a>
           <a className="hover:text-foreground" href="/examples/">Examples</a>
           <ResourcesDropdown />
@@ -146,7 +152,7 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
             aria-label="Menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
-            className="hover:bg-accent -mr-2 inline-flex size-10 items-center justify-center rounded-md md:hidden"
+            className={`hover:bg-accent -mr-2 inline-flex size-10 items-center justify-center rounded-md ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
@@ -155,7 +161,7 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
       {menuOpen && (
         <nav
           aria-label="Main"
-          className="bg-background border-t px-4 pb-2 md:hidden"
+          className={`bg-background border-t px-4 pb-2 ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
         >
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/templates/">Templates</a>
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/examples/">Examples</a>

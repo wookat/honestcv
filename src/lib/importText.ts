@@ -46,6 +46,11 @@ const CUSTOM_HEADING_RE =
 const isBullet = (line: string) => /^[-–—•*·▪◦]\s+/.test(line)
 const stripBullet = (line: string) => line.replace(/^[-–—•*·▪◦]\s+/, '').trim()
 
+// A sentence-like description line without a bullet marker (plain-text and
+// DOCX exports often drop the markers): ends in sentence punctuation or is
+// too long to be an entry header.
+const looksLikeBodyLine = (line: string) => /[.!?;]$/.test(line) || line.length > 60
+
 // LinkedIn "Profile → More → Save to PDF" export markers: a `handle (LinkedIn)`
 // contact line, the sidebar's "Top Skills" heading, or page footers.
 const LI_PAGE_RE = /^page \d+ of \d+$/i
@@ -244,9 +249,12 @@ export function parseResumeText(raw: string): Resume {
             // date range on its own line under the entry header
             currentExp.startDate = start
             currentExp.endDate = end
-          } else if (currentExp && !currentExp.company && !start && rest.length <= 60) {
+          } else if (currentExp && !currentExp.company && !start && rest.length <= 60 && !looksLikeBodyLine(line)) {
             // second header line (e.g. company on its own line)
             currentExp.company = rest
+          } else if (currentExp && !start && looksLikeBodyLine(line)) {
+            // marker-less description line under the current entry
+            currentExp.bullets.push(line)
           } else {
             const { role, company, location } = splitRoleCompany(rest || line)
             currentExp = {
@@ -289,7 +297,7 @@ export function parseResumeText(raw: string): Resume {
         break
       }
       case 'projects': {
-        if (isBullet(line) && resume.projects.length > 0) {
+        if ((isBullet(line) || looksLikeBodyLine(line)) && resume.projects.length > 0) {
           const p = resume.projects[resume.projects.length - 1]
           p.description = [p.description, stripBullet(line)].filter(Boolean).join(' ')
         } else {

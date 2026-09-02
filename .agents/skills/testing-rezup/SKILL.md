@@ -857,3 +857,37 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Post-download share dialog ("Resume downloaded — good luck out there") only fires when
   `honestcv.shared` is unset; with `honestcv.subscribed` set the email gate is skipped, so
   removing `shared` alone is the clean way to test it.
+
+## R297 notes — dashboard/share/jobs/import/career-doc deep flows
+- Dashboard sort is a native `<select id="version-sort">` — set `.value` + dispatch
+  `change`; access level in the share dialog is also a native select ("No access"/"Can view").
+- Rename/folder changes intentionally keep `updatedAt` (only content edits bump the
+  "edited" sort) — not a bug; see updateResumeVersion in src/lib/resume.ts.
+- "Open" a version pops a confirm dialog — click "Open and replace draft".
+- Shared route is `/s/:slug` (not /share/); revoke = set access select back to "No access".
+- Jobs stale/follow-up: set BOTH `updatedAt` and every `history[].at` ≥7 days back, reload,
+  and be on the Tracked tab; bulk checkboxes only appear after clearing the follow-up filter.
+  Tailoring report is inline (button flips to "Hide tailoring report"), not a dialog.
+  Avoid `navigator.clipboard.readText()` over CDP — it hangs; assert the "Copied" label.
+- Import file input remounts after DOM.setFileInputFiles — re-query node ids fresh; find it
+  by accept=".pdf,.docx,.txt". Known P3: DOCX import maps bullet lines into bogus
+  experience entries (PDF import is fine).
+- Career docs: "Cover letter"/"Resignation letter" buttons under the preview open dialogs
+  with a zero-AI "Start from a template" path; PDF/DOCX export buttons appear after a
+  draft exists; files download with letterhead (name/email/phone/location + date).
+- Known P3: /builder overflows horizontally for 768–1063px viewports (desktop layout min
+  width 1064 engages at md:768); strict scrollWidth checks at 768 will fail there.
+- Theme toggle is a single header button cycling Light→Dark→System (aria-label contains
+  "theme"), not a menu.
+
+## R297b notes — both R297 P3s fixed; header anatomy
+- DOCX bullet misparse and the /builder 768–1063 overflow are FIXED as of
+  index-B3yCZqsB.js / Builder-DrUleA5V.js / importText-CNBPnagQ.js.
+- Builder header (SiteHeader wideAction): hamburger below lg(1024) via aria-label "Menu";
+  the menu renders INLINE in #root (no Radix portal/menuitem roles) — assert by visible
+  links, not [role=menu]. Download toggle button uses title (not aria-label)
+  "Download your resume" on desktop and reveals the four format buttons inline (<1536);
+  ≥1536 they're always visible. Badge/Saved appear at xl(1280); undo/redo at lg(1024).
+- Known pre-existing P3: /ats-checker overflows at 768–~834 (nowrap "Build my resume"
+  header CTA + md nav); passes below md because nav hides. Fixed in R297c: the CTA
+  shows short "Builder" text below lg on /ats-checker and the landing page.
