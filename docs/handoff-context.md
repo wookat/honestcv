@@ -437,3 +437,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（R270 复验）：生产 bundle index-DjZrm45t.js；全绿零 P0–P3 零 AI——4 形态 education fixture 经真实 UI 下载 TXT/MD/PDF，TXT 字节级 `(2014)`/`(2017)`/`(2010 – 2013)`/无日期无括号，全文件 `( – `/`– )` 零匹配，MD 同；R268 经历 Present 与落地 #418 回归通过、375 暗色、localStorage 基线还原。
 - 坑/提示：Builder 下载行有四按钮 PDF/DOCX/TXT/MD（MD → resumeToMarkdown，Builder.tsx 约 1542 行）——MD 是与 TXT 并列最易字节级校验的序列化出口。
 - 文档：docs/plan-r269-education-date-serialization.md、docs/qa-r270-plan.md（测试代理写）。
+
+## R271 — Unicode-capable PDF export + honest export filenames + visible export errors (2026-09-02)
+- 证据：R270b 探索性生产审计一手发现——F1/P2 CJK 简历 PDF 导出 `WinAnsi cannot encode "张"` 未处理 rejection 且 UI 零提示（busy 状态静默结束）；F2/P3 professionalFileName 剥掉全部非 ASCII（纯 CJK 名退化为 resume.pdf）。
+- 实现：pdf.ts 迁移 `pdf-lib`+`@pdf-lib/fontkit` → `@cantoo/pdf-lib`+`fontkit@2`（旧栈嵌入的 CJK 子集 pdftotext 可解析但 poppler/mupdf 渲染 tofu/乱码——"可提取"≠"可渲染"；fontkit@2 配旧 pdf-lib 报 encodeStream 不兼容；GoNotoKurrent 在 fontkit@2 对纯标点字符串 layout 抛 `Not a fixed size`，弃用）。needsUnicodeFont(probe) 超出 WinAnsi 时懒加载自托管 Noto Sans SC TTF（Google 静态构建，OFL，覆盖 Latin/CJK/kana/Cyrillic/越南语；italic→regular），subset: true；assertFontCoverage 对 probe 逐字符查 cmap，不支持的文字（阿拉伯/泰/韩等）抛明确错误而非静默 tofu。Builder/Dashboard 下载 handler 加 catch → 行内 role=alert 红色错误条 + Dismiss。download.ts 文件名 slug 改 `/[^\p{L}\p{N}]+/gu`（保留 Unicode 字母数字，符号→连字符，全符号回退 document）。零 worker/schema/评分/AI 改动。
+- 验证：.tmp-smoke/r271_oracle.ts 16/16 绿（Latin 无字体 fetch 回归、CJK 生成+pdftotext 提取、覆盖缺口可见抛错、文件名 4 形态）；CJK PDF 经 pdftoppm+mutool draw 栅格化目检字形正确；tsc/lint/build 全绿。pdf chunk 增至 ~1.0MB（fontkit@2，懒加载 chunk，可接受）。
+- 坑：验证 PDF 字体必须栅格化目检（pdftoppm/mutool），pdftotext 通过不代表能渲染；@types/fontkit 的 create 签名要 Buffer，运行时接受 Uint8Array，需窄化 cast。
+- 文档：docs/plan-r271-unicode-pdf-and-filenames.md、docs/qa-r270b-exploratory.md。

@@ -232,6 +232,7 @@ export default function Dashboard() {
   const [freeDlOpen, setFreeDlOpen] = useState(false)
   const pendingDl = useRef<{ resume: Resume; fmt: 'pdf' | 'docx' } | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [dlError, setDlError] = useState<string | null>(null)
   const [view, setView] = useState<'grid' | 'list'>(() =>
     localStorage.getItem('honestcv.dashboardView') === 'list' ? 'list' : 'grid'
   )
@@ -324,6 +325,7 @@ export default function Dashboard() {
       disabled={downloading === key}
       onClick={async () => {
         setDownloading(key)
+        setDlError(null)
         try {
           const letterhead = draft ?? emptyResume()
           const base =
@@ -342,6 +344,10 @@ export default function Dashboard() {
             if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, name)
             else await m.downloadLetterDocx(letterhead, text, name)
           }
+        } catch (e) {
+          setDlError(
+            `${fmt.toUpperCase()} download failed: ${e instanceof Error ? e.message : String(e)}`
+          )
         } finally {
           setDownloading(null)
         }
@@ -358,12 +364,17 @@ export default function Dashboard() {
 
   const runDownload = async (r: Resume, fmt: 'pdf' | 'docx', key: string) => {
     setDownloading(key)
+    setDlError(null)
     try {
       const name = professionalFileName([r.contact.fullName, r.targetRole, 'resume'], fmt)
       const out = visibleResume(r)
       if (fmt === 'pdf') await (await import('@/lib/pdf')).downloadResumePdf(out, name)
       else await (await import('@/lib/docx')).downloadResumeDocx(out, name)
       if (!localStorage.getItem('honestcv.shared')) localStorage.setItem('honestcv.shared', '1')
+    } catch (e) {
+      setDlError(
+        `${fmt.toUpperCase()} download failed: ${e instanceof Error ? e.message : String(e)}`
+      )
     } finally {
       setDownloading(null)
     }
@@ -638,6 +649,19 @@ export default function Dashboard() {
           </Button>
         }
       />
+      {dlError && (
+        <div className="mx-auto w-full max-w-6xl px-4 pt-3">
+          <p
+            className="border-destructive/40 bg-destructive/10 text-destructive flex items-start justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+            role="alert"
+          >
+            <span>{dlError}</span>
+            <button type="button" className="underline" onClick={() => setDlError(null)}>
+              Dismiss
+            </button>
+          </p>
+        </div>
+      )}
       <main className="mx-auto flex w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8">
         <WorkspaceNav onCreate={() => setNewOpen(true)} />
         <div className="min-w-0 flex-1">

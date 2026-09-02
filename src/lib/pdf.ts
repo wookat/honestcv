@@ -3,8 +3,8 @@
  * (never an image), single-column US Letter or A4 layout, template-aware styling.
  */
 
-import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from 'pdf-lib'
-import fontkit from '@pdf-lib/fontkit'
+import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from '@cantoo/pdf-lib'
+import * as fontkit from 'fontkit'
 import { downloadBlob } from '@/lib/download'
 import {
   type Resume,
@@ -533,13 +533,83 @@ const WEB_FONT_FILES = {
 const isWebFamily = (f: FontFamilyKind): f is keyof typeof WEB_FONT_FILES =>
   f === 'merriweather' || f === 'sourcesans' || f === 'robotomono'
 
-async function fetchFontBytes(url: string): Promise<ArrayBuffer> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Failed to load font ${url}: ${res.status}`)
-  return res.arrayBuffer()
+/** Wide-coverage fallback face (Latin, Greek, Cyrillic, CJK, kana) for text
+ *  the WinAnsi-bound standard/Latin faces cannot encode. CJK has no italic,
+ *  so italic maps to regular. */
+const UNICODE_FONT_FILES = {
+  regular: '/fonts/notosanssc-regular.ttf',
+  bold: '/fonts/notosanssc-bold.ttf',
+} as const
+
+// Characters WinAnsi (cp1252) can encode beyond printable ASCII and Latin-1.
+const WINANSI_EXTRAS =
+  '\u20AC\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u017D\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u017E\u0178'
+
+/** True when any character falls outside the WinAnsi repertoire, meaning the
+ *  standard and Latin web fonts would throw on encode. */
+export function needsUnicodeFont(text: string): boolean {
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0
+    if (cp === 0x09 || cp === 0x0a || cp === 0x0d) continue
+    if (cp >= 0x20 && cp <= 0x7e) continue
+    if (cp >= 0xa0 && cp <= 0xff) continue
+    if (WINANSI_EXTRAS.includes(ch)) continue
+    return true
+  }
+  return false
 }
 
-async function embedFontsFor(doc: PDFDocument, resume: Resume, tplSerif: boolean): Promise<Fonts> {
+const resumeFontProbe = (resume: Resume): string =>
+  JSON.stringify({ ...resume, photo: undefined })
+
+async function embedUnicodeFonts(doc: PDFDocument, probe: string): Promise<Fonts> {
+  doc.registerFontkit(fontkit)
+  const [regularBytes, boldBytes] = await Promise.all([
+    fetchFontBytes(UNICODE_FONT_FILES.regular),
+    fetchFontBytes(UNICODE_FONT_FILES.bold),
+  ])
+  assertFontCoverage(regularBytes, probe)
+  const regular = await doc.embedFont(regularBytes, { subset: true })
+  const bold = await doc.embedFont(boldBytes, { subset: true })
+  return { regular, bold, italic: regular }
+}
+
+/** Fail with a clear message instead of emitting invisible .notdef boxes when
+ *  the fallback face lacks glyphs for some of the document's characters. */
+function assertFontCoverage(fontBytes: Uint8Array, probe: string) {
+  // @types/fontkit demands a Node Buffer, but fontkit itself accepts any Uint8Array.
+  const create = fontkit.create as unknown as (b: Uint8Array) => {
+    hasGlyphForCodePoint(cp: number): boolean
+  }
+  const face = create(fontBytes)
+  const missing = new Set<string>()
+  for (const ch of probe) {
+    const cp = ch.codePointAt(0) ?? 0
+    if (cp < 0xa0) continue
+    if (!face.hasGlyphForCodePoint(cp)) missing.add(ch)
+  }
+  if (missing.size > 0) {
+    const sample = [...missing].slice(0, 8).join(' ')
+    throw new Error(
+      `PDF export does not support some characters in this document yet: ${sample}${missing.size > 8 ? ' \u2026' : ''}. DOCX, TXT and Markdown exports support all characters.`
+    )
+  }
+}
+
+async function fetchFontBytes(url: string): Promise<Uint8Array> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Failed to load font ${url}: ${res.status}`)
+  return new Uint8Array(await res.arrayBuffer())
+}
+
+async function embedFontsFor(
+  doc: PDFDocument,
+  resume: Resume,
+  tplSerif: boolean,
+  extraProbe = ''
+): Promise<Fonts> {
+  const probe = resumeFontProbe(resume) + extraProbe
+  if (needsUnicodeFont(probe)) return embedUnicodeFonts(doc, probe)
   const family = familyOf(resume, tplSerif)
   if (isWebFamily(family)) {
     doc.registerFontkit(fontkit)
@@ -852,11 +922,13 @@ export async function downloadResumePdf(resume: Resume, filename: string) {
 /** Generic text PDF (cover letter / interview brief) */
 export async function downloadTextPdf(title: string, text: string, filename: string) {
   const doc = await PDFDocument.create()
-  const fonts: Fonts = {
-    regular: await doc.embedFont(StandardFonts.Helvetica),
-    bold: await doc.embedFont(StandardFonts.HelveticaBold),
-    italic: await doc.embedFont(StandardFonts.HelveticaOblique),
-  }
+  const fonts: Fonts = needsUnicodeFont(`${title}\n${text}`)
+    ? await embedUnicodeFonts(doc, `${title}\n${text}`)
+    : {
+        regular: await doc.embedFont(StandardFonts.Helvetica),
+        bold: await doc.embedFont(StandardFonts.HelveticaBold),
+        italic: await doc.embedFont(StandardFonts.HelveticaOblique),
+      }
   const tpl = getTemplate('modern')
   const w = new PdfWriter(doc, fonts, tpl, 'letter')
   w.text(title, { font: fonts.bold, size: 16 })
@@ -878,7 +950,7 @@ export async function downloadTextPdf(title: string, text: string, filename: str
 export async function downloadLetterPdf(resume: Resume, body: string, filename: string) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const doc = await PDFDocument.create()
-  const fonts: Fonts = await embedFontsFor(doc, resume, tpl.serif)
+  const fonts: Fonts = await embedFontsFor(doc, resume, tpl.serif, body)
   const w = new PdfWriter(doc, fonts, tpl, resume.pageSize === 'a4' ? 'a4' : 'letter')
   const c = resume.contact
   if (c.fullName.trim()) {
