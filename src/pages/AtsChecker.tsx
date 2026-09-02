@@ -107,7 +107,7 @@ export default function AtsChecker() {
       .finally(() => setFileBusy(false))
   }
 
-  const openInBuilder = () => {
+  const openInBuilder = (anchor?: string) => {
     const existing = loadResume()
     const hasContent = Boolean(
       existing && (existing.contact.fullName || existing.experience.length)
@@ -126,7 +126,7 @@ export default function AtsChecker() {
       existing.jobDescription = jd
       saveResume(existing)
     }
-    void navigate('/builder')
+    void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
   }
 
   const result = useMemo(
@@ -384,6 +384,20 @@ export default function AtsChecker() {
                             <span className="text-foreground/70 whitespace-nowrap tabular-nums">
                               +{f.points} pts
                             </span>
+                            <button
+                              type="button"
+                              className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                              onClick={() =>
+                                openInBuilder(
+                                  f.anchor ??
+                                    (f.text.startsWith('Add missing job keywords')
+                                      ? 'target'
+                                      : undefined)
+                                )
+                              }
+                            >
+                              Fix in builder →
+                            </button>
                           </span>
                         </li>
                       ))}
@@ -600,7 +614,7 @@ export default function AtsChecker() {
                   AI rewrites your bullets toward this exact job, live ATS score as you
                   edit, and clean PDF/DOCX export. No sign-up, no subscription.
                 </p>
-                <Button className="mt-3 h-auto max-w-full whitespace-normal" onClick={openInBuilder}>
+                <Button className="mt-3 h-auto max-w-full whitespace-normal" onClick={() => openInBuilder()}>
                   Fix it in the builder — resume &amp; job carried over <ArrowRight />
                 </Button>
               </div>

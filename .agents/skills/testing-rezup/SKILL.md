@@ -298,6 +298,12 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - Uploading a file (DOM.setFileInputFiles on `input[type=file]`) sets checked=false; "Uploaded file checks (name)" only renders inside the results card after clicking Check again.
 - High/Med chips use bg-red-100/text-red-700 with no dark: overrides — the inverted dark palette remaps both (light text on dark bg), measured 7.29:1, OK.
 
+## R204 checker deep-link notes
+- Per-fix "Fix in builder →" buttons: anchor = f.anchor ?? ('target' for the keyword fix). Checker structure checks (scoreResumeText) carry anchors since c08f23e (email/phone→contact, headings/quantified/dates/content/word-count→experience, skills→skills), so structure, writing-dimension, and keyword fixes all jump.
+- CRITICAL: clicking any Fix/carry-over button while the saved builder resume has content fires a native window.confirm that WEDGES the CDP page session (Runtime.evaluate never responds; Page.handleJavaScriptDialog may say "No dialog"). Always stub `window.confirm=()=>true/false` on the page BEFORE clicking, or clear honestcv.resume first. If wedged, recycle the tab: `curl localhost:29229/json/close/<id>` then `curl -X PUT "localhost:29229/json/new?<url>"`.
+- Builder ?jump= handling strips the param via history.replaceState on mount always (even bogus anchors), then jumpToSection after 150ms for known anchors; verify scroll via `[data-section-anchor="<anchor>"]` getBoundingClientRect within ~1s (smooth scroll).
+- Theme button in header: match by aria-label /theme/i (e.g. "System theme — switch to light theme"), not lucide-sun/moon classes (icon can be lucide-monitor).
+
 ## Devin Secrets Needed
 
 None — the seeded test license key is provided by the user per run.

@@ -223,11 +223,13 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
       label: 'Email address found',
       pass: /[^\s@]+@[^\s@]+\.[^\s@]{2,}/.test(resumeText),
       hint: 'ATS parsers look for an email in the header.',
+      anchor: 'contact',
     },
     {
       label: 'Phone number found',
       pass: /(\+?\d[\d\s().-]{7,})/.test(resumeText),
       hint: 'Include a phone number recruiters can call.',
+      anchor: 'contact',
     },
     {
       label: 'Standard section headings',
@@ -235,28 +237,33 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
         /^\s*(work |professional |employment )?experience\s*:?\s*$/m.test(resumeText) &&
         /^\s*education\s*:?\s*$/m.test(resumeText),
       hint: 'Use standard headings like "Experience" and "Education" so parsers find them.',
+      anchor: 'experience',
     },
     {
       label: 'Skills section present',
       pass: /^\s*(technical |core |key )?skills\s*:?\s*$/m.test(resumeText) || /skills:/.test(resumeText),
       hint: 'A dedicated skills list is the easiest keyword match for ATS.',
+      anchor: 'skills',
     },
     {
       label: 'Quantified achievements',
       pass: /\d+(%|\+| percent|k\b|x\b)|\$\d/.test(resumeText),
       hint: 'Numbers (%, $, counts) make bullets stand out to recruiters.',
+      anchor: 'experience',
     },
     {
       label: 'Employment dates found',
       pass: /\b(19|20)\d{2}\b/.test(resumeText),
       hint: 'ATS parsers build your work timeline from dates — include years for every role.',
+      anchor: 'experience',
     },
     {
       label: 'Enough content to parse',
       pass: resumeTextRaw.trim().length >= 400,
       hint: 'Very short resumes give ATS systems too little to match on.',
+      anchor: 'experience',
     },
-    wordCountCheck(resumeTextRaw),
+    wordCountCheck(resumeTextRaw, 'experience'),
   ]
 
   return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
