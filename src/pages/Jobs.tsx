@@ -109,6 +109,7 @@ export default function Jobs() {
   const [locationFilter, setLocationFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [skillsFilter, setSkillsFilter] = useState('')
+  const [tagsExpandedId, setTagsExpandedId] = useState<string | null>(null)
   const [sort, setSort] = useState<'relevance' | 'newest' | 'match'>('relevance')
   const [excluded, setExcluded] = useState<ReadonlySet<JobStatus>>(new Set())
   const [jobs, setJobs] = useState<JobListing[]>([])
@@ -226,10 +227,20 @@ export default function Jobs() {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
+  const activeSkillTerms = new Set(skillTerms.map((t) => t.toLowerCase()))
+  /** Add a skill tag to the filter, or remove it if already active. */
+  const toggleSkillTerm = (rawTag: string) => {
+    const tag = rawTag.replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
+    if (!tag) return
+    const kept = skillTerms.filter((t) => t.toLowerCase() !== tag.toLowerCase())
+    const next = kept.length === skillTerms.length ? [...kept, tag] : kept
+    setSkillsFilter(next.join(', '))
+    setTab('all')
+  }
   const afterSkills =
     tab === 'all' && skillTerms.length > 0
       ? afterType.filter((j) => {
-          const haystack = `${j.title}\n${j.description}`.toLowerCase()
+          const haystack = `${j.title}\n${j.description}\n${(j.tags ?? []).join('\n')}`.toLowerCase()
           return skillTerms.every((term) => {
             const t = term.toLowerCase()
             const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -766,6 +777,42 @@ export default function Jobs() {
                     )
                   )}
                 </p>
+                {(selected.tags?.length ?? 0) > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-muted-foreground text-xs font-medium">Skills:</span>
+                    {(tagsExpandedId === selected.id
+                      ? (selected.tags ?? [])
+                      : (selected.tags ?? []).slice(0, 10)
+                    ).map((tag) => {
+                      const active = activeSkillTerms.has(tag.toLowerCase())
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          aria-pressed={active}
+                          title={active ? `Remove "${tag}" from the skills filter` : `Filter jobs by "${tag}"`}
+                          onClick={() => toggleSkillTerm(tag)}
+                          className={
+                            active
+                              ? 'bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs'
+                              : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground rounded-full px-2 py-0.5 text-xs'
+                          }
+                        >
+                          {tag}
+                        </button>
+                      )
+                    })}
+                    {(selected.tags?.length ?? 0) > 10 && tagsExpandedId !== selected.id && (
+                      <button
+                        type="button"
+                        onClick={() => setTagsExpandedId(selected.id)}
+                        className="text-primary text-xs underline-offset-2 hover:underline"
+                      >
+                        +{(selected.tags?.length ?? 0) - 10} more
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   <Button
                     type="button"
