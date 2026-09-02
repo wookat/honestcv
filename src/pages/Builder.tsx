@@ -1452,6 +1452,7 @@ export default function Builder() {
   const [summaryDraftSetup, setSummaryDraftSetup] = useState<{
     position: string
     picked: string[]
+    custom: boolean
   } | null>(null)
 
   const summaryPositionOptions = useMemo(() => {
@@ -1518,7 +1519,11 @@ export default function Builder() {
         regenerate: () => void runSummaryDraft(position, highlights),
         adjust: () => {
           setVariantPick(null)
-          setSummaryDraftSetup({ position, picked: highlights })
+          setSummaryDraftSetup({
+            position,
+            picked: highlights,
+            custom: !summaryPositionOptions.includes(position),
+          })
         },
       })
     } catch (e) {
@@ -2407,6 +2412,7 @@ export default function Builder() {
                       setSummaryDraftSetup({
                         position: aiTargetRole(resume),
                         picked: [],
+                        custom: !summaryPositionOptions.includes(aiTargetRole(resume)),
                       }),
                     !resumeHasContent &&
                       'Add some experience or skills first — the draft is written only from your resume.'
@@ -7444,13 +7450,15 @@ export default function Builder() {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="summary-draft-position">Position highlight</Label>
-                {summaryPositionOptions.length > 0 ? (
+                {summaryPositionOptions.length > 0 && !summaryDraftSetup.custom ? (
                   <select
                     id="summary-draft-position"
                     className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                     value={summaryDraftSetup.position}
                     onChange={(e) =>
-                      setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
+                      e.target.value === '__custom__'
+                        ? setSummaryDraftSetup({ ...summaryDraftSetup, custom: true })
+                        : setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
                     }
                   >
                     {summaryPositionOptions.map((p) => (
@@ -7458,16 +7466,36 @@ export default function Builder() {
                         {p}
                       </option>
                     ))}
+                    <option value="__custom__">Type a different title…</option>
                   </select>
                 ) : (
-                  <Input
-                    id="summary-draft-position"
-                    placeholder="e.g. Software Engineer"
-                    value={summaryDraftSetup.position}
-                    onChange={(e) =>
-                      setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
-                    }
-                  />
+                  <>
+                    <Input
+                      id="summary-draft-position"
+                      placeholder="e.g. Software Engineer"
+                      value={summaryDraftSetup.position}
+                      onChange={(e) =>
+                        setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
+                      }
+                    />
+                    {summaryPositionOptions.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-primary text-xs underline underline-offset-2"
+                        onClick={() =>
+                          setSummaryDraftSetup({
+                            ...summaryDraftSetup,
+                            custom: false,
+                            position: summaryPositionOptions.includes(summaryDraftSetup.position)
+                              ? summaryDraftSetup.position
+                              : summaryPositionOptions[0],
+                          })
+                        }
+                      >
+                        Pick a role from my resume instead
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
               {summarySkillOptions.length > 0 && (
