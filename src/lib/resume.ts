@@ -2639,7 +2639,7 @@ export function resumeToMarkdown(r: Resume): string {
   }
   return (
     lines
-      .map((l) => (l.startsWith('- ') ? marksToMarkdown(l) : l))
+      .map((l) => marksToMarkdown(l))
       .join('\n')
       .replace(/\n{3,}/g, '\n\n')
       .trim() + '\n'
