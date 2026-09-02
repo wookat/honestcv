@@ -65,7 +65,7 @@ const matchTone = (pct: number) =>
       ? 'bg-amber-100 text-amber-800'
       : 'bg-red-100 text-red-800'
 
-type Tab = 'all' | JobStatus
+type Tab = 'all' | 'tracked' | JobStatus
 
 const postedAgo = (iso: string) => {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
@@ -185,8 +185,24 @@ export default function Jobs() {
   }, [pipeline])
 
   const loc = locationFilter.trim().toLowerCase()
+  /** Whole application queue, grouped saved → applied → interviewing → rejected,
+   *  most recently updated first within a group. */
+  const trackedQueue = useMemo(
+    () =>
+      JOB_STATUSES.flatMap((s) =>
+        pipeline
+          .filter((e) => e.status === s)
+          .sort((a, b) => b.updatedAt - a.updatedAt)
+          .map((e) => e.job)
+      ),
+    [pipeline]
+  )
   const base: JobListing[] =
-    tab === 'all' ? jobs : pipeline.filter((e) => e.status === tab).map((e) => e.job)
+    tab === 'all'
+      ? jobs
+      : tab === 'tracked'
+        ? trackedQueue
+        : pipeline.filter((e) => e.status === tab).map((e) => e.job)
   const afterExclude =
     tab === 'all' && excluded.size > 0
       ? base.filter((j) => {
@@ -382,6 +398,7 @@ export default function Jobs() {
           {(
             [
               ['all', `All jobs`],
+              ['tracked', `Tracked (${pipeline.length})`],
               ...JOB_STATUSES.map((s) => [s, `${JOB_STATUS_LABELS[s]} (${counts[s]})`]),
             ] as [Tab, string][]
           ).map(([value, label]) => (
@@ -512,7 +529,9 @@ export default function Jobs() {
               <p className="text-muted-foreground p-4 text-sm">
                 {tab === 'all'
                   ? 'No jobs found — try another search term.'
-                  : `Nothing ${JOB_STATUS_LABELS[tab].toLowerCase()} yet — use the status buttons on a job to track it.`}
+                  : tab === 'tracked'
+                    ? 'Nothing tracked yet — use the status buttons on a job to track it.'
+                    : `Nothing ${JOB_STATUS_LABELS[tab].toLowerCase()} yet — use the status buttons on a job to track it.`}
               </p>
             ) : (
               <ul>
@@ -524,6 +543,11 @@ export default function Jobs() {
                       {i === anywhereStart && (
                         <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
                           Open to any location ({sortedAnywhere.length})
+                        </p>
+                      )}
+                      {tab === 'tracked' && status && status !== statusOf.get(shown[i - 1]?.id ?? '') && (
+                        <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
+                          {JOB_STATUS_LABELS[status]} ({counts[status]})
                         </p>
                       )}
                       <div
