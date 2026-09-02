@@ -507,15 +507,15 @@ export default function Jobs() {
                         <div className="mt-1.5 flex items-center gap-1.5">
                           <button
                             type="button"
-                            aria-pressed={status === 'saved'}
-                            onClick={() => setStatus(j, status === 'saved' ? 'none' : 'saved')}
+                            aria-pressed={status !== undefined}
+                            onClick={() => setStatus(j, status ? 'none' : 'saved')}
                             className={`min-h-10 rounded-md border px-2 py-0.5 text-xs font-medium transition sm:min-h-7 ${
-                              status === 'saved'
+                              status
                                 ? 'border-primary ring-primary/40 ring-2'
                                 : 'hover:border-muted-foreground/40'
                             }`}
                           >
-                            {status === 'saved' ? 'Saved' : 'Save'}
+                            {status ? (status === 'saved' ? 'Saved' : 'Tracked') : 'Save'}
                           </button>
                           <select
                             value={status ?? 'none'}
