@@ -17,7 +17,7 @@ import {
   type AssistantTurnInput,
 } from '@/lib/api'
 import { aiTargetRole, resumeToPlainText, type Resume } from '@/lib/resume'
-import type { AtsResult } from '@/lib/ats'
+import { matchReport, type AtsResult } from '@/lib/ats'
 
 const CHAT_KEY = 'honestcv.assistantChat'
 const CHAT_MAX = 40
@@ -157,6 +157,9 @@ export function AssistantPanel({
   onApply: (action: AssistantAction) => void
   onLocate?: (action: AssistantAction) => void
 }) {
+  // Live tailoring status — same helper as the Target job panel and /jobs report
+  const report = matchReport(resumeToPlainText(resume), jobDescription)
+
   const [turns, setTurns] = useState<ChatMsg[]>(loadChat)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -295,6 +298,30 @@ export function AssistantPanel({
                 </p>
               )}
             </div>
+            {report && (
+              <div className="bg-muted mt-2 rounded-lg px-3 py-2 text-left">
+                <p className="text-sm">
+                  Your resume matches{' '}
+                  <span className="font-semibold">{report.pct}%</span> of the target
+                  job&rsquo;s keywords ({report.covered.length} of{' '}
+                  {report.covered.length + report.missing.length}).
+                </p>
+                {report.highPriorityMissing.length > 0 ? (
+                  <p className="mt-1 text-xs text-amber-800">
+                    High priority to work in:{' '}
+                    {report.highPriorityMissing.slice(0, 3).join(', ')}
+                  </p>
+                ) : report.missing.length > 0 ? (
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Still missing: {report.missing.slice(0, 3).join(', ')}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+                    All job keywords covered — nice tailoring.
+                  </p>
+                )}
+              </div>
+            )}
             <div className="mt-4 flex flex-col items-stretch gap-1.5">
               {QUICK_TASKS.map((t) => (
                 <Button
@@ -387,6 +414,20 @@ export function AssistantPanel({
         )}
         {error && <p className="text-destructive text-xs">{error}</p>}
       </div>
+      {turns.length > 0 && report && (
+        <p className="text-muted-foreground border-t px-4 py-1.5 text-xs">
+          Target job: <span className="text-foreground font-medium">{report.pct}%</span>{' '}
+          keyword match
+          {report.highPriorityMissing.length > 0 && (
+            <>
+              {' \u00b7 high priority: '}
+              <span className="text-amber-800">
+                {report.highPriorityMissing.slice(0, 2).join(', ')}
+              </span>
+            </>
+          )}
+        </p>
+      )}
       {turns.length > 0 && (
         <div className="flex flex-wrap gap-1.5 border-t px-4 py-2">
           {QUICK_TASKS.map((t) => (
