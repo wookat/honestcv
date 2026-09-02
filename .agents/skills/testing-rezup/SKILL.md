@@ -700,3 +700,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R254 — Tracked "Needs follow-up" filter
 - `?attention=1` on /jobs is a mount-time `useState` seed — the filter/tab don't react to later URL changes, so navigate fresh per scenario.
 - The follow-up chip lives inside `[role=group][aria-label="Bulk actions on tracked jobs"]` before the Select… button and only renders when the pipeline is non-empty.
+
+## R255 — follow-up email drafts / clipboard QA over CDP
+- To verify clipboard writes over CDP: `Browser.grantPermissions {permissions:['clipboardReadWrite','clipboardSanitizedWrite'],origin}` AND `Page.bringToFront` before `navigator.clipboard.readText()` — it hangs indefinitely on an unfocused document (use `Runtime.evaluate` with `awaitPromise` + `.catch`, not the plain eval helper).
+- `loadResume()` requires both `contact` and an `experience` array in `honestcv.resume`; minimal seed: `{contact:{fullName:…},experience:[]}`.

@@ -37,6 +37,7 @@ import {
   type JobStatus,
   type PipelineEntry,
   attentionCount,
+  followUpEmail,
   listPipeline,
   removeFromPipeline,
   removeManyFromPipeline,
@@ -129,6 +130,10 @@ export default function Jobs() {
   const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
   const [reportOpenId, setReportOpenId] = useState<string | null>(null)
   const [confirmUntrack, setConfirmUntrack] = useState<JobListing | null>(null)
+  const [followUpDraft, setFollowUpDraft] = useState<{ subject: string; body: string } | null>(
+    null
+  )
+  const [followUpCopied, setFollowUpCopied] = useState(false)
 
   const fetchJobs = (q: string, cat = '') =>
     searchJobs(q, cat)
@@ -1202,9 +1207,23 @@ export default function Jobs() {
                         const stale = staleDays(entry)
                         return (
                           stale !== null && (
-                            <p className="mt-1.5 text-xs font-medium text-amber-700">
-                              No update in {stale} days — consider following up.
-                            </p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                              <p className="text-xs font-medium text-amber-700">
+                                No update in {stale} days — consider following up.
+                              </p>
+                              <button
+                                type="button"
+                                className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
+                                onClick={() => {
+                                  setFollowUpCopied(false)
+                                  setFollowUpDraft(
+                                    followUpEmail(entry, loadResume()?.contact.fullName)
+                                  )
+                                }}
+                              >
+                                Draft follow-up email
+                              </button>
+                            </div>
                           )
                         )
                       })()}
@@ -1332,6 +1351,67 @@ export default function Jobs() {
               }}
             >
               Stop tracking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={followUpDraft !== null} onOpenChange={(o) => !o && setFollowUpDraft(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Follow-up email</DialogTitle>
+            <DialogDescription>
+              A ready-to-send draft — edit it below, then copy it into your email client.
+            </DialogDescription>
+          </DialogHeader>
+          {followUpDraft && (
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="follow-up-subject" className="block text-sm font-medium">
+                  Subject
+                </label>
+                <Input
+                  id="follow-up-subject"
+                  className="mt-1"
+                  value={followUpDraft.subject}
+                  onChange={(e) =>
+                    setFollowUpDraft({ ...followUpDraft, subject: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label htmlFor="follow-up-body" className="block text-sm font-medium">
+                  Message
+                </label>
+                <textarea
+                  id="follow-up-body"
+                  className="border-input bg-background mt-1 min-h-48 w-full rounded-md border px-3 py-2 text-sm"
+                  value={followUpDraft.body}
+                  onChange={(e) => setFollowUpDraft({ ...followUpDraft, body: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-10"
+              onClick={() => setFollowUpDraft(null)}
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              className="min-h-10"
+              onClick={() => {
+                if (!followUpDraft) return
+                void navigator.clipboard
+                  .writeText(`Subject: ${followUpDraft.subject}\n\n${followUpDraft.body}`)
+                  .then(() => setFollowUpCopied(true))
+              }}
+            >
+              {followUpCopied ? 'Copied' : 'Copy email'}
             </Button>
           </DialogFooter>
         </DialogContent>
