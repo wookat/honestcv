@@ -1,11 +1,11 @@
-import { extractKeywords } from './ats'
+import { extractKeywords, highPriorityKeywords } from './ats'
 
 export interface AnswerAnalysis {
   words: number
   lengthBand: 'short' | 'ideal' | 'long'
   lengthHint: string
   star: { context: boolean; action: boolean; result: boolean }
-  keywords: { covered: string[]; missing: string[] } | null
+  keywords: { covered: string[]; missing: string[]; highPriorityMissing: string[] } | null
   fillers: string[]
   weHeavy: boolean
   score: number
@@ -272,7 +272,8 @@ export function analyzeAnswer(
         if (kw.includes(' ') ? lower.includes(kw) : toks.has(kw)) covered.push(kw)
         else missing.push(kw)
       }
-      keywords = { covered, missing }
+      const high = highPriorityKeywords(jobDescription, kws)
+      keywords = { covered, missing, highPriorityMissing: missing.filter((k) => high.has(k)) }
     }
   }
 
