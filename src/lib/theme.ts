@@ -7,6 +7,14 @@ export type ThemePref = 'light' | 'dark' | 'system'
 
 const KEY = 'honestcv.theme'
 
+const listeners = new Set<() => void>()
+
+/** Subscribe to preference changes (for `useSyncExternalStore`). */
+export function subscribeThemePref(cb: () => void): () => void {
+  listeners.add(cb)
+  return () => listeners.delete(cb)
+}
+
 export function loadThemePref(): ThemePref {
   try {
     const v = localStorage.getItem(KEY)
@@ -24,6 +32,7 @@ export function saveThemePref(pref: ThemePref) {
     /* storage unavailable */
   }
   applyThemePref(pref)
+  for (const cb of listeners) cb()
 }
 
 export function applyThemePref(pref: ThemePref) {

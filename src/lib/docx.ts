@@ -50,6 +50,7 @@ import {
   sectionSpacingOf,
   skillLines,
   bulletIndentOf,
+  experienceDateRange,
   familyOf,
   TEXT_INKS,
   textInkOf,
@@ -222,7 +223,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         }
         let ei = 0
         for (const e of g.entries) {
-          const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+          const dates = experienceDateRange(e.startDate, e.endDate)
           children.push(
             new Paragraph({
               spacing: { before: g.grouped ? 40 : 100, after: 20 },

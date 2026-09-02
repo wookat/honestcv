@@ -1,13 +1,15 @@
 import { trackEvent } from '@/lib/track'
 
-/** Build a clear, professional export filename: lowercase hyphenated parts, blanks dropped */
+/** Build a clear, professional export filename: lowercase hyphenated parts,
+ *  blanks dropped. Letters and digits in any script are kept so non-Latin
+ *  names survive into the filename. */
 export function professionalFileName(parts: (string | undefined | null)[], ext: string) {
   const slug = parts
     .map((p) =>
       (p ?? '')
         .trim()
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/[^\p{L}\p{N}]+/gu, '-')
         .replace(/^-+|-+$/g, '')
     )
     .filter(Boolean)

@@ -2099,6 +2099,14 @@ export function educationDetailLine(e: EducationItem): string {
     .join(' · ')
 }
 
+/** Date range for an experience entry — a blank end date on an ongoing role reads "start – Present" */
+export function experienceDateRange(startDate: string, endDate: string): string {
+  const start = startDate.trim()
+  const end = endDate.trim()
+  if (start && !end) return `${start} – Present`
+  return [start, end].filter(Boolean).join(' – ')
+}
+
 /** Heading line for a project entry: name · org — link */
 export function projectHeadingLine(p: ProjectItem): string {
   const left = [p.name.trim(), p.org?.trim() ?? ''].filter(Boolean).join(' · ')
@@ -2397,7 +2405,9 @@ export function resumeToPlainText(r: Resume): string {
             (g.grouped
               ? e.role || 'Role'
               : [e.role, e.company].filter(Boolean).join(' at ')) +
-              (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
+              (e.startDate || e.endDate
+                ? ` (${experienceDateRange(e.startDate, e.endDate)})`
+                : '')
           )
           if (e.companyInfo?.trim()) lines.push(e.companyInfo.trim())
           for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
@@ -2429,7 +2439,9 @@ export function resumeToPlainText(r: Resume): string {
         if (!e.school) continue
         lines.push(
           [e.degree, e.school].filter(Boolean).join(', ') +
-            (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
+            (e.startDate || e.endDate
+              ? ` (${[e.startDate, e.endDate].filter(Boolean).join(' – ')})`
+              : '')
         )
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail)
@@ -2508,7 +2520,10 @@ export function resumeToMarkdown(r: Resume): string {
       for (const g of experienceGroups(r.experience, r.groupByCompany === 'on')) {
         if (g.grouped) lines.push(`### ${g.company.trim()}`, '')
         for (const e of g.entries) {
-          const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
+          const dates =
+            e.startDate || e.endDate
+              ? ` *(${experienceDateRange(e.startDate, e.endDate)})*`
+              : ''
           const title = g.grouped
             ? e.role || 'Role'
             : [e.role, e.company].filter(Boolean).join(' — ')
@@ -2542,7 +2557,10 @@ export function resumeToMarkdown(r: Resume): string {
       heading(sectionHeading(r, 'education'))
       for (const e of r.education) {
         if (!e.school) continue
-        const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
+        const dates =
+          e.startDate || e.endDate
+            ? ` *(${[e.startDate, e.endDate].filter(Boolean).join(' – ')})*`
+            : ''
         lines.push(`### ${[e.degree, e.school].filter(Boolean).join(', ')}${dates}`, '')
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail, '')

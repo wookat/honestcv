@@ -809,6 +809,7 @@ export default function Builder() {
   const [aiErrorTag, setAiErrorTag] = useState<string | null>(null)
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [dlError, setDlError] = useState<string | null>(null)
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false)
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
@@ -1532,6 +1533,7 @@ export default function Builder() {
       return
     }
     setDownloading(fmt)
+    setDlError(null)
     try {
       const fname = (ext: string) =>
         professionalFileName([resume.contact.fullName, resume.targetRole, 'resume'], ext)
@@ -1549,6 +1551,10 @@ export default function Builder() {
       }
       setDownloaded(fmt)
       window.setTimeout(() => setDownloaded((cur) => (cur === fmt ? null : cur)), 1800)
+    } catch (e) {
+      setDlError(
+        `${fmt.toUpperCase()} download failed: ${e instanceof Error ? e.message : String(e)}`
+      )
     } finally {
       setDownloading(null)
     }
@@ -1741,6 +1747,19 @@ export default function Builder() {
         }
       />
 
+      {dlError && (
+        <div className="mx-auto w-full max-w-7xl px-4 pt-3">
+          <p
+            className="border-destructive/40 bg-destructive/10 text-destructive flex items-start justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+            role="alert"
+          >
+            <span>{dlError}</span>
+            <button type="button" className="underline" onClick={() => setDlError(null)}>
+              Dismiss
+            </button>
+          </p>
+        </div>
+      )}
       <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 pb-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:pb-6">
         <h1 className="sr-only">Resume builder</h1>
         {/* ---- Left: editor ---- */}
