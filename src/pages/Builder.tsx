@@ -10098,10 +10098,10 @@ function KeywordBulletDialog({
             {inserted ? (
               <p className="text-sm font-medium text-emerald-700">Added to your resume.</p>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
-                  disabled={!text.trim() || !expId}
+                  disabled={busy || !text.trim() || !expId}
                   onClick={() => {
                     onInsert(expId, text.trim())
                     setInserted(true)
@@ -10109,7 +10109,11 @@ function KeywordBulletDialog({
                 >
                   <Check className="size-3" /> Add bullet
                 </Button>
-                <Button size="sm" variant="outline" onClick={onClose}>
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => void run()}>
+                  {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {busy ? 'Drafting…' : 'Draft another option'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={onClose}>
                   Discard
                 </Button>
               </div>
