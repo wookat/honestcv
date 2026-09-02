@@ -135,6 +135,71 @@ export function analyzeFillerSounds(answer: string, elapsedSeconds?: number): Fi
   return { hits, total, perMinute, band }
 }
 
+export interface ToneDimension {
+  good: boolean
+  detail: string
+}
+
+export interface ToneAnalysis {
+  clarity: ToneDimension
+  confidence: ToneDimension
+  enthusiasm: ToneDimension
+}
+
+const HEDGE_PHRASES = [
+  'i think',
+  'i guess',
+  'i suppose',
+  'maybe',
+  'perhaps',
+  'probably',
+  'hopefully',
+  "i'm not sure",
+  'it seems',
+  'i feel like',
+]
+
+const ENGAGEMENT_RE =
+  /\b(enjoy(?:ed|s)?|excited|exciting|loved?|proud|satisfying|motivat(?:es|ed|or|ing)|passion(?:ate)?|fascinating|rewarding|care about)\b/i
+
+/** Deterministic text-proxy tone read (clarity / confidence / enthusiasm) — no AI, no network. */
+export function analyzeTone(answer: string): ToneAnalysis | null {
+  const words = answer.trim() ? answer.trim().split(/\s+/).length : 0
+  if (words < 10) return null
+
+  const sentences = answer
+    .split(/[.!?]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const longest = sentences.reduce((max, s) => Math.max(max, s.split(/\s+/).length), 0)
+  const clarity: ToneDimension =
+    longest > 40
+      ? { good: false, detail: `longest sentence runs ${longest} words; keep one idea per sentence` }
+      : { good: true, detail: 'focused sentences' }
+
+  const hedgeHits: { phrase: string; count: number }[] = []
+  for (const phrase of HEDGE_PHRASES) {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const count = (answer.match(new RegExp(`\\b${escaped}\\b`, 'gi')) ?? []).length
+    if (count > 0) hedgeHits.push({ phrase, count })
+  }
+  const hedgeTotal = hedgeHits.reduce((sum, h) => sum + h.count, 0)
+  const confidence: ToneDimension =
+    hedgeTotal >= 2
+      ? {
+          good: false,
+          detail: `hedged (${hedgeHits.map((h) => `“${h.phrase}” ×${h.count}`).join(', ')}); state it directly`,
+        }
+      : { good: true, detail: 'decisive' }
+
+  const enthusiasm: ToneDimension =
+    words >= 40 && !ENGAGEMENT_RE.test(answer)
+      ? { good: false, detail: 'flat; add a line on why it mattered to you' }
+      : { good: true, detail: 'engaged' }
+
+  return { clarity, confidence, enthusiasm }
+}
+
 const CONTEXT_RE =
   /\b(when|while|during|at the time|last (?:year|quarter|month)|my (?:team|role|company|manager)|our (?:team|product|client)|we (?:were|had|needed)|the (?:project|problem|challenge|situation|goal|deadline)|i was (?:working|responsible|tasked|asked))\b/i
 

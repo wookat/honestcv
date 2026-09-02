@@ -115,6 +115,7 @@ import {
   analyzeDelivery,
   analyzeFillerSounds,
   analyzeQuickFillers,
+  analyzeTone,
 } from '@/lib/interviewAnalysis'
 import {
   ACTION_VERBS,
@@ -7893,6 +7894,11 @@ function BundleToolDialog({
     [kind, analysis, answer, elapsedSec]
   )
 
+  const tone = useMemo(
+    () => (kind === 'interview' && analysis ? analyzeTone(answer) : null),
+    [kind, analysis, answer]
+  )
+
   if (kind !== lastKind) {
     setLastKind(kind)
     if (kind !== null) setCompany(initialCompany)
@@ -8488,6 +8494,32 @@ function BundleToolDialog({
                       </>
                     )}
                     {fillerSounds.perMinute === null && '.'}
+                  </p>
+                )}
+                {tone && (
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Tone:{' '}
+                    {(
+                      [
+                        ['clarity', tone.clarity],
+                        ['confidence', tone.confidence],
+                        ['enthusiasm', tone.enthusiasm],
+                      ] as const
+                    ).map(([name, dim], i) => (
+                      <span key={name}>
+                        {i > 0 && ' · '}
+                        <span
+                          className={
+                            dim.good
+                              ? 'text-emerald-700 dark:text-emerald-400'
+                              : 'text-amber-700 dark:text-amber-400'
+                          }
+                        >
+                          {name} — {dim.detail}
+                        </span>
+                      </span>
+                    ))}
+                    .
                   </p>
                 )}
               </div>
