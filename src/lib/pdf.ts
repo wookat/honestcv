@@ -438,12 +438,34 @@ class PdfWriter {
       })
     }
     if (hasInlineMarks(text)) {
-      const lines = wrapRuns(parseInlineMarks(text), this.fonts, size, this.contentW - indent)
-      lines.forEach((words, i) => {
-        this.ensure(lineHeight)
-        this.y -= lineHeight
-        marker(i === 0)
-        let x = this.x0 + indent
+      this.drawRuns(text, size, indent, marker)
+      this.gap(2)
+      return
+    }
+    const lines = wrapText(text, font, size, this.contentW - indent)
+    lines.forEach((line, i) => {
+      this.ensure(lineHeight)
+      this.y -= lineHeight
+      marker(i === 0)
+      this.page.drawText(line, { x: this.x0 + indent, y: this.y, size, font, color: this.ink })
+    })
+    this.gap(2)
+  }
+
+  /** Paragraph text with inline marks (bold/italic/underline/links). */
+  richText(text: string, size = 10 * this.fs) {
+    this.drawRuns(text, size, 0, () => {})
+    this.gap(2)
+  }
+
+  private drawRuns(text: string, size: number, indent: number, marker: (first: boolean) => void) {
+    const lineHeight = size * this.lh
+    const lines = wrapRuns(parseInlineMarks(text), this.fonts, size, this.contentW - indent)
+    lines.forEach((words, i) => {
+      this.ensure(lineHeight)
+      this.y -= lineHeight
+      marker(i === 0)
+      let x = this.x0 + indent
         words.forEach((w, j) => {
           const spaceW = j > 0 ? drawnWidth(w.font, ' ', size) : 0
           x += spaceW
@@ -479,18 +501,7 @@ class PdfWriter {
           }
           x += wordW
         })
-      })
-      this.gap(2)
-      return
-    }
-    const lines = wrapText(text, font, size, this.contentW - indent)
-    lines.forEach((line, i) => {
-      this.ensure(lineHeight)
-      this.y -= lineHeight
-      marker(i === 0)
-      this.page.drawText(line, { x: this.x0 + indent, y: this.y, size, font, color: this.ink })
     })
-    this.gap(2)
   }
 }
 
@@ -710,7 +721,11 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
   for (const key of orderedSectionKeys(resume)) {
     if (key === 'summary' && resume.summary.trim()) {
       w.heading(sectionHeading(resume, 'summary'))
-      w.text(resume.summary.trim(), { size: 10 })
+      {
+        const s = resume.summary.trim()
+        if (hasInlineMarks(s)) w.richText(s)
+        else w.text(s, { size: 10 })
+      }
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
       w.heading(sectionHeading(resume, 'experience'))
       let gi = 0

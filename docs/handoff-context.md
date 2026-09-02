@@ -447,3 +447,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验）：bundle index-CXh0T0Le.js / pdf-CHBl8Yqu.js；全绿零 P0–P2 零 AI——CJK PDF 真实 UI 下载为 张伟-wei-o-brien-resume.pdf（Unicode 文件名生效），pdffonts 见 NotoSansSC CID TrueType，pdftotext 提取 + pdftoppm 栅格像素分析确认真字形无 tofu 且 Latin 完好；Latin-only PDF 零 notosanssc 请求；阿拉伯名触发行内 role=alert 明确报错 + Dismiss（Builder 与 Dashboard 两处）、无文件下载；CJK 求职信 PDF（downloadLetterPdf）正常；DOCX/TXT/MD 回归、375/375、亮暗色、localStorage 基线还原。
 - QA 发现两个既有 P3（候选轮）：PDF summary 走纯 w.text，**bold** 字面渲染（pdf.ts ~713，bullets/预览/TXT/DOCX 均正确）；alert 条亮色对比度 ~3.75:1（text-destructive on bg-destructive/10 全站同款，暗色 4.94:1 通过）。
 - 坑：Dashboard 文书 PDF 的信头取自当前简历草稿（honestcv.resume），草稿名含不支持字符时纯 CJK 文书也会报覆盖错误（语义正确但报错字符不在文书内）。
+
+## R272 — PDF summary renders inline marks (2026-09-02)
+- 证据：R271 生产 QA 一手发现的既有 P3——summary 走纯 `w.text(resume.summary.trim())`（pdf.ts ~713），`**bold**` 等 inline marks 在 PDF 字面渲染，而 bullets/预览/TXT/DOCX 均正确解析。
+- 实现：pdf.ts 把 bullet() 的 rich-run 渲染循环抽为私有 drawRuns(text, size, indent, marker)（bullet 输出字节级不变），新增 richText(text)（indent 0、无 marker）；summary 调用点 hasInlineMarks(s) ? w.richText(s) : w.text(s, {size:10})——无 marks 的 summary 保持旧字节路径。零其他改动。
+- 验证：.tmp-smoke/r272_oracle.ts 4/4 绿（marked summary pdftotext 零 `*`/`__` 残留、plain 回归）、R271 oracle 16/16 回归绿、本地 pdftoppm 栅格目检 bold/italic/underline；tsc/lint/build 全绿。
+- QA（生产复验）：bundle index-BLYGSgYz.js / pdf-ClvNZ7NR.js；全绿零 P0–P3 零 AI——marked summary PDF 像素分析 bold 墨密度 6.11 vs 常规 ~3.4、underline 线恰好跨 "underline" 词、mutool 确认链接注解 URI、pdffonts 见 Times-Bold/Roman/Italic；plain summary 与 bullet marks 回归不变；CJK+**bold** summary（R271 回归）NotoSansSC-Bold/Regular 嵌入无 tofu（italic→regular 设计内回退）；localStorage 基线还原。
+- 坑：pdftotext 对样式 run 边界插空格（`张伟是 资深QA工程师 ，`）是提取产物非渲染缺陷，栅格连续；链接词带下划线是 drawRuns 设计内样式。
+- 既有 P3 尚开放：导出错误 alert 条亮色对比度 ~3.75:1。
+- 文档：docs/plan-r272-pdf-summary-inline-marks.md、docs/qa-r272-plan.md（测试代理写）。
