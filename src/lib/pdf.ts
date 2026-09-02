@@ -45,6 +45,7 @@ import {
   skillLines,
   bulletIndentOf,
   contactIconsOf,
+  experienceDateRange,
   familyOf,
   textInkOf,
   type FontFamilyKind,
@@ -655,7 +656,7 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
           if (g.grouped) entryRule(ei++)
           w.gap(g.grouped ? 2 : 4)
           w.ensure(34) // keep the entry header with its first bullet
-          const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+          const dates = experienceDateRange(e.startDate, e.endDate)
           const left = g.grouped
             ? `${e.role || 'Role'}${e.location ? `  ·  ${e.location}` : ''}`
             : `${e.role || 'Role'}  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`

@@ -502,6 +502,10 @@ export default function Jobs() {
                 setMobileDetail(false)
                 setBulkMode(false)
                 setBulkIds(new Set())
+                if (value !== 'all' && selectedId) {
+                  const st = statusOf.get(selectedId)
+                  if (!st || (value !== 'tracked' && st !== value)) setSelectedId(null)
+                }
               }}
               className={`min-h-10 rounded-md border px-3 py-1 text-xs font-medium transition sm:min-h-8 ${
                 tab === value

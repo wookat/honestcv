@@ -422,3 +422,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA：生产 bundle index-CG7n1xJN.js / Jobs-zdED-RJ2.js；全绿零 P0–P3 零 AI——7 chips 与页面实际 /api/jobs/search payload 的 locationFacets 复算逐字节吻合（18 职位，8 Worldwide+1 Remote 正确排除）、点击填充输入框+3 直接命中在前+6 agnostic 追加、再点清空、type/skills/Hide 联动复算精确（含 Hide 后 3→2 字母序重排）、Tracked/Saved 无行、R242/R243/R254 回归、375 无横向溢出 40px 触控、对比度亮 16.66:1 / 暗 15.05:1。大小写合并生产数据不可观察，仅 oracle（.tmp-smoke/r267_oracle.ts 8/8 绿）验证。
 - 文档：docs/plan-r267-location-facets.md、docs/qa-r267-plan.md。
 - 分支基座：本轮起基于 #484 converge 分支（devin/1788344463-converge-r191-r266，R191–R266 全链 + main 冲突已解），不再层层堆叠旧链。
+
+## R268 — fix three exploratory-audit escapes: hydration #418, ongoing-role Present, jobs tab selection leak (2026-09-02)
+- 证据：R267 后探索性生产 QA 一手发现三项——F1/P2 落地页 React hydration error #418（存 honestcv.theme=light/dark 时必现，无 key 不出）；F2/P3 经历条目 start 有值 end 空时预览/导出无「– Present」；F3/P3 空 Tracked 标签空态与详情面板可同时矛盾显示（All 选中未追踪职位后切换）。
+- 实现：F1 ThemeToggle 改 useSyncExternalStore(subscribeThemePref, loadThemePref, ()=>'system')（theme.ts 新增 subscribeThemePref，saveThemePref 通知订阅者），SiteHeader attention 徽标同改 useSyncExternalStore（server snapshot 0）——预渲染首帧与服务端树一致，hydration 后切真实值；注意 lint 规则 react-hooks/set-state-in-effect 禁止 effect 内同步 setState，useSyncExternalStore 是合规写法。F2 resume.ts 新纯函数 experienceDateRange(start,end)（start 非空 end 空 → `start – Present`，其余保持 filter(Boolean).join(' – ')），接入 ResumePreview/pdf/docx/TXT/Markdown 的 experience 渲染点；education/projects/involvement 不变。F3 Jobs.tsx 标签 onClick：切非 all 标签时 selectedId 无 status 或 status 不匹配则清空。零 AI/worker/schema/评分/持久化改动。
+- QA（R269 复验）：生产 bundle index-jQ5I_nHr.js / Jobs-DwIHF4yT.js；全绿零 P0–P2 零 AI——9 次落地加载（无 key/light/dark×3）console 全空 #418 消失、首帧主题类正确无闪变、toggle 循环即时生效、375/375、停滞徽标 hydration 后出现+R253/R254 回归、预览「Jan 2020 – Present」+TXT 字节级+PDF(pdftotext)/DOCX(document.xml) 同行、education 无误伤、F3 三态（空 Tracked 清空/匹配标签保留/不匹配清空）、localStorage 基线精确还原。
+- 已知 P3（未修，候选轮）：TXT/Markdown education 序列化无条件 `${start} – ${end}`，end-only 渲染 `( – 2014)` 带悬挂横杠（resume.ts 约 2442/2558 行；PDF/DOCX/预览正确）。
+- 坑：Jobs 详情面板可靠探测器是 `<a>`「Apply on site」（anchor 非 button）+ 首个 h2/h3 职位名。
+- 文档：docs/plan-r268-ux-audit-fixes.md、docs/qa-r269-plan.md（测试代理写）。

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, Menu, Monitor, Moon, Sun, X } from 'lucide-react'
 import { LogoMark } from '@/components/Logo'
 import { attentionCount } from '@/lib/jobs'
-import { type ThemePref, loadThemePref, saveThemePref } from '@/lib/theme'
+import { type ThemePref, loadThemePref, saveThemePref, subscribeThemePref } from '@/lib/theme'
 
 /** Sets the document title and meta description for the current route. */
 export function usePageMeta(title: string, description: string) {
@@ -82,7 +82,9 @@ const THEME_ICONS: Record<ThemePref, React.ComponentType<{ className?: string }>
 }
 
 function ThemeToggle() {
-  const [pref, setPref] = useState<ThemePref>(() => loadThemePref())
+  // Prerendered HTML always shows the system icon; the saved preference only
+  // applies after hydration so both trees match (React error #418 otherwise).
+  const pref = useSyncExternalStore<ThemePref>(subscribeThemePref, loadThemePref, () => 'system')
   const Icon = THEME_ICONS[pref]
   const next = THEME_CYCLE[pref]
   return (
@@ -90,16 +92,16 @@ function ThemeToggle() {
       type="button"
       aria-label={`${THEME_LABELS[pref]} — switch to ${THEME_LABELS[next].toLowerCase()}`}
       title={THEME_LABELS[pref]}
-      onClick={() => {
-        saveThemePref(next)
-        setPref(next)
-      }}
+      onClick={() => saveThemePref(next)}
       className="text-muted-foreground hover:bg-accent hover:text-foreground inline-flex size-10 items-center justify-center rounded-md"
     >
       <Icon className="size-4.5" />
     </button>
   )
 }
+
+/** Static store subscription for mount-once browser reads (badge count). */
+const subscribeNever = () => () => {}
 
 /** Amber count badge on the Jobs nav links for applications gone quiet (7+ days). */
 function JobsAttentionBadge({ count }: { count: number }) {
@@ -117,7 +119,7 @@ function JobsAttentionBadge({ count }: { count: number }) {
 
 export function SiteHeader({ action }: { action?: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [attention] = useState(() => attentionCount())
+  const attention = useSyncExternalStore(subscribeNever, attentionCount, () => 0)
   return (
     <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
