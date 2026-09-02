@@ -48,7 +48,8 @@ export function buildRewriteMessages(
   kind: RewriteKind,
   text: string,
   context: { role?: string; jobDescription?: string },
-  variants = false
+  variants = false,
+  emphasis?: 'key-numbers'
 ): ChatMessage[] {
   const jd = context.jobDescription?.trim()
   const target = context.role?.trim()
@@ -59,6 +60,9 @@ export function buildRewriteMessages(
     task = `Clean up the following skills list: deduplicate, group related skills, use canonical industry names, order by relevance. Output a single comma-separated list.`
   } else {
     task = `Rewrite the following work-experience bullet points. Return the same number of bullets (or merge only redundant ones), one per line, each starting with "- ".`
+  }
+  if (kind === 'bullets' && emphasis === 'key-numbers') {
+    task += `\nEvery rewritten bullet must emphasize measurable results: lead with a concrete outcome (percentage, money, time saved, volume, team size). Reuse any numbers the input already provides; where a figure is missing, use a bracketed placeholder such as [add %], [add $ amount] or [add number] for the user to fill in — never invent a figure.`
   }
   if (variants && kind !== 'skills') {
     task += `\nProduce 3 alternative versions with different emphasis (1: concise, 2: impact-focused, 3: keyword/skills-focused). Separate the versions with a line containing only "===". No labels or numbering — just the content.`

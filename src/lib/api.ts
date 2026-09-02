@@ -48,13 +48,14 @@ export async function aiRewrite(
   kind: RewriteKind,
   text: string,
   context: { role?: string; jobDescription?: string; language?: string },
-  variants = false
+  variants = false,
+  emphasis?: 'key-numbers'
 ): Promise<{ text: string; texts?: string[]; freeRemaining: number | null }> {
   const data = await post<{
     text: string
     texts?: string[]
     freeRemaining: number | null
-  }>('/api/ai/rewrite', { kind, text, variants, ...context })
+  }>('/api/ai/rewrite', { kind, text, variants, ...(emphasis ? { emphasis } : {}), ...context })
   return data
 }
 
