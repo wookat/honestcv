@@ -709,3 +709,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - When seeding `honestcv.resume` via localStorage, navigate to a non-Builder page (or about:blank) first — a still-mounted Builder instance persists its state on unmount and can clobber the seed; verify the stored summary after reload before asserting.
 - Interview-practice timer button label is "Start 2-minute window" (then "Retime answer"), stop is "Stop timer", running readout is `[role=timer]`.
 - The sky gap-line selector is a `p.text-sky-700` containing "Add to your resume" inside `[role=dialog]`; `jumpToSection('target')` puts `ring-2 ring-ring/50` on the Target-job wrapper.
+
+## R257 — instant local interview questions QA
+- The suggested-questions list is `[role=dialog] ul li button` (pick-one fills the question input); "Practice all N" only renders when `suggested.length > 1`; session header text is "Question i of N".
+- The R256 seeding lesson holds: seed `honestcv.resume` from a non-Builder page and verify the stored value after reload before asserting.
