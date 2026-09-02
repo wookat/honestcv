@@ -582,3 +582,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - F2(主观→采纳)：示例评分报告与真实报告无从区分。修复：AtsChecker 派生 isExample（两 textarea 均等于 EXAMPLE_*，任一编辑即消失），结果卡标题改「Example ATS match score」+ secondary Badge「Example report — paste your own resume above to check yours」。
 - F3(主观，缓议)：导出 final-check 对话框每次导出都弹，per-session dismiss 记为候选轮。
 - 坑（测试代理沉淀）：助手响应形状 {text,action,freeRemaining} 非 {reply}；ATS 上传只收 PDF/DOCX/TXT；HTML5 DnD 需合成 DragEvent；「Improve my ATS score」为本地即时回复。
+
+## R296 — 导出 final-check 对话框按已确认问题列表去重 (2026-09-02)
+- 依据：Rezi Finish Up 一手文档把最终检查定位为一次性复查而非逐次拦截；我方 R290/R295 审计确证同一问题列表在换格式下载时重复弹（R295 F3 候选轮）。docs/plan-r296-final-check-acknowledge.md。
+- 实现（仅 Builder.tsx）：新增 finalCheckAcked ref（session 内，不持久化）；「Download anyway」时记录 finalCheckIssues.join('\n') 签名；download() 仅当 issues 存在且签名≠已确认时弹窗。「Keep editing」不确认；问题列表变化（修复或新增）签名变→重新弹；reload 重置。
+- QA（生产，bundle index-D1l3dA7t.js / Builder-B83Czf_L.js）：六流程全绿零 P0–P3 零 AI——首下弹窗→ack→换格式/重复格式不弹、新增占位后新列表重弹、Keep editing 不确认下次仍弹、全修光直接下载、reload 重置重弹、375 严格 scrollWidth=375（含弹窗开启态）、share 首下弹窗回归。docs/qa-r296-plan.md。
+- 坑（测试代理沉淀）：Radix 对话框 position:fixed 致 offsetParent=null，可见性判断用 data-state="open"；resume.skills 为换行分隔字符串（"Label: items" 满足归类检查）；无问题 fixture 需电话+句点+条目地点+归类技能+≥400 词+Auto-fit。
