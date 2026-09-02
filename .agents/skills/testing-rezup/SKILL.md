@@ -664,3 +664,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Builder strips consumed `?doc=`/`?jump=`/`?example=` params via `history.replaceState` — assert the opened dialog, not the URL.
 - Tracking a job auto-creates a targeted copy in `honestcv.resumeVersions` — remove it during cleanup.
 - CDP websockets on this box need `suppress_origin=True` (Chrome 403s the localhost Origin).
+
+## R248 — file import + CDP screenshot notes
+- Hidden file inputs: drive via CDP `DOM.setFileInputFiles` on the node from `DOM.querySelector` — fires React's `change` handler, no chooser needed. Doc-import input: `input[aria-label="Import a cover letter file"]`; resume drop-zone input is the un-labelled `input[type=file]`.
+- `Page.captureScreenshot` clip coordinates are document-relative — add `scrollX/scrollY` to `getBoundingClientRect` values or crops of scrolled elements land on wrong pixels.
+- Career-doc download filenames use the letterhead (resume draft) name — seed `honestcv.resume` with `contact.fullName` before asserting R239 naming, else you get the `cover-letter.*` fallback.
+- Deterministic fixtures: a minimal DOCX (zip with `[Content_Types].xml` + `word/document.xml`) and a 5-object PDF with a `Tj` text stream both parse in the app's extractors.
