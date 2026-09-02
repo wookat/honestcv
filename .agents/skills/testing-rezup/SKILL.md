@@ -564,3 +564,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Pass rule: bullet lines with a digit ≥ max(1, ceil(total/3)); zero lines guard-pass. Checker counts only bullet-marker lines (header/date/phone digits never count). Rows: checker 18 / Builder 19.
 - For exact-ratio Builder fixtures, empty r.projects / r.involvement / r.customSections first — each project/involvement description counts as one line in the bullet feed, so leftover sample content skews totals.
 - The R203 "Quantified impact" writing dimension renders on /ats-checker (health dimensions), not the Builder breakdown.
+
+## R219 — punctuated-bullets check
+- Fail when any trimmed bullet line lacks /^[A-Z0-9]/ start or /[.!?]$/ end (first offender quoted, 60-char truncation). Digit starts and !/? endings pass; blank/zero lines guard-pass. Rows: checker 19 / Builder 20.
+- The built-in sample resume bullets were punctuated in this round; a fresh Load-example sample scores 99/100 with only "Skills grouped into categories" and "Word count" rows failing (pre-existing, by design).

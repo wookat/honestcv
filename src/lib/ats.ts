@@ -391,6 +391,21 @@ function quantifiedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
   }
 }
 
+/** Punctuated bullet points: capitalized start and terminal punctuation */
+function punctuatedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
+  const offender = lines
+    .map((l) => l.trim())
+    .find((l) => l.length > 0 && (!/^[A-Z0-9]/.test(l) || !/[.!?]$/.test(l)))
+  return {
+    label: 'Punctuated bullet points',
+    pass: !offender,
+    hint: offender
+      ? `"${offender.length > 60 ? `${offender.slice(0, 60)}…` : offender}" — start each bullet with a capital letter and end it with a period so your resume reads professionally.`
+      : 'Bullets are properly punctuated — capitalized starts and terminal periods read professionally.',
+    anchor: 'experience',
+  }
+}
+
 /** Bullet-marked lines anywhere in pasted text, markers stripped */
 function textBulletLines(raw: string): string[] {
   return raw
@@ -648,6 +663,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     pronounCheck(textPronounSegments(resumeTextRaw)),
     activeVoiceCheck(textBulletLines(resumeTextRaw)),
     quantifiedBulletsCheck(textBulletLines(resumeTextRaw)),
+    punctuatedBulletsCheck(textBulletLines(resumeTextRaw)),
     buzzwordCheck(textPronounSegments(resumeTextRaw)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
     entryLocationsCheck(textEntryLocations(resumeTextRaw)),
@@ -837,6 +853,12 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       ...resume.customSections.flatMap((s) => s.bullets),
     ]),
     quantifiedBulletsCheck([
+      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+      ...resume.customSections.flatMap((s) => s.bullets),
+    ]),
+    punctuatedBulletsCheck([
       ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
       ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
       ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),

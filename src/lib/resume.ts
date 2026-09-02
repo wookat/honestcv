@@ -800,9 +800,9 @@ export function sampleResume(): Resume {
         startDate: 'Jun 2023',
         endDate: 'Present',
         bullets: [
-          'Led migration of the checkout flow to React + TypeScript, reducing cart abandonment by 12%',
-          'Built internal design-system components adopted by 5 product teams',
-          'Cut p95 page load time from 3.2s to 1.7s via code splitting and CDN caching',
+          'Led migration of the checkout flow to React + TypeScript, reducing cart abandonment by 12%.',
+          'Built internal design-system components adopted by 5 product teams.',
+          'Cut p95 page load time from 3.2s to 1.7s via code splitting and CDN caching.',
         ],
       },
       {
@@ -813,9 +813,9 @@ export function sampleResume(): Resume {
         startDate: 'Jul 2021',
         endDate: 'May 2023',
         bullets: [
-          'Developed REST APIs in Node.js powering order tracking for 300k customers',
-          'Automated regression test suite, cutting release QA time from 2 days to 4 hours',
-          'Instrumented checkout funnel analytics that surfaced a 9% drop-off recovered by a one-day fix',
+          'Developed REST APIs in Node.js powering order tracking for 300k customers.',
+          'Automated regression test suite, cutting release QA time from 2 days to 4 hours.',
+          'Instrumented checkout funnel analytics that surfaced a 9% drop-off recovered by a one-day fix.',
         ],
       },
     ],
