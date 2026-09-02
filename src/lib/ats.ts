@@ -540,7 +540,7 @@ function pageLengthCheck(
   pages: number | null | undefined,
   level: Resume['experienceLevel']
 ): AtsResult['checks'][number] {
-  const allowed = level === 'executive' ? 2 : 1
+  const allowed = level === 'executive' || level === 'director' ? 2 : 1
   if (pages == null || pages < 1) {
     return {
       label: 'Fits the recommended page count',
@@ -555,7 +555,7 @@ function pageLengthCheck(
     label: 'Fits the recommended page count',
     pass,
     hint: pass
-      ? `${pages} page${pages === 1 ? '' : 's'} — within the ${allowed}-page length recruiters expect${allowed === 2 ? ' at executive level' : ''}.`
+      ? `${pages} page${pages === 1 ? '' : 's'} — within the ${allowed}-page length recruiters expect${allowed === 2 ? ' at director/executive level' : ''}.`
       : `Your resume runs ${pages} pages — recruiters expect ${allowed}${allowed === 1 ? ' (two only at director/executive level)' : ''}; use Auto-fit or trim older roles and long bullets.`,
     anchor: 'experience',
     category: 'format',
