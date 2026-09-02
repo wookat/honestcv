@@ -28,14 +28,15 @@ interface ChatMsg extends AssistantTurnInput {
 
 function validAction(a: unknown): a is AssistantAction {
   if (!a || typeof a !== 'object') return false
-  const action = a as { type?: unknown; value?: unknown; entry?: unknown }
+  const action = a as { type?: unknown; value?: unknown; entry?: unknown; replace?: unknown }
   if (action.type === 'summary') return typeof action.value === 'string' && Boolean(action.value)
   if (action.type === 'bullet')
     return (
       typeof action.entry === 'string' &&
       Boolean(action.entry) &&
       typeof action.value === 'string' &&
-      Boolean(action.value)
+      Boolean(action.value) &&
+      (action.replace === undefined || typeof action.replace === 'string')
     )
   if (action.type === 'skills')
     return (
@@ -273,7 +274,7 @@ export function AssistantPanel({
                   {t.action.type === 'summary'
                     ? 'Proposed summary'
                     : t.action.type === 'bullet'
-                      ? `Proposed bullet \u00b7 ${t.action.entry}`
+                      ? `${t.action.replace ? 'Proposed rewrite' : 'Proposed bullet'} \u00b7 ${t.action.entry}`
                       : 'Proposed skills'}
                 </p>
                 <p className="mt-1 text-sm whitespace-pre-wrap">
@@ -288,7 +289,9 @@ export function AssistantPanel({
                     {t.action.type === 'summary'
                       ? 'Apply to summary'
                       : t.action.type === 'bullet'
-                        ? 'Add bullet'
+                        ? t.action.replace
+                          ? 'Replace bullet'
+                          : 'Add bullet'
                         : 'Add to skills'}
                   </Button>
                 )}

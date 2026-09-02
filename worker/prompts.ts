@@ -379,6 +379,8 @@ or
 @@APPLY {"type":"skills","value":["Skill One","Skill Two"]}
 or
 @@APPLY {"type":"bullet","entry":"<the company or role of the target experience entry, exactly as it appears in the resume>","value":"<one bullet under 300 characters, grounded in that entry>"}
+or, when the user asks you to rewrite or improve one specific existing bullet, include the exact original so it can be replaced in place:
+@@APPLY {"type":"bullet","entry":"<company or role as in the resume>","replace":"<the existing bullet being rewritten, exactly as it appears in the resume>","value":"<the rewritten bullet, under 300 characters>"}
 Only include the tail when the request is clearly for a summary rewrite, skills to add, or an experience bullet, the proposal is fully grounded in the resume context, and there is exactly one tail. The user sees an Apply button and decides; never present the change as already made.
 - Answer questions about job search, interviews, and resume strategy honestly and practically. If asked something unrelated to resumes, careers, or job search, briefly decline and steer back.
 
@@ -391,7 +393,7 @@ ${context}`,
 export type AssistantAction =
   | { type: 'summary'; value: string }
   | { type: 'skills'; value: string[] }
-  | { type: 'bullet'; entry: string; value: string }
+  | { type: 'bullet'; entry: string; value: string; replace?: string }
 
 /**
  * Split an assistant reply into visible text and an optional validated
@@ -424,12 +426,18 @@ export function parseAssistantAction(reply: string): {
       typeof parsed.value === 'string' &&
       parsed.value.trim()
     ) {
+      const replaceRaw = (parsed as { replace?: unknown }).replace
+      const replace =
+        typeof replaceRaw === 'string' && replaceRaw.trim()
+          ? replaceRaw.trim().slice(0, 300)
+          : undefined
       return {
         text,
         action: {
           type: 'bullet',
           entry: (parsed as { entry: string }).entry.trim().slice(0, 80),
           value: parsed.value.trim().slice(0, 300),
+          ...(replace ? { replace } : {}),
         },
       }
     }

@@ -6589,11 +6589,24 @@ export default function Builder() {
               }
               const target =
                 visible.find((e) => matches(e.company) || matches(e.role)) ?? visible[0]
+              const replaceWanted = action.replace?.trim().toLowerCase()
+              const replaceIdx = replaceWanted
+                ? target.bullets.findIndex((b) => {
+                    const t = b.trim().toLowerCase()
+                    return Boolean(t) && (t.includes(replaceWanted) || replaceWanted.includes(t))
+                  })
+                : -1
               return {
                 ...r,
                 experience: r.experience.map((e) =>
                   e.id === target.id
-                    ? { ...e, bullets: [...e.bullets.filter((b) => b.trim()), action.value] }
+                    ? {
+                        ...e,
+                        bullets:
+                          replaceIdx >= 0
+                            ? e.bullets.map((b, bi) => (bi === replaceIdx ? action.value : b))
+                            : [...e.bullets.filter((b) => b.trim()), action.value],
+                      }
                     : e
                 ),
               }
