@@ -42,6 +42,7 @@ import {
   Sparkles,
   Star,
   Target,
+  Timer,
   Trash2,
   Undo2,
   Redo2,
@@ -108,7 +109,7 @@ import {
   highPriorityKeywords,
   scoreResume,
 } from '@/lib/ats'
-import { analyzeAnswer } from '@/lib/interviewAnalysis'
+import { RESPONSE_WINDOW_SECONDS, analyzeAnswer, analyzeDelivery } from '@/lib/interviewAnalysis'
 import {
   ACTION_VERBS,
   type BulletIssue,
@@ -7838,12 +7839,43 @@ function BundleToolDialog({
     entries: { q: string; a: string; fb: string }[]
   } | null>(null)
   const [lastKind, setLastKind] = useState(kind)
+  const [timerStart, setTimerStart] = useState<number | null>(null)
+  const [timerNow, setTimerNow] = useState(0)
+  const [elapsedSec, setElapsedSec] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (timerStart === null) return
+    const id = window.setInterval(() => {
+      setTimerNow(Date.now())
+      if ((Date.now() - timerStart) / 1000 >= RESPONSE_WINDOW_SECONDS) {
+        setElapsedSec(RESPONSE_WINDOW_SECONDS)
+        setTimerStart(null)
+      }
+    }, 250)
+    return () => window.clearInterval(id)
+  }, [timerStart])
+
+  const stopTimer = () => {
+    if (timerStart === null) return
+    setElapsedSec(Math.min(Math.round((Date.now() - timerStart) / 1000), RESPONSE_WINDOW_SECONDS))
+    setTimerStart(null)
+  }
+
+  const resetTimer = () => {
+    setTimerStart(null)
+    setElapsedSec(null)
+  }
 
   const analysis = useMemo(() => {
     if (kind !== 'interview') return null
     if (answer.trim().split(/\s+/).filter(Boolean).length < 10) return null
     return analyzeAnswer(answer, resume.jobDescription, resume.ignoredKeywords ?? [])
   }, [kind, answer, resume.jobDescription, resume.ignoredKeywords])
+
+  const delivery = useMemo(
+    () => (kind === 'interview' && elapsedSec !== null ? analyzeDelivery(answer, elapsedSec) : null),
+    [kind, answer, elapsedSec]
+  )
 
   if (kind !== lastKind) {
     setLastKind(kind)
@@ -7859,6 +7891,8 @@ function BundleToolDialog({
     setSession(null)
     setQuestion('')
     setAnswer('')
+    setTimerStart(null)
+    setElapsedSec(null)
   }
 
   type PracticeSession = { questions: string[]; idx: number; entries: { q: string; a: string; fb: string }[] }
@@ -7888,6 +7922,7 @@ function BundleToolDialog({
     setAnswer('')
     setFeedback('')
     setFeedbackError('')
+    resetTimer()
   }
 
   const advanceSession = (s: PracticeSession) => {
@@ -7902,6 +7937,7 @@ function BundleToolDialog({
     setAnswer('')
     setFeedback('')
     setFeedbackError('')
+    resetTimer()
   }
 
   const suggestQuestions = async () => {
@@ -8283,6 +8319,51 @@ function BundleToolDialog({
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
               />
+              <div className="flex flex-wrap items-center gap-2">
+                {timerStart === null ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    onClick={() => {
+                      setElapsedSec(null)
+                      setTimerNow(Date.now())
+                      setTimerStart(Date.now())
+                    }}
+                  >
+                    <Timer />
+                    {elapsedSec === null ? 'Start 2-minute window' : 'Retime answer'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-10 sm:min-h-8"
+                      onClick={stopTimer}
+                    >
+                      <Timer />
+                      Stop timer
+                    </Button>
+                    <span className="text-muted-foreground text-xs tabular-nums" role="timer">
+                      {(() => {
+                        const left = Math.max(
+                          0,
+                          RESPONSE_WINDOW_SECONDS - Math.floor((timerNow - timerStart) / 1000)
+                        )
+                        return `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left — answer out loud while you type`
+                      })()}
+                    </span>
+                  </>
+                )}
+                {timerStart === null && elapsedSec !== null && (
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    Timed: {elapsedSec}s
+                  </span>
+                )}
+              </div>
             </div>
             {analysis && (
               <div className="bg-muted/50 space-y-2 rounded-md border px-3 py-2">
@@ -8330,6 +8411,28 @@ function BundleToolDialog({
                       <> — try working in: {analysis.keywords.missing.slice(0, 5).join(', ')}</>
                     )}
                   </p>
+                )}
+                {delivery && (
+                  <>
+                    <p
+                      className={
+                        delivery.paceBand === 'ideal'
+                          ? 'text-xs text-emerald-700 dark:text-emerald-400'
+                          : 'text-xs text-amber-700 dark:text-amber-400'
+                      }
+                    >
+                      Pace: {delivery.wpm} wpm — {delivery.paceHint}
+                    </p>
+                    <p
+                      className={
+                        delivery.windowBand === 'ideal'
+                          ? 'text-xs text-emerald-700 dark:text-emerald-400'
+                          : 'text-xs text-amber-700 dark:text-amber-400'
+                      }
+                    >
+                      Speaking time: {delivery.windowPct}% of the 2-minute window — {delivery.windowHint}
+                    </p>
+                  </>
                 )}
                 {(analysis.fillers.length > 0 || analysis.weHeavy) && (
                   <p className="text-xs text-amber-700 dark:text-amber-400">
