@@ -496,7 +496,7 @@ function quantifiedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
 /** Punctuated bullet points: capitalized start and terminal punctuation */
 function punctuatedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
   const offender = lines
-    .map((l) => l.trim())
+    .map((l) => stripInlineMarks(l).trim())
     .find((l) => l.length > 0 && (!/^[A-Z0-9]/.test(l) || !/[.!?]$/.test(l)))
   return {
     label: 'Punctuated bullet points',
@@ -511,7 +511,7 @@ function punctuatedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
 
 /** Bullet length: enough detail to communicate, short enough to scan */
 function bulletLengthCheck(lines: string[]): AtsResult['checks'][number] {
-  const trimmed = lines.map((l) => l.trim()).filter((l) => l.length > 0)
+  const trimmed = lines.map((l) => stripInlineMarks(l).trim()).filter((l) => l.length > 0)
   const offender = trimmed.find((l) => {
     const words = l.split(/\s+/).length
     return words < 4 || words > 30
@@ -923,6 +923,7 @@ export function bestExperienceForKeyword(
 
 import type { Resume } from './resume'
 import { ONGOING_RE, dateSortValue, resumeToPlainText, skillLines } from './resume'
+import { stripInlineMarks } from './marks'
 
 export function scoreResume(
   resume: Resume,
@@ -1020,7 +1021,7 @@ export function scoreResume(
       resume.experience
         .filter((e) => !e.hidden)
         .map((e) => ({
-          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at ') || 'Untitled role',
+          name: [stripInlineMarks(e.role).trim(), stripInlineMarks(e.company).trim()].filter(Boolean).join(' at ') || 'Untitled role',
           start: e.startDate,
           end: e.endDate,
         }))
@@ -1029,7 +1030,7 @@ export function scoreResume(
       resume.experience
         .filter((e) => !e.hidden && (e.role.trim() || e.company.trim()))
         .map((e) => ({
-          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at '),
+          name: [stripInlineMarks(e.role).trim(), stripInlineMarks(e.company).trim()].filter(Boolean).join(' at '),
           count: e.bullets.filter((b) => b.trim()).length,
         }))
     ),
@@ -1118,14 +1119,14 @@ export function scoreResume(
       ...resume.experience
         .filter((e) => !e.hidden && (e.role.trim() || e.company.trim()))
         .map((e) => ({
-          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at '),
+          name: [stripInlineMarks(e.role).trim(), stripInlineMarks(e.company).trim()].filter(Boolean).join(' at '),
           located: Boolean(e.location.trim()),
           anchor: 'experience' as const,
         })),
       ...(resume.involvement ?? [])
         .filter((i) => !i.hidden && (i.role.trim() || i.organization.trim()))
         .map((i) => ({
-          name: [i.role.trim(), i.organization.trim()].filter(Boolean).join(' at '),
+          name: [stripInlineMarks(i.role).trim(), stripInlineMarks(i.organization).trim()].filter(Boolean).join(' at '),
           located: Boolean(i.location.trim()),
           anchor: 'experience' as const,
         })),

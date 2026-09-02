@@ -17,7 +17,7 @@ import {
   TextRun,
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
-import { hasInlineMarks, parseInlineMarks } from '@/lib/marks'
+import { hasInlineMarks, parseInlineMarks, upperInlineMarks } from '@/lib/marks'
 import {
   type Resume,
   awardBullets,
@@ -102,15 +102,31 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
                 color: accent,
               },
             },
-      children: [
-        new TextRun({
-          text: tpl.headingCase === 'upper' ? text.toUpperCase() : text,
-          bold: true,
-          size: sz(22),
-          color: accent,
-          font,
-        }),
-      ],
+      children: !hasInlineMarks(text)
+        ? [
+            new TextRun({
+              text: tpl.headingCase === 'upper' ? text.toUpperCase() : text,
+              bold: true,
+              size: sz(22),
+              color: accent,
+              font,
+            }),
+          ]
+        : parseInlineMarks(
+            tpl.headingCase === 'upper' ? upperInlineMarks(text) : text
+          ).map((r) => {
+            const run = new TextRun({
+              text: r.text,
+              bold: true,
+              italics: r.italic,
+              underline: r.underline ? {} : undefined,
+              style: r.href ? 'Hyperlink' : undefined,
+              size: sz(22),
+              color: accent,
+              font,
+            })
+            return r.href ? new ExternalHyperlink({ link: r.href, children: [run] }) : run
+          }),
     })
   /** Hairline above an entry after the first (templates with entryDivider) */
   const entryBorder = (i: number) =>
@@ -170,15 +186,18 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
 
   const headerAlignment =
     tpl.headerAlign === 'left' ? AlignmentType.LEFT : AlignmentType.CENTER
+  const rawName = c.fullName || 'Your Name'
   const name =
     tpl.nameCase === 'upper'
-      ? (c.fullName || 'Your Name').toUpperCase()
-      : c.fullName || 'Your Name'
+      ? hasInlineMarks(rawName)
+        ? upperInlineMarks(rawName)
+        : rawName.toUpperCase()
+      : rawName
   children.push(
     new Paragraph({
       alignment: headerAlignment,
       spacing: { after: 40 },
-      children: [new TextRun({ text: name, bold: true, size: sz(40), font })],
+      children: headRuns(name, 40),
     })
   )
   if (c.title) {
