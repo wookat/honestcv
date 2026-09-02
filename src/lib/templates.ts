@@ -20,6 +20,8 @@ export interface TemplateMeta {
   tags: string[]
   /** Tinted band behind section headings (still real text — ATS-safe) */
   band?: boolean
+  /** Light hairline between entries within a section (vector line — ATS-safe) */
+  entryDivider?: boolean
 }
 
 /** Light tint of an accent color (used for heading bands) */
@@ -38,7 +40,8 @@ export const TEMPLATE_FILTERS: { id: string; label: string; match: (t: TemplateM
   { id: 'serif', label: 'Serif', match: (t) => t.serif },
   { id: 'sans', label: 'Modern sans', match: (t) => !t.serif },
   { id: 'banded', label: 'Banded headings', match: (t) => t.band === true },
-  { id: 'minimal', label: 'Minimal', match: (t) => t.divider === 'none' && !t.band },
+  { id: 'minimal', label: 'Minimal', match: (t) => t.divider === 'none' && !t.band && !t.entryDivider },
+  { id: 'ruled', label: 'Ruled entries', match: (t) => t.entryDivider === true },
 ]
 
 export const TEMPLATES: TemplateMeta[] = [
@@ -310,6 +313,32 @@ export const TEMPLATES: TemplateMeta[] = [
     divider: 'thick',
     headerAlign: 'left',
     nameCase: 'upper',
+  },
+  {
+    id: 'circuit',
+    name: 'Circuit',
+    description: 'Full-width with hairlines between entries — dense developer resumes',
+    tags: ['Developers', 'Dense content', 'Ruled'],
+    accent: '#0369a1',
+    headingCase: 'upper',
+    serif: false,
+    divider: 'line',
+    headerAlign: 'left',
+    nameCase: 'normal',
+    entryDivider: true,
+  },
+  {
+    id: 'ledger',
+    name: 'Ledger',
+    description: 'Serif with ruled entries and quiet headings — editorial and structured',
+    tags: ['Editorial', 'Experienced', 'Ruled'],
+    accent: '#3f3f46',
+    headingCase: 'title',
+    serif: true,
+    divider: 'none',
+    headerAlign: 'left',
+    nameCase: 'normal',
+    entryDivider: true,
   },
 ]
 

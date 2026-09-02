@@ -60,7 +60,11 @@ export function TemplateThumb({ t }: { t: TemplateMeta }) {
   }
   y += 4
   heading('Experience')
-  for (const [job, bullets] of SAMPLE.jobs) {
+  SAMPLE.jobs.forEach(([job, bullets], ji) => {
+    if (t.entryDivider && ji > 0) {
+      nodes.push(<rect key={key++} x={L} y={y - 4} width={W - 2 * L} height={0.5} fill="#d4d4d4" />)
+      y += 1.5
+    }
     text(L, y, 3.9, '#333', job, { fontWeight: 600 })
     y += 5.5
     for (const b of bullets) {
@@ -68,7 +72,7 @@ export function TemplateThumb({ t }: { t: TemplateMeta }) {
       y += 5.5
     }
     y += 1.5
-  }
+  })
   y += 2.5
   heading('Skills')
   text(L, y, 3.8, '#444', SAMPLE.skills)
