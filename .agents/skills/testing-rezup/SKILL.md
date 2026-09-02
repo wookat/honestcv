@@ -733,3 +733,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R262 — experience-level tiers / page-count check QA
 - The ATS checks card renders hints ONLY for failing checks (passing rows are just "✓ label") — verify pass-hint wording via a `scoreResume` tsx oracle, not the DOM.
 - The page-count check consumes `pdfLength.pages` from the live PDF preview — wait for the "Resume length: X page" text before asserting; an easy 2-page fixture: `fontScale:'xl'` + `lineSpacing:'loose'` + ~6 stuffed experience entries.
+
+## R263 — section order / preview-order QA
+- The resume preview lives in `div.shadow-lg` and renders section headings UPPERCASE (probe "EDUCATION", not "Education"); `body.innerText` cannot distinguish preview order from editor order — always scope preview asserts to that container.
+- Section order panel: collapsible Section titled "Section order" (defaultOpen false), list `ul.space-y-1.5`, per-row buttons aria-labels "Move up"/"Move down".
