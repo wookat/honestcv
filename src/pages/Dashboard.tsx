@@ -54,6 +54,7 @@ import {
   type CareerDocKind,
   deleteCareerDoc,
   listCareerDocs,
+  saveCareerDoc,
   updateCareerDoc,
 } from '@/lib/documents'
 import {
@@ -190,6 +191,9 @@ export default function Dashboard() {
   const [docText, setDocText] = useState('')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
+  const docImportInputRef = useRef<HTMLInputElement>(null)
+  const [docImportBusy, setDocImportBusy] = useState(false)
+  const [docImportError, setDocImportError] = useState('')
   const importInputRef = useRef<HTMLInputElement>(null)
   const [importBusy, setImportBusy] = useState(false)
   const [importError, setImportError] = useState('')
@@ -570,6 +574,34 @@ export default function Dashboard() {
     </li>
   )
 
+  const handleImportDocFile = (file: File | undefined) => {
+    if (!file || docImportBusy) return
+    setDocImportBusy(true)
+    setDocImportError('')
+    extractTextFromFile(file)
+      .then((text) => {
+        if (text.trim().length < 30) {
+          setDocImportError('No text found in this file — it may be a scanned image.')
+          return
+        }
+        const title =
+          file.name
+            .replace(/\.[^.]+$/, '')
+            .replace(/[-_]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim() || 'Imported cover letter'
+        const doc = saveCareerDoc('cover', title, text)
+        setDocs(listCareerDocs())
+        setOpenDoc(doc)
+        setDocText(doc.text)
+        setDocView('edit')
+      })
+      .catch((err: unknown) => {
+        setDocImportError(err instanceof Error ? err.message : 'Could not read this file.')
+      })
+      .finally(() => setDocImportBusy(false))
+  }
+
   const handleImportFile = (file: File | undefined) => {
     if (!file || importBusy) return
     setImportBusy(true)
@@ -901,7 +933,30 @@ export default function Dashboard() {
               <FilePlus2 className="size-3.5" /> New resignation letter
             </Link>
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-10 sm:min-h-8"
+            disabled={docImportBusy}
+            onClick={() => docImportInputRef.current?.click()}
+          >
+            <FileUp className="size-3.5" />{' '}
+            {docImportBusy ? 'Reading your letter…' : 'Import a cover letter'}
+          </Button>
+          <input
+            ref={docImportInputRef}
+            type="file"
+            accept={IMPORT_ACCEPT}
+            className="hidden"
+            aria-label="Import a cover letter file"
+            onChange={(e) => {
+              handleImportDocFile(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
         </div>
+        {docImportError && <p className="text-destructive mt-2 text-xs">{docImportError}</p>}
         {docs.length > 0 && (
           <div
             className="mt-4 flex flex-wrap gap-1.5"
