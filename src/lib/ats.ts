@@ -157,18 +157,63 @@ const NEXT_SECTION_RE =
 const DATE_RANGE_RE =
   /((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2})\s*(?:[–—-]|to)\s*((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2}|present|current|now|ongoing)/gi
 
-/** Date ranges ("Jun 2023 – Present", "2019-2021") in the experience block of pasted text */
-function textDateRanges(raw: string): { name: string; start: string; end: string }[] {
+/** Experience block of pasted text: from the experience heading to the next standard heading */
+function experienceBlock(raw: string): string | null {
   const heading = EXPERIENCE_HEADING_RE.exec(raw)
-  if (!heading) return []
+  if (!heading) return null
   const after = raw.slice(heading.index + heading[0].length)
   const next = NEXT_SECTION_RE.exec(after)
-  const block = next ? after.slice(0, next.index) : after
+  return next ? after.slice(0, next.index) : after
+}
+
+/** Date ranges ("Jun 2023 – Present", "2019-2021") in the experience block of pasted text */
+function textDateRanges(raw: string): { name: string; start: string; end: string }[] {
+  const block = experienceBlock(raw)
+  if (block === null) return []
   const ranges: { name: string; start: string; end: string }[] = []
   for (const m of block.matchAll(DATE_RANGE_RE)) {
     ranges.push({ name: m[0], start: m[1], end: m[2] })
   }
   return ranges
+}
+
+const BULLET_LINE_RE = /^\s*[-–—•*▪◦·]\s*\S/
+
+const countBulletLines = (text: string) =>
+  text.split(/\n/).filter((l) => BULLET_LINE_RE.test(l)).length
+
+/**
+ * Bullet-line counts per experience entry in pasted text. Entries are the
+ * segments between consecutive date ranges, named by their date range.
+ * Empty when there is no experience heading, no date range, or no
+ * bullet-marker lines at all (pasting often strips markers).
+ */
+function textBulletCounts(raw: string): { name: string; count: number }[] {
+  const block = experienceBlock(raw)
+  if (block === null || countBulletLines(block) === 0) return []
+  const matches = [...block.matchAll(DATE_RANGE_RE)]
+  return matches.map((m, i) => {
+    const from = m.index + m[0].length
+    const to = i + 1 < matches.length ? matches[i + 1].index : block.length
+    return { name: m[0], count: countBulletLines(block.slice(from, to)) }
+  })
+}
+
+const BULLETS_PER_ENTRY_LABEL = '3–6 bullet points per role'
+
+/** Per-entry bullet-count check: every role should carry 3–6 bullet points */
+function bulletsPerEntryCheck(
+  entries: { name: string; count: number }[]
+): AtsResult['checks'][number] {
+  const offender = entries.find((e) => e.count < 3 || e.count > 6)
+  return {
+    label: BULLETS_PER_ENTRY_LABEL,
+    pass: !offender,
+    hint: offender
+      ? `"${offender.name}" has ${offender.count} bullet point${offender.count === 1 ? '' : 's'} — aim for 3–6 per role so each entry shows enough impact without overwhelming the reader.`
+      : 'Every role carries 3–6 bullet points — enough detail without overwhelming the reader.',
+    anchor: 'experience',
+  }
 }
 
 function wordCountCheck(text: string, anchor?: SectionAnchor): AtsResult['checks'][number] {
@@ -330,6 +375,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     },
     wordCountCheck(resumeTextRaw, 'experience'),
     reverseChronCheck(textDateRanges(resumeTextRaw)),
+    bulletsPerEntryCheck(textBulletCounts(resumeTextRaw)),
   ]
 
   return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
@@ -432,7 +478,7 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
     {
       label: 'Work experience with bullets',
       pass: bulletCount >= 3,
-      hint: 'Use 2-4 bullet points per role describing impact.',
+      hint: 'Use 3-6 bullet points per role describing impact.',
       anchor: 'experience',
     },
     {
@@ -477,6 +523,14 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
           name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at ') || 'Untitled role',
           start: e.startDate,
           end: e.endDate,
+        }))
+    ),
+    bulletsPerEntryCheck(
+      resume.experience
+        .filter((e) => !e.hidden && (e.role.trim() || e.company.trim()))
+        .map((e) => ({
+          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at '),
+          count: e.bullets.filter((b) => b.trim()).length,
         }))
     ),
   ]
