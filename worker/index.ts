@@ -873,7 +873,7 @@ app.post('/api/ai/cover-letter', async (c) => {
     freeRemaining = remaining
   }
   const body = await c.req
-    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string; language?: string }>()
+    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string; addressee?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const resumeText = body.resumeText?.trim()
   const jd = body.jobDescription?.trim()
@@ -882,7 +882,7 @@ app.post('/api/ai/cover-letter', async (c) => {
   const result = await callLlm(
     c.env,
     withOutputLanguage(
-      buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? ''),
+      buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? '', body.addressee?.trim() ?? ''),
       body.language
     ),
     0.6

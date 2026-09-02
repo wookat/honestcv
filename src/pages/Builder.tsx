@@ -7934,6 +7934,7 @@ function BundleToolDialog({
   onQuota: (remaining: number) => void
 }) {
   const [company, setCompany] = useState(initialCompany)
+  const [addressee, setAddressee] = useState('')
   const [currentRole, setCurrentRole] = useState('')
   const [lastDay, setLastDay] = useState('')
   const [reason, setReason] = useState('')
@@ -8010,6 +8011,7 @@ function BundleToolDialog({
   if (kind !== lastKind) {
     setLastKind(kind)
     if (kind !== null) setCompany(initialCompany)
+    setAddressee('')
     setResult('')
     setError('')
     setSavedId(null)
@@ -8154,6 +8156,7 @@ function BundleToolDialog({
               jobDescription: jd,
               company,
               role: aiTargetRole(resume),
+              addressee: addressee.trim() || undefined,
               language: resume.language,
             })
           : await aiInterviewBrief({
@@ -8194,8 +8197,9 @@ function BundleToolDialog({
     const name = resume.contact.fullName || '[Your name]'
     const role = resume.targetRole || '[role]'
     const co = company || '[Company]'
+    const to = addressee.trim() || 'Hiring Manager'
     setResult(
-      `Dear Hiring Manager,\n\nI'm writing to apply for the ${role} position at ${co}. [One sentence on why this company or team specifically — a product, a mission, a recent launch.]\n\nIn my current role at [current company], I [your strongest, most relevant achievement — with a real number if you have one]. Before that, I [second relevant achievement or responsibility]. These map directly to what you're looking for: [requirement from the job description you meet best].\n\nI'd welcome the chance to talk about how I can help ${co} [team goal from the posting]. Thank you for your consideration.\n\nSincerely,\n${name}`
+      `Dear ${to},\n\nI'm writing to apply for the ${role} position at ${co}. [One sentence on why this company or team specifically — a product, a mission, a recent launch.]\n\nIn my current role at [current company], I [your strongest, most relevant achievement — with a real number if you have one]. Before that, I [second relevant achievement or responsibility]. These map directly to what you're looking for: [requirement from the job description you meet best].\n\nI'd welcome the chance to talk about how I can help ${co} [team goal from the posting]. Thank you for your consideration.\n\nSincerely,\n${name}`
     )
     setError('')
   }
@@ -8218,14 +8222,25 @@ function BundleToolDialog({
           </DialogDescription>
         </DialogHeader>
         {kind === 'cover' && (
-          <div className="space-y-1.5">
-            <Label htmlFor="company">Company name</Label>
-            <Input
-              id="company"
-              placeholder="e.g. Stripe"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="company">Company name</Label>
+              <Input
+                id="company"
+                placeholder="e.g. Stripe"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cover-addressee">Hiring manager (optional)</Label>
+              <Input
+                id="cover-addressee"
+                placeholder="e.g. Maya Chen"
+                value={addressee}
+                onChange={(e) => setAddressee(e.target.value)}
+              />
+            </div>
           </div>
         )}
         {kind === 'resignation' && (
