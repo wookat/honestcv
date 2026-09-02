@@ -70,8 +70,24 @@ export interface AtsResult {
   /** Structure/best-practices sub-score 0-100 */
   structureScore: number
   /** Structural checks independent of the JD */
-  checks: { label: string; pass: boolean; hint: string; anchor?: SectionAnchor }[]
+  checks: {
+    label: string
+    pass: boolean
+    hint: string
+    anchor?: SectionAnchor
+    category: CheckCategory
+  }[]
 }
+
+/** Rezi-style scoring categories the structure checks are grouped under */
+export type CheckCategory = 'content' | 'format' | 'bestPractices'
+
+/** Category display order and labels for the score breakdown UIs */
+export const CHECK_CATEGORIES: { key: CheckCategory; label: string }[] = [
+  { key: 'content', label: 'Content' },
+  { key: 'format', label: 'Format' },
+  { key: 'bestPractices', label: 'Best practices' },
+]
 
 function countOccurrences(haystack: string, tokens: string[], kw: string): number {
   if (kw.includes(' ')) {
@@ -106,6 +122,541 @@ function keywordDetailFor(
 const WORD_COUNT_MIN = 400
 const WORD_COUNT_MAX = 800
 
+const REVERSE_CHRON_LABEL = 'Experience in reverse-chronological order'
+const REVERSE_CHRON_PASS_HINT =
+  'Most recent role first — the reverse-chronological layout recruiters and ATS parsers expect.'
+
+/**
+ * Reverse-chronological check over dated periods listed top to bottom.
+ * Ranks like sortEntriesByDate: ongoing = now, else end date (falling back to
+ * start); undated periods are skipped, fewer than 2 dated periods pass.
+ */
+function reverseChronCheck(
+  periods: { name: string; start: string; end: string }[]
+): AtsResult['checks'][number] {
+  const keyed = periods
+    .map((p) => ({
+      name: p.name,
+      primary: ONGOING_RE.test(p.end)
+        ? Number.MAX_SAFE_INTEGER
+        : (dateSortValue(p.end) ?? dateSortValue(p.start)),
+      start: dateSortValue(p.start),
+    }))
+    .filter((p) => p.primary !== null)
+  let offender = ''
+  for (let i = 1; i < keyed.length && !offender; i++) {
+    const prev = keyed[i - 1]
+    const cur = keyed[i]
+    if (
+      cur.primary! > prev.primary! ||
+      (cur.primary === prev.primary &&
+        cur.start !== null &&
+        prev.start !== null &&
+        cur.start > prev.start)
+    ) {
+      offender = cur.name
+    }
+  }
+  return {
+    label: REVERSE_CHRON_LABEL,
+    pass: !offender,
+    hint: offender
+      ? `"${offender}" appears below a less recent role — list your most recent position first (the Sort-by-date toggle fixes this in one click).`
+      : REVERSE_CHRON_PASS_HINT,
+    anchor: 'experience',
+    category: 'format',
+  }
+}
+
+const EXPERIENCE_HEADING_RE = /^\s*(work |professional |employment )?experience\s*:?\s*$/im
+const NEXT_SECTION_RE =
+  /^\s*(education|(technical |core |key )?skills|projects|certifications?|awards|publications|languages|interests|volunteer(ing)?|involvement)\s*:?\s*$/im
+const DATE_RANGE_RE =
+  /((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2})\s*(?:[–—-]|to)\s*((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2}|present|current|now|ongoing)/gi
+
+/** Experience block of pasted text: from the experience heading to the next standard heading */
+function experienceBlock(raw: string): string | null {
+  const heading = EXPERIENCE_HEADING_RE.exec(raw)
+  if (!heading) return null
+  const after = raw.slice(heading.index + heading[0].length)
+  const next = NEXT_SECTION_RE.exec(after)
+  return next ? after.slice(0, next.index) : after
+}
+
+/** Pasted text split at the experience heading: summary-ish head, experience-onward tail */
+function textPronounSegments(raw: string): { text: string; anchor: SectionAnchor }[] {
+  const heading = EXPERIENCE_HEADING_RE.exec(raw)
+  if (!heading) return [{ text: raw, anchor: 'summary' }]
+  return [
+    { text: raw.slice(0, heading.index), anchor: 'summary' },
+    { text: raw.slice(heading.index), anchor: 'experience' },
+  ]
+}
+
+/** Date ranges ("Jun 2023 – Present", "2019-2021") in the experience block of pasted text */
+function textDateRanges(raw: string): { name: string; start: string; end: string }[] {
+  const block = experienceBlock(raw)
+  if (block === null) return []
+  const ranges: { name: string; start: string; end: string }[] = []
+  for (const m of block.matchAll(DATE_RANGE_RE)) {
+    ranges.push({ name: m[0], start: m[1], end: m[2] })
+  }
+  return ranges
+}
+
+const BULLET_LINE_RE = /^\s*[-–—•*▪◦·]\s*\S/
+
+const countBulletLines = (text: string) =>
+  text.split(/\n/).filter((l) => BULLET_LINE_RE.test(l)).length
+
+/**
+ * Bullet-line counts per experience entry in pasted text. Entries are the
+ * segments between consecutive date ranges, named by their date range.
+ * Empty when there is no experience heading, no date range, or no
+ * bullet-marker lines at all (pasting often strips markers).
+ */
+function textBulletCounts(raw: string): { name: string; count: number }[] {
+  const block = experienceBlock(raw)
+  if (block === null || countBulletLines(block) === 0) return []
+  const matches = [...block.matchAll(DATE_RANGE_RE)]
+  return matches.map((m, i) => {
+    const from = m.index + m[0].length
+    const to = i + 1 < matches.length ? matches[i + 1].index : block.length
+    return { name: m[0], count: countBulletLines(block.slice(from, to)) }
+  })
+}
+
+const MONTH_YEAR_RE = /^[a-z]{3,9}\.?[ ,./-]*(?:19|20)\d{2}$/i
+const NUMERIC_DATE_RE = /^\d{1,2}[/.-](?:19|20)\d{2}$/
+
+/** Date style: named month + year vs numeric month + year; anything else is skipped */
+function dateStyle(text: string): 'month-year' | 'numeric' | null {
+  const t = text.trim()
+  if (!t || ONGOING_RE.test(t)) return null
+  if (MONTH_YEAR_RE.test(t)) return 'month-year'
+  if (NUMERIC_DATE_RE.test(t)) return 'numeric'
+  return null
+}
+
+/** Consistent date formatting: fails only on an unambiguous named/numeric month mix */
+function dateFormatCheck(dates: string[]): AtsResult['checks'][number] {
+  let monthYear = ''
+  let numeric = ''
+  for (const d of dates) {
+    const style = dateStyle(d)
+    if (style === 'month-year' && !monthYear) monthYear = d.trim()
+    if (style === 'numeric' && !numeric) numeric = d.trim()
+  }
+  const pass = !(monthYear && numeric)
+  return {
+    label: 'Consistent date formatting',
+    pass,
+    hint: pass
+      ? 'Dates use one format — ATS parsers read your timeline consistently.'
+      : `Dates mix formats ("${monthYear}" vs "${numeric}") — pick one style so ATS parsers read your timeline consistently.`,
+    anchor: 'experience',
+    category: 'format',
+  }
+}
+
+/**
+ * "I" only counts followed by an apostrophe (I'm) or a lowercase word that is
+ * not a conjunction/preposition — subject "I" precedes a verb, so "I/O",
+ * "Part I" and "Phase I of" never match.
+ */
+const PRONOUN_RE =
+  /\b(?:[Mm]e|[Mm]y|[Mm]yself)\b|\bI(?=['’][a-z]|\s+(?!(?:of|and|or|in|at|on|to|for|the|an?)\b)[a-z])/
+
+const MONTH_ABBR = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+]
+
+/** Written form suggested for a numeric date, e.g. "08/2021" → "Aug 2021" */
+function namedMonthSuggestion(numericDate: string): string {
+  const m = /^(\d{1,2})[/.-]((?:19|20)\d{2})$/.exec(numericDate)
+  const month = m ? Number(m[1]) : 0
+  return month >= 1 && month <= 12 ? `${MONTH_ABBR[month - 1]} ${m![2]}` : 'a written month like Jan 2021'
+}
+
+/** Dates use a written month: named months read faster than numeric ones */
+function namedMonthDatesCheck(dates: string[]): AtsResult['checks'][number] {
+  const offender = dates.map((d) => d.trim()).find((d) => dateStyle(d) === 'numeric')
+  return {
+    label: 'Dates use a written month',
+    pass: !offender,
+    hint: offender
+      ? `"${offender}" is numeric — write dates with a month name ("${namedMonthSuggestion(offender)}") so employers grasp your timeline at a glance.`
+      : 'Dates use written month names — employers grasp your timeline at a glance.',
+    anchor: 'experience',
+    category: 'bestPractices',
+  }
+}
+
+/** No first-person pronouns: resumes are written in the implied first person */
+function pronounCheck(
+  segments: { text: string; anchor: SectionAnchor }[]
+): AtsResult['checks'][number] {
+  let found = ''
+  let anchor: SectionAnchor = 'summary'
+  for (const seg of segments) {
+    const m = PRONOUN_RE.exec(seg.text)
+    if (m) {
+      found = m[0]
+      anchor = seg.anchor
+      break
+    }
+  }
+  return {
+    label: 'No first-person pronouns',
+    pass: !found,
+    hint: found
+      ? `Found "${found}" — drop first-person pronouns ("I", "me", "my") and lead with the action itself: "Led a team of 8", not "I led my team".`
+      : 'Written in the implied first person — no "I", "me" or "my" for recruiters to trip over.',
+    anchor,
+    category: 'content',
+  }
+}
+
+/** Irregular participles; the first group also matches prefixed forms (rebuilt, rewritten). */
+const IRREGULAR_PARTICIPLES =
+  '[a-z]*(?:built|made|given|done|taken|chosen|driven|written|held|kept|brought|taught|seen|shown|known|grown|sent|found|paid|sold|told)|led|won|run|set|put'
+
+const PASSIVE_RE = new RegExp(
+  `\\b(was|were|is|are|been|being)\\s+(?:\\w+ly\\s+)?([a-z]{2,}ed|${IRREGULAR_PARTICIPLES})\\b`,
+  'i'
+)
+
+/** Returns the matched passive phrase (e.g. "was built"), or null. */
+export function findPassive(text: string): string | null {
+  const m = PASSIVE_RE.exec(text)
+  return m ? m[0].replace(/\s+/g, ' ') : null
+}
+
+/** Active voice in bullet points: passive voice hides who did the work */
+function activeVoiceCheck(lines: string[]): AtsResult['checks'][number] {
+  let phrase = ''
+  let line = ''
+  for (const l of lines) {
+    const p = findPassive(l)
+    if (p) {
+      phrase = p
+      line = l.trim()
+      break
+    }
+  }
+  return {
+    label: 'Active voice in bullet points',
+    pass: !phrase,
+    hint: phrase
+      ? `"${phrase}" is passive voice ("${line.length > 60 ? `${line.slice(0, 60)}…` : line}") — lead with an active verb so employers see your specific contribution.`
+      : 'Bullets use active voice — employers see your specific contributions.',
+    anchor: 'experience',
+    category: 'content',
+  }
+}
+
+/** Weak bullet openers — shared by the per-bullet guidance and the scored check. */
+export const WEAK_OPENERS = [
+  'responsible for',
+  'worked on',
+  'helped with',
+  'helped to',
+  'duties included',
+  'tasked with',
+  'in charge of',
+  'assisted with',
+  'participated in',
+]
+
+/** Strong bullet openers: weak openers hide the action and the impact */
+function weakOpenerCheck(lines: string[]): AtsResult['checks'][number] {
+  let opener = ''
+  let line = ''
+  for (const l of lines) {
+    const t = l.trim()
+    const lower = t.toLowerCase()
+    const hit = WEAK_OPENERS.find((w) => lower.startsWith(w))
+    if (hit) {
+      opener = hit
+      line = t
+      break
+    }
+  }
+  return {
+    label: 'Strong bullet openers',
+    pass: !opener,
+    hint: opener
+      ? `"${line.length > 60 ? `${line.slice(0, 60)}…` : line}" opens with "${opener}" — lead with a strong action verb (Led, Built, Cut…) so employers see your impact first.`
+      : 'Bullets open with strong action verbs — employers see your impact first.',
+    anchor: 'experience',
+    category: 'content',
+  }
+}
+
+/**
+ * Clearly-empty buzzword claims for the scored check. Ambiguous single
+ * adjectives (dynamic, proactive, passionate, motivated) are excluded here —
+ * "dynamic programming" is legitimate content — and stay in the per-bullet
+ * guidance list only.
+ */
+const SCORED_BUZZWORDS = [
+  'synergy',
+  'go-getter',
+  'think outside the box',
+  'team player',
+  'hard worker',
+  'detail-oriented',
+  'results-driven',
+  'self-starter',
+]
+
+/** No empty buzzwords: generic claims crowd out concrete, checkable facts */
+function buzzwordCheck(
+  segments: { text: string; anchor: SectionAnchor }[]
+): AtsResult['checks'][number] {
+  let found = ''
+  let anchor: SectionAnchor = 'summary'
+  for (const seg of segments) {
+    const hit = SCORED_BUZZWORDS.find((w) => new RegExp(`\\b${w}\\b`, 'i').test(seg.text))
+    if (hit) {
+      found = hit
+      anchor = seg.anchor
+      break
+    }
+  }
+  return {
+    label: 'No empty buzzwords',
+    pass: !found,
+    hint: found
+      ? `"${found}" is an empty claim — replace it with a concrete, checkable fact (what you did, for whom, with what result).`
+      : 'No generic buzzwords — your claims stay concrete and checkable.',
+    anchor,
+    category: 'content',
+  }
+}
+
+/**
+ * Filler words for the scored check: Rezi's named examples (just, very,
+ * really) plus the per-bullet guidance list. "stuff" and "things" match
+ * lowercase only so proper nouns ("Internet of Things") don't trigger.
+ */
+const SCORED_FILLERS: { word: string; re: RegExp }[] = [
+  { word: 'just', re: /\bjust\b/i },
+  { word: 'very', re: /\bvery\b/i },
+  { word: 'really', re: /\breally\b/i },
+  { word: 'various', re: /\bvarious\b/i },
+  { word: 'several', re: /\bseveral\b/i },
+  { word: 'stuff', re: /\bstuff\b/ },
+  { word: 'things', re: /\bthings\b/ },
+  { word: 'etc', re: /\betc\b/i },
+]
+
+/** No filler words: they dilute impact and read less confident */
+function fillerWordCheck(
+  segments: { text: string; anchor: SectionAnchor }[]
+): AtsResult['checks'][number] {
+  let found = ''
+  let anchor: SectionAnchor = 'summary'
+  for (const seg of segments) {
+    const hit = SCORED_FILLERS.find((f) => f.re.test(seg.text))
+    if (hit) {
+      found = hit.word
+      anchor = seg.anchor
+      break
+    }
+  }
+  return {
+    label: 'No filler words',
+    pass: !found,
+    hint: found
+      ? `"${found}" is a filler word — cut it and state the concrete fact directly ("Cut load time 40%", not "really improved various things").`
+      : 'No filler words — every word carries weight and reads confident.',
+    anchor,
+    category: 'content',
+  }
+}
+
+/** Quantified bullet points: at least a third of bullets should carry a real number */
+function quantifiedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
+  const total = lines.length
+  const quantified = lines.filter((l) => /\d/.test(l)).length
+  const needed = Math.max(1, Math.ceil(total / 3))
+  const pass = total === 0 || quantified >= needed
+  return {
+    label: 'Quantified bullet points',
+    pass,
+    hint: pass
+      ? 'Enough bullets carry real numbers — your achievements are concrete and comparable.'
+      : `Only ${quantified} of ${total} bullets ${quantified === 1 ? 'carries' : 'carry'} a number — quantify at least a third (scope, scale, %, time or money) so achievements are concrete.`,
+    anchor: 'experience',
+    category: 'content',
+  }
+}
+
+/** Punctuated bullet points: capitalized start and terminal punctuation */
+function punctuatedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
+  const offender = lines
+    .map((l) => l.trim())
+    .find((l) => l.length > 0 && (!/^[A-Z0-9]/.test(l) || !/[.!?]$/.test(l)))
+  return {
+    label: 'Punctuated bullet points',
+    pass: !offender,
+    hint: offender
+      ? `"${offender.length > 60 ? `${offender.slice(0, 60)}…` : offender}" — start each bullet with a capital letter and end it with a period so your resume reads professionally.`
+      : 'Bullets are properly punctuated — capitalized starts and terminal periods read professionally.',
+    anchor: 'experience',
+    category: 'content',
+  }
+}
+
+/** Bullet length: enough detail to communicate, short enough to scan */
+function bulletLengthCheck(lines: string[]): AtsResult['checks'][number] {
+  const trimmed = lines.map((l) => l.trim()).filter((l) => l.length > 0)
+  const offender = trimmed.find((l) => {
+    const words = l.split(/\s+/).length
+    return words < 4 || words > 30
+  })
+  const words = offender ? offender.split(/\s+/).length : 0
+  const quoted = offender
+    ? offender.length > 60
+      ? `${offender.slice(0, 60)}…`
+      : offender
+    : ''
+  return {
+    label: 'Bullet points the right length',
+    pass: !offender,
+    hint: offender
+      ? words < 4
+        ? `"${quoted}" is only ${words} word${words === 1 ? '' : 's'} — describe what you did and the result (aim for 8–25 words).`
+        : `"${quoted}" runs ${words} words — tighten it to under 25 words so it scans in a single glance.`
+      : 'Bullets are the right length — detailed enough to communicate, short enough to scan.',
+    anchor: 'experience',
+    category: 'content',
+  }
+}
+
+/** Page length: one page, or two for executives with more experience to share */
+function pageLengthCheck(
+  pages: number | null | undefined,
+  level: Resume['experienceLevel']
+): AtsResult['checks'][number] {
+  const allowed = level === 'executive' || level === 'director' ? 2 : 1
+  if (pages == null || pages < 1) {
+    return {
+      label: 'Fits the recommended page count',
+      pass: true,
+      hint: 'Page count is measured from the live PDF preview in the builder.',
+      anchor: 'experience',
+      category: 'format',
+    }
+  }
+  const pass = pages <= allowed
+  return {
+    label: 'Fits the recommended page count',
+    pass,
+    hint: pass
+      ? `${pages} page${pages === 1 ? '' : 's'} — within the ${allowed}-page length recruiters expect${allowed === 2 ? ' at director/executive level' : ''}.`
+      : `Your resume runs ${pages} pages — recruiters expect ${allowed}${allowed === 1 ? ' (two only at director/executive level)' : ''}; use Auto-fit or trim older roles and long bullets.`,
+    anchor: 'experience',
+    category: 'format',
+  }
+}
+
+/** Bullet-marked lines anywhere in pasted text, markers stripped */
+function textBulletLines(raw: string): string[] {
+  return raw
+    .split(/\n/)
+    .filter((l) => BULLET_LINE_RE.test(l))
+    .map((l) => l.replace(/^\s*[-\u2013\u2014\u2022*\u25aa\u25e6\u00b7]\s*/, ''))
+}
+
+/** LinkedIn URL: recruiters use it to verify and expand on the resume */
+function linkedinCheck(pass: boolean): AtsResult['checks'][number] {
+  return {
+    label: 'LinkedIn URL',
+    pass,
+    hint: pass
+      ? 'LinkedIn URL found — recruiters can verify and expand on your resume.'
+      : 'Add your LinkedIn URL (linkedin.com/in/yourname) — recruiters use it to verify and expand on your resume.',
+    anchor: 'contact',
+    category: 'bestPractices',
+  }
+}
+
+const ENTRY_LOCATIONS_LABEL = 'Locations on each entry'
+const ENTRY_LOCATIONS_PASS_HINT =
+  'Every entry lists a location — employers can validate your experience at a glance.'
+
+/** Locations on each entry: work, involvement and education entries should carry one */
+function entryLocationsCheck(
+  entries: { name: string; located: boolean; anchor: SectionAnchor }[]
+): AtsResult['checks'][number] {
+  const offender = entries.find((e) => !e.located)
+  return {
+    label: ENTRY_LOCATIONS_LABEL,
+    pass: !offender,
+    hint: offender
+      ? `"${offender.name}" has no location — add a city (or "Remote") to every entry so employers can validate your experience.`
+      : ENTRY_LOCATIONS_PASS_HINT,
+    anchor: offender?.anchor ?? 'experience',
+    category: 'bestPractices',
+  }
+}
+
+const LOCATION_LIKE_RE =
+  /\b(?:Remote|Hybrid)\b|\b[A-Z][A-Za-z.]+,\s*(?:[A-Z]{2}\b|[A-Z][A-Za-z]+)/
+
+/**
+ * Per-entry location presence in pasted text. Each entry's segment runs from
+ * up to two lines above its date range (role/company header lines often carry
+ * the location, e.g. "Company — Austin, TX" above the dates) to the next
+ * range's header, never reaching into the previous entry. Empty when there is
+ * no experience heading or no date ranges (never false-alarm on unparseable
+ * text).
+ */
+function textEntryLocations(
+  raw: string
+): { name: string; located: boolean; anchor: SectionAnchor }[] {
+  const block = experienceBlock(raw)
+  if (block === null) return []
+  const matches = [...block.matchAll(DATE_RANGE_RE)]
+  const headerStart = (m: RegExpExecArray | RegExpMatchArray, floor: number) => {
+    let start = block.lastIndexOf('\n', m.index!) + 1
+    for (let up = 0; up < 2 && start - 1 > floor; up++) {
+      start = block.lastIndexOf('\n', start - 2) + 1
+    }
+    return Math.max(start, floor)
+  }
+  return matches.map((m, i) => {
+    const prevEnd = i > 0 ? matches[i - 1].index! + matches[i - 1][0].length : 0
+    const from = headerStart(m, prevEnd)
+    const to = i + 1 < matches.length ? headerStart(matches[i + 1], m.index! + m[0].length) : block.length
+    return {
+      name: m[0],
+      located: LOCATION_LIKE_RE.test(block.slice(from, to)),
+      anchor: 'experience' as const,
+    }
+  })
+}
+
+const BULLETS_PER_ENTRY_LABEL = '3–6 bullet points per role'
+
+/** Per-entry bullet-count check: every role should carry 3–6 bullet points */
+function bulletsPerEntryCheck(
+  entries: { name: string; count: number }[]
+): AtsResult['checks'][number] {
+  const offender = entries.find((e) => e.count < 3 || e.count > 6)
+  return {
+    label: BULLETS_PER_ENTRY_LABEL,
+    pass: !offender,
+    hint: offender
+      ? `"${offender.name}" has ${offender.count} bullet point${offender.count === 1 ? '' : 's'} — aim for 3–6 per role so each entry shows enough impact without overwhelming the reader.`
+      : 'Every role carries 3–6 bullet points — enough detail without overwhelming the reader.',
+    anchor: 'experience',
+    category: 'content',
+  }
+}
+
 function wordCountCheck(text: string, anchor?: SectionAnchor): AtsResult['checks'][number] {
   const words = text.trim().split(/\s+/).filter(Boolean).length
   const pass = words >= WORD_COUNT_MIN && words <= WORD_COUNT_MAX
@@ -114,7 +665,7 @@ function wordCountCheck(text: string, anchor?: SectionAnchor): AtsResult['checks
     : words < WORD_COUNT_MIN
       ? `Your resume is ${words} words — recruiters and ATS systems expect at least ~${WORD_COUNT_MIN}; expand your experience bullets.`
       : `Your resume is ${words} words — trim to under ~${WORD_COUNT_MAX} so recruiters can scan it.`
-  return { label: 'Word count in recommended range', pass, hint, anchor }
+  return { label: 'Word count in recommended range', pass, hint, anchor, category: 'bestPractices' }
 }
 
 function tokenize(text: string): string[] {
@@ -151,6 +702,45 @@ export function extractKeywords(jd: string, limit = 30): string[] {
     .map(([k]) => k)
 }
 
+const REQUIREMENTS_HEADING_RE =
+  /^.*\b(requirements|qualifications|must[- ]haves?|what you.ll need|what we.re looking for|who you are)\b.*$/im
+
+/**
+ * JD keywords worth prioritizing: known multi-word phrases, keywords repeated
+ * ≥3 times, keywords in the requirements/qualifications block, and keywords in
+ * the JD's first line (usually the job title).
+ */
+export function highPriorityKeywords(jd: string, keywords: string[]): Set<string> {
+  const high = new Set<string>()
+  if (!jd.trim() || keywords.length === 0) return high
+  const lower = jd.toLowerCase()
+  const jdTokens = tokenize(jd)
+  const firstLine = (jd.trim().split(/\n/, 1)[0] ?? '').toLowerCase()
+  const firstLineTokens = new Set(tokenize(firstLine))
+  const headingMatch = REQUIREMENTS_HEADING_RE.exec(jd)
+  const reqBlock = headingMatch
+    ? lower.slice(headingMatch.index + headingMatch[0].length)
+    : ''
+  const reqTokens = new Set(tokenize(reqBlock))
+  for (const kw of keywords) {
+    const phrase = kw.includes(' ')
+    if (phrase && lower.includes(kw)) {
+      high.add(kw)
+      continue
+    }
+    if (countOccurrences(lower, jdTokens, kw) >= 3) {
+      high.add(kw)
+      continue
+    }
+    if (phrase ? reqBlock.includes(kw) : reqTokens.has(kw)) {
+      high.add(kw)
+      continue
+    }
+    if (phrase ? firstLine.includes(kw) : firstLineTokens.has(kw)) high.add(kw)
+  }
+  return high
+}
+
 /** Percentage of a job description's keywords found in the resume text */
 export function matchScore(resumeTextRaw: string, jd: string): number | null {
   const keywords = jd.trim() ? extractKeywords(jd) : []
@@ -162,6 +752,34 @@ export function matchScore(resumeTextRaw: string, jd: string): number | null {
     if (kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)) matched++
   }
   return Math.round((matched / keywords.length) * 100)
+}
+
+export interface MatchReport {
+  pct: number
+  covered: string[]
+  missing: string[]
+  highPriorityMissing: string[]
+}
+
+/** Per-keyword breakdown behind matchScore — same extraction, matching and rounding. */
+export function matchReport(resumeTextRaw: string, jd: string): MatchReport | null {
+  const keywords = jd.trim() ? extractKeywords(jd) : []
+  if (keywords.length === 0) return null
+  const resumeText = resumeTextRaw.toLowerCase()
+  const resumeTokens = new Set(tokenize(resumeText))
+  const covered: string[] = []
+  const missing: string[] = []
+  for (const kw of keywords) {
+    if (kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)) covered.push(kw)
+    else missing.push(kw)
+  }
+  const high = highPriorityKeywords(jd, keywords)
+  return {
+    pct: Math.round((covered.length / keywords.length) * 100),
+    covered,
+    missing,
+    highPriorityMissing: missing.filter((k) => high.has(k)),
+  }
 }
 
 /** Score pasted resume text (standalone ATS checker page) */
@@ -184,11 +802,15 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
       label: 'Email address found',
       pass: /[^\s@]+@[^\s@]+\.[^\s@]{2,}/.test(resumeText),
       hint: 'ATS parsers look for an email in the header.',
+      anchor: 'contact',
+      category: 'bestPractices',
     },
     {
       label: 'Phone number found',
       pass: /(\+?\d[\d\s().-]{7,})/.test(resumeText),
       hint: 'Include a phone number recruiters can call.',
+      anchor: 'contact',
+      category: 'bestPractices',
     },
     {
       label: 'Standard section headings',
@@ -196,28 +818,52 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
         /^\s*(work |professional |employment )?experience\s*:?\s*$/m.test(resumeText) &&
         /^\s*education\s*:?\s*$/m.test(resumeText),
       hint: 'Use standard headings like "Experience" and "Education" so parsers find them.',
+      anchor: 'experience',
+      category: 'format',
     },
     {
       label: 'Skills section present',
       pass: /^\s*(technical |core |key )?skills\s*:?\s*$/m.test(resumeText) || /skills:/.test(resumeText),
       hint: 'A dedicated skills list is the easiest keyword match for ATS.',
+      anchor: 'skills',
+      category: 'bestPractices',
     },
     {
       label: 'Quantified achievements',
       pass: /\d+(%|\+| percent|k\b|x\b)|\$\d/.test(resumeText),
       hint: 'Numbers (%, $, counts) make bullets stand out to recruiters.',
+      anchor: 'experience',
+      category: 'content',
     },
     {
       label: 'Employment dates found',
       pass: /\b(19|20)\d{2}\b/.test(resumeText),
       hint: 'ATS parsers build your work timeline from dates — include years for every role.',
+      anchor: 'experience',
+      category: 'format',
     },
     {
       label: 'Enough content to parse',
       pass: resumeTextRaw.trim().length >= 400,
       hint: 'Very short resumes give ATS systems too little to match on.',
+      anchor: 'experience',
+      category: 'content',
     },
-    wordCountCheck(resumeTextRaw),
+    wordCountCheck(resumeTextRaw, 'experience'),
+    reverseChronCheck(textDateRanges(resumeTextRaw)),
+    bulletsPerEntryCheck(textBulletCounts(resumeTextRaw)),
+    dateFormatCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
+    namedMonthDatesCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
+    pronounCheck(textPronounSegments(resumeTextRaw)),
+    activeVoiceCheck(textBulletLines(resumeTextRaw)),
+    weakOpenerCheck(textBulletLines(resumeTextRaw)),
+    quantifiedBulletsCheck(textBulletLines(resumeTextRaw)),
+    punctuatedBulletsCheck(textBulletLines(resumeTextRaw)),
+    bulletLengthCheck(textBulletLines(resumeTextRaw)),
+    buzzwordCheck(textPronounSegments(resumeTextRaw)),
+    fillerWordCheck(textPronounSegments(resumeTextRaw)),
+    linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
+    entryLocationsCheck(textEntryLocations(resumeTextRaw)),
   ]
 
   return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
@@ -276,9 +922,13 @@ export function bestExperienceForKeyword(
 }
 
 import type { Resume } from './resume'
-import { resumeToPlainText, skillLines } from './resume'
+import { ONGOING_RE, dateSortValue, resumeToPlainText, skillLines } from './resume'
 
-export function scoreResume(resume: Resume, jd: string): AtsResult {
+export function scoreResume(
+  resume: Resume,
+  jd: string,
+  pdfPages?: number | null
+): AtsResult {
   const resumeText = resumeToPlainText(resume).toLowerCase()
   const resumeTokenList = tokenize(resumeText)
   const resumeTokens = new Set(resumeTokenList)
@@ -310,24 +960,28 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       pass: Boolean(resume.contact.fullName && resume.contact.email && resume.contact.phone),
       hint: 'Name, email and phone are the minimum ATS parsers look for.',
       anchor: 'contact',
+      category: 'bestPractices',
     },
     {
       label: 'Professional summary present',
       pass: resume.summary.trim().length >= 40,
       hint: 'A 2-3 sentence summary gives ATS keyword context at the top.',
       anchor: 'summary',
+      category: 'content',
     },
     {
       label: 'Work experience with bullets',
       pass: bulletCount >= 3,
-      hint: 'Use 2-4 bullet points per role describing impact.',
+      hint: 'Use 3-6 bullet points per role describing impact.',
       anchor: 'experience',
+      category: 'content',
     },
     {
       label: 'Quantified achievements',
       pass: quantified,
       hint: 'Numbers (%, $, counts) make bullets stand out to recruiters.',
       anchor: 'experience',
+      category: 'content',
     },
     {
       label: 'Employment dates listed',
@@ -336,12 +990,14 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
         .every((e) => e.startDate.trim()),
       hint: 'ATS parsers build your work timeline from dates — add a start date to every role.',
       anchor: 'experience',
+      category: 'format',
     },
     {
       label: 'Skills section filled',
       pass: resume.skills.trim().length >= 10,
       hint: 'A dedicated skills list is the easiest keyword match for ATS.',
       anchor: 'skills',
+      category: 'bestPractices',
     },
     {
       label: 'Skills grouped into categories',
@@ -350,17 +1006,165 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
         skillLines(resume).some((l) => l.label),
       hint: 'Condense long skill lists into categories (e.g. "Languages: …", "Cloud: …") so recruiters can scan them.',
       anchor: 'skills',
+      category: 'bestPractices',
     },
     {
       label: 'Education listed',
       pass: resume.education.some((e) => e.school.trim()),
       hint: 'Most ATS templates expect an education section.',
       anchor: 'education',
+      category: 'format',
     },
     wordCountCheck(resumeText, 'experience'),
+    reverseChronCheck(
+      resume.experience
+        .filter((e) => !e.hidden)
+        .map((e) => ({
+          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at ') || 'Untitled role',
+          start: e.startDate,
+          end: e.endDate,
+        }))
+    ),
+    bulletsPerEntryCheck(
+      resume.experience
+        .filter((e) => !e.hidden && (e.role.trim() || e.company.trim()))
+        .map((e) => ({
+          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at '),
+          count: e.bullets.filter((b) => b.trim()).length,
+        }))
+    ),
+    dateFormatCheck(
+      [...resume.experience, ...resume.education]
+        .filter((e) => !e.hidden)
+        .flatMap((e) => [e.startDate, e.endDate])
+    ),
+    namedMonthDatesCheck(
+      [...resume.experience, ...resume.education]
+        .filter((e) => !e.hidden)
+        .flatMap((e) => [e.startDate, e.endDate])
+    ),
+    pronounCheck([
+      { text: resume.summary, anchor: 'summary' },
+      {
+        text: [
+          ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+          ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+          ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+          ...resume.customSections.flatMap((s) => s.bullets),
+        ].join('\n'),
+        anchor: 'experience',
+      },
+    ]),
+    activeVoiceCheck([
+      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+      ...resume.customSections.flatMap((s) => s.bullets),
+    ]),
+    weakOpenerCheck([
+      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+      ...resume.customSections.flatMap((s) => s.bullets),
+    ]),
+    quantifiedBulletsCheck([
+      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+      ...resume.customSections.flatMap((s) => s.bullets),
+    ]),
+    punctuatedBulletsCheck([
+      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+      ...resume.customSections.flatMap((s) => s.bullets),
+    ]),
+    bulletLengthCheck([
+      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+      ...resume.customSections.flatMap((s) => s.bullets),
+    ]),
+    buzzwordCheck([
+      { text: resume.summary, anchor: 'summary' },
+      {
+        text: [
+          ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+          ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+          ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+          ...resume.customSections.flatMap((s) => s.bullets),
+        ].join('\n'),
+        anchor: 'experience',
+      },
+    ]),
+    fillerWordCheck([
+      { text: resume.summary, anchor: 'summary' },
+      {
+        text: [
+          ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+          ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+          ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+          ...resume.customSections.flatMap((s) => s.bullets),
+        ].join('\n'),
+        anchor: 'experience',
+      },
+    ]),
+    pageLengthCheck(pdfPages, resume.experienceLevel),
+    linkedinCheck(
+      Boolean(resume.contact.linkedin.trim()) &&
+        !(resume.hiddenContact ?? []).includes('linkedin')
+    ),
+    entryLocationsCheck([
+      ...resume.experience
+        .filter((e) => !e.hidden && (e.role.trim() || e.company.trim()))
+        .map((e) => ({
+          name: [e.role.trim(), e.company.trim()].filter(Boolean).join(' at '),
+          located: Boolean(e.location.trim()),
+          anchor: 'experience' as const,
+        })),
+      ...(resume.involvement ?? [])
+        .filter((i) => !i.hidden && (i.role.trim() || i.organization.trim()))
+        .map((i) => ({
+          name: [i.role.trim(), i.organization.trim()].filter(Boolean).join(' at '),
+          located: Boolean(i.location.trim()),
+          anchor: 'experience' as const,
+        })),
+      ...resume.education
+        .filter((e) => !e.hidden && e.school.trim())
+        .map((e) => ({
+          name: e.school.trim(),
+          located: Boolean(e.location.trim()),
+          anchor: 'education' as const,
+        })),
+    ]),
   ]
 
   return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
+}
+
+export type ReadinessTier = 'ready' | 'almost' | 'not-yet'
+
+export interface ApplicationReadiness {
+  tier: ReadinessTier
+  blockers: string[]
+}
+
+/**
+ * Rezi-style "Application Ready" roll-up: a readiness verdict derived from the
+ * overall score (90+ ready, 50–89 almost, <50 not yet) plus the plain-language
+ * reasons holding it back. Pure derivation — no new scoring.
+ */
+export function applicationReadiness(ats: AtsResult): ApplicationReadiness {
+  const tier: ReadinessTier = ats.score >= 90 ? 'ready' : ats.score >= 50 ? 'almost' : 'not-yet'
+  const blockers: string[] = []
+  for (const cat of CHECK_CATEGORIES) {
+    const failing = ats.checks.filter((c) => c.category === cat.key && !c.pass).length
+    if (failing > 0)
+      blockers.push(`${failing} ${cat.label.toLowerCase()} check${failing === 1 ? '' : 's'} failing`)
+  }
+  if (ats.keywordScore !== null && ats.keywordScore < 70)
+    blockers.push(`keyword match at ${ats.keywordScore}% (${ats.missing.length} missing)`)
+  return { tier, blockers: blockers.slice(0, 3) }
 }
 
 /**

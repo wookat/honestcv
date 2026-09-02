@@ -388,13 +388,29 @@ interface RemotiveJob {
   candidate_required_location?: string
   salary?: string
   description?: string
+  tags?: string[]
+}
+
+/** Normalize upstream skill tags: trimmed, deduped case-insensitively, capped. */
+function normalizeTags(tags: string[] | undefined): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const raw of tags ?? []) {
+    const tag = String(raw).trim()
+    const key = tag.toLowerCase()
+    if (!tag || seen.has(key)) continue
+    seen.add(key)
+    out.push(tag)
+    if (out.length >= 24) break
+  }
+  return out
 }
 
 app.get('/api/jobs/search', async (c) => {
   const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
   const rawCategory = (c.req.query('category') ?? '').trim()
   const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
-  const cacheKey = `jobs:v3:${q.toLowerCase()}|${category}`
+  const cacheKey = `jobs:v4:${q.toLowerCase()}|${category}`
   const cached = await c.env.KV.get(cacheKey)
   if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
   const upstreamUrl = new URL('https://remotive.com/api/remote-jobs')
@@ -427,6 +443,7 @@ app.get('/api/jobs/search', async (c) => {
       postedAt: j.publication_date ?? '',
       salary: j.salary ?? '',
       url: j.url ?? '',
+      tags: normalizeTags(j.tags),
       description: htmlToText(j.description ?? '').slice(0, JOBS_MAX_DESCRIPTION),
     }))
   const payload = { jobs, source: 'remotive' }
@@ -517,7 +534,13 @@ app.post('/api/ai/rewrite', async (c) => {
 // strictly in existing content. Shares the free AI quota.
 app.post('/api/ai/summary-draft', async (c) => {
   const body = await c.req
-    .json<{ resumeText?: string; role?: string; highlights?: string[]; language?: string }>()
+    .json<{
+      resumeText?: string
+      role?: string
+      highlights?: string[]
+      jobDescription?: string
+      language?: string
+    }>()
     .catch(() => ({}) as Record<string, never>)
   const resumeText = body.resumeText?.trim()
   if (!resumeText) {
@@ -553,7 +576,12 @@ app.post('/api/ai/summary-draft', async (c) => {
   const result = await callLlm(
     c.env,
     withOutputLanguage(
-      buildSummaryDraftMessages(resumeText, body.role ?? '', highlights),
+      buildSummaryDraftMessages(
+        resumeText,
+        body.role ?? '',
+        highlights,
+        typeof body.jobDescription === 'string' ? body.jobDescription : ''
+      ),
       body.language
     ),
     0.5,
@@ -862,7 +890,7 @@ app.post('/api/ai/cover-letter', async (c) => {
     freeRemaining = remaining
   }
   const body = await c.req
-    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string; language?: string }>()
+    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string; addressee?: string; highlights?: string; language?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const resumeText = body.resumeText?.trim()
   const jd = body.jobDescription?.trim()
@@ -871,7 +899,7 @@ app.post('/api/ai/cover-letter', async (c) => {
   const result = await callLlm(
     c.env,
     withOutputLanguage(
-      buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? ''),
+      buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? '', body.addressee?.trim() ?? '', body.highlights?.trim() ?? ''),
       body.language
     ),
     0.6

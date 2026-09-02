@@ -12,6 +12,7 @@ import {
   BriefcaseBusiness,
   ExternalLink,
   FileText,
+  Lightbulb,
   Search,
   StickyNote,
 } from 'lucide-react'
@@ -35,15 +36,21 @@ import {
   type JobListing,
   type JobStatus,
   type PipelineEntry,
+  attentionCount,
+  followUpEmail,
   listPipeline,
   removeFromPipeline,
+  removeManyFromPipeline,
   searchJobs,
   setPipelineNotes,
   setPipelineVersion,
+  staleDays,
+  structureJobDescription,
   timelineOf,
+  updateStatuses,
   upsertPipeline,
 } from '@/lib/jobs'
-import { matchScore } from '@/lib/ats'
+import { matchReport, matchScore } from '@/lib/ats'
 import {
   createResumeVersion,
   emptyResume,
@@ -64,7 +71,7 @@ const matchTone = (pct: number) =>
       ? 'bg-amber-100 text-amber-800'
       : 'bg-red-100 text-red-800'
 
-type Tab = 'all' | JobStatus
+type Tab = 'all' | 'tracked' | JobStatus
 
 const postedAgo = (iso: string) => {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
@@ -89,10 +96,22 @@ export default function Jobs() {
     'Browse remote jobs, track your applications, and target your resume to a posting in one click.'
   )
   const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('all')
-  const [query, setQuery] = useState(() => loadResume()?.targetRole ?? '')
+  // ?attention=1 deep link opens the queue filtered to applications needing a follow-up
+  const [seedAttention] = useState(
+    () => new URLSearchParams(window.location.search).get('attention') === '1'
+  )
+  const [tab, setTab] = useState<Tab>(seedAttention ? 'tracked' : 'all')
+  const [followUpOnly, setFollowUpOnly] = useState(seedAttention)
+  // ?q= deep link (e.g. the assistant's "Find matching jobs") seeds the search
+  const [seedQuery] = useState(
+    () => new URLSearchParams(window.location.search).get('q')?.trim() || null
+  )
+  const [query, setQuery] = useState(() => seedQuery ?? loadResume()?.targetRole ?? '')
   const [category, setCategory] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
+  const [skillsFilter, setSkillsFilter] = useState('')
+  const [tagsExpandedId, setTagsExpandedId] = useState<string | null>(null)
   const [sort, setSort] = useState<'relevance' | 'newest' | 'match'>('relevance')
   const [excluded, setExcluded] = useState<ReadonlySet<JobStatus>>(new Set())
   const [jobs, setJobs] = useState<JobListing[]>([])
@@ -101,11 +120,20 @@ export default function Jobs() {
   const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => listPipeline())
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [mobileDetail, setMobileDetail] = useState(false)
+  const [bulkMode, setBulkMode] = useState(false)
+  const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(new Set())
+  const [confirmBulkUntrack, setConfirmBulkUntrack] = useState(false)
   const [confirmTarget, setConfirmTarget] = useState<{
     job: JobListing
     intent: 'target' | 'cover'
   } | null>(null)
   const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
+  const [reportOpenId, setReportOpenId] = useState<string | null>(null)
+  const [confirmUntrack, setConfirmUntrack] = useState<JobListing | null>(null)
+  const [followUpDraft, setFollowUpDraft] = useState<{ subject: string; body: string } | null>(
+    null
+  )
+  const [followUpCopied, setFollowUpCopied] = useState(false)
 
   const fetchJobs = (q: string, cat = '') =>
     searchJobs(q, cat)
@@ -123,8 +151,9 @@ export default function Jobs() {
   }
 
   useEffect(() => {
-    void fetchJobs(loadResume()?.targetRole ?? '')
-  }, [])
+    void fetchJobs(seedQuery ?? loadResume()?.targetRole ?? '')
+    // seedQuery is set once from the URL and never changes
+  }, [seedQuery])
 
   const statusOf = useMemo(() => {
     const map = new Map<string, JobStatus>()
@@ -174,9 +203,54 @@ export default function Jobs() {
     return map
   }, [pipeline])
 
+  /** Word-boundary regex for a skills-filter term (R243 semantics). */
+  const termRegex = (term: string) => {
+    const t = term.toLowerCase()
+    const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const lead = /^\w/.test(t) ? '\\b' : ''
+    const tail = /\w$/.test(t) ? '\\b' : ''
+    return new RegExp(`${lead}${escaped}${tail}`)
+  }
+
+  /** Skill tags shared by two or more tracked jobs — Rezi's cue to tailor a copy. */
+  const repeatedSkills = useMemo(() => {
+    const counts = new Map<string, { tag: string; count: number }>()
+    for (const e of pipeline) {
+      const perJob = new Set<string>()
+      for (const tag of e.job.tags ?? []) {
+        const key = tag.toLowerCase()
+        if (perJob.has(key)) continue
+        perJob.add(key)
+        const cur = counts.get(key)
+        if (cur) cur.count += 1
+        else counts.set(key, { tag, count: 1 })
+      }
+    }
+    return [...counts.values()]
+      .filter((s) => s.count >= 2)
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+      .slice(0, 12)
+  }, [pipeline])
+
   const loc = locationFilter.trim().toLowerCase()
+  /** Whole application queue, grouped saved → applied → interviewing → offer → rejected,
+   *  most recently updated first within a group. */
+  const trackedQueue = useMemo(
+    () =>
+      JOB_STATUSES.flatMap((s) =>
+        pipeline
+          .filter((e) => e.status === s && (!followUpOnly || staleDays(e) !== null))
+          .sort((a, b) => b.updatedAt - a.updatedAt)
+          .map((e) => e.job)
+      ),
+    [pipeline, followUpOnly]
+  )
   const base: JobListing[] =
-    tab === 'all' ? jobs : pipeline.filter((e) => e.status === tab).map((e) => e.job)
+    tab === 'all'
+      ? jobs
+      : tab === 'tracked'
+        ? trackedQueue
+        : pipeline.filter((e) => e.status === tab).map((e) => e.job)
   const afterExclude =
     tab === 'all' && excluded.size > 0
       ? base.filter((j) => {
@@ -184,30 +258,83 @@ export default function Jobs() {
           return !(s && excluded.has(s))
         })
       : base
-  const filtered =
-    tab === 'all' && loc
-      ? afterExclude.filter((j) => j.location.toLowerCase().includes(loc))
+  const afterType =
+    tab === 'all' && typeFilter
+      ? afterExclude.filter((j) => j.type.toLowerCase() === typeFilter)
       : afterExclude
-  const shown =
+  const skillTerms = skillsFilter
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const activeSkillTerms = new Set(skillTerms.map((t) => t.toLowerCase()))
+  /** Add a skill tag to the filter, or remove it if already active. */
+  const toggleSkillTerm = (rawTag: string) => {
+    const tag = rawTag.replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
+    if (!tag) return
+    const kept = skillTerms.filter((t) => t.toLowerCase() !== tag.toLowerCase())
+    const next = kept.length === skillTerms.length ? [...kept, tag] : kept
+    setSkillsFilter(next.join(', '))
+    setTab('all')
+  }
+  const afterSkills =
+    tab === 'all' && skillTerms.length > 0
+      ? afterType.filter((j) => {
+          const haystack = `${j.title}\n${j.description}\n${(j.tags ?? []).join('\n')}`.toLowerCase()
+          return skillTerms.every((term) => termRegex(term).test(haystack))
+        })
+      : afterType
+  /** A posting anyone can apply to regardless of where they live. */
+  const isLocationAgnostic = (location: string) => {
+    const l = location.trim().toLowerCase()
+    return l === '' || l === 'remote' || /\b(worldwide|anywhere|global)\b/.test(l)
+  }
+  const directMatches =
+    tab === 'all' && loc
+      ? afterSkills.filter((j) => j.location.toLowerCase().includes(loc))
+      : afterSkills
+  const anywhereMatches =
+    tab === 'all' && loc
+      ? afterSkills.filter(
+          (j) => !j.location.toLowerCase().includes(loc) && isLocationAgnostic(j.location)
+        )
+      : []
+  const applySort = (list: JobListing[]) =>
     tab === 'all' && sort === 'newest'
-      ? [...filtered].sort(
+      ? [...list].sort(
           (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
         )
       : tab === 'all' && sort === 'match'
-        ? [...filtered].sort(
+        ? [...list].sort(
             (a, b) =>
               (matchOf.get(b.id) ?? -1) - (matchOf.get(a.id) ?? -1) ||
               new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
           )
-        : filtered
+        : list
+  const sortedAnywhere = applySort(anywhereMatches)
+  const shown = [...applySort(directMatches), ...sortedAnywhere]
+  /** Index of the first location-agnostic result when the location input splits the list. */
+  const anywhereStart = sortedAnywhere.length > 0 ? shown.length - sortedAnywhere.length : -1
   const selected =
     shown.find((j) => j.id === selectedId) ??
     jobs.find((j) => j.id === selectedId) ??
     pipeline.find((e) => e.job.id === selectedId)?.job ??
     null
 
+  /** Keyword breakdown for the selected job — targeted copy when linked, else the draft. */
+  const selectedReport = (() => {
+    if (!selected) return null
+    const entry = pipeline.find((e) => e.job.id === selected.id)
+    const version = entry?.resumeVersionId
+      ? listResumeVersions().find((v) => v.id === entry.resumeVersionId)
+      : undefined
+    const text = version ? resumeToPlainText(visibleResume(version.data)) : resumeText
+    if (!text.trim()) return null
+    const report = matchReport(text, selected.description)
+    return report ? { ...report, source: version ? ('copy' as const) : ('draft' as const) } : null
+  })()
+
   const counts = useMemo(() => {
-    const c = { saved: 0, applied: 0, interviewing: 0, rejected: 0 }
+    const c = { saved: 0, applied: 0, interviewing: 0, offer: 0, rejected: 0 }
     for (const e of pipeline) c[e.status]++
     return c
   }, [pipeline])
@@ -238,6 +365,11 @@ export default function Jobs() {
 
   const setStatus = (job: JobListing, status: JobStatus | 'none') => {
     if (status === 'none') {
+      const entry = pipeline.find((e) => e.job.id === job.id)
+      if (entry && (entry.notes?.trim() || timelineOf(entry).length > 1)) {
+        setConfirmUntrack(job)
+        return
+      }
       setPipeline(removeFromPipeline(job.id))
       return
     }
@@ -263,6 +395,70 @@ export default function Jobs() {
     saveResume(next)
     syncActiveVersion(next)
     void navigate(`/builder?doc=cover&company=${encodeURIComponent(job.company)}`)
+  }
+
+  /** Set the draft's target job and open the interview prep tools in the editor. */
+  const openInterviewPrep = (job: JobListing) => {
+    const draft = loadResume() ?? emptyResume()
+    const next = {
+      ...draft,
+      targetRole: job.title,
+      targetCompany: job.company,
+      jobDescription: job.description,
+    }
+    saveResume(next)
+    syncActiveVersion(next)
+    void navigate('/builder?doc=interview')
+  }
+
+  /** The next recommended action for a tracked job, from its status and tailoring progress. */
+  const nextStep = (
+    entry: PipelineEntry
+  ): { text: string; label: string; onClick?: () => void; href?: string } => {
+    const job = entry.job
+    if (entry.status === 'rejected')
+      return {
+        text: 'Keep momentum — look for similar roles.',
+        label: 'Search similar jobs',
+        onClick: () => {
+          setTab('all')
+          setQuery(job.title)
+          runSearch(job.title)
+        },
+      }
+    if (entry.status === 'offer')
+      return {
+        text: 'You have an offer — leave your current role on good terms.',
+        label: 'Open resignation letter',
+        onClick: () => void navigate('/builder?doc=resignation'),
+      }
+    if (entry.status === 'applied' || entry.status === 'interviewing')
+      return {
+        text:
+          entry.status === 'applied'
+            ? 'Prepare for the interview while the application is fresh.'
+            : 'Practice interview questions before the next round.',
+        label: 'Open interview prep',
+        onClick: () => openInterviewPrep(job),
+      }
+    if (!linkedVersion(job.id))
+      return {
+        text: 'Create a resume targeted at this job.',
+        label: 'Target my resume',
+        onClick: () => setConfirmTarget({ job, intent: 'target' }),
+      }
+    const match = tailoredMatchOf.get(job.id)
+    if (match !== undefined && match < 80)
+      return {
+        text: `Improve your targeted copy — ${match}% keyword match.`,
+        label: 'Open targeted resume',
+        onClick: () => targetResume(job, 'target'),
+      }
+    return {
+      text: 'Your copy is well tailored — apply while the posting is open.',
+      label: 'Apply on site',
+      href: job.url,
+    }
   }
 
   return (
@@ -294,6 +490,7 @@ export default function Jobs() {
           {(
             [
               ['all', `All jobs`],
+              ['tracked', `Tracked (${pipeline.length})`],
               ...JOB_STATUSES.map((s) => [s, `${JOB_STATUS_LABELS[s]} (${counts[s]})`]),
             ] as [Tab, string][]
           ).map(([value, label]) => (
@@ -304,6 +501,8 @@ export default function Jobs() {
               onClick={() => {
                 setTab(value)
                 setMobileDetail(false)
+                setBulkMode(false)
+                setBulkIds(new Set())
               }}
               className={`min-h-10 rounded-md border px-3 py-1 text-xs font-medium transition sm:min-h-8 ${
                 tab === value
@@ -353,6 +552,31 @@ export default function Jobs() {
                 </option>
               ))}
             </select>
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value)
+                setSelectedId(null)
+              }}
+              aria-label="Filter by job type"
+              className="border-input bg-background h-10 rounded-md border px-2 text-sm"
+            >
+              <option value="">All types</option>
+              <option value="full time">Full time</option>
+              <option value="part time">Part time</option>
+              <option value="contract">Contract</option>
+              <option value="freelance">Freelance</option>
+              <option value="internship">Internship</option>
+              <option value="other">Other</option>
+            </select>
+            <Input
+              type="search"
+              value={skillsFilter}
+              onChange={(e) => setSkillsFilter(e.target.value)}
+              placeholder="Skills, e.g. React, SQL"
+              aria-label="Filter by skills"
+              className="h-10 w-40"
+            />
             <Input
               type="search"
               value={locationFilter}
@@ -410,12 +634,136 @@ export default function Jobs() {
           </div>
         )}
 
+        {tab === 'tracked' && pipeline.length > 0 && (
+          <div
+            className="mt-3 flex flex-wrap items-center gap-2"
+            role="group"
+            aria-label="Bulk actions on tracked jobs"
+          >
+            {(attentionCount(pipeline) > 0 || followUpOnly) && (
+              <button
+                type="button"
+                aria-pressed={followUpOnly}
+                title="Show only applications with no status update in 7+ days"
+                onClick={() => setFollowUpOnly((v) => !v)}
+                className={`min-h-10 rounded-md border px-3 py-1 text-xs font-medium transition sm:min-h-8 ${
+                  followUpOnly
+                    ? 'border-amber-300 bg-amber-100 text-amber-800'
+                    : 'hover:border-muted-foreground/40'
+                }`}
+              >
+                Needs follow-up ({attentionCount(pipeline)})
+              </button>
+            )}
+            <button
+              type="button"
+              aria-pressed={bulkMode}
+              onClick={() => {
+                setBulkMode((v) => !v)
+                setBulkIds(new Set())
+              }}
+              className={`min-h-10 rounded-md border px-3 py-1 text-xs font-medium transition sm:min-h-8 ${
+                bulkMode ? 'border-primary ring-primary/40 ring-2' : 'hover:border-muted-foreground/40'
+              }`}
+            >
+              {bulkMode ? 'Done selecting' : 'Select…'}
+            </button>
+            {bulkMode && bulkIds.size > 0 && (
+              <>
+                <span className="text-muted-foreground text-xs font-medium">
+                  {bulkIds.size} selected
+                </span>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const status = e.target.value as JobStatus
+                    if (!status) return
+                    setPipeline(updateStatuses([...bulkIds], status))
+                    setBulkIds(new Set())
+                  }}
+                  aria-label="Move selected jobs to a status"
+                  className="border-input bg-background min-h-10 rounded-md border px-1.5 text-xs sm:min-h-8"
+                >
+                  <option value="" disabled>
+                    Move to…
+                  </option>
+                  {JOB_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {JOB_STATUS_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive min-h-10 sm:min-h-8"
+                  onClick={() => setConfirmBulkUntrack(true)}
+                >
+                  Untrack {bulkIds.size}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setBulkIds(new Set())}
+                  className="text-muted-foreground hover:text-foreground min-h-10 text-xs underline-offset-2 hover:underline sm:min-h-8"
+                >
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="mt-6 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           <div
             className={`bg-card max-h-[70vh] overflow-y-auto rounded-md border ${
               mobileDetail ? 'hidden md:block' : ''
             }`}
           >
+            {tab === 'tracked' && repeatedSkills.length > 0 && (
+              <div className="bg-muted/40 flex flex-wrap items-center gap-1.5 border-b px-4 py-2">
+                <span
+                  className="text-muted-foreground text-xs font-medium"
+                  title="Skills asked for by two or more of your tracked jobs — a cue to tailor a resume copy toward them"
+                >
+                  Repeated skills:
+                </span>
+                {repeatedSkills.map(({ tag, count }) => {
+                  const active = activeSkillTerms.has(tag.toLowerCase())
+                  const onResume =
+                    resumeText.trim() !== '' && termRegex(tag).test(resumeText.toLowerCase())
+                  return (
+                    <button
+                      key={tag.toLowerCase()}
+                      type="button"
+                      aria-pressed={active}
+                      title={
+                        (active
+                          ? `Remove "${tag}" from the skills filter`
+                          : `Find more jobs asking for "${tag}"`) +
+                        (resumeText.trim() !== '' && !onResume
+                          ? ` — not on your resume yet`
+                          : '')
+                      }
+                      onClick={() => toggleSkillTerm(tag)}
+                      className={
+                        active
+                          ? 'bg-primary text-primary-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'
+                      }
+                    >
+                      {tag} ×{count}
+                      {resumeText.trim() !== '' && !onResume && (
+                        <span
+                          aria-label="Not on your resume yet"
+                          className="size-1.5 rounded-full bg-amber-500"
+                        />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             {loading ? (
               <p className="text-muted-foreground p-4 text-sm">Loading jobs…</p>
             ) : error ? (
@@ -424,20 +772,51 @@ export default function Jobs() {
               <p className="text-muted-foreground p-4 text-sm">
                 {tab === 'all'
                   ? 'No jobs found — try another search term.'
-                  : `Nothing ${JOB_STATUS_LABELS[tab].toLowerCase()} yet — use the status buttons on a job to track it.`}
+                  : tab === 'tracked'
+                    ? followUpOnly
+                      ? 'No applications need a follow-up right now.'
+                      : 'Nothing tracked yet — use the status buttons on a job to track it.'
+                    : `Nothing ${JOB_STATUS_LABELS[tab].toLowerCase()} yet — use the status buttons on a job to track it.`}
               </p>
             ) : (
               <ul>
-                {shown.map((j) => {
+                {shown.map((j, i) => {
                   const status = statusOf.get(j.id)
                   const updated = updatedAtOf.get(j.id)
                   return (
                     <li key={j.id} className="border-b last:border-b-0">
+                      {i === anywhereStart && (
+                        <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
+                          Open to any location ({sortedAnywhere.length})
+                        </p>
+                      )}
+                      {tab === 'tracked' && status && status !== statusOf.get(shown[i - 1]?.id ?? '') && (
+                        <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
+                          {JOB_STATUS_LABELS[status]} ({counts[status]})
+                        </p>
+                      )}
                       <div
                         className={`hover:bg-accent relative px-4 py-3 ${
                           selected?.id === j.id ? 'bg-accent border-primary border-l-2' : ''
-                        }`}
+                        } ${tab === 'tracked' && bulkMode ? 'flex items-start gap-2.5' : ''}`}
                       >
+                        {tab === 'tracked' && bulkMode && (
+                          <input
+                            type="checkbox"
+                            checked={bulkIds.has(j.id)}
+                            onChange={() =>
+                              setBulkIds((prev) => {
+                                const next = new Set(prev)
+                                if (next.has(j.id)) next.delete(j.id)
+                                else next.add(j.id)
+                                return next
+                              })
+                            }
+                            aria-label={`Select ${j.title} at ${j.company}`}
+                            className="accent-primary mt-1 size-4 shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
                         <button
                           type="button"
                           onClick={() => {
@@ -484,11 +863,22 @@ export default function Jobs() {
                           </span>
                           <p className="text-muted-foreground mt-0.5 text-xs">
                             {postedAgo(j.postedAt)}
-                            {status && tab !== 'all' && updated && (
+                            {status && updated && (
                               <span className="text-primary ml-2 font-medium">
                                 {JOB_STATUS_LABELS[status]} {agoFromMs(updated)}
                               </span>
                             )}
+                            {(() => {
+                              const entry = pipeline.find((e) => e.job.id === j.id)
+                              const stale = entry ? staleDays(entry) : null
+                              return (
+                                stale !== null && (
+                                  <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+                                    No update · {stale}d
+                                  </span>
+                                )
+                              )
+                            })()}
                             {hasNotes.has(j.id) && (
                               <StickyNote
                                 aria-label="Has notes"
@@ -501,15 +891,15 @@ export default function Jobs() {
                         <div className="mt-1.5 flex items-center gap-1.5">
                           <button
                             type="button"
-                            aria-pressed={status === 'saved'}
-                            onClick={() => setStatus(j, status === 'saved' ? 'none' : 'saved')}
+                            aria-pressed={status !== undefined}
+                            onClick={() => setStatus(j, status ? 'none' : 'saved')}
                             className={`min-h-10 rounded-md border px-2 py-0.5 text-xs font-medium transition sm:min-h-7 ${
-                              status === 'saved'
+                              status
                                 ? 'border-primary ring-primary/40 ring-2'
                                 : 'hover:border-muted-foreground/40'
                             }`}
                           >
-                            {status === 'saved' ? 'Saved' : 'Save'}
+                            {status ? (status === 'saved' ? 'Saved' : 'Tracked') : 'Save'}
                           </button>
                           <select
                             value={status ?? 'none'}
@@ -524,6 +914,7 @@ export default function Jobs() {
                               </option>
                             ))}
                           </select>
+                        </div>
                         </div>
                       </div>
                     </li>
@@ -584,6 +975,127 @@ export default function Jobs() {
                     )
                   )}
                 </p>
+                {selectedReport && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      aria-expanded={reportOpenId === selected.id}
+                      onClick={() =>
+                        setReportOpenId((cur) => (cur === selected.id ? null : selected.id))
+                      }
+                      className="text-primary text-xs font-medium underline-offset-2 hover:underline"
+                    >
+                      {reportOpenId === selected.id ? 'Hide tailoring report' : 'Tailoring report'}
+                    </button>
+                    {reportOpenId === selected.id && (
+                      <div className="bg-muted/40 mt-2 rounded-md border p-2.5 text-xs">
+                        <p className="text-muted-foreground">
+                          Against{' '}
+                          {selectedReport.source === 'copy'
+                            ? 'the targeted copy for this job'
+                            : 'your current resume draft'}
+                          : covered {selectedReport.covered.length} of{' '}
+                          {selectedReport.covered.length + selectedReport.missing.length} job
+                          keywords.
+                        </p>
+                        {selectedReport.missing.length === 0 ? (
+                          <p className="mt-1 font-medium text-emerald-700 dark:text-emerald-400">
+                            All job keywords covered.
+                          </p>
+                        ) : (
+                          <>
+                            {selectedReport.highPriorityMissing.length > 0 && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                <span className="font-medium text-amber-700 dark:text-amber-400">
+                                  High priority missing:
+                                </span>
+                                {selectedReport.highPriorityMissing.slice(0, 10).map((kw) => (
+                                  <span
+                                    key={kw}
+                                    className="rounded-full bg-amber-100 px-1.5 py-0.5 text-amber-800 dark:bg-amber-950"
+                                  >
+                                    {kw}
+                                  </span>
+                                ))}
+                                {selectedReport.highPriorityMissing.length > 10 && (
+                                  <span className="text-muted-foreground">
+                                    +{selectedReport.highPriorityMissing.length - 10} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {selectedReport.missing.length >
+                              selectedReport.highPriorityMissing.length && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                <span className="text-muted-foreground font-medium">
+                                  Also missing:
+                                </span>
+                                {selectedReport.missing
+                                  .filter((kw) => !selectedReport.highPriorityMissing.includes(kw))
+                                  .slice(0, 10)
+                                  .map((kw) => (
+                                    <span
+                                      key={kw}
+                                      className="bg-muted text-muted-foreground rounded-full px-1.5 py-0.5"
+                                    >
+                                      {kw}
+                                    </span>
+                                  ))}
+                                {selectedReport.missing.length -
+                                  selectedReport.highPriorityMissing.length >
+                                  10 && (
+                                  <span className="text-muted-foreground">
+                                    +
+                                    {selectedReport.missing.length -
+                                      selectedReport.highPriorityMissing.length -
+                                      10}{' '}
+                                    more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {(selected.tags?.length ?? 0) > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-muted-foreground text-xs font-medium">Skills:</span>
+                    {(tagsExpandedId === selected.id
+                      ? (selected.tags ?? [])
+                      : (selected.tags ?? []).slice(0, 10)
+                    ).map((tag) => {
+                      const active = activeSkillTerms.has(tag.toLowerCase())
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          aria-pressed={active}
+                          title={active ? `Remove "${tag}" from the skills filter` : `Filter jobs by "${tag}"`}
+                          onClick={() => toggleSkillTerm(tag)}
+                          className={
+                            active
+                              ? 'bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs'
+                              : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground rounded-full px-2 py-0.5 text-xs'
+                          }
+                        >
+                          {tag}
+                        </button>
+                      )
+                    })}
+                    {(selected.tags?.length ?? 0) > 10 && tagsExpandedId !== selected.id && (
+                      <button
+                        type="button"
+                        onClick={() => setTagsExpandedId(selected.id)}
+                        className="text-primary text-xs underline-offset-2 hover:underline"
+                      >
+                        +{(selected.tags?.length ?? 0) - 10} more
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   <Button
                     type="button"
@@ -638,8 +1150,38 @@ export default function Jobs() {
                   const steps = timelineOf(entry)
                   const notes =
                     notesDraft?.jobId === selected.id ? notesDraft.text : (entry.notes ?? '')
+                  const step = nextStep(entry)
                   return (
                     <div className="bg-muted/40 mt-4 rounded-md border p-3">
+                      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b pb-3">
+                        <p className="flex items-center gap-1.5 text-sm">
+                          <Lightbulb aria-hidden className="text-primary size-4 shrink-0" />
+                          <span className="font-medium">Next step:</span> {step.text}
+                        </p>
+                        {step.href ? (
+                          <Button
+                            asChild
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="min-h-10 sm:min-h-7"
+                          >
+                            <a href={step.href} target="_blank" rel="noopener noreferrer">
+                              {step.label} <ExternalLink className="size-3.5" />
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="min-h-10 sm:min-h-7"
+                            onClick={step.onClick}
+                          >
+                            {step.label}
+                          </Button>
+                        )}
+                      </div>
                       <p className="text-sm font-medium">Application timeline</p>
                       <ol className="mt-1.5 flex flex-wrap items-center gap-y-1 text-xs">
                         {steps.map((step, i) => (
@@ -661,6 +1203,30 @@ export default function Jobs() {
                           </li>
                         ))}
                       </ol>
+                      {(() => {
+                        const stale = staleDays(entry)
+                        return (
+                          stale !== null && (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                              <p className="text-xs font-medium text-amber-700">
+                                No update in {stale} days — consider following up.
+                              </p>
+                              <button
+                                type="button"
+                                className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
+                                onClick={() => {
+                                  setFollowUpCopied(false)
+                                  setFollowUpDraft(
+                                    followUpEmail(entry, loadResume()?.contact.fullName)
+                                  )
+                                }}
+                              >
+                                Draft follow-up email
+                              </button>
+                            </div>
+                          )
+                        )
+                      })()}
                       <label
                         htmlFor="job-notes"
                         className="mt-3 block text-sm font-medium"
@@ -685,9 +1251,24 @@ export default function Jobs() {
                     </div>
                   )
                 })()}
-                <p className="text-muted-foreground mt-4 whitespace-pre-wrap text-sm">
-                  {selected.description}
-                </p>
+                <div className="mt-4">
+                  {structureJobDescription(selected.description).map((s, i) => (
+                    <section key={i} className={i > 0 ? 'mt-4' : undefined}>
+                      {s.heading !== null && (
+                        <h3 className="text-foreground/80 text-xs font-semibold tracking-wide uppercase">
+                          {s.heading}
+                        </h3>
+                      )}
+                      {s.body && (
+                        <p
+                          className={`text-muted-foreground whitespace-pre-wrap text-sm ${s.heading !== null ? 'mt-1' : ''}`}
+                        >
+                          {s.body}
+                        </p>
+                      )}
+                    </section>
+                  ))}
+                </div>
               </>
             ) : (
               <p className="text-muted-foreground text-sm">Select a job to see the details.</p>
@@ -728,6 +1309,143 @@ export default function Jobs() {
                 : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'Open targeted copy'
                   : 'Create copy and open editor'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmUntrack !== null} onOpenChange={(o) => !o && setConfirmUntrack(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{`Stop tracking "${confirmUntrack?.title ?? ''}"?`}</DialogTitle>
+            <DialogDescription>
+              {(() => {
+                const entry = confirmUntrack
+                  ? pipeline.find((e) => e.job.id === confirmUntrack.id)
+                  : undefined
+                const steps = entry ? timelineOf(entry).length : 0
+                const parts = [
+                  steps > 1 ? `its application timeline (${steps} status changes)` : '',
+                  entry?.notes?.trim() ? 'your notes' : '',
+                ].filter(Boolean)
+                return `This removes the job from your pipeline and deletes ${parts.join(' and ')}. Targeted resume copies stay on your dashboard.`
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-10"
+              onClick={() => setConfirmUntrack(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="min-h-10"
+              onClick={() => {
+                if (confirmUntrack) setPipeline(removeFromPipeline(confirmUntrack.id))
+                setConfirmUntrack(null)
+              }}
+            >
+              Stop tracking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={followUpDraft !== null} onOpenChange={(o) => !o && setFollowUpDraft(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Follow-up email</DialogTitle>
+            <DialogDescription>
+              A ready-to-send draft — edit it below, then copy it into your email client.
+            </DialogDescription>
+          </DialogHeader>
+          {followUpDraft && (
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="follow-up-subject" className="block text-sm font-medium">
+                  Subject
+                </label>
+                <Input
+                  id="follow-up-subject"
+                  className="mt-1"
+                  value={followUpDraft.subject}
+                  onChange={(e) =>
+                    setFollowUpDraft({ ...followUpDraft, subject: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label htmlFor="follow-up-body" className="block text-sm font-medium">
+                  Message
+                </label>
+                <textarea
+                  id="follow-up-body"
+                  className="border-input bg-background mt-1 min-h-48 w-full rounded-md border px-3 py-2 text-sm"
+                  value={followUpDraft.body}
+                  onChange={(e) => setFollowUpDraft({ ...followUpDraft, body: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-10"
+              onClick={() => setFollowUpDraft(null)}
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              className="min-h-10"
+              onClick={() => {
+                if (!followUpDraft) return
+                void navigator.clipboard
+                  .writeText(`Subject: ${followUpDraft.subject}\n\n${followUpDraft.body}`)
+                  .then(() => setFollowUpCopied(true))
+              }}
+            >
+              {followUpCopied ? 'Copied' : 'Copy email'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmBulkUntrack} onOpenChange={(o) => !o && setConfirmBulkUntrack(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{`Stop tracking ${bulkIds.size} job${bulkIds.size === 1 ? '' : 's'}?`}</DialogTitle>
+            <DialogDescription>
+              This removes the selected jobs from your pipeline and deletes their application
+              timelines and notes. Targeted resume copies stay on your dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-10"
+              onClick={() => setConfirmBulkUntrack(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="min-h-10"
+              onClick={() => {
+                setPipeline(removeManyFromPipeline([...bulkIds]))
+                setBulkIds(new Set())
+                setConfirmBulkUntrack(false)
+              }}
+            >
+              Stop tracking
             </Button>
           </DialogFooter>
         </DialogContent>

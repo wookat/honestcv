@@ -111,6 +111,11 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         }),
       ],
     })
+  /** Hairline above an entry after the first (templates with entryDivider) */
+  const entryBorder = (i: number) =>
+    tpl.entryDivider && i > 0
+      ? { top: { style: BorderStyle.SINGLE, size: 4, color: 'D4D4D4', space: 4 } }
+      : undefined
   const body = (
     text: string,
     opts: {
@@ -119,11 +124,13 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       bullet?: boolean
       after?: number
       keepNext?: boolean
+      border?: ReturnType<typeof entryBorder>
     } = {}
   ) =>
     new Paragraph({
       spacing: { after: opts.after ?? 60, line: lineTwips, lineRule: LineRuleType.AUTO },
       keepNext: opts.keepNext,
+      border: opts.border,
       bullet: opts.bullet ? { level: 0 } : undefined,
       indent: opts.bullet ? bulletInd : undefined,
       children: parseInlineMarks(text).map((r) => {
@@ -200,22 +207,27 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       children.push(heading(sectionHeading(resume, 'summary')), body(resume.summary.trim(), { after: 100 }))
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
       children.push(heading(sectionHeading(resume, 'experience')))
+      let gi = 0
       for (const g of experienceGroups(resume.experience, resume.groupByCompany === 'on')) {
+        const groupIdx = gi++
         if (g.grouped) {
           children.push(
             new Paragraph({
               spacing: { before: 100, after: 20 },
               keepNext: true,
+              border: entryBorder(groupIdx),
               children: [new TextRun({ text: g.company.trim(), bold: true, size: sz(22), font })],
             })
           )
         }
+        let ei = 0
         for (const e of g.entries) {
           const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
           children.push(
             new Paragraph({
               spacing: { before: g.grouped ? 40 : 100, after: 20 },
               keepNext: true,
+              border: entryBorder(g.grouped ? ei++ : groupIdx),
               tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
               children: [
                 new TextRun({ text: e.role || 'Role', bold: true, size: sz(22), font }),
@@ -261,6 +273,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       }
     } else if (key === 'projects' && resume.projects.some((p) => p.name)) {
       children.push(heading(sectionHeading(resume, 'projects')))
+      let pi = 0
       for (const p of resume.projects) {
         if (!p.name) continue
         const dates = projectDates(p)
@@ -269,18 +282,21 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             bold: true,
             after: 20,
             keepNext: true,
+            border: entryBorder(pi++),
           })
         )
         if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
       }
     } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'involvement')))
+      let ii = 0
       for (const i of involvementEntries(resume)) {
         const dates = involvementDates(i)
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
             keepNext: true,
+            border: entryBorder(ii++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({ text: i.role.trim() || 'Role', bold: true, size: sz(22), font }),
@@ -303,6 +319,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       }
     } else if (key === 'education' && resume.education.some((e) => e.school)) {
       children.push(heading(sectionHeading(resume, 'education')))
+      let edi = 0
       for (const e of resume.education) {
         if (!e.school) continue
         const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
@@ -310,6 +327,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
           new Paragraph({
             spacing: { before: 60, after: 20 },
             keepNext: true,
+            border: entryBorder(edi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({ text: e.degree || 'Degree', bold: true, size: sz(21), font }),
@@ -329,12 +347,14 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       }
     } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'coursework')))
+      let cwi = 0
       for (const cw of courseworkEntries(resume)) {
         const date = cw.date.trim()
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
             keepNext: true,
+            border: entryBorder(cwi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({ text: cw.name.trim() || 'Course', bold: true, size: sz(22), font }),
@@ -379,6 +399,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       (certEntries(resume).length > 0 || resume.certifications.trim())
     ) {
       children.push(heading(sectionHeading(resume, 'certifications')))
+      let cti = 0
       for (const c of certEntries(resume)) {
         const date = c.date.trim()
         children.push(
@@ -386,6 +407,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             bold: true,
             after: 20,
             keepNext: true,
+            border: entryBorder(cti++),
           })
         )
         if (c.description.trim()) children.push(body(c.description.trim(), { after: 80 }))
@@ -394,12 +416,14 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         children.push(body(resume.certifications.trim(), { after: 100 }))
     } else if (key === 'awards' && awardEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'awards')))
+      let awi = 0
       for (const a of awardEntries(resume)) {
         const date = a.date.trim()
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
             keepNext: true,
+            border: entryBorder(awi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({ text: a.name.trim() || 'Award', bold: true, size: sz(22), font }),
@@ -422,12 +446,14 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       }
     } else if (key === 'publications' && publicationEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'publications')))
+      let pbi = 0
       for (const p of publicationEntries(resume)) {
         const date = p.date.trim()
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
             keepNext: true,
+            border: entryBorder(pbi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({
@@ -452,12 +478,14 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       }
     } else if (key === 'references' && referenceEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'references')))
+      let rfi = 0
       for (const x of referenceEntries(resume)) {
         const role = [x.title.trim(), x.employer.trim()].filter(Boolean).join(', ')
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
             keepNext: true,
+            border: entryBorder(rfi++),
             children: [
               new TextRun({ text: x.name.trim(), bold: true, size: sz(22), font }),
               ...(role
@@ -471,12 +499,14 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       }
     } else if (key === 'military' && militaryEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'military')))
+      let mli = 0
       for (const m of militaryEntries(resume)) {
         const dates = militaryDates(m)
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
             keepNext: true,
+            border: entryBorder(mli++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({ text: m.rank.trim() || 'Rank', bold: true, size: sz(22), font }),
@@ -499,11 +529,13 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       }
     } else if (key === 'agents' && agentEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'agents')))
+      let agi = 0
       for (const a of agentEntries(resume)) {
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
             keepNext: true,
+            border: entryBorder(agi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
               new TextRun({ text: a.name.trim(), bold: true, size: sz(22), font }),

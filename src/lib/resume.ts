@@ -253,7 +253,16 @@ export interface Resume {
   targetRole: string
   jobDescription: string
   /** Candidate seniority for the target job; grounds AI drafts ('' = unset) */
-  experienceLevel?: '' | 'internship' | 'entry' | 'mid' | 'senior' | 'executive'
+  experienceLevel?:
+    | ''
+    | 'internship'
+    | 'entry'
+    | 'associate'
+    | 'junior'
+    | 'mid'
+    | 'senior'
+    | 'director'
+    | 'executive'
   /** Company the resume targets; grounds AI drafts and prefills cover letters */
   targetCompany?: string
   /** Profile photo as a data:image/... URL; shown in the preview and PDF only */
@@ -293,12 +302,24 @@ export const AUTO_SORT_SECTIONS: AutoSortSection[] = ['experience', 'education']
 
 export const newId = () => Math.random().toString(36).slice(2, 10)
 
-export const EXPERIENCE_LEVELS = ['internship', 'entry', 'mid', 'senior', 'executive'] as const
+export const EXPERIENCE_LEVELS = [
+  'internship',
+  'entry',
+  'associate',
+  'junior',
+  'mid',
+  'senior',
+  'director',
+  'executive',
+] as const
 export const EXPERIENCE_LEVEL_LABELS: Record<(typeof EXPERIENCE_LEVELS)[number], string> = {
   internship: 'Internship',
   entry: 'Entry level',
+  associate: 'Associate',
+  junior: 'Junior level',
   mid: 'Mid level',
   senior: 'Senior',
+  director: 'Director',
   executive: 'Executive',
 }
 
@@ -681,6 +702,42 @@ export function orderedSectionKeys(r: Resume): string[] {
   return order
 }
 
+/** Which section block should lead the resume, per the Rezi reorder guide. */
+export type SectionEmphasis = 'education-first' | 'experience-first'
+
+/**
+ * Rezi's recommended emphasis for an experience level: students and new
+ * graduates lead with education; every established tier leads with work
+ * experience. No recommendation when the level is Auto.
+ */
+export function sectionEmphasisFor(
+  level: Resume['experienceLevel']
+): SectionEmphasis | null {
+  if (!level) return null
+  return level === 'internship' || level === 'entry'
+    ? 'education-first'
+    : 'experience-first'
+}
+
+/**
+ * The current section order with only the emphasized block moved directly
+ * after the summary; every other section keeps its relative order. Null when
+ * there is no recommendation or the order already matches it.
+ */
+export function recommendedSectionOrder(r: Resume): string[] | null {
+  const emphasis = sectionEmphasisFor(r.experienceLevel)
+  if (!emphasis) return null
+  const current = orderedSectionKeys(r)
+  const block =
+    emphasis === 'education-first' ? ['education', 'coursework'] : ['experience']
+  const rest = current.filter((k) => !block.includes(k))
+  const at = rest.indexOf('summary') + 1
+  const next = [...rest.slice(0, at), ...block, ...rest.slice(at)]
+  if (next.length === current.length && next.every((k, i) => k === current[i]))
+    return null
+  return next
+}
+
 export function sectionLabel(r: Resume, key: string): string {
   const lang = resumeLanguageOf(r)
   if (key.startsWith('custom:')) {
@@ -701,7 +758,7 @@ export function sectionHeading(r: Resume, key: string): string {
 }
 
 const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-const ONGOING_RE = /\b(present|current|now|ongoing)\b/i
+export const ONGOING_RE = /\b(present|current|now|ongoing)\b/i
 
 /**
  * Ordinal (year*12 + month) for a free-text date like "Jun 2023", "08/2021" or
@@ -800,9 +857,9 @@ export function sampleResume(): Resume {
         startDate: 'Jun 2023',
         endDate: 'Present',
         bullets: [
-          'Led migration of the checkout flow to React + TypeScript, reducing cart abandonment by 12%',
-          'Built internal design-system components adopted by 5 product teams',
-          'Cut p95 page load time from 3.2s to 1.7s via code splitting and CDN caching',
+          'Led migration of the checkout flow to React + TypeScript, reducing cart abandonment by 12%.',
+          'Built internal design-system components adopted by 5 product teams.',
+          'Cut p95 page load time from 3.2s to 1.7s via code splitting and CDN caching.',
         ],
       },
       {
@@ -813,8 +870,9 @@ export function sampleResume(): Resume {
         startDate: 'Jul 2021',
         endDate: 'May 2023',
         bullets: [
-          'Developed REST APIs in Node.js powering order tracking for 300k customers',
-          'Automated regression test suite, cutting release QA time from 2 days to 4 hours',
+          'Developed REST APIs in Node.js powering order tracking for 300k customers.',
+          'Automated regression test suite, cutting release QA time from 2 days to 4 hours.',
+          'Instrumented checkout funnel analytics that surfaced a 9% drop-off recovered by a one-day fix.',
         ],
       },
     ],
@@ -1088,10 +1146,7 @@ export function sanitizeResume(input: unknown): Resume | null {
     language: asEnum(raw.language, ['en', 'es', 'fr', 'de', 'pt'] as const),
     targetRole: asStr(raw.targetRole),
     jobDescription: asStr(raw.jobDescription),
-    experienceLevel: asEnum(
-      raw.experienceLevel,
-      ['internship', 'entry', 'mid', 'senior', 'executive'] as const
-    ),
+    experienceLevel: asEnum(raw.experienceLevel, EXPERIENCE_LEVELS),
     targetCompany: asStr(raw.targetCompany) || undefined,
     photo: asStr(raw.photo).startsWith('data:image/') ? asStr(raw.photo) : undefined,
   }
@@ -1188,20 +1243,23 @@ export function createResumeVersion(name: string, data: Resume, folder?: string)
 }
 
 export function renameResumeVersion(id: string, name: string): ResumeVersion[] {
-  const versions = listResumeVersions().map((v) =>
-    v.id === id ? { ...v, name, updatedAt: Date.now() } : v
-  )
+  const versions = listResumeVersions().map((v) => (v.id === id ? { ...v, name } : v))
   persistVersions(versions)
   return versions
 }
 
+/** Organizational changes (name/folder) keep the edit timestamp; only content changes bump it. */
 export function updateResumeVersion(
   id: string,
   patch: { name?: string; folder?: string; data?: Resume }
 ): ResumeVersion[] {
-  const versions = listResumeVersions().map((v) =>
-    v.id === id ? { ...v, ...patch, updatedAt: Date.now() } : v
-  )
+  const versions = listResumeVersions().map((v) => {
+    if (v.id !== id) return v
+    const contentChanged =
+      patch.data !== undefined &&
+      JSON.stringify(sanitizeResume(patch.data)) !== JSON.stringify(sanitizeResume(v.data))
+    return { ...v, ...patch, ...(contentChanged ? { updatedAt: Date.now() } : {}) }
+  })
   persistVersions(versions)
   return versions
 }
@@ -2113,11 +2171,22 @@ export function courseworkHeadingLine(c: CourseworkItem): string {
   return [c.name.trim(), c.institution.trim()].filter(Boolean).join('  ·  ')
 }
 
-/** Bullets for a coursework entry: "Skill: X" (when set) + description lines */
-export const courseworkBullets = (c: CourseworkItem): string[] => [
-  ...(c.skill.trim() ? [`Skill: ${c.skill.trim()}`] : []),
-  ...c.description.split('\n').map((l) => l.trim()).filter(Boolean),
-]
+/** Skills recorded on a coursework entry: comma-separated, capped at 3. */
+export const courseworkSkills = (c: CourseworkItem): string[] =>
+  c.skill.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 3)
+
+/** Bullets for a coursework entry: skills line (when set) + description lines */
+export const courseworkBullets = (c: CourseworkItem): string[] => {
+  const skills = courseworkSkills(c)
+  return [
+    ...(skills.length > 1
+      ? [`Skills: ${skills.join(' · ')}`]
+      : skills.length === 1
+        ? [`Skill: ${skills[0]}`]
+        : []),
+    ...c.description.split('\n').map((l) => l.trim()).filter(Boolean),
+  ]
+}
 
 /**
  * Skills split into display lines. A line written as "Category: a, b, c"

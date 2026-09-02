@@ -3,20 +3,8 @@
  * Flags weak openers, missing quantification, and length problems.
  */
 import type { Resume } from '@/lib/resume'
-import type { AtsResult, SectionAnchor } from '@/lib/ats'
+import { findPassive, WEAK_OPENERS, type AtsResult, type SectionAnchor } from '@/lib/ats'
 import { stripInlineMarks } from '@/lib/marks'
-
-const WEAK_OPENERS = [
-  'responsible for',
-  'worked on',
-  'helped with',
-  'helped to',
-  'duties included',
-  'tasked with',
-  'in charge of',
-  'assisted with',
-  'participated in',
-]
 
 const FILLER_WORDS = ['various', 'several', 'stuff', 'things', 'etc']
 
@@ -142,21 +130,6 @@ export function bulletMix(bullets: string[]): {
 const STRONG_VERB_SET = new Set(
   ACTION_VERBS.flatMap((g) => g.verbs.map((v) => v.toLowerCase()))
 )
-
-/** Irregular participles; the first group also matches prefixed forms (rebuilt, rewritten). */
-const IRREGULAR_PARTICIPLES =
-  '[a-z]*(?:built|made|given|done|taken|chosen|driven|written|held|kept|brought|taught|seen|shown|known|grown|sent|found|paid|sold|told)|led|won|run|set|put'
-
-const PASSIVE_RE = new RegExp(
-  `\\b(was|were|is|are|been|being)\\s+(?:\\w+ly\\s+)?([a-z]{2,}ed|${IRREGULAR_PARTICIPLES})\\b`,
-  'i'
-)
-
-/** Returns the matched passive phrase (e.g. "was built"), or null. */
-function findPassive(text: string): string | null {
-  const m = PASSIVE_RE.exec(text)
-  return m ? m[0].replace(/\s+/g, ' ') : null
-}
 
 const BUZZWORDS = [
   'synergy',
@@ -446,6 +419,30 @@ export function priorityFixes(ats: AtsResult, health: HealthReport, limit = 5): 
   }
 
   return fixes.sort((a, b) => b.points - a.points).slice(0, limit)
+}
+
+/**
+ * Locally composed assistant reply for the "Improve my ATS score" quick task:
+ * the score plus the ranked priority fixes, no AI round trip.
+ */
+export function improveScoreReply(
+  score: number,
+  fixes: PriorityFix[],
+  hasJd: boolean,
+): string {
+  if (fixes.length === 0) {
+    return (
+      `Your ATS score is ${score}/100 — no priority fixes right now. ` +
+      (hasJd
+        ? 'Nice work — ask me anything you\u2019d like to sharpen.'
+        : 'Add a job description in the Target job panel and I can point out missing keywords too.')
+    )
+  }
+  return (
+    `Your ATS score is ${score}/100. Highest-impact fixes first:\n` +
+    fixes.map((f, i) => `${i + 1}. ${f.text} (~${f.points} pts, ${f.impact} impact)`).join('\n') +
+    '\n\nApply a fix and your score updates instantly. The Score breakdown has one-click jumps to each spot.'
+  )
 }
 
 export interface StrengthResult {

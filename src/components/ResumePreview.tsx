@@ -278,11 +278,15 @@ export function ResumePreview({
 
   const divider = tpl.band ? 'none' : dividerOf(resume, tpl.divider)
   const headingMarginTop = 16 * sectionSpacingOf(resume)
+  const sideLabels = tpl.sideLabels === true
   const heading = (label: React.ReactNode, key?: string) => (
     <h3
       className="mb-1.5 text-[11px] font-bold tracking-wide"
       style={{
-        marginTop: headingMarginTop,
+        marginTop: sideLabels ? 0 : headingMarginTop,
+        ...(sideLabels
+          ? { position: 'absolute' as const, left: 0, top: 0, width: 74, marginBottom: 0, overflowWrap: 'break-word' as const }
+          : {}),
         color: tpl.accent,
         textTransform: tpl.headingCase === 'upper' ? 'uppercase' : undefined,
         borderBottom:
@@ -390,7 +394,11 @@ export function ResumePreview({
       </div>
 
       {orderedSectionKeys(resume).map((key) => (
-        <div key={key} {...jumpProps(key, sectionLabel(resume, key))}>
+        <div
+          key={key}
+          {...jumpProps(key, sectionLabel(resume, key))}
+          style={sideLabels ? { position: 'relative', paddingLeft: 86, marginTop: headingMarginTop } : undefined}
+        >
           <SectionBlock sectionKey={key} resume={resume} heading={heading} onEdit={onEdit} />
         </div>
       ))}
@@ -619,6 +627,8 @@ function SectionBlock({
 }) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const ulIndent = bulletIndentOf(resume) ? { paddingLeft: 12 } : undefined
+  const entrySep = (i: number): React.CSSProperties | undefined =>
+    tpl.entryDivider && i > 0 ? { borderTop: '1px solid #e4e4e4', paddingTop: 6 } : undefined
   const [draft, setDraft] = useState<{ entryId: string; at: number; seq: number } | null>(null)
   if (sectionKey === 'summary')
     return resume.summary.trim() ? (
@@ -636,8 +646,8 @@ function SectionBlock({
     return resume.experience.some((e) => e.company || e.role) ? (
       <>
         {heading(sectionHeading(resume, 'experience'), 'experience')}
-          {experienceGroups(resume.experience, resume.groupByCompany === 'on').map((g) => (
-            <div key={g.entries[0].id}>
+          {experienceGroups(resume.experience, resume.groupByCompany === 'on').map((g, gi) => (
+            <div key={g.entries[0].id} style={entrySep(gi)}>
               {g.grouped && (
                 <p className="text-[11.5px] font-bold">
                   <InlineText
@@ -655,8 +665,8 @@ function SectionBlock({
                   />
                 </p>
               )}
-              {g.entries.map((e) => (
-              <div key={e.id} className="mb-2">
+              {g.entries.map((e, ei) => (
+              <div key={e.id} className="mb-2" style={entrySep(ei)}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <p className="text-[11.5px] font-bold">
                     <InlineText
@@ -814,9 +824,8 @@ function SectionBlock({
     return resume.projects.some((p) => p.name) ? (
       <>
         {heading(sectionHeading(resume, 'projects'), 'projects')}
-          {resume.projects.map((p) =>
-            !p.name ? null : (
-              <div key={p.id} className="mb-1.5">
+          {resume.projects.filter((p) => p.name).map((p, pi) => (
+              <div key={p.id} className="mb-1.5" style={entrySep(pi)}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <p className="text-[11px] font-bold">
                     <InlineText
@@ -857,8 +866,7 @@ function SectionBlock({
                   </p>
                 )}
               </div>
-          )
-        )}
+          ))}
       </>
     ) : null
   if (sectionKey === 'involvement') {
@@ -866,8 +874,8 @@ function SectionBlock({
     return items.length > 0 ? (
       <>
         {heading(sectionHeading(resume, 'involvement'), 'involvement')}
-        {items.map((inv) => (
-          <div key={inv.id} className="mb-2">
+        {items.map((inv, ii) => (
+          <div key={inv.id} className="mb-2" style={entrySep(ii)}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
                 <InlineText
@@ -941,9 +949,8 @@ function SectionBlock({
     return resume.education.some((e) => e.school) ? (
       <>
         {heading(sectionHeading(resume, 'education'), 'education')}
-          {resume.education.map((e) =>
-            !e.school ? null : (
-              <div key={e.id} className="mb-1.5">
+          {resume.education.filter((e) => e.school).map((e, ei) => (
+              <div key={e.id} className="mb-1.5" style={entrySep(ei)}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <p className="text-[11px] font-bold">
                     <InlineText
@@ -988,8 +995,7 @@ function SectionBlock({
                   <p className="text-[11px]">{educationDetailLine(e)}</p>
                 )}
               </div>
-          )
-        )}
+          ))}
       </>
     ) : null
   if (sectionKey === 'coursework') {
@@ -997,8 +1003,8 @@ function SectionBlock({
     return items.length > 0 ? (
       <>
         {heading(sectionHeading(resume, 'coursework'), 'coursework')}
-        {items.map((cw) => (
-          <div key={cw.id} className="mb-2">
+        {items.map((cw, ci) => (
+          <div key={cw.id} className="mb-2" style={entrySep(ci)}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
                 <InlineText
@@ -1127,8 +1133,8 @@ function SectionBlock({
     return certs.length > 0 || resume.certifications.trim() ? (
       <>
         {heading(sectionHeading(resume, 'certifications'), 'certifications')}
-        {certs.map((c) => (
-          <div key={c.id} className="mb-1.5">
+        {certs.map((c, ci) => (
+          <div key={c.id} className="mb-1.5" style={entrySep(ci)}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11px] font-bold">
                 <InlineText
@@ -1184,8 +1190,8 @@ function SectionBlock({
     return items.length > 0 ? (
       <>
         {heading(sectionHeading(resume, 'awards'), 'awards')}
-        {items.map((a) => (
-          <div key={a.id} className="mb-2">
+        {items.map((a, ai) => (
+          <div key={a.id} className="mb-2" style={entrySep(ai)}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
                 <InlineText
@@ -1259,8 +1265,8 @@ function SectionBlock({
     return items.length > 0 ? (
       <>
         {heading(sectionHeading(resume, 'publications'), 'publications')}
-        {items.map((p) => (
-          <div key={p.id} className="mb-2">
+        {items.map((p, pi) => (
+          <div key={p.id} className="mb-2" style={entrySep(pi)}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
                 <InlineText
@@ -1337,8 +1343,8 @@ function SectionBlock({
     return items.length > 0 ? (
       <>
         {heading(sectionHeading(resume, 'references'), 'references')}
-        {items.map((x) => (
-          <div key={x.id} className="mb-2">
+        {items.map((x, xi) => (
+          <div key={x.id} className="mb-2" style={entrySep(xi)}>
             <p className="text-[11.5px] font-bold">
               <InlineText
                 value={x.name.trim()}
@@ -1373,8 +1379,8 @@ function SectionBlock({
     return items.length > 0 ? (
       <>
         {heading(sectionHeading(resume, 'military'), 'military')}
-        {items.map((m) => (
-          <div key={m.id} className="mb-2">
+        {items.map((m, mi) => (
+          <div key={m.id} className="mb-2" style={entrySep(mi)}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
                 <InlineText
@@ -1449,8 +1455,8 @@ function SectionBlock({
     return items.length > 0 ? (
       <>
         {heading(sectionHeading(resume, 'agents'), 'agents')}
-        {items.map((a) => (
-          <div key={a.id} className="mb-2">
+        {items.map((a, ai) => (
+          <div key={a.id} className="mb-2" style={entrySep(ai)}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <p className="text-[11.5px] font-bold">
                 <InlineText

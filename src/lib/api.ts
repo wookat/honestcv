@@ -75,6 +75,7 @@ export async function aiSummaryDraft(input: {
   resumeText: string
   role: string
   highlights?: string[]
+  jobDescription?: string
   language?: string
 }): Promise<{ text: string; texts: string[]; freeRemaining: number | null }> {
   return post<{ text: string; texts: string[]; freeRemaining: number | null }>(
@@ -128,6 +129,8 @@ export async function aiCoverLetter(input: {
   jobDescription: string
   company: string
   role: string
+  addressee?: string
+  highlights?: string
   language?: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/cover-letter', input)
@@ -165,6 +168,7 @@ export async function aiInterviewQuestions(input: {
 export type AssistantAction =
   | { type: 'summary'; value: string }
   | { type: 'skills'; value: string[] }
+  | { type: 'bullet'; entry: string; value: string; replace?: string }
 
 export interface AssistantTurnInput {
   role: 'user' | 'assistant'

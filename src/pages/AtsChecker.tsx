@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -9,8 +9,14 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { ScoreRing } from '@/components/ScoreRing'
-import { scoreResumeText } from '@/lib/ats'
+import {
+  CHECK_CATEGORIES,
+  applicationReadiness,
+  highPriorityKeywords,
+  scoreResumeText,
+} from '@/lib/ats'
 import { IMPORT_ACCEPT, extractResumeFile, type FileCheck } from '@/lib/extractFile'
+import { priorityFixes, resumeHealth } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
 import { loadResume, saveResume, setActiveVersionId } from '@/lib/resume'
 
@@ -106,7 +112,7 @@ export default function AtsChecker() {
       .finally(() => setFileBusy(false))
   }
 
-  const openInBuilder = () => {
+  const openInBuilder = (anchor?: string) => {
     const existing = loadResume()
     const hasContent = Boolean(
       existing && (existing.contact.fullName || existing.experience.length)
@@ -125,13 +131,38 @@ export default function AtsChecker() {
       existing.jobDescription = jd
       saveResume(existing)
     }
-    void navigate('/builder')
+    void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
   }
 
   const result = useMemo(
     () => (checked ? scoreResumeText(resumeText, jd) : null),
     [checked, resumeText, jd]
   )
+
+  const prevScanRef = useRef<Map<string, boolean> | null>(null)
+  const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    if (!result) return
+    const prev = prevScanRef.current
+    prevScanRef.current = new Map(result.checks.map((c) => [c.label, c.pass]))
+    setFixedChecks(
+      prev
+        ? new Set(
+            result.checks
+              .filter((c) => c.pass && prev.get(c.label) === false)
+              .map((c) => c.label)
+          )
+        : new Set()
+    )
+  }, [result])
+
+  const analysis = useMemo(() => {
+    if (!result) return null
+    const parsed = parseResumeText(resumeText)
+    parsed.jobDescription = jd
+    const health = resumeHealth(parsed)
+    return { health, fixes: priorityFixes(result, health) }
+  }, [result, resumeText, jd])
 
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">
@@ -344,6 +375,77 @@ export default function AtsChecker() {
                 </ul>
               </details>
 
+              {analysis && (
+                <div className="mt-4 rounded-lg border p-3">
+                  <p className="text-sm font-medium">Priority fixes</p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    What to fix first, ranked by how many score points each item
+                    recovers. Writing-quality items are guidance and not counted
+                    in the ATS score.
+                  </p>
+                  {analysis.fixes.length === 0 ? (
+                    <p className="mt-1.5 text-xs text-emerald-600">
+                      No priority fixes — every check passes and all writing
+                      dimensions score 80+.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-1.5">
+                      {analysis.fixes.map((f) => (
+                        <li key={f.text} className="flex items-start gap-2 text-xs">
+                          <span
+                            className={`mt-0.5 inline-flex shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                              f.impact === 'high'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}
+                          >
+                            {f.impact === 'high' ? 'High' : 'Med'}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {f.text}{' '}
+                            <span className="text-foreground/70 whitespace-nowrap tabular-nums">
+                              +{f.points} pts
+                            </span>
+                            <button
+                              type="button"
+                              className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                              onClick={() =>
+                                openInBuilder(
+                                  f.anchor ??
+                                    (f.text.startsWith('Add missing job keywords')
+                                      ? 'target'
+                                      : undefined)
+                                )
+                              }
+                            >
+                              Fix in builder →
+                            </button>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+                    {analysis.health.dimensions.map((d) => (
+                      <span key={d.id} className="text-xs">
+                        <span className="text-muted-foreground">{d.label}</span>{' '}
+                        <span
+                          className={`font-semibold tabular-nums ${
+                            d.score < 50
+                              ? 'text-red-700 dark:text-red-400'
+                              : d.score < 80
+                                ? 'text-amber-700 dark:text-amber-400'
+                                : 'text-emerald-700 dark:text-emerald-400'
+                          }`}
+                        >
+                          {d.score}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {jd.trim() && (
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>
@@ -365,18 +467,45 @@ export default function AtsChecker() {
                     <p className="text-sm font-medium">
                       Missing keywords ({result.missing.length})
                     </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {result.missing.map((k) => (
-                        <Badge key={k} variant="outline">
-                          {k}
-                        </Badge>
-                      ))}
-                      {result.missing.length === 0 && (
-                        <p className="text-muted-foreground text-sm">
-                          Nothing missing — great match!
-                        </p>
-                      )}
-                    </div>
+                    {result.missing.length === 0 ? (
+                      <p className="text-muted-foreground mt-2 text-sm">
+                        Nothing missing — great match!
+                      </p>
+                    ) : (
+                      (() => {
+                        const high = highPriorityKeywords(jd, result.missing)
+                        const groups = [
+                          {
+                            label: 'High priority',
+                            hint: 'title, requirements or repeated in the posting',
+                            kws: result.missing.filter((k) => high.has(k)),
+                            cls: 'border-red-300 text-red-700 dark:border-red-900 dark:text-red-400',
+                          },
+                          {
+                            label: 'Remaining',
+                            hint: 'also mentioned in the posting',
+                            kws: result.missing.filter((k) => !high.has(k)),
+                            cls: '',
+                          },
+                        ]
+                        return groups.map((g) =>
+                          g.kws.length === 0 ? null : (
+                            <div key={g.label} className="mt-2">
+                              <p className="text-muted-foreground text-xs">
+                                {g.label} ({g.kws.length}) — {g.hint}
+                              </p>
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                {g.kws.map((k) => (
+                                  <Badge key={k} variant="outline" className={g.cls}>
+                                    {k}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        )
+                      })()
+                    )}
                   </div>
                 </div>
               )}
@@ -480,23 +609,68 @@ export default function AtsChecker() {
                 </div>
               )}
 
-              <div className="mt-5 space-y-2">
+              <div className="mt-5 space-y-4">
                 <p className="text-sm font-medium">Format &amp; content checks</p>
-                {result.checks.map((c) => (
-                  <div key={c.label} className="flex items-start gap-2 text-sm">
-                    {c.pass ? (
-                      <BadgeCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-                    ) : (
-                      <CircleAlert className="text-destructive mt-0.5 size-4 shrink-0" />
-                    )}
-                    <span>
-                      <span className="font-medium">{c.label}</span>
-                      {!c.pass && (
-                        <span className="text-muted-foreground"> — {c.hint}</span>
+                {(() => {
+                  const readiness = applicationReadiness(result)
+                  return (
+                    <div
+                      className={`rounded-md px-2.5 py-1.5 text-xs ${
+                        readiness.tier === 'ready'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : readiness.tier === 'almost'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      <span className="font-semibold">
+                        Application ready:{' '}
+                        {readiness.tier === 'ready'
+                          ? 'Ready to send'
+                          : readiness.tier === 'almost'
+                            ? 'Almost there'
+                            : 'Needs work'}
+                      </span>
+                      {readiness.blockers.length > 0 && (
+                        <span> — {readiness.blockers.join(' · ')}</span>
                       )}
-                    </span>
-                  </div>
-                ))}
+                    </div>
+                  )
+                })()}
+                {CHECK_CATEGORIES.map((cat) => {
+                  const rows = result.checks.filter((c) => c.category === cat.key)
+                  if (rows.length === 0) return null
+                  return (
+                    <div key={cat.key} className="space-y-2">
+                      <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                        {cat.label}{' '}
+                        <span className="font-normal normal-case">
+                          · {rows.filter((c) => c.pass).length}/{rows.length}
+                        </span>
+                      </p>
+                      {rows.map((c) => (
+                        <div key={c.label} className="flex items-start gap-2 text-sm">
+                          {c.pass ? (
+                            <BadgeCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                          ) : (
+                            <CircleAlert className="text-destructive mt-0.5 size-4 shrink-0" />
+                          )}
+                          <span>
+                            <span className="font-medium">{c.label}</span>
+                            {c.pass && fixedChecks.has(c.label) && (
+                              <span className="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-semibold text-emerald-800">
+                                Fixed since last check
+                              </span>
+                            )}
+                            {!c.pass && (
+                              <span className="text-muted-foreground"> — {c.hint}</span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
               </div>
 
               <div className="bg-muted/50 mt-6 rounded-lg border p-4 text-center">
@@ -507,7 +681,7 @@ export default function AtsChecker() {
                   AI rewrites your bullets toward this exact job, live ATS score as you
                   edit, and clean PDF/DOCX export. No sign-up, no subscription.
                 </p>
-                <Button className="mt-3 h-auto max-w-full whitespace-normal" onClick={openInBuilder}>
+                <Button className="mt-3 h-auto max-w-full whitespace-normal" onClick={() => openInBuilder()}>
                   Fix it in the builder — resume &amp; job carried over <ArrowRight />
                 </Button>
               </div>

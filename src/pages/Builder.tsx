@@ -42,6 +42,7 @@ import {
   Sparkles,
   Star,
   Target,
+  Timer,
   Trash2,
   Undo2,
   Redo2,
@@ -73,8 +74,14 @@ import {
   useLicense,
 } from '@/components/Paywall'
 import { AssistantPanel } from '@/components/AssistantPanel'
+import { PhotoCropDialog, type PhotoDraft } from '@/components/PhotoCropDialog'
 import { DraftIllustration } from '@/components/Illustrations'
 import { ResumePreview } from '@/components/ResumePreview'
+import {
+  applyKeywordHighlight,
+  clearKeywordHighlight,
+  supportsKeywordHighlight,
+} from '@/lib/keywordHighlight'
 import { ScoreRing } from '@/components/ScoreRing'
 import {
   PaymentRequiredError,
@@ -95,10 +102,24 @@ import {
 import {
   type AtsResult,
   type SectionAnchor,
+  CHECK_CATEGORIES,
+  applicationReadiness,
   atsScoreSummary,
   bestExperienceForKeyword,
+  highPriorityKeywords,
+  matchReport,
   scoreResume,
 } from '@/lib/ats'
+import {
+  RESPONSE_WINDOW_SECONDS,
+  analyzeAnswer,
+  analyzeDelivery,
+  analyzeFillerSounds,
+  analyzeQuickFillers,
+  analyzeTone,
+  localInterviewQuestions,
+  sessionReport,
+} from '@/lib/interviewAnalysis'
 import {
   ACTION_VERBS,
   type BulletIssue,
@@ -122,7 +143,7 @@ import {
 } from '@/lib/resumeCenter'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
-import { downloadText } from '@/lib/download'
+import { downloadText, professionalFileName } from '@/lib/download'
 import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import { trackEvent } from '@/lib/track'
 import {
@@ -141,6 +162,8 @@ import {
   deleteResumeVersion,
   EXPERIENCE_LEVELS,
   EXPERIENCE_LEVEL_LABELS,
+  recommendedSectionOrder,
+  sectionEmphasisFor,
   duplicateResumeVersion,
   emptyAward,
   emptyCertification,
@@ -235,8 +258,19 @@ import {
   resumeLanguageOf,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
-import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
-import { ACCENT_CHOICES, TEMPLATES, TEMPLATE_FILTERS, getTemplate } from '@/lib/templates'
+import {
+  bulletStartersFor,
+  provenSkills,
+  skillBulletStarters,
+  skillSuggestionsFor,
+} from '@/lib/bulletStarters'
+import {
+  ACCENT_CHOICES,
+  TEMPLATES,
+  TEMPLATE_FILTERS,
+  getTemplate,
+  recommendedTemplates,
+} from '@/lib/templates'
 import {
   loadTemplateFavorites,
   loadTemplateRecents,
@@ -493,6 +527,17 @@ const OPTIONAL_SECTION_META: { key: string; label: string; icon: React.ReactNode
 ]
 const OPTIONAL_SECTION_KEYS = OPTIONAL_SECTION_META.map((s) => s.key)
 
+/** Anchors accepted by the ?jump= deep link from the ATS checker */
+const JUMP_ANCHORS = [
+  'target',
+  'contact',
+  'summary',
+  'experience',
+  'education',
+  'skills',
+  ...OPTIONAL_SECTION_KEYS,
+]
+
 /** True while focus sits inside an entry card of the given auto-sorted section */
 function autoSortHeld(key: AutoSortSection): boolean {
   return !!document.activeElement?.closest(`[data-autosort-scope="${key}"]`)
@@ -725,7 +770,7 @@ function AiWaitHint() {
 export default function Builder() {
   usePageMeta(
     'Resume Builder — RezUp',
-    'Build an ATS-friendly resume in your browser: 22 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
+    'Build an ATS-friendly resume in your browser: 25 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
   )
   useEffect(() => trackEvent('builder-start'), [])
   const [resume, setResumeRaw] = useState<Resume>(() => {
@@ -793,6 +838,9 @@ export default function Builder() {
   )
   const [healthOpen, setHealthOpen] = useState(false)
   const [kwBulletFor, setKwBulletFor] = useState<string | null>(null)
+  /** Paint matched JD keywords in the preview via the CSS Custom Highlight API */
+  const [highlightKw, setHighlightKw] = useState(false)
+  const previewWrapRef = useRef<HTMLDivElement>(null)
   const [checklistOpen, setChecklistOpen] = useState(
     () =>
       !localStorage.getItem('honestcv.tourDone') && !localStorage.getItem('honestcv.shared')
@@ -926,6 +974,10 @@ export default function Builder() {
     }
   }, [resume, shown, setResume])
   const [templateFilter, setTemplateFilter] = useState('all')
+  const templateRecs = useMemo(() => recommendedTemplates(resume), [resume])
+  const [templateCompare, setTemplateCompare] = useState(false)
+  const [compareIds, setCompareIds] = useState<string[]>([])
+  const [compareOpen, setCompareOpen] = useState(false)
   const [templateFavs, setTemplateFavs] = useState<string[]>(loadTemplateFavorites)
   const [templateRecents, setTemplateRecents] = useState<string[]>(loadTemplateRecents)
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
@@ -941,6 +993,15 @@ export default function Builder() {
       window.dispatchEvent(new CustomEvent(JUMP_EVENT, { detail: anchor }))
     )
   }
+  // ?jump=<anchor> deep link from the ATS checker's per-fix "Fix →" buttons
+  useEffect(() => {
+    const anchor = new URLSearchParams(window.location.search).get('jump')
+    if (anchor === null) return
+    window.history.replaceState(null, '', window.location.pathname)
+    if (!JUMP_ANCHORS.includes(anchor)) return
+    const t = window.setTimeout(() => jumpToSection(anchor), 150)
+    return () => window.clearTimeout(t)
+  }, [])
   /** Entry card currently ring-flashed after a score-finding jump */
   const [flashEntryId, setFlashEntryId] = useState<string | null>(null)
   /** Scroll a specific experience card into view, expanding it if collapsed */
@@ -1011,6 +1072,13 @@ export default function Builder() {
   const [certLibrarySavedId, setCertLibrarySavedId] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement | null>(null)
   const [photoError, setPhotoError] = useState('')
+  const [photoDraft, setPhotoDraft] = useState<PhotoDraft | null>(null)
+  const closePhotoDraft = () => {
+    setPhotoDraft((d) => {
+      if (d) URL.revokeObjectURL(d.url)
+      return null
+    })
+  }
   const [pubLibrary, setPubLibrary] = useState<SavedPublication[]>(() => listPublicationLibrary())
   const [pubLibraryOpen, setPubLibraryOpen] = useState(false)
   const [pubLibrarySavedId, setPubLibrarySavedId] = useState<string | null>(null)
@@ -1112,7 +1180,57 @@ export default function Builder() {
     }
   }, [unlocked])
   const ats = useMemo(
-    () => scoreResume(shown, shown.jobDescription),
+    () => scoreResume(shown, shown.jobDescription, pdfLength?.pages ?? null),
+    [shown, pdfLength]
+  )
+  useEffect(() => {
+    if (!highlightKw || !shown.jobDescription.trim() || ats.matched.length === 0) {
+      clearKeywordHighlight()
+      return
+    }
+    const t = window.setTimeout(() => {
+      if (previewWrapRef.current) applyKeywordHighlight(previewWrapRef.current, ats.matched)
+    }, 150)
+    return () => window.clearTimeout(t)
+  }, [highlightKw, shown, ats.matched, previewView])
+  useEffect(() => clearKeywordHighlight, [])
+  const prevPassRef = useRef<Map<string, boolean> | null>(null)
+  const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    const prev = prevPassRef.current
+    prevPassRef.current = new Map(ats.checks.map((c) => [c.label, c.pass]))
+    if (!prev) return
+    setFixedChecks((old) => {
+      const fixed = new Set(old)
+      let changed = false
+      for (const c of ats.checks) {
+        if (c.pass && prev.get(c.label) === false && !fixed.has(c.label)) {
+          fixed.add(c.label)
+          changed = true
+        } else if (!c.pass && fixed.has(c.label)) {
+          fixed.delete(c.label)
+          changed = true
+        }
+      }
+      return changed ? fixed : old
+    })
+  }, [ats])
+  const highKw = useMemo(
+    () => highPriorityKeywords(shown.jobDescription, ats.missing),
+    [shown.jobDescription, ats.missing]
+  )
+  const readiness = useMemo(() => applicationReadiness(ats), [ats])
+  /** Missing JD keywords for skill-tailored bullet starters — high priority first, cap 6. */
+  const starterSkills = useMemo(
+    () => [
+      ...ats.missing.filter((kw) => highKw.has(kw)),
+      ...ats.missing.filter((kw) => !highKw.has(kw)),
+    ].slice(0, 6),
+    [ats.missing, highKw]
+  )
+  /** Lexicon skills the resume body demonstrates but the Skills section never lists. */
+  const proven = useMemo(
+    () => provenSkills(resumeToPlainText(shown), shown.skills).slice(0, 10),
     [shown]
   )
 
@@ -1183,6 +1301,13 @@ export default function Builder() {
     }
   }
 
+  /** Review dialog for an AI-suggested bullet: apply / edit / regenerate */
+  const [bulletSuggest, setBulletSuggest] = useState<{
+    expId: string
+    variant?: 'key-numbers'
+    text: string
+  } | null>(null)
+
   const runSuggestBullet = async (e: ExperienceItem, variant?: 'key-numbers') => {
     const tag = variant ? `exp-${e.id}-suggest-nums` : `exp-${e.id}-suggest`
     if (!e.role.trim() && !e.company.trim()) {
@@ -1205,7 +1330,7 @@ export default function Builder() {
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
-      if (line) setExp(e.id, { bullets: [...e.bullets.filter((b) => b.trim()), line] })
+      if (line) setBulletSuggest({ expId: e.id, variant, text: line })
     } catch (err) {
       if (err instanceof PaymentRequiredError && !freeMode) requireUnlock(err.message)
       else setAiError((err as Error).message)
@@ -1213,6 +1338,14 @@ export default function Builder() {
       setAiBusy(null)
     }
   }
+
+  const bulletSuggestEntry = bulletSuggest
+    ? resume.experience.find((x) => x.id === bulletSuggest.expId)
+    : undefined
+  const bulletSuggestBusy =
+    bulletSuggest !== null &&
+    (aiBusy === `exp-${bulletSuggest.expId}-suggest` ||
+      aiBusy === `exp-${bulletSuggest.expId}-suggest-nums`)
 
   /** Setup dialog for the summary draft: position framing + skills to emphasize */
   const [summaryDraftSetup, setSummaryDraftSetup] = useState<{
@@ -1271,6 +1404,7 @@ export default function Builder() {
         resumeText: resumeToPlainText({ ...shown, summary: '' }),
         role: position.trim() || aiTargetRole(resume),
         highlights: highlights.length ? highlights : undefined,
+        jobDescription: resume.jobDescription.trim() || undefined,
         language: resume.language,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
@@ -1327,6 +1461,7 @@ export default function Builder() {
 
   const strength = useMemo(() => resumeStrength(resume), [resume])
   const health = useMemo(() => resumeHealth(resume), [resume])
+  const assistantFixes = useMemo(() => priorityFixes(ats, health), [ats, health])
 
   const insertKeywordBullet = useCallback((expId: string, text: string) => {
     setResume((r) => ({
@@ -1398,14 +1533,14 @@ export default function Builder() {
     }
     setDownloading(fmt)
     try {
-      const name = (resume.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
+      const fname = (ext: string) =>
+        professionalFileName([resume.contact.fullName, resume.targetRole, 'resume'], ext)
       if (fmt === 'pdf')
-        await (await import('@/lib/pdf')).downloadResumePdf(shown, `${name}-resume.pdf`)
+        await (await import('@/lib/pdf')).downloadResumePdf(shown, fname('pdf'))
       else if (fmt === 'docx')
-        await (await import('@/lib/docx')).downloadResumeDocx(shown, `${name}-resume.docx`)
-      else if (fmt === 'md')
-        downloadText(resumeToMarkdown(shown), `${name}-resume.md`, 'text/markdown')
-      else downloadText(resumeToPlainText(shown), `${name}-resume.txt`)
+        await (await import('@/lib/docx')).downloadResumeDocx(shown, fname('docx'))
+      else if (fmt === 'md') downloadText(resumeToMarkdown(shown), fname('md'), 'text/markdown')
+      else downloadText(resumeToPlainText(shown), fname('txt'))
       setDlDone(true)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
@@ -1463,7 +1598,7 @@ export default function Builder() {
     <div className="bg-muted/30 flex min-h-screen flex-col">
       <SiteHeader
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {unlocked ? (
               <Badge variant="secondary" className="hidden gap-1 sm:flex">
                 <Unlock className="size-3" />
@@ -2096,29 +2231,12 @@ export default function Builder() {
                   const url = URL.createObjectURL(file)
                   const img = new Image()
                   img.onload = () => {
-                    URL.revokeObjectURL(url)
-                    const side = Math.min(img.naturalWidth, img.naturalHeight)
-                    if (side < 1) {
+                    if (Math.min(img.naturalWidth, img.naturalHeight) < 1) {
+                      URL.revokeObjectURL(url)
                       setPhotoError('Could not read that image — try a JPG or PNG.')
                       return
                     }
-                    const canvas = document.createElement('canvas')
-                    canvas.width = 256
-                    canvas.height = 256
-                    const ctx = canvas.getContext('2d')
-                    if (!ctx) return
-                    ctx.drawImage(
-                      img,
-                      (img.naturalWidth - side) / 2,
-                      (img.naturalHeight - side) / 2,
-                      side,
-                      side,
-                      0,
-                      0,
-                      256,
-                      256
-                    )
-                    setResume((r) => ({ ...r, photo: canvas.toDataURL('image/jpeg', 0.85) }))
+                    setPhotoDraft({ url, width: img.naturalWidth, height: img.naturalHeight })
                   }
                   img.onerror = () => {
                     URL.revokeObjectURL(url)
@@ -2128,6 +2246,16 @@ export default function Builder() {
                 }}
               />
               {photoError && <span className="text-destructive text-xs">{photoError}</span>}
+              {photoDraft && (
+                <PhotoCropDialog
+                  draft={photoDraft}
+                  onSave={(dataUrl) => {
+                    setResume((r) => ({ ...r, photo: dataUrl }))
+                    closePhotoDraft()
+                  }}
+                  onCancel={closePhotoDraft}
+                />
+              )}
             </div>
           </Section>
 
@@ -2559,6 +2687,7 @@ export default function Builder() {
                 />
                 <BulletIdeas
                   role={`${e.role} ${resume.targetRole}`}
+                  skills={starterSkills}
                   onAdd={(s) =>
                     setExp(e.id, {
                       bullets: [...e.bullets.filter((b) => b.trim()), s],
@@ -3770,7 +3899,7 @@ export default function Builder() {
                   </div>
                 </div>
                 <Input
-                  placeholder="Skill used (optional, e.g. Teamwork)"
+                  placeholder="Skills used (optional, up to 3 — e.g. Teamwork, SQL)"
                   value={cw.skill}
                   onChange={(ev) =>
                     setResume((r) => ({
@@ -3781,6 +3910,11 @@ export default function Builder() {
                     }))
                   }
                 />
+                {cw.skill.split(',').filter((s) => s.trim()).length > 3 && (
+                  <p className="text-muted-foreground text-xs">
+                    Only the first 3 skills appear on the resume.
+                  </p>
+                )}
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
                     rows={2}
@@ -5091,6 +5225,34 @@ export default function Builder() {
                   ))}
                 </div>
               )}
+              {proven.length > 0 && (
+                <div className="text-xs">
+                  <span className="text-muted-foreground">
+                    Mentioned in your experience but not listed in Skills — recruiters scan
+                    this section first:
+                  </span>
+                  <span className="mt-1 flex flex-wrap gap-1">
+                    {proven.map((kw) => (
+                      <button
+                        key={kw}
+                        type="button"
+                        className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 rounded-full border px-2 py-0.5"
+                        title="Add to Skills"
+                        onClick={() =>
+                          set(
+                            'skills',
+                            resume.skills.trim()
+                              ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
+                              : kw
+                          )
+                        }
+                      >
+                        + {kw}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+              )}
               {(() => {
                 const have = new Set(
                   resume.skills.split(/[,\n]/).map((s) => s.trim().toLowerCase())
@@ -5434,6 +5596,36 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               Drag (or use the arrows) to change the order sections appear on your resume.
             </p>
+            {(() => {
+              const rec = recommendedSectionOrder(resume)
+              if (!rec || !resume.experienceLevel) return null
+              const emphasis = sectionEmphasisFor(resume.experienceLevel)
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-2 dark:border-sky-900 dark:bg-sky-950/40">
+                  <span className="text-xs text-sky-800 dark:text-sky-200">
+                    Recommended for {EXPERIENCE_LEVEL_LABELS[resume.experienceLevel]}:{' '}
+                    {emphasis === 'education-first'
+                      ? 'education near the top'
+                      : 'experience right after the summary'}
+                    .
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() =>
+                      setResume((r) => {
+                        const next = recommendedSectionOrder(r)
+                        return next ? { ...r, sectionOrder: next } : r
+                      })
+                    }
+                  >
+                    Apply recommended order
+                  </Button>
+                </div>
+              )
+            })()}
             <ul className="space-y-1.5">
               {orderedSectionKeys(resume).map((key, idx, keys) => (
                 <li
@@ -5562,6 +5754,9 @@ export default function Builder() {
             aria-label="Filter templates by style"
           >
             {[
+              ...(templateRecs.length > 0
+                ? [{ id: 'foryou', label: `For you (${templateRecs.length})` }]
+                : []),
               ...TEMPLATE_FILTERS.map((f) => ({ id: f.id, label: f.label })),
               { id: 'saved', label: `Saved (${templateFavs.length})` },
               { id: 'recent', label: 'Recent' },
@@ -5580,11 +5775,46 @@ export default function Builder() {
                 {f.label}
               </button>
             ))}
+            <button
+              type="button"
+              aria-pressed={templateCompare}
+              title="Pick 2–3 templates to see your resume in each, side by side"
+              onClick={() => {
+                setTemplateCompare((on) => {
+                  if (on) setCompareIds([])
+                  return !on
+                })
+              }}
+              className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
+                templateCompare
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'hover:border-muted-foreground/40'
+              }`}
+            >
+              Compare
+            </button>
+            {templateCompare && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-[11px]"
+                disabled={compareIds.length < 2}
+                onClick={() => setCompareOpen(true)}
+              >
+                {compareIds.length < 2
+                  ? 'Pick 2–3 to compare'
+                  : `Compare ${compareIds.length} side by side`}
+              </Button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {(templateFilter === 'saved'
-              ? TEMPLATES.filter((t) => templateFavs.includes(t.id))
-              : templateFilter === 'recent'
+            {(templateFilter === 'foryou'
+              ? templateRecs
+                  .map((rec) => TEMPLATES.find((t) => t.id === rec.id))
+                  .filter((t): t is (typeof TEMPLATES)[number] => t !== undefined)
+              : templateFilter === 'saved'
+                ? TEMPLATES.filter((t) => templateFavs.includes(t.id))
+                : templateFilter === 'recent'
                 ? templateRecents
                     .map((id) => TEMPLATES.find((t) => t.id === id))
                     .filter((t): t is (typeof TEMPLATES)[number] => t !== undefined)
@@ -5597,13 +5827,25 @@ export default function Builder() {
                 <button
                   type="button"
                   title={t.description}
-                  aria-pressed={resume.templateId === t.id}
+                  aria-pressed={
+                    templateCompare ? compareIds.includes(t.id) : resume.templateId === t.id
+                  }
                   onClick={() => {
+                    if (templateCompare) {
+                      setCompareIds((ids) =>
+                        ids.includes(t.id)
+                          ? ids.filter((id) => id !== t.id)
+                          : ids.length >= 3
+                            ? ids
+                            : [...ids, t.id]
+                      )
+                      return
+                    }
                     set('templateId', t.id)
                     setTemplateRecents(recordTemplateRecent(t.id))
                   }}
                   className={`w-16 rounded-md border p-1 transition ${
-                    resume.templateId === t.id
+                    (templateCompare ? compareIds.includes(t.id) : resume.templateId === t.id)
                       ? 'border-primary ring-primary/40 ring-2'
                       : 'hover:border-muted-foreground/40'
                   }`}
@@ -5636,8 +5878,29 @@ export default function Builder() {
                     }`}
                   />
                 </button>
+                {templateCompare && compareIds.includes(t.id) && (
+                  <span
+                    aria-hidden
+                    className="bg-primary text-primary-foreground absolute -top-1.5 -left-1.5 flex size-5 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
+                  >
+                    {compareIds.indexOf(t.id) + 1}
+                  </span>
+                )}
               </span>
             ))}
+            {templateFilter === 'foryou' && templateRecs.length > 0 && (
+              <span className="text-muted-foreground w-full text-xs">
+                Recommended for your resume:{' '}
+                {templateRecs
+                  .map((rec) => `${getTemplate(rec.id).name} — ${rec.reason}`)
+                  .join(' · ')}
+              </span>
+            )}
+            {templateFilter === 'foryou' && templateRecs.length === 0 && (
+              <span className="text-muted-foreground w-full text-xs">
+                No recommendations right now — set an experience level or browse all templates.
+              </span>
+            )}
             {templateFilter === 'saved' && templateFavs.length === 0 && (
               <span className="text-muted-foreground w-full text-xs">
                 No saved templates yet — click the star on a template to keep it here.
@@ -6089,6 +6352,17 @@ export default function Builder() {
                       <span className="font-medium text-green-700">
                         Matched ({ats.matched.length})
                       </span>
+                      {supportsKeywordHighlight() && (
+                        <label className="text-muted-foreground mt-1 flex w-fit cursor-pointer items-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            className="accent-primary size-3.5"
+                            checked={highlightKw}
+                            onChange={(e) => setHighlightKw(e.target.checked)}
+                          />
+                          Highlight in preview
+                        </label>
+                      )}
                       <span className="mt-1 flex flex-wrap gap-1">
                         {ats.matched.map((kw) => (
                           <span
@@ -6151,16 +6425,32 @@ export default function Builder() {
                       </div>
                     </div>
                   )}
-                  {ats.missing.length > 0 && (
-                    <div>
-                      <span className="font-medium text-red-700">
-                        Missing ({ats.missing.length})
+                  {(
+                    [
+                      [
+                        'High priority',
+                        ats.missing.filter((kw) => highKw.has(kw)),
+                        'font-medium text-red-700',
+                        '— core terms in this posting (title, requirements, repeated); add to Skills or let AI draft a bullet:',
+                      ],
+                      [
+                        'Remaining',
+                        ats.missing.filter((kw) => !highKw.has(kw)),
+                        'font-medium text-amber-700',
+                        '— also mentioned in the posting; add the ones you genuinely have:',
+                      ],
+                    ] as const
+                  ).map(([label, kws, cls, blurb]) =>
+                    kws.length === 0 ? null : (
+                    <div key={label}>
+                      <span className={cls}>
+                        {label} ({kws.length})
                       </span>{' '}
                       <span className="text-muted-foreground">
-                        — for keywords you genuinely have, add to Skills or let AI draft a bullet:
+                        {blurb}
                       </span>
                       <span className="mt-1 flex flex-wrap gap-1">
-                        {ats.missing.map((kw) => (
+                        {kws.map((kw) => (
                           <span
                             key={kw}
                             className="bg-muted inline-flex items-center overflow-hidden rounded-full border"
@@ -6204,6 +6494,7 @@ export default function Builder() {
                         ))}
                       </span>
                     </div>
+                    )
                   )}
                   {ats.ignored.length > 0 && (
                     <div>
@@ -6257,33 +6548,75 @@ export default function Builder() {
                   </button>
                 </p>
               )}
-              <ul className="mt-3 space-y-1 text-xs">
-                {ats.checks.map((c) => (
-                  <li key={c.label} className="flex items-start gap-1.5">
-                    <span className={c.pass ? 'text-green-600' : 'text-red-500'}>
-                      {c.pass ? '✓' : '✗'}
-                    </span>
-                    <span>
-                      <span className="font-medium">{c.label}</span>
-                      {!c.pass && <span className="text-muted-foreground"> — {c.hint}</span>}
-                      {!c.pass && c.anchor && (
-                        <button
-                          type="button"
-                          className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
-                          onClick={() => c.anchor && jumpToSection(c.anchor)}
-                        >
-                          Fix →
-                        </button>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-3 space-y-3">
+                <div
+                  className={`rounded-md px-2.5 py-1.5 text-xs ${
+                    readiness.tier === 'ready'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : readiness.tier === 'almost'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  <span className="font-semibold">
+                    Application ready:{' '}
+                    {readiness.tier === 'ready'
+                      ? 'Ready to send'
+                      : readiness.tier === 'almost'
+                        ? 'Almost there'
+                        : 'Needs work'}
+                  </span>
+                  {readiness.blockers.length > 0 && (
+                    <span> — {readiness.blockers.join(' · ')}</span>
+                  )}
+                </div>
+                {CHECK_CATEGORIES.map((cat) => {
+                  const rows = ats.checks.filter((c) => c.category === cat.key)
+                  if (rows.length === 0) return null
+                  return (
+                    <div key={cat.key}>
+                      <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                        {cat.label}{' '}
+                        <span className="font-normal normal-case">
+                          · {rows.filter((c) => c.pass).length}/{rows.length}
+                        </span>
+                      </p>
+                      <ul className="mt-1 space-y-1 text-xs">
+                        {rows.map((c) => (
+                          <li key={c.label} className="flex items-start gap-1.5">
+                            <span className={c.pass ? 'text-green-600' : 'text-red-500'}>
+                              {c.pass ? '✓' : '✗'}
+                            </span>
+                            <span>
+                              <span className="font-medium">{c.label}</span>
+                              {c.pass && fixedChecks.has(c.label) && (
+                                <span className="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-semibold text-emerald-800">
+                                  Fixed
+                                </span>
+                              )}
+                              {!c.pass && <span className="text-muted-foreground"> — {c.hint}</span>}
+                              {!c.pass && c.anchor && (
+                                <button
+                                  type="button"
+                                  className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                                  onClick={() => c.anchor && jumpToSection(c.anchor)}
+                                >
+                                  Fix →
+                                </button>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                })}
+              </div>
             </CardContent>
           </Card>
 
           <div className="rounded-lg border bg-slate-100/90 p-3 sm:p-6 dark:bg-slate-900/40">
-            <div className="shadow-lg">
+            <div ref={previewWrapRef} className="shadow-lg">
               <ResumePreview
                 resume={shown}
                 paginated
@@ -6409,6 +6742,10 @@ export default function Builder() {
         onClose={() => setToolOpen(null)}
         resume={shown}
         onQuota={setFreeLeft}
+        onJumpToTarget={() => {
+          setToolOpen(null)
+          jumpToSection('target')
+        }}
       />
       {tailorOpen && (
         <TailorDialog
@@ -6444,6 +6781,7 @@ export default function Builder() {
         jobDescription={resume.jobDescription}
         scoreSummary={atsScoreSummary(ats)}
         ats={ats}
+        fixes={assistantFixes}
         onQuota={setFreeLeft}
         onPaymentRequired={(msg) => {
           if (!freeMode) requireUnlock(msg)
@@ -6451,6 +6789,41 @@ export default function Builder() {
         onApply={(action) => {
           if (action.type === 'summary') {
             setResume((r) => ({ ...r, summary: action.value }))
+            return
+          }
+          if (action.type === 'bullet') {
+            setResume((r) => {
+              const visible = r.experience.filter((e) => !e.hidden)
+              if (visible.length === 0) return r
+              const wanted = action.entry.toLowerCase()
+              const matches = (s: string) => {
+                const t = s.trim().toLowerCase()
+                return Boolean(t) && (t.includes(wanted) || wanted.includes(t))
+              }
+              const target =
+                visible.find((e) => matches(e.company) || matches(e.role)) ?? visible[0]
+              const replaceWanted = action.replace?.trim().toLowerCase()
+              const replaceIdx = replaceWanted
+                ? target.bullets.findIndex((b) => {
+                    const t = b.trim().toLowerCase()
+                    return Boolean(t) && (t.includes(replaceWanted) || replaceWanted.includes(t))
+                  })
+                : -1
+              return {
+                ...r,
+                experience: r.experience.map((e) =>
+                  e.id === target.id
+                    ? {
+                        ...e,
+                        bullets:
+                          replaceIdx >= 0
+                            ? e.bullets.map((b, bi) => (bi === replaceIdx ? action.value : b))
+                            : [...e.bullets.filter((b) => b.trim()), action.value],
+                      }
+                    : e
+                ),
+              }
+            })
             return
           }
           setResume((r) => {
@@ -6463,6 +6836,29 @@ export default function Builder() {
             return { ...r, skills: [...existing, ...added].join(', ') }
           })
         }}
+        onLocate={(action) => {
+          if (window.innerWidth < 640) setAssistantOpen(false)
+          if (action.type === 'summary') {
+            jumpToSection('summary')
+            return
+          }
+          if (action.type === 'skills') {
+            jumpToSection('skills')
+            return
+          }
+          const visible = shown.experience.filter((e) => !e.hidden)
+          if (visible.length === 0) {
+            jumpToSection('experience')
+            return
+          }
+          const wanted = action.entry.toLowerCase()
+          const matches = (s: string) => {
+            const t = s.trim().toLowerCase()
+            return Boolean(t) && (t.includes(wanted) || wanted.includes(t))
+          }
+          const target = visible.find((e) => matches(e.company) || matches(e.role)) ?? visible[0]
+          jumpToEntry(target.id)
+        }}
       />
       {kwBulletFor !== null && (
         <KeywordBulletDialog
@@ -6473,6 +6869,60 @@ export default function Builder() {
           onInsert={insertKeywordBullet}
         />
       )}
+      <Dialog open={compareOpen} onOpenChange={setCompareOpen}>
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Compare templates side by side</DialogTitle>
+            <DialogDescription>
+              Your resume rendered in each template — pick the one that fits best.
+            </DialogDescription>
+          </DialogHeader>
+          <div
+            className={`grid gap-4 ${compareIds.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}
+          >
+            {compareIds
+              .map((id) => TEMPLATES.find((t) => t.id === id))
+              .filter((t): t is (typeof TEMPLATES)[number] => t !== undefined)
+              .map((t) => (
+                <div key={t.id} className="flex min-w-0 flex-col gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {t.name}
+                      {resume.templateId === t.id && (
+                        <span className="text-muted-foreground font-normal"> · current</span>
+                      )}
+                    </p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {t.description} · {t.tags.join(' · ')}
+                    </p>
+                  </div>
+                  <div
+                    aria-hidden
+                    className="pointer-events-none h-80 select-none overflow-hidden rounded-md border bg-slate-100 sm:h-96 dark:bg-slate-900/40"
+                  >
+                    <div className="origin-top" style={{ zoom: compareIds.length === 3 ? 0.34 : 0.5 }}>
+                      <ResumePreview resume={{ ...shown, templateId: t.id }} />
+                    </div>
+                  </div>
+                  <Button
+                    variant={resume.templateId === t.id ? 'secondary' : 'default'}
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    onClick={() => {
+                      set('templateId', t.id)
+                      setTemplateRecents(recordTemplateRecent(t.id))
+                      setCompareOpen(false)
+                      setTemplateCompare(false)
+                      setCompareIds([])
+                    }}
+                  >
+                    Use this template
+                  </Button>
+                </div>
+              ))}
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={variantPick !== null} onOpenChange={(o) => !o && setVariantPick(null)}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
@@ -6531,6 +6981,72 @@ export default function Builder() {
         </DialogContent>
       </Dialog>
       <Dialog
+        open={bulletSuggest !== null}
+        onOpenChange={(o) => !o && setBulletSuggest(null)}
+      >
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Suggested bullet</DialogTitle>
+            <DialogDescription>
+              Review the draft before it lands on your resume — edit it, regenerate a new
+              version, or apply it as is.
+            </DialogDescription>
+          </DialogHeader>
+          {bulletSuggest && (
+            <div className="space-y-3">
+              <Textarea
+                rows={3}
+                value={bulletSuggest.text}
+                onChange={(e) => setBulletSuggest({ ...bulletSuggest, text: e.target.value })}
+                aria-label="Suggested bullet text"
+              />
+              {aiError &&
+                aiErrorTag?.startsWith(`exp-${bulletSuggest.expId}-suggest`) && (
+                  <p className="text-destructive text-sm">{aiError}</p>
+                )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  className="min-h-10 sm:min-h-9"
+                  disabled={!bulletSuggest.text.trim() || bulletSuggestBusy || !bulletSuggestEntry}
+                  onClick={() => {
+                    const cur = bulletSuggestEntry
+                    if (!cur) return
+                    const line = bulletSuggest.text.split('\n')[0]?.trim() ?? ''
+                    if (!line) return
+                    setExp(cur.id, { bullets: [...cur.bullets.filter((b) => b.trim()), line] })
+                    setBulletSuggest(null)
+                  }}
+                >
+                  Apply to entry
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                  disabled={bulletSuggestBusy || !bulletSuggestEntry}
+                  onClick={() => {
+                    const cur = bulletSuggestEntry
+                    if (cur) void runSuggestBullet(cur, bulletSuggest.variant)
+                  }}
+                >
+                  {bulletSuggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {bulletSuggestBusy ? 'Writing…' : 'Regenerate'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-10 sm:min-h-9"
+                  onClick={() => setBulletSuggest(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
         open={summaryDraftSetup !== null}
         onOpenChange={(o) => !o && setSummaryDraftSetup(null)}
       >
@@ -6540,6 +7056,8 @@ export default function Builder() {
             <DialogDescription>
               Pick the position to frame the summary around and up to 5 skills to emphasize.
               Drafts use only facts already on your resume.
+              {resume.jobDescription.trim() &&
+                ' Wording is tailored toward your target job description.'}
             </DialogDescription>
           </DialogHeader>
           {summaryDraftSetup && (
@@ -7233,9 +7751,18 @@ export default function Builder() {
   )
 }
 
-function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void }) {
+function BulletIdeas({
+  role,
+  skills,
+  onAdd,
+}: {
+  role: string
+  skills: string[]
+  onAdd: (s: string) => void
+}) {
   const [open, setOpen] = useState(false)
   const starters = useMemo(() => bulletStartersFor(role), [role])
+  const tailored = useMemo(() => skillBulletStarters(role, skills), [role, skills])
   return (
     <div>
       <button
@@ -7248,6 +7775,28 @@ function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void
       </button>
       {open && (
         <ul className="mt-2 space-y-1">
+          {tailored.length > 0 && (
+            <li>
+              <div className="text-muted-foreground text-[11px] font-medium">
+                Tailored to your target job — keywords the posting wants that your resume
+                doesn&apos;t show yet:
+              </div>
+              <ul className="mt-1 space-y-1">
+                {tailored.map((s) => (
+                  <li key={s}>
+                    <button
+                      type="button"
+                      className="bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/40 w-full rounded-md border px-2 py-1.5 text-left text-xs"
+                      title="Add this bullet"
+                      onClick={() => onAdd(s)}
+                    >
+                      + {s}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          )}
           {starters.map((s) => (
             <li key={s}>
               <button
@@ -7528,14 +8077,18 @@ function BundleToolDialog({
   onClose,
   resume,
   onQuota,
+  onJumpToTarget,
 }: {
   kind: 'cover' | 'interview' | 'resignation' | null
   initialCompany?: string
   onClose: () => void
   resume: Resume
   onQuota: (remaining: number) => void
+  onJumpToTarget: () => void
 }) {
   const [company, setCompany] = useState(initialCompany)
+  const [addressee, setAddressee] = useState('')
+  const [highlights, setHighlights] = useState('')
   const [currentRole, setCurrentRole] = useState('')
   const [lastDay, setLastDay] = useState('')
   const [reason, setReason] = useState('')
@@ -7556,10 +8109,73 @@ function BundleToolDialog({
     entries: { q: string; a: string; fb: string }[]
   } | null>(null)
   const [lastKind, setLastKind] = useState(kind)
+  const [timerStart, setTimerStart] = useState<number | null>(null)
+  const [timerNow, setTimerNow] = useState(0)
+  const [elapsedSec, setElapsedSec] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (timerStart === null) return
+    const id = window.setInterval(() => {
+      setTimerNow(Date.now())
+      if ((Date.now() - timerStart) / 1000 >= RESPONSE_WINDOW_SECONDS) {
+        setElapsedSec(RESPONSE_WINDOW_SECONDS)
+        setTimerStart(null)
+      }
+    }, 250)
+    return () => window.clearInterval(id)
+  }, [timerStart])
+
+  const stopTimer = () => {
+    if (timerStart === null) return
+    setElapsedSec(Math.min(Math.round((Date.now() - timerStart) / 1000), RESPONSE_WINDOW_SECONDS))
+    setTimerStart(null)
+  }
+
+  const resetTimer = () => {
+    setTimerStart(null)
+    setElapsedSec(null)
+  }
+
+  const analysis = useMemo(() => {
+    if (kind !== 'interview') return null
+    if (answer.trim().split(/\s+/).filter(Boolean).length < 10) return null
+    return analyzeAnswer(answer, resume.jobDescription, resume.ignoredKeywords ?? [])
+  }, [kind, answer, resume.jobDescription, resume.ignoredKeywords])
+
+  const delivery = useMemo(
+    () => (kind === 'interview' && elapsedSec !== null ? analyzeDelivery(answer, elapsedSec) : null),
+    [kind, answer, elapsedSec]
+  )
+
+  const quickFillers = useMemo(
+    () => (kind === 'interview' && analysis ? analyzeQuickFillers(answer, elapsedSec ?? undefined) : null),
+    [kind, analysis, answer, elapsedSec]
+  )
+
+  const fillerSounds = useMemo(
+    () => (kind === 'interview' && analysis ? analyzeFillerSounds(answer, elapsedSec ?? undefined) : null),
+    [kind, analysis, answer, elapsedSec]
+  )
+
+  const tone = useMemo(
+    () => (kind === 'interview' && analysis ? analyzeTone(answer) : null),
+    [kind, analysis, answer]
+  )
+
+  /** JD keywords demonstrated in this answer that the resume itself still lacks. */
+  const resumeGaps = useMemo(() => {
+    if (kind !== 'interview' || !analysis?.keywords) return []
+    const report = matchReport(resumeToPlainText(resume), resume.jobDescription ?? '')
+    if (!report) return []
+    const missingFromResume = new Set(report.missing)
+    return analysis.keywords.covered.filter((k) => missingFromResume.has(k))
+  }, [kind, analysis, resume])
 
   if (kind !== lastKind) {
     setLastKind(kind)
     if (kind !== null) setCompany(initialCompany)
+    setAddressee('')
+    setHighlights('')
     setResult('')
     setError('')
     setSavedId(null)
@@ -7571,7 +8187,16 @@ function BundleToolDialog({
     setSession(null)
     setQuestion('')
     setAnswer('')
+    setTimerStart(null)
+    setElapsedSec(null)
   }
+
+  const docFileName = (ext: string) =>
+    kind === 'interview'
+      ? professionalFileName([resume.contact.fullName, 'interview-prep'], ext)
+      : kind === 'cover'
+        ? professionalFileName([resume.contact.fullName, company, 'cover-letter'], ext)
+        : professionalFileName([resume.contact.fullName, 'resignation-letter'], ext)
 
   type PracticeSession = { questions: string[]; idx: number; entries: { q: string; a: string; fb: string }[] }
 
@@ -7591,8 +8216,9 @@ function BundleToolDialog({
           `Q${i + 1}. ${e.q}\n\nYour answer:\n${e.a || '[skipped]'}${e.fb ? `\n\nAI coaching:\n${e.fb}` : ''}`
       )
       .join('\n\n---\n\n')
+    const report = sessionReport(entries, resume.jobDescription, resume.ignoredKeywords ?? [])
     setResult(
-      `Practice session — ${role}\n${entries.length} of ${s.questions.length} questions answered\n\n${transcript}`
+      `Practice session — ${role}\n${entries.length} of ${s.questions.length} questions answered\n\n${report ? `${report}\n\n` : ''}${transcript}`
     )
     setSavedId(null)
     setSession(null)
@@ -7600,6 +8226,7 @@ function BundleToolDialog({
     setAnswer('')
     setFeedback('')
     setFeedbackError('')
+    resetTimer()
   }
 
   const advanceSession = (s: PracticeSession) => {
@@ -7614,6 +8241,7 @@ function BundleToolDialog({
     setAnswer('')
     setFeedback('')
     setFeedbackError('')
+    resetTimer()
   }
 
   const suggestQuestions = async () => {
@@ -7700,6 +8328,8 @@ function BundleToolDialog({
               jobDescription: jd,
               company,
               role: aiTargetRole(resume),
+              addressee: addressee.trim() || undefined,
+              highlights: highlights.trim() || undefined,
               language: resume.language,
             })
           : await aiInterviewBrief({
@@ -7740,8 +8370,12 @@ function BundleToolDialog({
     const name = resume.contact.fullName || '[Your name]'
     const role = resume.targetRole || '[role]'
     const co = company || '[Company]'
+    const to = addressee.trim() || 'Hiring Manager'
+    const spotlight = highlights.trim()
+      ? `\n\nI'd particularly like to highlight: ${highlights.trim()}.`
+      : ''
     setResult(
-      `Dear Hiring Manager,\n\nI'm writing to apply for the ${role} position at ${co}. [One sentence on why this company or team specifically — a product, a mission, a recent launch.]\n\nIn my current role at [current company], I [your strongest, most relevant achievement — with a real number if you have one]. Before that, I [second relevant achievement or responsibility]. These map directly to what you're looking for: [requirement from the job description you meet best].\n\nI'd welcome the chance to talk about how I can help ${co} [team goal from the posting]. Thank you for your consideration.\n\nSincerely,\n${name}`
+      `Dear ${to},\n\nI'm writing to apply for the ${role} position at ${co}. [One sentence on why this company or team specifically — a product, a mission, a recent launch.]\n\nIn my current role at [current company], I [your strongest, most relevant achievement — with a real number if you have one]. Before that, I [second relevant achievement or responsibility]. These map directly to what you're looking for: [requirement from the job description you meet best].${spotlight}\n\nI'd welcome the chance to talk about how I can help ${co} [team goal from the posting]. Thank you for your consideration.\n\nSincerely,\n${name}`
     )
     setError('')
   }
@@ -7764,14 +8398,35 @@ function BundleToolDialog({
           </DialogDescription>
         </DialogHeader>
         {kind === 'cover' && (
-          <div className="space-y-1.5">
-            <Label htmlFor="company">Company name</Label>
-            <Input
-              id="company"
-              placeholder="e.g. Stripe"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="company">Company name</Label>
+              <Input
+                id="company"
+                placeholder="e.g. Stripe"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cover-addressee">Hiring manager (optional)</Label>
+              <Input
+                id="cover-addressee"
+                placeholder="e.g. Maya Chen"
+                value={addressee}
+                onChange={(e) => setAddressee(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="cover-highlights">Details to highlight (optional)</Label>
+              <Textarea
+                id="cover-highlights"
+                rows={2}
+                placeholder="e.g. led the 2024 checkout redesign; fluent in Spanish"
+                value={highlights}
+                onChange={(e) => setHighlights(e.target.value)}
+              />
+            </div>
           </div>
         )}
         {kind === 'resignation' && (
@@ -7850,12 +8505,8 @@ function BundleToolDialog({
                 onClick={() =>
                   void import('@/lib/pdf').then((m) =>
                     kind === 'interview'
-                      ? m.downloadTextPdf(title, result, 'interview-prep.pdf')
-                      : m.downloadLetterPdf(
-                          resume,
-                          result,
-                          kind === 'cover' ? 'cover-letter.pdf' : 'resignation-letter.pdf'
-                        )
+                      ? m.downloadTextPdf(title, result, docFileName('pdf'))
+                      : m.downloadLetterPdf(resume, result, docFileName('pdf'))
                   )
                 }
               >
@@ -7868,12 +8519,8 @@ function BundleToolDialog({
                 onClick={() =>
                   void import('@/lib/docx').then((m) =>
                     kind === 'interview'
-                      ? m.downloadTextDocx(title, result, 'interview-prep.docx')
-                      : m.downloadLetterDocx(
-                          resume,
-                          result,
-                          kind === 'cover' ? 'cover-letter.docx' : 'resignation-letter.docx'
-                        )
+                      ? m.downloadTextDocx(title, result, docFileName('docx'))
+                      : m.downloadLetterDocx(resume, result, docFileName('docx'))
                   )
                 }
               >
@@ -7995,7 +8642,222 @@ function BundleToolDialog({
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
               />
+              <div className="flex flex-wrap items-center gap-2">
+                {timerStart === null ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    onClick={() => {
+                      setElapsedSec(null)
+                      setTimerNow(Date.now())
+                      setTimerStart(Date.now())
+                    }}
+                  >
+                    <Timer />
+                    {elapsedSec === null ? 'Start 2-minute window' : 'Retime answer'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-10 sm:min-h-8"
+                      onClick={stopTimer}
+                    >
+                      <Timer />
+                      Stop timer
+                    </Button>
+                    <span className="text-muted-foreground text-xs tabular-nums" role="timer">
+                      {(() => {
+                        const left = Math.max(
+                          0,
+                          RESPONSE_WINDOW_SECONDS - Math.floor((timerNow - timerStart) / 1000)
+                        )
+                        return `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left — answer out loud while you type`
+                      })()}
+                    </span>
+                  </>
+                )}
+                {timerStart === null && elapsedSec !== null && (
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    Timed: {elapsedSec}s
+                  </span>
+                )}
+              </div>
             </div>
+            {analysis && (
+              <div className="bg-muted/50 space-y-2 rounded-md border px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">
+                    Practice score: <span className="tabular-nums">{analysis.score}</span>/100
+                  </p>
+                  <p className="text-muted-foreground text-xs">Instant · local — no AI used</p>
+                </div>
+                <p
+                  className={
+                    analysis.lengthBand === 'ideal'
+                      ? 'text-xs text-emerald-700 dark:text-emerald-400'
+                      : 'text-xs text-amber-700 dark:text-amber-400'
+                  }
+                >
+                  {analysis.words} words — {analysis.lengthHint}
+                </p>
+                <div className="flex flex-wrap gap-1.5" aria-label="STAR structure coverage">
+                  {(
+                    [
+                      ['Situation/context', analysis.star.context, 'set the scene: when, where, what was at stake'],
+                      ['Action (yours)', analysis.star.action, 'say what you did — “I led / built / fixed…”'],
+                      ['Result', analysis.star.result, 'end with the outcome — ideally a number'],
+                    ] as const
+                  ).map(([label, ok, hint]) => (
+                    <span
+                      key={label}
+                      title={ok ? undefined : hint}
+                      className={
+                        ok
+                          ? 'rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
+                          : 'rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-400'
+                      }
+                    >
+                      {ok ? '✓' : '·'} {label}
+                    </span>
+                  ))}
+                </div>
+                {analysis.keywords && (
+                  <p className="text-muted-foreground text-xs">
+                    Job keywords used: {analysis.keywords.covered.length}/
+                    {analysis.keywords.covered.length + analysis.keywords.missing.length}
+                    {analysis.keywords.missing.length > 0 &&
+                      analysis.keywords.highPriorityMissing.length === 0 && (
+                        <> — try working in: {analysis.keywords.missing.slice(0, 5).join(', ')}</>
+                      )}
+                  </p>
+                )}
+                {analysis.keywords && analysis.keywords.highPriorityMissing.length > 0 && (
+                  <>
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      High priority: {analysis.keywords.highPriorityMissing.slice(0, 5).join(', ')}
+                    </p>
+                    {analysis.keywords.missing.length >
+                      analysis.keywords.highPriorityMissing.length && (
+                      <p className="text-muted-foreground text-xs">
+                        Also mentioned:{' '}
+                        {analysis.keywords.missing
+                          .filter((k) => !analysis.keywords?.highPriorityMissing.includes(k))
+                          .slice(0, 5)
+                          .join(', ')}
+                      </p>
+                    )}
+                  </>
+                )}
+                {resumeGaps.length > 0 && (
+                  <p className="text-xs text-sky-700 dark:text-sky-400">
+                    Add to your resume: you used{' '}
+                    {resumeGaps.slice(0, 5).join(', ')}
+                    {resumeGaps.length > 5 && <> +{resumeGaps.length - 5} more</>} in this answer,
+                    but {resumeGaps.length === 1 ? "it's" : "they're"} not on your resume yet.{' '}
+                    <button
+                      type="button"
+                      onClick={onJumpToTarget}
+                      className="font-medium underline underline-offset-2"
+                    >
+                      Open keyword targeting →
+                    </button>
+                  </p>
+                )}
+                {delivery && (
+                  <>
+                    <p
+                      className={
+                        delivery.paceBand === 'ideal'
+                          ? 'text-xs text-emerald-700 dark:text-emerald-400'
+                          : 'text-xs text-amber-700 dark:text-amber-400'
+                      }
+                    >
+                      Pace: {delivery.wpm} wpm — {delivery.paceHint}
+                    </p>
+                    <p
+                      className={
+                        delivery.windowBand === 'ideal'
+                          ? 'text-xs text-emerald-700 dark:text-emerald-400'
+                          : 'text-xs text-amber-700 dark:text-amber-400'
+                      }
+                    >
+                      Speaking time: {delivery.windowPct}% of the 2-minute window — {delivery.windowHint}
+                    </p>
+                  </>
+                )}
+                {((quickFillers && quickFillers.total > 0) || analysis.weHeavy) && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {quickFillers && quickFillers.total > 0 && (
+                      <>
+                        Quick fillers to cut:{' '}
+                        {quickFillers.hits
+                          .map(
+                            (h) =>
+                              `“${h.phrase}” ×${h.count}${h.atStart > 0 ? ` (${h.atStart} at sentence start)` : ''}`
+                          )
+                          .join(', ')}
+                        {quickFillers.perMinute !== null && <> — {quickFillers.perMinute}/min</>}
+                        {'. '}
+                      </>
+                    )}
+                    {analysis.weHeavy && <>Mostly “we” — interviewers want your part; use “I”.</>}
+                  </p>
+                )}
+                {fillerSounds && fillerSounds.total > 0 && (
+                  <p
+                    className={
+                      fillerSounds.band === 'good'
+                        ? 'text-xs text-emerald-700 dark:text-emerald-400'
+                        : 'text-xs text-amber-700 dark:text-amber-400'
+                    }
+                  >
+                    Filler sounds:{' '}
+                    {fillerSounds.hits.map((h) => `“${h.sound}” ×${h.count}`).join(', ')}
+                    {fillerSounds.perMinute !== null && (
+                      <>
+                        {' — '}
+                        {fillerSounds.perMinute}/min
+                        {fillerSounds.band === 'good'
+                          ? ', within the 1–2 per minute guideline.'
+                          : ' — aim for no more than 1–2 per minute; pause instead of filling silence.'}
+                      </>
+                    )}
+                    {fillerSounds.perMinute === null && '.'}
+                  </p>
+                )}
+                {tone && (
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Tone:{' '}
+                    {(
+                      [
+                        ['clarity', tone.clarity],
+                        ['confidence', tone.confidence],
+                        ['enthusiasm', tone.enthusiasm],
+                      ] as const
+                    ).map(([name, dim], i) => (
+                      <span key={name}>
+                        {i > 0 && ' · '}
+                        <span
+                          className={
+                            dim.good
+                              ? 'text-emerald-700 dark:text-emerald-400'
+                              : 'text-amber-700 dark:text-amber-400'
+                          }
+                        >
+                          {name} — {dim.detail}
+                        </span>
+                      </span>
+                    ))}
+                    .
+                  </p>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => void getFeedback()}
@@ -8015,6 +8877,19 @@ function BundleToolDialog({
                 >
                   {suggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
                   {suggestBusy ? 'Thinking…' : 'Suggest questions'}
+                </Button>
+              )}
+              {!session && (
+                <Button
+                  onClick={() => {
+                    setSuggested(localInterviewQuestions(resume))
+                    setFeedbackError('')
+                  }}
+                  disabled={feedbackBusy || suggestBusy}
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                >
+                  <ListChecks /> Instant questions
                 </Button>
               )}
               {session && (

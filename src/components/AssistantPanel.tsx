@@ -6,7 +6,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, Loader2, Send, Sparkles, Trash2, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { BriefcaseBusiness, Check, Loader2, MapPin, Send, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -16,7 +17,8 @@ import {
   type AssistantTurnInput,
 } from '@/lib/api'
 import { aiTargetRole, resumeToPlainText, type Resume } from '@/lib/resume'
-import type { AtsResult } from '@/lib/ats'
+import { matchReport, type AtsResult } from '@/lib/ats'
+import { improveScoreReply, type PriorityFix } from '@/lib/guidance'
 
 const CHAT_KEY = 'honestcv.assistantChat'
 const CHAT_MAX = 40
@@ -24,12 +26,22 @@ const CHAT_MAX = 40
 interface ChatMsg extends AssistantTurnInput {
   action?: AssistantAction
   applied?: boolean
+  /** Job-board search this turn recommends; rendered as a link to /jobs */
+  jobsQuery?: string
 }
 
 function validAction(a: unknown): a is AssistantAction {
   if (!a || typeof a !== 'object') return false
-  const action = a as { type?: unknown; value?: unknown }
+  const action = a as { type?: unknown; value?: unknown; entry?: unknown; replace?: unknown }
   if (action.type === 'summary') return typeof action.value === 'string' && Boolean(action.value)
+  if (action.type === 'bullet')
+    return (
+      typeof action.entry === 'string' &&
+      Boolean(action.entry) &&
+      typeof action.value === 'string' &&
+      Boolean(action.value) &&
+      (action.replace === undefined || typeof action.replace === 'string')
+    )
   if (action.type === 'skills')
     return (
       Array.isArray(action.value) &&
@@ -54,6 +66,7 @@ function loadChat(): ChatMsg[] {
         role: t.role,
         content: t.content,
         ...(validAction(t.action) ? { action: t.action, applied: t.applied === true } : {}),
+        ...(typeof t.jobsQuery === 'string' ? { jobsQuery: t.jobsQuery } : {}),
       }))
   } catch {
     return []
@@ -68,10 +81,14 @@ function persistChat(turns: ChatMsg[]) {
   }
 }
 
+const IMPROVE_SCORE_LABEL = 'Improve my ATS score'
+const IMPROVE_SCORE_PROMPT =
+  'How can I improve my resume\u2019s ATS score? Give me the highest-impact fixes first.'
+
 const QUICK_TASKS: { label: string; prompt: string }[] = [
   {
-    label: 'Improve my ATS score',
-    prompt: 'How can I improve my resume\u2019s ATS score? Give me the highest-impact fixes first.',
+    label: IMPROVE_SCORE_LABEL,
+    prompt: IMPROVE_SCORE_PROMPT,
   },
   {
     label: 'Draft my summary',
@@ -88,6 +105,40 @@ const QUICK_TASKS: { label: string; prompt: string }[] = [
   },
 ]
 
+const FIND_JOBS_LABEL = 'Find matching jobs'
+const FIND_JOBS_PROMPT = 'Find job opportunities that match my resume.'
+
+/** Top skill names from the free-text skills section, category prefixes stripped. */
+function topSkills(r: Resume, max = 5): string[] {
+  return r.skills
+    .split(/\n/)
+    .map((line) => (line.includes(':') ? line.slice(line.indexOf(':') + 1) : line))
+    .flatMap((line) => line.split(','))
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, max)
+}
+
+/** Locally composed Find-jobs reply: recommended board search + the resume signals behind it. */
+function findJobsReply(r: Resume): { content: string; jobsQuery: string } {
+  const role =
+    r.targetRole.trim() || r.experience.find((e) => !e.hidden && e.role.trim())?.role.trim() || ''
+  const skills = topSkills(r)
+  const location = r.contact.location.trim()
+  const signals = [
+    skills.length ? `your skills (${skills.join(', ')})` : '',
+    location ? `your location (${location})` : '',
+  ].filter(Boolean)
+  const content = role
+    ? `Based on your resume, I'd search the job board for “${role}”.` +
+      (signals.length
+        ? ` Once you're there, ${signals.join(' and ')} can help you judge which postings fit best.`
+        : '') +
+      ' Track anything promising and use “Target my resume” on a posting — I can then help you tailor your resume to it.'
+    : 'Your resume doesn’t name a target role yet, so I’ll take you to the job board to browse. Add a target role (or an experience entry) and I can recommend a sharper search.'
+  return { content, jobsQuery: role }
+}
+
 export function AssistantPanel({
   open,
   onClose,
@@ -95,9 +146,11 @@ export function AssistantPanel({
   jobDescription,
   scoreSummary,
   ats,
+  fixes,
   onQuota,
   onPaymentRequired,
   onApply,
+  onLocate,
 }: {
   open: boolean
   onClose: () => void
@@ -105,10 +158,15 @@ export function AssistantPanel({
   jobDescription: string
   scoreSummary: string
   ats: AtsResult
+  fixes: PriorityFix[]
   onQuota: (remaining: number) => void
   onPaymentRequired: (message: string) => void
   onApply: (action: AssistantAction) => void
+  onLocate?: (action: AssistantAction) => void
 }) {
+  // Live tailoring status — same helper as the Target job panel and /jobs report
+  const report = matchReport(resumeToPlainText(resume), jobDescription)
+
   const [turns, setTurns] = useState<ChatMsg[]>(loadChat)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -155,6 +213,39 @@ export function AssistantPanel({
     } finally {
       setBusy(false)
     }
+  }
+
+  const improveScore = () => {
+    if (busy) return
+    const next = [
+      ...turns,
+      { role: 'user' as const, content: IMPROVE_SCORE_PROMPT },
+      {
+        role: 'assistant' as const,
+        content: improveScoreReply(ats.score, fixes, ats.keywordScore !== null),
+      },
+    ].slice(-CHAT_MAX)
+    setTurns(next)
+    persistChat(next)
+    setError('')
+  }
+
+  const runQuickTask = (t: { label: string; prompt: string }) => {
+    if (t.label === IMPROVE_SCORE_LABEL) improveScore()
+    else void send(t.prompt)
+  }
+
+  const findJobs = () => {
+    if (busy) return
+    const { content, jobsQuery } = findJobsReply(resume)
+    const next = [
+      ...turns,
+      { role: 'user' as const, content: FIND_JOBS_PROMPT },
+      { role: 'assistant' as const, content, jobsQuery },
+    ].slice(-CHAT_MAX)
+    setTurns(next)
+    persistChat(next)
+    setError('')
   }
 
   const apply = (index: number) => {
@@ -234,6 +325,30 @@ export function AssistantPanel({
                 </p>
               )}
             </div>
+            {report && (
+              <div className="bg-muted mt-2 rounded-lg px-3 py-2 text-left">
+                <p className="text-sm">
+                  Your resume matches{' '}
+                  <span className="font-semibold">{report.pct}%</span> of the target
+                  job&rsquo;s keywords ({report.covered.length} of{' '}
+                  {report.covered.length + report.missing.length}).
+                </p>
+                {report.highPriorityMissing.length > 0 ? (
+                  <p className="mt-1 text-xs text-amber-800">
+                    High priority to work in:{' '}
+                    {report.highPriorityMissing.slice(0, 3).join(', ')}
+                  </p>
+                ) : report.missing.length > 0 ? (
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Still missing: {report.missing.slice(0, 3).join(', ')}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+                    All job keywords covered — nice tailoring.
+                  </p>
+                )}
+              </div>
+            )}
             <div className="mt-4 flex flex-col items-stretch gap-1.5">
               {QUICK_TASKS.map((t) => (
                 <Button
@@ -241,11 +356,19 @@ export function AssistantPanel({
                   size="sm"
                   variant="outline"
                   className="min-h-10 sm:min-h-8"
-                  onClick={() => void send(t.prompt)}
+                  onClick={() => runQuickTask(t)}
                 >
                   {t.label}
                 </Button>
               ))}
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-h-10 sm:min-h-8"
+                onClick={findJobs}
+              >
+                {FIND_JOBS_LABEL}
+              </Button>
             </div>
           </div>
         )}
@@ -260,23 +383,53 @@ export function AssistantPanel({
             >
               {t.content}
             </div>
+            {t.jobsQuery !== undefined && (
+              <Button asChild size="sm" variant="outline" className="min-h-10 sm:min-h-8">
+                <Link to={t.jobsQuery ? `/jobs?q=${encodeURIComponent(t.jobsQuery)}` : '/jobs'}>
+                  <BriefcaseBusiness className="size-3.5" /> Search jobs
+                  {t.jobsQuery ? ` “${t.jobsQuery}”` : ''} →
+                </Link>
+              </Button>
+            )}
             {t.action && (
               <div className="rounded-lg border px-3 py-2">
                 <p className="text-muted-foreground text-xs font-medium">
-                  {t.action.type === 'summary' ? 'Proposed summary' : 'Proposed skills'}
+                  {t.action.type === 'summary'
+                    ? 'Proposed summary'
+                    : t.action.type === 'bullet'
+                      ? `${t.action.replace ? 'Proposed rewrite' : 'Proposed bullet'} \u00b7 ${t.action.entry}`
+                      : 'Proposed skills'}
                 </p>
                 <p className="mt-1 text-sm whitespace-pre-wrap">
-                  {t.action.type === 'summary' ? t.action.value : t.action.value.join(', ')}
+                  {t.action.type === 'skills' ? t.action.value.join(', ') : t.action.value}
                 </p>
-                {t.applied ? (
-                  <p className="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
-                    <Check className="size-3.5" /> Applied to your resume
-                  </p>
-                ) : (
-                  <Button size="sm" className="mt-2 min-h-10 sm:min-h-8" onClick={() => apply(i)}>
-                    {t.action.type === 'summary' ? 'Apply to summary' : 'Add to skills'}
-                  </Button>
-                )}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {t.applied ? (
+                    <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                      <Check className="size-3.5" /> Applied to your resume
+                    </p>
+                  ) : (
+                    <Button size="sm" className="min-h-10 sm:min-h-8" onClick={() => apply(i)}>
+                      {t.action.type === 'summary'
+                        ? 'Apply to summary'
+                        : t.action.type === 'bullet'
+                          ? t.action.replace
+                            ? 'Replace bullet'
+                            : 'Add bullet'
+                          : 'Add to skills'}
+                    </Button>
+                  )}
+                  {onLocate && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground min-h-10 text-xs sm:min-h-8"
+                      onClick={() => onLocate(t.action as AssistantAction)}
+                    >
+                      <MapPin className="size-3.5" /> Show in editor
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -288,6 +441,20 @@ export function AssistantPanel({
         )}
         {error && <p className="text-destructive text-xs">{error}</p>}
       </div>
+      {turns.length > 0 && report && (
+        <p className="text-muted-foreground border-t px-4 py-1.5 text-xs">
+          Target job: <span className="text-foreground font-medium">{report.pct}%</span>{' '}
+          keyword match
+          {report.highPriorityMissing.length > 0 && (
+            <>
+              {' \u00b7 high priority: '}
+              <span className="text-amber-800">
+                {report.highPriorityMissing.slice(0, 2).join(', ')}
+              </span>
+            </>
+          )}
+        </p>
+      )}
       {turns.length > 0 && (
         <div className="flex flex-wrap gap-1.5 border-t px-4 py-2">
           {QUICK_TASKS.map((t) => (
@@ -297,11 +464,20 @@ export function AssistantPanel({
               variant="outline"
               disabled={busy}
               className="min-h-10 rounded-full text-xs sm:min-h-7"
-              onClick={() => void send(t.prompt)}
+              onClick={() => runQuickTask(t)}
             >
               {t.label}
             </Button>
           ))}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            className="min-h-10 rounded-full text-xs sm:min-h-7"
+            onClick={findJobs}
+          >
+            {FIND_JOBS_LABEL}
+          </Button>
         </div>
       )}
       <form

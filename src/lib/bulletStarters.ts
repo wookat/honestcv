@@ -105,6 +105,90 @@ export function bulletStartersFor(role: string): string[] {
   return GENERIC
 }
 
+/**
+ * Skill-tailored starter templates by role family — the same action-verb +
+ * [add …] placeholder style as the role starters, with the skill woven in.
+ */
+const SKILL_TEMPLATES: { match: RegExp; templates: ((skill: string) => string)[] }[] = [
+  {
+    match: /engineer|developer|programmer|swe|devops|sre|architect/i,
+    templates: [
+      (s) => `Used ${s} to build [feature/service], improving [metric] by [add %]`,
+      (s) => `Automated [process] with ${s}, saving [add #] hours per week`,
+      (s) => `Led adoption of ${s} across [team/project], cutting [metric] by [add %]`,
+    ],
+  },
+  {
+    match: /sales|account exec|business development|bdr|sdr/i,
+    templates: [
+      (s) => `Used ${s} to manage [add #] accounts, growing revenue by [add %]`,
+      (s) => `Built a ${s} workflow that shortened the sales cycle by [add #] days`,
+      (s) => `Leveraged ${s} to source [add #] qualified leads per month`,
+    ],
+  },
+  {
+    match: /marketing|growth|seo|content|social media|brand/i,
+    templates: [
+      (s) => `Ran ${s} campaigns that generated [add #] leads at $[add amount] CAC`,
+      (s) => `Used ${s} to grow [channel] traffic by [add %] in [add #] months`,
+      (s) => `Improved [metric] by [add %] through ${s}`,
+    ],
+  },
+  {
+    match: /product manager|product owner|\bpm\b/i,
+    templates: [
+      (s) => `Used ${s} to prioritize [roadmap/backlog], shipping [add #] releases per quarter`,
+      (s) => `Applied ${s} to identify [insight], lifting [metric] by [add %]`,
+      (s) => `Drove ${s} adoption across [add #] teams`,
+    ],
+  },
+  {
+    match: /designer|ux|ui|creative/i,
+    templates: [
+      (s) => `Used ${s} to deliver [add #] high-fidelity prototypes per sprint`,
+      (s) => `Applied ${s} in usability tests with [add #] participants, lifting [metric] by [add %]`,
+      (s) => `Built [design system/components] with ${s} used across [add #] products`,
+    ],
+  },
+  {
+    match: /data|analyst|analytics|scientist|machine learning|\bml\b|\bai\b/i,
+    templates: [
+      (s) => `Built [model/dashboard] with ${s} that improved [metric] by [add %]`,
+      (s) => `Used ${s} to analyze [add #] records, surfacing [insight]`,
+      (s) => `Automated [pipeline/report] with ${s}, saving [add #] hours per week`,
+    ],
+  },
+  {
+    match: /support|customer success|customer service|helpdesk/i,
+    templates: [
+      (s) => `Used ${s} to resolve [add #] tickets per month at [add %] CSAT`,
+      (s) => `Built ${s} workflows that cut first-response time by [add %]`,
+      (s) => `Documented ${s} processes that deflected [add %] of tickets`,
+    ],
+  },
+  {
+    match: /operations|project manager|program manager|coordinator|logistics/i,
+    templates: [
+      (s) => `Used ${s} to deliver [project] [add #] weeks ahead of schedule`,
+      (s) => `Streamlined [process] with ${s}, cutting turnaround time by [add %]`,
+      (s) => `Coordinated [add #] stakeholders using ${s} to launch [initiative]`,
+    ],
+  },
+]
+
+const GENERIC_SKILL_TEMPLATES: ((skill: string) => string)[] = [
+  (s) => `Used ${s} to deliver [project/result], improving [metric] by [add %]`,
+  (s) => `Applied ${s} to [what you did], saving [add #] hours per week`,
+  (s) => `Led [initiative] using ${s}, recognized for [accomplishment]`,
+]
+
+/** One starter per skill, cycling the role family's skill templates (generic if no match). */
+export function skillBulletStarters(role: string, skills: string[]): string[] {
+  const templates =
+    SKILL_TEMPLATES.find((g) => g.match.test(role))?.templates ?? GENERIC_SKILL_TEMPLATES
+  return skills.map((s, i) => templates[i % templates.length](s))
+}
+
 /** Common skills by role family — chips the user taps only if they actually have them. */
 const SKILL_GROUPS: { match: RegExp; skills: string[] }[] = [
   {
@@ -221,4 +305,39 @@ const SKILL_GROUPS: { match: RegExp; skills: string[] }[] = [
 export function skillSuggestionsFor(role: string): string[] {
   for (const g of SKILL_GROUPS) if (g.match.test(role)) return g.skills
   return []
+}
+
+/** Union of every role family's curated skills, deduped case-insensitively in group order. */
+export function skillLexicon(): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const g of SKILL_GROUPS)
+    for (const s of g.skills) {
+      const key = s.toLowerCase()
+      if (!seen.has(key)) {
+        seen.add(key)
+        out.push(s)
+      }
+    }
+  return out
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** Word-boundary match for single words, substring for phrases — mirrors keywordScore. */
+function skillPattern(skill: string): RegExp {
+  const escaped = escapeRegExp(skill)
+  return skill.includes(' ')
+    ? new RegExp(escaped, 'i')
+    : new RegExp(`(?:^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i')
+}
+
+/** Lexicon skills demonstrated in the resume body but absent from the skills section. */
+export function provenSkills(bodyText: string, skillsText: string): string[] {
+  return skillLexicon().filter((s) => {
+    const re = skillPattern(s)
+    return re.test(bodyText) && !re.test(skillsText)
+  })
 }

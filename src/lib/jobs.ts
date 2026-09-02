@@ -1,6 +1,6 @@
 /**
  * Job search API helper plus the local application pipeline. Pipeline state
- * (saved / applied / interviewing / rejected, including the job's JD text)
+ * (saved / applied / interviewing / offer / rejected, including the job's JD text)
  * lives in localStorage only, like resumes and career documents.
  */
 
@@ -17,16 +17,19 @@ export interface JobListing {
   salary: string
   url: string
   description: string
+  /** Upstream skill tags (may be missing on entries saved before it existed) */
+  tags?: string[]
 }
 
-export type JobStatus = 'saved' | 'applied' | 'interviewing' | 'rejected'
+export type JobStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'rejected'
 
-export const JOB_STATUSES: JobStatus[] = ['saved', 'applied', 'interviewing', 'rejected']
+export const JOB_STATUSES: JobStatus[] = ['saved', 'applied', 'interviewing', 'offer', 'rejected']
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   saved: 'Saved',
   applied: 'Applied',
   interviewing: 'Interviewing',
+  offer: 'Offer',
   rejected: 'Rejected',
 }
 
@@ -53,6 +56,48 @@ export function timelineOf(entry: PipelineEntry): StatusChange[] {
   return entry.history && entry.history.length > 0
     ? entry.history
     : [{ status: entry.status, at: entry.updatedAt }]
+}
+
+/** Days since the last status change when a pending application has gone quiet (≥7d). */
+export function staleDays(entry: PipelineEntry): number | null {
+  if (entry.status !== 'applied' && entry.status !== 'interviewing') return null
+  const steps = timelineOf(entry)
+  const days = Math.floor((Date.now() - steps[steps.length - 1].at) / 86_400_000)
+  return days >= 7 ? days : null
+}
+
+/** Tracked applications with no status update in 7+ days. */
+export function attentionCount(pipeline: PipelineEntry[] = listPipeline()): number {
+  return pipeline.filter((e) => staleDays(e) !== null).length
+}
+
+/** Deterministic follow-up email draft for a quiet application. */
+export function followUpEmail(
+  entry: PipelineEntry,
+  senderName?: string
+): { subject: string; body: string } {
+  const days = staleDays(entry) ?? 0
+  const { title, company } = entry.job
+  const interviewing = entry.status === 'interviewing'
+  const subject = interviewing
+    ? `Following up on my ${title} interview at ${company}`
+    : `Following up on my ${title} application at ${company}`
+  const opener = interviewing
+    ? `It has been ${days} days since we last spoke about the ${title} position, and I wanted to follow up on where things stand.`
+    : `I applied for the ${title} position ${days} days ago and wanted to follow up on the status of my application.`
+  const body = [
+    `Hi ${company} hiring team,`,
+    '',
+    opener,
+    '',
+    'I remain very interested in the role and would be glad to share any additional information that would be helpful.',
+    '',
+    'Thank you for your time and consideration.',
+    '',
+    'Best regards,',
+    senderName?.trim() || '[Your name]',
+  ].join('\n')
+  return { subject, body }
 }
 
 const PIPELINE_KEY = 'honestcv.jobPipeline'
@@ -85,6 +130,50 @@ export async function searchJobs(q: string, category = ''): Promise<JobListing[]
   }
   if (!res.ok) throw new Error(data.error || `Job search failed (${res.status})`)
   return data.jobs ?? []
+}
+
+/** One section of a structured job description; `heading: null` for the preamble. */
+export interface JobDescriptionSection {
+  heading: string | null
+  body: string
+}
+
+const HEADING_KEYWORD =
+  /^(about|overview|summary|responsibilit|duties|requirements?|qualifications?|skills?|experience|benefits?|perks?|compensation|salary|what|who|why|nice|preferred|bonus|how|your|our|the role|key|location|equal)/i
+
+/** True when a description line reads like a section heading rather than content. */
+function isHeadingLine(line: string): boolean {
+  if (!line || line.startsWith('•') || /^\d/.test(line) || line.length > 60) return false
+  const words = line.split(/\s+/).length
+  if (line.endsWith(':')) return words <= 8
+  return words <= 5 && HEADING_KEYWORD.test(line) && !/[.!?,;:]$/.test(line)
+}
+
+/**
+ * Split a plain-text job description into labelled sections using heading-like
+ * lines (short, colon-terminated or keyword-led). Returns a single unlabelled
+ * section when no headings are found.
+ */
+export function structureJobDescription(description: string): JobDescriptionSection[] {
+  const sections: JobDescriptionSection[] = []
+  let heading: string | null = null
+  let lines: string[] = []
+  const push = () => {
+    const body = lines.join('\n').trim()
+    if (body || heading !== null) sections.push({ heading, body })
+  }
+  for (const raw of description.split('\n')) {
+    const line = raw.trim()
+    if (isHeadingLine(line)) {
+      push()
+      heading = line.replace(/\s*:$/, '')
+      lines = []
+    } else {
+      lines.push(raw)
+    }
+  }
+  push()
+  return sections.length > 0 ? sections : [{ heading: null, body: description }]
 }
 
 export function listPipeline(): PipelineEntry[] {
@@ -122,6 +211,24 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
     },
     ...rest,
   ])
+}
+
+/** Move several tracked jobs to a status in one write, appending to each timeline. */
+export function updateStatuses(ids: readonly string[], status: JobStatus): PipelineEntry[] {
+  const set = new Set(ids)
+  const now = Date.now()
+  return savePipeline(
+    listPipeline().map((e) => {
+      if (!set.has(e.job.id) || e.status === status) return e
+      return { ...e, status, updatedAt: now, history: [...timelineOf(e), { status, at: now }] }
+    })
+  )
+}
+
+/** Untrack several jobs in one write. */
+export function removeManyFromPipeline(ids: readonly string[]): PipelineEntry[] {
+  const set = new Set(ids)
+  return savePipeline(listPipeline().filter((e) => !set.has(e.job.id)))
 }
 
 /** Save free-form notes on the pipeline entry for a job. */

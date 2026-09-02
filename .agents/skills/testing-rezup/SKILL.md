@@ -5,6 +5,18 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 
 # Testing RezUp
 
+## R198 lessons — ruled-entry templates (Circuit/Ledger) & preview/export divider QA
+
+- Builder template gallery cards: the card name lives in the sibling `[aria-label="Save <Name> template"]` button; the clickable card itself is the adjacent button whose `title` is the template *description* (e.g. "Serif with ruled entries…") — matching by name text or thumb SVG picks the wrong element.
+- Preview entry dividers are inline styles: select with `d.style.borderTop === '1px solid rgb(228, 228, 228)'` (attribute-regex on `#e4e4e4` misses because React serializes rgb()). Count expectation = (entries−1) per multi-entry section; grouped experience adds one per 2nd+ role inside a group plus one per 2nd+ company group, with no nesting.
+- The preview paper is ~1600px tall — divider rows sit far below the 761px viewport and normal screenshots won't show them; use `Page.captureScreenshot` with `clip` + `captureBeyondViewport:true` around the divider rects for visual proof. `scrollIntoView`/`window.scrollTo` doesn't move them (sticky preview column).
+- PDF rule audit: inflate content streams, track `R G B RG` color state and `x1 y1 m x2 y2 l S` segments — hairlines are (0.831,0.831,0.831)=#d4d4d4 at 0.5w spanning 54→558pt; Circuit also has 5 accent heading rules, Ledger none. Verify pixels via `pdftoppm -r 100`: line y_px = (792−y_pt)*100/72 ±3px, color (212,212,212).
+- DOCX rule audit: grep `<w:top w:val="single" w:color="D4D4D4" w:sz="4" w:space="4"/>` — attribute order is color-BEFORE-sz (grepping `w:sz="4"[^/]*w:color` finds 0).
+- Byte-identity checks (TXT/MD across templates) work: sha256 equal across circuit/ledger/classic. ATS score visible as "NN/100" only after pasting a JD into the "Paste the job posting…" textarea.
+- "Stack roles" (groupByCompany) toggle is in the format toolbar: span with text `Stack roles` + Off/On buttons (aria-pressed). Grouping only stacks *consecutive* same-company entries — reorder experience first.
+- Builder "Save current as copy" lives under the header `Copies` dropdown (two clicks: `Copies` → `Save current as copy`).
+- /builder at 375px emulation should have `scrollWidth` 375 (the old 388 overflow was fixed in R199 by hiding the "by Zalize" header tagline below `sm`); only the section-navigator chip scroller may exceed the viewport internally (overflow-x-auto, clipped).
+
 ## CDP mobile-emulation & deep-link pitfalls
 
 - `Emulation.setDeviceMetricsOverride` reverts when the websocket that set it closes — hold a single CDP connection open for the whole mobile pass, and re-check `innerWidth` before judging layout. Pair with `Emulation.setPageScaleFactor(1)` for stable layout metrics.
@@ -278,6 +290,20 @@ Check `curl -s https://cv.zalize.com/api/billing/status` — `{"freeMode":true}`
 - The `type` action into Builder textareas occasionally drops the first character of a line — verify typed text via localStorage/DOM before asserting.
 - The HealthDialog (score breakdown) is reachable two ways: "Full health report — N/100" link in the Resume strength card (desktop left column) and "See full score breakdown" in the ATS score card (the only practical entry on the mobile Preview & score pane). Its Fix buttons are `min-h-10` (40px) on mobile but 16px on desktop (`sm:min-h-0`) — assert touch targets only under 375px emulation.
 
+## R203 /ats-checker Priority fixes notes
+- "Priority fixes" block lives in the results card between the sub-score `<details>` and the keyword tier grid; find via `[...document.querySelectorAll('p')].find(p=>p.textContent.trim()==='Priority fixes')` then `.closest('div.rounded-lg')`.
+- Points math (src/lib/guidance.ts priorityFixes): structure per-check = 30/#checks with JD (Med, 3.8 for 8 checks) vs 100/#checks without JD (High, 12.5); keyword fix = round(70·missing/total); health fix = round((100−score)·HEALTH_WEIGHTS). High iff points≥10 or score<50. Top 5 sorted desc.
+- Emerald empty state needs ALL structure checks passing incl. word count ≥ ~400 words — pad a strong fixture with numbered project bullets to reach it.
+- Check button is disabled while `resumeText.trim().length < 30`; don't mistake that for a broken recompute gate.
+- Uploading a file (DOM.setFileInputFiles on `input[type=file]`) sets checked=false; "Uploaded file checks (name)" only renders inside the results card after clicking Check again.
+- High/Med chips use bg-red-100/text-red-700 with no dark: overrides — the inverted dark palette remaps both (light text on dark bg), measured 7.29:1, OK.
+
+## R204 checker deep-link notes
+- Per-fix "Fix in builder →" buttons: anchor = f.anchor ?? ('target' for the keyword fix). Checker structure checks (scoreResumeText) carry anchors since c08f23e (email/phone→contact, headings/quantified/dates/content/word-count→experience, skills→skills), so structure, writing-dimension, and keyword fixes all jump.
+- CRITICAL: clicking any Fix/carry-over button while the saved builder resume has content fires a native window.confirm that WEDGES the CDP page session (Runtime.evaluate never responds; Page.handleJavaScriptDialog may say "No dialog"). Always stub `window.confirm=()=>true/false` on the page BEFORE clicking, or clear honestcv.resume first. If wedged, recycle the tab: `curl localhost:29229/json/close/<id>` then `curl -X PUT "localhost:29229/json/new?<url>"`.
+- Builder ?jump= handling strips the param via history.replaceState on mount always (even bogus anchors), then jumpToSection after 150ms for known anchors; verify scroll via `[data-section-anchor="<anchor>"]` getBoundingClientRect within ~1s (smooth scroll).
+- Theme button in header: match by aria-label /theme/i (e.g. "System theme — switch to light theme"), not lucide-sun/moon classes (icon can be lucide-monitor).
+
 ## Devin Secrets Needed
 
 None — the seeded test license key is provided by the user per run.
@@ -418,8 +444,312 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - "Uploaded file checks (filename)" section renders only after Check with a file uploaded (paste-only never sets fileChecks); re-running Check after a new drop updates the filename. File checks are NOT counted in the score — verify by comparing score for uploaded vs same text pasted.
 
 ## R190 application timeline + notes on /jobs
-- Detail-pane status buttons TOGGLE: clicking the active status sets 'none' (removeFromPipeline — history/notes lost). "Re-selecting same status doesn't duplicate" refers to upsertPipeline's dedupe guard; exercise it via the row `<select>` with the native value setter + `change` event (React onChange calls setStatus with same status → history unchanged).
+- Detail-pane status buttons TOGGLE: clicking the active status sets 'none' (removeFromPipeline — history/notes lost; R191 adds a confirm dialog when there's meaningful data). "Re-selecting same status doesn't duplicate" refers to upsertPipeline's dedupe guard; exercise it via the row `<select>` with the native value setter + `change` event.
 - Status buttons named 'Applied'/'Interviewing' also exist as pipeline TABS — scope clicks to the detail pane (ancestor of `#job-notes`'s `div.bg-muted/40` box) or you'll switch tabs instead.
 - Notes save on blur only: `.blur()` from CDP is unreliable — `ta.focus()`, set via `HTMLTextAreaElement.prototype` value setter, dispatch `input` then `FocusEvent('focusout',{bubbles:true})`.
 - Selectors: timeline box `div.bg-muted/40` with "Application timeline" `<p>`; chips in `<ol>` "Label · MMM D", last has `bg-primary/10`; notes `textarea#job-notes`; row icon `svg[aria-label="Has notes"]`.
 - Hand-seeded pipeline entries (backward-compat tests) lack `resumeVersionId` → no R188 Tailoring chip for that job (expected fallback, not a regression). Save a fresh job via UI to smoke R188.
+
+## R191 untrack confirm dialog on /jobs
+- Row "Save" button still reads "Save" for jobs tracked as applied/interviewing — clicking the first `/^Save$/` button can hit an ALREADY-TRACKED job and append to its history. Pick the Save button by row title text and verify `pipeline[0].job.title` after saving.
+- The detail pane keeps showing the previously selected job after saving another job — click the target job's row (`button` containing its `<p>` title) before pane status clicks, and confirm via the pane heading.
+- Dialog selectors: `[role=dialog] h2` = `Stop tracking "{title}"?`; first `[role=dialog] p` = description ("its application timeline (N status changes)" and/or "your notes" + "Targeted resume copies stay on your dashboard."); buttons "Cancel" (outline) and "Stop tracking" (`bg-destructive`), both `min-h-10` (40px). Radix adds a 16px "Close" button — exclude it from touch-target assertions.
+- Guard fires only when notes non-blank OR timeline >1 step; fresh saves and legacy synthesized 1-step entries delete immediately with no dialog. On Cancel the row `<select>` still shows the current status (controlled component).
+- R188 chips only render in LIST rows — go Back to list / All jobs before asserting `Tailoring · NN%`; it won't match while a detail pane is open.
+
+## R192 row track-toggle on /jobs
+- Row button is a pure tracking toggle: untracked→"Save"; saved→"Saved" (pressed + `ring-primary/40`); any other status→"Tracked" (pressed + ring). Clicking a tracked state calls setStatus 'none' (routes through the R191 guard) — it never demotes to saved or writes a timeline step.
+- Selector pitfall: a bare `find(b=>['Save','Saved','Tracked'].includes(text))` can hit the detail-pane "Saved" STATUS button — scope to the job row (`rows[0].parentElement.querySelectorAll('button')` where rows = buttons containing the job's `<p>` title).
+- Button heights: `min-h-10 sm:min-h-7` → 40px at 375px viewport, 28px at desktop; assert 40px only under mobile emulation.
+
+## R193 — Next step row on /jobs detail pane
+- Locate row via `[...document.querySelectorAll('p')].find(p=>p.textContent.startsWith('Next step:'))`; its parent contains the action `<button>` (or `<a target=_blank>` for "Apply on site").
+- States by entry.status: rejected → "Search similar jobs" (sets query + All tab); applied/interviewing → "Open interview prep" (navigates to /builder?doc=interview but the query param is consumed immediately — `location.search` will already be empty; assert instead that the "Interview Prep Brief" dialog opened and honestcv.resume targetRole/targetCompany/jobDescription were set); saved + no surviving copy → "Target my resume" (opens `Open a resume targeted at "…" ?` dialog); saved + copy <80% → "Open targeted resume" (opens the copy — honestcv.activeVersionId is stored as a RAW string, not JSON — compare without JSON.parse); saved + copy ≥80% → "Apply on site" anchor with rel noopener noreferrer.
+- To force ≥80%: paste all missing keywords (from `button[aria-label^="Draft a bullet using"]` labels) into the copy's `#skills` textarea.
+- Dashboard "Delete <copy name>" button: match on aria-label OR textContent (`(aria-label||'')+textContent`).includes — matching only aria-label was flaky; confirm dialog button text is "Delete".
+- Desktop next-step button computes 32px (size=sm h-8; sm:min-h-7 is only a min); mobile 40px (min-h-10).
+
+## R194 — stale-application nudge on /jobs
+- staleDays reads the LAST timelineOf step's `at` (not updatedAt) and only for applied/interviewing; to simulate, edit honestcv.jobPipeline setting both `entry.updatedAt` and `entry.history[last].at` to `Date.now()-N*86400000`, then reload (row recency text reads updatedAt; nudge reads last history step).
+- Row pill selector: `[...document.querySelectorAll('span')].find(s=>/^No update ·/.test(s.textContent.trim()))`; detail line: `p` matching /^No update in/ — sits between the timeline `<ol>` and the "Notes" label.
+- Status recency `"{Status} N days ago"` spans use `span.text-primary` and (since R194) render on the All tab too. Note: `Applied · <date>` timeline chips also match /Applied/ text filters — scope selectors carefully.
+- Dark mode remaps amber via oklch (pill bg oklch(0.33 0.07 80), text oklch(0.88 0.11 88)) — assert computed styles, not Tailwind class names.
+
+## R195 — location priority split on /jobs
+- With a non-empty location input on the All tab, the list splits: direct matches (location contains input, case-insensitive) first, then location-agnostic jobs ('' | exactly 'remote' | word worldwide/anywhere/global) under a `<p class="bg-muted/60 …">Open to any location (N)</p>` divider rendered inside the same `<ul>` before the first agnostic row. Divider selector: `[...document.querySelectorAll('p')].find(p=>/^Open to any location/.test(p.textContent.trim()))`.
+- Set the location input via the native value setter + `input` event on the input whose placeholder matches /Location/ (placeholder "Location, e.g. Europe").
+- When validating row grouping, read FULL row textContent — truncating to the first ~60 chars can miss the location and produce false negatives (locations render late in the row).
+- Divider only on All tab with non-empty location and non-empty agnostic group; status tabs and cleared input never show it. Zero-direct-match term (e.g. "Mars") puts the divider at the top; term+category matching nothing shows "No jobs found — try another search term" with no divider.
+- Sort (Relevance/Newest) applies within each group independently; assert via posted-ages sequences per group, groups never mix.
+
+## R196 — Tracked overview tab on /jobs
+- Tab button text is `Tracked (${pipeline.length})`; sits between "All jobs" and per-status tabs. Group headers reuse the R195 divider styling — selector `ul p.bg-muted\/60`, text `{Status label} ({count})`, rendered only when tab==='tracked' and a row's status differs from the previous row's; zero-count groups get no header.
+- Queue order: JOB_STATUSES order (saved→applied→interviewing→rejected), updatedAt desc within a group. Seed via honestcv.jobPipeline with varied `updatedAt` per SKILL backdating recipe.
+- Caveat: changing a row's status (or any status move) refreshes `updatedAt`/last history step to now, so a previously stale entry loses its R194 nudge — re-backdate after status moves if you need staleness again.
+- Search form, sort select, and the "Hide:" row are All-tab-only — assert their absence on Tracked.
+- Row select on Tracked rows works for live group moves: set value via native setter + change event; headers/counts update immediately without reload.
+
+## R197 — accurate "Edited" timestamp on dashboard copies
+- After a full localStorage cleanup the dashboard is in empty state: seed a draft via "Create new resume" → dialog → "Create resume" button (lands on /builder, writes honestcv.resume once you type into a field, e.g. #c-fullName). Sample-card buttons only open a read-only preview dialog with "Save sample" — they do NOT load the editor.
+- Dashboard card buttons are found by title attribute: "Duplicate this copy", "Move to folder", "Edit name & target job", "Delete this copy" — except the "Open" button, which has an EMPTY title (match by textContent 'Open'). Open shows dialog "Open "{name}"?" with buttons "Save draft as copy, then open" / "Open and replace draft".
+- Recency text: `editedAgo` renders "Edited today / Edited N days ago"; default sort is updatedAt desc — backdate honestcv.resumeVersions[i].updatedAt to test.
+- Bump rule (resume.ts updateResumeVersion): bumps only when patch.data JSON !== loaded v.data JSON. Pitfall: v.data is passed through sanitizeResume on load, which drops empty-string enum fields (e.g. experienceLevel:'' → undefined), while the Resume settings dialog patches experienceLevel:'' — so dialog saves used to bump even with no user change when the level was unset. FIXED in commit 2723c30 (bundle index-3pI0ilHM.js): both sides are now sanitized before comparing — no-op dialog saves keep the timestamp regardless of level.
+- "Target my resume" on a saved job creates + links a copy quickly; the confirm dialog may be missed at 1s polling — assert the outcome (new version newest updatedAt + pipeline resumeVersionId set) instead.
+
+## R200 — Sidebar (sideLabels) template
+- Selectors: side-label headings are the `h3` elements with inline `style.position==='absolute'` (left 0, width 74px); their parent section wrapper has `position:relative; padding-left:86px` and carries the jump `title="Edit {Section}"` — click the wrapper (not the h3) to test section jump.
+- Inline heading rename: the h3 contains a `span[contenteditable]` (InlineText). Programmatic rename: focus → set textContent → dispatch input → blur; persists to `resume.sectionHeadings` (deleted when set back to empty/default).
+- PDF geometry for sideLabels: MARGIN=54pt, content x0=150pt (MARGIN+96); labels drawn at x=54 on the first content baseline with font autoshrink to fit the 86pt gutter. pdfminer may cluster adjacent gutter labels together in extract_text — use `pdftotext` (default or -raw) to prove heading-then-content reading order.
+- Theme button cycles (light→dark→system); click in a loop until `document.documentElement.classList.contains('dark')` flips, don't assume one click. Dark-mode paper check: walk up from an h3 to the first ancestor with computed background `rgb(255,255,255)`.
+- Cleanup gotcha: builder visits also create `honestcv.resumeHistory` and `honestcv.templateRecents` — remove them too to hit the exact baseline `["honestcv.clientId","honestcv.qa"]`.
+
+## R201 — instant local Practice score in Interview Prep
+- Reach: header "Interview prep" button → "Interview Prep Brief" dialog → "Practice an answer" area; answer textarea is `#practice-answer`, JD textarea on the builder page is `#jd`. Card renders only when the answer has ≥10 words; use the native value setter + input event to type programmatically.
+- Score is deterministic (src/lib/interviewAnalysis.ts): lengthPts (25 ideal 40–250w / 15 long / round(words/40*15) short) + 10 per STAR hit + kwPts round(covered/total*30, only with JD) + delivery (fillers ≤1→8, ≤3→4, else 0; +7 unless we-heavy). Without JD: renormalized ×100/70. You can assert the exact rendered NN/100.
+- Dark-palette pitfall (general): the app INVERTS color scales in dark mode via src/index.css `@variant dark` overrides — `-50…-300` tokens become dark (~27–47% L) and `-600…-900` become light, while `-400/-500/-950` keep Tailwind defaults. So `dark:text-*-300` on `dark:bg-*-950` is low-contrast (~2.3:1); safe dark text tokens are `-400` or the remapped `-700/-800`. Check computed oklch values, not class names. (STAR chips fixed to `dark:text-*-400` in commit e2909df / bundle index-AwpkB_1d.js; re-measured 7.8:1 / 8.7:1.)
+
+## R202 — two-tier missing keywords (High priority / Remaining)
+- Builder score breakdown: group labels are `span`s matching /^High priority \(\d+\)$/ (red-700) and /^Remaining \(\d+\)$/ (amber-700); chip buttons carry titles `Add to Skills`, `Draft an experience bullet using "kw"`, `Not relevant to me — exclude "kw" from the score`; Ignored restore button aria-label `Restore kw…`. /ats-checker groups are `p` elements "High priority (h) — title, requirements or repeated in the posting" / "Remaining (r) — also mentioned in the posting".
+- To force BOTH groups: JD with a title first line + a pre-"Requirements:" paragraph of once-mentioned single words (those land in Remaining) + a Requirements block (everything after the heading is high). The stock EXAMPLE_JD makes ALL missing high (Remaining group not rendered).
+- /ats-checker: editing a textarea hides the results card — click "Check my ATS score" again to re-render. For "Nothing missing", set JD to a word-boundary-safe slice of the resume textarea (mid-word cuts create bogus missing tokens like "depl").
+- Mobile builder: score breakdown lives in the right pane — tap the bottom-bar button labeled "Preview & score" (not "Preview") to reveal it at 375px.
+- CDP screenshot pitfall: with `captureBeyondViewport:true` the clip is in PAGE coordinates — use `getBoundingClientRect() + scrollX/scrollY`, not raw viewport coords, or you'll capture the wrong region.
+
+## R205 — JD-aware "Draft my summary" (Builder → Summary)
+- Trigger: Summary section shows "Draft from my resume" only when summary is EMPTY (clear the textarea after "Load an example resume"). Dialog title "Draft my summary"; action button is **"Write 3 drafts"** (not "Draft").
+- JD note gating: dialog description appends " Wording is tailored toward your target job description." iff resume.jobDescription.trim() is nonempty (set via the Target job textarea, `[data-section-anchor="target"] textarea`).
+- Payload: POST /api/ai/summary-draft includes `jobDescription` verbatim only when a JD is loaded; omitted entirely otherwise. Intercept with Fetch pattern `*summary-draft*`; mock response shape `{"text":"…","texts":["a","b","c"],"freeRemaining":null}` renders 3 candidates labeled Concise / Impact-focused / Keyword-focused.
+- CRITICAL Fetch-intercept pitfall (cost 1 quota here): after clicking, check the helper's `c.events` buffer BEFORE calling `ws.recv()` — the `Fetch.requestPaused` event is often swallowed by the click's Runtime.evaluate round-trip and stored there. If your script exits with a request still paused, the session close auto-continues it as a REAL call.
+- Quota: production runs in launch mode — `/api/ai/quota` returns `{"freeRemaining":null}` and the "N free AI uses left" label never renders, so quota decrement is NOT observable on prod.
+- The page-wide scrollWidth 1457@1440 is pre-existing (scrollbar-related), not a dialog overflow; dialog rect fits.
+
+## R206 — "Suggested bullet" review dialog (Builder → experience entry)
+- Triggers per entry: "Suggest a bullet" and "…with key numbers" buttons; POST /api/ai/suggest-bullet (payload: role, company, bullets[], resumeText, + variant:"key-numbers" for the nums button). Intercept pattern `*suggest-bullet*`; mock shape `{"text":"- …","freeRemaining":null}` — leading "- "/"•" is stripped client-side.
+- Dialog: title "Suggested bullet", textarea `textarea[aria-label="Suggested bullet text"]`, buttons "Apply to entry" (disabled when text empty; appends FIRST LINE only), "Regenerate" (same variant re-call), "Cancel" (no mutation). Apply/Cancel/Regenerate are min-h-10 (40px) on mobile, sm:min-h-9 (36px) desktop.
+- "Need ideas? Show bullet starters" (R186 BulletIdeas) is an inline TOGGLE, not a dialog/popover — after clicking, assert the "Hide bullet ideas" button and "+ [add …]" starter buttons exist.
+
+## R207 — uploaded-file font checks (/ats-checker + Builder import)
+- New checks appended to "Uploaded file checks": "Body text at least 9pt" (PDF: hypot(transform[0],transform[1]) per pdf.js item; DOCX: w:sz half-points <18, runs without w:sz assumed fine; fail iff >25% of chars small, hint "NN% of the text is smaller than 9pt…") and "No icon-font glyphs" (/[\uE000-\uF8FF]/ over extracted text; PUA chars are NOT stripped from extraction).
+- Fixture recipes: PDFs via reportlab (`canvas.setFont('Helvetica', 7|10.5)`); a PUA-bearing PDF works with DejaVuSans TTF (`pdfmetrics.registerFont(TTFont(...))`, draw '\uf000') — pdf.js extracts the PUA char intact. DOCX: hand-built zip ([Content_Types].xml, _rels/.rels, word/document.xml) with `<w:rPr><w:sz w:val="14|22"/></w:rPr>` runs.
+- File-check DOM: `p` starting "Uploaded file checks" → parent div → `:scope > div.flex` rows; pass = svg.text-emerald-600, fail hint in `span span.text-muted-foreground`. (They're divs, not li.)
+- Theme control on /ats-checker is a CYCLE TOGGLE button (aria-label like "System theme — switch to light theme"), not a menu — click repeatedly until `documentElement.classList.contains('dark')` flips.
+
+## R208 — reverse-chronological experience check
+- Check "Experience in reverse-chronological order" (anchor 'experience') in BOTH scoreResume and scoreResumeText; checker structure now has 9 checks (fix = 30/9 ≈ +3.3 with JD, 100/9 ≈ +11.1 without), Builder breakdown is a 10-point checklist.
+- Builder breakdown rows use TEXT glyphs ✓/✗ (no svg) — assert `row.textContent.startsWith('✓'|'✗')` on the `.flex.items-start` ancestor of the label leaf; /ats-checker rows still use svg (emerald vs destructive).
+- priorityFixes caps at top-5 by points (guidance.ts limit=5) — a +3.3 fix is crowded out on weak fixtures; to surface a specific structure fix in the list, use a strong fixture (or no JD) so its points rank top-5.
+- Checker text path only scans date ranges between an Experience heading and the next standard heading; "Work history" is NOT a recognized heading (check passes with no experience heading).
+
+## R211 — no-first-person-pronouns check
+- "Part I <lowercase word>" matches PRONOUN_RE by design (subject-verb pattern); for negative fixtures use trailing "Part I." or "Phase I of" forms. Checker structure has 12 checks, Builder breakdown 13 rows.
+
+## R213 — locations-on-each-entry check
+- Checker fixtures exercising the fail path must use comma-free headers ("Role at Company") — "Role, Company" headers match LOCATION_LIKE_RE and false-pass by design (lenient direction). Segments include up to 2 header lines above each date range. `/api/ai/quota` fires on Builder load — exclude it from zero-AI assertions. Checker structure has 14 checks, Builder breakdown 15 rows.
+
+## R214 — dates-use-a-written-month check
+- Numeric dates in any of `08/2021`/`08.2021`/`08-2021` forms fail with an "Aug 2021" suggestion; bare years and Present/ongoing are skipped (all-bare-year resumes pass both date checks). On weak fixtures the +6.7 fix can be crowded out of the top-5 priority list (R208 cap) — use a stronger fixture to assert its Fix → deep link. Checker structure has 15 checks, Builder breakdown 16 rows.
+
+## R215 — professional-file-name uploaded-file check
+- File-check row counts: PDF 7 / DOCX 8 / TXT 2 (display-only, never scored — upload score must equal paste score). Fail path needs junk tokens (final/draft/copy/v2/standalone 1–2-digit counter) or a missing resume/cv token; 4-digit years are allowed. The "Uploaded file checks" heading is a `<p>` with a child `<span>` (file name) — locate it via `[...document.querySelectorAll('p')].find(x=>/Uploaded file checks/.test(x.textContent))` and count `.flex.items-start` rows inside its parent.
+
+## R216 — active-voice-in-bullet-points check
+- PASSIVE_RE only matches be-verb + `-ed`/irregular participle (built/made/written/led…), so "was responsible" does NOT trigger — use "was built"/"were written"-style fixtures. Checker feed = bullet-marker lines only (guard pass when text has zero markers; passive summary prose never triggers). Structure rows: checker 16 / Builder 17.
+- The /ats-checker "Uploaded file checks" section only renders after clicking "Check my ATS score" — selecting a file alone doesn't surface it.
+
+## R217 — buzzword check + theme-toggle capture pitfall
+- Scored buzzword list (first match wins, in order): synergy, go-getter, think outside the box, team player, hard worker, detail-oriented, results-driven, self-starter. "Results-driven team player" quotes "team player" (list order, not text order). dynamic/proactive/passionate/motivated are guidance-only, never scored. Rows: checker 17 / Builder 18.
+- The theme toggle's aria-label can match both /dark/ and /light/ patterns depending on state, so scripted toggles can invert. Loop until document.documentElement.className contains/lacks `dark` before capturing theme evidence, and verify the capture's corner pixel (~rgb(18,22,29) dark bg).
+
+## R218 — quantified-bullets check
+- Pass rule: bullet lines with a digit ≥ max(1, ceil(total/3)); zero lines guard-pass. Checker counts only bullet-marker lines (header/date/phone digits never count). Rows: checker 18 / Builder 19.
+- For exact-ratio Builder fixtures, empty r.projects / r.involvement / r.customSections first — each project/involvement description counts as one line in the bullet feed, so leftover sample content skews totals.
+- The R203 "Quantified impact" writing dimension renders on /ats-checker (health dimensions), not the Builder breakdown.
+
+## R219 — punctuated-bullets check
+- Fail when any trimmed bullet line lacks /^[A-Z0-9]/ start or /[.!?]$/ end (first offender quoted, 60-char truncation). Digit starts and !/? endings pass; blank/zero lines guard-pass. Rows: checker 19 / Builder 20.
+- The built-in sample resume bullets were punctuated in this round; a fresh Load-example sample scores 99/100 with only "Skills grouped into categories" and "Word count" rows failing (pre-existing, by design).
+
+## R220 — bullet-length check
+- Fail when the first trimmed bullet line has <4 or >30 words (whitespace split); hint quotes line (60-char truncation) with exact word count. Rows: checker 20 / Builder 21.
+- Word-count boundary fixtures must be verified with an actual split count before use — hand-written "30-word" sentences are often off by one.
+
+## R221 — page-count check (Builder-only)
+- "Fits the recommended page count": allowed 2 pages only when experienceLevel === 'executive', else 1; pages==null guard-passes (dashboard/versions/pre-measurement). Rows: checker 20 (unchanged) / Builder 22. Fed by the debounced (~800ms) usePdfLength measurement — expect ✓→✗ flip ~1s after load on an over-length resume.
+- Builder breakdown renders hints only for failing rows (pass hints exist in code but never display), and Builder Priority fixes use High/Med badges with no "+pts" chips (that chip UI is /ats-checker-only) — verify score contributions via the "Structure N" sub-score instead.
+- The length meter is fractional (pages−1+fill): "3.07 pages" means a 4-page PDF; the check hint uses the true page count.
+
+## R222 — filler-words check
+- "No filler words" list-order: just, very, really, various, several, stuff, things, etc — word-boundary, case-insensitive except "stuff"/"things" (lowercase-only so "Internet of Things" passes). Anchor routes summary vs experience like R217. Rows: checker 21 / Builder 23.
+
+## R223 — weak-opener check
+- "Strong bullet openers" fails only when the bullet STARTS with a weak opener (startsWith, case-insensitive); mid-line "responsible for" passes. WEAK_OPENERS now lives in ats.ts (guidance imports it). Rows: checker 22 / Builder 24.
+
+## R224 — category grouping (presentation-only)
+- Structure checks carry `category` (content/format/bestPractices) and render grouped under 3 uppercase headers with "· passed/total" counts: Builder 12+5+7=24 `<li>` across per-category `<ul>`s inside `div.space-y-3`; checker 11+4+7=22 row divs under `div.space-y-4` groups (skip the leading "Format & content checks" `<p>` title). Count rows across all groups for denominators — scoring arithmetic is unchanged from R223.
+- Routing follows Rezi docs: mixed date formats → FORMAT; written-month + LinkedIn + locations + word count + skills rows → BEST PRACTICES; all bullet-quality rows → CONTENT.
+- Fresh sample baseline (unchanged since R219): Structure 92 with 2 pre-existing Best-practices fails (Skills grouped, Word count) — the sample is NOT fully green.
+
+## R225 — session-scoped "Fixed" chips (presentation-only)
+- Builder: a structure check that transitions fail→pass during the session shows an emerald "Fixed" chip after the label; regressing removes it, re-fixing restores it, reload clears all (no persistence). Checker: rows failing in the previous scan and passing in the new one show "Fixed since last check"; first scan marks nothing; chip set recomputed per scan. Loading the example onto an empty resume legitimately marks the newly-passing rows Fixed (accepted as-designed).
+- The site's `.dark` block remaps Tailwind color variables INVERTED (e.g. `--color-emerald-300` is dark, `--color-emerald-800` is light), so `dark:*-300/800` classes render the opposite of upstream Tailwind — verify dark-mode colors from rendered pixels (clipped `Page.captureScreenshot` with `captureBeyondViewport:true` at high scale), never from class names. The chip therefore uses plain `bg-emerald-100 text-emerald-800` and lets the inverted tokens handle dark mode (8.44:1 dark / 6.70:1 light).
+- `getBoundingClientRect` after `scrollIntoView` can still be off-viewport inside scrollable panels — use document coords + captureBeyondViewport for clips.
+
+## R226 — Application-ready readiness strip (presentation-only)
+- `applicationReadiness(ats)` in ats.ts: tier from overall score (≥90 ready / 50–89 almost / <50 not-yet), blockers = per-category failing counts + keyword blocker (`keyword match at N% (M missing)`) when JD present and keywordScore<70, capped at 3 (keyword blocker sliced off first when 3 categories fail). Strip renders atop the Builder breakdown list and under the checker "Format & content checks" heading; plain `*-100/*-800` emerald/amber/red pairs (inverted dark tokens; measured dark 8.44/8.62/7.28:1).
+- The Builder header shows BOTH `ATS {ats.score}/100` and `Writing {health.score}/100` — match `ATS (\d+)\/100`, a naive `/(\d+)\/100/` grabs the Writing score.
+- With no JD ats.score == structureScore; with JD it's round((kw·70+structure·30)/100) — a fully mismatched JD is the reliable way to force score <50 (structure fails alone bottom out ~71).
+- Direct `localStorage.setItem('honestcv.resume',…)`+reload can be overwritten by in-flight autosave — prefer UI edits (native setter + input event) when flipping one field.
+- Theme toggle cycles light→dark→system; verify via aria-label and remove `honestcv.theme` before asserting the storage baseline.
+
+## R227 — assistant bullet proposal (@@APPLY bullet)
+- The Resume assistant opens via the header button whose `title` starts with "Resume assistant —" (title, not aria-label); the chat input placeholder is "Ask about your resume or job search…" and submits via its enclosing form's `requestSubmit()`. Poll for reply completion by counting `p` elements starting with "Proposed".
+- Assistant history lives in `honestcv.assistantChat` as a plain array of `{role,content[,action,applied]}` — appending a crafted turn with an `action` object and reloading renders a fully functional proposal card, which is the deterministic way to test apply-path edge cases (e.g. entry-mismatch fallback) without burning AI quota.
+- Bullet apply targets the first non-hidden experience entry whose company or role substring-matches `entry` (either direction, case-insensitive), falling back to the first visible entry; it appends to `bullets` after filtering blanks.
+
+## R228 — assistant bullet rewrite (`replace` field) + quota
+- Since R228 the bullet action takes an optional `replace`; the card then reads "Proposed rewrite · <entry>" with a "Replace bullet" button, and apply swaps the first bullet in the target entry that case-insensitively substring-matches `replace` (either direction) in place (count/position preserved); no bullet match → append.
+- The free AI quota is keyed to `honestcv.clientId` (KV per-fingerprint; 12 calls in FREE_MODE, 5 otherwise, 30-day window). When the panel shows "You have used all free AI calls for now", rotate to a fresh random clientId for the needed real calls and restore the original id in cleanup (final localStorage baseline unchanged).
+- Prompt phrasing matters for the rewrite form: "Rewrite my bullet '…' at <company> …" may return prose with no @@APPLY; Rezi's doc phrasing "Can you rewrite this bullet point to sound more results-focused? '<verbatim bullet>' (<company>)" reliably produced the rewrite action.
+- "Applied to your resume" labels are easiest to count via `document.body.innerText.match(/Applied to your resume/g)` — element-based selectors miss it because the label node has children.
+
+## R230 — assistant "Show in editor" + CDP practicalities
+- Proposal cards carry a ghost MapPin "Show in editor" button pre- AND post-apply; it never mutates the resume (assert `honestcv.resume` byte-identical). Locate ring flash is `ring-primary/60` for ~1.6s — capture it with a MutationObserver/class watcher, not a timed screenshot. <640px closes the panel first; ≥640px keeps it open side-by-side.
+- The standing cv.zalize.com tab can vanish between rounds — reopen with `curl -X PUT "http://localhost:29229/json/new?https://cv.zalize.com/builder"`.
+- When pixel-measuring small/thin UI text (ghost buttons), the most-common-color heuristic returns anti-aliased edge colors and fakes contrast failures — use the lightest (or darkest) text-core pixel plus a `getComputedStyle` cross-check.
+
+## R231 — matched-keyword preview highlight (CSS Custom Highlight API)
+- The Target job / Matched panel lives in the preview column (`hidden lg:block`); at <1024px reach it via the bottom "Edit/Preview" pane switcher (`[aria-label="Switch between editing and preview"]`).
+- `Emulation.clearDeviceMetricsOverride` can silently fail to restore desktop width on this tab — set an explicit 1600×900 override instead, and always assert `innerWidth` before capturing desktop evidence.
+- CSS Highlight ranges are enumerable via `for (const r of CSS.highlights.get('kw-match'))` with `r.toString()` — the cheapest exact assertion of what's painted. Multi-word phrase paint only comes from the KNOWN_PHRASES list in ats.ts; arbitrary JD bigrams tokenize into single words.
+
+## R232 — photo crop dialog + download/file-input practicalities
+- PDF/DOCX download is email-gated in beta: fill the "Unlock downloads" dialog once (any email; sets `honestcv.subscribed`), then a "Final check before download" dialog needs "Download anyway". Remove `honestcv.subscribed` (and any `resumeHistory`/`shared` side keys) in cleanup.
+- CDP downloads may silently fail with `Browser.setDownloadBehavior behavior:'allow'` — use `allowAndName` and look for a GUID-named file in the download path.
+- `DOM.setFileInputFiles` on the `input[type=file][accept^=image]` reliably drives the photo picker without a native dialog; a deterministic marker fixture (solid color + off-center marker square) lets you assert crop framing by decoding the committed 256×256 JPEG pixel counts.
+
+## R233 — interview timer determinism + zero-AI session flows
+- The practice timer reads `Date.now` inside a 250ms interval — override with `const RD=Date.now; let off=0; Date.now=()=>RD()+off*1000` before starting the timer for deterministic elapsed/auto-expiry tests; restore by reloading the page.
+- Practice sessions ("Next question"/"End early") only exist after AI-suggested questions — stub `window.fetch` for `/api/ai/interview-questions` with canned `{questions:[…],freeRemaining:null}` to exercise session flows with zero AI usage; restore the real fetch afterward.
+- After a viewport reload, wait for state to settle before scripted clicks — a Stop-timer click racing the first interval tick can silently yield no delivery rows.
+- The interview-practice dialog card background is semi-transparent (`oklab(... / 0.5)`), so computed-style contrast ratios against it are invalid — always use the rendered core-pixel method (median-luminance background vs top-percentile text pixels from a screenshot crop). (R236)
+- Template picker thumbs are `button.w-16` inside `span.relative` wrappers; select by trailing name match (`textContent.trim().endsWith('Modern')`) since thumb text contains a full mini-resume. The resume owner's name lives at `resume.contact.fullName` (not `resume.name`); the matching UI input is the one whose value equals it. (R237)
+- Cover Letter dialog: company input id is `company` (not `cover-company`); the AI button is labeled "Generate" and after any result the offline button becomes "Start from a template" — match `/template/i`, not the initial label. React controlled inputs in these dialogs may reject the native-setter+input-event trick — use `focus()+select()` then CDP `Input.insertText`. (R238)
+- Export filename assertions without saving files: override `HTMLAnchorElement.prototype.click` to record `a.download` (and wrap `URL.createObjectURL` to stash blobs for byte inspection) — every export (pdf/docx/md/txt, letters, dashboard) funnels through `downloadBlob` in src/lib/download.ts. The free-download email gate (`honestcv.shared` unset → "Downloads are free during the beta" dialog, input `#free-email`) fires before the final-check dialog. (R239)
+- Assistant panel: opens via the ghost icon button with `title` starting "Resume assistant" or the `?assistant=1` deep link; quick-task labels are 'Improve my ATS score' / 'Draft my summary' / 'Suggest skills' / 'Target my job' / 'Find matching jobs' (the last is fully local — zero /api/ai calls, persists a `jobsQuery` field on its turn in `honestcv.assistantChat`). Theme toggle is the button whose aria-label matches /switch to/i. (R240)
+- /jobs board: list rows are `main li > button` (click the inner button, not the li); detail-pane actions are labeled "Target my resume" / "Cover letter" / "Save". Fixture listings can be injected by wrapping `window.fetch` for `/api/jobs/search` returning `{jobs:[JobListing]}` (fields: id,title,company,category,type,location,postedAt,salary,url,description). Job descriptions render as structured sections (uppercase h3 per heading-like line) since R241 — display-only; Target/cover copy the raw description. (R241)
+- /jobs list rows show title/company/location but NOT job type — type appears only in the detail pane, so type-based assertions should compare against the `/api/jobs/search` payload. Status exclusions are toggle buttons inside `[aria-label="Hide jobs you are already tracking"]` ("Hide: …"), not checkboxes. React `<select>`s (type/category/sort/row status) are reliably driven via the native value setter + bubbling `change` event. (R242)
+- /jobs filter inputs are addressable by `aria-label`: "Filter by job type" (select), "Filter by skills" and "Filter by location" (text inputs). Skills semantics: comma-split AND; word-boundary regex only when a term starts/ends with a word char — replicate expected counts against the `/api/jobs/search` payload with the same regex. The theme toggle (`aria-label` matching /switch to/i) intermittently needs a second scripted click before `document.documentElement.classList.contains('dark')` flips — verify state after clicking. (R243)
+
+## R244 — skill-tag chips on the jobs detail pane
+- /jobs list rows are `main li button.block` (the li also contains Save/status controls, and the detail pane has its own timeline `li`s — never count bare `main li` as result rows).
+- Skill-tag chips live in the detail-pane container whose leading sibling span text is exactly "Skills:"; chips are buttons with `aria-pressed`, the expander button matches `/^\+\d+ more$/` (first 10 chips shown collapsed; expansion is remembered per job id).
+- Since R244 the skills-filter haystack is `title\ndescription\ntags.join('\n')` — expected-count replicas must include `tags` from the `/api/jobs/search` payload (worker cache key jobs:v4 carries `tags: string[]`, ≤24, deduped).
+- Theme toggle cycles light→dark→system: restore light by clicking until its aria-label starts "Light theme", verifying `document.documentElement.classList.contains('dark')` after every click (the earlier "needs a second click" note was this 3-state cycle, not a bug).
+
+## R245 — repeated-skills strip on the Tracked tab
+- The strip lives in the Tracked list column: locate via a span with exact text "Repeated skills:"; chips are sibling buttons with `aria-pressed`; the amber dot is `span[aria-label="Not on your resume yet"]` inside the chip.
+- Untracking from a Tracked row = clicking the active status button (e.g. "Saved") — there is no "Untrack" button; jobs with notes/timeline pop a "Stop tracking" confirm dialog.
+- After any page reload, set search/filter inputs via the native value setter + input event and submit via `form.requestSubmit()` — `Input.insertText` alone can silently leave React state stale, making fetch interceptors appear broken.
+- A minimal resume draft can be seeded as `honestcv.resume` = `{"contact":{...},"skills":"..."}` to drive resume-matching features.
+
+## R246 — Builder tool dialogs (BundleToolDialog)
+- Input ids: company `#company`, addressee `#cover-addressee`, highlights textarea `#cover-highlights`. The AI submit button is labeled "Generate"; the offline path is "Start from a template".
+- The AI call is blocked client-side ("Paste the job description…") unless `resume.jobDescription` is non-empty — seed it via the `honestcv.resume` draft before payload-capture tests.
+- Download filenames: monkey-patch `HTMLAnchorElement.prototype.click` and read `this.download`.
+
+## R247 — /jobs pipeline + Builder param notes
+- Per-row status control on /jobs is a `<select>` (aria-label `Status of <title> at <company>`, options none/saved/applied/interviewing/offer/rejected) plus a Save/Tracked toggle button; the 5 status buttons live only in the detail pane.
+- Timeline `<li>`s after the first are prefixed with "→" — read the whole `<ol>` after the "Application timeline" `<p>` rather than regexing items.
+- Fixture jobs injected for `/api/jobs/search` must include `type` and `category` or the type filter yields 0 rows.
+- Builder strips consumed `?doc=`/`?jump=`/`?example=` params via `history.replaceState` — assert the opened dialog, not the URL.
+- Tracking a job auto-creates a targeted copy in `honestcv.resumeVersions` — remove it during cleanup.
+- CDP websockets on this box need `suppress_origin=True` (Chrome 403s the localhost Origin).
+
+## R248 — file import + CDP screenshot notes
+- Hidden file inputs: drive via CDP `DOM.setFileInputFiles` on the node from `DOM.querySelector` — fires React's `change` handler, no chooser needed. Doc-import input: `input[aria-label="Import a cover letter file"]`; resume drop-zone input is the un-labelled `input[type=file]`.
+- `Page.captureScreenshot` clip coordinates are document-relative — add `scrollX/scrollY` to `getBoundingClientRect` values or crops of scrolled elements land on wrong pixels.
+- Career-doc download filenames use the letterhead (resume draft) name — seed `honestcv.resume` with `contact.fullName` before asserting R239 naming, else you get the `cover-letter.*` fallback.
+- Deterministic fixtures: a minimal DOCX (zip with `[Content_Types].xml` + `word/document.xml`) and a 5-object PDF with a `Tj` text stream both parse in the app's extractors.
+
+## R249 — /jobs bulk actions selectors
+- Tab strip: first button is labeled "All jobs" (no count); the rest are "<Label> (N)" — don't regex `/^All \(/`.
+- Bulk bar: `[role=group][aria-label="Bulk actions on tracked jobs"]`; checkboxes `input[aria-label^="Select "]`; move select `select[aria-label="Move selected jobs to a status"]`.
+- Bulk-untrack Cancel preserves the selection; "Clear" empties selection but keeps bulk mode on.
+
+## R250 — interview practice + oracle notes
+- Builder does NOT pick up a `jobDescription` written raw into `honestcv.resume` before load — paste into the visible `#jd` Target-job textarea instead.
+- Deterministic oracle for the local analysis libs: `npx tsx --tsconfig tsconfig.app.json <script importing @/lib/...>` from the repo root (plain tsx fails on the `@/` alias).
+- Interview practice answer field is `#practice-answer` inside the `?doc=interview` dialog; analysis renders only at ≥10 words.
+- Builder editing auto-creates `honestcv.resumeHistory` — remove it during cleanup to hit the exact baseline.
+- For borderline contrast, confirm with exact computed colors composited via canvas — the 2%/98% pixel-percentile method underestimates on thin antialiased text.
+
+## R251 — /jobs tailoring report + inverted dark palette
+- The dark theme inverts color scales in src/index.css (amber-50..300 → dark surface tones, amber-600..900 → light text tones). When checking `dark:*-300`-style contrast, read the CSS variable via getComputedStyle rather than assuming Tailwind defaults; utilities WITHOUT a `dark:` text override are often the correct high-contrast choice (HP chips went 2.27:1 → 10.46:1 by dropping `dark:text-amber-300`).
+- R245 repeated-skills strip and R244 chips derive from `job.tags` — pipeline fixtures need `tags` arrays on ≥2 jobs for the strip to render.
+- R251 tailoring-report open state (`reportOpenId`) persists per job id across selection changes within a session (intended).
+
+## R252 — assistant tailoring status
+- Header theme toggle's `title` shows the CURRENT pref ("Light theme"/"Dark theme"/"System theme"), cycling light→dark→system — don't look for a "Toggle theme" label.
+- AssistantPanel: open via the Builder button titled "Resume assistant — chat about your draft and job search" or deep-link `/builder?assistant=1`. Chat is seedable via `honestcv.assistantChat` (`[{role,content,action?,applied?}]`; summary action = `{type:'summary',value}`) — Apply buttons then work with zero AI. Quick-task chips must NOT be clicked in zero-AI rounds (each calls `/api/ai/assistant`).
+- Applied proposals render "Applied to your resume" as an icon+text `<p>`, not a leaf text node.
+
+## R253 — nav attention badge
+- Nav counts (WorkspaceNav `useMemo`, SiteHeader `useState` initializer) are computed once on mount — after reseeding `honestcv.jobPipeline`, reload the page for badges to update.
+- Attention badge selector: `span.bg-amber-100` inside the "Job search" sidebar link / header "Jobs" link; `title`/`aria-label` = "N tracked application(s) with no status update in 7+ days".
+
+## R254 — Tracked "Needs follow-up" filter
+- `?attention=1` on /jobs is a mount-time `useState` seed — the filter/tab don't react to later URL changes, so navigate fresh per scenario.
+- The follow-up chip lives inside `[role=group][aria-label="Bulk actions on tracked jobs"]` before the Select… button and only renders when the pipeline is non-empty.
+
+## R255 — follow-up email drafts / clipboard QA over CDP
+- To verify clipboard writes over CDP: `Browser.grantPermissions {permissions:['clipboardReadWrite','clipboardSanitizedWrite'],origin}` AND `Page.bringToFront` before `navigator.clipboard.readText()` — it hangs indefinitely on an unfocused document (use `Runtime.evaluate` with `awaitPromise` + `.catch`, not the plain eval helper).
+- `loadResume()` requires both `contact` and an `experience` array in `honestcv.resume`; minimal seed: `{contact:{fullName:…},experience:[]}`.
+
+## R256 — interview "Add to your resume" gap line QA
+- When seeding `honestcv.resume` via localStorage, navigate to a non-Builder page (or about:blank) first — a still-mounted Builder instance persists its state on unmount and can clobber the seed; verify the stored summary after reload before asserting.
+- Interview-practice timer button label is "Start 2-minute window" (then "Retime answer"), stop is "Stop timer", running readout is `[role=timer]`.
+- The sky gap-line selector is a `p.text-sky-700` containing "Add to your resume" inside `[role=dialog]`; `jumpToSection('target')` puts `ring-2 ring-ring/50` on the Target-job wrapper.
+
+## R257 — instant local interview questions QA
+- The suggested-questions list is `[role=dialog] ul li button` (pick-one fills the question input); "Practice all N" only renders when `suggested.length > 1`; session header text is "Question i of N".
+- The R256 seeding lesson holds: seed `honestcv.resume` from a non-Builder page and verify the stored value after reload before asserting.
+
+## R258 — session report QA
+- tsx oracle scripts that import repo libs: place them in `.tmp-smoke/` with RELATIVE imports (`../src/lib/...`) and run `npx tsx --tsconfig tsconfig.app.json .tmp-smoke/<file>.ts` — the `@/` alias does not resolve for files outside tsconfig include.
+- Practice-session mechanics: skipped questions create no transcript entry (sessionEntries only pushes when answer/feedback non-empty); "Finish session" is the last-question label ("End early" also finishes); the finished transcript is a `[role=dialog] textarea` whose value starts with "Practice session —"; "Save to My resumes" writes to `honestcv.careerDocs` (remove in cleanup).
+
+## R259 — bullet starters QA
+- `highPriorityKeywords` treats only tokens AFTER the Requirements heading line as the requirements block — keywords on the heading line itself ("Requirements: kubernetes, …") are NOT high-priority; put them on the next line in fixtures.
+- BulletIdeas selectors: toggle "Need ideas? Show bullet starters"; tailored starters are `button.bg-sky-50` inside the panel `ul`; role starters use `bg-muted/60`.
+
+## R260 — Skills section QA
+- Delete `.tmp-smoke/` oracle files after each round — leftover `.ts` files there break `npm run lint`.
+- Skills-section selectors: proven chips are `button.bg-emerald-50` under the "Mentioned in your experience…" span; role-family chips `button.bg-muted` under "Common for your target role…" (label switches when `aiSkillChips` exist — avoid triggering that AI path).
+
+## R261 — coursework multi-skills QA
+- Free-mode download testing: the email gate is skipped when `localStorage['honestcv.shared']` is set (or `hasSubscribed()`); a "Final check before download" dialog may follow — click "Download anyway". Capture files headlessly via CDP `Browser.setDownloadBehavior {behavior:'allow', downloadPath}`. Remove `honestcv.shared` in cleanup.
+- Coursework editor: add via the "Coursework" optional-section chip then "Add coursework"; the skills input placeholder starts "Skills used".
+
+## R262 — experience-level tiers / page-count check QA
+- The ATS checks card renders hints ONLY for failing checks (passing rows are just "✓ label") — verify pass-hint wording via a `scoreResume` tsx oracle, not the DOM.
+- The page-count check consumes `pdfLength.pages` from the live PDF preview — wait for the "Resume length: X page" text before asserting; an easy 2-page fixture: `fontScale:'xl'` + `lineSpacing:'loose'` + ~6 stuffed experience entries.
+
+## R263 — section order / preview-order QA
+- The resume preview lives in `div.shadow-lg` and renders section headings UPPERCASE (probe "EDUCATION", not "Education"); `body.innerText` cannot distinguish preview order from editor order — always scope preview asserts to that container.
+- Section order panel: collapsible Section titled "Section order" (defaultOpen false), list `ul.space-y-1.5`, per-row buttons aria-labels "Move up"/"Move down".
+
+## R264 — template picker / seeding QA
+- When seeding resumes via localStorage, `experience[].bullets` MUST be `string[]` — a plain string is silently emptied by `sanitizeResume`, deflating word counts.
+- Template filter row: `[aria-label="Filter templates by style"]`; the card grid is its next sibling with `span.relative > button[aria-pressed]` (card name = button's last SPAN child).
+- Theme toggle cycles system→light→dark — seed `honestcv.theme` for deterministic dark-mode tests.
+
+## R265 — resume assistant QA
+- Open the assistant via `?assistant=1` or the toolbar button `title^="Resume assistant"`; chat persists in `honestcv.assistantChat`.
+- The open panel overlays the right column — close it (Escape) before clicking preview-side buttons like "See full score breakdown".
+- Assistant replies use the live ATS score, which depends on the PDF page count — pass the observed "Resume length: X page" into `scoreResume` oracles.
+- Opening the health card sets `honestcv.seen.health`; remove it during cleanup.
+
+## R266 — dashboard import QA
+- Seeding a Dashboard "draft": `loadResume()` returns null unless the stored object has `contact` AND an `experience` array — include `experience: []` at minimum or draft-gated flows silently take the no-draft path.
+- The resume-import file input is the `nextElementSibling` of the "Import a resume" card button; drive it headlessly with CDP `DOM.setFileInputFiles`.
+- LinkedIn-export detection (`looksLikeLinkedInExport`) needs a `handle (LinkedIn)` line, a `Top Skills` line, or a linkedin.com URL plus a `Page N of M` footer; put the name block first in fixtures.

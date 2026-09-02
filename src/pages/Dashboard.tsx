@@ -46,13 +46,15 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { scoreResume } from '@/lib/ats'
+import { professionalFileName } from '@/lib/download'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
-import { parseResumeText } from '@/lib/importText'
+import { looksLikeLinkedInExport, parseResumeText } from '@/lib/importText'
 import {
   type CareerDoc,
   type CareerDocKind,
   deleteCareerDoc,
   listCareerDocs,
+  saveCareerDoc,
   updateCareerDoc,
 } from '@/lib/documents'
 import {
@@ -189,11 +191,15 @@ export default function Dashboard() {
   const [docText, setDocText] = useState('')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
+  const docImportInputRef = useRef<HTMLInputElement>(null)
+  const [docImportBusy, setDocImportBusy] = useState(false)
+  const [docImportError, setDocImportError] = useState('')
   const importInputRef = useRef<HTMLInputElement>(null)
   const [importBusy, setImportBusy] = useState(false)
   const [importError, setImportError] = useState('')
   const [importDragOver, setImportDragOver] = useState(false)
   const [confirmImport, setConfirmImport] = useState<Resume | null>(null)
+  const [importedLinkedIn, setImportedLinkedIn] = useState(false)
   const [examples, setExamples] = useState<ExampleEntry[]>([])
   const [exampleQuery, setExampleQuery] = useState('')
   const [exampleSector, setExampleSector] = useState('All')
@@ -319,21 +325,22 @@ export default function Dashboard() {
       onClick={async () => {
         setDownloading(key)
         try {
+          const letterhead = draft ?? emptyResume()
           const base =
             d.kind === 'cover'
               ? 'cover-letter'
               : d.kind === 'resignation'
                 ? 'resignation-letter'
                 : 'interview-prep'
-          const letterhead = draft ?? emptyResume()
+          const name = professionalFileName([letterhead.contact.fullName, base], fmt)
           if (fmt === 'pdf') {
             const m = await import('@/lib/pdf')
-            if (d.kind === 'interview') await m.downloadTextPdf(d.title, text, `${base}.pdf`)
-            else await m.downloadLetterPdf(letterhead, text, `${base}.pdf`)
+            if (d.kind === 'interview') await m.downloadTextPdf(d.title, text, name)
+            else await m.downloadLetterPdf(letterhead, text, name)
           } else {
             const m = await import('@/lib/docx')
-            if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, `${base}.docx`)
-            else await m.downloadLetterDocx(letterhead, text, `${base}.docx`)
+            if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, name)
+            else await m.downloadLetterDocx(letterhead, text, name)
           }
         } finally {
           setDownloading(null)
@@ -352,11 +359,10 @@ export default function Dashboard() {
   const runDownload = async (r: Resume, fmt: 'pdf' | 'docx', key: string) => {
     setDownloading(key)
     try {
-      const name = (r.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
+      const name = professionalFileName([r.contact.fullName, r.targetRole, 'resume'], fmt)
       const out = visibleResume(r)
-      if (fmt === 'pdf')
-        await (await import('@/lib/pdf')).downloadResumePdf(out, `${name}-resume.pdf`)
-      else await (await import('@/lib/docx')).downloadResumeDocx(out, `${name}-resume.docx`)
+      if (fmt === 'pdf') await (await import('@/lib/pdf')).downloadResumePdf(out, name)
+      else await (await import('@/lib/docx')).downloadResumeDocx(out, name)
       if (!localStorage.getItem('honestcv.shared')) localStorage.setItem('honestcv.shared', '1')
     } finally {
       setDownloading(null)
@@ -569,6 +575,34 @@ export default function Dashboard() {
     </li>
   )
 
+  const handleImportDocFile = (file: File | undefined) => {
+    if (!file || docImportBusy) return
+    setDocImportBusy(true)
+    setDocImportError('')
+    extractTextFromFile(file)
+      .then((text) => {
+        if (text.trim().length < 30) {
+          setDocImportError('No text found in this file — it may be a scanned image.')
+          return
+        }
+        const title =
+          file.name
+            .replace(/\.[^.]+$/, '')
+            .replace(/[-_]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim() || 'Imported cover letter'
+        const doc = saveCareerDoc('cover', title, text)
+        setDocs(listCareerDocs())
+        setOpenDoc(doc)
+        setDocText(doc.text)
+        setDocView('edit')
+      })
+      .catch((err: unknown) => {
+        setDocImportError(err instanceof Error ? err.message : 'Could not read this file.')
+      })
+      .finally(() => setDocImportBusy(false))
+  }
+
   const handleImportFile = (file: File | undefined) => {
     if (!file || importBusy) return
     setImportBusy(true)
@@ -582,6 +616,7 @@ export default function Dashboard() {
         }
         const parsed = parseResumeText(text)
         if (draft) {
+          setImportedLinkedIn(looksLikeLinkedInExport(text))
           setConfirmImport(parsed)
           setImportBusy(false)
         } else {
@@ -805,6 +840,10 @@ export default function Dashboard() {
               <p className="text-muted-foreground text-xs">
                 Click or drop a PDF, DOCX or TXT here — read entirely in your browser.
               </p>
+              <p className="text-muted-foreground text-xs">
+                No resume yet? On LinkedIn, use Profile → More → Save to PDF and import that
+                file.
+              </p>
               {importError && <p className="text-destructive text-xs">{importError}</p>}
             </button>
             <input
@@ -900,7 +939,30 @@ export default function Dashboard() {
               <FilePlus2 className="size-3.5" /> New resignation letter
             </Link>
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-10 sm:min-h-8"
+            disabled={docImportBusy}
+            onClick={() => docImportInputRef.current?.click()}
+          >
+            <FileUp className="size-3.5" />{' '}
+            {docImportBusy ? 'Reading your letter…' : 'Import a cover letter'}
+          </Button>
+          <input
+            ref={docImportInputRef}
+            type="file"
+            accept={IMPORT_ACCEPT}
+            className="hidden"
+            aria-label="Import a cover letter file"
+            onChange={(e) => {
+              handleImportDocFile(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
         </div>
+        {docImportError && <p className="text-destructive mt-2 text-xs">{docImportError}</p>}
         {docs.length > 0 && (
           <div
             className="mt-4 flex flex-wrap gap-1.5"
@@ -1470,6 +1532,9 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>Open the imported resume?</DialogTitle>
             <DialogDescription>
+              {importedLinkedIn
+                ? 'This file was recognized as a LinkedIn profile export and mapped section-by-section — review the result before sending it anywhere. '
+                : ''}
               This replaces what's currently in the editor. Save the current draft as
               a copy first if you want to keep it.
             </DialogDescription>

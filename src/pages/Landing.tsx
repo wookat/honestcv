@@ -149,7 +149,7 @@ const SUITE = [
   {
     icon: BriefcaseBusiness,
     title: 'Job search',
-    text: 'Browse remote job postings, track applications through a saved-to-interviewing pipeline, and target your resume or a cover letter at any posting in one click.',
+    text: 'Browse remote job postings, track applications through a saved-to-offer pipeline, and target your resume or a cover letter at any posting in one click.',
     cta: 'Search jobs',
     to: '/jobs',
   },
@@ -951,7 +951,7 @@ export default function Landing() {
               [
                 'What does “free during beta” include?',
                 freeMode
-                  ? 'Everything in both plans: the full editor, all 22 templates, the live preview, the ATS match score, AI tools, and PDF/DOCX downloads. We only ask for an email before your first download.'
+                  ? 'Everything in both plans: the full editor, all 25 templates, the live preview, the ATS match score, AI tools, and PDF/DOCX downloads. We only ask for an email before your first download.'
                   : 'The full editor, all templates, the live preview, the ATS match score against any job description, and 5 AI rewrites. You pay only to download PDF/DOCX and for unlimited AI.',
               ],
               [

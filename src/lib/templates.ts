@@ -1,5 +1,7 @@
 /** ATS-friendly resume templates: single-column, real text, no graphics. */
 
+import { resumeToPlainText, type Resume } from '@/lib/resume'
+
 export interface TemplateMeta {
   id: string
   name: string
@@ -20,6 +22,10 @@ export interface TemplateMeta {
   tags: string[]
   /** Tinted band behind section headings (still real text — ATS-safe) */
   band?: boolean
+  /** Light hairline between entries within a section (vector line — ATS-safe) */
+  entryDivider?: boolean
+  /** Section labels in a left gutter beside the content (reading order stays heading → content) */
+  sideLabels?: boolean
 }
 
 /** Light tint of an accent color (used for heading bands) */
@@ -38,7 +44,9 @@ export const TEMPLATE_FILTERS: { id: string; label: string; match: (t: TemplateM
   { id: 'serif', label: 'Serif', match: (t) => t.serif },
   { id: 'sans', label: 'Modern sans', match: (t) => !t.serif },
   { id: 'banded', label: 'Banded headings', match: (t) => t.band === true },
-  { id: 'minimal', label: 'Minimal', match: (t) => t.divider === 'none' && !t.band },
+  { id: 'minimal', label: 'Minimal', match: (t) => t.divider === 'none' && !t.band && !t.entryDivider },
+  { id: 'ruled', label: 'Ruled entries', match: (t) => t.entryDivider === true },
+  { id: 'side-labels', label: 'Side labels', match: (t) => t.sideLabels === true },
 ]
 
 export const TEMPLATES: TemplateMeta[] = [
@@ -311,6 +319,45 @@ export const TEMPLATES: TemplateMeta[] = [
     headerAlign: 'left',
     nameCase: 'upper',
   },
+  {
+    id: 'circuit',
+    name: 'Circuit',
+    description: 'Full-width with hairlines between entries — dense developer resumes',
+    tags: ['Developers', 'Dense content', 'Ruled'],
+    accent: '#0369a1',
+    headingCase: 'upper',
+    serif: false,
+    divider: 'line',
+    headerAlign: 'left',
+    nameCase: 'normal',
+    entryDivider: true,
+  },
+  {
+    id: 'ledger',
+    name: 'Ledger',
+    description: 'Serif with ruled entries and quiet headings — editorial and structured',
+    tags: ['Editorial', 'Experienced', 'Ruled'],
+    accent: '#3f3f46',
+    headingCase: 'title',
+    serif: true,
+    divider: 'none',
+    headerAlign: 'left',
+    nameCase: 'normal',
+    entryDivider: true,
+  },
+  {
+    id: 'sidebar',
+    name: 'Sidebar',
+    description: 'Section labels in a left gutter — scannable two-column look, single-column reading order',
+    tags: ['Developers', 'Experienced', 'Scannable'],
+    accent: '#1e3a8a',
+    headingCase: 'upper',
+    serif: false,
+    divider: 'none',
+    headerAlign: 'left',
+    nameCase: 'normal',
+    sideLabels: true,
+  },
 ]
 
 export const getTemplate = (id: string): TemplateMeta =>
@@ -326,4 +373,55 @@ export function resolveTemplate(templateId: string, accentColor?: string): Templ
   const tpl = getTemplate(templateId)
   const custom = accentColor?.trim()
   return custom && /^#[0-9a-fA-F]{6}$/.test(custom) ? { ...tpl, accent: custom } : tpl
+}
+
+/** A template suggested for this resume, with a short why. */
+export interface TemplateRecommendation {
+  id: string
+  reason: string
+}
+
+/** Plain-text word count at which a resume counts as dense/content-heavy. */
+const DENSE_WORDS = 450
+
+const TECHNICAL_ROLE = /engineer|developer|programmer|swe|devops|sre|architect/i
+
+/**
+ * Templates recommended for this resume's content, per the Rezi Finish Up
+ * guide ("recommend ATS-friendly templates based on your resume content").
+ * Deterministic and local: picks come from resume density, the target or most
+ * recent role, and the experience level. The currently selected template is
+ * excluded, results are deduped and capped at three.
+ */
+export function recommendedTemplates(r: Resume): TemplateRecommendation[] {
+  const role = r.targetRole.trim() || r.experience.find((e) => !e.hidden)?.role.trim() || ''
+  const technical = TECHNICAL_ROLE.test(role)
+  const words = resumeToPlainText(r).split(/\s+/).filter(Boolean).length
+  const picks: TemplateRecommendation[] = []
+  if (words >= DENSE_WORDS) {
+    picks.push({ id: 'compact', reason: 'fits more content on the page' })
+    if (technical)
+      picks.push({ id: 'circuit', reason: 'ruled entries built for dense technical resumes' })
+  }
+  const level = r.experienceLevel
+  if (level === 'internship' || level === 'entry') {
+    picks.push({ id: 'classic', reason: 'a safe, traditional look for a first resume' })
+    picks.push({ id: 'minimal', reason: 'whitespace-first — keeps a shorter resume from looking empty' })
+  } else if (level === 'associate' || level === 'junior' || level === 'mid' || level === 'senior') {
+    picks.push({ id: 'modern', reason: 'clean sans-serif that suits most industries' })
+    if (technical)
+      picks.push({ id: 'engineer', reason: 'no-nonsense sans built for technical resumes' })
+  } else if (level === 'director' || level === 'executive') {
+    picks.push({ id: 'executive', reason: 'understated and formal for senior roles' })
+    picks.push({ id: 'corporate', reason: 'formal serif with a commanding header' })
+  }
+  const seen = new Set<string>([r.templateId])
+  const out: TemplateRecommendation[] = []
+  for (const p of picks) {
+    if (seen.has(p.id)) continue
+    seen.add(p.id)
+    out.push(p)
+    if (out.length === 3) break
+  }
+  return out
 }
