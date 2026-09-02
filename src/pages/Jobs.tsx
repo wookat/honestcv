@@ -42,6 +42,7 @@ import {
   searchJobs,
   setPipelineNotes,
   setPipelineVersion,
+  staleDays,
   structureJobDescription,
   timelineOf,
   updateStatuses,
@@ -85,14 +86,6 @@ const agoFromMs = (ms: number) => {
   if (!ms || Number.isNaN(days) || days < 0) return ''
   if (days === 0) return 'today'
   return days === 1 ? '1 day ago' : `${days} days ago`
-}
-
-/** Days since the last status change when a pending application has gone quiet (≥7d). */
-const staleDays = (entry: PipelineEntry): number | null => {
-  if (entry.status !== 'applied' && entry.status !== 'interviewing') return null
-  const steps = timelineOf(entry)
-  const days = Math.floor((Date.now() - steps[steps.length - 1].at) / 86_400_000)
-  return days >= 7 ? days : null
 }
 
 export default function Jobs() {

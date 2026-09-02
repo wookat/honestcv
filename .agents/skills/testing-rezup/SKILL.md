@@ -692,3 +692,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Header theme toggle's `title` shows the CURRENT pref ("Light theme"/"Dark theme"/"System theme"), cycling light→dark→system — don't look for a "Toggle theme" label.
 - AssistantPanel: open via the Builder button titled "Resume assistant — chat about your draft and job search" or deep-link `/builder?assistant=1`. Chat is seedable via `honestcv.assistantChat` (`[{role,content,action?,applied?}]`; summary action = `{type:'summary',value}`) — Apply buttons then work with zero AI. Quick-task chips must NOT be clicked in zero-AI rounds (each calls `/api/ai/assistant`).
 - Applied proposals render "Applied to your resume" as an icon+text `<p>`, not a leaf text node.
+
+## R253 — nav attention badge
+- Nav counts (WorkspaceNav `useMemo`, SiteHeader `useState` initializer) are computed once on mount — after reseeding `honestcv.jobPipeline`, reload the page for badges to update.
+- Attention badge selector: `span.bg-amber-100` inside the "Job search" sidebar link / header "Jobs" link; `title`/`aria-label` = "N tracked application(s) with no status update in 7+ days".

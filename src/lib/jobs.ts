@@ -58,6 +58,19 @@ export function timelineOf(entry: PipelineEntry): StatusChange[] {
     : [{ status: entry.status, at: entry.updatedAt }]
 }
 
+/** Days since the last status change when a pending application has gone quiet (≥7d). */
+export function staleDays(entry: PipelineEntry): number | null {
+  if (entry.status !== 'applied' && entry.status !== 'interviewing') return null
+  const steps = timelineOf(entry)
+  const days = Math.floor((Date.now() - steps[steps.length - 1].at) / 86_400_000)
+  return days >= 7 ? days : null
+}
+
+/** Tracked applications with no status update in 7+ days. */
+export function attentionCount(pipeline: PipelineEntry[] = listPipeline()): number {
+  return pipeline.filter((e) => staleDays(e) !== null).length
+}
+
 const PIPELINE_KEY = 'honestcv.jobPipeline'
 
 /** Category slugs accepted by the jobs API (Remotive's fixed list). */
