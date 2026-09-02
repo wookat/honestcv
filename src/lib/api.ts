@@ -129,6 +129,7 @@ export async function aiCoverLetter(input: {
   jobDescription: string
   company: string
   role: string
+  addressee?: string
   language?: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/cover-letter', input)
