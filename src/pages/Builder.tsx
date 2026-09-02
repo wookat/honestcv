@@ -2820,7 +2820,9 @@ export default function Builder() {
                   `exp-${e.id}-suggest-nums`,
                   '…with key numbers',
                   () => void runSuggestBullet('exp', e.id, 'key-numbers'),
-                  !e.role.trim() && !e.company.trim()
+                  !e.role.trim() &&
+                    !e.company.trim() &&
+                    'Add a job title or company first — the bullet is drafted for that role.'
                 )}
                 {aiButton(
                   `exp-${e.id}`,
@@ -3628,7 +3630,9 @@ export default function Builder() {
                   `proj-${p.id}-suggest-nums`,
                   '…with key numbers',
                   () => void runSuggestBullet('proj', p.id, 'key-numbers'),
-                  !p.name.trim() && !(p.org ?? '').trim()
+                  !p.name.trim() &&
+                    !(p.org ?? '').trim() &&
+                    'Add a project name or organization first — the bullet is drafted for that project.'
                 )}
                 {aiButton(
                   `proj-${p.id}`,
@@ -3988,7 +3992,9 @@ export default function Builder() {
                   `inv-${inv.id}-suggest-nums`,
                   '…with key numbers',
                   () => void runSuggestBullet('inv', inv.id, 'key-numbers'),
-                  !inv.role.trim() && !inv.organization.trim()
+                  !inv.role.trim() &&
+                    !inv.organization.trim() &&
+                    'Add a role or organization first — the bullet is drafted for that involvement.'
                 )}
                 {aiButton(
                   `inv-${inv.id}`,
