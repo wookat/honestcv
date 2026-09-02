@@ -19,7 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { fetchAiQuota } from '@/lib/api'
 import { listCareerDocs } from '@/lib/documents'
-import { listPipeline } from '@/lib/jobs'
+import { attentionCount, listPipeline } from '@/lib/jobs'
 import { loadLicense } from '@/lib/license'
 import { listResumeVersions, loadResume } from '@/lib/resume'
 
@@ -30,6 +30,8 @@ interface NavItem {
   to: string
   icon: React.ComponentType<{ className?: string }>
   count?: number
+  /** Items that have gone quiet and need a follow-up, shown as an amber badge */
+  attention?: number
   active: boolean
 }
 
@@ -84,6 +86,7 @@ export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
       resumes: listResumeVersions().length + (loadResume() ? 1 : 0),
       docs: listCareerDocs().length,
       pipeline: listPipeline().length,
+      attention: attentionCount(),
     }),
     []
   )
@@ -91,7 +94,14 @@ export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
     { label: 'My resumes', to: '/dashboard', icon: Files, count: counts.resumes, active: pathname === '/dashboard' },
     { label: 'Career documents', to: '/dashboard#documents', icon: FileText, count: counts.docs, active: false },
     { label: 'Sample library', to: '/dashboard#samples', icon: LibraryBig, active: false },
-    { label: 'Job search', to: '/jobs', icon: BriefcaseBusiness, count: counts.pipeline, active: pathname === '/jobs' },
+    {
+      label: 'Job search',
+      to: '/jobs',
+      icon: BriefcaseBusiness,
+      count: counts.pipeline,
+      attention: counts.attention,
+      active: pathname === '/jobs',
+    },
     { label: 'ATS checker', to: '/ats-checker', icon: BadgeCheck, active: pathname === '/ats-checker' },
     { label: 'AI assistant', to: '/builder?assistant=1', icon: MessagesSquare, active: false },
   ]
@@ -110,7 +120,7 @@ export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
           </Button>
         )}
         <nav className="space-y-0.5" aria-label="Workspace sections">
-          {items.map(({ label, to, icon: Icon, count, active }) => (
+          {items.map(({ label, to, icon: Icon, count, attention, active }) => (
             <Link
               key={label}
               to={to}
@@ -123,6 +133,15 @@ export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
             >
               <Icon className="size-4 shrink-0" />
               <span className="flex-1 truncate">{label}</span>
+              {typeof attention === 'number' && attention > 0 && (
+                <span
+                  className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 tabular-nums"
+                  title={`${attention} tracked application${attention === 1 ? '' : 's'} with no status update in 7+ days`}
+                  aria-label={`${attention} tracked application${attention === 1 ? '' : 's'} with no status update in 7+ days`}
+                >
+                  {attention}
+                </span>
+              )}
               {typeof count === 'number' && count > 0 && (
                 <span className="text-muted-foreground text-xs tabular-nums">{count}</span>
               )}

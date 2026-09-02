@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, Menu, Monitor, Moon, Sun, X } from 'lucide-react'
 import { LogoMark } from '@/components/Logo'
+import { attentionCount } from '@/lib/jobs'
 import { type ThemePref, loadThemePref, saveThemePref } from '@/lib/theme'
 
 /** Sets the document title and meta description for the current route. */
@@ -100,8 +101,23 @@ function ThemeToggle() {
   )
 }
 
+/** Amber count badge on the Jobs nav links for applications gone quiet (7+ days). */
+function JobsAttentionBadge({ count }: { count: number }) {
+  if (count === 0) return null
+  return (
+    <span
+      className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 tabular-nums"
+      title={`${count} tracked application${count === 1 ? '' : 's'} with no status update in 7+ days`}
+      aria-label={`${count} tracked application${count === 1 ? '' : 's'} with no status update in 7+ days`}
+    >
+      {count}
+    </span>
+  )
+}
+
 export function SiteHeader({ action }: { action?: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [attention] = useState(() => attentionCount())
   return (
     <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -115,7 +131,9 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           <a className="hover:text-foreground" href="/examples/">Examples</a>
           <ResourcesDropdown />
           <Link className="hover:text-foreground" to="/ats-checker">ATS Checker</Link>
-          <Link className="hover:text-foreground" to="/jobs">Jobs</Link>
+          <Link className="hover:text-foreground inline-flex items-center gap-1.5" to="/jobs">
+            Jobs <JobsAttentionBadge count={attention} />
+          </Link>
           <a className="hover:text-foreground" href="/pricing/">Pricing</a>
         </nav>
         <div className="flex items-center gap-1">
@@ -140,7 +158,9 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/templates/">Templates</a>
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/examples/">Examples</a>
           <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/ats-checker" onClick={() => setMenuOpen(false)}>ATS Checker</Link>
-          <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/jobs" onClick={() => setMenuOpen(false)}>Jobs</Link>
+          <Link className="hover:bg-accent flex min-h-10 items-center gap-1.5 rounded-md px-2 text-sm" to="/jobs" onClick={() => setMenuOpen(false)}>
+            Jobs <JobsAttentionBadge count={attention} />
+          </Link>
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/pricing/">Pricing</a>
           <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/dashboard" onClick={() => setMenuOpen(false)}>My resumes</Link>
           <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/builder?assistant=1" onClick={() => setMenuOpen(false)}>AI assistant</Link>
