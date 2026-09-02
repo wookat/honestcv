@@ -528,3 +528,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验）：bundle index-Dw8U6jU0.js / Builder-DI8XCZAw.js；全绿零 P0–P3 零 AI 配额——summary-draft 选择器 3 候选+两按钮、Regenerate 第二次 POST payload 字节级一致且候选原地替换（Writing… 态截图）、Adjust 重开设置对话框预填相同 position+skills、rewrite 选择器有 Regenerate 无 Adjust、假 500 → 内联「Boom」错误且旧候选可点、Keep my original 回归、375px 无溢出、localStorage/主题基线还原（证据在 PR 评论）。
 - 坑（测试代理沉淀）：引导式 summary 触发按钮实际文案是「Draft from my resume」（仅 summary 为空时渲染，有内容后变「AI polish summary」），设置对话框提交按钮是「Write 3 drafts」；同一同步 JS 批次连点多个 React 状态按钮会丢更新（stale closure），连点 chips 须间隔 ~400ms。
 - 文档：docs/plan-r286-variant-picker-regenerate.md、docs/qa-r286-plan.md（测试代理写）。
+
+## R287 — 助手「Target my job」快捷任务改为即时本地回复 (2026-09-02)
+- 证据：Rezi 一手 AI Resume Agent 指南三个内置 prompt（Improve My Rezi Score / Target My Resume / Find Jobs）——「If you select Target My Resume, the AI compares your resume with a job description and recommends edits that improve alignment」；AI Keyword Targeting 指南的已含/缺失关键词对比是即时的（非聊天往返），且「If not, you can add a job title and description directly within the keyword targeting tool」。我方三个内置任务中 Target my job 是最后一个仍走配额门 AI 往返的，而 matchReport 早已本地算出 pct/covered/missing/highPriorityMissing（面板自己就在渲染）。
+- 实现：guidance.ts 新纯函数 targetJobReply(report: MatchReport | null)——无 JD 引导去 Target job 面板粘贴；有 report 输出「Your resume matches N% …」+ High priority（cap5）+ Also missing（cap5，去重高优）+ 指向关键词 triage 的结尾；全覆盖为祝贺形态。AssistantPanel.tsx 的 Target my job 走与 improveScore 相同的同步本地路径（TARGET_JOB_LABEL/PROMPT 常量化），自由输入与另两个 AI 任务不变。零 worker/schema/评分/持久化改动。
+- QA（生产复验，bundle index-DLlSaUNo.js / Builder-CR8NmuTh.js / guidance-RWlsDdyN.js）：全绿零 P0–P3 零 AI 配额——本地回复与 oracle（.tmp-smoke/r287_oracle.ts，--tsconfig tsconfig.app.json）字节级一致、与面板 footer 数字一致、无 JD/全覆盖两形态、Draft my summary 回归仍 POST /api/ai/assistant（拦截于网络前）、Improve/Find jobs 仍本地、聊天 reload 持久、375px 无页面级溢出、localStorage/主题还原。披露：375px 下 Builder 自身的横向可滚 section-tab 条有元素超出 x=375（自有 overflow 容器，页面 scrollWidth=375，既有模式非本轮回归）。
+- 测试沉淀：/builder?assistant=1 直开助手；honestcv.assistantChat 清理项；本地性证明用全程 Fetch 拦截断言零 paused 事件。
+- 文档：docs/plan-r287-local-target-job-reply.md、docs/qa-r287-plan.md。
