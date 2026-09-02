@@ -75,6 +75,11 @@ import {
 import { AssistantPanel } from '@/components/AssistantPanel'
 import { DraftIllustration } from '@/components/Illustrations'
 import { ResumePreview } from '@/components/ResumePreview'
+import {
+  applyKeywordHighlight,
+  clearKeywordHighlight,
+  supportsKeywordHighlight,
+} from '@/lib/keywordHighlight'
 import { ScoreRing } from '@/components/ScoreRing'
 import {
   PaymentRequiredError,
@@ -808,6 +813,9 @@ export default function Builder() {
   )
   const [healthOpen, setHealthOpen] = useState(false)
   const [kwBulletFor, setKwBulletFor] = useState<string | null>(null)
+  /** Paint matched JD keywords in the preview via the CSS Custom Highlight API */
+  const [highlightKw, setHighlightKw] = useState(false)
+  const previewWrapRef = useRef<HTMLDivElement>(null)
   const [checklistOpen, setChecklistOpen] = useState(
     () =>
       !localStorage.getItem('honestcv.tourDone') && !localStorage.getItem('honestcv.shared')
@@ -1139,6 +1147,17 @@ export default function Builder() {
     () => scoreResume(shown, shown.jobDescription, pdfLength?.pages ?? null),
     [shown, pdfLength]
   )
+  useEffect(() => {
+    if (!highlightKw || !shown.jobDescription.trim() || ats.matched.length === 0) {
+      clearKeywordHighlight()
+      return
+    }
+    const t = window.setTimeout(() => {
+      if (previewWrapRef.current) applyKeywordHighlight(previewWrapRef.current, ats.matched)
+    }, 150)
+    return () => window.clearTimeout(t)
+  }, [highlightKw, shown, ats.matched, previewView])
+  useEffect(() => clearKeywordHighlight, [])
   const prevPassRef = useRef<Map<string, boolean> | null>(null)
   const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
   useEffect(() => {
@@ -6155,6 +6174,17 @@ export default function Builder() {
                       <span className="font-medium text-green-700">
                         Matched ({ats.matched.length})
                       </span>
+                      {supportsKeywordHighlight() && (
+                        <label className="text-muted-foreground mt-1 flex w-fit cursor-pointer items-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            className="accent-primary size-3.5"
+                            checked={highlightKw}
+                            onChange={(e) => setHighlightKw(e.target.checked)}
+                          />
+                          Highlight in preview
+                        </label>
+                      )}
                       <span className="mt-1 flex flex-wrap gap-1">
                         {ats.matched.map((kw) => (
                           <span
@@ -6408,7 +6438,7 @@ export default function Builder() {
           </Card>
 
           <div className="rounded-lg border bg-slate-100/90 p-3 sm:p-6 dark:bg-slate-900/40">
-            <div className="shadow-lg">
+            <div ref={previewWrapRef} className="shadow-lg">
               <ResumePreview
                 resume={shown}
                 paginated
