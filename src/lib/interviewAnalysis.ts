@@ -11,6 +11,48 @@ export interface AnswerAnalysis {
   score: number
 }
 
+export interface DeliveryAnalysis {
+  wpm: number
+  paceBand: 'slow' | 'ideal' | 'fast'
+  paceHint: string
+  windowPct: number
+  windowBand: 'under' | 'ideal' | 'over'
+  windowHint: string
+}
+
+export const RESPONSE_WINDOW_SECONDS = 120
+
+/** Deterministic pace + speaking-time read on a timed answer — no AI, no network. */
+export function analyzeDelivery(
+  answer: string,
+  elapsedSeconds: number,
+  windowSeconds: number = RESPONSE_WINDOW_SECONDS
+): DeliveryAnalysis | null {
+  const words = answer.trim() ? answer.trim().split(/\s+/).length : 0
+  if (elapsedSeconds < 5 || words < 10) return null
+
+  const wpm = Math.round(words / (elapsedSeconds / 60))
+  const paceBand: DeliveryAnalysis['paceBand'] = wpm < 120 ? 'slow' : wpm > 140 ? 'fast' : 'ideal'
+  const paceHint =
+    paceBand === 'slow'
+      ? 'Below the 120–140 wpm conversational range — practice delivering with fewer pauses.'
+      : paceBand === 'fast'
+        ? 'Above the 120–140 wpm range — slow down so interviewers can follow.'
+        : 'In the 120–140 wpm conversational range.'
+
+  const windowPct = Math.round((Math.min(elapsedSeconds, windowSeconds) / windowSeconds) * 100)
+  const windowBand: DeliveryAnalysis['windowBand'] =
+    elapsedSeconds >= windowSeconds ? 'over' : windowPct < 60 ? 'under' : 'ideal'
+  const windowHint =
+    windowBand === 'under'
+      ? 'Underdeveloped — aim to own 60%+ of the response window with context, action and outcome.'
+      : windowBand === 'over'
+        ? 'Overextended — the window ran out; land the outcome sooner.'
+        : 'Appropriately complete — you owned the window without running it out.'
+
+  return { wpm, paceBand, paceHint, windowPct, windowBand, windowHint }
+}
+
 const CONTEXT_RE =
   /\b(when|while|during|at the time|last (?:year|quarter|month)|my (?:team|role|company|manager)|our (?:team|product|client)|we (?:were|had|needed)|the (?:project|problem|challenge|situation|goal|deadline)|i was (?:working|responsible|tasked|asked))\b/i
 
