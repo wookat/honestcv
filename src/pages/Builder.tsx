@@ -95,6 +95,7 @@ import {
 import {
   type AtsResult,
   type SectionAnchor,
+  CHECK_CATEGORIES,
   atsScoreSummary,
   bestExperienceForKeyword,
   highPriorityKeywords,
@@ -6316,28 +6317,44 @@ export default function Builder() {
                   </button>
                 </p>
               )}
-              <ul className="mt-3 space-y-1 text-xs">
-                {ats.checks.map((c) => (
-                  <li key={c.label} className="flex items-start gap-1.5">
-                    <span className={c.pass ? 'text-green-600' : 'text-red-500'}>
-                      {c.pass ? '✓' : '✗'}
-                    </span>
-                    <span>
-                      <span className="font-medium">{c.label}</span>
-                      {!c.pass && <span className="text-muted-foreground"> — {c.hint}</span>}
-                      {!c.pass && c.anchor && (
-                        <button
-                          type="button"
-                          className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
-                          onClick={() => c.anchor && jumpToSection(c.anchor)}
-                        >
-                          Fix →
-                        </button>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-3 space-y-3">
+                {CHECK_CATEGORIES.map((cat) => {
+                  const rows = ats.checks.filter((c) => c.category === cat.key)
+                  if (rows.length === 0) return null
+                  return (
+                    <div key={cat.key}>
+                      <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                        {cat.label}{' '}
+                        <span className="font-normal normal-case">
+                          · {rows.filter((c) => c.pass).length}/{rows.length}
+                        </span>
+                      </p>
+                      <ul className="mt-1 space-y-1 text-xs">
+                        {rows.map((c) => (
+                          <li key={c.label} className="flex items-start gap-1.5">
+                            <span className={c.pass ? 'text-green-600' : 'text-red-500'}>
+                              {c.pass ? '✓' : '✗'}
+                            </span>
+                            <span>
+                              <span className="font-medium">{c.label}</span>
+                              {!c.pass && <span className="text-muted-foreground"> — {c.hint}</span>}
+                              {!c.pass && c.anchor && (
+                                <button
+                                  type="button"
+                                  className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
+                                  onClick={() => c.anchor && jumpToSection(c.anchor)}
+                                >
+                                  Fix →
+                                </button>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                })}
+              </div>
             </CardContent>
           </Card>
 

@@ -583,3 +583,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 
 ## R223 — weak-opener check
 - "Strong bullet openers" fails only when the bullet STARTS with a weak opener (startsWith, case-insensitive); mid-line "responsible for" passes. WEAK_OPENERS now lives in ats.ts (guidance imports it). Rows: checker 22 / Builder 24.
+
+## R224 — category grouping (presentation-only)
+- Structure checks carry `category` (content/format/bestPractices) and render grouped under 3 uppercase headers with "· passed/total" counts: Builder 12+5+7=24 `<li>` across per-category `<ul>`s inside `div.space-y-3`; checker 11+4+7=22 row divs under `div.space-y-4` groups (skip the leading "Format & content checks" `<p>` title). Count rows across all groups for denominators — scoring arithmetic is unchanged from R223.
+- Routing follows Rezi docs: mixed date formats → FORMAT; written-month + LinkedIn + locations + word count + skills rows → BEST PRACTICES; all bullet-quality rows → CONTENT.
+- Fresh sample baseline (unchanged since R219): Structure 92 with 2 pre-existing Best-practices fails (Skills grouped, Word count) — the sample is NOT fully green.
