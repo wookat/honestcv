@@ -725,3 +725,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R260 — Skills section QA
 - Delete `.tmp-smoke/` oracle files after each round — leftover `.ts` files there break `npm run lint`.
 - Skills-section selectors: proven chips are `button.bg-emerald-50` under the "Mentioned in your experience…" span; role-family chips `button.bg-muted` under "Common for your target role…" (label switches when `aiSkillChips` exist — avoid triggering that AI path).
+
+## R261 — coursework multi-skills QA
+- Free-mode download testing: the email gate is skipped when `localStorage['honestcv.shared']` is set (or `hasSubscribed()`); a "Final check before download" dialog may follow — click "Download anyway". Capture files headlessly via CDP `Browser.setDownloadBehavior {behavior:'allow', downloadPath}`. Remove `honestcv.shared` in cleanup.
+- Coursework editor: add via the "Coursework" optional-section chip then "Add coursework"; the skills input placeholder starts "Skills used".
