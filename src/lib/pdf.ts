@@ -453,14 +453,25 @@ class PdfWriter {
   }
 
   /** Paragraph text with inline marks (bold/italic/underline/links). */
-  richText(text: string, size = 10 * this.fs) {
-    this.drawRuns(text, size, 0, () => {})
-    this.gap(2)
+  richText(
+    text: string,
+    size = 10 * this.fs,
+    opts: { fonts?: Fonts; color?: ReturnType<typeof rgb>; gap?: number } = {}
+  ) {
+    this.drawRuns(text, size, 0, () => {}, opts)
+    this.gap(opts.gap ?? 2)
   }
 
-  private drawRuns(text: string, size: number, indent: number, marker: (first: boolean) => void) {
+  private drawRuns(
+    text: string,
+    size: number,
+    indent: number,
+    marker: (first: boolean) => void,
+    opts: { fonts?: Fonts; color?: ReturnType<typeof rgb> } = {}
+  ) {
+    const ink = opts.color ?? this.ink
     const lineHeight = size * this.lh
-    const lines = wrapRuns(parseInlineMarks(text), this.fonts, size, this.contentW - indent)
+    const lines = wrapRuns(parseInlineMarks(text), opts.fonts ?? this.fonts, size, this.contentW - indent)
     lines.forEach((words, i) => {
       this.ensure(lineHeight)
       this.y -= lineHeight
@@ -474,7 +485,7 @@ class PdfWriter {
             y: this.y,
             size,
             font: w.font,
-            color: w.href ? this.accent : this.ink,
+            color: w.href ? this.accent : ink,
           })
           const wordW = drawnWidth(w.font, w.text, size)
           if (w.underline || w.href) {
@@ -483,7 +494,7 @@ class PdfWriter {
               start: { x: joinPrev ? x - spaceW : x, y: this.y - 1.5 },
               end: { x: x + wordW, y: this.y - 1.5 },
               thickness: 0.5,
-              color: w.href ? this.accent : this.ink,
+              color: w.href ? this.accent : ink,
             })
           }
           if (w.href) {
@@ -750,7 +761,14 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
           w.titleLine(left, dates, { size: 10.5 })
           if (e.companyInfo?.trim()) {
             w.gap(1)
-            w.text(e.companyInfo.trim(), { font: w.fonts.italic, size: 9, color: w.soft })
+            const info = e.companyInfo.trim()
+            if (hasInlineMarks(info))
+              w.richText(info, 9 * w.fs, {
+                fonts: { ...w.fonts, regular: w.fonts.italic },
+                color: w.soft,
+                gap: 0,
+              })
+            else w.text(info, { font: w.fonts.italic, size: 9, color: w.soft })
           }
           w.gap(2)
           for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
