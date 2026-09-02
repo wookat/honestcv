@@ -958,6 +958,9 @@ export default function Builder() {
     }
   }, [resume, shown, setResume])
   const [templateFilter, setTemplateFilter] = useState('all')
+  const [templateCompare, setTemplateCompare] = useState(false)
+  const [compareIds, setCompareIds] = useState<string[]>([])
+  const [compareOpen, setCompareOpen] = useState(false)
   const [templateFavs, setTemplateFavs] = useState<string[]>(loadTemplateFavorites)
   const [templateRecents, setTemplateRecents] = useState<string[]>(loadTemplateRecents)
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
@@ -5674,6 +5677,37 @@ export default function Builder() {
                 {f.label}
               </button>
             ))}
+            <button
+              type="button"
+              aria-pressed={templateCompare}
+              title="Pick 2–3 templates to see your resume in each, side by side"
+              onClick={() => {
+                setTemplateCompare((on) => {
+                  if (on) setCompareIds([])
+                  return !on
+                })
+              }}
+              className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
+                templateCompare
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'hover:border-muted-foreground/40'
+              }`}
+            >
+              Compare
+            </button>
+            {templateCompare && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-[11px]"
+                disabled={compareIds.length < 2}
+                onClick={() => setCompareOpen(true)}
+              >
+                {compareIds.length < 2
+                  ? 'Pick 2–3 to compare'
+                  : `Compare ${compareIds.length} side by side`}
+              </Button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {(templateFilter === 'saved'
@@ -5691,13 +5725,25 @@ export default function Builder() {
                 <button
                   type="button"
                   title={t.description}
-                  aria-pressed={resume.templateId === t.id}
+                  aria-pressed={
+                    templateCompare ? compareIds.includes(t.id) : resume.templateId === t.id
+                  }
                   onClick={() => {
+                    if (templateCompare) {
+                      setCompareIds((ids) =>
+                        ids.includes(t.id)
+                          ? ids.filter((id) => id !== t.id)
+                          : ids.length >= 3
+                            ? ids
+                            : [...ids, t.id]
+                      )
+                      return
+                    }
                     set('templateId', t.id)
                     setTemplateRecents(recordTemplateRecent(t.id))
                   }}
                   className={`w-16 rounded-md border p-1 transition ${
-                    resume.templateId === t.id
+                    (templateCompare ? compareIds.includes(t.id) : resume.templateId === t.id)
                       ? 'border-primary ring-primary/40 ring-2'
                       : 'hover:border-muted-foreground/40'
                   }`}
@@ -5730,6 +5776,14 @@ export default function Builder() {
                     }`}
                   />
                 </button>
+                {templateCompare && compareIds.includes(t.id) && (
+                  <span
+                    aria-hidden
+                    className="bg-primary text-primary-foreground absolute -top-1.5 -left-1.5 flex size-5 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
+                  >
+                    {compareIds.indexOf(t.id) + 1}
+                  </span>
+                )}
               </span>
             ))}
             {templateFilter === 'saved' && templateFavs.length === 0 && (
@@ -6695,6 +6749,60 @@ export default function Builder() {
           onInsert={insertKeywordBullet}
         />
       )}
+      <Dialog open={compareOpen} onOpenChange={setCompareOpen}>
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Compare templates side by side</DialogTitle>
+            <DialogDescription>
+              Your resume rendered in each template — pick the one that fits best.
+            </DialogDescription>
+          </DialogHeader>
+          <div
+            className={`grid gap-4 ${compareIds.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}
+          >
+            {compareIds
+              .map((id) => TEMPLATES.find((t) => t.id === id))
+              .filter((t): t is (typeof TEMPLATES)[number] => t !== undefined)
+              .map((t) => (
+                <div key={t.id} className="flex min-w-0 flex-col gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {t.name}
+                      {resume.templateId === t.id && (
+                        <span className="text-muted-foreground font-normal"> · current</span>
+                      )}
+                    </p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {t.description} · {t.tags.join(' · ')}
+                    </p>
+                  </div>
+                  <div
+                    aria-hidden
+                    className="pointer-events-none h-80 select-none overflow-hidden rounded-md border bg-slate-100 sm:h-96 dark:bg-slate-900/40"
+                  >
+                    <div className="origin-top" style={{ zoom: compareIds.length === 3 ? 0.34 : 0.5 }}>
+                      <ResumePreview resume={{ ...shown, templateId: t.id }} />
+                    </div>
+                  </div>
+                  <Button
+                    variant={resume.templateId === t.id ? 'secondary' : 'default'}
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    onClick={() => {
+                      set('templateId', t.id)
+                      setTemplateRecents(recordTemplateRecent(t.id))
+                      setCompareOpen(false)
+                      setTemplateCompare(false)
+                      setCompareIds([])
+                    }}
+                  >
+                    Use this template
+                  </Button>
+                </div>
+              ))}
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={variantPick !== null} onOpenChange={(o) => !o && setVariantPick(null)}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
