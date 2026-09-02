@@ -108,6 +108,7 @@ export default function Jobs() {
   const [category, setCategory] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [skillsFilter, setSkillsFilter] = useState('')
   const [sort, setSort] = useState<'relevance' | 'newest' | 'match'>('relevance')
   const [excluded, setExcluded] = useState<ReadonlySet<JobStatus>>(new Set())
   const [jobs, setJobs] = useState<JobListing[]>([])
@@ -221,6 +222,23 @@ export default function Jobs() {
     tab === 'all' && typeFilter
       ? afterExclude.filter((j) => j.type.toLowerCase() === typeFilter)
       : afterExclude
+  const skillTerms = skillsFilter
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const afterSkills =
+    tab === 'all' && skillTerms.length > 0
+      ? afterType.filter((j) => {
+          const haystack = `${j.title}\n${j.description}`.toLowerCase()
+          return skillTerms.every((term) => {
+            const t = term.toLowerCase()
+            const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            const lead = /^\w/.test(t) ? '\\b' : ''
+            const tail = /\w$/.test(t) ? '\\b' : ''
+            return new RegExp(`${lead}${escaped}${tail}`).test(haystack)
+          })
+        })
+      : afterType
   /** A posting anyone can apply to regardless of where they live. */
   const isLocationAgnostic = (location: string) => {
     const l = location.trim().toLowerCase()
@@ -228,11 +246,11 @@ export default function Jobs() {
   }
   const directMatches =
     tab === 'all' && loc
-      ? afterType.filter((j) => j.location.toLowerCase().includes(loc))
-      : afterType
+      ? afterSkills.filter((j) => j.location.toLowerCase().includes(loc))
+      : afterSkills
   const anywhereMatches =
     tab === 'all' && loc
-      ? afterType.filter(
+      ? afterSkills.filter(
           (j) => !j.location.toLowerCase().includes(loc) && isLocationAgnostic(j.location)
         )
       : []
@@ -486,6 +504,14 @@ export default function Jobs() {
               <option value="internship">Internship</option>
               <option value="other">Other</option>
             </select>
+            <Input
+              type="search"
+              value={skillsFilter}
+              onChange={(e) => setSkillsFilter(e.target.value)}
+              placeholder="Skills, e.g. React, SQL"
+              aria-label="Filter by skills"
+              className="h-10 w-40"
+            />
             <Input
               type="search"
               value={locationFilter}
