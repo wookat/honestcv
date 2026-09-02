@@ -60,3 +60,9 @@ Remove resume/resumeHistory/templateRecents/subscribed/shared etc.; baseline exa
 - Safety/cleanup — PASS. Zero /api/ai/* requests all session; localStorage exactly [clientId, qa]; empty html class. r293_cleanup_final.png.
 
 Harness notes: 1600px viewport shows full export buttons (no dropdown) — download via them; one stepper click missed because the click point was measured before scrollIntoView settled (fixed with longer settle).
+
+## R293b — P3 fix re-verification (bundles index-DJ2vZh9q.js / Builder-DXPhO1-F.js confirmed)
+- narrow → 0.75″: raw honestcv.resume has NO "pageMargins" key; stepper 0.75″, both buttons enabled — PASS (r293b_normal_from_narrow.png)
+- wide → 0.75″: same, key removed — PASS (r293b_normal_from_wide.png)
+- Regression: narrow serializes "pageMargins":"narrow" (− disabled), wide serializes "wide" (+ disabled) — PASS
+- Zero /api/ai/* requests; cleanup baseline [clientId, qa], empty html class — PASS
