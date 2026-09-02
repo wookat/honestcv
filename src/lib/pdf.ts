@@ -106,29 +106,54 @@ interface RunWord {
   font: PDFFont
   underline: boolean
   href?: string
+  /** Continues the previous word with no whitespace between them in the source. */
+  glue: boolean
 }
 
-/** Greedy word wrap across mixed-font runs; returns lines of styled words. */
+/** Greedy word wrap across mixed-font runs; returns lines of styled words.
+ *  Adjacent runs with no whitespace between them (e.g. an underlined word
+ *  followed by punctuation) stay glued: no space is drawn between them and
+ *  the pair wraps as a single unit. */
 function wrapRuns(runs: InlineRun[], fonts: Fonts, size: number, maxWidth: number): RunWord[][] {
   const words: RunWord[] = []
+  let pendingGlue = false
   for (const run of runs) {
+    if (!run.text) continue
     const font = run.bold ? fonts.bold : run.italic ? fonts.italic : fonts.regular
-    for (const w of run.text.split(/\s+/).filter(Boolean))
-      words.push({ text: w, font, underline: run.underline, href: run.href })
+    const startsWithSpace = /^\s/.test(run.text)
+    run.text
+      .split(/\s+/)
+      .filter(Boolean)
+      .forEach((w, i) => {
+        words.push({
+          text: w,
+          font,
+          underline: run.underline,
+          href: run.href,
+          glue: i === 0 && !startsWithSpace && pendingGlue && words.length > 0,
+        })
+      })
+    pendingGlue = !/\s$/.test(run.text)
+  }
+  // Wrap by cluster (a word plus its glued followers) so glued pairs never split.
+  const clusters: RunWord[][] = []
+  for (const w of words) {
+    if (w.glue && clusters.length) clusters[clusters.length - 1].push(w)
+    else clusters.push([w])
   }
   const spaceW = (f: PDFFont) => drawnWidth(f, ' ', size)
   const lines: RunWord[][] = []
   let line: RunWord[] = []
   let lineW = 0
-  for (const w of words) {
-    const wordW = drawnWidth(w.font, w.text, size)
-    const addW = line.length ? spaceW(w.font) + wordW : wordW
+  for (const cluster of clusters) {
+    const clusterW = cluster.reduce((acc, w) => acc + drawnWidth(w.font, w.text, size), 0)
+    const addW = line.length ? spaceW(cluster[0].font) + clusterW : clusterW
     if (line.length && lineW + addW > maxWidth) {
       lines.push(line)
-      line = [w]
-      lineW = wordW
+      line = cluster.map((w, i) => (i === 0 ? { ...w, glue: false } : w))
+      lineW = clusterW
     } else {
-      line.push(w)
+      line.push(...cluster.map((w, i) => (i === 0 && !line.length ? { ...w, glue: false } : w)))
       lineW += addW
     }
   }
@@ -478,7 +503,7 @@ class PdfWriter {
       marker(i === 0)
       let x = this.x0 + indent
         words.forEach((w, j) => {
-          const spaceW = j > 0 ? drawnWidth(w.font, ' ', size) : 0
+          const spaceW = j > 0 && !w.glue ? drawnWidth(w.font, ' ', size) : 0
           x += spaceW
           this.page.drawText(w.text, {
             x,
