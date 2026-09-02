@@ -541,3 +541,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - P2-2：Builder header 四个 PDF/DOCX/TXT/MD 按钮改 hidden 2xl:inline-flex，紧凑下载 dropdown（含全部四格式）改 2xl:hidden——完整按钮行固有宽度 ~1460px，2xl(1536) 是其上最小默认断点；<1536 桌面与移动统一用 dropdown，375px 行为不变。
 - QA（生产复验，bundle index-ClLLZMYm.js / Builder-D0ZWkuSb.js）：全绿零 P0–P3 零 AI——PDF pdfminer 逐字符字体证实 Platform=Bold、下划线精确跨 Cloud、/URI annot 对准 team、accent+居中（Modern 中点 307.8 vs 306）；DOCX 真实 w:b/w:u/hyperlink rel；无 marks 单 run 回归；1280/1366/1440/1512 scrollWidth≤innerWidth 且 dropdown 四格式实下；1536+ 完整按钮；375 回归。docs/plan-r291-audit-fixes.md、docs/qa-r291-plan.md。
 - 坑：模板卡按 button.title==描述识别；honestcv.templateRecents 需清理；Tailwind hidden 包裹层判定用 el.checkVisibility()；pypdf 查 /URI annot（raw grep 会漏 object stream）。
+
+## R292 — 新建简历弹窗补 Language 选择（对标 Rezi create-resume setup form）(2026-08-31)
+- Rezi 一手 create-resume 文档：setup form 含 experience level 与「select the language of your resume」；我方 R167 起有 per-resume language（本地化默认 section 标题 + AI 输出）但只藏在 Builder 设计面板，新建路径无入口。
+- 仅改 Dashboard.tsx：newLanguage state（默认 en，closeNewDialog 重置）；Experience level 改与新 Language select（#new-resume-language，RESUME_LANGUAGES 原生名）同 sm:grid-cols-2 行；startNewResume 传 language: en 时 undefined（英文序列化字节不变）。
+- QA（生产，bundle index-C7-PukMq.js / Dashboard-8EFSFgub.js）：全绿零 P0–P3 零 AI——默认 en 五选项、Español 创建后 "language":"es" + Resumen/Experiencia/Habilidades 本地化标题 + 设计面板 Español、英文无 language 键、Cancel 重置、keep-a-copy 保留 language、375 两 select 堆叠 scrollWidth=375、暗色对比。docs/plan-r292-new-resume-language.md、docs/qa-r292-plan.md。
