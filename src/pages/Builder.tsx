@@ -1463,7 +1463,7 @@ export default function Builder() {
     <div className="bg-muted/30 flex min-h-screen flex-col">
       <SiteHeader
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {unlocked ? (
               <Badge variant="secondary" className="hidden gap-1 sm:flex">
                 <Unlock className="size-3" />
