@@ -256,7 +256,7 @@ import {
   resumeLanguageOf,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
-import { bulletStartersFor, skillSuggestionsFor } from '@/lib/bulletStarters'
+import { bulletStartersFor, skillBulletStarters, skillSuggestionsFor } from '@/lib/bulletStarters'
 import { ACCENT_CHOICES, TEMPLATES, TEMPLATE_FILTERS, getTemplate } from '@/lib/templates'
 import {
   loadTemplateFavorites,
@@ -1206,6 +1206,14 @@ export default function Builder() {
     [shown.jobDescription, ats.missing]
   )
   const readiness = useMemo(() => applicationReadiness(ats), [ats])
+  /** Missing JD keywords for skill-tailored bullet starters — high priority first, cap 6. */
+  const starterSkills = useMemo(
+    () => [
+      ...ats.missing.filter((kw) => highKw.has(kw)),
+      ...ats.missing.filter((kw) => !highKw.has(kw)),
+    ].slice(0, 6),
+    [ats.missing, highKw]
+  )
 
   const set = useCallback(<K extends keyof Resume>(key: K, value: Resume[K]) => {
     setResume((r) => ({ ...r, [key]: value }))
@@ -2659,6 +2667,7 @@ export default function Builder() {
                 />
                 <BulletIdeas
                   role={`${e.role} ${resume.targetRole}`}
+                  skills={starterSkills}
                   onAdd={(s) =>
                     setExp(e.id, {
                       bullets: [...e.bullets.filter((b) => b.trim()), s],
@@ -7638,9 +7647,18 @@ export default function Builder() {
   )
 }
 
-function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void }) {
+function BulletIdeas({
+  role,
+  skills,
+  onAdd,
+}: {
+  role: string
+  skills: string[]
+  onAdd: (s: string) => void
+}) {
   const [open, setOpen] = useState(false)
   const starters = useMemo(() => bulletStartersFor(role), [role])
+  const tailored = useMemo(() => skillBulletStarters(role, skills), [role, skills])
   return (
     <div>
       <button
@@ -7653,6 +7671,28 @@ function BulletIdeas({ role, onAdd }: { role: string; onAdd: (s: string) => void
       </button>
       {open && (
         <ul className="mt-2 space-y-1">
+          {tailored.length > 0 && (
+            <li>
+              <div className="text-muted-foreground text-[11px] font-medium">
+                Tailored to your target job — keywords the posting wants that your resume
+                doesn&apos;t show yet:
+              </div>
+              <ul className="mt-1 space-y-1">
+                {tailored.map((s) => (
+                  <li key={s}>
+                    <button
+                      type="button"
+                      className="bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/40 w-full rounded-md border px-2 py-1.5 text-left text-xs"
+                      title="Add this bullet"
+                      onClick={() => onAdd(s)}
+                    >
+                      + {s}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          )}
           {starters.map((s) => (
             <li key={s}>
               <button

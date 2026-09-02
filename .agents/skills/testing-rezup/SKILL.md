@@ -717,3 +717,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R258 — session report QA
 - tsx oracle scripts that import repo libs: place them in `.tmp-smoke/` with RELATIVE imports (`../src/lib/...`) and run `npx tsx --tsconfig tsconfig.app.json .tmp-smoke/<file>.ts` — the `@/` alias does not resolve for files outside tsconfig include.
 - Practice-session mechanics: skipped questions create no transcript entry (sessionEntries only pushes when answer/feedback non-empty); "Finish session" is the last-question label ("End early" also finishes); the finished transcript is a `[role=dialog] textarea` whose value starts with "Practice session —"; "Save to My resumes" writes to `honestcv.careerDocs` (remove in cleanup).
+
+## R259 — bullet starters QA
+- `highPriorityKeywords` treats only tokens AFTER the Requirements heading line as the requirements block — keywords on the heading line itself ("Requirements: kubernetes, …") are NOT high-priority; put them on the next line in fixtures.
+- BulletIdeas selectors: toggle "Need ideas? Show bullet starters"; tailored starters are `button.bg-sky-50` inside the panel `ul`; role starters use `bg-muted/60`.
