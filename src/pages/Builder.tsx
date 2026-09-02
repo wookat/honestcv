@@ -1418,6 +1418,8 @@ export default function Builder() {
         variant,
         language: resume.language,
         section: target.section,
+        targetRole: resume.targetRole.trim() || undefined,
+        jobDescription: resume.jobDescription.trim() || undefined,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()

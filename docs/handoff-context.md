@@ -514,3 +514,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验，两轮）：bundle index-CsNxhC7I.js → index-N_vi6K7U.js / Builder-DUo1y6aS.js；全绿零 P0–P2 零 AI 配额——payload 拦截于网络前（proj 含 section:"project"、inv 含 section:"involvement"、key-numbers 加 variant、经历回归无 section 键）、Fetch.fulfillRequest 假响应验证审阅对话框 Apply 追加行+freeLeft 计数、375px 四按钮堆叠、localStorage/主题还原；QA 发现的 P3（三处 -suggest-nums 按钮 not-ready tooltip 落到配额文案，含既有经历处）当轮修复复验（六按钮同 reason）。
 - 坑（测试代理沉淀）：Fetch.fulfillRequest 假 JSON（{"text":…,"freeRemaining":N}）可在生产安全验证 AI 成功路径（对话框/Apply/配额计数）而零 LLM 调用，配合 r283_lib.py 缓冲助手使用。
 - 文档：docs/plan-r284-project-involvement-suggest-bullet.md、docs/qa-r284-plan.md（测试代理写）。
+
+## R285 — Suggest a bullet 按目标职位/JD 定制 (2026-08-31)
+- 证据：同一 Rezi 一手 AI Bullet Points 指南——「providing your target role and job description… allows the AI to tailor bullet-point suggestions to the role you want, rather than generating generic content」；我方 buildSuggestBulletMessages 此前完全不接收 targetRole/jobDescription（rewrite/summary 等路径早已 JD 感知），Builder 明明有 resume.targetRole/jobDescription 却没传。
+- 实现：buildSuggestBulletMessages 尾部新增可选 targetRole=''/jobDescription=''（非空时在 existing bullets 后、candidate resume 前追加「Target role: X」与「Tailor wording toward this job description (mirror its keywords only where the resume truthfully supports them)」+ JD 前 4000 字符；两者为空时提示词字节级不变，oracle 验证 omitted==''）；worker /api/ai/suggest-bullet 白名单解析（targetRole trim+cap200）；api.ts aiSuggestBullet 新可选字段；Builder runSuggestBullet 传 resume.targetRole/jobDescription（trim 空→undefined，JSON 无键，无目标职位 payload 字节级不变）。零 UI/schema/评分/导出/持久化改动。
+- QA（生产复验）：bundle index-BLm2S5fA.js / Builder-Bi7tjjaB.js；全绿零 P0–P3 零 AI 配额——设定目标职位+JD 后六个 suggest 按钮（exp/proj/inv × plain/key-numbers）payload 均含 targetRole+JD 精确串且 section/variant 键与 R284 一致；清空后 payload 键集与 R284 基线字节级一致（exp [bullets,company,resumeText,role]、proj +section）；R284b 缺字段 reason 回归；8 个请求全部拦截于网络前、localStorage/主题还原。
+- 坑（测试代理沉淀）：localStorage 清理还须删 honestcv.resumeHistory（Builder 编辑会重建），否则 2-key 基线校验失败。
+- 文档：docs/plan-r285-jd-tailored-suggest-bullet.md、docs/qa-r285-plan.md（测试代理写）。
