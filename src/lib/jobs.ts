@@ -100,6 +100,35 @@ export function followUpEmail(
   return { subject, body }
 }
 
+/** A posting anyone can apply to regardless of where they live. */
+export function isLocationAgnostic(location: string): boolean {
+  const l = location.trim().toLowerCase()
+  return l === '' || l === 'remote' || /\b(worldwide|anywhere|global)\b/.test(l)
+}
+
+/**
+ * Distinct candidate locations across listings with posting counts, most
+ * common first (ties alphabetical). Location-agnostic postings are skipped —
+ * they match any location filter anyway.
+ */
+export function locationFacets(
+  locations: readonly string[],
+  cap = 8
+): { label: string; count: number }[] {
+  const byKey = new Map<string, { label: string; count: number }>()
+  for (const raw of locations) {
+    const label = raw.trim()
+    if (isLocationAgnostic(label)) continue
+    const key = label.toLowerCase()
+    const entry = byKey.get(key)
+    if (entry) entry.count++
+    else byKey.set(key, { label, count: 1 })
+  }
+  return [...byKey.values()]
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, cap)
+}
+
 const PIPELINE_KEY = 'honestcv.jobPipeline'
 
 /** Category slugs accepted by the jobs API (Remotive's fixed list). */

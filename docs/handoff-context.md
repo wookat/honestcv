@@ -415,3 +415,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA：生产 bundle index-C-cQKKi8.js / Dashboard-CeRkJQ9R.js；全绿零 P0–P3 零 AI——两行卡片文案字节级、LinkedIn txt（有 draft）弹窗前缀字节级 + Open and replace 后 Builder 载入 Jane Doe/React 技能、plain txt 无前缀字节级、无 draft 直开 Builder、<30 字符错误路径回归、375/375、新行对比度亮 5.53:1 / 暗 6.31:1、localStorage 精确还原。
 - 文档：docs/plan-r266-linkedin-import-discoverability.md、docs/qa-r266-plan.md。
 - 坑：Dashboard draft 判定 loadResume() 要求存储对象含 contact 且 experience 为数组——seed draft 至少带 experience: []，否则静默走无 draft 路径。
+
+## R267 — jobs board location facet chips (2026-09-02)
+- 证据：Rezi Job Search 一手文档（rezi-docs/job-search）「search and refine opportunities by … locations」+ 求职页地图式按地点发现；我方 /jobs 已有 location 文本框（R195 直接命中优先 + location-agnostic 追加），但结果集里有哪些地点、各多少条完全不可见。
+- 实现：src/lib/jobs.ts 导出 isLocationAgnostic()（原 Jobs.tsx 内联逻辑原样上移）+ 新纯函数 locationFacets(locations, cap=8)（trim、跳过 agnostic、大小写不敏感分组保留首见大小写、每条计 1、数量降序+标签字母序、cap 8）。Jobs.tsx All 标签在 Hide 行后新增「Locations:」chip 行（role=group，aria-label "Filter by a location found in these results"，chip 文本 `label (count)`，aria-pressed），facets 取自 afterSkills（location 筛选之前）——激活 chip 时行不消失；点 chip setLocationFilter(label)，再点清空。零 worker/schema/评分/AI/持久化改动，R195 直接命中+agnostic 追加语义不变。
+- QA：生产 bundle index-CG7n1xJN.js / Jobs-zdED-RJ2.js；全绿零 P0–P3 零 AI——7 chips 与页面实际 /api/jobs/search payload 的 locationFacets 复算逐字节吻合（18 职位，8 Worldwide+1 Remote 正确排除）、点击填充输入框+3 直接命中在前+6 agnostic 追加、再点清空、type/skills/Hide 联动复算精确（含 Hide 后 3→2 字母序重排）、Tracked/Saved 无行、R242/R243/R254 回归、375 无横向溢出 40px 触控、对比度亮 16.66:1 / 暗 15.05:1。大小写合并生产数据不可观察，仅 oracle（.tmp-smoke/r267_oracle.ts 8/8 绿）验证。
+- 文档：docs/plan-r267-location-facets.md、docs/qa-r267-plan.md。
+- 分支基座：本轮起基于 #484 converge 分支（devin/1788344463-converge-r191-r266，R191–R266 全链 + main 冲突已解），不再层层堆叠旧链。
