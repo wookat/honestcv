@@ -334,6 +334,43 @@ function activeVoiceCheck(lines: string[]): AtsResult['checks'][number] {
   }
 }
 
+/** Weak bullet openers — shared by the per-bullet guidance and the scored check. */
+export const WEAK_OPENERS = [
+  'responsible for',
+  'worked on',
+  'helped with',
+  'helped to',
+  'duties included',
+  'tasked with',
+  'in charge of',
+  'assisted with',
+  'participated in',
+]
+
+/** Strong bullet openers: weak openers hide the action and the impact */
+function weakOpenerCheck(lines: string[]): AtsResult['checks'][number] {
+  let opener = ''
+  let line = ''
+  for (const l of lines) {
+    const t = l.trim()
+    const lower = t.toLowerCase()
+    const hit = WEAK_OPENERS.find((w) => lower.startsWith(w))
+    if (hit) {
+      opener = hit
+      line = t
+      break
+    }
+  }
+  return {
+    label: 'Strong bullet openers',
+    pass: !opener,
+    hint: opener
+      ? `"${line.length > 60 ? `${line.slice(0, 60)}…` : line}" opens with "${opener}" — lead with a strong action verb (Led, Built, Cut…) so employers see your impact first.`
+      : 'Bullets open with strong action verbs — employers see your impact first.',
+    anchor: 'experience',
+  }
+}
+
 /**
  * Clearly-empty buzzword claims for the scored check. Ambiguous single
  * adjectives (dynamic, proactive, passionate, motivated) are excluded here —
@@ -752,6 +789,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     namedMonthDatesCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
     pronounCheck(textPronounSegments(resumeTextRaw)),
     activeVoiceCheck(textBulletLines(resumeTextRaw)),
+    weakOpenerCheck(textBulletLines(resumeTextRaw)),
     quantifiedBulletsCheck(textBulletLines(resumeTextRaw)),
     punctuatedBulletsCheck(textBulletLines(resumeTextRaw)),
     bulletLengthCheck(textBulletLines(resumeTextRaw)),
@@ -943,6 +981,12 @@ export function scoreResume(
       },
     ]),
     activeVoiceCheck([
+      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+      ...resume.customSections.flatMap((s) => s.bullets),
+    ]),
+    weakOpenerCheck([
       ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
       ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
       ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),

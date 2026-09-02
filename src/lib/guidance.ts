@@ -3,20 +3,8 @@
  * Flags weak openers, missing quantification, and length problems.
  */
 import type { Resume } from '@/lib/resume'
-import { findPassive, type AtsResult, type SectionAnchor } from '@/lib/ats'
+import { findPassive, WEAK_OPENERS, type AtsResult, type SectionAnchor } from '@/lib/ats'
 import { stripInlineMarks } from '@/lib/marks'
-
-const WEAK_OPENERS = [
-  'responsible for',
-  'worked on',
-  'helped with',
-  'helped to',
-  'duties included',
-  'tasked with',
-  'in charge of',
-  'assisted with',
-  'participated in',
-]
 
 const FILLER_WORDS = ['various', 'several', 'stuff', 'things', 'etc']
 
