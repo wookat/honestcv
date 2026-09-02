@@ -6,7 +6,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, Loader2, MapPin, Send, Sparkles, Trash2, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { BriefcaseBusiness, Check, Loader2, MapPin, Send, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -24,6 +25,8 @@ const CHAT_MAX = 40
 interface ChatMsg extends AssistantTurnInput {
   action?: AssistantAction
   applied?: boolean
+  /** Job-board search this turn recommends; rendered as a link to /jobs */
+  jobsQuery?: string
 }
 
 function validAction(a: unknown): a is AssistantAction {
@@ -62,6 +65,7 @@ function loadChat(): ChatMsg[] {
         role: t.role,
         content: t.content,
         ...(validAction(t.action) ? { action: t.action, applied: t.applied === true } : {}),
+        ...(typeof t.jobsQuery === 'string' ? { jobsQuery: t.jobsQuery } : {}),
       }))
   } catch {
     return []
@@ -95,6 +99,40 @@ const QUICK_TASKS: { label: string; prompt: string }[] = [
       'How well does my resume match my target job? Point out the biggest gaps and how to tailor it.',
   },
 ]
+
+const FIND_JOBS_LABEL = 'Find matching jobs'
+const FIND_JOBS_PROMPT = 'Find job opportunities that match my resume.'
+
+/** Top skill names from the free-text skills section, category prefixes stripped. */
+function topSkills(r: Resume, max = 5): string[] {
+  return r.skills
+    .split(/\n/)
+    .map((line) => (line.includes(':') ? line.slice(line.indexOf(':') + 1) : line))
+    .flatMap((line) => line.split(','))
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, max)
+}
+
+/** Locally composed Find-jobs reply: recommended board search + the resume signals behind it. */
+function findJobsReply(r: Resume): { content: string; jobsQuery: string } {
+  const role =
+    r.targetRole.trim() || r.experience.find((e) => !e.hidden && e.role.trim())?.role.trim() || ''
+  const skills = topSkills(r)
+  const location = r.contact.location.trim()
+  const signals = [
+    skills.length ? `your skills (${skills.join(', ')})` : '',
+    location ? `your location (${location})` : '',
+  ].filter(Boolean)
+  const content = role
+    ? `Based on your resume, I'd search the job board for “${role}”.` +
+      (signals.length
+        ? ` Once you're there, ${signals.join(' and ')} can help you judge which postings fit best.`
+        : '') +
+      ' Track anything promising and use “Target my resume” on a posting — I can then help you tailor your resume to it.'
+    : 'Your resume doesn’t name a target role yet, so I’ll take you to the job board to browse. Add a target role (or an experience entry) and I can recommend a sharper search.'
+  return { content, jobsQuery: role }
+}
 
 export function AssistantPanel({
   open,
@@ -165,6 +203,19 @@ export function AssistantPanel({
     } finally {
       setBusy(false)
     }
+  }
+
+  const findJobs = () => {
+    if (busy) return
+    const { content, jobsQuery } = findJobsReply(resume)
+    const next = [
+      ...turns,
+      { role: 'user' as const, content: FIND_JOBS_PROMPT },
+      { role: 'assistant' as const, content, jobsQuery },
+    ].slice(-CHAT_MAX)
+    setTurns(next)
+    persistChat(next)
+    setError('')
   }
 
   const apply = (index: number) => {
@@ -256,6 +307,14 @@ export function AssistantPanel({
                   {t.label}
                 </Button>
               ))}
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-h-10 sm:min-h-8"
+                onClick={findJobs}
+              >
+                {FIND_JOBS_LABEL}
+              </Button>
             </div>
           </div>
         )}
@@ -270,6 +329,14 @@ export function AssistantPanel({
             >
               {t.content}
             </div>
+            {t.jobsQuery !== undefined && (
+              <Button asChild size="sm" variant="outline" className="min-h-10 sm:min-h-8">
+                <Link to={t.jobsQuery ? `/jobs?q=${encodeURIComponent(t.jobsQuery)}` : '/jobs'}>
+                  <BriefcaseBusiness className="size-3.5" /> Search jobs
+                  {t.jobsQuery ? ` “${t.jobsQuery}”` : ''} →
+                </Link>
+              </Button>
+            )}
             {t.action && (
               <div className="rounded-lg border px-3 py-2">
                 <p className="text-muted-foreground text-xs font-medium">
@@ -334,6 +401,15 @@ export function AssistantPanel({
               {t.label}
             </Button>
           ))}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            className="min-h-10 rounded-full text-xs sm:min-h-7"
+            onClick={findJobs}
+          >
+            {FIND_JOBS_LABEL}
+          </Button>
         </div>
       )}
       <form

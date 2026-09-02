@@ -99,7 +99,11 @@ export default function Jobs() {
   )
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('all')
-  const [query, setQuery] = useState(() => loadResume()?.targetRole ?? '')
+  // ?q= deep link (e.g. the assistant's "Find matching jobs") seeds the search
+  const [seedQuery] = useState(
+    () => new URLSearchParams(window.location.search).get('q')?.trim() || null
+  )
+  const [query, setQuery] = useState(() => seedQuery ?? loadResume()?.targetRole ?? '')
   const [category, setCategory] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
   const [sort, setSort] = useState<'relevance' | 'newest' | 'match'>('relevance')
@@ -133,8 +137,9 @@ export default function Jobs() {
   }
 
   useEffect(() => {
-    void fetchJobs(loadResume()?.targetRole ?? '')
-  }, [])
+    void fetchJobs(seedQuery ?? loadResume()?.targetRole ?? '')
+    // seedQuery is set once from the URL and never changes
+  }, [seedQuery])
 
   const statusOf = useMemo(() => {
     const map = new Map<string, JobStatus>()
