@@ -1114,6 +1114,31 @@ export function scoreResume(
   return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
 }
 
+export type ReadinessTier = 'ready' | 'almost' | 'not-yet'
+
+export interface ApplicationReadiness {
+  tier: ReadinessTier
+  blockers: string[]
+}
+
+/**
+ * Rezi-style "Application Ready" roll-up: a readiness verdict derived from the
+ * overall score (90+ ready, 50–89 almost, <50 not yet) plus the plain-language
+ * reasons holding it back. Pure derivation — no new scoring.
+ */
+export function applicationReadiness(ats: AtsResult): ApplicationReadiness {
+  const tier: ReadinessTier = ats.score >= 90 ? 'ready' : ats.score >= 50 ? 'almost' : 'not-yet'
+  const blockers: string[] = []
+  for (const cat of CHECK_CATEGORIES) {
+    const failing = ats.checks.filter((c) => c.category === cat.key && !c.pass).length
+    if (failing > 0)
+      blockers.push(`${failing} ${cat.label.toLowerCase()} check${failing === 1 ? '' : 's'} failing`)
+  }
+  if (ats.keywordScore !== null && ats.keywordScore < 70)
+    blockers.push(`keyword match at ${ats.keywordScore}% (${ats.missing.length} missing)`)
+  return { tier, blockers: blockers.slice(0, 3) }
+}
+
 /**
  * Deterministic plain-text report of an ATS result, sent to the resume
  * assistant so score answers cite the same numbers and checks the editor

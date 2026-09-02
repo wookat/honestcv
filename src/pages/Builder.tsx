@@ -96,6 +96,7 @@ import {
   type AtsResult,
   type SectionAnchor,
   CHECK_CATEGORIES,
+  applicationReadiness,
   atsScoreSummary,
   bestExperienceForKeyword,
   highPriorityKeywords,
@@ -1163,6 +1164,7 @@ export default function Builder() {
     () => highPriorityKeywords(shown.jobDescription, ats.missing),
     [shown.jobDescription, ats.missing]
   )
+  const readiness = useMemo(() => applicationReadiness(ats), [ats])
 
   const set = useCallback(<K extends keyof Resume>(key: K, value: Resume[K]) => {
     setResume((r) => ({ ...r, [key]: value }))
@@ -6339,6 +6341,27 @@ export default function Builder() {
                 </p>
               )}
               <div className="mt-3 space-y-3">
+                <div
+                  className={`rounded-md px-2.5 py-1.5 text-xs ${
+                    readiness.tier === 'ready'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : readiness.tier === 'almost'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  <span className="font-semibold">
+                    Application ready:{' '}
+                    {readiness.tier === 'ready'
+                      ? 'Ready to send'
+                      : readiness.tier === 'almost'
+                        ? 'Almost there'
+                        : 'Needs work'}
+                  </span>
+                  {readiness.blockers.length > 0 && (
+                    <span> — {readiness.blockers.join(' · ')}</span>
+                  )}
+                </div>
                 {CHECK_CATEGORIES.map((cat) => {
                   const rows = ats.checks.filter((c) => c.category === cat.key)
                   if (rows.length === 0) return null
