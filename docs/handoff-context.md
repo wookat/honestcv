@@ -521,3 +521,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验）：bundle index-BLm2S5fA.js / Builder-Bi7tjjaB.js；全绿零 P0–P3 零 AI 配额——设定目标职位+JD 后六个 suggest 按钮（exp/proj/inv × plain/key-numbers）payload 均含 targetRole+JD 精确串且 section/variant 键与 R284 一致；清空后 payload 键集与 R284 基线字节级一致（exp [bullets,company,resumeText,role]、proj +section）；R284b 缺字段 reason 回归；8 个请求全部拦截于网络前、localStorage/主题还原。
 - 坑（测试代理沉淀）：localStorage 清理还须删 honestcv.resumeHistory（Builder 编辑会重建），否则 2-key 基线校验失败。
 - 文档：docs/plan-r285-jd-tailored-suggest-bullet.md、docs/qa-r285-plan.md（测试代理写）。
+
+## R286 — 变体选择器内 Regenerate / Adjust role & skills (2026-08-31)
+- 证据：Rezi 一手 AI Resume Summary Writer 指南（rezi.ai/rezi-docs/ai-resume-summary-writer-explained，2026-08-07 更新）「You can regenerate as many times as you want」+ step 4「Hit regenerate and try again… You can also swap out skills or change the role before going again」；我方 variantPick 对话框（Pick a summary / Pick a rewrite）此前无任何 regenerate 路径——想要新选项必须关对话框重新点原按钮，且引导式 summary 草稿一旦进入选择器就无法回到 R163 的职位/技能设置。
+- 实现：仅 Builder.tsx——variantPick 状态新增可选 tag/regenerate/adjust；runRewrite 与 runSummaryDraft 在 setVariantPick 时传入同参重跑闭包（新候选原地替换开着的对话框）；summary 路径另传 adjust（关闭选择器、以相同 position+picked 重开设置对话框）；对话框 footer 新增「Regenerate options」（busy 时 Writing…/禁用）与（仅 summary 草稿）「Adjust role & skills」；regenerate 失败时在候选下方内联显示错误（aiErrorTag===tag），旧候选保持可用。零 worker/prompt/api/schema/评分/导出/持久化改动，每次 regenerate 消耗与重新点击原按钮相同的一次 AI 配额。
+- QA（生产复验）：bundle index-Dw8U6jU0.js / Builder-DI8XCZAw.js；全绿零 P0–P3 零 AI 配额——summary-draft 选择器 3 候选+两按钮、Regenerate 第二次 POST payload 字节级一致且候选原地替换（Writing… 态截图）、Adjust 重开设置对话框预填相同 position+skills、rewrite 选择器有 Regenerate 无 Adjust、假 500 → 内联「Boom」错误且旧候选可点、Keep my original 回归、375px 无溢出、localStorage/主题基线还原（证据在 PR 评论）。
+- 坑（测试代理沉淀）：引导式 summary 触发按钮实际文案是「Draft from my resume」（仅 summary 为空时渲染，有内容后变「AI polish summary」），设置对话框提交按钮是「Write 3 drafts」；同一同步 JS 批次连点多个 React 状态按钮会丢更新（stale closure），连点 chips 须间隔 ~400ms。
+- 文档：docs/plan-r286-variant-picker-regenerate.md、docs/qa-r286-plan.md（测试代理写）。
