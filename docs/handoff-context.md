@@ -535,3 +535,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验，bundle index-DLlSaUNo.js / Builder-CR8NmuTh.js / guidance-RWlsDdyN.js）：全绿零 P0–P3 零 AI 配额——本地回复与 oracle（.tmp-smoke/r287_oracle.ts，--tsconfig tsconfig.app.json）字节级一致、与面板 footer 数字一致、无 JD/全覆盖两形态、Draft my summary 回归仍 POST /api/ai/assistant（拦截于网络前）、Improve/Find jobs 仍本地、聊天 reload 持久、375px 无页面级溢出、localStorage/主题还原。披露：375px 下 Builder 自身的横向可滚 section-tab 条有元素超出 x=375（自有 overflow 容器，页面 scrollWidth=375，既有模式非本轮回归）。
 - 测试沉淀：/builder?assistant=1 直开助手；honestcv.assistantChat 清理项；本地性证明用全程 Fetch 拦截断言零 paused 事件。
 - 文档：docs/plan-r287-local-target-job-reply.md、docs/qa-r287-plan.md。
+
+## R288 — 关键词 bullet 草稿对话框补「Draft another option」再生成 (2026-09-02)
+- 证据：Rezi 一手 AI Keyword Targeting 指南 step 4——「For each missing keyword, Rezi gives you the option to generate a new bullet point… You can accept the suggestion, rewrite it for more options, or tweak the wording until it feels right」。我方 KeywordBulletDialog（triage「Yes — draft a bullet」）此前只草一条，唯有手改/Add/Discard，要新选项必须关对话框重来（丢流程）；其余 AI 草稿面（R206 bullet-suggest、R286 变体选择器）早有再生成。
+- 实现：仅 Builder.tsx KeywordBulletDialog——草稿态按钮行改 flex-wrap，新增 outline「Draft another option」重跑同一 run()（aiKeywordBullet 字节级同 payload），busy 时 spinner+Drafting… 且 Add bullet 同步禁用；成功原地替换 textarea，失败内联报错旧稿保持可编辑可插入；插入后按钮行整体隐藏。零 worker/prompt/schema/评分/持久化改动。
+- QA（生产复验，bundle index-DDaizxrl.js / Builder-BFHSf0Hc.js）：全绿零 P0–P3 零 AI 配额——三按钮行、再生成 payload 字节级一致（362==362）、busy 态、失败路径旧稿可用、Add bullet 插入选中条目、手改后再生成替换（同变体选择器语义）、375px 按钮换行 scrollWidth=375、5 个请求全部拦截于网络前、localStorage/主题还原。披露：payload role:"" 为 fixture 未设目标职位的既有 aiTargetRole 语义。
+- 文档：docs/plan-r288-keyword-bullet-regenerate.md、docs/qa-r288-plan.md；SKILL.md 增 triage 卡位于 Target job 面板内/插入后关键词转 matched 卡片消失等沉淀。
