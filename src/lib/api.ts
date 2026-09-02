@@ -75,6 +75,7 @@ export async function aiSummaryDraft(input: {
   resumeText: string
   role: string
   highlights?: string[]
+  jobDescription?: string
   language?: string
 }): Promise<{ text: string; texts: string[]; freeRemaining: number | null }> {
   return post<{ text: string; texts: string[]; freeRemaining: number | null }>(
