@@ -240,17 +240,20 @@ export function buildCoverLetterMessages(
   jobDescription: string,
   company: string,
   role: string,
-  addressee = ''
+  addressee = '',
+  highlights = ''
 ): ChatMessage[] {
   return [
     {
       role: 'system',
-      content: `You are an expert cover-letter writer. Write a concise, specific, one-page cover letter (250-350 words). Structure: hook tied to the company/role, 2 short paragraphs mapping the candidate's real experience to the job's needs, warm closing. Never fabricate experience. Plain text, no markdown. Start with "Dear Hiring Manager," unless an "Addressed to" name is given — then address that person directly ("Dear <name>,"). Do not include addresses or dates.`,
+      content: `You are an expert cover-letter writer. Write a concise, specific, one-page cover letter (250-350 words). Structure: hook tied to the company/role, 2 short paragraphs mapping the candidate's real experience to the job's needs, warm closing. Never fabricate experience. Plain text, no markdown. Start with "Dear Hiring Manager," unless an "Addressed to" name is given — then address that person directly ("Dear <name>,"). If the candidate lists details to highlight, weave them naturally into the body paragraphs (do not present them as a list). Do not include addresses or dates.`,
     },
     {
       role: 'user',
       content: `Company: ${company || 'the company'}\nRole: ${role || 'the role'}${
         addressee ? `\nAddressed to: ${addressee}` : ''
+      }${
+        highlights ? `\nDetails the candidate specifically wants highlighted: ${highlights.slice(0, 500)}` : ''
       }\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
     },
   ]
