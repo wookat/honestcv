@@ -256,7 +256,12 @@ import {
   resumeLanguageOf,
 } from '@/lib/resume'
 import { TemplateThumb } from '@/components/TemplateThumb'
-import { bulletStartersFor, skillBulletStarters, skillSuggestionsFor } from '@/lib/bulletStarters'
+import {
+  bulletStartersFor,
+  provenSkills,
+  skillBulletStarters,
+  skillSuggestionsFor,
+} from '@/lib/bulletStarters'
 import { ACCENT_CHOICES, TEMPLATES, TEMPLATE_FILTERS, getTemplate } from '@/lib/templates'
 import {
   loadTemplateFavorites,
@@ -1213,6 +1218,11 @@ export default function Builder() {
       ...ats.missing.filter((kw) => !highKw.has(kw)),
     ].slice(0, 6),
     [ats.missing, highKw]
+  )
+  /** Lexicon skills the resume body demonstrates but the Skills section never lists. */
+  const proven = useMemo(
+    () => provenSkills(resumeToPlainText(shown), shown.skills).slice(0, 10),
+    [shown]
   )
 
   const set = useCallback(<K extends keyof Resume>(key: K, value: Resume[K]) => {
@@ -5198,6 +5208,34 @@ export default function Builder() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+              {proven.length > 0 && (
+                <div className="text-xs">
+                  <span className="text-muted-foreground">
+                    Mentioned in your experience but not listed in Skills — recruiters scan
+                    this section first:
+                  </span>
+                  <span className="mt-1 flex flex-wrap gap-1">
+                    {proven.map((kw) => (
+                      <button
+                        key={kw}
+                        type="button"
+                        className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 rounded-full border px-2 py-0.5"
+                        title="Add to Skills"
+                        onClick={() =>
+                          set(
+                            'skills',
+                            resume.skills.trim()
+                              ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
+                              : kw
+                          )
+                        }
+                      >
+                        + {kw}
+                      </button>
+                    ))}
+                  </span>
                 </div>
               )}
               {(() => {

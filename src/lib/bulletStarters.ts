@@ -306,3 +306,38 @@ export function skillSuggestionsFor(role: string): string[] {
   for (const g of SKILL_GROUPS) if (g.match.test(role)) return g.skills
   return []
 }
+
+/** Union of every role family's curated skills, deduped case-insensitively in group order. */
+export function skillLexicon(): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const g of SKILL_GROUPS)
+    for (const s of g.skills) {
+      const key = s.toLowerCase()
+      if (!seen.has(key)) {
+        seen.add(key)
+        out.push(s)
+      }
+    }
+  return out
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** Word-boundary match for single words, substring for phrases — mirrors keywordScore. */
+function skillPattern(skill: string): RegExp {
+  const escaped = escapeRegExp(skill)
+  return skill.includes(' ')
+    ? new RegExp(escaped, 'i')
+    : new RegExp(`(?:^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i')
+}
+
+/** Lexicon skills demonstrated in the resume body but absent from the skills section. */
+export function provenSkills(bodyText: string, skillsText: string): string[] {
+  return skillLexicon().filter((s) => {
+    const re = skillPattern(s)
+    return re.test(bodyText) && !re.test(skillsText)
+  })
+}

@@ -721,3 +721,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R259 — bullet starters QA
 - `highPriorityKeywords` treats only tokens AFTER the Requirements heading line as the requirements block — keywords on the heading line itself ("Requirements: kubernetes, …") are NOT high-priority; put them on the next line in fixtures.
 - BulletIdeas selectors: toggle "Need ideas? Show bullet starters"; tailored starters are `button.bg-sky-50` inside the panel `ul`; role starters use `bg-muted/60`.
+
+## R260 — Skills section QA
+- Delete `.tmp-smoke/` oracle files after each round — leftover `.ts` files there break `npm run lint`.
+- Skills-section selectors: proven chips are `button.bg-emerald-50` under the "Mentioned in your experience…" span; role-family chips `button.bg-muted` under "Common for your target role…" (label switches when `aiSkillChips` exist — avoid triggering that AI path).
