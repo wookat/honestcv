@@ -2117,11 +2117,22 @@ export function courseworkHeadingLine(c: CourseworkItem): string {
   return [c.name.trim(), c.institution.trim()].filter(Boolean).join('  ·  ')
 }
 
-/** Bullets for a coursework entry: "Skill: X" (when set) + description lines */
-export const courseworkBullets = (c: CourseworkItem): string[] => [
-  ...(c.skill.trim() ? [`Skill: ${c.skill.trim()}`] : []),
-  ...c.description.split('\n').map((l) => l.trim()).filter(Boolean),
-]
+/** Skills recorded on a coursework entry: comma-separated, capped at 3. */
+export const courseworkSkills = (c: CourseworkItem): string[] =>
+  c.skill.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 3)
+
+/** Bullets for a coursework entry: skills line (when set) + description lines */
+export const courseworkBullets = (c: CourseworkItem): string[] => {
+  const skills = courseworkSkills(c)
+  return [
+    ...(skills.length > 1
+      ? [`Skills: ${skills.join(' · ')}`]
+      : skills.length === 1
+        ? [`Skill: ${skills[0]}`]
+        : []),
+    ...c.description.split('\n').map((l) => l.trim()).filter(Boolean),
+  ]
+}
 
 /**
  * Skills split into display lines. A line written as "Category: a, b, c"

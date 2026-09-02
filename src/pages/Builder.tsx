@@ -3889,7 +3889,7 @@ export default function Builder() {
                   </div>
                 </div>
                 <Input
-                  placeholder="Skill used (optional, e.g. Teamwork)"
+                  placeholder="Skills used (optional, up to 3 — e.g. Teamwork, SQL)"
                   value={cw.skill}
                   onChange={(ev) =>
                     setResume((r) => ({
@@ -3900,6 +3900,11 @@ export default function Builder() {
                     }))
                   }
                 />
+                {cw.skill.split(',').filter((s) => s.trim()).length > 3 && (
+                  <p className="text-muted-foreground text-xs">
+                    Only the first 3 skills appear on the resume.
+                  </p>
+                )}
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
                     rows={2}
