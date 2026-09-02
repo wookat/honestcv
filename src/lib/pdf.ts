@@ -51,7 +51,13 @@ import {
   type FontFamilyKind,
 } from '@/lib/resume'
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
-import { type InlineRun, hasInlineMarks, parseInlineMarks, stripInlineMarks } from '@/lib/marks'
+import {
+  type InlineRun,
+  hasInlineMarks,
+  parseInlineMarks,
+  stripInlineMarks,
+  upperInlineMarks,
+} from '@/lib/marks'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_SIZES = {
@@ -390,7 +396,10 @@ class PdfWriter {
   }
 
   heading(label: string) {
-    const text = this.tpl.headingCase === 'upper' ? label.toUpperCase() : label
+    const marked = hasInlineMarks(label)
+    const upper = this.tpl.headingCase === 'upper'
+    const text = upper ? (marked ? upperInlineMarks(label) : label.toUpperCase()) : label
+    const plain = marked ? stripInlineMarks(text) : text
     // heading + divider + first content line, so a heading never sits
     // alone at the bottom of a page
     this.ensure(52)
@@ -400,8 +409,8 @@ class PdfWriter {
       // consumes no vertical space — content flows beside it at x0.
       const gutterW = this.x0 - MARGIN - 10
       let size = 10 * this.fs
-      while (size > 7 && drawnWidth(this.fonts.bold, text, size) > gutterW) size -= 0.5
-      this.page.drawText(text, {
+      while (size > 7 && drawnWidth(this.fonts.bold, plain, size) > gutterW) size -= 0.5
+      this.page.drawText(plain, {
         x: MARGIN,
         y: this.y - size * this.lh,
         size,
@@ -422,7 +431,7 @@ class PdfWriter {
         color: hexToRgb(accentTint(this.tpl.accent)),
       })
       this.y -= size * this.lh + 3
-      this.page.drawText(text, {
+      this.page.drawText(plain, {
         x: this.x0 + 6,
         y: this.y,
         size,
@@ -433,7 +442,13 @@ class PdfWriter {
       this.gap(5)
       return
     }
-    this.text(text, { font: this.fonts.bold, size: 11, color: this.accent })
+    if (marked)
+      this.richText(text, 11 * this.fs, {
+        fonts: { ...this.fonts, regular: this.fonts.bold },
+        color: this.accent,
+        gap: 0,
+      })
+    else this.text(text, { font: this.fonts.bold, size: 11, color: this.accent })
     if (this.divider !== 'none') {
       const thickness = this.divider === 'thick' ? 2 : 0.75
       this.gap(3)
@@ -734,11 +749,24 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
   }
 
   const centerHeader = tpl.headerAlign !== 'left'
+  const rawName = c.fullName || 'Your Name'
+  const nameMarked = hasInlineMarks(rawName)
   const name =
     tpl.nameCase === 'upper'
-      ? (c.fullName || 'Your Name').toUpperCase()
-      : c.fullName || 'Your Name'
-  w.text(name, { font: fonts.bold, size: 22, center: centerHeader })
+      ? nameMarked
+        ? upperInlineMarks(rawName)
+        : rawName.toUpperCase()
+      : rawName
+  if (nameMarked) {
+    const nameSize = 22 * w.fs
+    const plainW = drawnWidth(fonts.bold, stripInlineMarks(name), nameSize)
+    const centerShift = centerHeader && plainW <= w.contentW ? (w.contentW - plainW) / 2 : 0
+    w.x0 += centerShift
+    w.richText(name, nameSize, { fonts: { ...fonts, regular: fonts.bold }, gap: 0 })
+    w.x0 -= centerShift
+  } else {
+    w.text(name, { font: fonts.bold, size: 22, center: centerHeader })
+  }
   if (c.title) {
     w.gap(2)
     w.text(c.title, { size: 12, color: w.accent, center: centerHeader })

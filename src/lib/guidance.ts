@@ -183,14 +183,16 @@ export interface HealthReport {
 export function resumeHealth(r: Resume): HealthReport {
   const bullets = r.experience.flatMap((e) =>
     e.bullets.filter((b) => b.trim()).map((b) => ({
-      role: e.role || e.company,
+      role: stripInlineMarks(e.role || e.company),
       text: b.trim(),
       entryId: e.id,
-      entryLabel: [e.role, e.company].filter((x) => x.trim()).join(', '),
+      entryLabel: [e.role, e.company].map(stripInlineMarks).filter((x) => x.trim()).join(', '),
     }))
   )
-  const label = (b: { role: string; text: string }) =>
-    `${b.role ? `[${b.role}] ` : ''}"${b.text.length > 60 ? b.text.slice(0, 57) + '…' : b.text}"`
+  const label = (b: { role: string; text: string }) => {
+    const plain = stripInlineMarks(b.text)
+    return `${b.role ? `[${b.role}] ` : ''}"${plain.length > 60 ? plain.slice(0, 57) + '…' : plain}"`
+  }
 
   // 1. Quantification — % of bullets carrying a number
   const quantified = bullets.filter((b) => /\d/.test(b.text))
@@ -300,13 +302,14 @@ export function resumeHealth(r: Resume): HealthReport {
   for (const e of r.experience) {
     const isCurrent = /present|current/i.test(e.endDate)
     for (const b of e.bullets) {
-      const first = b.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
+      const plain = stripInlineMarks(b).trim()
+      const first = plain.split(/\s+/)[0]?.toLowerCase() ?? ''
       if (!first) continue
       if (!isCurrent && e.endDate && /^[a-z]+(s|ing)$/.test(first) && !/^[a-z]+ss$/.test(first)) {
         consistencyFindings.push({
-          text: `Past role at ${e.company || 'a previous employer'} uses present tense: "${b.trim().slice(0, 50)}…"`,
+          text: `Past role at ${e.company || 'a previous employer'} uses present tense: "${plain.slice(0, 50)}…"`,
           entryId: e.id,
-          entryLabel: [e.role, e.company].filter((x) => x.trim()).join(', '),
+          entryLabel: [e.role, e.company].map(stripInlineMarks).filter((x) => x.trim()).join(', '),
         })
       }
     }

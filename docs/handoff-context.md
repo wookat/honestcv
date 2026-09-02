@@ -463,3 +463,19 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验）：bundle index-BywzwJnU.js；全绿零 P0–P3 零 AI——阿拉伯字符触发 alert（Builder+Dashboard），亮色 7.64:1（原 3.75）/暗色 8.62:1（canvas 解析 computed style 与截图像素双法一致）、Dismiss 正常、Latin/CJK PDF 下载回归无 alert、localStorage/主题还原。
 - 坑：本应用 getComputedStyle 返回 oklch(...) 字符串（Tailwind v4），naive rgb 正则解析会得 ~1.0 假对比度——用 1×1 canvas fillStyle+getImageData 读回 sRGB，再与截图像素交叉验证。
 - 文档：docs/plan-r273-export-alert-contrast.md、docs/qa-r273-plan.md（测试代理写）。
+
+## R274–R278 — 导出保真收尾链 (2026-09-02)
+- R274（#492）：Markdown 全行 marksToMarkdown 重写（`__u__` → `<u>`），此前只重写 bullet 行。
+- R275（#493）：PDF bodyText() 统一 summary/项目/education details/认证/references/skills 行 marks；DOCX 类目 skills 行 parseInlineMarks。
+- R276（#494）：styled companyInfo 行（9pt 斜体浅灰）PDF richText 样式覆盖 {fonts,color,gap} + DOCX 解析 run。
+- R277（#495）：PDF RunWord.glue 修样式 run 与紧邻标点多余空格，按簇换行。
+- R278（#496）：条目标题行（role/degree/项目名等）PDF titleLine drawRuns(bold 基础, maxWidth) + DOCX headRuns()。
+- 各轮生产 QA 全绿零 P0–P3 零 AI，证据在各 PR 评论；文档 docs/plan-r27x-*.md。
+
+## R279 — 联系人姓名与 section 标题 marks + Summary 快捷键 + 诊断标签剥离 (2026-09-02)
+- 证据：生产探索审计确认 P2——`**Edgar** __Case__` 姓名与 `__Special__ **Projects**` 自定义标题在 PDF/DOCX 字面泄漏（预览正确）。
+- 实现：marks.ts 新 upperInlineMarks()（可见文本大写、保留 `](url)`）；pdf.ts 姓名 marked 走 richText(22pt, bold 基础, 居中偏移)、heading() marked 走 richText(bold 基础, accent)（sideLabels/band 布局剥离纯文本）；docx.ts 姓名/标题走 headRuns/解析 run；LintedTextarea 快捷键抽为 src/lib/markShortcuts.ts，Summary textarea 获得 Ctrl/Cmd+B/I/U/K；ats.ts/guidance.ts 诊断引用文本 stripInlineMarks。
+- 追加（a827604）：ATS bullets-per-entry/reverse-chron/locations 与 guidance role/entryLabel 的条目标签也剥离 marks。
+- QA（生产复验）：bundle index-BFuoxxtd.js → index-CnJxZ23o.js；全绿零 P0–P3 零 AI——PDF 提取/像素、DOCX w:u、Summary 快捷键实测、breakdown 标签纯文本、mark-free 回归、localStorage/主题还原（证据在 #498 评论）。
+- 文档：docs/plan-r279-name-heading-marks.md、docs/qa-r279c-plan.md。
+- 开放候选：链接占位一致性误报（`[word](url)` 被 bracket-placeholder 判定）待更强证据。
