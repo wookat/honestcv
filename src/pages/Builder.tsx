@@ -2771,7 +2771,8 @@ export default function Builder() {
                         }),
                       'key-numbers'
                     ),
-                  !e.bullets.some((b) => b.trim())
+                  !e.bullets.some((b) => b.trim()) &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
                 )}
                   </>
                 )}
