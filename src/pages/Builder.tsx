@@ -109,7 +109,12 @@ import {
   highPriorityKeywords,
   scoreResume,
 } from '@/lib/ats'
-import { RESPONSE_WINDOW_SECONDS, analyzeAnswer, analyzeDelivery } from '@/lib/interviewAnalysis'
+import {
+  RESPONSE_WINDOW_SECONDS,
+  analyzeAnswer,
+  analyzeDelivery,
+  analyzeQuickFillers,
+} from '@/lib/interviewAnalysis'
 import {
   ACTION_VERBS,
   type BulletIssue,
@@ -7877,6 +7882,11 @@ function BundleToolDialog({
     [kind, answer, elapsedSec]
   )
 
+  const quickFillers = useMemo(
+    () => (kind === 'interview' && analysis ? analyzeQuickFillers(answer, elapsedSec ?? undefined) : null),
+    [kind, analysis, answer, elapsedSec]
+  )
+
   if (kind !== lastKind) {
     setLastKind(kind)
     if (kind !== null) setCompany(initialCompany)
@@ -8434,10 +8444,20 @@ function BundleToolDialog({
                     </p>
                   </>
                 )}
-                {(analysis.fillers.length > 0 || analysis.weHeavy) && (
+                {((quickFillers && quickFillers.total > 0) || analysis.weHeavy) && (
                   <p className="text-xs text-amber-700 dark:text-amber-400">
-                    {analysis.fillers.length > 0 && (
-                      <>Hedging words to cut: {analysis.fillers.join(', ')}. </>
+                    {quickFillers && quickFillers.total > 0 && (
+                      <>
+                        Quick fillers to cut:{' '}
+                        {quickFillers.hits
+                          .map(
+                            (h) =>
+                              `“${h.phrase}” ×${h.count}${h.atStart > 0 ? ` (${h.atStart} at sentence start)` : ''}`
+                          )
+                          .join(', ')}
+                        {quickFillers.perMinute !== null && <> — {quickFillers.perMinute}/min</>}
+                        {'. '}
+                      </>
                     )}
                     {analysis.weHeavy && <>Mostly “we” — interviewers want your part; use “I”.</>}
                   </p>
