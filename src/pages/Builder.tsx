@@ -1138,6 +1138,27 @@ export default function Builder() {
     () => scoreResume(shown, shown.jobDescription, pdfLength?.pages ?? null),
     [shown, pdfLength]
   )
+  const prevPassRef = useRef<Map<string, boolean> | null>(null)
+  const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    const prev = prevPassRef.current
+    prevPassRef.current = new Map(ats.checks.map((c) => [c.label, c.pass]))
+    if (!prev) return
+    setFixedChecks((old) => {
+      const fixed = new Set(old)
+      let changed = false
+      for (const c of ats.checks) {
+        if (c.pass && prev.get(c.label) === false && !fixed.has(c.label)) {
+          fixed.add(c.label)
+          changed = true
+        } else if (!c.pass && fixed.has(c.label)) {
+          fixed.delete(c.label)
+          changed = true
+        }
+      }
+      return changed ? fixed : old
+    })
+  }, [ats])
   const highKw = useMemo(
     () => highPriorityKeywords(shown.jobDescription, ats.missing),
     [shown.jobDescription, ats.missing]
@@ -6337,6 +6358,11 @@ export default function Builder() {
                             </span>
                             <span>
                               <span className="font-medium">{c.label}</span>
+                              {c.pass && fixedChecks.has(c.label) && (
+                                <span className="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-semibold text-emerald-800">
+                                  Fixed
+                                </span>
+                              )}
                               {!c.pass && <span className="text-muted-foreground"> — {c.hint}</span>}
                               {!c.pass && c.anchor && (
                                 <button

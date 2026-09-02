@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -133,6 +133,23 @@ export default function AtsChecker() {
     () => (checked ? scoreResumeText(resumeText, jd) : null),
     [checked, resumeText, jd]
   )
+
+  const prevScanRef = useRef<Map<string, boolean> | null>(null)
+  const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    if (!result) return
+    const prev = prevScanRef.current
+    prevScanRef.current = new Map(result.checks.map((c) => [c.label, c.pass]))
+    setFixedChecks(
+      prev
+        ? new Set(
+            result.checks
+              .filter((c) => c.pass && prev.get(c.label) === false)
+              .map((c) => c.label)
+          )
+        : new Set()
+    )
+  }, [result])
 
   const analysis = useMemo(() => {
     if (!result) return null
@@ -609,6 +626,11 @@ export default function AtsChecker() {
                           )}
                           <span>
                             <span className="font-medium">{c.label}</span>
+                            {c.pass && fixedChecks.has(c.label) && (
+                              <span className="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-semibold text-emerald-800">
+                                Fixed since last check
+                              </span>
+                            )}
                             {!c.pass && (
                               <span className="text-muted-foreground"> — {c.hint}</span>
                             )}
