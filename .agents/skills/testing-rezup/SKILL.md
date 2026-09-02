@@ -713,3 +713,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R257 — instant local interview questions QA
 - The suggested-questions list is `[role=dialog] ul li button` (pick-one fills the question input); "Practice all N" only renders when `suggested.length > 1`; session header text is "Question i of N".
 - The R256 seeding lesson holds: seed `honestcv.resume` from a non-Builder page and verify the stored value after reload before asserting.
+
+## R258 — session report QA
+- tsx oracle scripts that import repo libs: place them in `.tmp-smoke/` with RELATIVE imports (`../src/lib/...`) and run `npx tsx --tsconfig tsconfig.app.json .tmp-smoke/<file>.ts` — the `@/` alias does not resolve for files outside tsconfig include.
+- Practice-session mechanics: skipped questions create no transcript entry (sessionEntries only pushes when answer/feedback non-empty); "Finish session" is the last-question label ("End early" also finishes); the finished transcript is a `[role=dialog] textarea` whose value starts with "Practice session —"; "Save to My resumes" writes to `honestcv.careerDocs` (remove in cleanup).
