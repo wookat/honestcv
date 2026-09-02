@@ -118,6 +118,7 @@ import {
   analyzeQuickFillers,
   analyzeTone,
   localInterviewQuestions,
+  sessionReport,
 } from '@/lib/interviewAnalysis'
 import {
   ACTION_VERBS,
@@ -8071,8 +8072,9 @@ function BundleToolDialog({
           `Q${i + 1}. ${e.q}\n\nYour answer:\n${e.a || '[skipped]'}${e.fb ? `\n\nAI coaching:\n${e.fb}` : ''}`
       )
       .join('\n\n---\n\n')
+    const report = sessionReport(entries, resume.jobDescription, resume.ignoredKeywords ?? [])
     setResult(
-      `Practice session — ${role}\n${entries.length} of ${s.questions.length} questions answered\n\n${transcript}`
+      `Practice session — ${role}\n${entries.length} of ${s.questions.length} questions answered\n\n${report ? `${report}\n\n` : ''}${transcript}`
     )
     setSavedId(null)
     setSession(null)

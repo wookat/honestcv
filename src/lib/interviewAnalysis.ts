@@ -292,6 +292,45 @@ export function analyzeAnswer(
   return { words, lengthBand, lengthHint, star, keywords, fillers, weHeavy, score: Math.min(100, score) }
 }
 
+/** Session-level feedback report over a finished practice session — no AI, no network. */
+export function sessionReport(
+  entries: { q: string; a: string }[],
+  jobDescription: string,
+  ignoredKeywords: string[] = []
+): string {
+  const scored = entries
+    .map((e, i) => ({ index: i + 1, analysis: analyzeAnswer(e.a, jobDescription, ignoredKeywords) }))
+    .filter((s) => s.analysis.words >= 10)
+  if (scored.length === 0) return ''
+
+  const average = Math.round(scored.reduce((sum, s) => sum + s.analysis.score, 0) / scored.length)
+  const lines = [
+    'Session report',
+    `Scored ${scored.length} of ${entries.length} answers · average practice score ${average}/100`,
+    scored.map((s) => `Q${s.index} ${s.analysis.score}/100`).join(' · '),
+  ]
+
+  if (scored[0].analysis.keywords) {
+    const coveredUnion = new Set<string>()
+    for (const s of scored) for (const kw of s.analysis.keywords?.covered ?? []) coveredUnion.add(kw)
+    const ignored = new Set(ignoredKeywords.map((k) => k.toLowerCase()))
+    const kws = extractKeywords(jobDescription).filter((k) => !ignored.has(k))
+    const covered = kws.filter((k) => coveredUnion.has(k))
+    const missing = kws.filter((k) => !coveredUnion.has(k))
+    const high = highPriorityKeywords(jobDescription, kws)
+    const cap = (list: string[]) =>
+      list.slice(0, 8).join(', ') + (list.length > 8 ? ` +${list.length - 8} more` : '')
+    lines.push(
+      `Keywords covered across the session: ${covered.length > 0 ? cap(covered) : 'none'} (${covered.length} of ${kws.length})`
+    )
+    const highMissing = missing.filter((k) => high.has(k))
+    const remaining = missing.filter((k) => !high.has(k))
+    if (highMissing.length > 0) lines.push(`High Priority Words still missing: ${cap(highMissing)}`)
+    if (remaining.length > 0) lines.push(`Remaining Keywords still missing: ${cap(remaining)}`)
+  }
+  return lines.join('\n')
+}
+
 /** Role-specific practice questions built from the resume and target job — no AI, no network. */
 export function localInterviewQuestions(resume: Resume): string[] {
   const role = resume.targetRole.trim()
