@@ -645,3 +645,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Skill-tag chips live in the detail-pane container whose leading sibling span text is exactly "Skills:"; chips are buttons with `aria-pressed`, the expander button matches `/^\+\d+ more$/` (first 10 chips shown collapsed; expansion is remembered per job id).
 - Since R244 the skills-filter haystack is `title\ndescription\ntags.join('\n')` — expected-count replicas must include `tags` from the `/api/jobs/search` payload (worker cache key jobs:v4 carries `tags: string[]`, ≤24, deduped).
 - Theme toggle cycles light→dark→system: restore light by clicking until its aria-label starts "Light theme", verifying `document.documentElement.classList.contains('dark')` after every click (the earlier "needs a second click" note was this 3-state cycle, not a bug).
+
+## R245 — repeated-skills strip on the Tracked tab
+- The strip lives in the Tracked list column: locate via a span with exact text "Repeated skills:"; chips are sibling buttons with `aria-pressed`; the amber dot is `span[aria-label="Not on your resume yet"]` inside the chip.
+- Untracking from a Tracked row = clicking the active status button (e.g. "Saved") — there is no "Untrack" button; jobs with notes/timeline pop a "Stop tracking" confirm dialog.
+- After any page reload, set search/filter inputs via the native value setter + input event and submit via `form.requestSubmit()` — `Input.insertText` alone can silently leave React state stale, making fetch interceptors appear broken.
+- A minimal resume draft can be seeded as `honestcv.resume` = `{"contact":{...},"skills":"..."}` to drive resume-matching features.
