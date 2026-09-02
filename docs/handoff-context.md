@@ -507,3 +507,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验）：bundle index-CEqKDzGO.js / Builder-D8-Dz2hD.js；全绿零 P0–P3 零 AI——四个新按钮 POST 拦截于网络前（plain 无 emphasis 键、key-numbers 含 emphasis:"key-numbers"、text 为条目行）、空 description 双按钮同 reason tooltip、经历 4 按钮行与逐行 Fix 回归、375px 双按钮纵向堆叠无溢出、localStorage/主题还原（证据在 PR 评论）。
 - 坑（测试代理沉淀）：seeding fixture 时 ProjectItem 的组织字段是 org（非 organization）；Projects/Involvement 等可选 section 默认折叠，须先点「<Section> (optional)」按钮才渲染条目；复用型事件缓冲 CDP 拦截助手在 /home/ubuntu/qa/r283_lib.py。
 - 文档：docs/plan-r283-project-involvement-rewrite.md、docs/qa-r283-plan.md（测试代理写）。
+
+## R284 — Projects/Involvement「Suggest a bullet」(含 key numbers) (2026-08-31)
+- 证据：同一 Rezi 一手 AI Bullet Points 指南——AI Bullet Point Writer 是「生成」工具且覆盖 Work experience / Projects / Involvement；R283 只补了 rewrite 半边，空 description 的 project/involvement 条目仍无任何 AI 生成路径（Experience 早有 Suggest a bullet + 审阅对话框）。
+- 实现：worker/prompts.ts buildSuggestBulletMessages 新 section?: 'project'|'involvement'（缺省 experience 提示词字节级不变；project/involvement 分别换 draft 语句与 Project:/Organization: 标签，grounding/占位/key-numbers 规则不变）；worker /api/ai/suggest-bullet 白名单解析 section + section 感知的缺字段错误文案；api.ts aiSuggestBullet 透传 section（缺省时 JSON 无该键，经历 payload 字节级不变）；Builder.tsx bulletSuggest 状态泛化为 {kind:'exp'|'proj'|'inv', entryId}，新 suggestTargetFor() 统一取材/写回（proj/inv Apply 追加行到 description），每条目新增「Suggest a bullet」+「…with key numbers」按钮对渲染在 rewrite 对之前。
+- QA（生产复验，两轮）：bundle index-CsNxhC7I.js → index-N_vi6K7U.js / Builder-DUo1y6aS.js；全绿零 P0–P2 零 AI 配额——payload 拦截于网络前（proj 含 section:"project"、inv 含 section:"involvement"、key-numbers 加 variant、经历回归无 section 键）、Fetch.fulfillRequest 假响应验证审阅对话框 Apply 追加行+freeLeft 计数、375px 四按钮堆叠、localStorage/主题还原；QA 发现的 P3（三处 -suggest-nums 按钮 not-ready tooltip 落到配额文案，含既有经历处）当轮修复复验（六按钮同 reason）。
+- 坑（测试代理沉淀）：Fetch.fulfillRequest 假 JSON（{"text":…,"freeRemaining":N}）可在生产安全验证 AI 成功路径（对话框/Apply/配额计数）而零 LLM 调用，配合 r283_lib.py 缓冲助手使用。
+- 文档：docs/plan-r284-project-involvement-suggest-bullet.md、docs/qa-r284-plan.md（测试代理写）。
