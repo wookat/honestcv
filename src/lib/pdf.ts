@@ -51,7 +51,7 @@ import {
   type FontFamilyKind,
 } from '@/lib/resume'
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
-import { type InlineRun, hasInlineMarks, parseInlineMarks } from '@/lib/marks'
+import { type InlineRun, hasInlineMarks, parseInlineMarks, stripInlineMarks } from '@/lib/marks'
 import { accentTint, getTemplate, resolveTemplate, type TemplateMeta } from '@/lib/templates'
 
 const PAGE_SIZES = {
@@ -106,29 +106,54 @@ interface RunWord {
   font: PDFFont
   underline: boolean
   href?: string
+  /** Continues the previous word with no whitespace between them in the source. */
+  glue: boolean
 }
 
-/** Greedy word wrap across mixed-font runs; returns lines of styled words. */
+/** Greedy word wrap across mixed-font runs; returns lines of styled words.
+ *  Adjacent runs with no whitespace between them (e.g. an underlined word
+ *  followed by punctuation) stay glued: no space is drawn between them and
+ *  the pair wraps as a single unit. */
 function wrapRuns(runs: InlineRun[], fonts: Fonts, size: number, maxWidth: number): RunWord[][] {
   const words: RunWord[] = []
+  let pendingGlue = false
   for (const run of runs) {
+    if (!run.text) continue
     const font = run.bold ? fonts.bold : run.italic ? fonts.italic : fonts.regular
-    for (const w of run.text.split(/\s+/).filter(Boolean))
-      words.push({ text: w, font, underline: run.underline, href: run.href })
+    const startsWithSpace = /^\s/.test(run.text)
+    run.text
+      .split(/\s+/)
+      .filter(Boolean)
+      .forEach((w, i) => {
+        words.push({
+          text: w,
+          font,
+          underline: run.underline,
+          href: run.href,
+          glue: i === 0 && !startsWithSpace && pendingGlue && words.length > 0,
+        })
+      })
+    pendingGlue = !/\s$/.test(run.text)
+  }
+  // Wrap by cluster (a word plus its glued followers) so glued pairs never split.
+  const clusters: RunWord[][] = []
+  for (const w of words) {
+    if (w.glue && clusters.length) clusters[clusters.length - 1].push(w)
+    else clusters.push([w])
   }
   const spaceW = (f: PDFFont) => drawnWidth(f, ' ', size)
   const lines: RunWord[][] = []
   let line: RunWord[] = []
   let lineW = 0
-  for (const w of words) {
-    const wordW = drawnWidth(w.font, w.text, size)
-    const addW = line.length ? spaceW(w.font) + wordW : wordW
+  for (const cluster of clusters) {
+    const clusterW = cluster.reduce((acc, w) => acc + drawnWidth(w.font, w.text, size), 0)
+    const addW = line.length ? spaceW(cluster[0].font) + clusterW : clusterW
     if (line.length && lineW + addW > maxWidth) {
       lines.push(line)
-      line = [w]
-      lineW = wordW
+      line = cluster.map((w, i) => (i === 0 ? { ...w, glue: false } : w))
+      lineW = clusterW
     } else {
-      line.push(w)
+      line.push(...cluster.map((w, i) => (i === 0 && !line.length ? { ...w, glue: false } : w)))
       lineW += addW
     }
   }
@@ -251,12 +276,27 @@ class PdfWriter {
     const dateSize = 9 * this.fs
     const rightWidth = right ? drawnWidth(this.fonts.italic, right, dateSize) : 0
     const leftMax = this.contentW - (right ? rightWidth + 12 : 0)
-    if (!right || drawnWidth(this.fonts.bold, left, size) > leftMax) {
-      this.text(left, { font: this.fonts.bold, size: size / this.fs })
+    const marked = hasInlineMarks(left)
+    const boldBase: Fonts = { ...this.fonts, regular: this.fonts.bold }
+    const leftW = drawnWidth(this.fonts.bold, marked ? stripInlineMarks(left) : left, size)
+    if (!right || leftW > leftMax) {
+      if (marked) this.richText(left, size, { fonts: boldBase, gap: 0 })
+      else this.text(left, { font: this.fonts.bold, size: size / this.fs })
       if (right) {
         this.gap(1)
         this.text(right, { font: this.fonts.italic, size: dateSize / this.fs, color: this.soft })
       }
+      return
+    }
+    if (marked) {
+      this.drawRuns(left, size, 0, () => {}, { fonts: boldBase, maxWidth: leftMax })
+      this.page.drawText(right, {
+        x: this.pageW - MARGIN - rightWidth,
+        y: this.y,
+        size: dateSize,
+        font: this.fonts.italic,
+        color: this.soft,
+      })
       return
     }
     const lineHeight = size * this.lh
@@ -438,21 +478,59 @@ class PdfWriter {
       })
     }
     if (hasInlineMarks(text)) {
-      const lines = wrapRuns(parseInlineMarks(text), this.fonts, size, this.contentW - indent)
-      lines.forEach((words, i) => {
-        this.ensure(lineHeight)
-        this.y -= lineHeight
-        marker(i === 0)
-        let x = this.x0 + indent
+      this.drawRuns(text, size, indent, marker)
+      this.gap(2)
+      return
+    }
+    const lines = wrapText(text, font, size, this.contentW - indent)
+    lines.forEach((line, i) => {
+      this.ensure(lineHeight)
+      this.y -= lineHeight
+      marker(i === 0)
+      this.page.drawText(line, { x: this.x0 + indent, y: this.y, size, font, color: this.ink })
+    })
+    this.gap(2)
+  }
+
+  /** Paragraph text with inline marks (bold/italic/underline/links). */
+  richText(
+    text: string,
+    size = 10 * this.fs,
+    opts: { fonts?: Fonts; color?: ReturnType<typeof rgb>; gap?: number } = {}
+  ) {
+    this.drawRuns(text, size, 0, () => {}, opts)
+    this.gap(opts.gap ?? 2)
+  }
+
+  private drawRuns(
+    text: string,
+    size: number,
+    indent: number,
+    marker: (first: boolean) => void,
+    opts: { fonts?: Fonts; color?: ReturnType<typeof rgb>; maxWidth?: number } = {}
+  ) {
+    const ink = opts.color ?? this.ink
+    const lineHeight = size * this.lh
+    const lines = wrapRuns(
+      parseInlineMarks(text),
+      opts.fonts ?? this.fonts,
+      size,
+      opts.maxWidth ?? this.contentW - indent
+    )
+    lines.forEach((words, i) => {
+      this.ensure(lineHeight)
+      this.y -= lineHeight
+      marker(i === 0)
+      let x = this.x0 + indent
         words.forEach((w, j) => {
-          const spaceW = j > 0 ? drawnWidth(w.font, ' ', size) : 0
+          const spaceW = j > 0 && !w.glue ? drawnWidth(w.font, ' ', size) : 0
           x += spaceW
           this.page.drawText(w.text, {
             x,
             y: this.y,
             size,
             font: w.font,
-            color: w.href ? this.accent : this.ink,
+            color: w.href ? this.accent : ink,
           })
           const wordW = drawnWidth(w.font, w.text, size)
           if (w.underline || w.href) {
@@ -461,7 +539,7 @@ class PdfWriter {
               start: { x: joinPrev ? x - spaceW : x, y: this.y - 1.5 },
               end: { x: x + wordW, y: this.y - 1.5 },
               thickness: 0.5,
-              color: w.href ? this.accent : this.ink,
+              color: w.href ? this.accent : ink,
             })
           }
           if (w.href) {
@@ -479,18 +557,7 @@ class PdfWriter {
           }
           x += wordW
         })
-      })
-      this.gap(2)
-      return
-    }
-    const lines = wrapText(text, font, size, this.contentW - indent)
-    lines.forEach((line, i) => {
-      this.ensure(lineHeight)
-      this.y -= lineHeight
-      marker(i === 0)
-      this.page.drawText(line, { x: this.x0 + indent, y: this.y, size, font, color: this.ink })
     })
-    this.gap(2)
   }
 }
 
@@ -707,10 +774,16 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
     if (tpl.entryDivider && i > 0) w.entryRule()
   }
 
+  /** Section body text: parses inline marks, plain text otherwise. */
+  const bodyText = (t: string) => {
+    if (hasInlineMarks(t)) w.richText(t)
+    else w.text(t, { size: 10 })
+  }
+
   for (const key of orderedSectionKeys(resume)) {
     if (key === 'summary' && resume.summary.trim()) {
       w.heading(sectionHeading(resume, 'summary'))
-      w.text(resume.summary.trim(), { size: 10 })
+      bodyText(resume.summary.trim())
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
       w.heading(sectionHeading(resume, 'experience'))
       let gi = 0
@@ -733,7 +806,14 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
           w.titleLine(left, dates, { size: 10.5 })
           if (e.companyInfo?.trim()) {
             w.gap(1)
-            w.text(e.companyInfo.trim(), { font: w.fonts.italic, size: 9, color: w.soft })
+            const info = e.companyInfo.trim()
+            if (hasInlineMarks(info))
+              w.richText(info, 9 * w.fs, {
+                fonts: { ...w.fonts, regular: w.fonts.italic },
+                color: w.soft,
+                gap: 0,
+              })
+            else w.text(info, { font: w.fonts.italic, size: 9, color: w.soft })
           }
           w.gap(2)
           for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
@@ -750,7 +830,7 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         w.titleLine(projectHeadingLine(p), projectDates(p), { size: 10 })
         if (p.description.trim()) {
           w.gap(1)
-          w.text(p.description.trim(), { size: 10 })
+          bodyText(p.description.trim())
         }
       }
     } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
@@ -781,7 +861,7 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         const detail = educationDetailLine(e)
         if (detail) {
           w.gap(1)
-          w.text(detail, { size: 10 })
+          bodyText(detail)
         }
       }
     } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
@@ -798,8 +878,9 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
     } else if (key === 'skills' && resume.skills.trim()) {
       w.heading(sectionHeading(resume, 'skills'))
       for (const line of skillLines(resume)) {
-        if (line.label) w.labelledLine(line.label, line.text, { size: 10 })
-        else w.text(line.text, { size: 10 })
+        if (!line.label) bodyText(line.text)
+        else if (hasInlineMarks(line.text)) w.richText(`**${line.label}:** ${line.text}`)
+        else w.labelledLine(line.label, line.text, { size: 10 })
       }
     } else if (
       key === 'certifications' &&
@@ -814,12 +895,12 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         w.titleLine(certHeadingLine(c), c.date.trim(), { size: 10 })
         if (c.description.trim()) {
           w.gap(1)
-          w.text(c.description.trim(), { size: 10 })
+          bodyText(c.description.trim())
         }
       }
       if (resume.certifications.trim()) {
         w.gap(2)
-        w.text(resume.certifications.trim(), { size: 10 })
+        bodyText(resume.certifications.trim())
       }
     } else if (key === 'awards' && awardEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'awards'))
@@ -854,7 +935,7 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         const detail = referenceDetailLine(x)
         if (detail) {
           w.gap(2)
-          w.text(detail, { size: 10 })
+          bodyText(detail)
         }
       }
     } else if (key === 'military' && militaryEntries(resume).length > 0) {
