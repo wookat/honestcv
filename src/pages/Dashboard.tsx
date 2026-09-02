@@ -46,6 +46,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { scoreResume } from '@/lib/ats'
+import { professionalFileName } from '@/lib/download'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { parseResumeText } from '@/lib/importText'
 import {
@@ -319,21 +320,22 @@ export default function Dashboard() {
       onClick={async () => {
         setDownloading(key)
         try {
+          const letterhead = draft ?? emptyResume()
           const base =
             d.kind === 'cover'
               ? 'cover-letter'
               : d.kind === 'resignation'
                 ? 'resignation-letter'
                 : 'interview-prep'
-          const letterhead = draft ?? emptyResume()
+          const name = professionalFileName([letterhead.contact.fullName, base], fmt)
           if (fmt === 'pdf') {
             const m = await import('@/lib/pdf')
-            if (d.kind === 'interview') await m.downloadTextPdf(d.title, text, `${base}.pdf`)
-            else await m.downloadLetterPdf(letterhead, text, `${base}.pdf`)
+            if (d.kind === 'interview') await m.downloadTextPdf(d.title, text, name)
+            else await m.downloadLetterPdf(letterhead, text, name)
           } else {
             const m = await import('@/lib/docx')
-            if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, `${base}.docx`)
-            else await m.downloadLetterDocx(letterhead, text, `${base}.docx`)
+            if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, name)
+            else await m.downloadLetterDocx(letterhead, text, name)
           }
         } finally {
           setDownloading(null)
@@ -352,11 +354,10 @@ export default function Dashboard() {
   const runDownload = async (r: Resume, fmt: 'pdf' | 'docx', key: string) => {
     setDownloading(key)
     try {
-      const name = (r.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
+      const name = professionalFileName([r.contact.fullName, r.targetRole, 'resume'], fmt)
       const out = visibleResume(r)
-      if (fmt === 'pdf')
-        await (await import('@/lib/pdf')).downloadResumePdf(out, `${name}-resume.pdf`)
-      else await (await import('@/lib/docx')).downloadResumeDocx(out, `${name}-resume.docx`)
+      if (fmt === 'pdf') await (await import('@/lib/pdf')).downloadResumePdf(out, name)
+      else await (await import('@/lib/docx')).downloadResumeDocx(out, name)
       if (!localStorage.getItem('honestcv.shared')) localStorage.setItem('honestcv.shared', '1')
     } finally {
       setDownloading(null)

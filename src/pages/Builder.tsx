@@ -140,7 +140,7 @@ import {
 } from '@/lib/resumeCenter'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
-import { downloadText } from '@/lib/download'
+import { downloadText, professionalFileName } from '@/lib/download'
 import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import { trackEvent } from '@/lib/track'
 import {
@@ -1502,14 +1502,14 @@ export default function Builder() {
     }
     setDownloading(fmt)
     try {
-      const name = (resume.contact.fullName || 'resume').replace(/\s+/g, '-').toLowerCase()
+      const fname = (ext: string) =>
+        professionalFileName([resume.contact.fullName, resume.targetRole, 'resume'], ext)
       if (fmt === 'pdf')
-        await (await import('@/lib/pdf')).downloadResumePdf(shown, `${name}-resume.pdf`)
+        await (await import('@/lib/pdf')).downloadResumePdf(shown, fname('pdf'))
       else if (fmt === 'docx')
-        await (await import('@/lib/docx')).downloadResumeDocx(shown, `${name}-resume.docx`)
-      else if (fmt === 'md')
-        downloadText(resumeToMarkdown(shown), `${name}-resume.md`, 'text/markdown')
-      else downloadText(resumeToPlainText(shown), `${name}-resume.txt`)
+        await (await import('@/lib/docx')).downloadResumeDocx(shown, fname('docx'))
+      else if (fmt === 'md') downloadText(resumeToMarkdown(shown), fname('md'), 'text/markdown')
+      else downloadText(resumeToPlainText(shown), fname('txt'))
       setDlDone(true)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
@@ -8027,6 +8027,13 @@ function BundleToolDialog({
     setElapsedSec(null)
   }
 
+  const docFileName = (ext: string) =>
+    kind === 'interview'
+      ? professionalFileName([resume.contact.fullName, 'interview-prep'], ext)
+      : kind === 'cover'
+        ? professionalFileName([resume.contact.fullName, company, 'cover-letter'], ext)
+        : professionalFileName([resume.contact.fullName, 'resignation-letter'], ext)
+
   type PracticeSession = { questions: string[]; idx: number; entries: { q: string; a: string; fb: string }[] }
 
   const sessionEntries = (s: PracticeSession) => {
@@ -8319,12 +8326,8 @@ function BundleToolDialog({
                 onClick={() =>
                   void import('@/lib/pdf').then((m) =>
                     kind === 'interview'
-                      ? m.downloadTextPdf(title, result, 'interview-prep.pdf')
-                      : m.downloadLetterPdf(
-                          resume,
-                          result,
-                          kind === 'cover' ? 'cover-letter.pdf' : 'resignation-letter.pdf'
-                        )
+                      ? m.downloadTextPdf(title, result, docFileName('pdf'))
+                      : m.downloadLetterPdf(resume, result, docFileName('pdf'))
                   )
                 }
               >
@@ -8337,12 +8340,8 @@ function BundleToolDialog({
                 onClick={() =>
                   void import('@/lib/docx').then((m) =>
                     kind === 'interview'
-                      ? m.downloadTextDocx(title, result, 'interview-prep.docx')
-                      : m.downloadLetterDocx(
-                          resume,
-                          result,
-                          kind === 'cover' ? 'cover-letter.docx' : 'resignation-letter.docx'
-                        )
+                      ? m.downloadTextDocx(title, result, docFileName('docx'))
+                      : m.downloadLetterDocx(resume, result, docFileName('docx'))
                   )
                 }
               >
