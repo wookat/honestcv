@@ -1754,7 +1754,7 @@ export default function Builder() {
               size="sm"
               onClick={() => void download('pdf')}
               disabled={Boolean(downloading)}
-              className="hidden sm:inline-flex"
+              className="hidden 2xl:inline-flex"
             >
               {downloading === 'pdf' ? (
                 <Loader2 className="animate-spin" />
@@ -1765,7 +1765,7 @@ export default function Builder() {
               )}
               PDF
             </Button>
-            <div className="relative sm:hidden">
+            <div className="relative 2xl:hidden">
               <Button
                 size="sm"
                 variant="outline"
@@ -1802,7 +1802,7 @@ export default function Builder() {
               variant="outline"
               onClick={() => void download('docx')}
               disabled={Boolean(downloading)}
-              className="hidden sm:inline-flex"
+              className="hidden 2xl:inline-flex"
             >
               {downloading === 'docx' ? (
                 <Loader2 className="animate-spin" />
@@ -1819,7 +1819,7 @@ export default function Builder() {
               onClick={() => void download('txt')}
               disabled={Boolean(downloading)}
               title="Plain-text version — handy for online application forms and ATS paste boxes"
-              className="hidden sm:inline-flex"
+              className="hidden 2xl:inline-flex"
             >
               {downloaded === 'txt' ? <Check className="animate-pop text-emerald-600" /> : <Download />} TXT
             </Button>
@@ -1829,7 +1829,7 @@ export default function Builder() {
               onClick={() => void download('md')}
               disabled={Boolean(downloading)}
               title="Markdown version — handy for AI tools, GitHub profiles and quick edits"
-              className="hidden md:inline-flex"
+              className="hidden 2xl:inline-flex"
             >
               {downloaded === 'md' ? <Check className="animate-pop text-emerald-600" /> : <Download />} MD
             </Button>
