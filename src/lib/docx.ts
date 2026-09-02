@@ -390,7 +390,18 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             spacing: { after, line: lineTwips, lineRule: LineRuleType.AUTO },
             children: [
               new TextRun({ text: `${line.label}: `, bold: true, size: sz(21), font }),
-              new TextRun({ text: line.text, size: sz(21), font }),
+              ...parseInlineMarks(line.text).map((r) => {
+                const run = new TextRun({
+                  text: r.text,
+                  bold: r.bold,
+                  italics: r.italic,
+                  underline: r.underline ? {} : undefined,
+                  style: r.href ? 'Hyperlink' : undefined,
+                  size: sz(21),
+                  font,
+                })
+                return r.href ? new ExternalHyperlink({ link: r.href, children: [run] }) : run
+              }),
             ],
           })
         )

@@ -718,14 +718,16 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
     if (tpl.entryDivider && i > 0) w.entryRule()
   }
 
+  /** Section body text: parses inline marks, plain text otherwise. */
+  const bodyText = (t: string) => {
+    if (hasInlineMarks(t)) w.richText(t)
+    else w.text(t, { size: 10 })
+  }
+
   for (const key of orderedSectionKeys(resume)) {
     if (key === 'summary' && resume.summary.trim()) {
       w.heading(sectionHeading(resume, 'summary'))
-      {
-        const s = resume.summary.trim()
-        if (hasInlineMarks(s)) w.richText(s)
-        else w.text(s, { size: 10 })
-      }
+      bodyText(resume.summary.trim())
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
       w.heading(sectionHeading(resume, 'experience'))
       let gi = 0
@@ -765,7 +767,7 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         w.titleLine(projectHeadingLine(p), projectDates(p), { size: 10 })
         if (p.description.trim()) {
           w.gap(1)
-          w.text(p.description.trim(), { size: 10 })
+          bodyText(p.description.trim())
         }
       }
     } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
@@ -796,7 +798,7 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         const detail = educationDetailLine(e)
         if (detail) {
           w.gap(1)
-          w.text(detail, { size: 10 })
+          bodyText(detail)
         }
       }
     } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
@@ -813,8 +815,9 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
     } else if (key === 'skills' && resume.skills.trim()) {
       w.heading(sectionHeading(resume, 'skills'))
       for (const line of skillLines(resume)) {
-        if (line.label) w.labelledLine(line.label, line.text, { size: 10 })
-        else w.text(line.text, { size: 10 })
+        if (!line.label) bodyText(line.text)
+        else if (hasInlineMarks(line.text)) w.richText(`**${line.label}:** ${line.text}`)
+        else w.labelledLine(line.label, line.text, { size: 10 })
       }
     } else if (
       key === 'certifications' &&
@@ -829,12 +832,12 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         w.titleLine(certHeadingLine(c), c.date.trim(), { size: 10 })
         if (c.description.trim()) {
           w.gap(1)
-          w.text(c.description.trim(), { size: 10 })
+          bodyText(c.description.trim())
         }
       }
       if (resume.certifications.trim()) {
         w.gap(2)
-        w.text(resume.certifications.trim(), { size: 10 })
+        bodyText(resume.certifications.trim())
       }
     } else if (key === 'awards' && awardEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'awards'))
@@ -869,7 +872,7 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         const detail = referenceDetailLine(x)
         if (detail) {
           w.gap(2)
-          w.text(detail, { size: 10 })
+          bodyText(detail)
         }
       }
     } else if (key === 'military' && militaryEntries(resume).length > 0) {
