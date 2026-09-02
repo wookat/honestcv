@@ -2439,7 +2439,9 @@ export function resumeToPlainText(r: Resume): string {
         if (!e.school) continue
         lines.push(
           [e.degree, e.school].filter(Boolean).join(', ') +
-            (e.startDate || e.endDate ? ` (${e.startDate} – ${e.endDate})` : '')
+            (e.startDate || e.endDate
+              ? ` (${[e.startDate, e.endDate].filter(Boolean).join(' – ')})`
+              : '')
         )
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail)
@@ -2555,7 +2557,10 @@ export function resumeToMarkdown(r: Resume): string {
       heading(sectionHeading(r, 'education'))
       for (const e of r.education) {
         if (!e.school) continue
-        const dates = e.startDate || e.endDate ? ` *(${e.startDate} – ${e.endDate})*` : ''
+        const dates =
+          e.startDate || e.endDate
+            ? ` *(${[e.startDate, e.endDate].filter(Boolean).join(' – ')})*`
+            : ''
         lines.push(`### ${[e.degree, e.school].filter(Boolean).join(', ')}${dates}`, '')
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail, '')

@@ -430,3 +430,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 已知 P3（未修，候选轮）：TXT/Markdown education 序列化无条件 `${start} – ${end}`，end-only 渲染 `( – 2014)` 带悬挂横杠（resume.ts 约 2442/2558 行；PDF/DOCX/预览正确）。
 - 坑：Jobs 详情面板可靠探测器是 `<a>`「Apply on site」（anchor 非 button）+ 首个 h2/h3 职位名。
 - 文档：docs/plan-r268-ux-audit-fixes.md、docs/qa-r269-plan.md（测试代理写）。
+
+## R269 — fix TXT/Markdown education dangling-dash date serialization (2026-09-02)
+- 证据：R269 生产 QA 一手发现（R268 轮已知 P3）——TXT/Markdown 的 education 分支无条件插值 `${start} – ${end}`，end-only 渲染 `( – 2014)`、start-only 渲染 `(2017 – )` 悬挂横杠；预览/PDF/DOCX 早已用 filter(Boolean).join(' – ') 正确。
+- 实现：resume.ts 的 resumeToPlainText / resumeToMarkdown education 分支改为 `[startDate, endDate].filter(Boolean).join(' – ')`，与预览/PDF/DOCX 对齐；education 无 Present 语义（Present 仅 experience，R268）。仅此两处，零其他改动。
+- QA（R270 复验）：生产 bundle index-DjZrm45t.js；全绿零 P0–P3 零 AI——4 形态 education fixture 经真实 UI 下载 TXT/MD/PDF，TXT 字节级 `(2014)`/`(2017)`/`(2010 – 2013)`/无日期无括号，全文件 `( – `/`– )` 零匹配，MD 同；R268 经历 Present 与落地 #418 回归通过、375 暗色、localStorage 基线还原。
+- 坑/提示：Builder 下载行有四按钮 PDF/DOCX/TXT/MD（MD → resumeToMarkdown，Builder.tsx 约 1542 行）——MD 是与 TXT 并列最易字节级校验的序列化出口。
+- 文档：docs/plan-r269-education-date-serialization.md、docs/qa-r270-plan.md（测试代理写）。
