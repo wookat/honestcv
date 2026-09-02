@@ -138,3 +138,15 @@ Confirmed defects: **zero P0–P2**. One P3 candidate + subjective notes below.
 ### Cleanup
 - localStorage exactly ["honestcv.shared","honestcv.subscribed"]; empty html class;
   all paused requests fulfilled; zero real AI calls.
+
+## R295c re-verification (bundle index-u06quAF5.js / AtsChecker-Bf33ZYFu.js)
+
+P3 badge-overflow fix verified on production /ats-checker:
+- 375×812 example report: badge span computed white-space:normal, 209×54px (wrapped to
+  multiple lines; R295b was 400×22 nowrap); strict scrollWidth = 375 = innerWidth (no
+  mobile zoom-out). Screenshot: r295c_375_badge_wrapped.png.
+- Desktop 1600px regression: title "Example ATS match score", badge single line 400×22
+  with Target icon (12px, shrink-0), text intact; scrollWidth 1585 ≤ 1600.
+  Screenshot: r295c_desktop_badge.png.
+- Zero real AI calls (quota mocked); baseline restored ["honestcv.shared",
+  "honestcv.subscribed"], empty html class.
