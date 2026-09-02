@@ -486,3 +486,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验）：bundle index-BMFXjBGU.js / guidance-Djqh7u_l.js；4 用例全绿零 P0–P3 零 AI（证据在 #499 评论）。R279 审计的全部开放项至此闭环。
 - 观察（既有、设计内）：无效链接 token 在其他引用（如 Quantified impact）保持原样显示，直到用户修复。
 - 文档：docs/plan-r280-unfinished-link-finding.md、docs/qa-r280-plan.md。
+
+## R281 — Ctrl/Cmd+B/I/U/K 快捷键覆盖全部 mark-capable 字段 (2026-08-31)
+- 证据：Rezi 一手 changelog「Bold, Italics, Underline, and Link styling」适用于简历文本区；我方 R272–R279 后全字段渲染/导出 marks，但快捷键只接在 bullets 与 Summary。
+- 实现：markShortcuts.ts 泛化为 HTMLInputElement|HTMLTextAreaElement（按元素原型取 value setter + bubbling input 事件 + 恢复选区）；Builder 为 37 处 mark-capable Input/Textarea 接 onKeyDown={markShortcutKeyDown}（联系人姓名、role/company/companyInfo、degree/school/details、项目/志愿/课程/奖项/出版物/推荐人/军旅/自定义 section 等）；语义字段（日期/邮箱/电话/地点/URL/slug/文件名等）刻意排除。
+- QA P3 当轮闭环：R280 一致性扫描此前只扫 summary+bullets，role 等 headline 字段 Ctrl+K 产物无诊断——guidance.ts brokenLinks 改用 unfinishedLinks(resumeToPlainText(r))（全字段原始 marks），bracket-placeholder 扫描保持 summary+bullets 不变（零新误报）。
+- QA（生产复验）：bundle index-DgoqllvV.js / Builder-C9aURCwQ.js；role/companyInfo/自定义 section/姓名快捷键、Ctrl+K url 选中、负例（email/location 不响应）、真实 PDF 零字面 marks、375px、零 AI 全绿（证据在 PR 评论）。
+- 文档：docs/plan-r281-mark-shortcuts-everywhere.md。

@@ -2,7 +2,7 @@
  * Rule-based bullet quality checks — runs locally, no AI calls.
  * Flags weak openers, missing quantification, and length problems.
  */
-import type { Resume } from '@/lib/resume'
+import { resumeToPlainText, type Resume } from '@/lib/resume'
 import { findPassive, WEAK_OPENERS, type AtsResult, type SectionAnchor } from '@/lib/ats'
 import { stripInlineMarks, unfinishedLinks } from '@/lib/marks'
 
@@ -315,7 +315,7 @@ export function resumeHealth(r: Resume): HealthReport {
     }
   }
   const rawBody = [r.summary, ...bullets.map((b) => b.text)].join('\n')
-  const brokenLinks = unfinishedLinks(rawBody)
+  const brokenLinks = unfinishedLinks(resumeToPlainText(r))
   if (brokenLinks.length > 0)
     consistencyFindings.unshift({
       text: `${brokenLinks.length} link${brokenLinks.length === 1 ? '' : 's'} like [${brokenLinks[0].label}](${brokenLinks[0].target}) still point${brokenLinks.length === 1 ? 's' : ''} at a placeholder — replace "${brokenLinks[0].target}" with a real web address`,

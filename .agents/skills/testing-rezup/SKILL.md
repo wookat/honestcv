@@ -760,3 +760,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Tab-switch DOM reads can race — re-read after ~1s before declaring an element absent.
 - As of R277, pdftotext of exported PDFs shows NO space before punctuation adjacent to styled runs — a reappearing `word .` / `word ,` pattern is a real regression, not a known artifact. PDF link runs are drawn underlined by design (R272); short-underline detection needs a ≥10px width threshold to catch short tokens like `v2`.
 - Headline underlines in exported PDFs sit only ~2–4px under bold 10.5pt glyphs — underline scanners requiring 3–4 clear rows above the rule miss them; fall back to raw row scanning in the headline band. `mutool draw -F stext` gives per-span font names (e.g. proving an italic segment inside a bold headline) more reliably than content-stream regexing.
+
+## R280–R281 — inline-mark shortcuts and unfinished-link findings QA
+- Ctrl/Cmd+B/I/U/K mark shortcuts work in every mark-capable Builder Input AND Textarea (roles, companyInfo, degrees, custom sections, contact full name…); semantic fields (email, phone, location, dates, URLs, slug) deliberately don't respond — use them as negative controls.
+- Ctrl/Cmd+K inserts `[selection](url)` with the `url` placeholder selected; since guidance scans `resumeToPlainText(r)` (index-qxSweOGA.js+) the unfinished-link consistency finding fires for headline/input fields too, not just summary/bullets — a link token must never also trigger the generic "bracket placeholder" finding.
+- Close any open Score breakdown dialog before interacting with fields or download buttons — the dialog intercepts clicks/keystrokes aimed at the editor underneath.
