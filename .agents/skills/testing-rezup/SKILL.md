@@ -621,3 +621,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - The Target job / Matched panel lives in the preview column (`hidden lg:block`); at <1024px reach it via the bottom "Edit/Preview" pane switcher (`[aria-label="Switch between editing and preview"]`).
 - `Emulation.clearDeviceMetricsOverride` can silently fail to restore desktop width on this tab — set an explicit 1600×900 override instead, and always assert `innerWidth` before capturing desktop evidence.
 - CSS Highlight ranges are enumerable via `for (const r of CSS.highlights.get('kw-match'))` with `r.toString()` — the cheapest exact assertion of what's painted. Multi-word phrase paint only comes from the KNOWN_PHRASES list in ats.ts; arbitrary JD bigrams tokenize into single words.
+
+## R232 — photo crop dialog + download/file-input practicalities
+- PDF/DOCX download is email-gated in beta: fill the "Unlock downloads" dialog once (any email; sets `honestcv.subscribed`), then a "Final check before download" dialog needs "Download anyway". Remove `honestcv.subscribed` (and any `resumeHistory`/`shared` side keys) in cleanup.
+- CDP downloads may silently fail with `Browser.setDownloadBehavior behavior:'allow'` — use `allowAndName` and look for a GUID-named file in the download path.
+- `DOM.setFileInputFiles` on the `input[type=file][accept^=image]` reliably drives the photo picker without a native dialog; a deterministic marker fixture (solid color + off-center marker square) lets you assert crop framing by decoding the committed 256×256 JPEG pixel counts.
