@@ -864,6 +864,12 @@ export default function Builder() {
     candidates: string[]
     original?: string
     apply: (text: string) => void
+    /** AI busy/error tag of the generator that produced these candidates */
+    tag?: string
+    /** Re-run the same generator; fresh candidates replace the open dialog */
+    regenerate?: () => void
+    /** Reopen the generator's setup dialog (e.g. summary role & skills) */
+    adjust?: () => void
   } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
@@ -1293,6 +1299,8 @@ export default function Builder() {
           candidates: texts,
           original: text,
           apply,
+          tag,
+          regenerate: () => void runRewrite(tag, kind, text, apply, emphasis),
         })
       } else {
         apply(out)
@@ -1506,6 +1514,12 @@ export default function Builder() {
         candidates: texts,
         original: resume.summary,
         apply: (out) => set('summary', out),
+        tag,
+        regenerate: () => void runSummaryDraft(position, highlights),
+        adjust: () => {
+          setVariantPick(null)
+          setSummaryDraftSetup({ position, picked: highlights })
+        },
       })
     } catch (e) {
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
@@ -7312,6 +7326,34 @@ export default function Builder() {
                   : cand}
               </button>
             ))}
+            {aiError && variantPick?.tag && aiErrorTag === variantPick.tag && (
+              <p className="text-destructive text-sm">{aiError}</p>
+            )}
+            {variantPick?.regenerate && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                  disabled={aiBusy === variantPick.tag}
+                  onClick={() => variantPick.regenerate?.()}
+                >
+                  {aiBusy === variantPick.tag ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {aiBusy === variantPick.tag ? 'Writing…' : 'Regenerate options'}
+                </Button>
+                {variantPick.adjust && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="min-h-10 sm:min-h-9"
+                    disabled={aiBusy === variantPick.tag}
+                    onClick={() => variantPick.adjust?.()}
+                  >
+                    Adjust role &amp; skills
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
