@@ -3,7 +3,13 @@
  * Flags weak openers, missing quantification, and length problems.
  */
 import { resumeToPlainText, type Resume } from '@/lib/resume'
-import { findPassive, WEAK_OPENERS, type AtsResult, type SectionAnchor } from '@/lib/ats'
+import {
+  findPassive,
+  WEAK_OPENERS,
+  type AtsResult,
+  type MatchReport,
+  type SectionAnchor,
+} from '@/lib/ats'
 import { stripInlineMarks, unfinishedLinks } from '@/lib/marks'
 
 const FILLER_WORDS = ['various', 'several', 'stuff', 'things', 'etc']
@@ -455,6 +461,38 @@ export function improveScoreReply(
     fixes.map((f, i) => `${i + 1}. ${f.text} (~${f.points} pts, ${f.impact} impact)`).join('\n') +
     '\n\nApply a fix and your score updates instantly. The Score breakdown has one-click jumps to each spot.'
   )
+}
+
+/**
+ * Locally composed assistant reply for the "Target my job" quick task:
+ * the keyword-match report the Target job panel already computes, no AI round trip.
+ */
+export function targetJobReply(report: MatchReport | null): string {
+  if (!report) {
+    return (
+      'You haven\u2019t pasted a job description yet, so there\u2019s nothing to compare against. ' +
+      'Open the Target job panel, paste the posting, and I\u2019ll show exactly which keywords ' +
+      'your resume covers and which are still missing.'
+    )
+  }
+  const total = report.covered.length + report.missing.length
+  const head = `Your resume matches ${report.pct}% of the target job\u2019s keywords (${report.covered.length} of ${total}).`
+  if (report.missing.length === 0) {
+    return (
+      head +
+      ' Every keyword the posting asks for is already on your resume \u2014 nice targeting. ' +
+      'Give it one last read to make sure each mention reflects real experience.'
+    )
+  }
+  const high = report.highPriorityMissing.slice(0, 5)
+  const rest = report.missing.filter((k) => !report.highPriorityMissing.includes(k)).slice(0, 5)
+  const lines: string[] = [head]
+  if (high.length > 0) lines.push(`High priority to work in: ${high.join(', ')}.`)
+  if (rest.length > 0) lines.push(`Also missing: ${rest.join(', ')}.`)
+  lines.push(
+    'Open the Target job panel\u2019s keyword triage \u2014 it walks the missing keywords one at a time and suggests a bullet for each, so you only add terms your experience truthfully supports.'
+  )
+  return lines.join('\n')
 }
 
 export interface StrengthResult {
