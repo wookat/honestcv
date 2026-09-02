@@ -2199,6 +2199,7 @@ export default function Builder() {
                       placeholder={ph}
                       value={resume.contact[key]}
                       onChange={(e) => setContact(key, e.target.value)}
+                      onKeyDown={key === 'fullName' ? markShortcutKeyDown : undefined}
                     />
                   </div>
                 )
@@ -2595,6 +2596,7 @@ export default function Builder() {
                     <Input
                       id={`exp-${e.id}-role`}
                       placeholder="Job title"
+                      onKeyDown={markShortcutKeyDown}
                       value={e.role}
                       onChange={(ev) => setExp(e.id, { role: ev.target.value })}
                     />
@@ -2604,6 +2606,7 @@ export default function Builder() {
                     <Input
                       id={`exp-${e.id}-company`}
                       placeholder="Company"
+                      onKeyDown={markShortcutKeyDown}
                       value={e.company}
                       onChange={(ev) => setExp(e.id, { company: ev.target.value })}
                     />
@@ -2652,6 +2655,7 @@ export default function Builder() {
                   <Input
                     id={`exp-${e.id}-companyinfo`}
                     placeholder="e.g. Series B fintech, ~200 people, B2B payments"
+                    onKeyDown={markShortcutKeyDown}
                     value={e.companyInfo ?? ''}
                     onChange={(ev) => setExp(e.id, { companyInfo: ev.target.value })}
                   />
@@ -2939,6 +2943,7 @@ export default function Builder() {
                     <Input
                       id={`edu-${e.id}-degree`}
                       placeholder="Degree (B.S. Computer Science)"
+                      onKeyDown={markShortcutKeyDown}
                       value={e.degree}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -2955,6 +2960,7 @@ export default function Builder() {
                     <Input
                       id={`edu-${e.id}-school`}
                       placeholder="School"
+                      onKeyDown={markShortcutKeyDown}
                       value={e.school}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -3047,6 +3053,7 @@ export default function Builder() {
                 <div className="flex items-center justify-between gap-2">
                   <Input
                     placeholder="Details (honors, thesis — optional)"
+                    onKeyDown={markShortcutKeyDown}
                     value={e.details}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -3364,6 +3371,7 @@ export default function Builder() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Project name"
+                    onKeyDown={markShortcutKeyDown}
                     value={p.name}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -3390,6 +3398,7 @@ export default function Builder() {
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     placeholder="Organization (optional)"
+                    onKeyDown={markShortcutKeyDown}
                     value={p.org ?? ''}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -3599,6 +3608,7 @@ export default function Builder() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Role (e.g. Selected Member)"
+                    onKeyDown={markShortcutKeyDown}
                     value={inv.role}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -3611,6 +3621,7 @@ export default function Builder() {
                   />
                   <Input
                     placeholder="Organization"
+                    onKeyDown={markShortcutKeyDown}
                     value={inv.organization}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -3882,6 +3893,7 @@ export default function Builder() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Course name (e.g. Intro to Computer Systems)"
+                    onKeyDown={markShortcutKeyDown}
                     value={cw.name}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -3895,6 +3907,7 @@ export default function Builder() {
                   <div className="grid grid-cols-[1fr_5rem] gap-2">
                     <Input
                       placeholder="Where (school or platform)"
+                      onKeyDown={markShortcutKeyDown}
                       value={cw.institution}
                       onChange={(ev) =>
                         setResume((r) => ({
@@ -3921,6 +3934,7 @@ export default function Builder() {
                 </div>
                 <Input
                   placeholder="Skills used (optional, up to 3 — e.g. Teamwork, SQL)"
+                  onKeyDown={markShortcutKeyDown}
                   value={cw.skill}
                   onChange={(ev) =>
                     setResume((r) => ({
@@ -3940,6 +3954,7 @@ export default function Builder() {
                   <Textarea
                     rows={2}
                     placeholder="How you applied it — one bullet per line"
+                    onKeyDown={markShortcutKeyDown}
                     value={cw.description}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -4117,6 +4132,7 @@ export default function Builder() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Award name (e.g. Dean's List)"
+                    onKeyDown={markShortcutKeyDown}
                     value={a.name}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -4130,6 +4146,7 @@ export default function Builder() {
                   <div className="grid grid-cols-[1fr_5rem] gap-2">
                     <Input
                       placeholder="Awarded by (organization)"
+                      onKeyDown={markShortcutKeyDown}
                       value={a.organization}
                       onChange={(ev) =>
                         setResume((r) => ({
@@ -4158,6 +4175,7 @@ export default function Builder() {
                   <Textarea
                     rows={2}
                     placeholder="Why it's relevant — one bullet per line"
+                    onKeyDown={markShortcutKeyDown}
                     value={a.description}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -4346,6 +4364,7 @@ export default function Builder() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Publication title"
+                    onKeyDown={markShortcutKeyDown}
                     value={pub.title}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -4359,6 +4378,7 @@ export default function Builder() {
                   <div className="grid grid-cols-[1fr_5rem] gap-2">
                     <Input
                       placeholder="Journal / conference"
+                      onKeyDown={markShortcutKeyDown}
                       value={pub.venue}
                       onChange={(ev) =>
                         setResume((r) => ({
@@ -4384,6 +4404,7 @@ export default function Builder() {
                   </div>
                   <Input
                     placeholder="Type — e.g. Journal Article"
+                    onKeyDown={markShortcutKeyDown}
                     list="publication-kinds"
                     value={pub.kind ?? ''}
                     onChange={(ev) =>
@@ -4400,6 +4421,7 @@ export default function Builder() {
                   <Textarea
                     rows={2}
                     placeholder="Additional information — one bullet per line"
+                    onKeyDown={markShortcutKeyDown}
                     value={pub.description}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -4583,6 +4605,7 @@ export default function Builder() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Full name"
+                    onKeyDown={markShortcutKeyDown}
                     value={ref.name}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -4596,6 +4619,7 @@ export default function Builder() {
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       placeholder="Job title"
+                      onKeyDown={markShortcutKeyDown}
                       value={ref.title}
                       onChange={(ev) =>
                         setResume((r) => ({
@@ -4608,6 +4632,7 @@ export default function Builder() {
                     />
                     <Input
                       placeholder="Employer"
+                      onKeyDown={markShortcutKeyDown}
                       value={ref.employer}
                       onChange={(ev) =>
                         setResume((r) => ({
@@ -4834,6 +4859,7 @@ export default function Builder() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Rank or position (e.g. Sergeant)"
+                    onKeyDown={markShortcutKeyDown}
                     value={m.rank}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -4846,6 +4872,7 @@ export default function Builder() {
                   />
                   <Input
                     placeholder="Branch (e.g. Army)"
+                    onKeyDown={markShortcutKeyDown}
                     value={m.branch}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -4860,6 +4887,7 @@ export default function Builder() {
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     placeholder="Stationed at (e.g. Fort Bragg, NC)"
+                    onKeyDown={markShortcutKeyDown}
                     value={m.location}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -4902,6 +4930,7 @@ export default function Builder() {
                   <Textarea
                     rows={2}
                     placeholder="Responsibilities and accomplishments — one bullet per line"
+                    onKeyDown={markShortcutKeyDown}
                     value={m.description}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -4988,6 +5017,7 @@ export default function Builder() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     placeholder="Agent name, e.g. Support Triage Agent"
+                    onKeyDown={markShortcutKeyDown}
                     value={a.name}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -5013,6 +5043,7 @@ export default function Builder() {
                 </div>
                 <Input
                   placeholder="Skills used, e.g. Task Automation, Workflow Management"
+                  onKeyDown={markShortcutKeyDown}
                   value={a.skills}
                   onChange={(ev) =>
                     setResume((r) => ({
@@ -5027,6 +5058,7 @@ export default function Builder() {
                   <Textarea
                     rows={2}
                     placeholder="How building the agent was relevant — one bullet per line"
+                    onKeyDown={markShortcutKeyDown}
                     value={a.description}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -5126,6 +5158,7 @@ export default function Builder() {
                 id="skills"
                 rows={2}
                 placeholder="React, TypeScript, Node.js, PostgreSQL, AWS…"
+                onKeyDown={markShortcutKeyDown}
                 value={resume.skills}
                 onChange={(e) => set('skills', e.target.value)}
               />
@@ -5327,6 +5360,7 @@ export default function Builder() {
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Input
                       placeholder="Certificate name (AWS Solutions Architect)"
+                      onKeyDown={markShortcutKeyDown}
                       value={c.name}
                       onChange={(ev) =>
                         setResume((r) => ({
@@ -5340,6 +5374,7 @@ export default function Builder() {
                     <div className="grid grid-cols-[1fr_auto] gap-2">
                       <Input
                         placeholder="Issuer (Amazon Web Services)"
+                        onKeyDown={markShortcutKeyDown}
                         value={c.issuer}
                         onChange={(ev) =>
                           setResume((r) => ({
@@ -5369,6 +5404,7 @@ export default function Builder() {
                     <Textarea
                       rows={2}
                       placeholder="How it's relevant (optional)"
+                      onKeyDown={markShortcutKeyDown}
                       value={c.description}
                       onChange={(ev) =>
                         setResume((r) => ({
@@ -5527,6 +5563,7 @@ export default function Builder() {
               <Input
                 id="certs"
                 placeholder="AWS Solutions Architect (2024), PMP…"
+                onKeyDown={markShortcutKeyDown}
                 value={resume.certifications}
                 onChange={(e) => set('certifications', e.target.value)}
               />
@@ -5548,6 +5585,7 @@ export default function Builder() {
                 <div className="flex items-center justify-between gap-2">
                   <Input
                     placeholder="Section title (e.g. Volunteering)"
+                    onKeyDown={markShortcutKeyDown}
                     value={s.title}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -5578,6 +5616,7 @@ export default function Builder() {
                 <Textarea
                   rows={3}
                   placeholder={'One entry per line, e.g.\nVolunteer mentor, Code for Austin (2023 – Present)\nSpeaker, ReactATX meetup'}
+                  onKeyDown={markShortcutKeyDown}
                   value={s.bullets.join('\n')}
                   onChange={(ev) =>
                     setResume((r) => ({
