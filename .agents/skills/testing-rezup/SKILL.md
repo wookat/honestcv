@@ -753,3 +753,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Seeding a Dashboard "draft": `loadResume()` returns null unless the stored object has `contact` AND an `experience` array — include `experience: []` at minimum or draft-gated flows silently take the no-draft path.
 - The resume-import file input is the `nextElementSibling` of the "Import a resume" card button; drive it headlessly with CDP `DOM.setFileInputFiles`.
 - LinkedIn-export detection (`looksLikeLinkedInExport`) needs a `handle (LinkedIn)` line, a `Top Skills` line, or a linkedin.com URL plus a `Page N of M` footer; put the name block first in fixtures.
+
+## R267 — jobs location facet chips QA
+- To recompute Jobs facet/list oracles from the exact data the page used, register a fetch wrapper via `Page.addScriptToEvaluateOnNewDocument` BEFORE navigating to /jobs and capture cloned `/api/jobs/search` JSON into `window.__jobsPayloads` (registrations may not survive a new CDP session — re-register per Python run).
+- Facet row selector: `[aria-label="Filter by a location found in these results"]`; chips read `{label} ({count})`, active chip has `aria-pressed=true` + ring-2. Facets derive from the pre-location-filter result set, so the row persists while a chip is active.
+- Tab-switch DOM reads can race — re-read after ~1s before declaring an element absent.
