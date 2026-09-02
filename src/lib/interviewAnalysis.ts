@@ -1,4 +1,5 @@
 import { extractKeywords, highPriorityKeywords } from './ats'
+import type { Resume } from './resume'
 
 export interface AnswerAnalysis {
   words: number
@@ -289,4 +290,34 @@ export function analyzeAnswer(
     score = Math.round(((lengthPts + starPts + deliveryPts) / 70) * 100)
   }
   return { words, lengthBand, lengthHint, star, keywords, fillers, weHeavy, score: Math.min(100, score) }
+}
+
+/** Role-specific practice questions built from the resume and target job — no AI, no network. */
+export function localInterviewQuestions(resume: Resume): string[] {
+  const role = resume.targetRole.trim()
+  const company = (resume.targetCompany ?? '').trim()
+  const questions: string[] = [
+    role
+      ? `Walk me through your background — why are you a fit for the ${role} role${company ? ` at ${company}` : ''}?`
+      : 'Walk me through your background — what kind of role are you looking for next?',
+  ]
+  for (const item of resume.experience.filter((e) => !e.hidden && e.role.trim()).slice(0, 2)) {
+    questions.push(
+      `Tell me about your time as ${item.role.trim()}${item.company.trim() ? ` at ${item.company.trim()}` : ''}. What result are you most proud of from that role?`
+    )
+  }
+  const jd = resume.jobDescription
+  if (jd.trim()) {
+    const keywords = extractKeywords(jd)
+    const high = highPriorityKeywords(jd, keywords)
+    for (const kw of keywords.filter((k) => high.has(k)).slice(0, 2)) {
+      questions.push(
+        `This role emphasizes ${kw}. Describe a specific project where you used it and what the outcome was.`
+      )
+    }
+  }
+  questions.push(
+    'Tell me about a time something went wrong at work. What did you do, and what changed afterwards?'
+  )
+  return questions.slice(0, 6)
 }

@@ -117,6 +117,7 @@ import {
   analyzeFillerSounds,
   analyzeQuickFillers,
   analyzeTone,
+  localInterviewQuestions,
 } from '@/lib/interviewAnalysis'
 import {
   ACTION_VERBS,
@@ -8730,6 +8731,19 @@ function BundleToolDialog({
                 >
                   {suggestBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
                   {suggestBusy ? 'Thinking…' : 'Suggest questions'}
+                </Button>
+              )}
+              {!session && (
+                <Button
+                  onClick={() => {
+                    setSuggested(localInterviewQuestions(resume))
+                    setFeedbackError('')
+                  }}
+                  disabled={feedbackBusy || suggestBusy}
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                >
+                  <ListChecks /> Instant questions
                 </Button>
               )}
               {session && (
