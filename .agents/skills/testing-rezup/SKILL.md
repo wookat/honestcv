@@ -611,3 +611,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - The free AI quota is keyed to `honestcv.clientId` (KV per-fingerprint; 12 calls in FREE_MODE, 5 otherwise, 30-day window). When the panel shows "You have used all free AI calls for now", rotate to a fresh random clientId for the needed real calls and restore the original id in cleanup (final localStorage baseline unchanged).
 - Prompt phrasing matters for the rewrite form: "Rewrite my bullet '…' at <company> …" may return prose with no @@APPLY; Rezi's doc phrasing "Can you rewrite this bullet point to sound more results-focused? '<verbatim bullet>' (<company>)" reliably produced the rewrite action.
 - "Applied to your resume" labels are easiest to count via `document.body.innerText.match(/Applied to your resume/g)` — element-based selectors miss it because the label node has children.
+
+## R230 — assistant "Show in editor" + CDP practicalities
+- Proposal cards carry a ghost MapPin "Show in editor" button pre- AND post-apply; it never mutates the resume (assert `honestcv.resume` byte-identical). Locate ring flash is `ring-primary/60` for ~1.6s — capture it with a MutationObserver/class watcher, not a timed screenshot. <640px closes the panel first; ≥640px keeps it open side-by-side.
+- The standing cv.zalize.com tab can vanish between rounds — reopen with `curl -X PUT "http://localhost:29229/json/new?https://cv.zalize.com/builder"`.
+- When pixel-measuring small/thin UI text (ghost buttons), the most-common-color heuristic returns anti-aliased edge colors and fakes contrast failures — use the lightest (or darkest) text-core pixel plus a `getComputedStyle` cross-check.
