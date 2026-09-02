@@ -171,6 +171,24 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
   ])
 }
 
+/** Move several tracked jobs to a status in one write, appending to each timeline. */
+export function updateStatuses(ids: readonly string[], status: JobStatus): PipelineEntry[] {
+  const set = new Set(ids)
+  const now = Date.now()
+  return savePipeline(
+    listPipeline().map((e) => {
+      if (!set.has(e.job.id) || e.status === status) return e
+      return { ...e, status, updatedAt: now, history: [...timelineOf(e), { status, at: now }] }
+    })
+  )
+}
+
+/** Untrack several jobs in one write. */
+export function removeManyFromPipeline(ids: readonly string[]): PipelineEntry[] {
+  const set = new Set(ids)
+  return savePipeline(listPipeline().filter((e) => !set.has(e.job.id)))
+}
+
 /** Save free-form notes on the pipeline entry for a job. */
 export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] {
   return savePipeline(

@@ -38,11 +38,13 @@ import {
   type PipelineEntry,
   listPipeline,
   removeFromPipeline,
+  removeManyFromPipeline,
   searchJobs,
   setPipelineNotes,
   setPipelineVersion,
   structureJobDescription,
   timelineOf,
+  updateStatuses,
   upsertPipeline,
 } from '@/lib/jobs'
 import { matchScore } from '@/lib/ats'
@@ -118,6 +120,9 @@ export default function Jobs() {
   const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => listPipeline())
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [mobileDetail, setMobileDetail] = useState(false)
+  const [bulkMode, setBulkMode] = useState(false)
+  const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(new Set())
+  const [confirmBulkUntrack, setConfirmBulkUntrack] = useState(false)
   const [confirmTarget, setConfirmTarget] = useState<{
     job: JobListing
     intent: 'target' | 'cover'
@@ -478,6 +483,8 @@ export default function Jobs() {
               onClick={() => {
                 setTab(value)
                 setMobileDetail(false)
+                setBulkMode(false)
+                setBulkIds(new Set())
               }}
               className={`min-h-10 rounded-md border px-3 py-1 text-xs font-medium transition sm:min-h-8 ${
                 tab === value
@@ -609,6 +616,71 @@ export default function Jobs() {
           </div>
         )}
 
+        {tab === 'tracked' && pipeline.length > 0 && (
+          <div
+            className="mt-3 flex flex-wrap items-center gap-2"
+            role="group"
+            aria-label="Bulk actions on tracked jobs"
+          >
+            <button
+              type="button"
+              aria-pressed={bulkMode}
+              onClick={() => {
+                setBulkMode((v) => !v)
+                setBulkIds(new Set())
+              }}
+              className={`min-h-10 rounded-md border px-3 py-1 text-xs font-medium transition sm:min-h-8 ${
+                bulkMode ? 'border-primary ring-primary/40 ring-2' : 'hover:border-muted-foreground/40'
+              }`}
+            >
+              {bulkMode ? 'Done selecting' : 'Select…'}
+            </button>
+            {bulkMode && bulkIds.size > 0 && (
+              <>
+                <span className="text-muted-foreground text-xs font-medium">
+                  {bulkIds.size} selected
+                </span>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const status = e.target.value as JobStatus
+                    if (!status) return
+                    setPipeline(updateStatuses([...bulkIds], status))
+                    setBulkIds(new Set())
+                  }}
+                  aria-label="Move selected jobs to a status"
+                  className="border-input bg-background min-h-10 rounded-md border px-1.5 text-xs sm:min-h-8"
+                >
+                  <option value="" disabled>
+                    Move to…
+                  </option>
+                  {JOB_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {JOB_STATUS_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive min-h-10 sm:min-h-8"
+                  onClick={() => setConfirmBulkUntrack(true)}
+                >
+                  Untrack {bulkIds.size}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setBulkIds(new Set())}
+                  className="text-muted-foreground hover:text-foreground min-h-10 text-xs underline-offset-2 hover:underline sm:min-h-8"
+                >
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="mt-6 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           <div
             className={`bg-card max-h-[70vh] overflow-y-auto rounded-md border ${
@@ -691,8 +763,25 @@ export default function Jobs() {
                       <div
                         className={`hover:bg-accent relative px-4 py-3 ${
                           selected?.id === j.id ? 'bg-accent border-primary border-l-2' : ''
-                        }`}
+                        } ${tab === 'tracked' && bulkMode ? 'flex items-start gap-2.5' : ''}`}
                       >
+                        {tab === 'tracked' && bulkMode && (
+                          <input
+                            type="checkbox"
+                            checked={bulkIds.has(j.id)}
+                            onChange={() =>
+                              setBulkIds((prev) => {
+                                const next = new Set(prev)
+                                if (next.has(j.id)) next.delete(j.id)
+                                else next.add(j.id)
+                                return next
+                              })
+                            }
+                            aria-label={`Select ${j.title} at ${j.company}`}
+                            className="accent-primary mt-1 size-4 shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
                         <button
                           type="button"
                           onClick={() => {
@@ -790,6 +879,7 @@ export default function Jobs() {
                               </option>
                             ))}
                           </select>
+                        </div>
                         </div>
                       </div>
                     </li>
@@ -1124,6 +1214,40 @@ export default function Jobs() {
               onClick={() => {
                 if (confirmUntrack) setPipeline(removeFromPipeline(confirmUntrack.id))
                 setConfirmUntrack(null)
+              }}
+            >
+              Stop tracking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmBulkUntrack} onOpenChange={(o) => !o && setConfirmBulkUntrack(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{`Stop tracking ${bulkIds.size} job${bulkIds.size === 1 ? '' : 's'}?`}</DialogTitle>
+            <DialogDescription>
+              This removes the selected jobs from your pipeline and deletes their application
+              timelines and notes. Targeted resume copies stay on your dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-10"
+              onClick={() => setConfirmBulkUntrack(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="min-h-10"
+              onClick={() => {
+                setPipeline(removeManyFromPipeline([...bulkIds]))
+                setBulkIds(new Set())
+                setConfirmBulkUntrack(false)
               }}
             >
               Stop tracking
