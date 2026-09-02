@@ -202,6 +202,7 @@ export default function Dashboard() {
   const [importDragOver, setImportDragOver] = useState(false)
   const [confirmImport, setConfirmImport] = useState<Resume | null>(null)
   const [importedLinkedIn, setImportedLinkedIn] = useState(false)
+  const [linkedInOpen, setLinkedInOpen] = useState(false)
   const [examples, setExamples] = useState<ExampleEntry[]>([])
   const [exampleQuery, setExampleQuery] = useState('')
   const [exampleSector, setExampleSector] = useState('All')
@@ -869,11 +870,14 @@ export default function Dashboard() {
               <p className="text-muted-foreground text-xs">
                 Click or drop a PDF, DOCX or TXT here — read entirely in your browser.
               </p>
-              <p className="text-muted-foreground text-xs">
-                No resume yet? On LinkedIn, use Profile → More → Save to PDF and import that
-                file.
-              </p>
               {importError && <p className="text-destructive text-xs">{importError}</p>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLinkedInOpen(true)}
+              className="text-primary mt-2 self-center text-xs underline-offset-4 hover:underline"
+            >
+              No resume yet? Import your LinkedIn profile →
             </button>
             <input
               ref={importInputRef}
@@ -1609,6 +1613,40 @@ export default function Dashboard() {
             )}
             <Button type="button" onClick={() => confirmImport && openImported(confirmImport)}>
               Open and replace draft
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={linkedInOpen} onOpenChange={setLinkedInOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Import your LinkedIn profile</DialogTitle>
+            <DialogDescription>
+              LinkedIn's own profile export becomes a pre-filled resume — read entirely in your
+              browser, nothing is uploaded anywhere.
+            </DialogDescription>
+          </DialogHeader>
+          <ol className="list-decimal space-y-2 pl-5 text-sm">
+            <li>
+              On LinkedIn, open your profile and choose <strong>More</strong> (or{' '}
+              <strong>Resources</strong>) → <strong>Save to PDF</strong>.
+            </li>
+            <li>Pick the downloaded PDF below — sections are mapped automatically.</li>
+            <li>Review the imported resume before sending it anywhere.</li>
+          </ol>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setLinkedInOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setLinkedInOpen(false)
+                importInputRef.current?.click()
+              }}
+            >
+              Choose the LinkedIn PDF
             </Button>
           </DialogFooter>
         </DialogContent>
