@@ -17,6 +17,8 @@ export interface JobListing {
   salary: string
   url: string
   description: string
+  /** Upstream skill tags (may be missing on entries saved before it existed) */
+  tags?: string[]
 }
 
 export type JobStatus = 'saved' | 'applied' | 'interviewing' | 'rejected'
