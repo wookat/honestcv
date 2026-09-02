@@ -113,6 +113,24 @@ export function stripInlineMarks(text: string): string {
     .join('')
 }
 
+/** `[label](target)` tokens whose target is not an acceptable URL — the shape
+ *  Ctrl/Cmd+K leaves behind when the `url` placeholder is never replaced. */
+export function unfinishedLinks(text: string): { token: string; label: string; target: string }[] {
+  const out: { token: string; label: string; target: string }[] = []
+  for (const m of text.matchAll(new RegExp(LINK_RE.source, 'g'))) {
+    if (linkHref(m[2]) === null) out.push({ token: m[0], label: m[1], target: m[2] })
+  }
+  return out
+}
+
+/** Uppercase the visible text of a marked string, leaving `](url)` link
+ *  targets untouched so uppercase templates don't corrupt hrefs. */
+export function upperInlineMarks(text: string): string {
+  return text.replace(/\]\([^)]*\)|[^\]]+|\]/g, (m) =>
+    m.startsWith('](') ? m : m.toUpperCase()
+  )
+}
+
 /** Toggle-wrap a textarea selection with a mark; returns the next value and selection. */
 export function wrapSelection(
   value: string,
