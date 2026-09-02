@@ -702,6 +702,42 @@ export function orderedSectionKeys(r: Resume): string[] {
   return order
 }
 
+/** Which section block should lead the resume, per the Rezi reorder guide. */
+export type SectionEmphasis = 'education-first' | 'experience-first'
+
+/**
+ * Rezi's recommended emphasis for an experience level: students and new
+ * graduates lead with education; every established tier leads with work
+ * experience. No recommendation when the level is Auto.
+ */
+export function sectionEmphasisFor(
+  level: Resume['experienceLevel']
+): SectionEmphasis | null {
+  if (!level) return null
+  return level === 'internship' || level === 'entry'
+    ? 'education-first'
+    : 'experience-first'
+}
+
+/**
+ * The current section order with only the emphasized block moved directly
+ * after the summary; every other section keeps its relative order. Null when
+ * there is no recommendation or the order already matches it.
+ */
+export function recommendedSectionOrder(r: Resume): string[] | null {
+  const emphasis = sectionEmphasisFor(r.experienceLevel)
+  if (!emphasis) return null
+  const current = orderedSectionKeys(r)
+  const block =
+    emphasis === 'education-first' ? ['education', 'coursework'] : ['experience']
+  const rest = current.filter((k) => !block.includes(k))
+  const at = rest.indexOf('summary') + 1
+  const next = [...rest.slice(0, at), ...block, ...rest.slice(at)]
+  if (next.length === current.length && next.every((k, i) => k === current[i]))
+    return null
+  return next
+}
+
 export function sectionLabel(r: Resume, key: string): string {
   const lang = resumeLanguageOf(r)
   if (key.startsWith('custom:')) {

@@ -162,6 +162,8 @@ import {
   deleteResumeVersion,
   EXPERIENCE_LEVELS,
   EXPERIENCE_LEVEL_LABELS,
+  recommendedSectionOrder,
+  sectionEmphasisFor,
   duplicateResumeVersion,
   emptyAward,
   emptyCertification,
@@ -5586,6 +5588,36 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               Drag (or use the arrows) to change the order sections appear on your resume.
             </p>
+            {(() => {
+              const rec = recommendedSectionOrder(resume)
+              if (!rec || !resume.experienceLevel) return null
+              const emphasis = sectionEmphasisFor(resume.experienceLevel)
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-2 dark:border-sky-900 dark:bg-sky-950/40">
+                  <span className="text-xs text-sky-800 dark:text-sky-200">
+                    Recommended for {EXPERIENCE_LEVEL_LABELS[resume.experienceLevel]}:{' '}
+                    {emphasis === 'education-first'
+                      ? 'education near the top'
+                      : 'experience right after the summary'}
+                    .
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() =>
+                      setResume((r) => {
+                        const next = recommendedSectionOrder(r)
+                        return next ? { ...r, sectionOrder: next } : r
+                      })
+                    }
+                  >
+                    Apply recommended order
+                  </Button>
+                </div>
+              )
+            })()}
             <ul className="space-y-1.5">
               {orderedSectionKeys(resume).map((key, idx, keys) => (
                 <li
