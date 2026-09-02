@@ -113,6 +113,14 @@ export function stripInlineMarks(text: string): string {
     .join('')
 }
 
+/** Uppercase the visible text of a marked string, leaving `](url)` link
+ *  targets untouched so uppercase templates don't corrupt hrefs. */
+export function upperInlineMarks(text: string): string {
+  return text.replace(/\]\([^)]*\)|[^\]]+|\]/g, (m) =>
+    m.startsWith('](') ? m : m.toUpperCase()
+  )
+}
+
 /** Toggle-wrap a textarea selection with a mark; returns the next value and selection. */
 export function wrapSelection(
   value: string,

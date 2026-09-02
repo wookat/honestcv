@@ -65,6 +65,7 @@ import { MonthYearField } from '@/components/MonthYearField'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
+import { markShortcutKeyDown } from '@/lib/markShortcuts'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
   FreeDownloadDialog,
@@ -2284,6 +2285,7 @@ export default function Builder() {
               placeholder="2-3 sentences: who you are, years of experience, biggest strengths and wins."
               value={resume.summary}
               onChange={(e) => set('summary', e.target.value)}
+              onKeyDown={(ev) => markShortcutKeyDown(ev)}
             />
             <div className="flex flex-wrap items-center gap-2">
               {resume.summary.trim()
