@@ -71,6 +71,35 @@ export function attentionCount(pipeline: PipelineEntry[] = listPipeline()): numb
   return pipeline.filter((e) => staleDays(e) !== null).length
 }
 
+/** Deterministic follow-up email draft for a quiet application. */
+export function followUpEmail(
+  entry: PipelineEntry,
+  senderName?: string
+): { subject: string; body: string } {
+  const days = staleDays(entry) ?? 0
+  const { title, company } = entry.job
+  const interviewing = entry.status === 'interviewing'
+  const subject = interviewing
+    ? `Following up on my ${title} interview at ${company}`
+    : `Following up on my ${title} application at ${company}`
+  const opener = interviewing
+    ? `It has been ${days} days since we last spoke about the ${title} position, and I wanted to follow up on where things stand.`
+    : `I applied for the ${title} position ${days} days ago and wanted to follow up on the status of my application.`
+  const body = [
+    `Hi ${company} hiring team,`,
+    '',
+    opener,
+    '',
+    'I remain very interested in the role and would be glad to share any additional information that would be helpful.',
+    '',
+    'Thank you for your time and consideration.',
+    '',
+    'Best regards,',
+    senderName?.trim() || '[Your name]',
+  ].join('\n')
+  return { subject, body }
+}
+
 const PIPELINE_KEY = 'honestcv.jobPipeline'
 
 /** Category slugs accepted by the jobs API (Remotive's fixed list). */
