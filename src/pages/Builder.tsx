@@ -107,6 +107,7 @@ import {
   atsScoreSummary,
   bestExperienceForKeyword,
   highPriorityKeywords,
+  matchReport,
   scoreResume,
 } from '@/lib/ats'
 import {
@@ -6627,6 +6628,10 @@ export default function Builder() {
         onClose={() => setToolOpen(null)}
         resume={shown}
         onQuota={setFreeLeft}
+        onJumpToTarget={() => {
+          setToolOpen(null)
+          jumpToSection('target')
+        }}
       />
       {tailorOpen && (
         <TailorDialog
@@ -7926,12 +7931,14 @@ function BundleToolDialog({
   onClose,
   resume,
   onQuota,
+  onJumpToTarget,
 }: {
   kind: 'cover' | 'interview' | 'resignation' | null
   initialCompany?: string
   onClose: () => void
   resume: Resume
   onQuota: (remaining: number) => void
+  onJumpToTarget: () => void
 }) {
   const [company, setCompany] = useState(initialCompany)
   const [addressee, setAddressee] = useState('')
@@ -8008,6 +8015,15 @@ function BundleToolDialog({
     () => (kind === 'interview' && analysis ? analyzeTone(answer) : null),
     [kind, analysis, answer]
   )
+
+  /** JD keywords demonstrated in this answer that the resume itself still lacks. */
+  const resumeGaps = useMemo(() => {
+    if (kind !== 'interview' || !analysis?.keywords) return []
+    const report = matchReport(resumeToPlainText(resume), resume.jobDescription ?? '')
+    if (!report) return []
+    const missingFromResume = new Set(report.missing)
+    return analysis.keywords.covered.filter((k) => missingFromResume.has(k))
+  }, [kind, analysis, resume])
 
   if (kind !== lastKind) {
     setLastKind(kind)
@@ -8589,6 +8605,21 @@ function BundleToolDialog({
                       </p>
                     )}
                   </>
+                )}
+                {resumeGaps.length > 0 && (
+                  <p className="text-xs text-sky-700 dark:text-sky-400">
+                    Add to your resume: you used{' '}
+                    {resumeGaps.slice(0, 5).join(', ')}
+                    {resumeGaps.length > 5 && <> +{resumeGaps.length - 5} more</>} in this answer,
+                    but {resumeGaps.length === 1 ? "it's" : "they're"} not on your resume yet.{' '}
+                    <button
+                      type="button"
+                      onClick={onJumpToTarget}
+                      className="font-medium underline underline-offset-2"
+                    >
+                      Open keyword targeting →
+                    </button>
+                  </p>
                 )}
                 {delivery && (
                   <>
