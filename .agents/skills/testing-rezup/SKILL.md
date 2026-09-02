@@ -687,3 +687,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - The dark theme inverts color scales in src/index.css (amber-50..300 → dark surface tones, amber-600..900 → light text tones). When checking `dark:*-300`-style contrast, read the CSS variable via getComputedStyle rather than assuming Tailwind defaults; utilities WITHOUT a `dark:` text override are often the correct high-contrast choice (HP chips went 2.27:1 → 10.46:1 by dropping `dark:text-amber-300`).
 - R245 repeated-skills strip and R244 chips derive from `job.tags` — pipeline fixtures need `tags` arrays on ≥2 jobs for the strip to render.
 - R251 tailoring-report open state (`reportOpenId`) persists per job id across selection changes within a session (intended).
+
+## R252 — assistant tailoring status
+- Header theme toggle's `title` shows the CURRENT pref ("Light theme"/"Dark theme"/"System theme"), cycling light→dark→system — don't look for a "Toggle theme" label.
+- AssistantPanel: open via the Builder button titled "Resume assistant — chat about your draft and job search" or deep-link `/builder?assistant=1`. Chat is seedable via `honestcv.assistantChat` (`[{role,content,action?,applied?}]`; summary action = `{type:'summary',value}`) — Apply buttons then work with zero AI. Quick-task chips must NOT be clicked in zero-AI rounds (each calls `/api/ai/assistant`).
+- Applied proposals render "Applied to your resume" as an icon+text `<p>`, not a leaf text node.
