@@ -652,7 +652,7 @@ export default function Dashboard() {
       {dlError && (
         <div className="mx-auto w-full max-w-6xl px-4 pt-3">
           <p
-            className="border-destructive/40 bg-destructive/10 text-destructive flex items-start justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+            className="flex items-start justify-between gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800"
             role="alert"
           >
             <span>{dlError}</span>
