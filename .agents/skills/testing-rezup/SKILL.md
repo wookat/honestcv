@@ -682,3 +682,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Interview practice answer field is `#practice-answer` inside the `?doc=interview` dialog; analysis renders only at ≥10 words.
 - Builder editing auto-creates `honestcv.resumeHistory` — remove it during cleanup to hit the exact baseline.
 - For borderline contrast, confirm with exact computed colors composited via canvas — the 2%/98% pixel-percentile method underestimates on thin antialiased text.
+
+## R251 — /jobs tailoring report + inverted dark palette
+- The dark theme inverts color scales in src/index.css (amber-50..300 → dark surface tones, amber-600..900 → light text tones). When checking `dark:*-300`-style contrast, read the CSS variable via getComputedStyle rather than assuming Tailwind defaults; utilities WITHOUT a `dark:` text override are often the correct high-contrast choice (HP chips went 2.27:1 → 10.46:1 by dropping `dark:text-amber-300`).
+- R245 repeated-skills strip and R244 chips derive from `job.tags` — pipeline fixtures need `tags` arrays on ≥2 jobs for the strip to render.
+- R251 tailoring-report open state (`reportOpenId`) persists per job id across selection changes within a session (intended).

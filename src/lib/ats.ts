@@ -754,6 +754,34 @@ export function matchScore(resumeTextRaw: string, jd: string): number | null {
   return Math.round((matched / keywords.length) * 100)
 }
 
+export interface MatchReport {
+  pct: number
+  covered: string[]
+  missing: string[]
+  highPriorityMissing: string[]
+}
+
+/** Per-keyword breakdown behind matchScore — same extraction, matching and rounding. */
+export function matchReport(resumeTextRaw: string, jd: string): MatchReport | null {
+  const keywords = jd.trim() ? extractKeywords(jd) : []
+  if (keywords.length === 0) return null
+  const resumeText = resumeTextRaw.toLowerCase()
+  const resumeTokens = new Set(tokenize(resumeText))
+  const covered: string[] = []
+  const missing: string[] = []
+  for (const kw of keywords) {
+    if (kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)) covered.push(kw)
+    else missing.push(kw)
+  }
+  const high = highPriorityKeywords(jd, keywords)
+  return {
+    pct: Math.round((covered.length / keywords.length) * 100),
+    covered,
+    missing,
+    highPriorityMissing: missing.filter((k) => high.has(k)),
+  }
+}
+
 /** Score pasted resume text (standalone ATS checker page) */
 export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
   const resumeText = resumeTextRaw.toLowerCase()
