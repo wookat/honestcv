@@ -107,6 +107,7 @@ export default function Jobs() {
   const [query, setQuery] = useState(() => seedQuery ?? loadResume()?.targetRole ?? '')
   const [category, setCategory] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
   const [sort, setSort] = useState<'relevance' | 'newest' | 'match'>('relevance')
   const [excluded, setExcluded] = useState<ReadonlySet<JobStatus>>(new Set())
   const [jobs, setJobs] = useState<JobListing[]>([])
@@ -216,6 +217,10 @@ export default function Jobs() {
           return !(s && excluded.has(s))
         })
       : base
+  const afterType =
+    tab === 'all' && typeFilter
+      ? afterExclude.filter((j) => j.type.toLowerCase() === typeFilter)
+      : afterExclude
   /** A posting anyone can apply to regardless of where they live. */
   const isLocationAgnostic = (location: string) => {
     const l = location.trim().toLowerCase()
@@ -223,11 +228,11 @@ export default function Jobs() {
   }
   const directMatches =
     tab === 'all' && loc
-      ? afterExclude.filter((j) => j.location.toLowerCase().includes(loc))
-      : afterExclude
+      ? afterType.filter((j) => j.location.toLowerCase().includes(loc))
+      : afterType
   const anywhereMatches =
     tab === 'all' && loc
-      ? afterExclude.filter(
+      ? afterType.filter(
           (j) => !j.location.toLowerCase().includes(loc) && isLocationAgnostic(j.location)
         )
       : []
@@ -463,6 +468,23 @@ export default function Jobs() {
                   {label}
                 </option>
               ))}
+            </select>
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value)
+                setSelectedId(null)
+              }}
+              aria-label="Filter by job type"
+              className="border-input bg-background h-10 rounded-md border px-2 text-sm"
+            >
+              <option value="">All types</option>
+              <option value="full time">Full time</option>
+              <option value="part time">Part time</option>
+              <option value="contract">Contract</option>
+              <option value="freelance">Freelance</option>
+              <option value="internship">Internship</option>
+              <option value="other">Other</option>
             </select>
             <Input
               type="search"
