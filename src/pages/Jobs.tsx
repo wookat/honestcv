@@ -47,7 +47,7 @@ import {
   updateStatuses,
   upsertPipeline,
 } from '@/lib/jobs'
-import { matchScore } from '@/lib/ats'
+import { matchReport, matchScore } from '@/lib/ats'
 import {
   createResumeVersion,
   emptyResume,
@@ -128,6 +128,7 @@ export default function Jobs() {
     intent: 'target' | 'cover'
   } | null>(null)
   const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
+  const [reportOpenId, setReportOpenId] = useState<string | null>(null)
   const [confirmUntrack, setConfirmUntrack] = useState<JobListing | null>(null)
 
   const fetchJobs = (q: string, cat = '') =>
@@ -314,6 +315,19 @@ export default function Jobs() {
     jobs.find((j) => j.id === selectedId) ??
     pipeline.find((e) => e.job.id === selectedId)?.job ??
     null
+
+  /** Keyword breakdown for the selected job — targeted copy when linked, else the draft. */
+  const selectedReport = (() => {
+    if (!selected) return null
+    const entry = pipeline.find((e) => e.job.id === selected.id)
+    const version = entry?.resumeVersionId
+      ? listResumeVersions().find((v) => v.id === entry.resumeVersionId)
+      : undefined
+    const text = version ? resumeToPlainText(visibleResume(version.data)) : resumeText
+    if (!text.trim()) return null
+    const report = matchReport(text, selected.description)
+    return report ? { ...report, source: version ? ('copy' as const) : ('draft' as const) } : null
+  })()
 
   const counts = useMemo(() => {
     const c = { saved: 0, applied: 0, interviewing: 0, offer: 0, rejected: 0 }
@@ -940,6 +954,91 @@ export default function Jobs() {
                     )
                   )}
                 </p>
+                {selectedReport && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      aria-expanded={reportOpenId === selected.id}
+                      onClick={() =>
+                        setReportOpenId((cur) => (cur === selected.id ? null : selected.id))
+                      }
+                      className="text-primary text-xs font-medium underline-offset-2 hover:underline"
+                    >
+                      {reportOpenId === selected.id ? 'Hide tailoring report' : 'Tailoring report'}
+                    </button>
+                    {reportOpenId === selected.id && (
+                      <div className="bg-muted/40 mt-2 rounded-md border p-2.5 text-xs">
+                        <p className="text-muted-foreground">
+                          Against{' '}
+                          {selectedReport.source === 'copy'
+                            ? 'the targeted copy for this job'
+                            : 'your current resume draft'}
+                          : covered {selectedReport.covered.length} of{' '}
+                          {selectedReport.covered.length + selectedReport.missing.length} job
+                          keywords.
+                        </p>
+                        {selectedReport.missing.length === 0 ? (
+                          <p className="mt-1 font-medium text-emerald-700 dark:text-emerald-400">
+                            All job keywords covered.
+                          </p>
+                        ) : (
+                          <>
+                            {selectedReport.highPriorityMissing.length > 0 && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                <span className="font-medium text-amber-700 dark:text-amber-400">
+                                  High priority missing:
+                                </span>
+                                {selectedReport.highPriorityMissing.slice(0, 10).map((kw) => (
+                                  <span
+                                    key={kw}
+                                    className="rounded-full bg-amber-100 px-1.5 py-0.5 text-amber-800 dark:bg-amber-950"
+                                  >
+                                    {kw}
+                                  </span>
+                                ))}
+                                {selectedReport.highPriorityMissing.length > 10 && (
+                                  <span className="text-muted-foreground">
+                                    +{selectedReport.highPriorityMissing.length - 10} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {selectedReport.missing.length >
+                              selectedReport.highPriorityMissing.length && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                <span className="text-muted-foreground font-medium">
+                                  Also missing:
+                                </span>
+                                {selectedReport.missing
+                                  .filter((kw) => !selectedReport.highPriorityMissing.includes(kw))
+                                  .slice(0, 10)
+                                  .map((kw) => (
+                                    <span
+                                      key={kw}
+                                      className="bg-muted text-muted-foreground rounded-full px-1.5 py-0.5"
+                                    >
+                                      {kw}
+                                    </span>
+                                  ))}
+                                {selectedReport.missing.length -
+                                  selectedReport.highPriorityMissing.length >
+                                  10 && (
+                                  <span className="text-muted-foreground">
+                                    +
+                                    {selectedReport.missing.length -
+                                      selectedReport.highPriorityMissing.length -
+                                      10}{' '}
+                                    more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {(selected.tags?.length ?? 0) > 0 && (
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <span className="text-muted-foreground text-xs font-medium">Skills:</span>
