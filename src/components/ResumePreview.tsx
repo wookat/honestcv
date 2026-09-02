@@ -29,6 +29,7 @@ import {
   agentBullets,
   agentEntries,
   fontScaleOf,
+  pageMarginOf,
   lineSpacingOf,
   educationDetailLine,
   orderedSectionKeys,
@@ -432,7 +433,9 @@ export function ResumePreview({
   )
 }
 
+// 32px at 96dpi corresponds to the default 0.75\u2033 margin band's scaled look
 const PAGE_PAD = 32
+const pagePadOf = (r: Resume) => Math.round((PAGE_PAD * pageMarginOf(r)) / 54)
 
 /**
  * Renders the resume as a stack of page frames. Content is laid out at the
@@ -454,7 +457,8 @@ function PaginatedPages({
 }) {
   const baseW = resume.pageSize === 'a4' ? 794 : 816
   const baseH = resume.pageSize === 'a4' ? 1123 : 1056
-  const windowH = baseH - PAGE_PAD * 2
+  const pagePad = pagePadOf(resume)
+  const windowH = baseH - pagePad * 2
   const frameRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [pages, setPages] = useState(1)
@@ -501,7 +505,7 @@ function PaginatedPages({
               left: 0,
               width: baseW,
               height: baseH,
-              padding: PAGE_PAD,
+              padding: pagePad,
               overflow: 'hidden',
               transform: `scale(${scale || 1})`,
               transformOrigin: 'top left',
@@ -547,7 +551,8 @@ function FlowPage({
 }) {
   const baseW = resume.pageSize === 'a4' ? 794 : 816
   const baseH = resume.pageSize === 'a4' ? 1123 : 1056
-  const windowH = baseH - PAGE_PAD * 2
+  const pagePad = pagePadOf(resume)
+  const windowH = baseH - pagePad * 2
   const frameRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [contentH, setContentH] = useState(windowH)
@@ -579,7 +584,7 @@ function FlowPage({
         color: textInkOf(resume),
         overflow: 'hidden',
         ...(scale > 0
-          ? { height: (contentH + PAGE_PAD * 2) * scale }
+          ? { height: (contentH + pagePad * 2) * scale }
           : { aspectRatio: `${baseW} / ${baseH}` }),
       }}
       aria-label="Resume preview (continuous)"
@@ -590,7 +595,7 @@ function FlowPage({
           top: 0,
           left: 0,
           width: baseW,
-          padding: PAGE_PAD,
+          padding: pagePad,
           transform: `scale(${scale || 1})`,
           transformOrigin: 'top left',
         }}
@@ -603,7 +608,7 @@ function FlowPage({
             key={i}
             aria-hidden
             className="pointer-events-none absolute right-0 left-0 border-t border-dashed border-neutral-300"
-            style={{ top: PAGE_PAD + (i + 1) * windowH }}
+            style={{ top: pagePad + (i + 1) * windowH }}
           >
             <span className="absolute right-1 -top-2 bg-white px-1 text-[9px] text-neutral-400">
               Page break
