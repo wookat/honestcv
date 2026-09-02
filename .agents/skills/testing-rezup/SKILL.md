@@ -580,3 +580,6 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 
 ## R222 — filler-words check
 - "No filler words" list-order: just, very, really, various, several, stuff, things, etc — word-boundary, case-insensitive except "stuff"/"things" (lowercase-only so "Internet of Things" passes). Anchor routes summary vs experience like R217. Rows: checker 21 / Builder 23.
+
+## R223 — weak-opener check
+- "Strong bullet openers" fails only when the bullet STARTS with a weak opener (startsWith, case-insensitive); mid-line "responsible for" passes. WEAK_OPENERS now lives in ats.ts (guidance imports it). Rows: checker 22 / Builder 24.
