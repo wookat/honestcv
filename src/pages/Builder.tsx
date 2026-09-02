@@ -1461,6 +1461,7 @@ export default function Builder() {
 
   const strength = useMemo(() => resumeStrength(resume), [resume])
   const health = useMemo(() => resumeHealth(resume), [resume])
+  const assistantFixes = useMemo(() => priorityFixes(ats, health), [ats, health])
 
   const insertKeywordBullet = useCallback((expId: string, text: string) => {
     setResume((r) => ({
@@ -6780,6 +6781,7 @@ export default function Builder() {
         jobDescription={resume.jobDescription}
         scoreSummary={atsScoreSummary(ats)}
         ats={ats}
+        fixes={assistantFixes}
         onQuota={setFreeLeft}
         onPaymentRequired={(msg) => {
           if (!freeMode) requireUnlock(msg)

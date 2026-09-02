@@ -18,6 +18,7 @@ import {
 } from '@/lib/api'
 import { aiTargetRole, resumeToPlainText, type Resume } from '@/lib/resume'
 import { matchReport, type AtsResult } from '@/lib/ats'
+import { improveScoreReply, type PriorityFix } from '@/lib/guidance'
 
 const CHAT_KEY = 'honestcv.assistantChat'
 const CHAT_MAX = 40
@@ -80,10 +81,14 @@ function persistChat(turns: ChatMsg[]) {
   }
 }
 
+const IMPROVE_SCORE_LABEL = 'Improve my ATS score'
+const IMPROVE_SCORE_PROMPT =
+  'How can I improve my resume\u2019s ATS score? Give me the highest-impact fixes first.'
+
 const QUICK_TASKS: { label: string; prompt: string }[] = [
   {
-    label: 'Improve my ATS score',
-    prompt: 'How can I improve my resume\u2019s ATS score? Give me the highest-impact fixes first.',
+    label: IMPROVE_SCORE_LABEL,
+    prompt: IMPROVE_SCORE_PROMPT,
   },
   {
     label: 'Draft my summary',
@@ -141,6 +146,7 @@ export function AssistantPanel({
   jobDescription,
   scoreSummary,
   ats,
+  fixes,
   onQuota,
   onPaymentRequired,
   onApply,
@@ -152,6 +158,7 @@ export function AssistantPanel({
   jobDescription: string
   scoreSummary: string
   ats: AtsResult
+  fixes: PriorityFix[]
   onQuota: (remaining: number) => void
   onPaymentRequired: (message: string) => void
   onApply: (action: AssistantAction) => void
@@ -206,6 +213,26 @@ export function AssistantPanel({
     } finally {
       setBusy(false)
     }
+  }
+
+  const improveScore = () => {
+    if (busy) return
+    const next = [
+      ...turns,
+      { role: 'user' as const, content: IMPROVE_SCORE_PROMPT },
+      {
+        role: 'assistant' as const,
+        content: improveScoreReply(ats.score, fixes, ats.keywordScore !== null),
+      },
+    ].slice(-CHAT_MAX)
+    setTurns(next)
+    persistChat(next)
+    setError('')
+  }
+
+  const runQuickTask = (t: { label: string; prompt: string }) => {
+    if (t.label === IMPROVE_SCORE_LABEL) improveScore()
+    else void send(t.prompt)
   }
 
   const findJobs = () => {
@@ -329,7 +356,7 @@ export function AssistantPanel({
                   size="sm"
                   variant="outline"
                   className="min-h-10 sm:min-h-8"
-                  onClick={() => void send(t.prompt)}
+                  onClick={() => runQuickTask(t)}
                 >
                   {t.label}
                 </Button>
@@ -437,7 +464,7 @@ export function AssistantPanel({
               variant="outline"
               disabled={busy}
               className="min-h-10 rounded-full text-xs sm:min-h-7"
-              onClick={() => void send(t.prompt)}
+              onClick={() => runQuickTask(t)}
             >
               {t.label}
             </Button>
