@@ -742,3 +742,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - When seeding resumes via localStorage, `experience[].bullets` MUST be `string[]` — a plain string is silently emptied by `sanitizeResume`, deflating word counts.
 - Template filter row: `[aria-label="Filter templates by style"]`; the card grid is its next sibling with `span.relative > button[aria-pressed]` (card name = button's last SPAN child).
 - Theme toggle cycles system→light→dark — seed `honestcv.theme` for deterministic dark-mode tests.
+
+## R265 — resume assistant QA
+- Open the assistant via `?assistant=1` or the toolbar button `title^="Resume assistant"`; chat persists in `honestcv.assistantChat`.
+- The open panel overlays the right column — close it (Escape) before clicking preview-side buttons like "See full score breakdown".
+- Assistant replies use the live ATS score, which depends on the PDF page count — pass the observed "Resume length: X page" into `scoreResume` oracles.
+- Opening the health card sets `honestcv.seen.health`; remove it during cleanup.

@@ -421,6 +421,30 @@ export function priorityFixes(ats: AtsResult, health: HealthReport, limit = 5): 
   return fixes.sort((a, b) => b.points - a.points).slice(0, limit)
 }
 
+/**
+ * Locally composed assistant reply for the "Improve my ATS score" quick task:
+ * the score plus the ranked priority fixes, no AI round trip.
+ */
+export function improveScoreReply(
+  score: number,
+  fixes: PriorityFix[],
+  hasJd: boolean,
+): string {
+  if (fixes.length === 0) {
+    return (
+      `Your ATS score is ${score}/100 — no priority fixes right now. ` +
+      (hasJd
+        ? 'Nice work — ask me anything you\u2019d like to sharpen.'
+        : 'Add a job description in the Target job panel and I can point out missing keywords too.')
+    )
+  }
+  return (
+    `Your ATS score is ${score}/100. Highest-impact fixes first:\n` +
+    fixes.map((f, i) => `${i + 1}. ${f.text} (~${f.points} pts, ${f.impact} impact)`).join('\n') +
+    '\n\nApply a fix and your score updates instantly. The Score breakdown has one-click jumps to each spot.'
+  )
+}
+
 export interface StrengthResult {
   /** 0–100 completeness score */
   score: number
