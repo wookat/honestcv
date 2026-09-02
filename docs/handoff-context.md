@@ -456,3 +456,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 坑：pdftotext 对样式 run 边界插空格（`张伟是 资深QA工程师 ，`）是提取产物非渲染缺陷，栅格连续；链接词带下划线是 drawRuns 设计内样式。
 - 既有 P3 尚开放：导出错误 alert 条亮色对比度 ~3.75:1。
 - 文档：docs/plan-r272-pdf-summary-inline-marks.md、docs/qa-r272-plan.md（测试代理写）。
+
+## R273 — AA-compliant export-error alert colors (2026-09-02)
+- 证据：R271 生产 QA 一手发现的既有 P3——Builder/Dashboard 导出错误 alert 条 `text-destructive on bg-destructive/10` 亮色实测 ~3.75:1（<AA 4.5:1，暗色 4.94:1 通过）。
+- 实现：仅两处 className 改 `border-red-300 bg-red-50 text-red-800`（Builder.tsx ~1753、Dashboard.tsx ~655）；不动全局 --destructive token（destructive 按钮白字前景是另一权衡）。仓库暗色反转 red 色板（index.css .dark 下 red-50 L0.28 / red-800 L0.86）使同一 class 串双模式正确、零 dark: 覆盖。
+- QA（生产复验）：bundle index-BywzwJnU.js；全绿零 P0–P3 零 AI——阿拉伯字符触发 alert（Builder+Dashboard），亮色 7.64:1（原 3.75）/暗色 8.62:1（canvas 解析 computed style 与截图像素双法一致）、Dismiss 正常、Latin/CJK PDF 下载回归无 alert、localStorage/主题还原。
+- 坑：本应用 getComputedStyle 返回 oklch(...) 字符串（Tailwind v4），naive rgb 正则解析会得 ~1.0 假对比度——用 1×1 canvas fillStyle+getImageData 读回 sRGB，再与截图像素交叉验证。
+- 文档：docs/plan-r273-export-alert-contrast.md、docs/qa-r273-plan.md（测试代理写）。
