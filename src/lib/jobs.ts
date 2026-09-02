@@ -87,6 +87,50 @@ export async function searchJobs(q: string, category = ''): Promise<JobListing[]
   return data.jobs ?? []
 }
 
+/** One section of a structured job description; `heading: null` for the preamble. */
+export interface JobDescriptionSection {
+  heading: string | null
+  body: string
+}
+
+const HEADING_KEYWORD =
+  /^(about|overview|summary|responsibilit|duties|requirements?|qualifications?|skills?|experience|benefits?|perks?|compensation|salary|what|who|why|nice|preferred|bonus|how|your|our|the role|key|location|equal)/i
+
+/** True when a description line reads like a section heading rather than content. */
+function isHeadingLine(line: string): boolean {
+  if (!line || line.startsWith('•') || /^\d/.test(line) || line.length > 60) return false
+  const words = line.split(/\s+/).length
+  if (line.endsWith(':')) return words <= 8
+  return words <= 5 && HEADING_KEYWORD.test(line) && !/[.!?,;:]$/.test(line)
+}
+
+/**
+ * Split a plain-text job description into labelled sections using heading-like
+ * lines (short, colon-terminated or keyword-led). Returns a single unlabelled
+ * section when no headings are found.
+ */
+export function structureJobDescription(description: string): JobDescriptionSection[] {
+  const sections: JobDescriptionSection[] = []
+  let heading: string | null = null
+  let lines: string[] = []
+  const push = () => {
+    const body = lines.join('\n').trim()
+    if (body || heading !== null) sections.push({ heading, body })
+  }
+  for (const raw of description.split('\n')) {
+    const line = raw.trim()
+    if (isHeadingLine(line)) {
+      push()
+      heading = line.replace(/\s*:$/, '')
+      lines = []
+    } else {
+      lines.push(raw)
+    }
+  }
+  push()
+  return sections.length > 0 ? sections : [{ heading: null, body: description }]
+}
+
 export function listPipeline(): PipelineEntry[] {
   try {
     const raw = localStorage.getItem(PIPELINE_KEY)

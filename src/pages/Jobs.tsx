@@ -41,6 +41,7 @@ import {
   searchJobs,
   setPipelineNotes,
   setPipelineVersion,
+  structureJobDescription,
   timelineOf,
   upsertPipeline,
 } from '@/lib/jobs'
@@ -858,9 +859,24 @@ export default function Jobs() {
                     </div>
                   )
                 })()}
-                <p className="text-muted-foreground mt-4 whitespace-pre-wrap text-sm">
-                  {selected.description}
-                </p>
+                <div className="mt-4">
+                  {structureJobDescription(selected.description).map((s, i) => (
+                    <section key={i} className={i > 0 ? 'mt-4' : undefined}>
+                      {s.heading !== null && (
+                        <h3 className="text-foreground/80 text-xs font-semibold tracking-wide uppercase">
+                          {s.heading}
+                        </h3>
+                      )}
+                      {s.body && (
+                        <p
+                          className={`text-muted-foreground whitespace-pre-wrap text-sm ${s.heading !== null ? 'mt-1' : ''}`}
+                        >
+                          {s.body}
+                        </p>
+                      )}
+                    </section>
+                  ))}
+                </div>
               </>
             ) : (
               <p className="text-muted-foreground text-sm">Select a job to see the details.</p>
