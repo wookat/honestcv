@@ -36,6 +36,7 @@ import {
   educationDetailLine,
   experienceGroups,
   fontScaleOf,
+  pageMarginOf,
   lineSpacingOf,
   orderedSectionKeys,
   projectDates,
@@ -179,6 +180,8 @@ class PdfWriter {
   pageW: number
   pageH: number
   contentW: number
+  /** Page margin (pt; user margins setting) */
+  margin = MARGIN
   /** Left edge of section content (moves right of the label gutter for sideLabels templates) */
   x0: number = MARGIN
   /** Font-size multiplier (user text-size setting) */
@@ -205,10 +208,17 @@ class PdfWriter {
     this.divider = tpl.divider
   }
 
+  setMargin(margin: number) {
+    this.margin = margin
+    this.x0 = margin
+    this.contentW = this.pageW - margin * 2
+    this.y = this.pageH - margin
+  }
+
   ensure(height: number) {
-    if (this.y - height < MARGIN) {
+    if (this.y - height < this.margin) {
       this.page = this.doc.addPage([this.pageW, this.pageH])
-      this.y = this.pageH - MARGIN
+      this.y = this.pageH - this.margin
     }
   }
 
@@ -297,7 +307,7 @@ class PdfWriter {
     if (marked) {
       this.drawRuns(left, size, 0, () => {}, { fonts: boldBase, maxWidth: leftMax })
       this.page.drawText(right, {
-        x: this.pageW - MARGIN - rightWidth,
+        x: this.pageW - this.margin - rightWidth,
         y: this.y,
         size: dateSize,
         font: this.fonts.italic,
@@ -316,7 +326,7 @@ class PdfWriter {
       color: this.ink,
     })
     this.page.drawText(right, {
-      x: this.pageW - MARGIN - rightWidth,
+      x: this.pageW - this.margin - rightWidth,
       y: this.y,
       size: dateSize,
       font: this.fonts.italic,
@@ -404,14 +414,14 @@ class PdfWriter {
     // alone at the bottom of a page
     this.ensure(52)
     this.gap(10 * this.ss)
-    if (this.tpl.sideLabels && this.x0 > MARGIN) {
+    if (this.tpl.sideLabels && this.x0 > this.margin) {
       // Label drawn in the left gutter on the first content baseline; it
       // consumes no vertical space — content flows beside it at x0.
-      const gutterW = this.x0 - MARGIN - 10
+      const gutterW = this.x0 - this.margin - 10
       let size = 10 * this.fs
       while (size > 7 && drawnWidth(this.fonts.bold, plain, size) > gutterW) size -= 0.5
       this.page.drawText(plain, {
-        x: MARGIN,
+        x: this.margin,
         y: this.y - size * this.lh,
         size,
         font: this.fonts.bold,
@@ -454,7 +464,7 @@ class PdfWriter {
       this.gap(3)
       this.page.drawLine({
         start: { x: this.x0, y: this.y },
-        end: { x: this.pageW - MARGIN, y: this.y },
+        end: { x: this.pageW - this.margin, y: this.y },
         thickness,
         color: this.accent,
       })
@@ -470,7 +480,7 @@ class PdfWriter {
     this.gap(4)
     this.page.drawLine({
       start: { x: this.x0, y: this.y },
-      end: { x: this.pageW - MARGIN, y: this.y },
+      end: { x: this.pageW - this.margin, y: this.y },
       thickness: 0.5,
       color: hexToRgb('#d4d4d4'),
     })
@@ -721,6 +731,7 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
   const fonts: Fonts = await embedFontsFor(doc, resume, tpl.serif)
   const w = new PdfWriter(doc, fonts, tpl, resume.pageSize === 'a4' ? 'a4' : 'letter')
   w.ink = hexToRgb(textInkOf(resume))
+  w.setMargin(pageMarginOf(resume))
   w.fs = fontScaleOf(resume)
   w.lh = lineSpacingOf(resume)
   w.ss = sectionSpacingOf(resume)
@@ -738,8 +749,8 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         : await doc.embedJpg(bytes)
       const size = 48
       w.page.drawImage(image, {
-        x: w.pageW - MARGIN - size,
-        y: w.pageH - MARGIN - size,
+        x: w.pageW - w.margin - size,
+        y: w.pageH - w.margin - size,
         width: size,
         height: size,
       })
@@ -803,8 +814,8 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
 
   if (tpl.sideLabels) {
     // Header spans the full width; section content flows right of the label gutter
-    w.x0 = MARGIN + 96
-    w.contentW = w.pageW - MARGIN - w.x0
+    w.x0 = w.margin + 96
+    w.contentW = w.pageW - w.margin - w.x0
   }
 
   const entryRule = (i: number) => {
@@ -1022,8 +1033,8 @@ export interface ResumeLength {
 export async function measureResumePdf(resume: Resume): Promise<ResumeLength> {
   const { doc, w } = await composeResumePdf(resume)
   const pages = doc.getPageCount()
-  const usable = w.pageH - MARGIN * 2
-  const fill = Math.min(1, Math.max(0, (w.pageH - MARGIN - w.y) / usable))
+  const usable = w.pageH - w.margin * 2
+  const fill = Math.min(1, Math.max(0, (w.pageH - w.margin - w.y) / usable))
   return { pages, length: pages - 1 + fill }
 }
 
@@ -1088,8 +1099,8 @@ export async function downloadLetterPdf(resume: Resume, body: string, filename: 
   if (c.fullName.trim() || contactSegments.length > 0) {
     w.gap(6)
     w.page.drawLine({
-      start: { x: MARGIN, y: w.y },
-      end: { x: w.pageW - MARGIN, y: w.y },
+      start: { x: w.margin, y: w.y },
+      end: { x: w.pageW - w.margin, y: w.y },
       thickness: 1,
       color: w.accent,
     })

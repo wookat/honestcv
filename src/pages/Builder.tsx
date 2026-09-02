@@ -379,6 +379,9 @@ const SCALE_STEPS = ['xs', 's', 'm', 'l', 'xl'] as const
 const SPACING_STEPS = ['xtight', 'compact', 'normal', 'relaxed', 'loose'] as const
 
 const SECTION_STEPS = ['xtight', 'tight', 'normal', 'roomy', 'xroomy'] as const
+/** Page margin steps with their inch labels (36/54/72 pt). */
+const MARGIN_STEPS = ['narrow', 'normal', 'wide'] as const
+const MARGIN_LABEL = { narrow: '0.5\u2033', normal: '0.75\u2033', wide: '1\u2033' } as const
 
 /** Global undo/redo: snapshots resume state (throttled), Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y */
 function useUndo(
@@ -6486,6 +6489,49 @@ export default function Builder() {
                 onClick={() => {
                   const i = SECTION_STEPS.indexOf(resume.sectionSpacing ?? 'normal')
                   if (i < SECTION_STEPS.length - 1) set('sectionSpacing', SECTION_STEPS[i + 1])
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                +
+              </button>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="mx-1 h-5 border-l" aria-hidden />
+              <span className="text-muted-foreground text-[11px]">Margins</span>
+              <button
+                type="button"
+                aria-label="Decrease page margins"
+                title="Narrower page margins — applies to preview, PDF and DOCX"
+                disabled={(resume.pageMargins ?? 'normal') === 'narrow'}
+                onClick={() => {
+                  const i = MARGIN_STEPS.indexOf(resume.pageMargins ?? 'normal')
+                  if (i > 0) {
+                    const next = MARGIN_STEPS[i - 1]
+                    set('pageMargins', next === 'normal' ? undefined : next)
+                  }
+                }}
+                className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
+              >
+                −
+              </button>
+              <span
+                title={`Page margins: ${resume.pageMargins ?? 'normal'}`}
+                aria-live="polite"
+                className="min-w-10 text-center text-[11px] font-medium tabular-nums"
+              >
+                {MARGIN_LABEL[resume.pageMargins ?? 'normal']}
+              </span>
+              <button
+                type="button"
+                aria-label="Increase page margins"
+                title="Wider page margins — applies to preview, PDF and DOCX"
+                disabled={(resume.pageMargins ?? 'normal') === 'wide'}
+                onClick={() => {
+                  const i = MARGIN_STEPS.indexOf(resume.pageMargins ?? 'normal')
+                  if (i < MARGIN_STEPS.length - 1) {
+                    const next = MARGIN_STEPS[i + 1]
+                    set('pageMargins', next === 'normal' ? undefined : next)
+                  }
                 }}
                 className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
               >
