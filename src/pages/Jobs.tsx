@@ -193,6 +193,35 @@ export default function Jobs() {
     return map
   }, [pipeline])
 
+  /** Word-boundary regex for a skills-filter term (R243 semantics). */
+  const termRegex = (term: string) => {
+    const t = term.toLowerCase()
+    const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const lead = /^\w/.test(t) ? '\\b' : ''
+    const tail = /\w$/.test(t) ? '\\b' : ''
+    return new RegExp(`${lead}${escaped}${tail}`)
+  }
+
+  /** Skill tags shared by two or more tracked jobs — Rezi's cue to tailor a copy. */
+  const repeatedSkills = useMemo(() => {
+    const counts = new Map<string, { tag: string; count: number }>()
+    for (const e of pipeline) {
+      const perJob = new Set<string>()
+      for (const tag of e.job.tags ?? []) {
+        const key = tag.toLowerCase()
+        if (perJob.has(key)) continue
+        perJob.add(key)
+        const cur = counts.get(key)
+        if (cur) cur.count += 1
+        else counts.set(key, { tag, count: 1 })
+      }
+    }
+    return [...counts.values()]
+      .filter((s) => s.count >= 2)
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+      .slice(0, 12)
+  }, [pipeline])
+
   const loc = locationFilter.trim().toLowerCase()
   /** Whole application queue, grouped saved → applied → interviewing → rejected,
    *  most recently updated first within a group. */
@@ -241,13 +270,7 @@ export default function Jobs() {
     tab === 'all' && skillTerms.length > 0
       ? afterType.filter((j) => {
           const haystack = `${j.title}\n${j.description}\n${(j.tags ?? []).join('\n')}`.toLowerCase()
-          return skillTerms.every((term) => {
-            const t = term.toLowerCase()
-            const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-            const lead = /^\w/.test(t) ? '\\b' : ''
-            const tail = /\w$/.test(t) ? '\\b' : ''
-            return new RegExp(`${lead}${escaped}${tail}`).test(haystack)
-          })
+          return skillTerms.every((term) => termRegex(term).test(haystack))
         })
       : afterType
   /** A posting anyone can apply to regardless of where they live. */
@@ -586,6 +609,50 @@ export default function Jobs() {
               mobileDetail ? 'hidden md:block' : ''
             }`}
           >
+            {tab === 'tracked' && repeatedSkills.length > 0 && (
+              <div className="bg-muted/40 flex flex-wrap items-center gap-1.5 border-b px-4 py-2">
+                <span
+                  className="text-muted-foreground text-xs font-medium"
+                  title="Skills asked for by two or more of your tracked jobs — a cue to tailor a resume copy toward them"
+                >
+                  Repeated skills:
+                </span>
+                {repeatedSkills.map(({ tag, count }) => {
+                  const active = activeSkillTerms.has(tag.toLowerCase())
+                  const onResume =
+                    resumeText.trim() !== '' && termRegex(tag).test(resumeText.toLowerCase())
+                  return (
+                    <button
+                      key={tag.toLowerCase()}
+                      type="button"
+                      aria-pressed={active}
+                      title={
+                        (active
+                          ? `Remove "${tag}" from the skills filter`
+                          : `Find more jobs asking for "${tag}"`) +
+                        (resumeText.trim() !== '' && !onResume
+                          ? ` — not on your resume yet`
+                          : '')
+                      }
+                      onClick={() => toggleSkillTerm(tag)}
+                      className={
+                        active
+                          ? 'bg-primary text-primary-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'
+                      }
+                    >
+                      {tag} ×{count}
+                      {resumeText.trim() !== '' && !onResume && (
+                        <span
+                          aria-label="Not on your resume yet"
+                          className="size-1.5 rounded-full bg-amber-500"
+                        />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             {loading ? (
               <p className="text-muted-foreground p-4 text-sm">Loading jobs…</p>
             ) : error ? (
