@@ -568,3 +568,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R219 — punctuated-bullets check
 - Fail when any trimmed bullet line lacks /^[A-Z0-9]/ start or /[.!?]$/ end (first offender quoted, 60-char truncation). Digit starts and !/? endings pass; blank/zero lines guard-pass. Rows: checker 19 / Builder 20.
 - The built-in sample resume bullets were punctuated in this round; a fresh Load-example sample scores 99/100 with only "Skills grouped into categories" and "Word count" rows failing (pre-existing, by design).
+
+## R220 — bullet-length check
+- Fail when the first trimmed bullet line has <4 or >30 words (whitespace split); hint quotes line (60-char truncation) with exact word count. Rows: checker 20 / Builder 21.
+- Word-count boundary fixtures must be verified with an actual split count before use — hand-written "30-word" sentences are often off by one.

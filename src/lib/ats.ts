@@ -406,6 +406,31 @@ function punctuatedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
   }
 }
 
+/** Bullet length: enough detail to communicate, short enough to scan */
+function bulletLengthCheck(lines: string[]): AtsResult['checks'][number] {
+  const trimmed = lines.map((l) => l.trim()).filter((l) => l.length > 0)
+  const offender = trimmed.find((l) => {
+    const words = l.split(/\s+/).length
+    return words < 4 || words > 30
+  })
+  const words = offender ? offender.split(/\s+/).length : 0
+  const quoted = offender
+    ? offender.length > 60
+      ? `${offender.slice(0, 60)}…`
+      : offender
+    : ''
+  return {
+    label: 'Bullet points the right length',
+    pass: !offender,
+    hint: offender
+      ? words < 4
+        ? `"${quoted}" is only ${words} word${words === 1 ? '' : 's'} — describe what you did and the result (aim for 8–25 words).`
+        : `"${quoted}" runs ${words} words — tighten it to under 25 words so it scans in a single glance.`
+      : 'Bullets are the right length — detailed enough to communicate, short enough to scan.',
+    anchor: 'experience',
+  }
+}
+
 /** Bullet-marked lines anywhere in pasted text, markers stripped */
 function textBulletLines(raw: string): string[] {
   return raw
@@ -664,6 +689,7 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     activeVoiceCheck(textBulletLines(resumeTextRaw)),
     quantifiedBulletsCheck(textBulletLines(resumeTextRaw)),
     punctuatedBulletsCheck(textBulletLines(resumeTextRaw)),
+    bulletLengthCheck(textBulletLines(resumeTextRaw)),
     buzzwordCheck(textPronounSegments(resumeTextRaw)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
     entryLocationsCheck(textEntryLocations(resumeTextRaw)),
@@ -859,6 +885,12 @@ export function scoreResume(resume: Resume, jd: string): AtsResult {
       ...resume.customSections.flatMap((s) => s.bullets),
     ]),
     punctuatedBulletsCheck([
+      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
+      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
+      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
+      ...resume.customSections.flatMap((s) => s.bullets),
+    ]),
+    bulletLengthCheck([
       ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
       ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
       ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
