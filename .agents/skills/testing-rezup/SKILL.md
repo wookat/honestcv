@@ -448,3 +448,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Row pill selector: `[...document.querySelectorAll('span')].find(s=>/^No update ·/.test(s.textContent.trim()))`; detail line: `p` matching /^No update in/ — sits between the timeline `<ol>` and the "Notes" label.
 - Status recency `"{Status} N days ago"` spans use `span.text-primary` and (since R194) render on the All tab too. Note: `Applied · <date>` timeline chips also match /Applied/ text filters — scope selectors carefully.
 - Dark mode remaps amber via oklch (pill bg oklch(0.33 0.07 80), text oklch(0.88 0.11 88)) — assert computed styles, not Tailwind class names.
+
+## R195 — location priority split on /jobs
+- With a non-empty location input on the All tab, the list splits: direct matches (location contains input, case-insensitive) first, then location-agnostic jobs ('' | exactly 'remote' | word worldwide/anywhere/global) under a `<p class="bg-muted/60 …">Open to any location (N)</p>` divider rendered inside the same `<ul>` before the first agnostic row. Divider selector: `[...document.querySelectorAll('p')].find(p=>/^Open to any location/.test(p.textContent.trim()))`.
+- Set the location input via the native value setter + `input` event on the input whose placeholder matches /Location/ (placeholder "Location, e.g. Europe").
+- When validating row grouping, read FULL row textContent — truncating to the first ~60 chars can miss the location and produce false negatives (locations render late in the row).
+- Divider only on All tab with non-empty location and non-empty agnostic group; status tabs and cleared input never show it. Zero-direct-match term (e.g. "Mars") puts the divider at the top; term+category matching nothing shows "No jobs found — try another search term" with no divider.
+- Sort (Relevance/Newest) applies within each group independently; assert via posted-ages sequences per group, groups never mix.
