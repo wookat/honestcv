@@ -651,3 +651,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Untracking from a Tracked row = clicking the active status button (e.g. "Saved") — there is no "Untrack" button; jobs with notes/timeline pop a "Stop tracking" confirm dialog.
 - After any page reload, set search/filter inputs via the native value setter + input event and submit via `form.requestSubmit()` — `Input.insertText` alone can silently leave React state stale, making fetch interceptors appear broken.
 - A minimal resume draft can be seeded as `honestcv.resume` = `{"contact":{...},"skills":"..."}` to drive resume-matching features.
+
+## R246 — Builder tool dialogs (BundleToolDialog)
+- Input ids: company `#company`, addressee `#cover-addressee`, highlights textarea `#cover-highlights`. The AI submit button is labeled "Generate"; the offline path is "Start from a template".
+- The AI call is blocked client-side ("Paste the job description…") unless `resume.jobDescription` is non-empty — seed it via the `honestcv.resume` draft before payload-capture tests.
+- Download filenames: monkey-patch `HTMLAnchorElement.prototype.click` and read `this.download`.
