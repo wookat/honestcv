@@ -3528,6 +3528,71 @@ export default function Builder() {
                     )
                   }
                 />
+                <div className="flex flex-wrap items-center gap-2">
+                {aiButton(
+                  `proj-${p.id}`,
+                  'AI rewrite bullets',
+                  () =>
+                    void runRewrite(
+                      `proj-${p.id}`,
+                      'bullets',
+                      p.description
+                        .split('\n')
+                        .filter((b) => b.trim())
+                        .join('\n'),
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          projects: r.projects.map((x) =>
+                            x.id === p.id
+                              ? {
+                                  ...x,
+                                  description: out
+                                    .split('\n')
+                                    .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                                    .filter(Boolean)
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        }))
+                    ),
+                  !p.description.trim() &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+                )}
+                {aiButton(
+                  `proj-${p.id}-nums`,
+                  '…with key numbers',
+                  () =>
+                    void runRewrite(
+                      `proj-${p.id}-nums`,
+                      'bullets',
+                      p.description
+                        .split('\n')
+                        .filter((b) => b.trim())
+                        .join('\n'),
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          projects: r.projects.map((x) =>
+                            x.id === p.id
+                              ? {
+                                  ...x,
+                                  description: out
+                                    .split('\n')
+                                    .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                                    .filter(Boolean)
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        })),
+                      'key-numbers'
+                    ),
+                  !p.description.trim() &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+                )}
+                </div>
                   </>
                 )}
               </div>
@@ -3809,6 +3874,71 @@ export default function Builder() {
                     )
                   }
                 />
+                <div className="flex flex-wrap items-center gap-2">
+                {aiButton(
+                  `inv-${inv.id}`,
+                  'AI rewrite bullets',
+                  () =>
+                    void runRewrite(
+                      `inv-${inv.id}`,
+                      'bullets',
+                      inv.description
+                        .split('\n')
+                        .filter((b) => b.trim())
+                        .join('\n'),
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id
+                              ? {
+                                  ...x,
+                                  description: out
+                                    .split('\n')
+                                    .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                                    .filter(Boolean)
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        }))
+                    ),
+                  !inv.description.trim() &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+                )}
+                {aiButton(
+                  `inv-${inv.id}-nums`,
+                  '…with key numbers',
+                  () =>
+                    void runRewrite(
+                      `inv-${inv.id}-nums`,
+                      'bullets',
+                      inv.description
+                        .split('\n')
+                        .filter((b) => b.trim())
+                        .join('\n'),
+                      (out) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id
+                              ? {
+                                  ...x,
+                                  description: out
+                                    .split('\n')
+                                    .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                                    .filter(Boolean)
+                                    .join('\n'),
+                                }
+                              : x
+                          ),
+                        })),
+                      'key-numbers'
+                    ),
+                  !inv.description.trim() &&
+                    'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+                )}
+                </div>
               </div>
             ))}
             <div className="flex flex-wrap items-center gap-2">
