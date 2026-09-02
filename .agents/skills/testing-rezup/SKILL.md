@@ -737,3 +737,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R263 — section order / preview-order QA
 - The resume preview lives in `div.shadow-lg` and renders section headings UPPERCASE (probe "EDUCATION", not "Education"); `body.innerText` cannot distinguish preview order from editor order — always scope preview asserts to that container.
 - Section order panel: collapsible Section titled "Section order" (defaultOpen false), list `ul.space-y-1.5`, per-row buttons aria-labels "Move up"/"Move down".
+
+## R264 — template picker / seeding QA
+- When seeding resumes via localStorage, `experience[].bullets` MUST be `string[]` — a plain string is silently emptied by `sanitizeResume`, deflating word counts.
+- Template filter row: `[aria-label="Filter templates by style"]`; the card grid is its next sibling with `span.relative > button[aria-pressed]` (card name = button's last SPAN child).
+- Theme toggle cycles system→light→dark — seed `honestcv.theme` for deterministic dark-mode tests.
