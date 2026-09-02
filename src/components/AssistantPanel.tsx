@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, Loader2, Send, Sparkles, Trash2, X } from 'lucide-react'
+import { Check, Loader2, MapPin, Send, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -106,6 +106,7 @@ export function AssistantPanel({
   onQuota,
   onPaymentRequired,
   onApply,
+  onLocate,
 }: {
   open: boolean
   onClose: () => void
@@ -116,6 +117,7 @@ export function AssistantPanel({
   onQuota: (remaining: number) => void
   onPaymentRequired: (message: string) => void
   onApply: (action: AssistantAction) => void
+  onLocate?: (action: AssistantAction) => void
 }) {
   const [turns, setTurns] = useState<ChatMsg[]>(loadChat)
   const [input, setInput] = useState('')
@@ -280,21 +282,33 @@ export function AssistantPanel({
                 <p className="mt-1 text-sm whitespace-pre-wrap">
                   {t.action.type === 'skills' ? t.action.value.join(', ') : t.action.value}
                 </p>
-                {t.applied ? (
-                  <p className="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
-                    <Check className="size-3.5" /> Applied to your resume
-                  </p>
-                ) : (
-                  <Button size="sm" className="mt-2 min-h-10 sm:min-h-8" onClick={() => apply(i)}>
-                    {t.action.type === 'summary'
-                      ? 'Apply to summary'
-                      : t.action.type === 'bullet'
-                        ? t.action.replace
-                          ? 'Replace bullet'
-                          : 'Add bullet'
-                        : 'Add to skills'}
-                  </Button>
-                )}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {t.applied ? (
+                    <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                      <Check className="size-3.5" /> Applied to your resume
+                    </p>
+                  ) : (
+                    <Button size="sm" className="min-h-10 sm:min-h-8" onClick={() => apply(i)}>
+                      {t.action.type === 'summary'
+                        ? 'Apply to summary'
+                        : t.action.type === 'bullet'
+                          ? t.action.replace
+                            ? 'Replace bullet'
+                            : 'Add bullet'
+                          : 'Add to skills'}
+                    </Button>
+                  )}
+                  {onLocate && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground min-h-10 text-xs sm:min-h-8"
+                      onClick={() => onLocate(t.action as AssistantAction)}
+                    >
+                      <MapPin className="size-3.5" /> Show in editor
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>

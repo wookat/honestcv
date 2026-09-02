@@ -6623,6 +6623,29 @@ export default function Builder() {
             return { ...r, skills: [...existing, ...added].join(', ') }
           })
         }}
+        onLocate={(action) => {
+          if (window.innerWidth < 640) setAssistantOpen(false)
+          if (action.type === 'summary') {
+            jumpToSection('summary')
+            return
+          }
+          if (action.type === 'skills') {
+            jumpToSection('skills')
+            return
+          }
+          const visible = shown.experience.filter((e) => !e.hidden)
+          if (visible.length === 0) {
+            jumpToSection('experience')
+            return
+          }
+          const wanted = action.entry.toLowerCase()
+          const matches = (s: string) => {
+            const t = s.trim().toLowerCase()
+            return Boolean(t) && (t.includes(wanted) || wanted.includes(t))
+          }
+          const target = visible.find((e) => matches(e.company) || matches(e.role)) ?? visible[0]
+          jumpToEntry(target.id)
+        }}
       />
       {kwBulletFor !== null && (
         <KeywordBulletDialog
