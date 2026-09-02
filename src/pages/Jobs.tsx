@@ -38,7 +38,9 @@ import {
   type PipelineEntry,
   attentionCount,
   followUpEmail,
+  isLocationAgnostic,
   listPipeline,
+  locationFacets,
   removeFromPipeline,
   removeManyFromPipeline,
   searchJobs,
@@ -283,11 +285,8 @@ export default function Jobs() {
           return skillTerms.every((term) => termRegex(term).test(haystack))
         })
       : afterType
-  /** A posting anyone can apply to regardless of where they live. */
-  const isLocationAgnostic = (location: string) => {
-    const l = location.trim().toLowerCase()
-    return l === '' || l === 'remote' || /\b(worldwide|anywhere|global)\b/.test(l)
-  }
+  /** Candidate locations in the current results (pre-location-filter) with counts. */
+  const locFacets = tab === 'all' ? locationFacets(afterSkills.map((j) => j.location)) : []
   const directMatches =
     tab === 'all' && loc
       ? afterSkills.filter((j) => j.location.toLowerCase().includes(loc))
@@ -628,6 +627,32 @@ export default function Jobs() {
                 >
                   {JOB_STATUS_LABELS[s]}
                   {hits > 0 ? ` (${hits})` : ''}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {tab === 'all' && locFacets.length > 0 && (
+          <div
+            className="mt-3 flex flex-wrap items-center gap-1.5"
+            role="group"
+            aria-label="Filter by a location found in these results"
+          >
+            <span className="text-muted-foreground text-xs font-medium">Locations:</span>
+            {locFacets.map((f) => {
+              const active = locationFilter.trim().toLowerCase() === f.label.toLowerCase()
+              return (
+                <button
+                  key={f.label.toLowerCase()}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setLocationFilter(active ? '' : f.label)}
+                  className={`min-h-10 rounded-md border px-3 py-1 text-xs font-medium transition sm:min-h-8 ${
+                    active ? 'border-primary ring-primary/40 ring-2' : 'hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {f.label} ({f.count})
                 </button>
               )
             })}
