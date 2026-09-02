@@ -572,3 +572,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R220 — bullet-length check
 - Fail when the first trimmed bullet line has <4 or >30 words (whitespace split); hint quotes line (60-char truncation) with exact word count. Rows: checker 20 / Builder 21.
 - Word-count boundary fixtures must be verified with an actual split count before use — hand-written "30-word" sentences are often off by one.
+
+## R221 — page-count check (Builder-only)
+- "Fits the recommended page count": allowed 2 pages only when experienceLevel === 'executive', else 1; pages==null guard-passes (dashboard/versions/pre-measurement). Rows: checker 20 (unchanged) / Builder 22. Fed by the debounced (~800ms) usePdfLength measurement — expect ✓→✗ flip ~1s after load on an over-length resume.
+- Builder breakdown renders hints only for failing rows (pass hints exist in code but never display), and Builder Priority fixes use High/Med badges with no "+pts" chips (that chip UI is /ats-checker-only) — verify score contributions via the "Structure N" sub-score instead.
+- The length meter is fractional (pages−1+fill): "3.07 pages" means a 4-page PDF; the check hint uses the true page count.
