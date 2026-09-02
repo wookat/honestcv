@@ -48,7 +48,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { scoreResume } from '@/lib/ats'
 import { professionalFileName } from '@/lib/download'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
-import { parseResumeText } from '@/lib/importText'
+import { looksLikeLinkedInExport, parseResumeText } from '@/lib/importText'
 import {
   type CareerDoc,
   type CareerDocKind,
@@ -199,6 +199,7 @@ export default function Dashboard() {
   const [importError, setImportError] = useState('')
   const [importDragOver, setImportDragOver] = useState(false)
   const [confirmImport, setConfirmImport] = useState<Resume | null>(null)
+  const [importedLinkedIn, setImportedLinkedIn] = useState(false)
   const [examples, setExamples] = useState<ExampleEntry[]>([])
   const [exampleQuery, setExampleQuery] = useState('')
   const [exampleSector, setExampleSector] = useState('All')
@@ -615,6 +616,7 @@ export default function Dashboard() {
         }
         const parsed = parseResumeText(text)
         if (draft) {
+          setImportedLinkedIn(looksLikeLinkedInExport(text))
           setConfirmImport(parsed)
           setImportBusy(false)
         } else {
@@ -837,6 +839,10 @@ export default function Dashboard() {
               </p>
               <p className="text-muted-foreground text-xs">
                 Click or drop a PDF, DOCX or TXT here — read entirely in your browser.
+              </p>
+              <p className="text-muted-foreground text-xs">
+                No resume yet? On LinkedIn, use Profile → More → Save to PDF and import that
+                file.
               </p>
               {importError && <p className="text-destructive text-xs">{importError}</p>}
             </button>
@@ -1526,6 +1532,9 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>Open the imported resume?</DialogTitle>
             <DialogDescription>
+              {importedLinkedIn
+                ? 'This file was recognized as a LinkedIn profile export and mapped section-by-section — review the result before sending it anywhere. '
+                : ''}
               This replaces what's currently in the editor. Save the current draft as
               a copy first if you want to keep it.
             </DialogDescription>

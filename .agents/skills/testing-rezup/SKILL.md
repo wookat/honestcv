@@ -748,3 +748,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - The open panel overlays the right column — close it (Escape) before clicking preview-side buttons like "See full score breakdown".
 - Assistant replies use the live ATS score, which depends on the PDF page count — pass the observed "Resume length: X page" into `scoreResume` oracles.
 - Opening the health card sets `honestcv.seen.health`; remove it during cleanup.
+
+## R266 — dashboard import QA
+- Seeding a Dashboard "draft": `loadResume()` returns null unless the stored object has `contact` AND an `experience` array — include `experience: []` at minimum or draft-gated flows silently take the no-draft path.
+- The resume-import file input is the `nextElementSibling` of the "Import a resume" card button; drive it headlessly with CDP `DOM.setFileInputFiles`.
+- LinkedIn-export detection (`looksLikeLinkedInExport`) needs a `handle (LinkedIn)` line, a `Top Skills` line, or a linkedin.com URL plus a `Page N of M` footer; put the name block first in fixtures.
