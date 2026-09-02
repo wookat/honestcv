@@ -493,3 +493,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA P3 当轮闭环：R280 一致性扫描此前只扫 summary+bullets，role 等 headline 字段 Ctrl+K 产物无诊断——guidance.ts brokenLinks 改用 unfinishedLinks(resumeToPlainText(r))（全字段原始 marks），bracket-placeholder 扫描保持 summary+bullets 不变（零新误报）。
 - QA（生产复验）：bundle index-DgoqllvV.js / Builder-C9aURCwQ.js；role/companyInfo/自定义 section/姓名快捷键、Ctrl+K url 选中、负例（email/location 不响应）、真实 PDF 零字面 marks、375px、零 AI 全绿（证据在 PR 评论）。
 - 文档：docs/plan-r281-mark-shortcuts-everywhere.md。
+
+## R282 — 经历 bullets「rewrite with key numbers」(2026-08-31)
+- 证据：Rezi 一手 Experience 指南「If you want to emphasize results, use the dropdown menu to rewrite the bullet with key numbers」；我方 suggest-bullet 早有 key-numbers variant，但 /api/ai/rewrite 完全无该模式。
+- 实现：buildRewriteMessages 新 emphasis?: 'key-numbers'（bullets kind 时附加「lead with a concrete outcome；缺数字必须 [add %] 等占位、never invent」指令，变体指令保留）；worker /api/ai/rewrite 白名单解析 emphasis（仅 bullets）；aiRewrite/runRewrite 透传；Builder 每个经历条目在「AI rewrite bullets」后新增「…with key numbers」按钮（复用既有 variant-picker 审阅流）。零 schema/评分/导出/持久化改动。
+- QA（生产复验，两轮）：bundle index-B5znrjI-.js / Builder-fJOLeRYV.js → Builder-BEOIqvM3.js；CDP Fetch 拦截并 failRequest 于网络前，确认新按钮 POST 含 emphasis:"key-numbers" 而旧按钮无该键，零 AI 配额消耗；QA 发现的 P3（空 bullets 时新按钮 tooltip 落到配额文案）当轮修复复验（两按钮同 reason）；4 按钮行序、Summary/skills 回归、R281 Ctrl+B 回归、375px 无溢出、localStorage/主题还原全绿。
+- 坑（测试代理沉淀）：naive CDP cmd() 循环会吞 Fetch.requestPaused 事件，且 Fetch.disable 会把仍 paused 的请求放行到真实网络——先缓冲事件、逐个 failRequest、最后才 disable。
+- 文档：docs/plan-r282-rewrite-key-numbers.md、docs/qa-r282-plan.md（测试代理写）。
