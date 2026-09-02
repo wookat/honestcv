@@ -18,7 +18,7 @@ import {
 } from '@/lib/api'
 import { aiTargetRole, resumeToPlainText, type Resume } from '@/lib/resume'
 import { matchReport, type AtsResult } from '@/lib/ats'
-import { improveScoreReply, type PriorityFix } from '@/lib/guidance'
+import { improveScoreReply, targetJobReply, type PriorityFix } from '@/lib/guidance'
 
 const CHAT_KEY = 'honestcv.assistantChat'
 const CHAT_MAX = 40
@@ -85,6 +85,10 @@ const IMPROVE_SCORE_LABEL = 'Improve my ATS score'
 const IMPROVE_SCORE_PROMPT =
   'How can I improve my resume\u2019s ATS score? Give me the highest-impact fixes first.'
 
+const TARGET_JOB_LABEL = 'Target my job'
+const TARGET_JOB_PROMPT =
+  'How well does my resume match my target job? Point out the biggest gaps and how to tailor it.'
+
 const QUICK_TASKS: { label: string; prompt: string }[] = [
   {
     label: IMPROVE_SCORE_LABEL,
@@ -99,9 +103,8 @@ const QUICK_TASKS: { label: string; prompt: string }[] = [
     prompt: 'Which skills am I missing or under-selling for my target role?',
   },
   {
-    label: 'Target my job',
-    prompt:
-      'How well does my resume match my target job? Point out the biggest gaps and how to tailor it.',
+    label: TARGET_JOB_LABEL,
+    prompt: TARGET_JOB_PROMPT,
   },
 ]
 
@@ -230,8 +233,21 @@ export function AssistantPanel({
     setError('')
   }
 
+  const targetJob = () => {
+    if (busy) return
+    const next = [
+      ...turns,
+      { role: 'user' as const, content: TARGET_JOB_PROMPT },
+      { role: 'assistant' as const, content: targetJobReply(report) },
+    ].slice(-CHAT_MAX)
+    setTurns(next)
+    persistChat(next)
+    setError('')
+  }
+
   const runQuickTask = (t: { label: string; prompt: string }) => {
     if (t.label === IMPROVE_SCORE_LABEL) improveScore()
+    else if (t.label === TARGET_JOB_LABEL) targetJob()
     else void send(t.prompt)
   }
 

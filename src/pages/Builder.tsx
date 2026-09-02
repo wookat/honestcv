@@ -867,6 +867,12 @@ export default function Builder() {
     candidates: string[]
     original?: string
     apply: (text: string) => void
+    /** AI busy/error tag of the generator that produced these candidates */
+    tag?: string
+    /** Re-run the same generator; fresh candidates replace the open dialog */
+    regenerate?: () => void
+    /** Reopen the generator's setup dialog (e.g. summary role & skills) */
+    adjust?: () => void
   } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
@@ -1296,6 +1302,8 @@ export default function Builder() {
           candidates: texts,
           original: text,
           apply,
+          tag,
+          regenerate: () => void runRewrite(tag, kind, text, apply, emphasis),
         })
       } else {
         apply(out)
@@ -1421,6 +1429,8 @@ export default function Builder() {
         variant,
         language: resume.language,
         section: target.section,
+        targetRole: resume.targetRole.trim() || undefined,
+        jobDescription: resume.jobDescription.trim() || undefined,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
@@ -1445,6 +1455,7 @@ export default function Builder() {
   const [summaryDraftSetup, setSummaryDraftSetup] = useState<{
     position: string
     picked: string[]
+    custom: boolean
   } | null>(null)
 
   const summaryPositionOptions = useMemo(() => {
@@ -1507,6 +1518,16 @@ export default function Builder() {
         candidates: texts,
         original: resume.summary,
         apply: (out) => set('summary', out),
+        tag,
+        regenerate: () => void runSummaryDraft(position, highlights),
+        adjust: () => {
+          setVariantPick(null)
+          setSummaryDraftSetup({
+            position,
+            picked: highlights,
+            custom: !summaryPositionOptions.includes(position),
+          })
+        },
       })
     } catch (e) {
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
@@ -2394,6 +2415,7 @@ export default function Builder() {
                       setSummaryDraftSetup({
                         position: aiTargetRole(resume),
                         picked: [],
+                        custom: !summaryPositionOptions.includes(aiTargetRole(resume)),
                       }),
                     !resumeHasContent &&
                       'Add some experience or skills first — the draft is written only from your resume.'
@@ -7356,6 +7378,34 @@ export default function Builder() {
                   : cand}
               </button>
             ))}
+            {aiError && variantPick?.tag && aiErrorTag === variantPick.tag && (
+              <p className="text-destructive text-sm">{aiError}</p>
+            )}
+            {variantPick?.regenerate && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                  disabled={aiBusy === variantPick.tag}
+                  onClick={() => variantPick.regenerate?.()}
+                >
+                  {aiBusy === variantPick.tag ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {aiBusy === variantPick.tag ? 'Writing…' : 'Regenerate options'}
+                </Button>
+                {variantPick.adjust && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="min-h-10 sm:min-h-9"
+                    disabled={aiBusy === variantPick.tag}
+                    onClick={() => variantPick.adjust?.()}
+                  >
+                    Adjust role &amp; skills
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -7446,13 +7496,15 @@ export default function Builder() {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="summary-draft-position">Position highlight</Label>
-                {summaryPositionOptions.length > 0 ? (
+                {summaryPositionOptions.length > 0 && !summaryDraftSetup.custom ? (
                   <select
                     id="summary-draft-position"
                     className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                     value={summaryDraftSetup.position}
                     onChange={(e) =>
-                      setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
+                      e.target.value === '__custom__'
+                        ? setSummaryDraftSetup({ ...summaryDraftSetup, custom: true })
+                        : setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
                     }
                   >
                     {summaryPositionOptions.map((p) => (
@@ -7460,16 +7512,36 @@ export default function Builder() {
                         {p}
                       </option>
                     ))}
+                    <option value="__custom__">Type a different title…</option>
                   </select>
                 ) : (
-                  <Input
-                    id="summary-draft-position"
-                    placeholder="e.g. Software Engineer"
-                    value={summaryDraftSetup.position}
-                    onChange={(e) =>
-                      setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
-                    }
-                  />
+                  <>
+                    <Input
+                      id="summary-draft-position"
+                      placeholder="e.g. Software Engineer"
+                      value={summaryDraftSetup.position}
+                      onChange={(e) =>
+                        setSummaryDraftSetup({ ...summaryDraftSetup, position: e.target.value })
+                      }
+                    />
+                    {summaryPositionOptions.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-primary text-xs underline underline-offset-2"
+                        onClick={() =>
+                          setSummaryDraftSetup({
+                            ...summaryDraftSetup,
+                            custom: false,
+                            position: summaryPositionOptions.includes(summaryDraftSetup.position)
+                              ? summaryDraftSetup.position
+                              : summaryPositionOptions[0],
+                          })
+                        }
+                      >
+                        Pick a role from my resume instead
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
               {summarySkillOptions.length > 0 && (
@@ -10100,10 +10172,10 @@ function KeywordBulletDialog({
             {inserted ? (
               <p className="text-sm font-medium text-emerald-700">Added to your resume.</p>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
-                  disabled={!text.trim() || !expId}
+                  disabled={busy || !text.trim() || !expId}
                   onClick={() => {
                     onInsert(expId, text.trim())
                     setInserted(true)
@@ -10111,7 +10183,11 @@ function KeywordBulletDialog({
                 >
                   <Check className="size-3" /> Add bullet
                 </Button>
-                <Button size="sm" variant="outline" onClick={onClose}>
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => void run()}>
+                  {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {busy ? 'Drafting…' : 'Draft another option'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={onClose}>
                   Discard
                 </Button>
               </div>
