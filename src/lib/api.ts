@@ -166,6 +166,7 @@ export async function aiInterviewQuestions(input: {
 export type AssistantAction =
   | { type: 'summary'; value: string }
   | { type: 'skills'; value: string[] }
+  | { type: 'bullet'; entry: string; value: string }
 
 export interface AssistantTurnInput {
   role: 'user' | 'assistant'

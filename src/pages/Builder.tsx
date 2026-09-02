@@ -6578,6 +6578,28 @@ export default function Builder() {
             setResume((r) => ({ ...r, summary: action.value }))
             return
           }
+          if (action.type === 'bullet') {
+            setResume((r) => {
+              const visible = r.experience.filter((e) => !e.hidden)
+              if (visible.length === 0) return r
+              const wanted = action.entry.toLowerCase()
+              const matches = (s: string) => {
+                const t = s.trim().toLowerCase()
+                return Boolean(t) && (t.includes(wanted) || wanted.includes(t))
+              }
+              const target =
+                visible.find((e) => matches(e.company) || matches(e.role)) ?? visible[0]
+              return {
+                ...r,
+                experience: r.experience.map((e) =>
+                  e.id === target.id
+                    ? { ...e, bullets: [...e.bullets.filter((b) => b.trim()), action.value] }
+                    : e
+                ),
+              }
+            })
+            return
+          }
           setResume((r) => {
             const existing = r.skills
               .split(/[,\n]/)

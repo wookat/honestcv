@@ -600,3 +600,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - With no JD ats.score == structureScore; with JD it's round((kw·70+structure·30)/100) — a fully mismatched JD is the reliable way to force score <50 (structure fails alone bottom out ~71).
 - Direct `localStorage.setItem('honestcv.resume',…)`+reload can be overwritten by in-flight autosave — prefer UI edits (native setter + input event) when flipping one field.
 - Theme toggle cycles light→dark→system; verify via aria-label and remove `honestcv.theme` before asserting the storage baseline.
+
+## R227 — assistant bullet proposal (@@APPLY bullet)
+- The Resume assistant opens via the header button whose `title` starts with "Resume assistant —" (title, not aria-label); the chat input placeholder is "Ask about your resume or job search…" and submits via its enclosing form's `requestSubmit()`. Poll for reply completion by counting `p` elements starting with "Proposed".
+- Assistant history lives in `honestcv.assistantChat` as a plain array of `{role,content[,action,applied]}` — appending a crafted turn with an `action` object and reloading renders a fully functional proposal card, which is the deterministic way to test apply-path edge cases (e.g. entry-mismatch fallback) without burning AI quota.
+- Bullet apply targets the first non-hidden experience entry whose company or role substring-matches `entry` (either direction, case-insensitive), falling back to the first visible entry; it appends to `bullets` after filtering blanks.
