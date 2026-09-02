@@ -468,6 +468,7 @@ app.post('/api/ai/rewrite', async (c) => {
       role?: string
       jobDescription?: string
       variants?: boolean
+      emphasis?: string
       language?: string
     }>()
     .catch(() => ({}) as Record<string, never>)
@@ -502,6 +503,8 @@ app.post('/api/ai/rewrite', async (c) => {
   }
 
   const wantVariants = body.variants === true && kind !== 'skills'
+  const emphasis =
+    body.emphasis === 'key-numbers' && kind === 'bullets' ? ('key-numbers' as const) : undefined
   const result = await callLlm(
     c.env,
     withOutputLanguage(
@@ -509,7 +512,8 @@ app.post('/api/ai/rewrite', async (c) => {
         kind,
         text,
         { role: body.role, jobDescription: body.jobDescription },
-        wantVariants
+        wantVariants,
+        emphasis
       ),
       body.language
     ),

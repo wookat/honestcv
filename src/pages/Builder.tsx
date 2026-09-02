@@ -1256,7 +1256,8 @@ export default function Builder() {
     tag: string,
     kind: 'bullets' | 'summary' | 'skills',
     text: string,
-    apply: (out: string) => void
+    apply: (out: string) => void,
+    emphasis?: 'key-numbers'
   ) => {
     if (!text.trim()) {
       setAiErrorTag(tag)
@@ -1282,7 +1283,8 @@ export default function Builder() {
           jobDescription: resume.jobDescription,
           language: resume.language,
         },
-        wantVariants
+        wantVariants,
+        emphasis
       )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       if (texts && texts.length > 1) {
@@ -2751,6 +2753,25 @@ export default function Builder() {
                     ),
                   !e.bullets.some((b) => b.trim()) &&
                     'Write a rough bullet first — the AI rewrites your draft, it never invents experience.'
+                )}
+                {aiButton(
+                  `exp-${e.id}-nums`,
+                  '…with key numbers',
+                  () =>
+                    void runRewrite(
+                      `exp-${e.id}-nums`,
+                      'bullets',
+                      e.bullets.filter((b) => b.trim()).join('\n'),
+                      (out) =>
+                        setExp(e.id, {
+                          bullets: out
+                            .split('\n')
+                            .map((l) => l.replace(/^[-•]\s*/, '').trim())
+                            .filter(Boolean),
+                        }),
+                      'key-numbers'
+                    ),
+                  !e.bullets.some((b) => b.trim())
                 )}
                   </>
                 )}
