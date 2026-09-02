@@ -6505,7 +6505,10 @@ export default function Builder() {
                 disabled={(resume.pageMargins ?? 'normal') === 'narrow'}
                 onClick={() => {
                   const i = MARGIN_STEPS.indexOf(resume.pageMargins ?? 'normal')
-                  if (i > 0) set('pageMargins', MARGIN_STEPS[i - 1])
+                  if (i > 0) {
+                    const next = MARGIN_STEPS[i - 1]
+                    set('pageMargins', next === 'normal' ? undefined : next)
+                  }
                 }}
                 className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
               >
@@ -6525,7 +6528,10 @@ export default function Builder() {
                 disabled={(resume.pageMargins ?? 'normal') === 'wide'}
                 onClick={() => {
                   const i = MARGIN_STEPS.indexOf(resume.pageMargins ?? 'normal')
-                  if (i < MARGIN_STEPS.length - 1) set('pageMargins', MARGIN_STEPS[i + 1])
+                  if (i < MARGIN_STEPS.length - 1) {
+                    const next = MARGIN_STEPS[i + 1]
+                    set('pageMargins', next === 'normal' ? undefined : next)
+                  }
                 }}
                 className="hover:border-muted-foreground/40 rounded-md border px-2 py-1 text-[11px] font-medium transition disabled:opacity-40"
               >
