@@ -39,6 +39,8 @@ export default function App() {
         <Route path="/builder" element={<Builder />} />
         <Route path="/ats-checker" element={<AtsChecker />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/documents" element={<Dashboard section="documents" />} />
+        <Route path="/samples" element={<Dashboard section="samples" />} />
         <Route path="/jobs" element={<Jobs />} />
         <Route path="/s/:id" element={<SharedResume />} />
         <Route path="*" element={<NotFound />} />
