@@ -670,3 +670,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - `Page.captureScreenshot` clip coordinates are document-relative — add `scrollX/scrollY` to `getBoundingClientRect` values or crops of scrolled elements land on wrong pixels.
 - Career-doc download filenames use the letterhead (resume draft) name — seed `honestcv.resume` with `contact.fullName` before asserting R239 naming, else you get the `cover-letter.*` fallback.
 - Deterministic fixtures: a minimal DOCX (zip with `[Content_Types].xml` + `word/document.xml`) and a 5-object PDF with a `Tj` text stream both parse in the app's extractors.
+
+## R249 — /jobs bulk actions selectors
+- Tab strip: first button is labeled "All jobs" (no count); the rest are "<Label> (N)" — don't regex `/^All \(/`.
+- Bulk bar: `[role=group][aria-label="Bulk actions on tracked jobs"]`; checkboxes `input[aria-label^="Select "]`; move select `select[aria-label="Move selected jobs to a status"]`.
+- Bulk-untrack Cancel preserves the selection; "Clear" empties selection but keeps bulk mode on.
