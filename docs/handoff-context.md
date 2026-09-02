@@ -444,3 +444,6 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 验证：.tmp-smoke/r271_oracle.ts 16/16 绿（Latin 无字体 fetch 回归、CJK 生成+pdftotext 提取、覆盖缺口可见抛错、文件名 4 形态）；CJK PDF 经 pdftoppm+mutool draw 栅格化目检字形正确；tsc/lint/build 全绿。pdf chunk 增至 ~1.0MB（fontkit@2，懒加载 chunk，可接受）。
 - 坑：验证 PDF 字体必须栅格化目检（pdftoppm/mutool），pdftotext 通过不代表能渲染；@types/fontkit 的 create 签名要 Buffer，运行时接受 Uint8Array，需窄化 cast。
 - 文档：docs/plan-r271-unicode-pdf-and-filenames.md、docs/qa-r270b-exploratory.md。
+- QA（生产复验）：bundle index-CXh0T0Le.js / pdf-CHBl8Yqu.js；全绿零 P0–P2 零 AI——CJK PDF 真实 UI 下载为 张伟-wei-o-brien-resume.pdf（Unicode 文件名生效），pdffonts 见 NotoSansSC CID TrueType，pdftotext 提取 + pdftoppm 栅格像素分析确认真字形无 tofu 且 Latin 完好；Latin-only PDF 零 notosanssc 请求；阿拉伯名触发行内 role=alert 明确报错 + Dismiss（Builder 与 Dashboard 两处）、无文件下载；CJK 求职信 PDF（downloadLetterPdf）正常；DOCX/TXT/MD 回归、375/375、亮暗色、localStorage 基线还原。
+- QA 发现两个既有 P3（候选轮）：PDF summary 走纯 w.text，**bold** 字面渲染（pdf.ts ~713，bullets/预览/TXT/DOCX 均正确）；alert 条亮色对比度 ~3.75:1（text-destructive on bg-destructive/10 全站同款，暗色 4.94:1 通过）。
+- 坑：Dashboard 文书 PDF 的信头取自当前简历草稿（honestcv.resume），草稿名含不支持字符时纯 CJK 文书也会报覆盖错误（语义正确但报错字符不在文书内）。
