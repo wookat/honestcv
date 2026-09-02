@@ -479,3 +479,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验）：bundle index-BFuoxxtd.js → index-CnJxZ23o.js；全绿零 P0–P3 零 AI——PDF 提取/像素、DOCX w:u、Summary 快捷键实测、breakdown 标签纯文本、mark-free 回归、localStorage/主题还原（证据在 #498 评论）。
 - 文档：docs/plan-r279-name-heading-marks.md、docs/qa-r279c-plan.md。
 - 开放候选：链接占位一致性误报（`[word](url)` 被 bracket-placeholder 判定）待更强证据。
+
+## R280 — 未完成链接的专属一致性诊断 (2026-08-31)
+- 证据：R279 审计遗留 P3——`[quickly](url)`（正是 Ctrl/Cmd+K 未替换 url 占位的产物）被一致性维度报成 `1 bracket placeholder like [quickly]`，指向 label 而非真正问题（未完成 URL）。
+- 实现：marks.ts 新 unfinishedLinks(text)（linkHref 校验失败的 `[label](target)` token）；guidance.ts 一致性扫描先报 `N link(s) like [quickly](url) still point at a placeholder — replace "url" with a real web address`，剔除这些 token 后再跑原 bracket-placeholder 正则（零双重标记；有效链接/纯占位行为不变）。
+- QA（生产复验）：bundle index-BMFXjBGU.js / guidance-Djqh7u_l.js；4 用例全绿零 P0–P3 零 AI（证据在 #499 评论）。R279 审计的全部开放项至此闭环。
+- 观察（既有、设计内）：无效链接 token 在其他引用（如 Quantified impact）保持原样显示，直到用户修复。
+- 文档：docs/plan-r280-unfinished-link-finding.md、docs/qa-r280-plan.md。

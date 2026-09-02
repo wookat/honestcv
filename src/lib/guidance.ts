@@ -4,7 +4,7 @@
  */
 import type { Resume } from '@/lib/resume'
 import { findPassive, WEAK_OPENERS, type AtsResult, type SectionAnchor } from '@/lib/ats'
-import { stripInlineMarks } from '@/lib/marks'
+import { stripInlineMarks, unfinishedLinks } from '@/lib/marks'
 
 const FILLER_WORDS = ['various', 'several', 'stuff', 'things', 'etc']
 
@@ -314,7 +314,16 @@ export function resumeHealth(r: Resume): HealthReport {
       }
     }
   }
-  const placeholders = [r.summary, ...bullets.map((b) => b.text)]
+  const rawBody = [r.summary, ...bullets.map((b) => b.text)].join('\n')
+  const brokenLinks = unfinishedLinks(rawBody)
+  if (brokenLinks.length > 0)
+    consistencyFindings.unshift({
+      text: `${brokenLinks.length} link${brokenLinks.length === 1 ? '' : 's'} like [${brokenLinks[0].label}](${brokenLinks[0].target}) still point${brokenLinks.length === 1 ? 's' : ''} at a placeholder — replace "${brokenLinks[0].target}" with a real web address`,
+    })
+  let placeholderBody = rawBody
+  for (const l of brokenLinks) placeholderBody = placeholderBody.split(l.token).join('')
+  const placeholders = placeholderBody
+    .split('\n')
     .map(stripInlineMarks)
     .join('\n')
     .match(/\[[^\]\n]{1,60}\]/g)
