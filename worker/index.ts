@@ -741,18 +741,30 @@ app.post('/api/ai/keyword-bullet', async (c) => {
   return c.json({ text, freeRemaining })
 })
 
-// Suggest one new bullet for a specific experience entry, grounded in the
-// resume (bracketed placeholders where specifics are unknown). Shares the
-// free AI quota.
+// Suggest one new bullet for a specific experience, project or involvement
+// entry, grounded in the resume (bracketed placeholders where specifics are
+// unknown). Shares the free AI quota.
 app.post('/api/ai/suggest-bullet', async (c) => {
   const body = await c.req
-    .json<{ role?: string; company?: string; companyInfo?: string; bullets?: string[]; resumeText?: string; variant?: string; language?: string }>()
+    .json<{ role?: string; company?: string; companyInfo?: string; bullets?: string[]; resumeText?: string; variant?: string; language?: string; section?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const role = body.role?.trim() ?? ''
   const company = body.company?.trim() ?? ''
   const companyInfo = (body.companyInfo?.trim() ?? '').slice(0, 300)
+  const section =
+    body.section === 'project' || body.section === 'involvement' ? body.section : undefined
   if (!role && !company) {
-    return c.json({ error: 'Add a job title or company first — the bullet is drafted for that role.' }, 400)
+    return c.json(
+      {
+        error:
+          section === 'project'
+            ? 'Add a project name or organization first — the bullet is drafted for that project.'
+            : section === 'involvement'
+              ? 'Add a role or organization first — the bullet is drafted for that involvement.'
+              : 'Add a job title or company first — the bullet is drafted for that role.',
+      },
+      400
+    )
   }
   if (role.length > 200 || company.length > 200) {
     return c.json({ error: 'That role or company name is too long.' }, 400)
@@ -782,7 +794,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
   const result = await callLlm(
     c.env,
     withOutputLanguage(
-      buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo),
+      buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo, section),
       body.language
     ),
     0.6,
