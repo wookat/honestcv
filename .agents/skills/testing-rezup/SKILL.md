@@ -696,3 +696,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R253 — nav attention badge
 - Nav counts (WorkspaceNav `useMemo`, SiteHeader `useState` initializer) are computed once on mount — after reseeding `honestcv.jobPipeline`, reload the page for badges to update.
 - Attention badge selector: `span.bg-amber-100` inside the "Job search" sidebar link / header "Jobs" link; `title`/`aria-label` = "N tracked application(s) with no status update in 7+ days".
+
+## R254 — Tracked "Needs follow-up" filter
+- `?attention=1` on /jobs is a mount-time `useState` seed — the filter/tab don't react to later URL changes, so navigate fresh per scenario.
+- The follow-up chip lives inside `[role=group][aria-label="Bulk actions on tracked jobs"]` before the Select… button and only renders when the pipeline is non-empty.

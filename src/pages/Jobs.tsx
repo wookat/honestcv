@@ -36,6 +36,7 @@ import {
   type JobListing,
   type JobStatus,
   type PipelineEntry,
+  attentionCount,
   listPipeline,
   removeFromPipeline,
   removeManyFromPipeline,
@@ -94,7 +95,12 @@ export default function Jobs() {
     'Browse remote jobs, track your applications, and target your resume to a posting in one click.'
   )
   const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('all')
+  // ?attention=1 deep link opens the queue filtered to applications needing a follow-up
+  const [seedAttention] = useState(
+    () => new URLSearchParams(window.location.search).get('attention') === '1'
+  )
+  const [tab, setTab] = useState<Tab>(seedAttention ? 'tracked' : 'all')
+  const [followUpOnly, setFollowUpOnly] = useState(seedAttention)
   // ?q= deep link (e.g. the assistant's "Find matching jobs") seeds the search
   const [seedQuery] = useState(
     () => new URLSearchParams(window.location.search).get('q')?.trim() || null
@@ -228,11 +234,11 @@ export default function Jobs() {
     () =>
       JOB_STATUSES.flatMap((s) =>
         pipeline
-          .filter((e) => e.status === s)
+          .filter((e) => e.status === s && (!followUpOnly || staleDays(e) !== null))
           .sort((a, b) => b.updatedAt - a.updatedAt)
           .map((e) => e.job)
       ),
-    [pipeline]
+    [pipeline, followUpOnly]
   )
   const base: JobListing[] =
     tab === 'all'
@@ -629,6 +635,21 @@ export default function Jobs() {
             role="group"
             aria-label="Bulk actions on tracked jobs"
           >
+            {(attentionCount(pipeline) > 0 || followUpOnly) && (
+              <button
+                type="button"
+                aria-pressed={followUpOnly}
+                title="Show only applications with no status update in 7+ days"
+                onClick={() => setFollowUpOnly((v) => !v)}
+                className={`min-h-10 rounded-md border px-3 py-1 text-xs font-medium transition sm:min-h-8 ${
+                  followUpOnly
+                    ? 'border-amber-300 bg-amber-100 text-amber-800'
+                    : 'hover:border-muted-foreground/40'
+                }`}
+              >
+                Needs follow-up ({attentionCount(pipeline)})
+              </button>
+            )}
             <button
               type="button"
               aria-pressed={bulkMode}
@@ -747,7 +768,9 @@ export default function Jobs() {
                 {tab === 'all'
                   ? 'No jobs found — try another search term.'
                   : tab === 'tracked'
-                    ? 'Nothing tracked yet — use the status buttons on a job to track it.'
+                    ? followUpOnly
+                      ? 'No applications need a follow-up right now.'
+                      : 'Nothing tracked yet — use the status buttons on a job to track it.'
                     : `Nothing ${JOB_STATUS_LABELS[tab].toLowerCase()} yet — use the status buttons on a job to track it.`}
               </p>
             ) : (
