@@ -500,3 +500,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - QA（生产复验，两轮）：bundle index-B5znrjI-.js / Builder-fJOLeRYV.js → Builder-BEOIqvM3.js；CDP Fetch 拦截并 failRequest 于网络前，确认新按钮 POST 含 emphasis:"key-numbers" 而旧按钮无该键，零 AI 配额消耗；QA 发现的 P3（空 bullets 时新按钮 tooltip 落到配额文案）当轮修复复验（两按钮同 reason）；4 按钮行序、Summary/skills 回归、R281 Ctrl+B 回归、375px 无溢出、localStorage/主题还原全绿。
 - 坑（测试代理沉淀）：naive CDP cmd() 循环会吞 Fetch.requestPaused 事件，且 Fetch.disable 会把仍 paused 的请求放行到真实网络——先缓冲事件、逐个 failRequest、最后才 disable。
 - 文档：docs/plan-r282-rewrite-key-numbers.md、docs/qa-r282-plan.md（测试代理写）。
+
+## R283 — Projects/Involvement 整条 AI rewrite（含 key numbers）(2026-08-31)
+- 证据：Rezi 一手 AI Bullet Points 指南（rezi.ai/rezi-docs/ai-bullet-points，2026-07-16 更新）「Navigate through the resume tabs to find the AI Bullet Point Writer in sections like: Work experience / Projects / Involvement」+「Rewrite Bullet feature」；我方 Projects/Involvement 此前只有逐行 Fix，无整条 rewrite、无 key-numbers 模式。
+- 实现：仅 Builder.tsx——每个 project/involvement 条目在 guidance 下新增「AI rewrite bullets」+「…with key numbers」按钮对（tags proj-${id}(-nums) / inv-${id}(-nums)），复用 runRewrite('bullets', emphasis?) 与 R282 白名单链路，输出按行清洗（剥 -/•、去空）写回 description。零 worker/prompt/api/schema 改动。
+- QA（生产复验）：bundle index-CEqKDzGO.js / Builder-D8-Dz2hD.js；全绿零 P0–P3 零 AI——四个新按钮 POST 拦截于网络前（plain 无 emphasis 键、key-numbers 含 emphasis:"key-numbers"、text 为条目行）、空 description 双按钮同 reason tooltip、经历 4 按钮行与逐行 Fix 回归、375px 双按钮纵向堆叠无溢出、localStorage/主题还原（证据在 PR 评论）。
+- 坑（测试代理沉淀）：seeding fixture 时 ProjectItem 的组织字段是 org（非 organization）；Projects/Involvement 等可选 section 默认折叠，须先点「<Section> (optional)」按钮才渲染条目；复用型事件缓冲 CDP 拦截助手在 /home/ubuntu/qa/r283_lib.py。
+- 文档：docs/plan-r283-project-involvement-rewrite.md、docs/qa-r283-plan.md（测试代理写）。
