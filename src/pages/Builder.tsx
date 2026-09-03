@@ -8492,7 +8492,7 @@ export default function Builder() {
                   .finally(() => setRcBusy(false))
               }}
             >
-              {rcBusy ? 'Importing…' : 'Import'}
+              {rcBusy ? 'Importing…' : 'Import from Resume Center'}
             </Button>
           </div>
           {importError && <p className="text-destructive text-sm">{importError}</p>}
