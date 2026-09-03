@@ -212,7 +212,9 @@ export function buildSuggestBulletMessages(
   resumeText: string,
   variant?: 'key-numbers',
   companyInfo = '',
-  section?: 'project' | 'involvement'
+  section?: 'project' | 'involvement',
+  targetRole = '',
+  jobDescription = ''
 ): ChatMessage[] {
   const existing = existingBullets
     .filter((b) => b.trim())
@@ -249,7 +251,13 @@ Start with a strong action verb. Output the single bullet as one line of plain t
         companyInfo ? `\nCompany info: ${companyInfo}` : ''
       }\n\nExisting bullets for this ${
         section === 'project' ? 'project' : 'role'
-      }:\n${existing || '(none yet)'}\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
+      }:\n${existing || '(none yet)'}${
+        targetRole.trim() ? `\n\nTarget role: ${targetRole.trim()}` : ''
+      }${
+        jobDescription.trim()
+          ? `\n\nTailor wording toward this job description (mirror its keywords only where the resume truthfully supports them):\n"""\n${jobDescription.slice(0, 4000)}\n"""`
+          : ''
+      }\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
     },
   ]
 }

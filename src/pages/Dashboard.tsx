@@ -60,6 +60,8 @@ import {
 import {
   EXPERIENCE_LEVELS,
   EXPERIENCE_LEVEL_LABELS,
+  RESUME_LANGUAGES,
+  type ResumeLanguage,
   type ExamplePerson,
   type Resume,
   type ResumeVersion,
@@ -224,6 +226,7 @@ export default function Dashboard() {
   const [newRole, setNewRole] = useState('')
   const [newCompany, setNewCompany] = useState('')
   const [newLevel, setNewLevel] = useState<NonNullable<Resume['experienceLevel']>>('')
+  const [newLanguage, setNewLanguage] = useState<ResumeLanguage>('en')
   const [newJd, setNewJd] = useState('')
   const freeMode = useFreeMode()
   const { license } = useLicense()
@@ -447,6 +450,7 @@ export default function Dashboard() {
     setNewRole('')
     setNewCompany('')
     setNewLevel('')
+    setNewLanguage('en')
     setNewJd('')
     setNewKeepCopy(true)
   }
@@ -463,6 +467,7 @@ export default function Dashboard() {
       targetRole: newRole.trim(),
       targetCompany: newCompany.trim() || undefined,
       experienceLevel: newLevel,
+      language: newLanguage === 'en' ? undefined : newLanguage,
       jobDescription: newJd.trim(),
     })
     void navigate('/builder')
@@ -1305,26 +1310,47 @@ export default function Dashboard() {
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="new-resume-level" className="text-sm font-medium">
-                Experience level
-              </label>
-              <select
-                id="new-resume-level"
-                name="new-resume-level"
-                className="h-10 w-full rounded-md border bg-transparent px-2 text-sm"
-                value={newLevel}
-                onChange={(e) =>
-                  setNewLevel(e.target.value as NonNullable<Resume['experienceLevel']>)
-                }
-              >
-                <option value="">Auto</option>
-                {EXPERIENCE_LEVELS.map((lvl) => (
-                  <option key={lvl} value={lvl}>
-                    {EXPERIENCE_LEVEL_LABELS[lvl]}
-                  </option>
-                ))}
-              </select>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="new-resume-level" className="text-sm font-medium">
+                  Experience level
+                </label>
+                <select
+                  id="new-resume-level"
+                  name="new-resume-level"
+                  className="h-10 w-full rounded-md border bg-transparent px-2 text-sm"
+                  value={newLevel}
+                  onChange={(e) =>
+                    setNewLevel(e.target.value as NonNullable<Resume['experienceLevel']>)
+                  }
+                >
+                  <option value="">Auto</option>
+                  {EXPERIENCE_LEVELS.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {EXPERIENCE_LEVEL_LABELS[lvl]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="new-resume-language" className="text-sm font-medium">
+                  Language
+                </label>
+                <select
+                  id="new-resume-language"
+                  name="new-resume-language"
+                  title="Resume language — localizes default section headings and AI writer output"
+                  className="h-10 w-full rounded-md border bg-transparent px-2 text-sm"
+                  value={newLanguage}
+                  onChange={(e) => setNewLanguage(e.target.value as ResumeLanguage)}
+                >
+                  {(Object.keys(RESUME_LANGUAGES) as ResumeLanguage[]).map((code) => (
+                    <option key={code} value={code}>
+                      {RESUME_LANGUAGES[code]}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="space-y-1.5">
               <label htmlFor="new-resume-jd" className="text-sm font-medium">

@@ -516,20 +516,38 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 文档：docs/plan-r284-project-involvement-suggest-bullet.md、docs/qa-r284-plan.md（测试代理写）。
 
 ## R285 — Suggest a bullet 按目标职位/JD 定制 (2026-08-31)
-- Rezi AI Bullet Points 指南「providing your target role and job description… allows the AI to tailor bullet-point suggestions」；buildSuggestBulletMessages 尾部可选 targetRole/jobDescription（前 4000 字符 JD 块，仅在真实支撑时镜像关键词），worker 白名单 trim+cap200，api/Builder 透传（空→undefined 无新键）。PR #505。
+- 证据：同一 Rezi 一手 AI Bullet Points 指南——「providing your target role and job description… allows the AI to tailor bullet-point suggestions to the role you want, rather than generating generic content」；我方 buildSuggestBulletMessages 此前完全不接收 targetRole/jobDescription（rewrite/summary 等路径早已 JD 感知），Builder 明明有 resume.targetRole/jobDescription 却没传。
+- 实现：buildSuggestBulletMessages 尾部新增可选 targetRole=''/jobDescription=''（非空时在 existing bullets 后、candidate resume 前追加「Target role: X」与「Tailor wording toward this job description (mirror its keywords only where the resume truthfully supports them)」+ JD 前 4000 字符；两者为空时提示词字节级不变，oracle 验证 omitted==''）；worker /api/ai/suggest-bullet 白名单解析（targetRole trim+cap200）；api.ts aiSuggestBullet 新可选字段；Builder runSuggestBullet 传 resume.targetRole/jobDescription（trim 空→undefined，JSON 无键，无目标职位 payload 字节级不变）。零 UI/schema/评分/导出/持久化改动。
+- QA（生产复验）：bundle index-BLm2S5fA.js / Builder-Bi7tjjaB.js；全绿零 P0–P3 零 AI 配额——设定目标职位+JD 后六个 suggest 按钮（exp/proj/inv × plain/key-numbers）payload 均含 targetRole+JD 精确串且 section/variant 键与 R284 一致；清空后 payload 键集与 R284 基线字节级一致（exp [bullets,company,resumeText,role]、proj +section）；R284b 缺字段 reason 回归；8 个请求全部拦截于网络前、localStorage/主题还原。
+- 坑（测试代理沉淀）：localStorage 清理还须删 honestcv.resumeHistory（Builder 编辑会重建），否则 2-key 基线校验失败。
+- 文档：docs/plan-r285-jd-tailored-suggest-bullet.md、docs/qa-r285-plan.md（测试代理写）。
 
-## R286 — 变体选择器 Regenerate + Adjust role & skills (2026-08-31)
-- Rezi Summary Writer「regenerate as many times as you want… swap out skills or change the role」；variantPick 增 tag/regenerate/adjust，同参重跑原地替换候选，summary 路径可一键重开预填设置对话框。仅 Builder.tsx。PR #506。
+## R286 — 变体选择器内 Regenerate / Adjust role & skills (2026-08-31)
+- 证据：Rezi 一手 AI Resume Summary Writer 指南（rezi.ai/rezi-docs/ai-resume-summary-writer-explained，2026-08-07 更新）「You can regenerate as many times as you want」+ step 4「Hit regenerate and try again… You can also swap out skills or change the role before going again」；我方 variantPick 对话框（Pick a summary / Pick a rewrite）此前无任何 regenerate 路径——想要新选项必须关对话框重新点原按钮，且引导式 summary 草稿一旦进入选择器就无法回到 R163 的职位/技能设置。
+- 实现：仅 Builder.tsx——variantPick 状态新增可选 tag/regenerate/adjust；runRewrite 与 runSummaryDraft 在 setVariantPick 时传入同参重跑闭包（新候选原地替换开着的对话框）；summary 路径另传 adjust（关闭选择器、以相同 position+picked 重开设置对话框）；对话框 footer 新增「Regenerate options」（busy 时 Writing…/禁用）与（仅 summary 草稿）「Adjust role & skills」；regenerate 失败时在候选下方内联显示错误（aiErrorTag===tag），旧候选保持可用。零 worker/prompt/api/schema/评分/导出/持久化改动，每次 regenerate 消耗与重新点击原按钮相同的一次 AI 配额。
+- QA（生产复验）：bundle index-Dw8U6jU0.js / Builder-DI8XCZAw.js；全绿零 P0–P3 零 AI 配额——summary-draft 选择器 3 候选+两按钮、Regenerate 第二次 POST payload 字节级一致且候选原地替换（Writing… 态截图）、Adjust 重开设置对话框预填相同 position+skills、rewrite 选择器有 Regenerate 无 Adjust、假 500 → 内联「Boom」错误且旧候选可点、Keep my original 回归、375px 无溢出、localStorage/主题基线还原（证据在 PR 评论）。
+- 坑（测试代理沉淀）：引导式 summary 触发按钮实际文案是「Draft from my resume」（仅 summary 为空时渲染，有内容后变「AI polish summary」），设置对话框提交按钮是「Write 3 drafts」；同一同步 JS 批次连点多个 React 状态按钮会丢更新（stale closure），连点 chips 须间隔 ~400ms。
+- 文档：docs/plan-r286-variant-picker-regenerate.md、docs/qa-r286-plan.md（测试代理写）。
 
-## R287 — 本地即时「Target my job」assistant 回复 (2026-08-31)
-- Rezi AI Resume Agent 内置 prompt「Target My Resume」；guidance.ts 新纯函数 targetJobReply（matchReport 本地计算：匹配率 + High priority/Also missing cap5 + triage 指引；无 JD 引导态；全覆盖祝贺态）。三个内置任务至此全部本地化。PR #507。
+## R287 — 助手「Target my job」快捷任务改为即时本地回复 (2026-09-02)
+- 证据：Rezi 一手 AI Resume Agent 指南三个内置 prompt（Improve My Rezi Score / Target My Resume / Find Jobs）——「If you select Target My Resume, the AI compares your resume with a job description and recommends edits that improve alignment」；AI Keyword Targeting 指南的已含/缺失关键词对比是即时的（非聊天往返），且「If not, you can add a job title and description directly within the keyword targeting tool」。我方三个内置任务中 Target my job 是最后一个仍走配额门 AI 往返的，而 matchReport 早已本地算出 pct/covered/missing/highPriorityMissing（面板自己就在渲染）。
+- 实现：guidance.ts 新纯函数 targetJobReply(report: MatchReport | null)——无 JD 引导去 Target job 面板粘贴；有 report 输出「Your resume matches N% …」+ High priority（cap5）+ Also missing（cap5，去重高优）+ 指向关键词 triage 的结尾；全覆盖为祝贺形态。AssistantPanel.tsx 的 Target my job 走与 improveScore 相同的同步本地路径（TARGET_JOB_LABEL/PROMPT 常量化），自由输入与另两个 AI 任务不变。零 worker/schema/评分/持久化改动。
+- QA（生产复验，bundle index-DLlSaUNo.js / Builder-CR8NmuTh.js / guidance-RWlsDdyN.js）：全绿零 P0–P3 零 AI 配额——本地回复与 oracle（.tmp-smoke/r287_oracle.ts，--tsconfig tsconfig.app.json）字节级一致、与面板 footer 数字一致、无 JD/全覆盖两形态、Draft my summary 回归仍 POST /api/ai/assistant（拦截于网络前）、Improve/Find jobs 仍本地、聊天 reload 持久、375px 无页面级溢出、localStorage/主题还原。披露：375px 下 Builder 自身的横向可滚 section-tab 条有元素超出 x=375（自有 overflow 容器，页面 scrollWidth=375，既有模式非本轮回归）。
+- 测试沉淀：/builder?assistant=1 直开助手；honestcv.assistantChat 清理项；本地性证明用全程 Fetch 拦截断言零 paused 事件。
+- 文档：docs/plan-r287-local-target-job-reply.md、docs/qa-r287-plan.md。
 
-## R288 — 关键词 bullet 对话框「Draft another option」(2026-08-31)
-- Rezi Keyword Targeting step 4「rewrite it for more options」；KeywordBulletDialog 草稿态新增 outline 再生成按钮重跑同一 aiKeywordBullet（payload 字节级一致），成功原地替换、失败保留旧稿。仅 Builder.tsx。PR #508。
+## R288 — 关键词 bullet 草稿对话框补「Draft another option」再生成 (2026-09-02)
+- 证据：Rezi 一手 AI Keyword Targeting 指南 step 4——「For each missing keyword, Rezi gives you the option to generate a new bullet point… You can accept the suggestion, rewrite it for more options, or tweak the wording until it feels right」。我方 KeywordBulletDialog（triage「Yes — draft a bullet」）此前只草一条，唯有手改/Add/Discard，要新选项必须关对话框重来（丢流程）；其余 AI 草稿面（R206 bullet-suggest、R286 变体选择器）早有再生成。
+- 实现：仅 Builder.tsx KeywordBulletDialog——草稿态按钮行改 flex-wrap，新增 outline「Draft another option」重跑同一 run()（aiKeywordBullet 字节级同 payload），busy 时 spinner+Drafting… 且 Add bullet 同步禁用；成功原地替换 textarea，失败内联报错旧稿保持可编辑可插入；插入后按钮行整体隐藏。零 worker/prompt/schema/评分/持久化改动。
+- QA（生产复验，bundle index-DDaizxrl.js / Builder-BFHSf0Hc.js）：全绿零 P0–P3 零 AI 配额——三按钮行、再生成 payload 字节级一致（362==362）、busy 态、失败路径旧稿可用、Add bullet 插入选中条目、手改后再生成替换（同变体选择器语义）、375px 按钮换行 scrollWidth=375、5 个请求全部拦截于网络前、localStorage/主题还原。披露：payload role:"" 为 fixture 未设目标职位的既有 aiTargetRole 语义。
+- 文档：docs/plan-r288-keyword-bullet-regenerate.md、docs/qa-r288-plan.md；SKILL.md 增 triage 卡位于 Target job 面板内/插入后关键词转 matched 卡片消失等沉淀。
 
-## R289 — summary 职位选择器自定义标题 (2026-08-31)
-- Rezi Summary Writer step 2「turn off "from resume" and type in the job title」；summaryDraftSetup 增 custom 布尔，select 末尾 sentinel「Type a different title…」(__custom__) 切自由输入、链接切回；同时修复 aiTargetRole 带 (level)/at company 后缀不在选项内导致的受控 select 不一致（不匹配时以预填 Input 打开）。仅 Builder.tsx。PR #509。
-- 坑：CDP 驱动 React 受控 select 须用 HTMLSelectElement 原型 value setter + change 事件。
+## R289 — 引导式 summary 职位选择器支持自定义标题 (2026-09-02)
+- 证据：Rezi 一手 AI Resume Summary Writer 指南 step 2——「You can either select a past role from your resume or turn off "from resume" and type in the job title you're applying for… handy if you're switching careers」。我方 R163 设置对话框在有任何角色时只渲染 select（targetRole+经历角色），无法输入其他职位；且初值 aiTargetRole(resume)（可能带「(Mid level)」/「at Company」后缀）通常不在选项里，受控 select 值与选项不匹配（显示与提交不一致的既有缺陷）。
+- 实现：仅 Builder.tsx——summaryDraftSetup 增 custom:boolean；打开时（含 R286 Adjust）position 不在 summaryPositionOptions 内即直接进自定义 Input 模式（预填 aiTargetRole，修掉 select 值不匹配缺陷）；select 模式末尾新增 sentinel「Type a different title…」(__custom__) 切到 Input，Input 下方「Pick a role from my resume instead」链接切回（position 在选项内保留，否则回落 options[0]）。runSummaryDraft payload 语义不变（trim 空回落 aiTargetRole）。零 worker/prompt/schema/评分/导出/持久化改动。
+- QA（生产复验，bundle index-iuaBfS20.js / Builder-B1zgysvx.js）：全绿零 P0–P3 零 AI 配额——S1 自定义模式预填精确「Engineer (Mid level)」；S2 select 选项精确 [Engineer, Frontend Engineer, DevOps Engineer, sentinel]、选 DevOps Engineer 拦截 payload role 精确；S3 Adjust 以 select 模式重开保留角色+chips；S4 sentinel→Input 预填、输入 Product Manager payload 精确；S5 清空回落 role:"Engineer (Mid level)"；S6 无角色简历纯 Input 无链接回归；S7 375px scrollWidth=375；4 请求全拦截于网络前、localStorage/主题还原。
+- 坑（测试代理沉淀）：CDP 驱动 React <select> 必须用 HTMLSelectElement 原生 value setter + change 事件（textarea 式 setval 静默无效导致提交回落 options[0]）。
+- 文档：docs/plan-r289-summary-position-custom-title.md、docs/qa-r289-plan.md（测试代理写）。
 
 ## R290 — 探索性生产审计（无代码轮）(2026-08-31)
 - 覆盖：Builder 编辑/inline preview/marks 快捷键/section 顺序/隐藏条目、Target job/triage/评分跳转、四格式导出（CJK 名、进行中角色、类目技能、自定义 section、长 URL）、education-only、暗色、375px 三页、零 AI。docs/qa-r290-plan.md。
@@ -541,3 +559,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - P2-2：Builder header 四个 PDF/DOCX/TXT/MD 按钮改 hidden 2xl:inline-flex，紧凑下载 dropdown（含全部四格式）改 2xl:hidden——完整按钮行固有宽度 ~1460px，2xl(1536) 是其上最小默认断点；<1536 桌面与移动统一用 dropdown，375px 行为不变。
 - QA（生产复验，bundle index-ClLLZMYm.js / Builder-D0ZWkuSb.js）：全绿零 P0–P3 零 AI——PDF pdfminer 逐字符字体证实 Platform=Bold、下划线精确跨 Cloud、/URI annot 对准 team、accent+居中（Modern 中点 307.8 vs 306）；DOCX 真实 w:b/w:u/hyperlink rel；无 marks 单 run 回归；1280/1366/1440/1512 scrollWidth≤innerWidth 且 dropdown 四格式实下；1536+ 完整按钮；375 回归。docs/plan-r291-audit-fixes.md、docs/qa-r291-plan.md。
 - 坑：模板卡按 button.title==描述识别；honestcv.templateRecents 需清理；Tailwind hidden 包裹层判定用 el.checkVisibility()；pypdf 查 /URI annot（raw grep 会漏 object stream）。
+
+## R292 — 新建简历弹窗补 Language 选择（对标 Rezi create-resume setup form）(2026-08-31)
+- Rezi 一手 create-resume 文档：setup form 含 experience level 与「select the language of your resume」；我方 R167 起有 per-resume language（本地化默认 section 标题 + AI 输出）但只藏在 Builder 设计面板，新建路径无入口。
+- 仅改 Dashboard.tsx：newLanguage state（默认 en，closeNewDialog 重置）；Experience level 改与新 Language select（#new-resume-language，RESUME_LANGUAGES 原生名）同 sm:grid-cols-2 行；startNewResume 传 language: en 时 undefined（英文序列化字节不变）。
+- QA（生产，bundle index-C7-PukMq.js / Dashboard-8EFSFgub.js）：全绿零 P0–P3 零 AI——默认 en 五选项、Español 创建后 "language":"es" + Resumen/Experiencia/Habilidades 本地化标题 + 设计面板 Español、英文无 language 键、Cancel 重置、keep-a-copy 保留 language、375 两 select 堆叠 scrollWidth=375、暗色对比。docs/plan-r292-new-resume-language.md、docs/qa-r292-plan.md。
+
+## R293 — Margins stepper（页面边距，对标 Rezi Adjustments「Adjust margins」）(2026-09-02)
+- Rezi 一手证据：builder 指南「Adjust margins, fonts, and sizes」+ reformat 指南「Set standard 0.5"–1" margins」；我方设计工具条已齐 font/size/spacing/divider/indent/icons/accent/photo，唯独边距全链路写死（PDF 54pt、DOCX 864/720 twips、预览 32px）。
+- 实现：resume.ts 新 pageMargins?: 'narrow'|'normal'|'wide'（undefined=normal 不序列化）+ PAGE_MARGIN_PT {36,54,72} + pageMarginOf + asEnum；pdf.ts PdfWriter 新 margin 字段与 setMargin()（全部 MARGIN 引用改 this.margin/w.margin，letter PDF 不受影响）；docx.ts downloadResumeDocx 按 pageMarginOf/54 缩放 864/720 twips 与 rightTab；ResumePreview pagePadOf=round(32×f)（21/32/43px，两种分页视图）；Builder 设计工具条 Sections 与 Divider 间新 Margins stepper（0.5″/0.75″/1″），回到 normal 时写 undefined 保持字节兼容（R293b 修复 QA 发现的 P3）。
+- QA（生产，bundle index-DJ2vZh9q.js / Builder-DXPhO1-F.js）：全绿零 AI——PDF pdfminer 左缘精确 36/54/72pt、顶缘 18pt 级差、默认 54pt 回归；DOCX w:pgMar 576/480·864/720·1152/960；预览 padding 21/32/43px、宽 1.20 页 vs 窄 0.94 页；Auto-fit 兼容且保留 margin；0.75″ 无 pageMargins 键；375 scrollWidth=375、暗色对比。docs/plan-r293-page-margins.md、docs/qa-r293-plan.md。

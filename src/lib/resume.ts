@@ -231,6 +231,8 @@ export interface Resume {
   fontFamily?: 'auto' | 'serif' | 'sans' | 'mono' | 'merriweather' | 'sourcesans' | 'robotomono'
   /** Vertical space before each section heading */
   sectionSpacing?: 'xtight' | 'tight' | 'normal' | 'roomy' | 'xroomy'
+  /** Page margins across preview, PDF and DOCX; default 0.75" */
+  pageMargins?: 'narrow' | 'normal' | 'wide'
   /** Section divider rule; 'auto' follows the template */
   sectionDivider?: 'auto' | 'on' | 'off'
   /** Indent bullet lists relative to the section text */
@@ -348,7 +350,11 @@ export const LINE_SPACING = {
   loose: 1.65,
 } as const
 
+/** Page margin in PDF points (72 pt = 1 inch). */
+export const PAGE_MARGIN_PT = { narrow: 36, normal: 54, wide: 72 } as const
+
 export const fontScaleOf = (r: Resume) => FONT_SCALE[r.fontScale ?? 'm']
+export const pageMarginOf = (r: Resume) => PAGE_MARGIN_PT[r.pageMargins ?? 'normal']
 export const lineSpacingOf = (r: Resume) => LINE_SPACING[r.lineSpacing ?? 'normal']
 
 export type FontFamilyKind =
@@ -1138,6 +1144,7 @@ export function sanitizeResume(input: unknown): Resume | null {
       raw.sectionSpacing,
       ['xtight', 'tight', 'normal', 'roomy', 'xroomy'] as const
     ),
+    pageMargins: asEnum(raw.pageMargins, ['narrow', 'normal', 'wide'] as const),
     sectionDivider: asEnum(raw.sectionDivider, ['auto', 'on', 'off'] as const),
     bulletIndent: asEnum(raw.bulletIndent, ['off', 'on'] as const),
     contactIcons: asEnum(raw.contactIcons, ['off', 'on'] as const),

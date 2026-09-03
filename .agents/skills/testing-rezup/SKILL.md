@@ -794,3 +794,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Download-script pitfall: track new files by diffing the glob before/after (or mtime), and
   never `rm *.pdf` in the download dir between downloads if earlier renamed artifacts live
   there.
+
+## R293 notes (design toolbar / margins)
+- The Builder design toolbar (Text/Spacing/Sections/Margins/Divider steppers) lives in the PREVIEW pane. At <lg widths it is hidden until you tap the "Preview & score" mobile tab (`mobilePane` state) — a `checkVisibility()===false` on toolbar controls at 375px is expected, not a bug.
+- Margins stepper: label span "Margins", buttons aria-label "Decrease/Increase page margins", value span shows 0.5″/0.75″/1″. Expected: preview padding 21/32/43px, PDF min glyph x0 36/54/72pt (pdfminer), DOCX w:pgMar 576/480, 864/720, 1152/960 twips.
+- (Fixed in R293b, bundle index-DJ2vZh9q.js): stepping back to 0.75″ now removes the pageMargins key (normal maps to undefined).
+- At wide viewports (≥1536/2xl) the four full export buttons render and the compact dropdown trigger is hidden — download scripts should pick whichever `checkVisibility()` is true.
+- CDP click pitfall: measure the click point AFTER scrollIntoView settles (sleep ≥0.5s), else the click lands off-target and silently no-ops.
