@@ -1,4 +1,4 @@
-import { extractKeywords, highPriorityKeywords } from './ats'
+import { extractKeywords, highPriorityKeywords, matchTokenSet } from './ats'
 import type { Resume } from './resume'
 
 export interface AnswerAnalysis {
@@ -224,7 +224,7 @@ const FILLER_PHRASES = [
 ]
 
 function tokens(text: string): Set<string> {
-  return new Set(
+  return matchTokenSet(
     (
       text
         .toLowerCase()

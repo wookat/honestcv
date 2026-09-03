@@ -38,14 +38,19 @@ export const SHARE_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/
  *  A slug (only used when creating a new link) requests a custom URL. */
 export async function createShareLink(resume: Resume, slug?: string): Promise<ShareLink> {
   const prev = loadShareLink()
-  const res = await fetch('/api/share', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...licenseHeaders() },
-    body: JSON.stringify({
-      resume,
-      ...(prev ? { id: prev.id, token: prev.token } : slug ? { slug } : {}),
-    }),
-  })
+  let res: Response
+  try {
+    res = await fetch('/api/share', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...licenseHeaders() },
+      body: JSON.stringify({
+        resume,
+        ...(prev ? { id: prev.id, token: prev.token } : slug ? { slug } : {}),
+      }),
+    })
+  } catch {
+    throw new Error('Creating the link failed — check your connection and try again.')
+  }
   const data = (await res.json().catch(() => ({}))) as {
     id?: string
     token?: string
@@ -53,7 +58,10 @@ export async function createShareLink(resume: Resume, slug?: string): Promise<Sh
     error?: string
   }
   if (!res.ok || !data.id || !data.token || !data.url) {
-    throw new Error(data.error || `Sharing failed (${res.status})`)
+    // 4xx errors carry user-facing messages (slug taken, invalid resume, …);
+    // anything else gets a friendly retry message instead of raw server text.
+    const clientMessage = res.status >= 400 && res.status < 500 ? data.error : undefined
+    throw new Error(clientMessage || `Creating the link failed (${res.status}). Try again.`)
   }
   const link: ShareLink = { id: data.id, token: data.token, url: data.url, sharedAt: Date.now() }
   persistShareLink(link)

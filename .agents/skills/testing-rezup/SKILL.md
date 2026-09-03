@@ -1113,3 +1113,19 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
   window.scrollX/Y to getBoundingClientRect and pass
   captureBeyondViewport:true, else off-viewport clips come back blank.
   Per-char Range rects are unreliable for locating hyphenation break offsets.
+- CRITICAL: CDP Fetch interception is per-websocket-session — it disarms the
+  instant your script's websocket closes. Never exit a script while an AI
+  request is pending ("Thinking…" visible), or the request completes for real
+  and consumes quota; run multi-step AI flows in ONE persistent python REPL
+  session.
+- Share dialog select values are 'off'/'view' (not labels). After a successful
+  create the dialog keeps the link in React state — removing
+  honestcv.shareLink alone won't re-trigger create; reload the Builder first
+  (cheap repro of a real duplicate-slug 4xx: create slug, reload with
+  shareLink removed, retry the same slug).
+- Seeded resumes must pass loadResume validation (requires a `contact` object
+  + `experience` array; src/lib/resume.ts) — easiest is "Load an example
+  resume" in Builder then merge fields on a non-builder route. The Target-job
+  panel may be closed after navigation — click "Target job (powers AI + ATS
+  score)" again. Tailoring first-open sets a `honestcv.seen.tailor` key —
+  remove it in cleanup.
