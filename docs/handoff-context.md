@@ -836,3 +836,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产复验（bundle index-BUrJcyh1.js，零 AI、零分享创建）全绿零 P0–P3：Share（Esc/X/footer Close 三路径回焦精确 opener 节点、15-Tab 焦点陷阱、select 自动聚焦不变）、Interview Prep（R333 confirm 仍精确出、Cancel 保留答案、Accept 关闭仍回焦）、Photo Crop（经 Page.setInterceptFileChooserDialog 键盘打开、Esc/Cancel 回焦）、Template Compare、opener 移除边界零异常、375 严格、暗色焦点环、基线还原。截图 /home/ubuntu/screenshots/r348_*.png。
 - QA 教训（已入测试 skill）：CDP Enter 激活按钮须用 keyDown+text '\r'（rawKeyDown 不合成 click，对话框静默不开导致回焦断言空真）；Change photo 走原生文件选择器，须 setInterceptFileChooserDialog + DOM.setFileInputFiles。
 - 残留 P3 候选（R341+ 择用）：照片裁剪键盘平移、undo/status 条 tab 序。
+
+## R341 — 照片裁剪键盘平移 + 剩余键盘覆盖收尾 (2026-09-03)
+- 证据：R340 审计 P3②——裁剪视口纯指针（zoom 滑杆键盘可用），键盘用户只能得到居中裁剪，且是全站唯一纯指针控件。方案 docs/plan-r341-crop-keyboard-pan.md。
+- 实现（仅 PhotoCropDialog.tsx，commit 41637f7）：视口 tabIndex=0 + focus-visible 环；Arrow 平移 8 视口 px（Shift=32，经 s 换算源 px、既有 clamp）；preventDefault 防滚动；aria/描述文案提及方向键。指针拖移/zoom/256×256 JPEG 输出零改动。
+- 生产 QA（bundle index-BRVzEqOr.js，零 AI——tailor/keyword-bullet POST 全 mock）全绿零 P0–P2：Tab 可达+光暗焦点环、每按精确 8px、Shift 精确 4×、边界 clamp+页面不滚动、zoom 后垂直平移、像素级证明键盘平移改变保存裁剪（象限边界 43/86 vs 居中 128/128）、指针拖移回归、R340 回焦回归、375 严格、基线还原。截图 /home/ubuntu/screenshots/r349_*.png。
+- 覆盖收尾（R340 两个未测面，审计通过）：tailoring triage 卡与关键词 bullet 对话框端到端键盘可操作（打开/Enter 激活/接受/插入/Esc+精确回焦）。新 P3 候选：「Draft a bullet using <kw>」chips 距 JD textarea ~295 个 Tab 停（同 R340 undo/status 条 late-tab-order 类）；观察项（疑似有意）：tailor 对话框有未审阅建议时 Esc 静默关闭（已接受项保留，无 R333 式确认）。
+- 备注：zoom 1 横图 maxY=0 垂直方向键合法 no-op——先 zoom 再测垂直平移。
