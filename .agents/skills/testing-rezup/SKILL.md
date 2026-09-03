@@ -994,7 +994,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 
 - History fixture snapshots MUST include an `id` field (`{id,at,data}`) or listResumeHistory silently drops them.
 - Real downloads: CDP `Page.setDownloadBehavior {behavior:'allow',downloadPath}` then click the PDF/DOCX/TXT/MD toolbar buttons; PDF may raise a "Final check before download" dialog — click "Download anyway".
-- Combined-settings assertions: PDF narrow margin = leftmost pdftotext -bbox xMin 36pt; DOCX narrow = w:pgMar left/right 576 twips (864×36/54 by design, NOT 720); contact icons best proven by icons-on/off export pixel-diff of the header.
+- Combined-settings assertions: PDF narrow margin = leftmost pdftotext -bbox xMin 36pt; DOCX narrow = w:pgMar 576 twips pre-R317 (864×36/54 scaling); since R317 all four sides are exact `pageMarginOf×20` twips (720/1080/1440); contact icons best proven by icons-on/off export pixel-diff of the header.
 - Organizational ops (rename/move/folder rename/remove) must not change version updatedAt (resume.ts:1268).
 
 ## R317 — DOCX margin parity assertions
@@ -1002,3 +1002,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Resume DOCX margins are uniform `pageMarginOf×20` twips (720/1080/1440) with right tab stop at pageWidth−2·margin; letter DOCX (downloadLetterDocx) keeps fixed 864/720 — assert both when touching docx.ts.
 - Letter DOCX is triggered from /documents card buttons titled "Download {title} as DOCX" after seeding `honestcv.careerDocs` (`[{id,kind:'cover',title,text,updatedAt}]`); it uses the current draft as letterhead.
 - Deploys that only touch a lazy chunk keep the main index-*.js hash — verify via curl 200 on the named chunk (e.g. /assets/docx-*.js).
+
+## R318 — assistant quick tasks, tracked-job pane, auto-fit contract
+
+- Assistant quick-task labels are exactly "Improve my ATS score" / "Draft my summary" / "Suggest skills" / "Target my job" / "Find matching jobs"; only the first and "Target my job" are deterministic-local (others POST /api/ai/chat). Scope assertions to the aside containing the "Resume assistant" heading; reply bubbles are div.bg-muted/.bg-primary.rounded-lg. The with-target-job state requires `resume.jobDescription` — a jobPipeline entry alone yields the "haven't pasted a job description" reply.
+- Jobs tailoring report is an inline toggle button "Tailoring report"→"Hide tailoring report", not a dialog.
+- Auto-fit's contract is fewest pages at most readable settings — "Fits 2 pages" on an oversized resume is success, not failure; status text is in p[role=status]. Experience hide toggles: button[aria-label='Hide role N from resume'].
+- Lighthouse `/ai/` BP may flake to 0.96 via inspector-issues CSP entries for same-origin t.js//api/hit — rerun before reporting.

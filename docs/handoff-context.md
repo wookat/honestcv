@@ -703,3 +703,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据：R316 informational——Margins stepper 标注 0.5″/0.75″/1″，PDF 精确 36/54/72pt，但 DOCX 按历史默认比例缩放（864×scale/720×scale）实为 0.4″/0.6″/0.8″，标签失实。方案 docs/plan-r317-docx-margin-parity.md。
 - 实现：docx.ts 一处——marginTwips = pageMarginOf(resume)*20 四边同值（720/1080/1440），rightTab 自动跟随；默认 DOCX 版式有意变化（864/720→1080 四边），标签诚实优先于错误版式的字节稳定。信件 DOCX/PDF/TXT/MD/预览零改动。
 - 生产 QA（docx chunk docx-D5fKdjnB.js curl 200 核实，主 bundle 不变，零 AI）全绿零 P0–P3：三档真实下载 w:pgMar 四边精确 720/1080/1440、rightTab w:pos=12240−2·margin、es 标题+b/u runs 无 ** 泄漏、PDF 左缘仍 36.0pt、信件 DOCX 在 draft 为 wide 时仍固定 864/720（对抗性回归）、375 严格、暗色。截图 /home/ubuntu/screenshots/r317_*.png，取证 /home/ubuntu/qa/r317_dl/。录屏仍不可用。
+
+## R318 — SOP-10 四维差距探索审计（操作台/功能深度/落地页/架构）(2026-09-03)
+- 审计范围（生产 bundle index-Dze0BxET.js，系 R317 部署整体重建所有 chunk 所致，属预期；零 AI 配额）：①操作台——tracked-only 幽灵职位详情面完整（完整 JD/结构化 sections/tags/timeline/tailoring report 内联切换）、助手五快捷任务两态（有/无 target job）确定性本地回复；②功能深度——auto-fit+xl 字号+wide 边距（1 页可行→"Fits 1 page"，超载→如实 "Fits 2 pages" 系合同行为）、隐藏角色+真实 TXT 导出零泄漏、undo/redo 跨 summary 编辑精确往返；③落地页——Lighthouse `/` 0.90/1.0/1.0/1.0、/pricing 全 1.0、/ai BP 0.96 单次 flake（inspector-issues 对同源 t.js//api/hit 报 CSP，重跑 1.0，记为环境瞬态）、375/768/1920 无溢出、暗色；④架构——五路由零 console error/warn、sitemap 抽样 5×200、健康端点、404 品牌页、/s/不存在 id 优雅 gone 卡。全绿零 P0–P2，无代码改动。
+- IA 观察（informational）：首页无社会证明带/评分徽章（无真实数据不造假，维持缓议）。截图 /home/ubuntu/screenshots/r318_*.png，LH JSON /tmp/r318_lh_*.json。录屏仍不可用。
+
