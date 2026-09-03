@@ -44,6 +44,7 @@ import {
   experienceDateRange,
   familyOf,
   textInkOf,
+  resumeLanguageOf,
 } from '@/lib/resume'
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { domToMarks, hasInlineMarks, parseInlineMarks } from '@/lib/marks'
@@ -293,7 +294,7 @@ export function ResumePreview({
       style={{
         marginTop: sideLabels ? 0 : headingMarginTop,
         ...(sideLabels
-          ? { position: 'absolute' as const, left: 0, top: 0, width: 74, marginBottom: 0, overflowWrap: 'break-word' as const }
+          ? { position: 'absolute' as const, left: 0, top: 0, width: 74, marginBottom: 0, overflowWrap: 'break-word' as const, hyphens: 'auto' as const }
           : {}),
         color: tpl.accent,
         textTransform: tpl.headingCase === 'upper' ? 'uppercase' : undefined,
@@ -417,6 +418,7 @@ export function ResumePreview({
     return (
       <div
         data-resume-preview
+        lang={resumeLanguageOf(resume)}
         className="mx-auto w-full rounded-md border bg-white p-8 shadow-sm"
         style={{ fontFamily, color: textInkOf(resume), aspectRatio, overflow: 'hidden', ...contentStyle }}
         aria-label="Resume preview"
@@ -492,6 +494,7 @@ function PaginatedPages({
           key={i}
           ref={i === 0 ? frameRef : undefined}
           data-resume-preview={i === 0 ? '' : undefined}
+          lang={resumeLanguageOf(resume)}
           className="relative mx-auto w-full rounded-md border bg-white shadow-sm"
           style={{
             fontFamily,
@@ -584,6 +587,7 @@ function FlowPage({
     <div
       ref={frameRef}
       data-resume-preview
+      lang={resumeLanguageOf(resume)}
       className="relative mx-auto w-full rounded-md border bg-white shadow-sm"
       style={{
         fontFamily,

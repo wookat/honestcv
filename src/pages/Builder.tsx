@@ -38,6 +38,7 @@ import {
   Loader2,
   Lock,
   MessagesSquare,
+  Printer,
   Plus,
   Pencil,
   Sparkles,
@@ -1906,6 +1907,16 @@ export default function Builder() {
                       <Download className="size-3.5" /> {fmt.toUpperCase()}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    className="text-foreground hover:bg-accent flex min-h-10 w-full items-center gap-2 rounded-sm px-3 text-sm"
+                    onClick={() => {
+                      setDownloadMenuOpen(false)
+                      window.print()
+                    }}
+                  >
+                    <Printer className="size-3.5" /> Print
+                  </button>
                 </div>
               )}
             </div>
@@ -1944,6 +1955,15 @@ export default function Builder() {
               className="hidden 2xl:inline-flex"
             >
               {downloaded === 'md' ? <Check className="animate-pop text-emerald-600" /> : <Download />} MD
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => window.print()}
+              title="Print your resume or save it as PDF from the print dialog"
+              className="hidden 2xl:inline-flex"
+            >
+              <Printer /> Print
             </Button>
           </div>
         }

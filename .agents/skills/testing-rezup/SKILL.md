@@ -1074,3 +1074,42 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Usable letter sheet ≈ 979 CSS px with Chrome's default printToPDF margins. Tune boundary fixtures by measuring `document.documentElement.scrollHeight` under `Emulation.setEmulatedMedia media:print` (just under 979 must yield 1 page; over 979 legitimately flows to page 2). One 4-bullet job ≈ 96px, one bullet ≈ 18px in the classic template.
 - Distinguish a blank trailing page (0% painted pixels, no text via pdftotext) from legitimate overflow (skills/education lines on p2) before filing a defect.
 - Since R335 print CSS zeroes ancestor padding/margin/min-height and the sheet's bottom padding (print-only); on-screen page-window keeps its 32px bottom padding — assert both sides when regressing.
+
+## R336 lessons — share dialog automation & print-affordance QA
+
+- Create/revoke shares through the Builder "Share link" dialog — its
+  `select[aria-label="Link access"]` ("Can view" → createShareLink POST
+  /api/share with licenseHeaders/x-client-id; "No access" → revokeShareLink
+  DELETE with x-share-token); set the value via the HTMLSelectElement
+  prototype setter + change event. The share link persists at localStorage
+  `honestcv.shareLink` {id,token,url}. Raw fetch to POST /api/share needs an
+  `x-client-id` header (8–128 chars) or it 400s "Sharing is unavailable".
+- When asserting no-chrome strings in print PDFs, exclude words present in the
+  seeded fixture itself (e.g. a fixture name containing "Print").
+- Print buttons: Builder ≥2xl ghost "Print" after MD; <2xl download dropdown
+  has exactly PDF/DOCX/TXT/MD/Print rows; share page shows an outline Print
+  button only when status==='ready'. All call window.print() — stub it and
+  count calls; clicking must not hit download()/paywall.
+
+## R337 lessons — share-consumption audit & hyphenation QA
+
+- localStorage is per-origin and shared across tabs in one Chrome profile:
+  never call localStorage.clear() in a same-origin "reader" tab without
+  backing up author state first (preserve honestcv.shareLink {id,token,url},
+  honestcv.shared/subscribed/clientId). Custom slugs go via the share
+  dialog's #share-custom-slug input; "Publish latest version" re-POSTs with
+  the previous id/token and keeps the URL. Shared shells return
+  cache-control: no-store + x-robots-tag: noindex; dead/unknown ids are
+  HTTP 404 with the branded gone card.
+- Template headings are uppercased via CSS text-transform — assert
+  case-insensitively; use Range.getClientRects() to count heading line
+  wraps (element rects always report one rect).
+- Hyphenation QA: prove hyphenation via `pdftotext -layout` of printToPDF
+  (Chrome emits the hyphen glyph, e.g. an `EXPERIEN-` line); plain pdftotext
+  may rejoin words. Chromium skips en hyphenation for words starting with a
+  capital letter (es/fr/de capitalized words still hyphenate) — capitalized
+  English labels fall back to break-word bare splits.
+- CDP Page.captureScreenshot clip takes page coordinates: add
+  window.scrollX/Y to getBoundingClientRect and pass
+  captureBeyondViewport:true, else off-viewport clips come back blank.
+  Per-char Range rects are unreliable for locating hyphenation break offsets.
