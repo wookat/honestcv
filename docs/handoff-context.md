@@ -762,3 +762,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 审计（docs/plan-r332-import-chain-audit.md，生产 bundle index-Dz4zc-sU.js，零 AI）：Landing PDF handoff→R330/R331、Builder PDF/DOCX 导入→inline 编辑（R322/R323）→评分→PDF/DOCX 导出往返、LinkedIn 入口、scan-only/unsupported 负路径、375/暗色/基线全绿零 P0–P2。
 - 唯一 P3 当轮修复：EDUCATION 下无日期 honors 行（如 "GPA 3.8, Dean's List"）被 parseResumeText 当新条目（school="Dean's List"/degree="GPA 3.8"）。importText.ts 新 EDU_DETAIL_RE（gpa|dean's list|cum laude|hono(u)rs|minor|major|coursework|thesis|scholarship|award）+ education case 一分支：无日期且命中则折叠进 currentEdu.details（'; ' 连接，同 bullet 路径）。有日期行/普通 degree—school 行不受影响；行首 "Honors …" 仍走既有 CUSTOM_HEADING_RE 成 custom section（有意不动）。oracle .tmp-smoke/r332_oracle.ts 6/6。
 - 生产复验（bundle index-Co5ZMUoG.js，零 AI）全绿：PDF/DOCX 同 fixture 单条目 + details 正确、预览渲染、PDF/DOCX 导出往返、双 dated 条目仍拆分、多 cue 行折叠进前一条目、负路径 guard 文案精确、375 严格、暗色、基线还原。PR #552（QA 证据在评论），基于 #551——合并顺序 #549 → #550 → #551 → #552。
+
+## R333 — Builder 工具对话框关闭前确认，防丢未保存工作（2026-08-31）
+- 证据：源码确证 BundleToolDialog（Cover/Resignation/Interview）全部状态为纯 useState，onOpenChange 无条件关闭——面试多题 session（题目/长答案/逐题反馈）与已生成未保存的信件一次 Esc/遮罩点击/X 即静默清空，session report 不落任何存储；站内 /ats-checker 之后打字成本最高的面（R330 同标尺），与 R191 untrack、applyExample 既有 window.confirm 同模式。方案 docs/plan-r333-tool-dialog-close-guard.md。
+- 实现（仅 Builder.tsx BundleToolDialog）：unsavedWork = interview: session!==null || answer 非空；letters: result 已生成且 savedId===null（已保存自由关闭）；requestClose 以 window.confirm 包裹 onClose，接入 onOpenChange。无持久化、零 worker/schema 改动。
+- 生产 QA（bundle index-33HJ0prn.js，CDP Page.javascriptDialogOpening 断言真实 confirm，零 AI）全绿零 P0–P3：pristine 自由关闭、打字答案/进行中 session 三关闭路径均出精确文案确认且 Cancel 状态字节保留、mock 信件同守卫且「Save to My resumes」后自由关闭、kind 切换无确认、R327 变体选择器回归、375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r337_*.png。
+- 备忘：工具栏切换工具（kind 变化）不出确认——守卫只覆盖关闭路径，按设计；如需覆盖切换属候选轮。PR 基于 #552，合并顺序 #549 → #550 → #551 → #552 → 本 PR。
