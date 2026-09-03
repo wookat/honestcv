@@ -9904,7 +9904,23 @@ function TailorDialog({
     }
   }, [rows, jd, snapshot])
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (o) return
+        if (busy && !window.confirm('A tailoring request is still running — close and discard its results?'))
+          return
+        if (
+          !busy &&
+          pending.length > 0 &&
+          !window.confirm(
+            `Discard ${pending.length} tailoring suggestion${pending.length === 1 ? '' : 's'} you haven't reviewed yet? Getting them again will use another AI request.`
+          )
+        )
+          return
+        onClose()
+      }}
+    >
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Tailor to this job</DialogTitle>
