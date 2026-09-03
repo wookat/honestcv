@@ -655,6 +655,18 @@ export default function Jobs() {
           </div>
         )}
 
+        {tab === 'all' && loading && locFacets.length === 0 && (
+          <div aria-hidden="true" className="mt-3 flex animate-pulse flex-wrap items-center gap-1.5">
+            <span className="text-muted-foreground text-xs font-medium">Locations:</span>
+            {[112, 148, 96, 168, 128, 104, 144].map((w, i) => (
+              <span
+                key={i}
+                style={{ width: w }}
+                className="bg-muted inline-block min-h-10 rounded-md border sm:min-h-8"
+              />
+            ))}
+          </div>
+        )}
         {tab === 'all' && locFacets.length > 0 && (
           <div
             className="mt-3 flex flex-wrap items-center gap-1.5"
@@ -812,7 +824,18 @@ export default function Jobs() {
               </div>
             )}
             {loading ? (
-              <p className="text-muted-foreground p-4 text-sm">Loading jobs…</p>
+              <div aria-busy="true" className="animate-pulse">
+                <p className="sr-only">Loading jobs…</p>
+                {Array.from({ length: 8 }, (_, i) => (
+                  <div key={i} className="flex items-center gap-3 border-b p-4 last:border-b-0">
+                    <div className="bg-muted size-10 shrink-0 rounded" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="bg-muted h-4 w-3/4 rounded" />
+                      <div className="bg-muted h-3 w-1/2 rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : error ? (
               <p className="text-destructive p-4 text-sm">{error}</p>
             ) : shown.length === 0 ? (
