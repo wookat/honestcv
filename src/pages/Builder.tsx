@@ -6188,7 +6188,7 @@ export default function Builder() {
         {/* ---- Right: preview + ATS ---- */}
         <div
           id="preview"
-          className={`scroll-mt-16 space-y-4 lg:sticky lg:top-20 lg:self-start ${
+          className={`scroll-mt-16 space-y-4 lg:sticky lg:top-20 lg:self-start print:block ${
             mobilePane === 'preview' ? '' : 'hidden lg:block'
           }`}
         >

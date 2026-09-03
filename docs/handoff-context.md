@@ -791,3 +791,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现（仅 Builder.tsx BundleToolDialog）：unsavedWork = interview: session!==null || answer 非空；letters: result 已生成且 savedId===null（已保存自由关闭）；requestClose 以 window.confirm 包裹 onClose，接入 onOpenChange。无持久化、零 worker/schema 改动。
 - 生产 QA（bundle index-33HJ0prn.js，CDP Page.javascriptDialogOpening 断言真实 confirm，零 AI）全绿零 P0–P3：pristine 自由关闭、打字答案/进行中 session 三关闭路径均出精确文案确认且 Cancel 状态字节保留、mock 信件同守卫且「Save to My resumes」后自由关闭、kind 切换无确认、R327 变体选择器回归、375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r337_*.png。
 - 备忘：工具栏切换工具（kind 变化）不出确认——守卫只覆盖关闭路径，按设计；如需覆盖切换属候选轮。PR 基于 #552，合并顺序 #549 → #550 → #551 → #552 → 本 PR。
+
+## R334 — Builder 打印路径空白页修复（2026-08-31）
+- 证据：R334 探索审计（TXT/MD 导出、西语 setup、paywall、助手持久化、R333/R330 回归全绿）唯一 P1——/builder 的 Page.printToPDF 输出 6 页全白（pdftoppm 全白、pdftotext 空），尽管 src/index.css 有刻意的 @media print 样式（body * visibility:hidden + 预览 visible + position:absolute）。根因：visibility 方案保留全部 chrome 的布局空间（编辑列/ATS 卡/多页框/footer ≈6 页空白），且 absolute 预览与 lg:sticky 祖先 + 分页 transform/overflow 叠加后 Chrome 分页时无任何绘制。方案 docs/plan-r334-print-path.md。
+- 实现（仅 print CSS + 一处 className）：index.css 改为 display 裁切 `body *:not(:has([data-resume-preview])):not([data-resume-preview]):not([data-resume-preview] *){display:none!important}`（祖先保留、其余释放布局空间），保留既有预览 un-clip 规则；Builder.tsx #preview 列加 `print:block`（打印纸宽 < lg，`hidden lg:block` 在打印时恒 hidden；亦覆盖移动 edit-pane）。屏幕样式零改动。
+- 生产 QA（bundle index-DVohlhje.js / index-Iqe9JEwI.css，零 AI）全绿：桌面 pages 视图 1 页非空白（53% 绘制像素、marker 全中、零 chrome 字符串）、flow 视图同、14 岗位简历正确分页 2 页无空白第 3 页、375 edit-pane（屏幕上预览 display:none）打印仍非空白、print-media DOM、屏幕 sticky 布局不变、R333/R330/375 严格/暗色/基线全回归。截图 /home/ubuntu/screenshots/r339_*.png，PDF /home/ubuntu/qa/r339_*.pdf。
+- 新 P3 候选（R335+ 择用）：简历打印高度略超一页（~1021px doc height）时尾随一页全白（正文全在第 1 页）——疑似 absolute 预览周边 body margin/padding 溢出；真正的长简历分页正常。
+- 注意：本地 vite preview 重建后必须重启进程且禁用浏览器缓存（Chrome 会缓存 404/text/html 的 asset 响应导致白屏假象）。PR 基于 #554 收敛分支。

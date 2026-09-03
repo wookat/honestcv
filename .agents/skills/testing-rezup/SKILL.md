@@ -1062,3 +1062,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Builder tool dialog (cover/resignation/interview) guards close via window.confirm — assert via CDP Page.javascriptDialogOpening (Runtime.evaluate blocks while a JS dialog is open; send Esc with Input.dispatchKeyEvent and answer with Page.handleJavaScriptDialog). Save button label is "Save to My resumes" (flips to "Saved — update"), not "Save to documents".
 - Interview local path: "Instant questions" → "Practice all N" → #practice-answer → "Next question". Letter mocks: POST /api/ai/cover-letter | resignation-letter respond {text, freeRemaining}.
 - App writes transient honestcv.ev.* analytics keys (builder-start/export/ai-use) — remove them when restoring the 4-key localStorage baseline.
+
+## R334 — print path QA notes
+- Print QA must assert the actual Page.printToPDF output, not just emulated print-media DOM: pdftotext (seeded markers present + chrome strings absent), pdftoppm non-white pixel % per page, pdfinfo page count. Sticky Builder ancestors + the old visibility-based print CSS blanked the real PDF even when the print-media DOM looked visible.
+- Known P3: resumes whose print height is just over one sheet (~1021px doc height) emit a trailing fully-blank page (all text on p1); genuinely long resumes paginate fine.
+- Builder cover/interview Generate silently no-ops without resume.jobDescription — always seed a Target-job JD before letter/interview tool probes (Builder requires it).
+- Page.printToPDF replies can interleave with Fetch events on the CDP websocket — read until the matching command id.
+- After a local rebuild, restart `vite preview` and disable browser cache (Network.setCacheDisabled) — Chrome caches stale 404/text-html asset responses and the SPA white-screens.
