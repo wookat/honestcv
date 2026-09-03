@@ -989,3 +989,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Dashboard/Samples `Thumb` = `div[aria-hidden].pointer-events-none` with a scaled inner wrapper (`transform: scale(0.35)`, origin top-left, `width: calc((100% - 2rem)/0.35)`); assert visual scale via rect.width/offsetWidth ≈ 0.35 and unscaled computed font sizes (ResumePreview legitimately uses 10px meta text — don't treat <12px there as a scaling bug).
 - Sample star buttons: aria-label flips between `Save {role} sample` and `Remove {role} sample from saved` on toggle — re-find by the new label after clicking; saved slugs live in `honestcv.savedSamples`.
 - Lighthouse 13.x removed the standalone `font-size` audit — assert category scores + the failing-binary-audit list instead, or pin an older LH version for that audit.
+
+## R316 lessons — history fixtures, real downloads, combined-settings exports
+
+- History fixture snapshots MUST include an `id` field (`{id,at,data}`) or listResumeHistory silently drops them.
+- Real downloads: CDP `Page.setDownloadBehavior {behavior:'allow',downloadPath}` then click the PDF/DOCX/TXT/MD toolbar buttons; PDF may raise a "Final check before download" dialog — click "Download anyway".
+- Combined-settings assertions: PDF narrow margin = leftmost pdftotext -bbox xMin 36pt; DOCX narrow = w:pgMar left/right 576 twips (864×36/54 by design, NOT 720); contact icons best proven by icons-on/off export pixel-diff of the header.
+- Organizational ops (rename/move/folder rename/remove) must not change version updatedAt (resume.ts:1268).
