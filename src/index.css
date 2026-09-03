@@ -270,12 +270,10 @@
 }
 
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  [data-resume-preview],
-  [data-resume-preview] * {
-    visibility: visible;
+  /* display:none (not visibility) so non-resume chrome frees its layout
+     space instead of printing as blank pages; ancestors stay displayed */
+  body *:not(:has([data-resume-preview])):not([data-resume-preview]):not([data-resume-preview] *) {
+    display: none !important;
   }
   [data-resume-preview] {
     position: absolute;
