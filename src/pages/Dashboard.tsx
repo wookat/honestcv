@@ -1230,9 +1230,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     <button
                       type="button"
                       onClick={() => setPreviewExample(e)}
-                      aria-label={`Preview ${e.role} sample`}
                       className="focus-visible:ring-ring cursor-pointer rounded-t-md text-left focus-visible:ring-2 focus-visible:outline-none"
                     >
+                      <span className="sr-only">Preview {e.role} sample</span>
                       <Thumb resume={exampleToResume(e.person)} />
                     </button>
                     <button
