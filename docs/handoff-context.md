@@ -798,3 +798,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产 QA（bundle index-DVohlhje.js / index-Iqe9JEwI.css，零 AI）全绿：桌面 pages 视图 1 页非空白（53% 绘制像素、marker 全中、零 chrome 字符串）、flow 视图同、14 岗位简历正确分页 2 页无空白第 3 页、375 edit-pane（屏幕上预览 display:none）打印仍非空白、print-media DOM、屏幕 sticky 布局不变、R333/R330/375 严格/暗色/基线全回归。截图 /home/ubuntu/screenshots/r339_*.png，PDF /home/ubuntu/qa/r339_*.pdf。
 - 新 P3 候选（R335+ 择用）：简历打印高度略超一页（~1021px doc height）时尾随一页全白（正文全在第 1 页）——疑似 absolute 预览周边 body margin/padding 溢出；真正的长简历分页正常。
 - 注意：本地 vite preview 重建后必须重启进程且禁用浏览器缓存（Chrome 会缓存 404/text/html 的 asset 响应导致白屏假象）。PR 基于 #554 收敛分支。
+
+## R335 — 打印尾随空白页修复（近一页高度简历）(2026-09-03)
+- 证据：R334 遗留 P3——打印高度略超一页（~1021px）时输出 2 页且第 2 页全白。本地实测（vite preview + Page.printToPDF）定位两处纯空白尾随高度：①R334 的 :has() 方案保留祖先 display，但祖先屏幕 padding（如 Builder 主 grid pb-20=80px）计入打印高度；②纸张自身底部 padding（page-window 的 pagePad / flow 视图 p-8）在打印时与 printToPDF 自带页边距叠加。方案 docs/plan-r335-print-trailing-blank.md。
+- 实现（仅 print CSS，commit 4a4a4d2）：`body :has([data-resume-preview]){padding:0;margin:0;min-height:0!important}` + `[data-resume-preview],[data-resume-preview] [data-resume-page-window]{padding-bottom:0!important}`。屏幕样式零改动（page-window 屏幕上仍 32px 底 padding）。
+- 生产 QA（bundle index-Do6N4M9D.js / index-CiiamF1S.css，零 AI）全绿零 P0–P3：951px 近边界简历恰 1 页全文含 SKILLS（旧行为空白第 2 页）；987px/12 岗/18 岗内容真超一页时第 2/3 页均有真实绘制文本无全白页；R334 回归（默认/flow/375 edit-pane 打印非空白零 chrome）、屏幕 sticky/padding 不变、375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/pdf_r340_*.png，PDF /home/ubuntu/qa/r340_*.pdf。
+- 部署备忘：wrangler deploy 一次遇 Cloudflare 侧瞬态 503（deployments POST），重跑即成功——判定失败前先 cache-busted curl 核实线上 bundle。合并又现级联：#555 并入其 base 而 main 只吃了 #554，收敛 PR #556（含 R334+R335 + merge main）。

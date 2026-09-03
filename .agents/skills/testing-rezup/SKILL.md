@@ -1069,3 +1069,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Builder cover/interview Generate silently no-ops without resume.jobDescription — always seed a Target-job JD before letter/interview tool probes (Builder requires it).
 - Page.printToPDF replies can interleave with Fetch events on the CDP websocket — read until the matching command id.
 - After a local rebuild, restart `vite preview` and disable browser cache (Network.setCacheDisabled) — Chrome caches stale 404/text-html asset responses and the SPA white-screens.
+
+## R335 — print boundary QA notes
+- Usable letter sheet ≈ 979 CSS px with Chrome's default printToPDF margins. Tune boundary fixtures by measuring `document.documentElement.scrollHeight` under `Emulation.setEmulatedMedia media:print` (just under 979 must yield 1 page; over 979 legitimately flows to page 2). One 4-bullet job ≈ 96px, one bullet ≈ 18px in the classic template.
+- Distinguish a blank trailing page (0% painted pixels, no text via pdftotext) from legitimate overflow (skills/education lines on p2) before filing a defect.
+- Since R335 print CSS zeroes ancestor padding/margin/min-height and the sheet's bottom padding (print-only); on-screen page-window keeps its 32px bottom padding — assert both sides when regressing.
