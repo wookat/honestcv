@@ -459,6 +459,14 @@ app.get('/api/health', (c) => {
 })
 
 // AI rewrite: polish a summary / bullets / skills, optionally tailored to a JD.
+/** Rejected earlier versions the user asked to steer away from. */
+const sanitizeAvoid = (avoid: unknown): string[] =>
+  (Array.isArray(avoid) ? avoid : [])
+    .filter((t): t is string => typeof t === 'string')
+    .map((t) => t.trim().slice(0, 400))
+    .filter(Boolean)
+    .slice(0, 6)
+
 // Free users get FREE_AI_REWRITES per 30 days; any license = unlimited.
 app.post('/api/ai/rewrite', async (c) => {
   const body = await c.req
@@ -469,6 +477,7 @@ app.post('/api/ai/rewrite', async (c) => {
       jobDescription?: string
       variants?: boolean
       emphasis?: string
+      avoid?: string[]
       language?: string
     }>()
     .catch(() => ({}) as Record<string, never>)
@@ -505,6 +514,7 @@ app.post('/api/ai/rewrite', async (c) => {
   const wantVariants = body.variants === true && kind !== 'skills'
   const emphasis =
     body.emphasis === 'key-numbers' && kind === 'bullets' ? ('key-numbers' as const) : undefined
+  const avoid = sanitizeAvoid(body.avoid)
   const result = await callLlm(
     c.env,
     withOutputLanguage(
@@ -513,7 +523,8 @@ app.post('/api/ai/rewrite', async (c) => {
         text,
         { role: body.role, jobDescription: body.jobDescription },
         wantVariants,
-        emphasis
+        emphasis,
+        avoid
       ),
       body.language
     ),
@@ -543,6 +554,7 @@ app.post('/api/ai/summary-draft', async (c) => {
       role?: string
       highlights?: string[]
       jobDescription?: string
+      avoid?: string[]
       language?: string
     }>()
     .catch(() => ({}) as Record<string, never>)
@@ -584,7 +596,8 @@ app.post('/api/ai/summary-draft', async (c) => {
         resumeText,
         body.role ?? '',
         highlights,
-        typeof body.jobDescription === 'string' ? body.jobDescription : ''
+        typeof body.jobDescription === 'string' ? body.jobDescription : '',
+        sanitizeAvoid(body.avoid)
       ),
       body.language
     ),

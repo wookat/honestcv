@@ -49,7 +49,8 @@ export function buildRewriteMessages(
   text: string,
   context: { role?: string; jobDescription?: string },
   variants = false,
-  emphasis?: 'key-numbers'
+  emphasis?: 'key-numbers',
+  avoid: string[] = []
 ): ChatMessage[] {
   const jd = context.jobDescription?.trim()
   const target = context.role?.trim()
@@ -73,11 +74,19 @@ export function buildRewriteMessages(
     parts.push(
       `Tailor wording toward this job description (mirror its keywords where truthful):\n"""\n${jd.slice(0, 4000)}\n"""`
     )
+  if (avoid.length) parts.push(avoidPart(avoid))
   parts.push(`Input:\n"""\n${text.slice(0, 4000)}\n"""`)
   return [
     { role: 'system', content: SYSTEM_WRITER },
     { role: 'user', content: parts.join('\n\n') },
   ]
+}
+
+/** Rejected earlier versions the next round must steer clear of. */
+function avoidPart(avoid: string[]): string {
+  return `The user rejected these earlier versions — write clearly different takes and do not reuse their phrasing:\n${avoid
+    .map((t) => `"""\n${t}\n"""`)
+    .join('\n')}`
 }
 
 /**
@@ -88,7 +97,8 @@ export function buildSummaryDraftMessages(
   resumeText: string,
   role: string,
   highlights: string[] = [],
-  jobDescription = ''
+  jobDescription = '',
+  avoid: string[] = []
 ): ChatMessage[] {
   const parts = [`Target role: ${role || 'not specified'}`]
   if (highlights.length)
@@ -100,6 +110,7 @@ export function buildSummaryDraftMessages(
     parts.push(
       `Tailor wording toward this job description (mirror its keywords only where the resume truthfully supports them):\n"""\n${jd.slice(0, 4000)}\n"""`
     )
+  if (avoid.length) parts.push(avoidPart(avoid))
   parts.push(`Candidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`)
   return [
     {
