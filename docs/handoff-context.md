@@ -855,4 +855,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现（仅 Builder.tsx TailorDialog）：关闭前守卫——busy（请求在途）出 "A tailoring request is still running — close and discard its results?"；否则 pending>0 出 "Discard N tailoring suggestion(s) you haven't reviewed yet? Getting them again will use another AI request."（N=1 单数）。Cancel 状态字节保留；pristine/error/空建议/全部已审阅自由关闭。
 - 生产 QA（index-RooCYaJZ.js / Builder-CZLDBEAV.js，5 次 tailor POST 全 mock 零真实 AI）全绿零 P0–P3：三关闭路径精确文案、Cancel 字节保留、单数文案、busy 变体（Cancel 后请求继续、迟到 fulfill 正常渲染）、四条免确认路径、R340 回焦/R333/R343 回归、375 严格、暗色、基线还原。
 - 注意：index bundle 名跨部署会变（旧名 404）——复核时永远从 HTML 重新解析 index-*.js，再查其中 Builder chunk 名。
-||||||| 138caed
+
+## R345 — 编辑历史按简历副本隔离 (2026-09-03)
+- 探索审计（编辑历史/undo-redo/版本链，生产 index-RooCYaJZ.js → Builder-CZLDBEAV.js，零真实 AI）确证唯一 P2：`honestcv.resumeHistory` 是全局单列表，Copy-B 打开 History 对话框会列出 Copy-A/改副本前草稿的 checkpoint 且不可分辨，Restore 会经 syncActiveVersion 静默改写 Copy-B 的已存数据（缓解：restore 前强制 checkpoint + 工具栏 Undo 可回退，均已实证）。其余全链绿：checkpoint 合并/字节级还原保真/restore 可逆/redo 失效/R321 跨标签/键盘/375/暗色。
+- 修复（docs/plan-r345-history-per-copy-scoping.md）：ResumeSnapshot 增 `versionId?: string|null`（捕获时 getActiveVersionId()，null=未链接草稿，legacy 缺字段视为 null）；recordResumeSnapshot 的去重/10 分钟间隔检查改为同 scope 内比较（切副本不互相压制）；HistoryDialog 只列 active scope 的 checkpoint。全局 15 槽上限保留（重度编辑某副本仍会挤掉他副本条目——informational 已接受）。oracle .tmp-smoke/r345_oracle.ts（npx tsx --tsconfig tsconfig.app.json）11/11；tsc/eslint/build 绿。
+- 遗留 P3（设计观察，未改）：会话首个 pre-edit 状态从不被 checkpoint（首个 checkpoint 记录在第一次保存后）；工具栏 Undo 在标签存活期覆盖该场景。
