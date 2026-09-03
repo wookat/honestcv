@@ -1180,3 +1180,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Template gallery "Modern sans/Minimal" chips are filters, not templates — click a "Jordan Reyes" preview card to change templateId; photo upload opens an "Adjust photo" crop dialog requiring "Save photo" before anything persists; DOCX/PDF downloads pass through a "Final check before download" dialog ("Download anyway") and end with a share-nudge dialog; Browser.setDownloadBehavior works for both formats; hero TXT upload routes to /ats-checker not /builder.
 - Builder's paste-import opener is the button labeled "Import resume (PDF/DOCX/text)" — a generic /Import/ text match hits other buttons (e.g. Resources panel) first.
 - Since R348: network-level AI fetch failure shows "You appear to be offline — check your connection and try again." (server error/402/429/5xx copy unchanged); paste import extracts 7-digit phones and comma-less "City ST" when ST is a real USPS code.
+
+## R349 Resume Center pull notes
+- Clicking "Import from Resume Center" first fires GET /api/za/session (mock 401 for signed-out) before GET https://resume.zalize.com/api/export/:id — arm Fetch on both patterns; mocked export responses need schemaVersion:1 + a basics object or the client rejects with "Unexpected data format".
+- In the backgrounded QA tab, Radix dialog exit animations can linger (data-state="closed" element stays in DOM for seconds) — assert data-state, not element presence.

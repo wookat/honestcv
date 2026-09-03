@@ -879,3 +879,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 确证 P3 两项当轮修复：①离线/断网时 AI 动作裸显浏览器串 "Failed to fetch."——api.ts post() 的 fetch 包 try/catch，网络级失败抛 "You appear to be offline — check your connection and try again."（服务端 error、402、R347 429/5xx 文案全部不变）；②管道分隔联系行 `jane@example.com | 555-0100 | Austin TX` 只导入 email——importText.ts PHONE_RE 内段 {7,}→{5,}（7 位电话可匹配，findPhone 仍拒年份区间与 <7 位数字）+ 头部 location 扫描新增无逗号 "City ST"（仅当尾 token 是真实 USPS 州码白名单，"Engineer II" 仍拒；"City, ST"/"London, UK" 逗号形式不变）。
 - oracle .tmp-smoke/r348_oracle.ts 9/9；tsc/eslint/build 绿。生产复验（index-CRTRAXjB.js / api-BPvYnDpq.js / importText-BnBP3Cg7.js）全绿零 P0–P3：离线错误精确文案+按钮恢复+零 dispatch、429 透传/空 body 回退回归、导入 fixture A/B/C/D 全过、375 暗色、基线还原。截图 /home/ubuntu/screenshots/r348fix_*.png。
 - Informational 已记录未改：Rezi 多步 onboarding wizard vs 我们的 checklist（深度差距，需单独设计轮）；粘贴导入对话框两个同名 Import 按钮（外层禁用）；硬配额满时简历自身写入失败未强制触发。
+
+## R349 — 导入对话框备用来源审计 + 重复 Import 标签消歧 (2026-08-31)
+- 闭环 R348 informational：导入对话框内 Resume Center 拉取按钮与粘贴按钮同名 "Import"（视觉与读屏均混淆）。仅 Builder.tsx 一行：改为 "Import from Resume Center"（busy 文案不变），零行为改动。方案 docs/plan-r349-import-dialog-sources.md。
+- 同轮补齐该对话框备用来源的首次生产 QA（index-DpZA_LCv.js / Builder-wN6OdgtK.js，全部 /api/za/session 与 resume.zalize.com/api/export/:id 拦截于 dispatch 前，零真实请求/AI/分享）：完整 share 链接与裸 ID 拉取→GET /api/export/:id→草稿整体替换+activeVersionId 解链+对话框关闭+输入清空；垃圾输入/404/空白文件三条负路径文案精确且对话框保持打开；R348 粘贴导入回归；375 暗色；基线还原。全绿零新 P0–P3。
+- Informational：点击 RC 按钮总会先发一次 GET /api/za/session 探测（含纯 share-ID 路径）——非缺陷已记录。
