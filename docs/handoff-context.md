@@ -741,3 +741,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 审计范围（方案 docs/plan-r328-sop10-audit.md，生产 bundle index-K-Eo0Uxr.js，零 AI 配额）：①操作台——文件夹/复制/移动/职位定向副本 + R320 删除撤销跨文件夹互操作（id/folder/位置/时间戳语义一致还原）、R197 rename/move 不动 updatedAt、/documents R326 ?kind= + R305 示例 + R304 签名信共存、WorkspaceNav aria-current 四路由（/builder 无 nav 属设计）；②功能深度——tailoring 黄金路径全链（存职位→定向副本入 Job applications 文件夹→R252 助手状态实时 7%→10%→tailoring report→Applied→interview bridge 只出 R325 过滤后技能词）、组合导出（auto-fit+narrow+es：PDF xMin 36.000pt、DOCX pgMar 全 720、西语标题）；③落地页——四页（/、两 letter examples、/interview-prep/）Lighthouse a11y/bp/SEO 全 1.0、23 条 nav/footer 内链全 200 零跳转、375/768/1920 无溢出；④架构——七路由零 console 错误、sitemap 抽样 200、health ok、404 页、share 创建/无痕只读/撤销。全绿零 P0–P2，docs-only。
 - 差距候选（P3，R329+ 择用）：(i) 撤销后的 /s/<id> 返回 HTTP 200 软 404（内容层正确显示 no longer available，SEO 层面爬虫视角是 soft-404）；(ii) /jobs tailoring report 关键词 chips 仍含职称/泛词（ATS/matchReport 宇宙，R325 有意未动——是否对展示层套 coachableKeywords 待议）。informational：undo 还原对象 JSON 键序与原文不同（语义等价，无用户可见影响）。
 - 截图 /home/ubuntu/screenshots/r331_*.png，Lighthouse JSON /home/ubuntu/qa/r331_lh_*.json，导出取证 /home/ubuntu/qa/dl_r331/。录屏仍不可用（enigo）。
+
+## R329 — 撤销/未知分享链接返回真实 HTTP 404（修 R328 差距候选 i）(2026-08-31)
+- 改动（仅 worker/index.ts notFound）：合法形状的 /s/<id> 增加一次 KV `share:<id>` 存在性检查——存在 → 200，撤销/过期/从不存在 → 404；SPA shell 两种状态都照常返回，读者仍看到品牌化「no longer available」卡片；noindex + no-store 头不变。方案 docs/plan-r329-share-hard-404.md。
+- 生产复验（testing agent，零 AI）：真实分享创建 → 200 + 只读快照；UI 撤销 → 同 URL 404 且卡片照常渲染、两头保留；未知合法形状 id → 404 + 卡片；畸形 id → 404；/documents 对照 200；375 严格 scrollWidth=375、暗色、基线还原。截图 /home/ubuntu/screenshots/r332_*.png。
+- bundle 不变（worker-only），R328 差距候选仅剩 (ii) /jobs tailoring-report chips 泛词展示过滤待议。
