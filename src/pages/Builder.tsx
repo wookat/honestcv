@@ -292,6 +292,9 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
   useEffect(() => {
     if (first.current) {
       first.current = false
+      // Checkpoint the pre-edit baseline so history can always reach the
+      // state the session started from (dedup/10-min gap prevent spam).
+      recordResumeSnapshot(resume)
       return
     }
     setState('saving')
