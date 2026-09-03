@@ -172,7 +172,10 @@ function Thumb({ resume }: { resume: Resume }) {
       aria-hidden
       className="pointer-events-none relative h-44 select-none overflow-hidden rounded-t-md border-b bg-slate-100"
     >
-      <div className="absolute inset-x-4 top-3 origin-top" style={{ zoom: 0.35 }}>
+      <div
+        className="absolute top-3 left-4 origin-top-left"
+        style={{ width: 'calc((100% - 2rem) / 0.35)', transform: 'scale(0.35)' }}
+      >
         <ResumePreview resume={visibleResume(resume)} />
       </div>
     </div>
