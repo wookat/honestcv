@@ -1090,3 +1090,26 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
   has exactly PDF/DOCX/TXT/MD/Print rows; share page shows an outline Print
   button only when status==='ready'. All call window.print() — stub it and
   count calls; clicking must not hit download()/paywall.
+
+## R337 lessons — share-consumption audit & hyphenation QA
+
+- localStorage is per-origin and shared across tabs in one Chrome profile:
+  never call localStorage.clear() in a same-origin "reader" tab without
+  backing up author state first (preserve honestcv.shareLink {id,token,url},
+  honestcv.shared/subscribed/clientId). Custom slugs go via the share
+  dialog's #share-custom-slug input; "Publish latest version" re-POSTs with
+  the previous id/token and keeps the URL. Shared shells return
+  cache-control: no-store + x-robots-tag: noindex; dead/unknown ids are
+  HTTP 404 with the branded gone card.
+- Template headings are uppercased via CSS text-transform — assert
+  case-insensitively; use Range.getClientRects() to count heading line
+  wraps (element rects always report one rect).
+- Hyphenation QA: prove hyphenation via `pdftotext -layout` of printToPDF
+  (Chrome emits the hyphen glyph, e.g. an `EXPERIEN-` line); plain pdftotext
+  may rejoin words. Chromium skips en hyphenation for words starting with a
+  capital letter (es/fr/de capitalized words still hyphenate) — capitalized
+  English labels fall back to break-word bare splits.
+- CDP Page.captureScreenshot clip takes page coordinates: add
+  window.scrollX/Y to getBoundingClientRect and pass
+  captureBeyondViewport:true, else off-viewport clips come back blank.
+  Per-char Range rects are unreliable for locating hyphenation break offsets.

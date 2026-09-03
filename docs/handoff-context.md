@@ -810,3 +810,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现（仅 UI，commit 43b36c4）：Builder 工具栏 ≥2xl 增 ghost「Print」按钮（MD 之后）、<2xl 下载下拉菜单末尾增「Print」行；SharedResume header 在 ready 时增 outline「Print」按钮。均 window.print()，零 worker/print-CSS/导出改动，打印免费不走 paywall。
 - 生产 QA（bundle index-DZJBqFg9.js，零 AI）全绿零 P0–P3：宽/1280/375 三视口按钮与菜单行为、window.print 恰好一次、无 download/paywall 触发；真实分享 ready 有按钮、gone 无按钮；打印输出回归（Builder+分享页各 1 页零 chrome 无空白尾页）；375 严格、暗色、基线还原、测试分享已撤销。loading 态不渲染按钮仅代码级确认（生产响应过快无法捕捉运行时 loading）。
 - 备忘：raw fetch POST /api/share 需 x-client-id 头（8–128 字符）否则 400。
+
+## R337 — 分享消费链审计 + Sidebar 侧栏标题断词修复 (2026-09-03)
+- 审计（docs/plan-r337-share-consumption-audit.md，生产 bundle index-DZJBqFg9.js，零 AI）：分享创建（随机 id + 自定义 slug）、新读者保真（模板/西语标题/照片/marks/自定义节/窄边距/快照日期/R336 Print 按钮）、no-store/noindex 头、分享页 printToPDF、Publish latest 传播（同 URL）、撤销硬 404、未知 id 404、助手/JD 刷新持久、375 光暗/1920 全绿零 P0–P2。
+- 唯一 P3 当轮修复（docs/plan-r337-sidebar-heading-hyphens.md，commit 7f6e8e5）：Sidebar 模板 74px 侧栏里长标题（如西语 EXPERIENCIA）被 overflow-wrap:break-word 裸切成 EXPERIENCI/A（预览+分享页+打印均现）。修复仅 ResumePreview.tsx：sideLabels 标题加 hyphens:auto（break-word 保留兜底），三个 data-resume-preview 根加 lang={resumeLanguageOf(resume)}（en/es/fr/de/pt 连字词典）；text-transform 大写不影响按源文本连字。零 worker/导出/print-CSS 改动。
+- 生产复验（bundle index-Po8Olc3O.js，零 AI）全绿：Builder+分享页 lang="es"/hyphens:auto、printToPDF pdftotext 出 EXPERIEN-/CIA、HABILIDA-/DES（旧 EXPERIENCI\nA 消失）、无尾随空白页、撤销 404、Circuit 对照不变、375 严格光暗、基线还原。
+- 残留 P3 候选（先例存在、非本轮回归）：英文大写开头词 Chromium 不做 en 连字——CERTIFICATIONS 仍裸切 CERTIFICATI/ONS（无正文列溢出，右缘 64<86px）。候选修法：sideLabels 源文本转小写（大写仍由 text-transform）或软连字——但标题是 InlineText 可编辑内容，改显示文本可能污染提交往返，需先论证。
+- QA 教训：读者标签页 localStorage.clear() 清掉了同源作者态（shared/subscribed/clientId 原值不可恢复，已重建基线）。
