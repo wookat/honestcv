@@ -919,6 +919,7 @@ export default function Builder() {
   }
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
   const finalCheckFmt = useRef<'pdf' | 'docx' | 'txt' | 'md' | null>(null)
+  const finalCheckAcked = useRef<string | null>(null)
   const freeMode = useFreeMode()
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
@@ -1699,7 +1700,11 @@ export default function Builder() {
         return
       }
     }
-    if (!skipFinalCheck && finalCheckIssues.length > 0) {
+    if (
+      !skipFinalCheck &&
+      finalCheckIssues.length > 0 &&
+      finalCheckAcked.current !== finalCheckIssues.join('\n')
+    ) {
       finalCheckFmt.current = fmt
       setFinalCheckOpen(true)
       return
@@ -8305,6 +8310,7 @@ export default function Builder() {
               onClick={() => {
                 const fmt = finalCheckFmt.current
                 finalCheckFmt.current = null
+                finalCheckAcked.current = finalCheckIssues.join('\n')
                 setFinalCheckOpen(false)
                 if (fmt) void download(fmt, true)
               }}

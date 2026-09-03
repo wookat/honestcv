@@ -838,3 +838,22 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
   scrollWidth<=innerWidth can pass vacuously — assert scrollWidth<=375 explicitly.
 - Badge UI component has `whitespace-nowrap` by default — long badge labels overflow narrow
   viewports unless the instance overrides with whitespace-normal.
+
+## R296 notes — final-check ack + fixture pitfalls
+- Export "Final check before download" dialog is deduped per session by the exact
+  `finalCheckIssues.join('\n')` signature after "Download anyway" (Builder.tsx ref, not
+  persisted; "Keep editing" doesn't ack; reload resets). To re-trigger it, change the
+  issue list (e.g. add another `[...]` bracket placeholder).
+- `resume.skills` is a newline-joined STRING; "Label: item, item" lines satisfy the
+  skills-grouping check. Arrays get coerced and fail.
+- A fully issue-free resume needs: phone in contact, terminal periods on every bullet,
+  `location` on involvement/education entries, categorized skills, ≥400 words, and the
+  Auto-fit button to satisfy the 1-page check (word-count and page-count pull opposite
+  ways otherwise).
+- Radix dialogs are position:fixed → `offsetParent` is null; never filter dialog DOM
+  queries by offsetParent (use `data-state="open"`).
+- At 375px the export format buttons are behind the header button with aria-label
+  "Download your resume" (opens a PDF/DOCX/TXT/MD menu).
+- Post-download share dialog ("Resume downloaded — good luck out there") only fires when
+  `honestcv.shared` is unset; with `honestcv.subscribed` set the email gate is skipped, so
+  removing `shared` alone is the clean way to test it.
