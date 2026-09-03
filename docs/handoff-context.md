@@ -715,3 +715,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 差距（R322 审计确证）：预览中教育 details 是唯一无 inline 控件的正文行（复合行 details · Minor in X · GPA: Y 整行纯文本）。方案 docs/plan-r323-inline-education-details.md。
 - 实现：ResumePreview.tsx details 段为 InlineText（提交 education[x].details，空提交=清除，R322 remount 下安全）；新 resume.ts educationDetailSuffix() 组装尾段（oracle 7/7 与 educationDetailLine 字节等价）；details 为空时整行保持纯文本；导出/ATS 用的 educationDetailLine 不动。
 - tsc/eslint/build 绿。生产 QA（bundle index-AdxSjhBj.js，零 AI）全绿零 P0–P3：行组成字节一致且仅 details 在 span 内、编辑往返存储+编辑卡、真实按键清空无崩溃回退纯文本、details-only/无 details 两向、**bold** 标记保留、375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r324_*.png。
+
+## R324 — /samples 筛选状态入 URL (2026-09-03)
+- 差距（Rezi changelog 2026-08 W4「refresh the page without losing your place」+ 源码/生产确证）：Sample library 的搜索/行业 chip/Saved 开关均为纯 useState，/samples 刷新或分享即丢上下文（R312 已为 /jobs 修过同类问题）。方案 docs/plan-r324-samples-url-state.md。
+- 实现：Dashboard.tsx 仅 /samples 路由——mount 时从 URL 种子 ?q/?sector/?saved=1，replaceState 回写（默认值省略保持素 URL）；非法 ?sector 经派生 activeSector 回退 All（chips/过滤/回写统一用 activeSector）；/dashboard 内嵌 samples 区不变（锚点语义保留）。已知副作用：/samples 上未知 query 参数（UTM/cache-buster）会在 mount 后被清掉（回写全量重建），记为 informational。
+- tsc/eslint/build 绿。生产 QA（bundle index-hppBh2DS.js，零 AI）全绿零 P0–P3：三筛选→URL→硬刷新/新标签深链全还原、非法 sector 回退且 URL 自清、清空回素 URL、/dashboard ?keep=1#samples 原样不动、375 严格、暗色、savedSamples/主题基线还原。截图 /home/ubuntu/screenshots/r325_*.png。
