@@ -28,8 +28,8 @@ interface Props {
 }
 
 /**
- * Square crop editor for the profile photo: zoom slider plus drag to
- * reposition. The default state (centered, 1x) matches the automatic
+ * Square crop editor for the profile photo: zoom slider plus drag or
+ * arrow keys to reposition. The default state (centered, 1x) matches the automatic
  * center crop. Save renders the chosen source rect to a 256x256 JPEG.
  */
 export function PhotoCropDialog({ draft, onSave, onCancel }: Props) {
@@ -76,13 +76,31 @@ export function PhotoCropDialog({ draft, onSave, onCancel }: Props) {
       <DialogContent className="max-w-xs sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Adjust photo</DialogTitle>
-          <DialogDescription>Drag to reposition, zoom to crop tighter.</DialogDescription>
+          <DialogDescription>
+            Drag or use arrow keys to reposition, zoom to crop tighter.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-3">
           <div
-            className="relative size-48 touch-none overflow-hidden rounded border bg-slate-200 select-none"
+            className="focus-visible:ring-ring relative size-48 touch-none overflow-hidden rounded border bg-slate-200 select-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             role="application"
-            aria-label="Photo crop area — drag to reposition"
+            aria-label="Photo crop area — drag or use arrow keys to reposition"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              const dir = {
+                ArrowLeft: [-1, 0],
+                ArrowRight: [1, 0],
+                ArrowUp: [0, -1],
+                ArrowDown: [0, 1],
+              }[e.key]
+              if (!dir) return
+              e.preventDefault()
+              const step = (e.shiftKey ? 32 : 8) / s
+              setOffset({
+                x: clamp(cx + dir[0] * step, maxX),
+                y: clamp(cy + dir[1] * step, maxY),
+              })
+            }}
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId)
               dragRef.current = { startX: e.clientX, startY: e.clientY, ox: cx, oy: cy }
