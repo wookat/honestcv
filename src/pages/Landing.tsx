@@ -433,7 +433,8 @@ export default function Landing() {
         action={
           <Button asChild size="sm">
             <Link to="/builder">
-              Build my resume <ArrowRight />
+              <span className="hidden lg:inline">Build my resume</span>
+              <span className="lg:hidden">Builder</span> <ArrowRight />
             </Link>
           </Button>
         }

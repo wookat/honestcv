@@ -1780,15 +1780,16 @@ export default function Builder() {
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">
       <SiteHeader
+        wideAction
         action={
           <div className="flex items-center gap-1 sm:gap-2">
             {unlocked ? (
-              <Badge variant="secondary" className="hidden gap-1 sm:flex">
+              <Badge variant="secondary" className="hidden gap-1 xl:flex">
                 <Unlock className="size-3" />
                 {hasBundlePlan ? 'Career Bundle' : 'Unlocked'}
               </Badge>
             ) : freeMode ? (
-              <Badge variant="secondary" className="hidden gap-1 sm:flex">
+              <Badge variant="secondary" className="hidden gap-1 xl:flex">
                 <Unlock className="size-3" /> Free during beta
               </Badge>
             ) : (
@@ -1796,7 +1797,7 @@ export default function Builder() {
                 <Lock className="size-3.5" /> Unlock — $9.99 once
               </Button>
             )}
-            <span className="text-muted-foreground hidden text-xs sm:inline">
+            <span className="text-muted-foreground hidden text-xs xl:inline">
               {saveState === 'saving' ? 'Saving…' : 'Saved'}
             </span>
             <Button
@@ -1805,7 +1806,7 @@ export default function Builder() {
               onClick={undo}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
-              className="hidden min-h-10 min-w-10 sm:inline-flex sm:min-h-8 sm:min-w-8"
+              className="hidden min-h-10 min-w-10 lg:inline-flex lg:min-h-8 lg:min-w-8"
             >
               <Undo2 className="size-3.5" />
             </Button>
@@ -1815,7 +1816,7 @@ export default function Builder() {
               onClick={redo}
               disabled={!canRedo}
               title="Redo (Ctrl+Shift+Z)"
-              className="hidden min-h-10 min-w-10 sm:inline-flex sm:min-h-8 sm:min-w-8"
+              className="hidden min-h-10 min-w-10 lg:inline-flex lg:min-h-8 lg:min-w-8"
             >
               <Redo2 className="size-3.5" />
             </Button>
