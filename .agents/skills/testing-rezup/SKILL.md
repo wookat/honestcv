@@ -954,3 +954,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Skeleton = `[aria-busy=true].animate-pulse` (8 rows, sr-only 'Loading jobs…') + aria-hidden 'Locations:' pill row (7 pills), both gone after load.
 - CanonicalSync (App.tsx) sets `link[rel=canonical]` to origin+pathname on every route; static index.html carries only the homepage canonical, so verify SPA nav with a persisted `window` marker via `aside a` (WorkspaceNav router Links) — some header anchors cause full loads.
 - Visiting /builder creates an analytics key `honestcv.ev.builder-start` — expect/strip it when comparing localStorage baselines.
+
+## R310 lessons (sample thumbnail a11y)
+- Sample thumbnail preview buttons have no aria-label — select them via `button > span.sr-only` starting with "Preview "; verify computed accessible names with CDP `Accessibility.getPartialAXTree` (DOM.enable + Accessibility.enable + DOM.requestNode from a Runtime objectId in the same session).
+- Star save buttons keep `aria-label="Save {role} sample"` + aria-pressed.
+- sr-only visual check: getBoundingClientRect ≤1×1px plus screenshot inspection.

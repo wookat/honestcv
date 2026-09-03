@@ -663,3 +663,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：①Jobs.tsx——loading 时结果卡内渲染 8 行脉冲骨架（logo 方块+两条 bar，aria-busy + sr-only「Loading jobs…」），卡上方渲染 aria-hidden「Locations:」7 枚占位 pill（仅 loading && locFacets 空时）；②App.tsx——新 CanonicalSync 组件（useLocation effect）把 link[rel=canonical] 设为 https://cv.zalize.com + pathname。过滤/排序/facets/datalist 语义零改动，零 worker/schema 改动。
 - 部署后 Lighthouse 复测：/jobs CLS 0.289→0.009、性能 0.69→0.84、SEO 0.92→1.0；/builder canonical 过、SEO 1.0。
 - 生产 QA（bundle index-B4guyawe.js，curl 核实，零 AI 配额）全绿零 P0–P3：CDP Fetch 挂起真实 /api/jobs/search 捕获骨架态（8 行+7 pill+sr-only 文案）、放行后骨架消失 20 行真实列表+真实 chips、R308 datalist/facet chips/tabs/详情面回归、六路由 canonical===origin+pathname 且 window marker 证实 SPA 导航时更新、375 严格 scrollWidth=375（骨架态与加载后）、暗色骨架可辨、localStorage/主题还原。截图 /home/ubuntu/screenshots/r309_*.png。注意：访问 /builder 会写 honestcv.ev.builder-start 分析键，对比 localStorage 基线时须剔除。
+
+## R310 — Sample 缩略图按钮 WCAG 2.5.3 label-in-name 修复 (2026-09-03)
+- 证据：R309 基线 Lighthouse（生产 /dashboard）label-content-name-mismatch 得 0，9 个失败节点全部是 Sample library 缩略图 `<button aria-label="Preview {role} sample">`（可见文本=缩略图内迷你简历文字，aria-label 完全覆盖导致语音输入用户无法按可见文本激活）；/samples 同组件同失败。方案 docs/plan-r310-sample-thumb-a11y-name.md。
+- 实现：仅 Dashboard.tsx 一处——去掉该按钮的 aria-label，改为按钮内 `<span class="sr-only">Preview {role} sample</span>`（Thumb 子树本就 aria-hidden，可访问名逐字节不变）。
+- 复测（生产）：/dashboard 与 /samples mismatch 审计 → notApplicable，a11y 1.0。best-practices 仍 0.96：剩余唯一失败为 font-size（缩略图 zoom 0.35 迷你简历文字 <12px，占页面文本大头）——属缩略图固有 DOM 文本，正解需改为图片/canvas 渲染，记为候选轮。
+- 生产 QA（bundle index-B-uTEF4E.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：9 卡按钮无 aria-label、sr-only 文案精确、CDP AX tree 计算名 `Preview {role} sample`、预览对话框开合回归、星标按钮 aria-label/aria-pressed 不变、375 严格 scrollWidth=375、暗色正常、localStorage/主题还原。截图 /home/ubuntu/screenshots/r310_*.png。
