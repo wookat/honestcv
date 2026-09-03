@@ -331,6 +331,26 @@ export function sessionReport(
   return lines.join('\n')
 }
 
+/** Generic job-title/seniority words that read as nonsense in a skill question. */
+const JOB_TITLE_WORDS = new Set([
+  'software', 'engineer', 'engineers', 'engineering', 'developer', 'developers',
+  'development', 'manager', 'managers', 'management', 'senior', 'junior', 'lead',
+  'staff', 'principal', 'analyst', 'analysts', 'specialist', 'associate',
+  'consultant', 'intern', 'architect', 'sr', 'jr', 'level', 'remote', 'hybrid',
+  'onsite', 'full-time', 'part-time', 'contract', 'role', 'position', 'job',
+  'team', 'company', 'experience', 'years',
+])
+
+/** JD keywords that name a concrete skill/tool rather than the job title itself. */
+function skillLikeKeywords(resume: Resume, keywords: string[]): string[] {
+  const roleTokens = new Set(
+    resume.targetRole.toLowerCase().split(/[^a-z0-9+#]+/).filter(Boolean)
+  )
+  return keywords.filter(
+    (kw) => kw.includes(' ') || (!JOB_TITLE_WORDS.has(kw) && !roleTokens.has(kw))
+  )
+}
+
 /** Role-specific practice questions built from the resume and target job — no AI, no network. */
 export function localInterviewQuestions(resume: Resume): string[] {
   const role = resume.targetRole.trim()
@@ -349,9 +369,11 @@ export function localInterviewQuestions(resume: Resume): string[] {
   if (jd.trim()) {
     const keywords = extractKeywords(jd)
     const high = highPriorityKeywords(jd, keywords)
-    for (const kw of keywords.filter((k) => high.has(k)).slice(0, 2)) {
+    const skills = skillLikeKeywords(resume, keywords)
+    const picks = [...skills.filter((k) => high.has(k)), ...skills.filter((k) => !high.has(k))]
+    for (const kw of picks.slice(0, 2)) {
       questions.push(
-        `This role emphasizes ${kw}. Describe a specific project where you used it and what the outcome was.`
+        `This role emphasizes ${kw}. Describe a specific project where you used ${kw} and what the outcome was.`
       )
     }
   }

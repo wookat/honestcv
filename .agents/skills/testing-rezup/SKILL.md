@@ -891,3 +891,11 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Known pre-existing P3: /ats-checker overflows at 768–~834 (nowrap "Build my resume"
   header CTA + md nav); passes below md because nav hides. Fixed in R297c: the CTA
   shows short "Builder" text below lg on /ats-checker and the landing page.
+
+## R298 notes
+- `wait_paused()` in r283_lib returns the RAW CDP event — request/requestId live under `p['params']`, not top-level. Unwrap before `Fetch.fulfillRequest`.
+- Interview prep dialog (Builder → "Interview prep"): question is an `<input>` (placeholder "e.g. Tell me about a time you led a difficult project"); typed answers render local instant analysis inline under the answer ("Practice score … Instant · local — no AI used"), answer is a `<textarea>`; "Get AI feedback" POSTs `/api/ai/interview-feedback` (mock with `{"text":…, "freeRemaining":41}`); empty question shows inline "Type the interview question first." "Start from a template" and "Instant questions" are fully local (no network).
+- "Career documents" sidebar link is an anchor to `/dashboard#documents`, not a separate route.
+- LinkedIn import exists via the generic "Import resume" path: a LinkedIn Save-to-PDF export is auto-detected (looksLikeLinkedInExport) and mapped section-by-section; there is no dedicated "LinkedIn" button (discoverability gap, not absence).
+- `honestcv.firstSeen` is auto-recreated on any page load — expect it in final localStorage even after cleanup.
+- Fixed in R298b: instant interview questions no longer template raw JD title words — skillLikeKeywords() stoplist filters job-title/targetRole tokens and the sentence names the keyword directly ("…where you used react and what the outcome was.").
