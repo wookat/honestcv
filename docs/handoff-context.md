@@ -689,3 +689,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据：R313 P3 + share.ts 源码（见 docs/plan-r314-share-revoke-integrity.md）。风险：弱网下用户以为已撤销，实际链接仍可访问（隐私级静默失败）。
 - 实现：share.ts revokeRemote 检查响应——2xx/404/410 算撤销成功，其余状态与网络错误抛用户可读 Error；revokeShareLink 仅在远端删除确认后清本地（失败保留、可重试）；Builder 撤销分支补 .catch → 既有 shareError 内联报错。零 worker/schema 改动。
 - 生产 QA（bundle index-BvPx6jA9.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：happy path DELETE→404、CDP 注入 500 → 精确报错+select 保持 Can view+本地键保留+重试成功、网络失败 → connection 文案、服务端已删 404 → 视为成功无报错、slug/copy/无痕查看回归、375 严格（报错态）、暗色。所有测试链接 404 核实。截图 /home/ubuntu/screenshots/r314_*.png。录屏仍不可用。
+
+## R320 — 删除简历副本/职业文档可撤销（Undo）(2026-09-03)
+- 证据：Rezi User Docs「Delete Resume」(2026-08-19)——删除永久不可恢复，三步里两步在提醒用户先自查/备份内容；我方 /dashboard、/documents 确认后立即永久删（deleteResumeVersion/deleteCareerDoc filter+persist），误点确认即丢定制副本或信件。本地优先架构可以直接优于 Rezi：删除后限时 Undo。方案 docs/plan-r320-undo-delete.md。
+- 实现：resume.ts restoreResumeVersion(version,index) / documents.ts restoreCareerDoc(doc,index)——原对象按原位置重插（id 已存在为 no-op、index 夹取），时间戳不刷新排序不变；Dashboard.tsx 两个删除确认后置 undoDelete state，底部固定 role="status" 条：Deleted "<name>" + Undo（Undo2 图标）+ X（aria-label="Dismiss"），10s 自动消失（item 保持已删），新删除替换现有条。零 worker/schema 改动。
+- oracle .tmp-smoke/r320_oracle.ts（npx tsx --tsconfig tsconfig.app.json）9/9 绿；tsc/eslint/build 绿。
+- 生产 QA（bundle index-D_X2ciG_.js / Dashboard-CbWVc8E-.js，curl 核实，零 AI 配额）全绿零 P0–P3：副本三件套删中间（在文件夹内）→ Undo 后 honestcv.resumeVersions 字节一致（位置/folder/时间戳全保留）；11s 自动消失保持已删；X 消除、新删除替换；带签名 cover 文档往返字节一致含签名 data-URL、删掉筛选 kind 最后一份时 docKind 回退 All；375 严格 scrollWidth=375 条完全在视口内；暗色可读；localStorage/主题还原。截图 /home/ubuntu/screenshots/r320_*.png。录屏仍不可用（enigo）。
+- 注意（QA 教训）：persistVersions 会把 version.data 规范化为完整 Resume 形状——字节比对须以 app 写入的存储为快照，手工最小 fixture 首次持久化会被规范化（非产品缺陷）。

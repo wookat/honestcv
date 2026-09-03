@@ -983,3 +983,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - revokeShareLink keeps honestcv.shareLink on failure (select stays 'Can view'); retry works after disarming.
 - Server-side delete for fixtures: `curl -X DELETE -H 'x-share-token: <token>' https://cv.zalize.com/api/share/<id>`.
 - Don't run wait_paused from a second thread on the shared harness websocket — it races cmd() reads.
+
+## R320 lessons (undo-delete bar)
+- Undo-delete bar = `div[role=status]` fixed bottom-center with text `Deleted "<name>"`, an 'Undo' button and `button[aria-label='Dismiss']`; 10s auto-dismiss; a new deletion replaces the pending bar.
+- Dashboard delete buttons use sr-only text ('Delete {name}' as button textContent), NOT aria-label.
+- Byte-compare pitfalls: (1) persistVersions canonicalizes version.data to the full Resume shape — snapshot from app-written storage, not hand fixtures; (2) seed localStorage JSON with Python json.dumps(separators=(',',':')) or byte-compares fail on separator whitespace.
+- Doc-kind filter chips are `button[aria-pressed]` labelled 'All'/'Cover letters'/'Interview prep' with counts.

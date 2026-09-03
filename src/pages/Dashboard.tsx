@@ -22,6 +22,8 @@ import {
   Pencil,
   Star,
   Trash2,
+  Undo2,
+  X,
 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
@@ -54,6 +56,7 @@ import {
   type CareerDocKind,
   deleteCareerDoc,
   listCareerDocs,
+  restoreCareerDoc,
   saveCareerDoc,
   splitAtSignature,
   updateCareerDoc,
@@ -73,6 +76,7 @@ import {
   exampleToResume,
   listResumeVersions,
   loadResume,
+  restoreResumeVersion,
   saveResume,
   saveResumeVersion,
   setActiveVersionId,
@@ -276,6 +280,17 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [moveNewName, setMoveNewName] = useState('')
   const [renamingFolder, setRenamingFolder] = useState<{ from: string; to: string } | null>(null)
   const [confirmRemoveFolder, setConfirmRemoveFolder] = useState<string | null>(null)
+  const [undoDelete, setUndoDelete] = useState<
+    | { kind: 'copy'; version: ResumeVersion; index: number }
+    | { kind: 'doc'; doc: CareerDoc; index: number }
+    | null
+  >(null)
+
+  useEffect(() => {
+    if (!undoDelete) return
+    const t = setTimeout(() => setUndoDelete(null), 10000)
+    return () => clearTimeout(t)
+  }, [undoDelete])
   const [collapsedFolders, setCollapsedFolders] = useState<string[]>(() => {
     try {
       const parsed: unknown = JSON.parse(
@@ -1963,9 +1978,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               variant="destructive"
               onClick={() => {
                 if (confirmDeleteDoc) {
+                  const index = docs.findIndex((d) => d.id === confirmDeleteDoc.id)
                   const next = deleteCareerDoc(confirmDeleteDoc.id)
                   setDocs(next)
                   if (docKind !== 'all' && !next.some((d) => d.kind === docKind)) setDocKind('all')
+                  setUndoDelete({ kind: 'doc', doc: confirmDeleteDoc, index: Math.max(index, 0) })
                 }
                 setConfirmDeleteDoc(null)
               }}
@@ -1992,7 +2009,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               type="button"
               variant="destructive"
               onClick={() => {
-                if (confirmDelete) setVersions(deleteResumeVersion(confirmDelete.id))
+                if (confirmDelete) {
+                  const index = versions.findIndex((v) => v.id === confirmDelete.id)
+                  setVersions(deleteResumeVersion(confirmDelete.id))
+                  setUndoDelete({
+                    kind: 'copy',
+                    version: confirmDelete,
+                    index: Math.max(index, 0),
+                  })
+                }
                 setConfirmDelete(null)
               }}
             >
@@ -2139,6 +2164,41 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         onOpenChange={setUpgradeOpen}
         reason="Downloading your resume as PDF or DOCX is the one thing we charge for — once, not monthly."
       />
+
+      {undoDelete && (
+        <div
+          role="status"
+          className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+        >
+          <span className="min-w-0 truncate">
+            Deleted "{undoDelete.kind === 'copy' ? undoDelete.version.name : undoDelete.doc.title}"
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (undoDelete.kind === 'copy') {
+                setVersions(restoreResumeVersion(undoDelete.version, undoDelete.index))
+              } else {
+                setDocs(restoreCareerDoc(undoDelete.doc, undoDelete.index))
+              }
+              setUndoDelete(null)
+            }}
+          >
+            <Undo2 className="size-4" />
+            Undo
+          </Button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setUndoDelete(null)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

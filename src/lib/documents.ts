@@ -86,3 +86,13 @@ export function deleteCareerDoc(id: string): CareerDoc[] {
   persistDocs(docs)
   return docs
 }
+
+/** Put a just-deleted document back exactly as it was, at its previous position. */
+export function restoreCareerDoc(doc: CareerDoc, index = 0): CareerDoc[] {
+  const docs = listCareerDocs()
+  if (docs.some((d) => d.id === doc.id)) return docs
+  const at = Math.min(Math.max(index, 0), docs.length)
+  const next = [...docs.slice(0, at), doc, ...docs.slice(at)]
+  persistDocs(next)
+  return next
+}
