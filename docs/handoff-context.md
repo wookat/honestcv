@@ -817,3 +817,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产复验（bundle index-Po8Olc3O.js，零 AI）全绿：Builder+分享页 lang="es"/hyphens:auto、printToPDF pdftotext 出 EXPERIEN-/CIA、HABILIDA-/DES（旧 EXPERIENCI\nA 消失）、无尾随空白页、撤销 404、Circuit 对照不变、375 严格光暗、基线还原。
 - 残留 P3 候选（先例存在、非本轮回归）：英文大写开头词 Chromium 不做 en 连字——CERTIFICATIONS 仍裸切 CERTIFICATI/ONS（无正文列溢出，右缘 64<86px）。候选修法：sideLabels 源文本转小写（大写仍由 text-transform）或软连字——但标题是 InlineText 可编辑内容，改显示文本可能污染提交往返，需先论证。
 - QA 教训：读者标签页 localStorage.clear() 清掉了同源作者态（shared/subscribed/clientId 原值不可恢复，已重建基线）。
+
+## R338 — SOP-10 四维审计 + 复合词关键词匹配 & 分享创建错误友好化 (2026-09-03)
+- 审计（docs/plan-r338-sop10-audit.md，生产 bundle index-Po8Olc3O.js，零 AI）：四维全绿零 P0–P2——操作台（多副本/文件夹/定向副本/删除撤销/历史还原/auto-fit/组合设计）、功能深度（JD→triage→关键词 bullet→分数增量→PDF/DOCX、信件 tone/收信人/亮点/签名、面试 session/报告/R256 桥接）、落地页（/ /pricing /templates /examples /guides Lighthouse a11y/bp/SEO、375/1920、暗色、内链）、架构（分享头/404/注入 500/bundle 新鲜度）。
+- 两个确证 P3 当轮全部修复（docs/plan-r338-fixes.md，commit 417beee）：
+  1. 复合词（连字符/斜杠）永不覆盖其成分关键词——JD 有 Terraform、简历写 "Terraform-managed infrastructure" 时 terraform 一直留在 Still missing。修复：ats.ts 新 matchTokenSet()（token 集合 + 复合 token 的 -// 拆分成分）用于全部简历/答案侧匹配点（matchScore/matchReport/scoreResumeText/scoreResume/bestEntryForKeyword/面试答案覆盖），countOccurrences 单词分支同理；extractKeywords（JD 侧提取）刻意不变。拒绝方案：提取时拆分（改变每个 JD 的关键词表与排名）、子串匹配（java↔javascript 假阳性）。
+  2. 分享创建失败裸显服务端错误串（注入 500 {"error":"injected"} 直接显示 "injected"）。修复：share.ts createShareLink 网络失败→连接提示；非 OK 仅 4xx 透传服务端文案（slug 占用/过大/日限均为 4xx 用户文案），其余→"Creating the link failed (<status>). Try again."。worker 零改动。
+- oracle 12/12（.tmp-smoke/r338_oracle.ts），tsc/lint/build 绿。
+- 生产复验（bundle index-D2cmkAAo.js，几乎零 AI，见事故）全绿零 P0–P3：tailoring 报告 36%→55% 且 "Newly covered: kubernetes, terraform"；/ats-checker "ci/cd" 命中 ci+cd；java 不被 javascript 假阳性；面试报告覆盖 terraform；注入 500/断网/真实 slug 占用 4xx/撤销注入 500 四路径文案精确；R331 stopwords、375 严格、暗色、基线还原、测试分享已撤销。截图 /home/ubuntu/screenshots/r345_*.png。
+- QA 事故（测试侧，非应用缺陷）：CDP Fetch 拦截随 websocket session 关闭即失效——一个脚本在 interview-questions 请求 pending 时退出，该请求真实打到 worker 消耗 ~1 次免费 AI 配额；教训已入测试 skill（多步 AI 流程用单一持久 REPL session）。
