@@ -1152,3 +1152,5 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Dashboard 'Open' on a copy shows a confirm dialog ('Open and replace draft').
 - CDP clicks near the bottom edge can miss: visualViewport.height (~746) < innerHeight (761) — clamp click y or re-scroll.
 - Global undo shortcuts are intentionally skipped when focus is in an input/textarea (native text undo).
+- Dashboard copy 'Open' flow via CDP can silently fail when scripted as one uninterrupted helper (activeVersionId unchanged after Enter on 'Open and replace draft'); drive it stepwise with an ae()/dialog-text assertion after each Enter and re-check `honestcv.activeVersionId` before trusting the switch. Copy cards reorder by last-edited, so always re-query the 'Open' button by card text, not index.
+- Visiting `/builder` writes an analytics key `honestcv.ev.builder-start` to localStorage — remove it during baseline cleanup along with the resume keys.
