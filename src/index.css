@@ -270,12 +270,18 @@
 }
 
 @media print {
-  body * {
-    visibility: hidden;
+  /* display:none (not visibility) so non-resume chrome frees its layout
+     space instead of printing as blank pages; ancestors stay displayed */
+  body *:not(:has([data-resume-preview])):not([data-resume-preview]):not([data-resume-preview] *) {
+    display: none !important;
   }
-  [data-resume-preview],
-  [data-resume-preview] * {
-    visibility: visible;
+  /* Ancestors stay displayed but must not add height: leftover padding
+     (e.g. the main grid's pb-20) spills a trailing blank page when the
+     resume is close to a full sheet */
+  body :has([data-resume-preview]) {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
   }
   [data-resume-preview] {
     position: absolute;
@@ -287,6 +293,13 @@
     border: none;
     box-shadow: none;
     border-radius: 0;
+  }
+  /* The printer adds its own bottom margin; the sheet's bottom padding
+     would otherwise spill a blank trailing page when content nearly
+     fills a sheet */
+  [data-resume-preview],
+  [data-resume-preview] [data-resume-page-window] {
+    padding-bottom: 0 !important;
   }
   [data-resume-preview] [data-resume-page-window],
   [data-resume-preview] [data-resume-page-window] > div {
