@@ -92,6 +92,22 @@ export const CHECK_CATEGORIES: { key: CheckCategory; label: string }[] = [
   { key: 'bestPractices', label: 'Best practices' },
 ]
 
+const COMPOUND_SEP_RE = /[/-]/
+
+const tokenMatches = (t: string, kw: string): boolean =>
+  t === kw || (COMPOUND_SEP_RE.test(t) && t.split(COMPOUND_SEP_RE).includes(kw))
+
+/** Tokens plus the hyphen/slash-separated parts of compound tokens, so
+    "terraform-managed" or "ci/cd" also match their component keywords. */
+export function matchTokenSet(tokens: Iterable<string>): Set<string> {
+  const set = new Set<string>()
+  for (const t of tokens) {
+    set.add(t)
+    if (COMPOUND_SEP_RE.test(t)) for (const part of t.split(COMPOUND_SEP_RE)) if (part) set.add(part)
+  }
+  return set
+}
+
 function countOccurrences(haystack: string, tokens: string[], kw: string): number {
   if (kw.includes(' ')) {
     let n = 0
@@ -102,7 +118,7 @@ function countOccurrences(haystack: string, tokens: string[], kw: string): numbe
     }
     return n
   }
-  return tokens.filter((t) => t === kw).length
+  return tokens.filter((t) => tokenMatches(t, kw)).length
 }
 
 function keywordDetailFor(
@@ -749,7 +765,7 @@ export function matchScore(resumeTextRaw: string, jd: string): number | null {
   const keywords = jd.trim() ? extractKeywords(jd) : []
   if (keywords.length === 0) return null
   const resumeText = resumeTextRaw.toLowerCase()
-  const resumeTokens = new Set(tokenize(resumeText))
+  const resumeTokens = matchTokenSet(tokenize(resumeText))
   let matched = 0
   for (const kw of keywords) {
     if (kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)) matched++
@@ -769,7 +785,7 @@ export function matchReport(resumeTextRaw: string, jd: string): MatchReport | nu
   const keywords = jd.trim() ? extractKeywords(jd) : []
   if (keywords.length === 0) return null
   const resumeText = resumeTextRaw.toLowerCase()
-  const resumeTokens = new Set(tokenize(resumeText))
+  const resumeTokens = matchTokenSet(tokenize(resumeText))
   const covered: string[] = []
   const missing: string[] = []
   for (const kw of keywords) {
@@ -789,7 +805,7 @@ export function matchReport(resumeTextRaw: string, jd: string): MatchReport | nu
 export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
   const resumeText = resumeTextRaw.toLowerCase()
   const resumeTokenList = tokenize(resumeText)
-  const resumeTokens = new Set(resumeTokenList)
+  const resumeTokens = matchTokenSet(resumeTokenList)
 
   const keywords = jd.trim() ? extractKeywords(jd) : []
   const matched: string[] = []
@@ -909,7 +925,7 @@ export function bestExperienceForKeyword(
   let bestScore = -1
   for (const entry of entries) {
     const text = entry.text.toLowerCase()
-    const tokens = new Set(tokenize(text))
+    const tokens = matchTokenSet(tokenize(text))
     let score = 0
     if (kw.includes(' ') && text.includes(kw)) score += 3
     for (const t of kwTokens) if (tokens.has(t)) score += 3
@@ -935,7 +951,7 @@ export function scoreResume(
 ): AtsResult {
   const resumeText = resumeToPlainText(resume).toLowerCase()
   const resumeTokenList = tokenize(resumeText)
-  const resumeTokens = new Set(resumeTokenList)
+  const resumeTokens = matchTokenSet(resumeTokenList)
 
   const ignoredSet = new Set((resume.ignoredKeywords ?? []).map((k) => k.toLowerCase()))
   const allKeywords = jd.trim() ? extractKeywords(jd) : []
