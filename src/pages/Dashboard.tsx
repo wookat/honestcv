@@ -164,10 +164,18 @@ function Thumb({ resume }: { resume: Resume }) {
   )
 }
 
-export default function Dashboard() {
+export default function Dashboard({ section }: { section?: 'documents' | 'samples' } = {}) {
   usePageMeta(
-    'My resumes — RezUp',
-    'Manage your resume drafts and job-tailored copies. Everything stays in your browser.'
+    section === 'documents'
+      ? 'Career documents — RezUp'
+      : section === 'samples'
+        ? 'Sample library — RezUp'
+        : 'My resumes — RezUp',
+    section === 'documents'
+      ? 'Cover letters, interview prep and resignation letters you saved. Everything stays in your browser.'
+      : section === 'samples'
+        ? 'Start from a proven resume example for your role. Everything stays in your browser.'
+        : 'Manage your resume drafts and job-tailored copies. Everything stays in your browser.'
   )
   const navigate = useNavigate()
   const { hash } = useLocation()
@@ -671,6 +679,8 @@ export default function Dashboard() {
       <main className="mx-auto flex w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8">
         <WorkspaceNav onCreate={() => setNewOpen(true)} />
         <div className="min-w-0 flex-1">
+        {!section && (
+        <>
         <div className="mb-6 grid gap-3 md:hidden">
           <Link
             to="/builder?assistant=1"
@@ -951,8 +961,16 @@ export default function Dashboard() {
             </section>
           )
         })}
+        </>
+        )}
 
-        <h2 id="documents" className="mt-10 scroll-mt-20 text-lg font-semibold">Career documents</h2>
+        {section !== 'samples' && (
+        <>
+        {section === 'documents' ? (
+          <h1 className="text-2xl font-bold">Career documents</h1>
+        ) : (
+          <h2 id="documents" className="mt-10 scroll-mt-20 text-lg font-semibold">Career documents</h2>
+        )}
         <p className="text-muted-foreground mt-1 text-sm">
           Documents you saved from the AI tools in the editor.
         </p>
@@ -1099,9 +1117,15 @@ export default function Dashboard() {
             ))}
           </ul>
         )}
-        {examples.length > 0 && (
+        </>
+        )}
+        {section !== 'documents' && examples.length > 0 && (
           <>
-            <h2 id="samples" className="mt-10 scroll-mt-20 text-lg font-semibold">Sample library</h2>
+            {section === 'samples' ? (
+              <h1 className="text-2xl font-bold">Sample library</h1>
+            ) : (
+              <h2 id="samples" className="mt-10 scroll-mt-20 text-lg font-semibold">Sample library</h2>
+            )}
             <p className="text-muted-foreground mt-1 text-sm">
               Start from a proven example for your role, then make it yours in the editor.
             </p>

@@ -605,3 +605,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 依据：Rezi 一手 create-resume 文档把 LinkedIn 导入列为建简历四个一等入口之一；R298 SOP-10 审计确证我方功能存在（looksLikeLinkedInExport 自动识别）但仅一行 footnote，审计 UI 走查甚至误判为缺失。docs/plan-r299-linkedin-import-discoverability.md。
 - 实现（仅 Dashboard.tsx）：import 瓦片内 footnote 移除，瓦片下新增文本按钮「No resume yet? Import your LinkedIn profile →」打开新对话框（本地读取声明 + 3 步 Save-to-PDF 指引 + Cancel + 「Choose the LinkedIn PDF」触发既有隐藏 import input）。解析/确认对话框零改动。
 - QA（生产 bundle index-C-5dqHb3.js 与本地 dist 一致）：五流程全绿零 P0–P3 零 AI——入口/对话框/Cancel、LinkedIn fixture 走到「recognized as a LinkedIn profile export」确认框且 Builder 全字段映射、普通简历回归无 LinkedIn 文案、375 严格 scrollWidth=375（瓦片+对话框态）、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r299_*.png。docs/qa-r299-plan.md。
+
+## R300 — Career documents 与 Sample library 一等路由 /documents、/samples (2026-09-02)
+
+- 证据：Rezi 一手（ai-cover-letter-generator-explained）cover letter 为 dashboard 一等面；R298 SOP-10 架构审计确证我方两区仅为 /dashboard 锚点碎片（无独立 URL、无导航 active 态）。
+- 实现：App.tsx 两新路由渲染 `<Dashboard section="documents"|"samples" />`；Dashboard.tsx 接受可选 section prop，单区模式只渲染对应区块（h1）并原样复用全部状态/导入/下载配额/对话框管线（零状态复制）；WorkspaceNav 两项指向新路由带 aria-current；worker SPA_ROUTES 增两路径。/dashboard 保持三区 + h2 锚点 id 不变，旧 #documents/#samples 链接兼容。
+- 生产 QA（bundle index-CAfEAaLA.js，curl 核实）：六项全绿零 P0–P3 零 AI 配额——/documents 直载 200 + h1 + 侧栏 active + 文档卡/Open 对话框/预览切换；/samples 搜索/行业/Saved 过滤；/dashboard 回归 + 锚点滚动；直接刷新 200；375 严格 scrollWidth=375；暗色可读；localStorage/主题还原。截图 /home/ubuntu/screenshots/r300_*.png。录屏不可用（enigo）。
+- QA 沉淀：honestcv.careerDocs 可直接种子；React 受控搜索框 CDP 清空需重置 _valueTracker。

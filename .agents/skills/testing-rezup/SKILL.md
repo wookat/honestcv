@@ -900,3 +900,11 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - `honestcv.firstSeen` is auto-recreated on any page load — expect it in final localStorage even after cleanup.
 - Fixed in R298b: instant interview questions no longer template raw JD title words — skillLikeKeywords() stoplist filters job-title/targetRole tokens and the sentence names the keyword directly ("…where you used react and what the outcome was.").
 - Dashboard LinkedIn import (R299): entry is a text button under the import tile ("No resume yet? Import your LinkedIn profile →"); "Choose the LinkedIn PDF" just clicks the hidden `input[type=file].hidden` — inject fixtures there with DOM.setFileInputFiles. LinkedIn detection needs a `handle (LinkedIn)` line, a `Top Skills` heading, or linkedin URL + `Page N of M`. Fixtures MUST start with name/headline/location before any heading, or fullName parses empty and header lines leak into skills. A draft must exist in `honestcv.resume` for the confirm dialog to appear.
+
+- R300: /documents and /samples are first-class routes (Dashboard `section` prop); active
+  nav item = `a[aria-current="page"]`. Career docs live in `honestcv.careerDocs`
+  (`[{id,kind:'cover'|'interview'|'resignation',title,text,updatedAt}]`) — seed directly
+  for doc-card tests. Sample cards keyed by `aria-label="Preview/Save <role> sample"` +
+  "Use this example"; saved samples in `honestcv.savedSamples`. Clearing React-controlled
+  search inputs over CDP requires resetting `input._valueTracker` before dispatching the
+  input event, or the change is swallowed.
