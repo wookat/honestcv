@@ -669,3 +669,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：仅 Dashboard.tsx 一处——去掉该按钮的 aria-label，改为按钮内 `<span class="sr-only">Preview {role} sample</span>`（Thumb 子树本就 aria-hidden，可访问名逐字节不变）。
 - 复测（生产）：/dashboard 与 /samples mismatch 审计 → notApplicable，a11y 1.0。best-practices 仍 0.96：剩余唯一失败为 font-size（缩略图 zoom 0.35 迷你简历文字 <12px，占页面文本大头）——属缩略图固有 DOM 文本，正解需改为图片/canvas 渲染，记为候选轮。
 - 生产 QA（bundle index-B-uTEF4E.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：9 卡按钮无 aria-label、sr-only 文案精确、CDP AX tree 计算名 `Preview {role} sample`、预览对话框开合回归、星标按钮 aria-label/aria-pressed 不变、375 严格 scrollWidth=375、暗色正常、localStorage/主题还原。截图 /home/ubuntu/screenshots/r310_*.png。
+
+## R311 — /documents 标题层级修复 (heading-order) (2026-09-03)
+- 证据：生产 Lighthouse（/home/ubuntu/qa/r311_lh_*.json）四路由巡检——/jobs /builder /ats-checker a11y/bp/SEO 全 1.0；仅 /documents a11y 0.98，唯一失败 heading-order（score 0）：R305「Letter examples」写死 h3，而 /documents 页首是 h1「Career documents」，h1→h3 跳级。方案 docs/plan-r311-documents-heading-order.md。
+- 实现：Dashboard.tsx 一处——沿用三行外既有 section==='documents' h1/h2 分支模式，「Letter examples」在 /documents 渲染 h2、/dashboard 保持 h3，class 不变零视觉差。
+- 复测（生产，bundle index-BSLrm3ST.js curl+页面双核实）：/documents 与 /dashboard heading-order 均 pass、a11y 1.0。
+- 生产 QA 全绿零 P0–P3 零 AI 配额：/documents H1→H2 无跳级（全页零 H3）、计算样式 14px/600 与旧 h3 逐项一致、/dashboard H2→H3 分支双向正确、8 chips + 预览对话框开合回归、375 严格 scrollWidth=375、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r311_*.png。录屏仍不可用。

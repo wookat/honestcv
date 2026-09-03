@@ -1033,7 +1033,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         </div>
         {docImportError && <p className="text-destructive mt-2 text-xs">{docImportError}</p>}
         <div className="mt-4">
-          <h3 className="text-sm font-semibold">Letter examples</h3>
+          {section === 'documents' ? (
+            <h2 className="text-sm font-semibold">Letter examples</h2>
+          ) : (
+            <h3 className="text-sm font-semibold">Letter examples</h3>
+          )}
           <p className="text-muted-foreground mt-0.5 text-xs">
             Start from a proven letter for your role — placeholders show exactly what to fill in.
           </p>
