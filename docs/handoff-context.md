@@ -618,3 +618,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 审计（R290/R295/R297 同模式，bundle index-CAfEAaLA.js）：路由接缝/后退、jobs 闭环（保存→tailor→cover letter→interview prep）、R297/R299 导入回归、share 创建/只读/撤销、375+768 严格宽度、暗色——全部通过，唯一确证 P3：汉堡菜单（Layout.tsx）无 /documents、/samples 入口，<md 用户只能手输 URL（WorkspaceNav 为 hidden md:block）。
 - 修复（R301b）：Layout.tsx 菜单在 My resumes 与 AI assistant 之间加两 Link（点击关菜单）。生产复验全绿（bundle index-BR2mQy8q.js）：两项出现且导航正确、菜单态 scrollWidth=375、暗色可读、768/1024 无汉堡回归、零 AI、基线还原。截图 /home/ubuntu/screenshots/r301*.png。
 - 审计未覆盖：纯扫描 PDF 导入错误路径（缺 fixture，候选后续轮）。
+
+## R302 — Cover/Resignation letter Tone 选择（formal/friendly）(2026-09-03)
+- 证据：Rezi 一手 tools 页「generate a professional resignation letter in the right tone — formal, friendly, or somewhere in between」；我方 letter 弹窗此前无任何语气入口。方案 docs/plan-r302-letter-tone.md。
+- 实现：Builder.tsx 弹窗 cover 表单 #cover-tone / resignation 表单 #res-tone 三档 select（Balanced 默认不发 tone 键、payload 字节兼容；formal/friendly 加 "tone" 键）；api.ts 可选 tone；worker/index.ts 白名单只放行两值；prompts.ts 两 builder 可选 tone 加一句 register 指令（缺省提示词字节级不变，oracle .tmp-smoke/r302_oracle.ts 8/8）。kind 切换重置为 Balanced。
+- 生产 QA（bundle index-DHjo1_HT.js，零 AI 配额，CDP Fetch 拦截于网络前）全绿零 P0–P3：Balanced 键集与 R301 基线一致无 tone、formal/friendly 精确加键、resignation 同、关闭重开复位、interview 弹窗无 Tone、375 严格 scrollWidth=375、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r302*.png。
