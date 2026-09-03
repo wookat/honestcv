@@ -1129,3 +1129,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
   panel may be closed after navigation — click "Target job (powers AI + ATS
   score)" again. Tailoring first-open sets a `honestcv.seen.tailor` key —
   remove it in cleanup.
+
+## R348 keyboard QA lessons — CDP key activation & dialog focus return
+- To activate buttons via CDP, Enter must be sent as type 'keyDown' with text '\r' (plus keyUp) — 'rawKeyDown' focuses fine for Tab/Esc/arrows but does NOT synthesize the button click, so dialogs silently fail to open. Always assert the dialog actually opened before testing close behavior, else focus-return checks pass vacuously.
+- "Change photo" opens a native OS file chooser — use Page.setInterceptFileChooserDialog + the Page.fileChooserOpened event's backendNodeId with DOM.setFileInputFiles to feed a file keyboard-only; the crop dialog's captured opener survives this async path.
+- Dialog focus-return (dialog.tsx onOpenAutoFocus/onCloseAutoFocus openerRef) returns focus to the exact opener node on Esc/X/Cancel; if the opener is unmounted it falls back to BODY without errors.

@@ -826,3 +826,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - oracle 12/12（.tmp-smoke/r338_oracle.ts），tsc/lint/build 绿。
 - 生产复验（bundle index-D2cmkAAo.js，几乎零 AI，见事故）全绿零 P0–P3：tailoring 报告 36%→55% 且 "Newly covered: kubernetes, terraform"；/ats-checker "ci/cd" 命中 ci+cd；java 不被 javascript 假阳性；面试报告覆盖 terraform；注入 500/断网/真实 slug 占用 4xx/撤销注入 500 四路径文案精确；R331 stopwords、375 严格、暗色、基线还原、测试分享已撤销。截图 /home/ubuntu/screenshots/r345_*.png。
 - QA 事故（测试侧，非应用缺陷）：CDP Fetch 拦截随 websocket session 关闭即失效——一个脚本在 interview-questions 请求 pending 时退出，该请求真实打到 worker 消耗 ~1 次免费 AI 配额；教训已入测试 skill（多步 AI 流程用单一持久 REPL session）。
+
+## R339 — 职位管线 + 设计工具链探索审计（docs-only，2026-09-03）
+- docs/plan-r339-jobs-pipeline-audit.md：搜索 fixture/保存/追踪/含 Offer 状态迁移/时间线/笔记 focusout 持久/stale+?attention=1/跟进草稿零 AI/bulk/untrack 确认/定向副本→Builder 桥接 R252、模板 saved/recent/compare/For you、照片上传+裁剪拖移（象限色+边界像素）、真实 PDF 内嵌裁剪照片、375 光暗——全绿零 P0–P3。唯一 UX 观察系有意设计（搜索提交重置已选职位）。PR #560。
+
+## R340 — 键盘可达性审计 + 对话框焦点回归修复 (2026-09-03)
+- 审计（docs/plan-r340-keyboard-a11y-audit.md，生产 bundle index-D2cmkAAo.js，零 AI）：Builder 工具栏/章节 chips/entry 卡/inline 预览编辑（tab 可达、Enter 提交、Esc 回退）/undo-redo/下载菜单/模板 picker/工具对话框/R333 确认/分享对话框 slug+visibility/照片裁剪缩放/模板对比/dashboard undo 条/Builder 跨标签条/jobs/ats-checker/光暗焦点环——零 P0/P1。三个 P3 候选：①对话框 Esc/关闭后焦点落 BODY 不回触发钮（Share/Interview/Crop/Compare 全中）；②照片裁剪 reposition 仅指针（缩放滑杆键盘可用）；③undo/status 条 tab 序极靠后（跨标签条 ~248/274）。未覆盖：tailoring triage 卡、关键词 bullet 对话框（后续轮）。
+- 当轮修复候选①（docs/plan-r340-dialog-focus-return.md，commit 08f78ba）：全站对话框均为受控 open={state}（无 DialogTrigger），Radix 关闭回焦无触发器可回→落 body。修复仅 ui/dialog.tsx DialogContent：onOpenAutoFocus 捕获 document.activeElement 为 opener；onCloseAutoFocus（先跑调用方 handler、尊重 defaultPrevented）preventDefault Radix 兜底并回焦 opener（已卸载则优雅回落 BODY）。一处改动覆盖全部对话框，零逐页修改。
+- 生产复验（bundle index-BUrJcyh1.js，零 AI、零分享创建）全绿零 P0–P3：Share（Esc/X/footer Close 三路径回焦精确 opener 节点、15-Tab 焦点陷阱、select 自动聚焦不变）、Interview Prep（R333 confirm 仍精确出、Cancel 保留答案、Accept 关闭仍回焦）、Photo Crop（经 Page.setInterceptFileChooserDialog 键盘打开、Esc/Cancel 回焦）、Template Compare、opener 移除边界零异常、375 严格、暗色焦点环、基线还原。截图 /home/ubuntu/screenshots/r348_*.png。
+- QA 教训（已入测试 skill）：CDP Enter 激活按钮须用 keyDown+text '\r'（rawKeyDown 不合成 click，对话框静默不开导致回焦断言空真）；Change photo 走原生文件选择器，须 setInterceptFileChooserDialog + DOM.setFileInputFiles。
+- 残留 P3 候选（R341+ 择用）：照片裁剪键盘平移、undo/status 条 tab 序。
