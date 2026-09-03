@@ -234,8 +234,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [importedLinkedIn, setImportedLinkedIn] = useState(false)
   const [linkedInOpen, setLinkedInOpen] = useState(false)
   const [examples, setExamples] = useState<ExampleEntry[]>([])
-  const [exampleQuery, setExampleQuery] = useState('')
-  const [exampleSector, setExampleSector] = useState('All')
+  // On /samples the filters live in the query string so refresh/share keeps your place.
+  const [seedParams] = useState(() =>
+    section === 'samples' ? new URLSearchParams(window.location.search) : null
+  )
+  const [exampleQuery, setExampleQuery] = useState(() => seedParams?.get('q') ?? '')
+  const [exampleSector, setExampleSector] = useState(() => seedParams?.get('sector') ?? 'All')
   const [previewExample, setPreviewExample] = useState<ExampleEntry | null>(null)
   const [savedSamples, setSavedSamples] = useState<string[]>(() => {
     try {
@@ -245,7 +249,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       return []
     }
   })
-  const [savedOnly, setSavedOnly] = useState(false)
+  const [savedOnly, setSavedOnly] = useState(() => seedParams?.get('saved') === '1')
   const toggleSavedSample = (slug: string) =>
     setSavedSamples((s) => {
       const next = s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug]
@@ -477,15 +481,26 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     () => ['All', ...Array.from(new Set(examples.map((e) => e.sector)))],
     [examples]
   )
+  // A seeded ?sector= that isn't a real industry falls back to All.
+  const activeSector = examples.length > 0 && !sectors.includes(exampleSector) ? 'All' : exampleSector
+  useEffect(() => {
+    if (section !== 'samples') return
+    const params = new URLSearchParams()
+    if (exampleQuery) params.set('q', exampleQuery)
+    if (activeSector !== 'All') params.set('sector', activeSector)
+    if (savedOnly) params.set('saved', '1')
+    const qs = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+  }, [section, exampleQuery, activeSector, savedOnly])
   const filteredExamples = useMemo(() => {
     const q = exampleQuery.trim().toLowerCase()
     return examples.filter(
       (e) =>
         (!savedOnly || savedSamples.includes(e.slug)) &&
-        (exampleSector === 'All' || e.sector === exampleSector) &&
+        (activeSector === 'All' || e.sector === activeSector) &&
         (!q || e.role.toLowerCase().includes(q) || e.sector.toLowerCase().includes(q))
     )
-  }, [examples, exampleQuery, exampleSector, savedOnly, savedSamples])
+  }, [examples, exampleQuery, activeSector, savedOnly, savedSamples])
 
   const closeNewDialog = () => {
     setNewOpen(false)
@@ -1218,10 +1233,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   <button
                     key={s}
                     type="button"
-                    aria-pressed={exampleSector === s}
+                    aria-pressed={activeSector === s}
                     onClick={() => setExampleSector(s)}
                     className={`min-h-10 rounded-md border px-2 py-1 text-xs font-medium transition sm:min-h-8 ${
-                      exampleSector === s
+                      activeSector === s
                         ? 'border-primary ring-primary/40 ring-2'
                         : 'hover:border-muted-foreground/40'
                     }`}
