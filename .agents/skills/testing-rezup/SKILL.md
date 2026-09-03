@@ -807,3 +807,34 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Fixture pitfall: projects[].description and involvement[].description are newline-joined STRINGS, not arrays — seeding an array is silently coerced to "" by the parser. experience[].bullets IS an array.
 - The Projects editor panel can be collapsed; click the "Projects (optional)" header button to expand before asserting on its entry controls.
 - Complete-bullet anatomy: button "Complete line N" (after "…with key numbers"), dialog title "Completed bullet", primary "Replace line"; payload adds draft and excludes the draft line from bullets; experience payloads omit the section key (only project/involvement send section).
+
+## R295 notes (schema / assistant / ATS / downloads)
+- Resume schema actual names: `contact.fullName`, experience `startDate`/`endDate`,
+  `customSections[].bullets`; project/involvement `description` is a newline-joined string.
+- `/api/ai/assistant` response shape is `{text, action, freeRemaining}` (NOT `reply`);
+  a wrong-shape mock silently drops the turn with no visible error.
+- Assistant quick task "Improve my ATS score" is computed locally — no AI request fires.
+- Summary "Draft from my resume" → setup dialog → POST `/api/ai/summary-draft`
+  `{resumeText, role}`; variant picker has "Adjust role & skills" back to setup.
+- Keyword-bullet flow is two-step: "Yes — draft a bullet" opens dialog (no request);
+  "Draft the bullet" fires `/api/ai/keyword-bullet`; after "Add bullet" close explicitly.
+- Downloads: a "Final check before download" dialog (Keep editing / Download anyway)
+  intercepts export clicks when priority fixes exist — click "Download anyway".
+  Also close any open sheet/dialog first (an open assistant panel overlay occludes header
+  buttons — verify with `document.elementFromPoint` hit-test before dispatching clicks).
+- CDP `Browser.setDownloadBehavior {behavior:'allow', downloadPath, eventsEnabled:true}`.
+- HTML5 drag-reorder can't be driven by CDP Input mouse events; dispatch synthetic
+  DragEvents with a DataTransfer onto `[data-drag-card]` targets instead (disclose as harness).
+- ATS checker upload accepts `.pdf,.docx,.txt` (not .json); `DOM.setFileInputFiles` works;
+  beware the "See an example score first" button — its report looks identical to a real one.
+
+## R295b notes
+- The React ATS checker page is `/ats-checker`; `/free-ats-resume-checker` is a separate
+  static SEO page that does NOT include AtsChecker.tsx changes — verify fixes on /ats-checker.
+- Assistant open button: `button[title^="Resume assistant"]` in the Builder header.
+- CDP mobile emulation: set Emulation.setDeviceMetricsOverride BEFORE navigating; applying
+  it to an already-rendered page can leave innerWidth wrong. Also note mobile Chrome expands
+  innerWidth to match scrollWidth when content overflows (e.g. 375 → 525), so
+  scrollWidth<=innerWidth can pass vacuously — assert scrollWidth<=375 explicitly.
+- Badge UI component has `whitespace-nowrap` by default — long badge labels overflow narrow
+  viewports unless the instance overrides with whitespace-normal.

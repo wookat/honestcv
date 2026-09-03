@@ -575,3 +575,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：guidance.ts 新纯函数 unfinishedBulletLine(lines)（最后非空行 1–80 字符且不以 .?! 结尾→filtered 行号）；Builder exp/proj/inv 按钮行在有未完成行时渲染「Complete line N」（同 not-ready reason），点击走 runSuggestBullet 第 4 参 {draft,lineIndex}，payload 含 draft 且 bullets 剔除该行；审阅对话框标题变 Completed bullet、主按钮 Replace line 原地替换（suggestTargetFor 新 replaceLine）；Regenerate 同 draft 字节级一致。worker suggest-bullet 白名单解析 draft（string/trim/cap300）；prompts.ts buildSuggestBulletMessages 尾部可选 draft——非空换补完指令（Keep the user's words, facts and intent）+ user 消息加 Partially written bullet to complete，为空提示词字节级不变（oracle 27/27 绿）。
 - QA（生产，bundle index-DcdNsNPm.js / Builder-B7PQbTUH.js）：全绿零 P0–P3 零 AI——exp/proj/inv 三区 payload 精确（draft present、bullets 剔除、无 variant、section 仅 proj/inv）、Regenerate 371==371 字节级一致、Replace line 原地替换其余行不动、完整行无按钮且 Suggest/key-numbers 无 draft 键（R285 基线）、缺 role/company reason、375 scrollWidth=375。docs/plan-r294-complete-bullet.md、docs/qa-r294-plan.md。
 - 坑：生产 quota 计数可为 0 会禁用全部 aiButtons——QA 需 mock 页面加载的 /api/ai/quota GET。
+
+## R295 — 探索性生产审计 + 修 P3（助手畸形响应可见报错、ATS 示例报告标注）(2026-09-02)
+- 审计（bundle index-DcdNsNPm.js / Builder-B7PQbTUH.js，零 AI 配额）：Builder 编辑深度/marks 快捷键双处/undo-redo/拖拽（合成 DragEvent 验证）、AI 写作全链 mock（含 R294 Complete line 回归）、评分/deep link/Fixed chips、四格式真实下载抽查、375/1280、暗色全部通过；零 P0–P2。docs/qa-r295-plan.md。
+- F1(P3 确证)：/api/ai/assistant 响应缺 text（如 {"reply":…}）时静默——无助手回合、无报错、reload 后用户消息从 honestcv.assistantChat 消失。修复：AssistantPanel send() 对 reply 做 string+非空守卫，畸形抛 Error 落既有 catch 内联红条，用户回合保留可重发；onQuota 加 typeof number 守卫。
+- F2(主观→采纳)：示例评分报告与真实报告无从区分。修复：AtsChecker 派生 isExample（两 textarea 均等于 EXAMPLE_*，任一编辑即消失），结果卡标题改「Example ATS match score」+ secondary Badge「Example report — paste your own resume above to check yours」。
+- F3(主观，缓议)：导出 final-check 对话框每次导出都弹，per-session dismiss 记为候选轮。
+- 坑（测试代理沉淀）：助手响应形状 {text,action,freeRemaining} 非 {reply}；ATS 上传只收 PDF/DOCX/TXT；HTML5 DnD 需合成 DragEvent；「Improve my ATS score」为本地即时回复。
