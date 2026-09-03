@@ -32,6 +32,7 @@ import {
   pageMarginOf,
   lineSpacingOf,
   educationDetailLine,
+  educationDetailSuffix,
   orderedSectionKeys,
   projectDates,
   sectionHeading,
@@ -1003,7 +1004,28 @@ function SectionBlock({
                   )}
                 </div>
                 {educationDetailLine(e) && (
-                  <p className="text-[11px]">{educationDetailLine(e)}</p>
+                  <p className="text-[11px]">
+                    {e.details.trim() ? (
+                      <>
+                        <InlineText
+                          value={e.details.trim()}
+                          onCommit={
+                            onEdit &&
+                            ((v) =>
+                              onEdit({
+                                ...resume,
+                                education: resume.education.map((x) =>
+                                  x.id === e.id ? { ...x, details: v } : x
+                                ),
+                              }))
+                          }
+                        />
+                        {educationDetailSuffix(e)}
+                      </>
+                    ) : (
+                      educationDetailLine(e)
+                    )}
+                  </p>
                 )}
               </div>
           ))}

@@ -710,3 +710,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复（ResumePreview.tsx 一处）：InlineText span 加 key={shown}——提交值变化即整体重挂载，绝不 diff 用户改过的子节点；Escape/等值 blur 的 restoreMarkedDom 路径不变，DraftBullet 不动。
 - tsc/eslint/build 绿。生产复验（bundle index-AdLcvLFA.js / Builder-DPdh3Lco.js，curl cache-buster 核实，真实鼠标选择+真实 Backspace，零 AI）全绿零 P0–P3：experience 与 custom-section bullet 均正常删除、无异常、应用保持挂载、工具栏 Undo 双双还原原位置；重挂载敏感回归（非空 inline 编辑往返、Enter 于 i+1 插入、marks 保留渲染、标题改名/回退）全过；375 严格（编辑中）、暗色、基线还原。截图 /home/ubuntu/screenshots/r322_*.png、r323_*.png。
 - informational：education details 行非 inline 可编辑（设计差距候选）；录屏仍不可用（enigo）。
+
+## R323 — 教育 details 行 inline 可编辑 (2026-09-03)
+- 差距（R322 审计确证）：预览中教育 details 是唯一无 inline 控件的正文行（复合行 details · Minor in X · GPA: Y 整行纯文本）。方案 docs/plan-r323-inline-education-details.md。
+- 实现：ResumePreview.tsx details 段为 InlineText（提交 education[x].details，空提交=清除，R322 remount 下安全）；新 resume.ts educationDetailSuffix() 组装尾段（oracle 7/7 与 educationDetailLine 字节等价）；details 为空时整行保持纯文本；导出/ATS 用的 educationDetailLine 不动。
+- tsc/eslint/build 绿。生产 QA（bundle index-AdxSjhBj.js，零 AI）全绿零 P0–P3：行组成字节一致且仅 details 在 span 内、编辑往返存储+编辑卡、真实按键清空无崩溃回退纯文本、details-only/无 details 两向、**bold** 标记保留、375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r324_*.png。
