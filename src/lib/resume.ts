@@ -2116,6 +2116,17 @@ export function educationDetailLine(e: EducationItem): string {
     .join(' · ')
 }
 
+/** Minor/GPA tail of the detail line, with a leading separator when present. */
+export function educationDetailSuffix(e: EducationItem): string {
+  const tail = [
+    e.minor?.trim() ? `Minor in ${e.minor.trim()}` : '',
+    e.gpa?.trim() ? `GPA: ${e.gpa.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  return tail ? ` · ${tail}` : ''
+}
+
 /** Date range for an experience entry — a blank end date on an ongoing role reads "start – Present" */
 export function experienceDateRange(startDate: string, endDate: string): string {
   const start = startDate.trim()
