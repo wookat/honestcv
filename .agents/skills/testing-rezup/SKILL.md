@@ -1129,3 +1129,19 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
   panel may be closed after navigation — click "Target job (powers AI + ATS
   score)" again. Tailoring first-open sets a `honestcv.seen.tailor` key —
   remove it in cleanup.
+- R339 jobs/design QA: mock `*api/jobs/search*` with fixture listings for
+  deterministic pipeline tests. Per-job notes persist on `focusout`
+  (dispatching `blur` alone doesn't trigger React onBlur). Search submit
+  intentionally resets the selected job (`setSelectedId(null)`) — not a
+  defect. Template cards are `span.relative > button[title]` — filter by
+  visible geometry; "For you" filter only renders when
+  `recommendedTemplates()` is non-empty (needs experienceLevel set or a
+  dense resume). Photo upload: `DOM.setFileInputFiles` on
+  `input[aria-label='Upload profile photo']`; crop dialog saves a 256×256
+  JPEG dataURL — prove non-default crops via quadrant-color fixtures and
+  boundary-pixel positions (center crop boundary = 128). Real PDF download
+  path: PDF button → beta email gate (qa-beta@zalize.com, sets
+  honestcv.subscribed — remove in cleanup) → "Final check" triage dialog →
+  "Download anyway"; set Browser.setDownloadBehavior first. Some routes fire
+  a background `GET /api/ai/quota` — it pauses under `*api/ai/*`
+  interception; resolve it (consumes no AI uses).

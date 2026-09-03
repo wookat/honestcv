@@ -826,3 +826,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - oracle 12/12（.tmp-smoke/r338_oracle.ts），tsc/lint/build 绿。
 - 生产复验（bundle index-D2cmkAAo.js，几乎零 AI，见事故）全绿零 P0–P3：tailoring 报告 36%→55% 且 "Newly covered: kubernetes, terraform"；/ats-checker "ci/cd" 命中 ci+cd；java 不被 javascript 假阳性；面试报告覆盖 terraform；注入 500/断网/真实 slug 占用 4xx/撤销注入 500 四路径文案精确；R331 stopwords、375 严格、暗色、基线还原、测试分享已撤销。截图 /home/ubuntu/screenshots/r345_*.png。
 - QA 事故（测试侧，非应用缺陷）：CDP Fetch 拦截随 websocket session 关闭即失效——一个脚本在 interview-questions 请求 pending 时退出，该请求真实打到 worker 消耗 ~1 次免费 AI 配额；教训已入测试 skill（多步 AI 流程用单一持久 REPL session）。
+
+## R339 — 职位管线 + 设计工具链探索审计（docs-only，2026-09-03）
+- 审计（docs/plan-r339-jobs-pipeline-audit.md，生产 bundle index-D2cmkAAo.js，零 AI 生成调用）：两条链全绿零 P0–P3——①职位管线端到端：搜索(mock fixtures)/保存/追踪/状态迁移含 Offer/时间线/笔记刷新持久/stale 提示+?attention=1/跟进邮件草稿（纯客户端零 AI）/bulk 操作/untrack 确认/定向副本→Builder 桥接（R252 实时状态、resumeVersionId=activeVersionId）；R312 URL 状态硬刷新还原。②设计工具：模板 saved/recent 筛选、compare 双模板对话框、For you 推荐（senior→Modern）、照片上传+裁剪拖移（256×256 JPEG，象限色+边界像素证实非默认裁剪）、真实 PDF 下载内嵌照片与裁剪一致、375 严格光暗。
+- 唯一 UX 观察（有意设计，未立案）：搜索提交重置已选职位（源码 setSelectedId(null)）。
+- 备忘：部分路由后台 GET /api/ai/quota 会被 *api/ai/* 拦截暂停——resolve 即可，不消耗配额。截图 /home/ubuntu/screenshots/r346_*.png，PDF /home/ubuntu/qa/dl_r346/。
