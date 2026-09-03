@@ -989,3 +989,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Dashboard delete buttons use sr-only text ('Delete {name}' as button textContent), NOT aria-label.
 - Byte-compare pitfalls: (1) persistVersions canonicalizes version.data to the full Resume shape — snapshot from app-written storage, not hand fixtures; (2) seed localStorage JSON with Python json.dumps(separators=(',',':')) or byte-compares fail on separator whitespace.
 - Doc-kind filter chips are `button[aria-pressed]` labelled 'All'/'Cover letters'/'Interview prep' with counts.
+
+## R321 lessons (cross-tab storage-event QA)
+- Cross-tab `storage` events need two REAL page targets in the SAME profile: create the second tab via `PUT http://localhost:29229/json/new?url=…` and hold a separate CDP websocket per tab (multi-tab harness pattern: a Tab class per target).
+- Background CDP tabs hang on `Page.captureScreenshot` — always `Page.bringToFront` first.
+- CDP-dispatched Ctrl+Z may not reach the Builder undo handler on a freshly-focused tab; use the toolbar `button[title='Undo (Ctrl+Z)']` instead.
+- The cross-tab bar is `div[role=status]` containing "changed in another tab" with a "Load latest" outline button and `button[aria-label='Dismiss']`; mobile it sits at bottom-16 above the Edit/Preview switcher, desktop bottom-4.
+- After `wrangler deploy`, the edge can briefly serve stale HTML pointing at a mismatched asset manifest (old lazy chunk 404s) — verify deploys with a cache-buster query string before declaring production broken.
