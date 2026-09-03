@@ -557,3 +557,17 @@ export function diffNewWords(
       return { text: chunk, added: w.length > 0 && !have.has(w) }
     })
 }
+
+/**
+ * Index (into the trimmed, non-empty line list) of the last bullet line that
+ * looks half-written — short and missing terminal punctuation — so the editor
+ * can offer to complete it. Returns null when every line looks finished.
+ */
+export function unfinishedBulletLine(lines: string[]): number | null {
+  const filled = lines.filter((b) => b.trim())
+  if (filled.length === 0) return null
+  const last = filled[filled.length - 1].trim()
+  if (last.length > 80) return null
+  if (/[.!?]$/.test(last)) return null
+  return filled.length - 1
+}

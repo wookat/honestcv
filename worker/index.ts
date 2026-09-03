@@ -746,7 +746,7 @@ app.post('/api/ai/keyword-bullet', async (c) => {
 // unknown). Shares the free AI quota.
 app.post('/api/ai/suggest-bullet', async (c) => {
   const body = await c.req
-    .json<{ role?: string; company?: string; companyInfo?: string; bullets?: string[]; resumeText?: string; variant?: string; language?: string; section?: string; targetRole?: string; jobDescription?: string }>()
+    .json<{ role?: string; company?: string; companyInfo?: string; bullets?: string[]; resumeText?: string; variant?: string; language?: string; section?: string; targetRole?: string; jobDescription?: string; draft?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const role = body.role?.trim() ?? ''
   const company = body.company?.trim() ?? ''
@@ -776,6 +776,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
   const variant = body.variant === 'key-numbers' ? 'key-numbers' : undefined
   const targetRole = (body.targetRole?.trim() ?? '').slice(0, 200)
   const jobDescription = typeof body.jobDescription === 'string' ? body.jobDescription : ''
+  const draft = (typeof body.draft === 'string' ? body.draft.trim() : '').slice(0, 300)
 
   const ent = await entitlementFromRequest(c)
   let freeRemaining: number | null = null
@@ -796,7 +797,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
   const result = await callLlm(
     c.env,
     withOutputLanguage(
-      buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo, section, targetRole, jobDescription),
+      buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo, section, targetRole, jobDescription, draft),
       body.language
     ),
     0.6,

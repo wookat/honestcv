@@ -801,3 +801,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - (Fixed in R293b, bundle index-DJ2vZh9q.js): stepping back to 0.75″ now removes the pageMargins key (normal maps to undefined).
 - At wide viewports (≥1536/2xl) the four full export buttons render and the compact dropdown trigger is hidden — download scripts should pick whichever `checkVisibility()` is true.
 - CDP click pitfall: measure the click point AFTER scrollIntoView settles (sleep ≥0.5s), else the click lands off-target and silently no-ops.
+
+## R294 notes (complete-bullet / quota / fixtures)
+- On page load the Builder fires GET /api/ai/quota; the production counter for a long-lived QA clientId may be 0, which disables all aiButtons ("0 free AI uses left"). Arm CDP Fetch on *api/ai/* BEFORE navigation and fulfill the quota GET with {"freeRemaining":42} to enable AI buttons without touching real quota.
+- Fixture pitfall: projects[].description and involvement[].description are newline-joined STRINGS, not arrays — seeding an array is silently coerced to "" by the parser. experience[].bullets IS an array.
+- The Projects editor panel can be collapsed; click the "Projects (optional)" header button to expand before asserting on its entry controls.
+- Complete-bullet anatomy: button "Complete line N" (after "…with key numbers"), dialog title "Completed bullet", primary "Replace line"; payload adds draft and excludes the draft line from bullets; experience payloads omit the section key (only project/involvement send section).

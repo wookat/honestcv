@@ -214,18 +214,26 @@ export function buildSuggestBulletMessages(
   companyInfo = '',
   section?: 'project' | 'involvement',
   targetRole = '',
-  jobDescription = ''
+  jobDescription = '',
+  draft = ''
 ): ChatMessage[] {
   const existing = existingBullets
     .filter((b) => b.trim())
     .map((b) => `- ${b.slice(0, 300)}`)
     .join('\n')
-  const draftLine =
+  const completeLine =
+    section === 'project'
+      ? "Complete the user's partially written project bullet into exactly ONE finished bullet. Keep the user's words, facts and intent — extend and polish the fragment, never replace it with a different achievement."
+      : section === 'involvement'
+        ? "Complete the user's partially written involvement bullet into exactly ONE finished bullet. Keep the user's words, facts and intent — extend and polish the fragment, never replace it with a different contribution."
+        : "Complete the user's partially written work-experience bullet into exactly ONE finished bullet. Keep the user's words, facts and intent — extend and polish the fragment, never replace it with a different achievement."
+  const suggestLine =
     section === 'project'
       ? 'Draft exactly ONE project bullet for the project described by the user, describing a typical, checkable outcome for that kind of project (what was built, improved, or delivered).'
       : section === 'involvement'
         ? 'Draft exactly ONE involvement bullet for the volunteer, club or extracurricular role described by the user, describing a typical, checkable contribution for that kind of role.'
         : 'Draft exactly ONE work-experience bullet for the role described by the user, describing a typical, checkable achievement for that kind of role.'
+  const draftLine = draft.trim() ? completeLine : suggestLine
   return [
     {
       role: 'system',
@@ -249,6 +257,8 @@ Start with a strong action verb. Output the single bullet as one line of plain t
             : `Role: ${role || 'not specified'}\nCompany: ${company || 'not specified'}`
       }${
         companyInfo ? `\nCompany info: ${companyInfo}` : ''
+      }${
+        draft.trim() ? `\nPartially written bullet to complete: "${draft.trim().slice(0, 300)}"` : ''
       }\n\nExisting bullets for this ${
         section === 'project' ? 'project' : 'role'
       }:\n${existing || '(none yet)'}${

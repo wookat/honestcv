@@ -124,6 +124,7 @@ export async function aiSuggestBullet(input: {
   section?: 'project' | 'involvement'
   targetRole?: string
   jobDescription?: string
+  draft?: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/suggest-bullet', input)
 }
