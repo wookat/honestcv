@@ -983,3 +983,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - revokeShareLink keeps honestcv.shareLink on failure (select stays 'Can view'); retry works after disarming.
 - Server-side delete for fixtures: `curl -X DELETE -H 'x-share-token: <token>' https://cv.zalize.com/api/share/<id>`.
 - Don't run wait_paused from a second thread on the shared harness websocket — it races cmd() reads.
+
+## R319 lessons (variant-picker "Not helpful" feedback)
+- Feedback toggles are `button[aria-label='Mark/Unmark option N as not helpful']` siblings of the apply button inside a relative wrapper; marked card gets opacity-50 + disabled and label suffix '· marked not helpful'; regenerate relabels to 'Regenerate avoiding marked options'; fresh candidates reset marks.
+- To capture AI request payloads on production, fulfill paused `/api/ai/rewrite` / `/api/ai/summary-draft` POSTs with a mock `{text, texts:[3], freeRemaining}` and read `request.postData` from the paused Fetch event.
+- 'Draft from my resume' (summary-draft) only renders when resume.summary is EMPTY (non-empty shows 'AI polish summary'); its setup submit button is 'Write 3 drafts'.
+- Payload keys with undefined values (language/emphasis/highlights/jobDescription) are dropped by JSON.stringify — assert key order accordingly; with feedback, `avoid` serializes after `variants` (rewrite) / after `role` (summary-draft).
