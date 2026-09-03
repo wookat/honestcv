@@ -1021,3 +1021,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - /jobs has no manual add-job UI — seed `honestcv.jobPipeline` with `[{job:{id,title,company,category,type,location,postedAt,salary,url,description},status:'saved',updatedAt,history:[...]}]` and open `/jobs?job=<id>` + click the Saved tab to select it; the "Tailoring report" button is on the selected-job card.
 - Builder Target-job JD textarea is `#jd`; matched-keyword highlight uses the CSS Custom Highlight API (assert `CSS.highlights.size`, not `<mark>` elements).
 - When re-testing keyword extraction on /ats-checker, always set both textareas and click Check on a fresh page — mutating the JD on a restored/stale state can give false-negative keyword reads.
+
+## R332 — import chain QA notes
+- Builder import dialog hidden input is `div[role=dialog] input[type=file]` (set via DOM.setFileInputFiles); errors render in `div[role=dialog] p.text-destructive`; scan-only PDF → "No text found in this file — it may be a scanned image. Paste the text instead."; wrong type → "Unsupported file type — please upload a PDF, DOCX or TXT file.".
+- Preview inline-edit spans are `[role=textbox][aria-label="Edit text"]` — edit via focus + selectAllChildren + execCommand insertText + blur. Landing hero drop input is the page's first `input[type=file]`; new_tab can land on about:blank — always explicit nav after.
+- R332 fix: import parser folds undated EDU_DETAIL_RE lines (gpa/dean's list/cum laude/hono(u)rs/minor/major/coursework/thesis/scholarship/award) into the preceding education entry's details ('; '-joined); dated degree—school lines still create new entries. DOCX export XML escapes apostrophes (`&apos;`) — normalize before asserting text presence.

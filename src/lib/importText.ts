@@ -142,6 +142,10 @@ function splitRoleCompany(text: string): { role: string; company: string; locati
   return { role: text.trim(), company: '', location: '' }
 }
 
+/** Undated honors/coursework line under an education entry — details, not a new school */
+const EDU_DETAIL_RE =
+  /\b(gpa|dean'?s list|cum laude|hono(?:u?rs)|minor|major|coursework|thesis|scholarship|award)\b/i
+
 export function parseResumeText(raw: string): Resume {
   if (looksLikeLinkedInExport(raw)) return parseLinkedInText(raw)
   const resume = emptyResume()
@@ -281,6 +285,8 @@ export function parseResumeText(raw: string): Resume {
         } else if (!rest && start && currentEdu && !currentEdu.startDate) {
           currentEdu.startDate = start
           currentEdu.endDate = end
+        } else if (!start && currentEdu && EDU_DETAIL_RE.test(line)) {
+          currentEdu.details = [currentEdu.details, line].filter(Boolean).join('; ')
         } else {
           const { role: degree, company: school, location: eduLoc } = splitRoleCompany(rest || line)
           currentEdu = {
