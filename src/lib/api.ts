@@ -137,6 +137,7 @@ export async function aiCoverLetter(input: {
   addressee?: string
   highlights?: string
   language?: string
+  tone?: 'formal' | 'friendly'
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/cover-letter', input)
 }
@@ -147,6 +148,7 @@ export async function aiResignationLetter(input: {
   lastDay: string
   reason: string
   name: string
+  tone?: 'formal' | 'friendly'
 }): Promise<{ text: string; freeRemaining: number | null }> {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/resignation-letter', input)
 }

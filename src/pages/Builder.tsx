@@ -8666,6 +8666,7 @@ function BundleToolDialog({
   const [currentRole, setCurrentRole] = useState('')
   const [lastDay, setLastDay] = useState('')
   const [reason, setReason] = useState('')
+  const [letterTone, setLetterTone] = useState<'' | 'formal' | 'friendly'>('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
@@ -8750,6 +8751,7 @@ function BundleToolDialog({
     if (kind !== null) setCompany(initialCompany)
     setAddressee('')
     setHighlights('')
+    setLetterTone('')
     setResult('')
     setError('')
     setSavedId(null)
@@ -8883,6 +8885,7 @@ function BundleToolDialog({
           lastDay,
           reason,
           name: resume.contact.fullName,
+          tone: letterTone || undefined,
         })
         setResult(text)
         setSavedId(null)
@@ -8905,6 +8908,7 @@ function BundleToolDialog({
               addressee: addressee.trim() || undefined,
               highlights: highlights.trim() || undefined,
               language: resume.language,
+              tone: letterTone || undefined,
             })
           : await aiInterviewBrief({
               resumeText,
@@ -8991,6 +8995,19 @@ function BundleToolDialog({
                 onChange={(e) => setAddressee(e.target.value)}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cover-tone">Tone</Label>
+              <select
+                id="cover-tone"
+                className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm sm:h-9"
+                value={letterTone}
+                onChange={(e) => setLetterTone(e.target.value as '' | 'formal' | 'friendly')}
+              >
+                <option value="">Balanced</option>
+                <option value="formal">Formal</option>
+                <option value="friendly">Friendly</option>
+              </select>
+            </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="cover-highlights">Details to highlight (optional)</Label>
               <Textarea
@@ -9040,6 +9057,19 @@ function BundleToolDialog({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="res-tone">Tone</Label>
+              <select
+                id="res-tone"
+                className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm sm:h-9"
+                value={letterTone}
+                onChange={(e) => setLetterTone(e.target.value as '' | 'formal' | 'friendly')}
+              >
+                <option value="">Balanced</option>
+                <option value="formal">Formal</option>
+                <option value="friendly">Friendly</option>
+              </select>
             </div>
           </div>
         )}
