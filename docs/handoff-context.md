@@ -600,3 +600,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - P3 修复（仅 src/lib/interviewAnalysis.ts，docs/plan-r298-interview-question-keywords.md）：localInterviewQuestions 此前直接取前两个 high-priority 关键词，SWE JD 高频词即职称词，产出 "This role emphasizes software… where you used it"。新增 JOB_TITLE_WORDS 停用表 + skillLikeKeywords()（剔除 targetRole tokens 与通用职称词，多词短语始终保留），先 high-priority 后普通回退，句式直呼关键词替代 "it"。ats.ts extractKeywords/highPriorityKeywords 不动（评分/keyword targeting/助手共用）。
 - oracle .tmp-smoke/r298_oracle.ts（npx tsx --tsconfig tsconfig.app.json）9/9 绿。
 - QA（R298b，生产 bundle index-C_eWTsgW.js 与本地 dist 一致）：六流程全绿零 P0–P3 零 AI——职称词高频 SWE JD 产出 react/typescript 问题且零 "used it"、纯职称词 JD 零关键词问题、空 targetRole 回退开场、无 JD 基线、本地即时分析+mock interview-feedback 回归、375 严格 scrollWidth=375、localStorage/主题还原。截图 /home/ubuntu/screenshots/r298b_*.png。
+
+## R299 — Dashboard 专属「Import from LinkedIn」入口（可发现性）(2026-08-31)
+- 依据：Rezi 一手 create-resume 文档把 LinkedIn 导入列为建简历四个一等入口之一；R298 SOP-10 审计确证我方功能存在（looksLikeLinkedInExport 自动识别）但仅一行 footnote，审计 UI 走查甚至误判为缺失。docs/plan-r299-linkedin-import-discoverability.md。
+- 实现（仅 Dashboard.tsx）：import 瓦片内 footnote 移除，瓦片下新增文本按钮「No resume yet? Import your LinkedIn profile →」打开新对话框（本地读取声明 + 3 步 Save-to-PDF 指引 + Cancel + 「Choose the LinkedIn PDF」触发既有隐藏 import input）。解析/确认对话框零改动。
+- QA（生产 bundle index-C-5dqHb3.js 与本地 dist 一致）：五流程全绿零 P0–P3 零 AI——入口/对话框/Cancel、LinkedIn fixture 走到「recognized as a LinkedIn profile export」确认框且 Builder 全字段映射、普通简历回归无 LinkedIn 文案、375 严格 scrollWidth=375（瓦片+对话框态）、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r299_*.png。docs/qa-r299-plan.md。
