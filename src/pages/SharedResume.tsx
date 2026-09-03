@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ResumePreview } from '@/components/ResumePreview'
 import { fetchSharedResume } from '@/lib/share'
@@ -32,9 +33,21 @@ export default function SharedResume() {
           <p className="text-muted-foreground text-sm">
             Shared resume — read-only snapshot
           </p>
-          <Button asChild size="sm">
-            <Link to="/builder">Build your own free resume</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            {state.status === 'ready' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.print()}
+                title="Print this resume or save it as PDF from the print dialog"
+              >
+                <Printer /> Print
+              </Button>
+            )}
+            <Button asChild size="sm">
+              <Link to="/builder">Build your own free resume</Link>
+            </Button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-4xl px-2 py-6 sm:px-4">
