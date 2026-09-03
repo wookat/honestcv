@@ -26,7 +26,10 @@ candidates applicant someone person people employees staff opportunities
 career mission culture location office schedule compensation pay perks
 package eligible employment key core top best right related relevant similar
 many multiple several various successful proven passionate motivated driven
-day days week weeks month months`.split(/\s+/)
+day days week weeks month months daily weekly monthly
+used uses worked works helps helping helped offered require requires
+requirement skill year jobs roles positions companies experiences seeks
+sought`.split(/\s+/)
 )
 
 /** Multi-word tech/business phrases worth matching as units */

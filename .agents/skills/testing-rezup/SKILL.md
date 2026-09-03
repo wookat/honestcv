@@ -1016,3 +1016,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - /ats-checker persists {resumeText, jd, checked} to sessionStorage `honestcv.atsCheckerDraft` (key deleted when both texts empty; router state.resumeText wins over the draft — the only state-carrying entry is the Landing hero drop zone, not Dashboard). Textareas are #resume-text / #jd-text; buttons "Check my ATS score" (disabled under 30 chars) and "See an example score first".
 - File upload sets checked:false and the "Uploaded file checks" card renders only inside the report after clicking Check; fileChecks is never persisted, so the card disappears on refresh (by design).
 - The "Keyword match N/100" line needs a JD — don't use it as the sole report marker; the "Your ATS match score" h2 is robust.
+
+## R331 — keyword-extraction QA notes
+- /jobs has no manual add-job UI — seed `honestcv.jobPipeline` with `[{job:{id,title,company,category,type,location,postedAt,salary,url,description},status:'saved',updatedAt,history:[...]}]` and open `/jobs?job=<id>` + click the Saved tab to select it; the "Tailoring report" button is on the selected-job card.
+- Builder Target-job JD textarea is `#jd`; matched-keyword highlight uses the CSS Custom Highlight API (assert `CSS.highlights.size`, not `<mark>` elements).
+- When re-testing keyword extraction on /ats-checker, always set both textareas and click Check on a fresh page — mutating the JD on a restored/stale state can give false-negative keyword reads.
