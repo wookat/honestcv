@@ -855,4 +855,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现（仅 Builder.tsx TailorDialog）：关闭前守卫——busy（请求在途）出 "A tailoring request is still running — close and discard its results?"；否则 pending>0 出 "Discard N tailoring suggestion(s) you haven't reviewed yet? Getting them again will use another AI request."（N=1 单数）。Cancel 状态字节保留；pristine/error/空建议/全部已审阅自由关闭。
 - 生产 QA（index-RooCYaJZ.js / Builder-CZLDBEAV.js，5 次 tailor POST 全 mock 零真实 AI）全绿零 P0–P3：三关闭路径精确文案、Cancel 字节保留、单数文案、busy 变体（Cancel 后请求继续、迟到 fulfill 正常渲染）、四条免确认路径、R340 回焦/R333/R343 回归、375 严格、暗色、基线还原。
 - 注意：index bundle 名跨部署会变（旧名 404）——复核时永远从 HTML 重新解析 index-*.js，再查其中 Builder chunk 名。
-||||||| 138caed
+
+## R347 — quota/paywall/license 生产审计 + 三项修复 (2026-09-03)
+- 审计（docs/plan-r347-quota-paywall-audit-fixes.md，生产实测、全部 /api/ai/* 与 billing/license/leads 在 dispatch 前 mock、零真实 AI/支付/分享）：freeMode 402 inline error、非 freeMode 402→UpgradeDialog、429 透传+可重试、in-flight 双击守卫、lead CTA（checkout disabled 时不发 checkout POST、不加载 Lemon script）、license 激活+x-license-token、免费下载 email gate、theme/language/previewView 持久化、375/暗色——零 P0/P1。确证 P3：①UpgradeDialog Esc 关闭后焦点落 BODY（程序化打开时 opener AI 按钮已因 busy disabled 被 blur，R340 机制捕获不到）；②静态 /pricing/ 等预渲染页忽略 honestcv.theme 恒亮色；③空 body 429/缺 expiresAt 的 200 显示技术串 fallback。
+- 修复：ui/dialog.tsx 模块级 focusin 记录 lastFocused，onOpenAutoFocus 时 activeElement 为 body 则以 lastFocused 为 opener（其余对话框行为不变）；scripts/build-seo.mjs 全部静态页 head 加载既有 public/theme.js（CSP 兼容外链）+ html.dark CSS 变量覆盖（含 .toc/.exdoc/.ai-art 修正）；api.ts/license.ts fallback 文案友好化（服务端 error 字段仍透传优先）。
+- 复验中发现并当轮修复一个 P2：/guides//examples/ 的 #hub-filter 内联 background:#fff 压过 html.dark 覆盖 → 暗色下白底近白字不可读；已删内联背景改共享 CSS 规则，像素级复验两种配色可读。
+- 生产 QA（index-D3WF3L0e.js / Builder-BEcPBW1-.js）全绿：402→UpgradeDialog→Esc/X/遮罩三路径回焦精确 opener、History 回焦回归、四条 fallback 文案精确+透传回归、license 成功路径回归、/pricing//guides//vs/rezi//examples 暗/亮/系统暗全过、375 严格、基线还原。截图 /home/ubuntu/screenshots/r347fix_*.png、r347fix2_*.png。
+- 额外：main 上 SKILL.md 与 handoff-context.md 各遗留一行 `||||||| 138caed` 冲突标记（#565 合并遗留），本轮已清除。
+- 备注：成功的 mock /api/ai/* 调用会写 localStorage honestcv.ev.ai-use——QA 基线清理需包含。

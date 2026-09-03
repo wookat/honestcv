@@ -1150,4 +1150,19 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - The tailor POST fires on "Get tailoring suggestions" (mock `{suggestions:[{id,text}],freeRemaining}`); row buttons are 'Accept'/'Keep original' plus 'Accept all remaining'. Close is confirm-guarded only when busy or unreviewed rows exist — pristine/error/empty/all-reviewed close silently.
 - While a native window.confirm is open the renderer is blocked, so any in-flight CDP command (even the keyUp of the Esc that triggered it) times out — wrap trigger key/click dispatches in try/except and read `Page.javascriptDialogOpening` from the event queue.
 - Index bundle names change between deploys even when they look "unchanged" — always re-resolve via the HTML (`grep -o 'assets/index-[A-Za-z0-9_-]*.js'`) before curling, then verify lazy chunk names inside it.
-||||||| 138caed
+
+## R347 quota/paywall/preferences notes
+- AI action buttons put the quota in `title` ("N free AI uses left") and the action name in textContent — selector helpers that do `aria-label||title||textContent` will short-circuit on title; match textContent explicitly for these.
+- `POST /api/ai/*` error mapping: 402 or `code:'payment_required'` → UpgradeDialog only when billing `freeMode:false` (mock `/api/billing/status` on page load to flip); in freeMode all AI errors render inline. Empty error body falls back to friendly copy since R347 (see R357 notes).
+- License activation (`POST /api/license/activate`) requires truthy `token`, `plan` AND `expiresAt` in the mock or the client shows a friendly "unexpected response" error (since R347). On success it saves `honestcv.license` and sends `x-license-token` on later API calls.
+- Dashboard PDF/DOCX in freeMode: first download opens FreeDownloadDialog (email → `POST /api/leads` plan `free-download`, sets `honestcv.subscribed` AND `honestcv.shared`), then auto-runs the pending download. Chrome may be configured to download into /home/ubuntu/qa/dl_r346/ (setDownloadBehavior from an earlier round) — check there, not ~/Downloads.
+- /pricing/ and the other static prerendered pages honor `honestcv.theme` since R347 (theme.js in head + html.dark CSS vars); they have no theme toggle of their own.
+- UpgradeDialog opened programmatically after a 402 restores focus to the AI opener button on close since R347 (lastFocused fallback in dialog.tsx).
+
+## R357 (R347-fix verification) notes
+- UpgradeDialog opener may be referenced only via `title` attr, and the "Edit history" toolbar button also uses `title` (no aria-label) — match on `title` + textContent when locating openers.
+- dialog.tsx now records a module-level `lastFocused` (focusin listener) and DialogContent uses it as opener when activeElement is <body> at open — Esc/X/overlay all restore focus to the AI button that triggered a 402 UpgradeDialog.
+- Static pages: every prerendered page (`/pricing/`, `/guides/`, `/vs/rezi/`, `/examples/*`, `/templates/*`) has sync `<script src="/theme.js">` in head (after <style> but before <body> — no FOUC) and `html.dark` CSS vars. Emulate system dark with `Emulation.setEmulatedMedia` features prefers-color-scheme.
+- P2 found+fixed same round: `#hub-filter` inputs on /guides/ and /examples/ used to carry inline `style="…background:#fff"` (white-on-white in dark mode); now styled via the shared `#hub-filter{background:var(--card);color:var(--fg)}` rule — pixel-verified readable in both schemes.
+- Friendly fallback strings (api.ts/license.ts) verified live: 429→"Too many requests right now — wait a moment and try again."; 5xx→"Something went wrong on our side — please try again in a moment."; license 200 w/o expiresAt→"Activation returned an unexpected response — please try again or contact support." (nothing stored); non-OK w/o error→"Activation didn’t go through (error N). Check the key and try again."; server `error` still passes through.
+- A successful mocked /api/ai/* call writes `honestcv.ev.ai-use` — include it in baseline cleanup.
