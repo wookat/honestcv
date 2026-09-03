@@ -849,3 +849,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现（仅 Builder.tsx）：新 RovingChipGroup（W3C toolbar roving-tabindex 模式）包住 High priority / Remaining / Excluded 三个 chip 列表：每组仅 1 个 Tab 停，方向键/Home/End 在组内移动（clamp 不环绕、preventDefault）；chip 被消耗时焦点留在组内相邻按钮；整组卸载时（恢复最后一个 Excluded chip）microtask 兜底把焦点交给剩余的 [data-roving-group] 活动按钮。
 - 生产 QA（index-DVfpPc5J.js / Builder-By26a76b.js，零 AI——唯一 keyword-bullet POST 已 mock）全绿零 P0–P3：每组恰 1 个 tabIndex=0、单 Tab 进出组、箭头遍历 +kw/sparkles/×、消耗后组内 clamp 回焦（含 Excluded 空组边缘，当轮修复复验）、draft 对话框 Esc 精确回焦 sparkles、鼠标点击同步 roving、R342 回归、375 严格、暗色焦点环、基线还原。
 - 注意：主 index bundle 名可跨部署不变（仅 lazy chunk 变化）——须核对 bundle 内 Builder-*.js chunk 名。R340–R343 键盘审计三个 P3 至此全部闭环。
+
+## R345 — 编辑历史按简历副本隔离 (2026-09-03)
+- 探索审计（编辑历史/undo-redo/版本链，生产 index-RooCYaJZ.js → Builder-CZLDBEAV.js，零真实 AI）确证唯一 P2：`honestcv.resumeHistory` 是全局单列表，Copy-B 打开 History 对话框会列出 Copy-A/改副本前草稿的 checkpoint 且不可分辨，Restore 会经 syncActiveVersion 静默改写 Copy-B 的已存数据（缓解：restore 前强制 checkpoint + 工具栏 Undo 可回退，均已实证）。其余全链绿：checkpoint 合并/字节级还原保真/restore 可逆/redo 失效/R321 跨标签/键盘/375/暗色。
+- 修复（docs/plan-r345-history-per-copy-scoping.md）：ResumeSnapshot 增 `versionId?: string|null`（捕获时 getActiveVersionId()，null=未链接草稿，legacy 缺字段视为 null）；recordResumeSnapshot 的去重/10 分钟间隔检查改为同 scope 内比较（切副本不互相压制）；HistoryDialog 只列 active scope 的 checkpoint。全局 15 槽上限保留（重度编辑某副本仍会挤掉他副本条目——informational 已接受）。oracle .tmp-smoke/r345_oracle.ts（npx tsx --tsconfig tsconfig.app.json）11/11；tsc/eslint/build 绿。
+- 遗留 P3（设计观察，未改）：会话首个 pre-edit 状态从不被 checkpoint（首个 checkpoint 记录在第一次保存后）；工具栏 Undo 在标签存活期覆盖该场景。

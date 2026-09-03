@@ -10397,7 +10397,12 @@ function HistoryDialog({
   onClose: () => void
   onRestore: (snap: ResumeSnapshot) => void
 }) {
-  const [snapshots] = useState<ResumeSnapshot[]>(() => listResumeHistory())
+  // Checkpoints are scoped to the copy they were captured on; only the active
+  // copy's history is offered so a restore can't overwrite another copy.
+  const [snapshots] = useState<ResumeSnapshot[]>(() => {
+    const versionId = getActiveVersionId()
+    return listResumeHistory().filter((s) => (s.versionId ?? null) === versionId)
+  })
   const currentJson = useMemo(() => JSON.stringify(resume), [resume])
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>

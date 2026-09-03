@@ -1145,3 +1145,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - The keyword-bullet dialog opens WITHOUT a fetch; `POST /api/ai/keyword-bullet` fires on "Draft the bullet" inside the dialog.
 - The main index bundle name can stay identical across deploys when only a lazy chunk changed — verify the chunk name inside the bundle (grep `Builder-*.js`) and via `performance.getEntriesByType('resource')`, not just the index filename.
 - r321_lib `wait_paused` returns the raw event (request at `p['params']['request']`); `new_tab(url)` may return an about:blank target — always `nav()` the new tab explicitly.
+
+## R345 history QA lessons
+- `honestcv.resumeHistory` is a single 15-slot list (10-min min gap, duplicates skipped); to force checkpoints in tests, backdate the scope's newest `at -= 11*60*1000` before the next debounced save (~400ms). Restore force-checkpoints the pre-restore draft first and goes through useUndo, so toolbar Undo reverts a restore.
+- Since R345, snapshots carry `versionId` (null = unlinked draft) and the History dialog only lists the active copy's entries; the dup/gap check is per scope — switching copies allows an immediate first checkpoint for the new copy.
+- Dashboard 'Open' on a copy shows a confirm dialog ('Open and replace draft').
+- CDP clicks near the bottom edge can miss: visualViewport.height (~746) < innerHeight (761) — clamp click y or re-scroll.
+- Global undo shortcuts are intentionally skipped when focus is in an input/textarea (native text undo).
