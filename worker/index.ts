@@ -746,7 +746,7 @@ app.post('/api/ai/keyword-bullet', async (c) => {
 // unknown). Shares the free AI quota.
 app.post('/api/ai/suggest-bullet', async (c) => {
   const body = await c.req
-    .json<{ role?: string; company?: string; companyInfo?: string; bullets?: string[]; resumeText?: string; variant?: string; language?: string; section?: string; targetRole?: string; jobDescription?: string }>()
+    .json<{ role?: string; company?: string; companyInfo?: string; bullets?: string[]; resumeText?: string; variant?: string; language?: string; section?: string; targetRole?: string; jobDescription?: string; draft?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const role = body.role?.trim() ?? ''
   const company = body.company?.trim() ?? ''
@@ -776,6 +776,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
   const variant = body.variant === 'key-numbers' ? 'key-numbers' : undefined
   const targetRole = (body.targetRole?.trim() ?? '').slice(0, 200)
   const jobDescription = typeof body.jobDescription === 'string' ? body.jobDescription : ''
+  const draft = (typeof body.draft === 'string' ? body.draft.trim() : '').slice(0, 300)
 
   const ent = await entitlementFromRequest(c)
   let freeRemaining: number | null = null
@@ -796,7 +797,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
   const result = await callLlm(
     c.env,
     withOutputLanguage(
-      buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo, section, targetRole, jobDescription),
+      buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo, section, targetRole, jobDescription, draft),
       body.language
     ),
     0.6,
@@ -908,7 +909,7 @@ app.post('/api/ai/cover-letter', async (c) => {
     freeRemaining = remaining
   }
   const body = await c.req
-    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string; addressee?: string; highlights?: string; language?: string }>()
+    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string; addressee?: string; highlights?: string; language?: string; tone?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const resumeText = body.resumeText?.trim()
   const jd = body.jobDescription?.trim()
@@ -917,7 +918,15 @@ app.post('/api/ai/cover-letter', async (c) => {
   const result = await callLlm(
     c.env,
     withOutputLanguage(
-      buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? '', body.addressee?.trim() ?? '', body.highlights?.trim() ?? ''),
+      buildCoverLetterMessages(
+        resumeText,
+        jd,
+        body.company ?? '',
+        body.role ?? '',
+        body.addressee?.trim() ?? '',
+        body.highlights?.trim() ?? '',
+        body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
+      ),
       body.language
     ),
     0.6
@@ -956,7 +965,7 @@ app.post('/api/ai/resignation-letter', async (c) => {
     freeRemaining = remaining
   }
   const body = await c.req
-    .json<{ company?: string; role?: string; lastDay?: string; reason?: string; name?: string }>()
+    .json<{ company?: string; role?: string; lastDay?: string; reason?: string; name?: string; tone?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const company = body.company?.trim()
   const role = body.role?.trim()
@@ -969,7 +978,8 @@ app.post('/api/ai/resignation-letter', async (c) => {
       role,
       body.lastDay?.trim() ?? '',
       body.reason ?? '',
-      body.name?.trim() ?? ''
+      body.name?.trim() ?? '',
+      body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
     ),
     0.6
   )
@@ -1745,7 +1755,15 @@ app.get('/api/license/status', async (c) => {
 
 // Client-side routes rendered by the SPA shell; anything else missing from
 // static assets is a real 404 (avoids soft-404s for arbitrary URLs).
-const SPA_ROUTES = new Set(['/', '/builder', '/ats-checker', '/dashboard', '/jobs'])
+const SPA_ROUTES = new Set([
+  '/',
+  '/builder',
+  '/ats-checker',
+  '/dashboard',
+  '/documents',
+  '/samples',
+  '/jobs',
+])
 
 app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {

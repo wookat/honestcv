@@ -214,18 +214,26 @@ export function buildSuggestBulletMessages(
   companyInfo = '',
   section?: 'project' | 'involvement',
   targetRole = '',
-  jobDescription = ''
+  jobDescription = '',
+  draft = ''
 ): ChatMessage[] {
   const existing = existingBullets
     .filter((b) => b.trim())
     .map((b) => `- ${b.slice(0, 300)}`)
     .join('\n')
-  const draftLine =
+  const completeLine =
+    section === 'project'
+      ? "Complete the user's partially written project bullet into exactly ONE finished bullet. Keep the user's words, facts and intent — extend and polish the fragment, never replace it with a different achievement."
+      : section === 'involvement'
+        ? "Complete the user's partially written involvement bullet into exactly ONE finished bullet. Keep the user's words, facts and intent — extend and polish the fragment, never replace it with a different contribution."
+        : "Complete the user's partially written work-experience bullet into exactly ONE finished bullet. Keep the user's words, facts and intent — extend and polish the fragment, never replace it with a different achievement."
+  const suggestLine =
     section === 'project'
       ? 'Draft exactly ONE project bullet for the project described by the user, describing a typical, checkable outcome for that kind of project (what was built, improved, or delivered).'
       : section === 'involvement'
         ? 'Draft exactly ONE involvement bullet for the volunteer, club or extracurricular role described by the user, describing a typical, checkable contribution for that kind of role.'
         : 'Draft exactly ONE work-experience bullet for the role described by the user, describing a typical, checkable achievement for that kind of role.'
+  const draftLine = draft.trim() ? completeLine : suggestLine
   return [
     {
       role: 'system',
@@ -249,6 +257,8 @@ Start with a strong action verb. Output the single bullet as one line of plain t
             : `Role: ${role || 'not specified'}\nCompany: ${company || 'not specified'}`
       }${
         companyInfo ? `\nCompany info: ${companyInfo}` : ''
+      }${
+        draft.trim() ? `\nPartially written bullet to complete: "${draft.trim().slice(0, 300)}"` : ''
       }\n\nExisting bullets for this ${
         section === 'project' ? 'project' : 'role'
       }:\n${existing || '(none yet)'}${
@@ -268,12 +278,19 @@ export function buildCoverLetterMessages(
   company: string,
   role: string,
   addressee = '',
-  highlights = ''
+  highlights = '',
+  tone?: 'formal' | 'friendly'
 ): ChatMessage[] {
+  const toneLine =
+    tone === 'formal'
+      ? ' Keep the register strictly formal and businesslike throughout.'
+      : tone === 'friendly'
+        ? ' Keep the register warm and personable while staying professional.'
+        : ''
   return [
     {
       role: 'system',
-      content: `You are an expert cover-letter writer. Write a concise, specific, one-page cover letter (250-350 words). Structure: hook tied to the company/role, 2 short paragraphs mapping the candidate's real experience to the job's needs, warm closing. Never fabricate experience. Plain text, no markdown. Start with "Dear Hiring Manager," unless an "Addressed to" name is given — then address that person directly ("Dear <name>,"). If the candidate lists details to highlight, weave them naturally into the body paragraphs (do not present them as a list). Do not include addresses or dates.`,
+      content: `You are an expert cover-letter writer.${toneLine} Write a concise, specific, one-page cover letter (250-350 words). Structure: hook tied to the company/role, 2 short paragraphs mapping the candidate's real experience to the job's needs, warm closing. Never fabricate experience. Plain text, no markdown. Start with "Dear Hiring Manager," unless an "Addressed to" name is given — then address that person directly ("Dear <name>,"). If the candidate lists details to highlight, weave them naturally into the body paragraphs (do not present them as a list). Do not include addresses or dates.`,
     },
     {
       role: 'user',
@@ -291,12 +308,19 @@ export function buildResignationLetterMessages(
   role: string,
   lastDay: string,
   reason: string,
-  name: string
+  name: string,
+  tone?: 'formal' | 'friendly'
 ): ChatMessage[] {
+  const toneLine =
+    tone === 'formal'
+      ? ' Keep the register strictly formal and businesslike throughout.'
+      : tone === 'friendly'
+        ? ' Keep the register warm and personable while staying professional.'
+        : ''
   return [
     {
       role: 'system',
-      content: `You are an expert career writer. Write a professional, gracious resignation letter (120-200 words). Structure: clear statement of resignation with the final working day, one short paragraph of genuine gratitude, an offer to help with the transition, warm closing. Keep the tone respectful and positive regardless of the reason; never badmouth the employer. Never fabricate details — where a specific (manager name, project) is unknown, use a bracketed placeholder like [Manager name]. Plain text, no markdown, no addresses or dates at the top. Start with "Dear [Manager name]," unless a name is given. End with "Sincerely," and the employee's name.`,
+      content: `You are an expert career writer.${toneLine} Write a professional, gracious resignation letter (120-200 words). Structure: clear statement of resignation with the final working day, one short paragraph of genuine gratitude, an offer to help with the transition, warm closing. Keep the tone respectful and positive regardless of the reason; never badmouth the employer. Never fabricate details — where a specific (manager name, project) is unknown, use a bracketed placeholder like [Manager name]. Plain text, no markdown, no addresses or dates at the top. Start with "Dear [Manager name]," unless a name is given. End with "Sincerely," and the employee's name.`,
     },
     {
       role: 'user',

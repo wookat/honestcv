@@ -569,3 +569,123 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - Rezi 一手证据：builder 指南「Adjust margins, fonts, and sizes」+ reformat 指南「Set standard 0.5"–1" margins」；我方设计工具条已齐 font/size/spacing/divider/indent/icons/accent/photo，唯独边距全链路写死（PDF 54pt、DOCX 864/720 twips、预览 32px）。
 - 实现：resume.ts 新 pageMargins?: 'narrow'|'normal'|'wide'（undefined=normal 不序列化）+ PAGE_MARGIN_PT {36,54,72} + pageMarginOf + asEnum；pdf.ts PdfWriter 新 margin 字段与 setMargin()（全部 MARGIN 引用改 this.margin/w.margin，letter PDF 不受影响）；docx.ts downloadResumeDocx 按 pageMarginOf/54 缩放 864/720 twips 与 rightTab；ResumePreview pagePadOf=round(32×f)（21/32/43px，两种分页视图）；Builder 设计工具条 Sections 与 Divider 间新 Margins stepper（0.5″/0.75″/1″），回到 normal 时写 undefined 保持字节兼容（R293b 修复 QA 发现的 P3）。
 - QA（生产，bundle index-DJ2vZh9q.js / Builder-DXPhO1-F.js）：全绿零 AI——PDF pdfminer 左缘精确 36/54/72pt、顶缘 18pt 级差、默认 54pt 回归；DOCX w:pgMar 576/480·864/720·1152/960；预览 padding 21/32/43px、宽 1.20 页 vs 窄 0.94 页；Auto-fit 兼容且保留 margin；0.75″ 无 pageMargins 键；375 scrollWidth=375、暗色对比。docs/plan-r293-page-margins.md、docs/qa-r293-plan.md。
+
+## R294 — Complete a half-written bullet（对标 Rezi「Complete Bullet」）(2026-09-02)
+- Rezi 一手证据：AI Bullet Points 文档的 Complete Bullet——用户写半句，AI 补完成一条完整 bullet（区别于 Rewrite/从零 Suggest/Quantify）；我方此前半句只能被 lint 报错或被 Fix line 整句改写。
+- 实现：guidance.ts 新纯函数 unfinishedBulletLine(lines)（最后非空行 1–80 字符且不以 .?! 结尾→filtered 行号）；Builder exp/proj/inv 按钮行在有未完成行时渲染「Complete line N」（同 not-ready reason），点击走 runSuggestBullet 第 4 参 {draft,lineIndex}，payload 含 draft 且 bullets 剔除该行；审阅对话框标题变 Completed bullet、主按钮 Replace line 原地替换（suggestTargetFor 新 replaceLine）；Regenerate 同 draft 字节级一致。worker suggest-bullet 白名单解析 draft（string/trim/cap300）；prompts.ts buildSuggestBulletMessages 尾部可选 draft——非空换补完指令（Keep the user's words, facts and intent）+ user 消息加 Partially written bullet to complete，为空提示词字节级不变（oracle 27/27 绿）。
+- QA（生产，bundle index-DcdNsNPm.js / Builder-B7PQbTUH.js）：全绿零 P0–P3 零 AI——exp/proj/inv 三区 payload 精确（draft present、bullets 剔除、无 variant、section 仅 proj/inv）、Regenerate 371==371 字节级一致、Replace line 原地替换其余行不动、完整行无按钮且 Suggest/key-numbers 无 draft 键（R285 基线）、缺 role/company reason、375 scrollWidth=375。docs/plan-r294-complete-bullet.md、docs/qa-r294-plan.md。
+- 坑：生产 quota 计数可为 0 会禁用全部 aiButtons——QA 需 mock 页面加载的 /api/ai/quota GET。
+
+## R295 — 探索性生产审计 + 修 P3（助手畸形响应可见报错、ATS 示例报告标注）(2026-09-02)
+- 审计（bundle index-DcdNsNPm.js / Builder-B7PQbTUH.js，零 AI 配额）：Builder 编辑深度/marks 快捷键双处/undo-redo/拖拽（合成 DragEvent 验证）、AI 写作全链 mock（含 R294 Complete line 回归）、评分/deep link/Fixed chips、四格式真实下载抽查、375/1280、暗色全部通过；零 P0–P2。docs/qa-r295-plan.md。
+- F1(P3 确证)：/api/ai/assistant 响应缺 text（如 {"reply":…}）时静默——无助手回合、无报错、reload 后用户消息从 honestcv.assistantChat 消失。修复：AssistantPanel send() 对 reply 做 string+非空守卫，畸形抛 Error 落既有 catch 内联红条，用户回合保留可重发；onQuota 加 typeof number 守卫。
+- F2(主观→采纳)：示例评分报告与真实报告无从区分。修复：AtsChecker 派生 isExample（两 textarea 均等于 EXAMPLE_*，任一编辑即消失），结果卡标题改「Example ATS match score」+ secondary Badge「Example report — paste your own resume above to check yours」。
+- F3(主观，缓议)：导出 final-check 对话框每次导出都弹，per-session dismiss 记为候选轮。
+- 坑（测试代理沉淀）：助手响应形状 {text,action,freeRemaining} 非 {reply}；ATS 上传只收 PDF/DOCX/TXT；HTML5 DnD 需合成 DragEvent；「Improve my ATS score」为本地即时回复。
+
+## R296 — 导出 final-check 对话框按已确认问题列表去重 (2026-09-02)
+- 依据：Rezi Finish Up 一手文档把最终检查定位为一次性复查而非逐次拦截；我方 R290/R295 审计确证同一问题列表在换格式下载时重复弹（R295 F3 候选轮）。docs/plan-r296-final-check-acknowledge.md。
+- 实现（仅 Builder.tsx）：新增 finalCheckAcked ref（session 内，不持久化）；「Download anyway」时记录 finalCheckIssues.join('\n') 签名；download() 仅当 issues 存在且签名≠已确认时弹窗。「Keep editing」不确认；问题列表变化（修复或新增）签名变→重新弹；reload 重置。
+- QA（生产，bundle index-D1l3dA7t.js / Builder-B83Czf_L.js）：六流程全绿零 P0–P3 零 AI——首下弹窗→ack→换格式/重复格式不弹、新增占位后新列表重弹、Keep editing 不确认下次仍弹、全修光直接下载、reload 重置重弹、375 严格 scrollWidth=375（含弹窗开启态）、share 首下弹窗回归。docs/qa-r296-plan.md。
+- 坑（测试代理沉淀）：Radix 对话框 position:fixed 致 offsetParent=null，可见性判断用 data-state="open"；resume.skills 为换行分隔字符串（"Label: items" 满足归类检查）；无问题 fixture 需电话+句点+条目地点+归类技能+≥400 词+Auto-fit。
+
+## R297 — 探索性生产审计 + 修双 P3（DOCX 无标记 bullet 导入映射、Builder 768–1063 溢出）+ 顺手修 /ats-checker CTA 溢出 (2026-09-02)
+- 审计（bundle index-D1l3dA7t.js，零 AI 配额）确证两个 P3：①无标记 bullet 行（DOCX/纯文本导出常丢标记）导入时被 splitRoleCompany 变假 experience 条目/假 project；②/builder 在 768–1063 页面级横向溢出（scrollWidth 1064，header 导航与宽动作区抢宽度）。docs/plan-r297-docx-import-bullets-tablet-header.md、docs/qa-r297-plan.md。
+- 实现：importText.ts 新 looksLikeBodyLine（行尾 .!?; 或 >60 字符）——experience 区 body-like 行追加到 currentExp.bullets（两行式 header company 分支跳过 body-like 行），projects 区 body-like 行合并进上一项目 description；LinkedIn 解析器不动。Layout.tsx SiteHeader 新 wideAction prop（仅 Builder 传）：导航/汉堡断点 md→lg；Builder 动作区 badge/Saved sm:→xl:、undo/redo sm:→lg:（R291 下载 dropdown 2xl 断点不变）。R297c：AtsChecker/Landing header CTA 在 lg 以下显示短文案「Builder」（QA 发现的既有 768–834 溢出）。
+- QA（生产，bundle index-B3yCZqsB.js / Builder-DrUleA5V.js / importText-CNBPnagQ.js）：全绿零 P0–P3 零 AI——DOCX 重导入恰 2 条 experience（2+2 bullets、日期正确、零假条目）、项目描述合并、带 • 标记 PDF 导入回归；/builder 375–1536 十一档严格 scrollWidth ≤ 视口、768–1023 汉堡全导航、1024–1279 导航+undo/redo 且 badge/Saved 隐藏、≥1280 齐、R291 下载回归；R297c /ats-checker 与 landing 八档全过、CTA 短文案可点。oracle .tmp-smoke/r297_oracle.ts（npx tsx --tsconfig tsconfig.app.json）14/14 绿。
+- 坑（测试代理沉淀）：Builder 汉堡菜单与下载 toggle 均内联渲染于 #root（无 Radix portal/menuitem role），断言用可见链接/按钮；下载 toggle 以 title="Download your resume" 识别。
+
+## R298 — SOP-10 四维差距审计 + 修 P3（instant interview questions 职称词模板化）(2026-09-02)
+- SOP-10 审计（生产 index-CgcrBoTJ.js，零 AI 配额，docs/qa-r298-plan.md）：操作台/功能深度/落地页/架构四维走查零 P0–P2；确证 1 个 P3（下）。路线级差距记录：LinkedIn 导入实为通用 Import 路径自动识别（无专属按钮，可发现性差距）、落地页无社会证明（无真实数据不造假，缓议）、Career documents/Sample library 为 anchor 路由、导出 3 层弹窗栈（主观缓议）。审计简报中的 bundle 名与实际 served 不一致——今后 QA 前先 curl 生产 HTML 取实际 bundle。
+- P3 修复（仅 src/lib/interviewAnalysis.ts，docs/plan-r298-interview-question-keywords.md）：localInterviewQuestions 此前直接取前两个 high-priority 关键词，SWE JD 高频词即职称词，产出 "This role emphasizes software… where you used it"。新增 JOB_TITLE_WORDS 停用表 + skillLikeKeywords()（剔除 targetRole tokens 与通用职称词，多词短语始终保留），先 high-priority 后普通回退，句式直呼关键词替代 "it"。ats.ts extractKeywords/highPriorityKeywords 不动（评分/keyword targeting/助手共用）。
+- oracle .tmp-smoke/r298_oracle.ts（npx tsx --tsconfig tsconfig.app.json）9/9 绿。
+- QA（R298b，生产 bundle index-C_eWTsgW.js 与本地 dist 一致）：六流程全绿零 P0–P3 零 AI——职称词高频 SWE JD 产出 react/typescript 问题且零 "used it"、纯职称词 JD 零关键词问题、空 targetRole 回退开场、无 JD 基线、本地即时分析+mock interview-feedback 回归、375 严格 scrollWidth=375、localStorage/主题还原。截图 /home/ubuntu/screenshots/r298b_*.png。
+
+## R299 — Dashboard 专属「Import from LinkedIn」入口（可发现性）(2026-08-31)
+- 依据：Rezi 一手 create-resume 文档把 LinkedIn 导入列为建简历四个一等入口之一；R298 SOP-10 审计确证我方功能存在（looksLikeLinkedInExport 自动识别）但仅一行 footnote，审计 UI 走查甚至误判为缺失。docs/plan-r299-linkedin-import-discoverability.md。
+- 实现（仅 Dashboard.tsx）：import 瓦片内 footnote 移除，瓦片下新增文本按钮「No resume yet? Import your LinkedIn profile →」打开新对话框（本地读取声明 + 3 步 Save-to-PDF 指引 + Cancel + 「Choose the LinkedIn PDF」触发既有隐藏 import input）。解析/确认对话框零改动。
+- QA（生产 bundle index-C-5dqHb3.js 与本地 dist 一致）：五流程全绿零 P0–P3 零 AI——入口/对话框/Cancel、LinkedIn fixture 走到「recognized as a LinkedIn profile export」确认框且 Builder 全字段映射、普通简历回归无 LinkedIn 文案、375 严格 scrollWidth=375（瓦片+对话框态）、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r299_*.png。docs/qa-r299-plan.md。
+
+## R300 — Career documents 与 Sample library 一等路由 /documents、/samples (2026-09-02)
+
+- 证据：Rezi 一手（ai-cover-letter-generator-explained）cover letter 为 dashboard 一等面；R298 SOP-10 架构审计确证我方两区仅为 /dashboard 锚点碎片（无独立 URL、无导航 active 态）。
+- 实现：App.tsx 两新路由渲染 `<Dashboard section="documents"|"samples" />`；Dashboard.tsx 接受可选 section prop，单区模式只渲染对应区块（h1）并原样复用全部状态/导入/下载配额/对话框管线（零状态复制）；WorkspaceNav 两项指向新路由带 aria-current；worker SPA_ROUTES 增两路径。/dashboard 保持三区 + h2 锚点 id 不变，旧 #documents/#samples 链接兼容。
+- 生产 QA（bundle index-CAfEAaLA.js，curl 核实）：六项全绿零 P0–P3 零 AI 配额——/documents 直载 200 + h1 + 侧栏 active + 文档卡/Open 对话框/预览切换；/samples 搜索/行业/Saved 过滤；/dashboard 回归 + 锚点滚动；直接刷新 200；375 严格 scrollWidth=375；暗色可读；localStorage/主题还原。截图 /home/ubuntu/screenshots/r300_*.png。录屏不可用（enigo）。
+- QA 沉淀：honestcv.careerDocs 可直接种子；React 受控搜索框 CDP 清空需重置 _valueTracker。
+
+## R301 — 探索性生产审计 + 修 P3（移动端菜单缺新路由入口）(2026-09-03)
+
+- 审计（R290/R295/R297 同模式，bundle index-CAfEAaLA.js）：路由接缝/后退、jobs 闭环（保存→tailor→cover letter→interview prep）、R297/R299 导入回归、share 创建/只读/撤销、375+768 严格宽度、暗色——全部通过，唯一确证 P3：汉堡菜单（Layout.tsx）无 /documents、/samples 入口，<md 用户只能手输 URL（WorkspaceNav 为 hidden md:block）。
+- 修复（R301b）：Layout.tsx 菜单在 My resumes 与 AI assistant 之间加两 Link（点击关菜单）。生产复验全绿（bundle index-BR2mQy8q.js）：两项出现且导航正确、菜单态 scrollWidth=375、暗色可读、768/1024 无汉堡回归、零 AI、基线还原。截图 /home/ubuntu/screenshots/r301*.png。
+- 审计未覆盖：纯扫描 PDF 导入错误路径（缺 fixture，候选后续轮）。
+
+## R302 — Cover/Resignation letter Tone 选择（formal/friendly）(2026-09-03)
+- 证据：Rezi 一手 tools 页「generate a professional resignation letter in the right tone — formal, friendly, or somewhere in between」；我方 letter 弹窗此前无任何语气入口。方案 docs/plan-r302-letter-tone.md。
+- 实现：Builder.tsx 弹窗 cover 表单 #cover-tone / resignation 表单 #res-tone 三档 select（Balanced 默认不发 tone 键、payload 字节兼容；formal/friendly 加 "tone" 键）；api.ts 可选 tone；worker/index.ts 白名单只放行两值；prompts.ts 两 builder 可选 tone 加一句 register 指令（缺省提示词字节级不变，oracle .tmp-smoke/r302_oracle.ts 8/8）。kind 切换重置为 Balanced。
+- 生产 QA（bundle index-DHjo1_HT.js，零 AI 配额，CDP Fetch 拦截于网络前）全绿零 P0–P3：Balanced 键集与 R301 基线一致无 tone、formal/friendly 精确加键、resignation 同、关闭重开复位、interview 弹窗无 Tone、375 严格 scrollWidth=375、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r302*.png。
+
+## R303 — 探索性生产审计：scan-only PDF 导入路径全覆盖 (2026-09-03)
+- 目标：闭环 R301 遗留未测路径。自制 image-only PDF fixture（PIL，pdfminer 零文本，/home/ubuntu/qa/scan_only_resume.pdf），方案 docs/plan-r303-audit.md。
+- 结果（生产 bundle index-DHjo1_HT.js，零代码改动，零 AI 配额）：零 P0–P3。五个上传面（landing 拖放/dashboard 简历导入/documents 信件导入/ats-checker/builder 导入弹窗）scanned-image 守卫全部按源码文案生效、状态不落库、busy 复位；.png 报 Unsupported file type；文本 PDF 回归正常；375 严格 scrollWidth=375、暗色可读、基线还原。截图 /home/ubuntu/screenshots/r303_*.png。
+- 仍未覆盖：>2MB 超大文件文案（后续轮候选）。
+
+## R304 — Cover/Resignation letter 可选签名图片（上传/预览/导出）(2026-09-03)
+- 证据：Rezi 一手 resignation-letter 工作流「Step 6: Upload your signature」；我方 letter 预览/导出无任何签名能力。方案 docs/plan-r304-letter-signature.md。
+- 实现：documents.ts CareerDoc 可选 `signature?: string`（PNG data URL，缺省不序列化）+ 纯函数 splitAtSignature（最后一行 ≤30 字符收尾敬语切分）；updateCareerDoc 支持签名清除（falsy 删键）。Dashboard.tsx letter 查看器（cover/resignation，interview 无）新签名行：Add/Replace/Remove，FileReader→canvas 降采样至 480px 宽→PNG data URL，>1MB 与非图片内联报错，上传即持久化；LetterPreview 在切分点渲染 img。pdf.ts downloadLetterPdf / docx.ts downloadLetterDocx 可选 signature 参数（PDF embedPng ≤120pt 宽、DOCX ImageRun ≤150px），无签名字节路径不变。oracle .tmp-smoke/r304_oracle.ts 6/6。
+- 生产 QA（bundle index-DF71XuM8.js，curl 核实，零 AI 配额）全绿零 P0–P3：上传→缩至精确 480px 持久化、reload 存活；真实 PDF 签名墨迹位于 Sincerely,(223pt) 与姓名(278pt) 之间（236–254pt）、无签 PDF 零签名像素；真实 DOCX media+rel+`<w:drawing>` 段落顺序正确；Remove 删键（仅 updatedAt 变动，符合预期）、Replace 正常；>1MB/非图片精确内联报错零状态变化；无敬语信件追加尾部；interview 查看器无签名行；375 严格 scrollWidth=375、暗色可读；localStorage/主题还原。截图 /home/ubuntu/screenshots/r304_*.png。
+
+## R305 — Career documents 内置 Letter examples（cover/resignation）(2026-09-03)
+- 证据：Rezi 一级导航含 Cover Letter Examples / Resignation Letter Examples（per-role 示例 + Customize 起步）；我方 Sample library 仅覆盖简历，Career documents 无任何示例信。方案 docs/plan-r305-letter-examples.md。
+- 实现：新 src/lib/letterExamples.ts（8 例静态数据：6 cover + 2 resignation，全 [placeholder] 占位、每封以 Sincerely,\n[Your name] 收尾以兼容 R304 签名切分）；Dashboard.tsx Career documents 区动作行下新增「Letter examples」chip 组 → 预览对话框（复用 LetterPreview，合成 unsigned doc + draft letterhead）→「Use this example」saveCareerDoc 后直接打开信件查看器 edit 模式。零 worker/schema/存储改动。
+- 生产 QA（bundle index-CBwwnPeP.js / Dashboard-CQjpuJE_.js，curl 核实，零 AI 配额）全绿零 P0–P3：8 chips、预览、Use 后文本与源码字节一致、reload 持久、resignation 无 Tone 有签名行、R304 签名兼容（图像落于 Sincerely, 与 [Your name] 之间）、/dashboard 同块回归、既有 doc 字节不变、375 严格 scrollWidth=375、暗色可读、基线还原。截图 /home/ubuntu/screenshots/r305_*.png。
+
+## R306 — 公开 Cover / Resignation Letter Examples SEO 页 (2026-09-03)
+- 证据：Rezi 全站页脚/Resources 列常驻 Cover Letter Examples 与 Resignation Letter Examples 公开获客面；我方 R305 示例信只在应用内，公开静态面（build-seo.mjs 的 /examples/、/guides/ 等）没有任何信件示例页。方案 docs/plan-r306-letter-examples-seo.md。
+- 实现：8 封信数据迁至 src/lib/letterExamples.data.json 单一数据源（tsconfig.app.json 开 resolveJsonModule，letterExamples.ts 导出接口不变、app 行为不变）；build-seo.mjs 新增 /cover-letter-examples/（6 封）与 /resignation-letter-examples/（2 封）静态页——h1+lede+TOC 锚点+逐封 pre-wrap 信纸卡片+「Customize this letter free」→ /documents+generator 交叉链接+canonical/OG/Breadcrumb LD；两 URL 入 sitemap.xml、header Resources 下拉与页脚 Resources 列。构建期断言 JSON ≥8 封且含 Sincerely, 否则 build 失败。
+- 生产 QA（bundle index-BfsfpppA.js，curl 核实，零 AI 配额）全绿零 P0–P3：两页 200 直载/刷新、6+2 封 <pre> 正文与 JSON 字节一致、TOC 锚点滚动、CTA/generator/Related/页脚页头链接全通、sitemap 双 URL、375 严格 scrollWidth=375（pre-wrap）、/documents 8 chips + Use this example 回归字节一致、基线还原。截图 /home/ubuntu/screenshots/r306_*.png。SEO 页为静态 HTML 无暗色开关（与 /guides/ 同机制，预期）。
+
+## R307 — 探索性生产审计 + 修 P3（静态页 slash-less 内链 307）(2026-09-03)
+- 审计（R290/R295/R297/R301/R303 同模式，bundle index-BfsfpppA.js，方案 docs/plan-r307-exploratory-audit.md，零 AI 配额）：
+  1) >2MB 上传（R303 遗留）：自制 >2MB 文本 PDF（/home/ubuntu/qa/r307_big2.pdf）经 /ats-checker 与 builder 导入——「File size under 2 MB」检查按源码文案 fail、其余检查照常、非阻断、无卡死；
+  2) 端到端新链：/cover-letter-examples/ → Customize → /documents Use this example → 填占位 → R304 签名 → PDF/DOCX 导出正文+签名位置核验、R302 Tone 回归——全绿；
+  3) 公开面健康：sitemap.xml 全部 123 URL 200；
+  4) 375 严格 scrollWidth=375、暗色抽查、基线还原。唯一发现（P3-trivial）：静态页页脚 Company/Compare 内链用 slash-less href（/about、/terms、/privacy、/vs/*、/resume-builder-one-time-payment）307 跳转到带斜杠 200 页，且与 sitemap canonical 不一致。截图 /home/ubuntu/screenshots/r307_*.png。
+- 修复（R307b）：build-seo.mjs 新增 slashed() 帮助函数（canonical、breadcrumb JSON-LD、页脚/导航 Compare+Company 链接全部带斜杠）；src/components/Layout.tsx RESOURCE_LINKS 与页脚同步改带斜杠。SPA 路由（/builder、/documents 等）按设计保持 slash-less（直接 200 无跳转，不在修复范围）。
+- 生产复验（bundle index-CujNNOAK.js，curl 核实）全绿：四静态页全部内链 200 零跳转、canonical/breadcrumb 带斜杠、React 页脚+Resources 下拉导航正确、375 严格 scrollWidth=375、零 AI、基线还原。截图 /home/ubuntu/screenshots/r307b_*.png。
+
+## R308 — /jobs 位置输入原生 datalist 自动补全 (2026-09-03)
+- 证据：Rezi changelog 2026-08 Week 4「Faster Job Location Entry: New location autocomplete feature for quick, accurate job location search」；我方 /jobs 位置过滤为纯自由文本 + R267 facet chips（当前结果 top 8），长尾地点无发现入口。方案 docs/plan-r308-job-location-autocomplete.md。
+- 实现：仅改 src/pages/Jobs.tsx——位置 Input 挂 list="job-location-options"，新 <datalist> 选项 = 当前搜索结果 + tracked pipeline 职位的全部去重地点（复用 locationFacets(…, Infinity)，大小写不敏感去重、按字母序、剔除 Remote/Worldwide/Anywhere/空白——与 facets 同规则）。过滤/排序/facets/R195 agnostic 分区零改动，零 worker/schema 改动。
+- 生产 QA（bundle index-CSemBJ9E.js，curl 核实，零 AI 配额）全绿零 P0–P3：datalist 7 选项字母序无 agnostic 项、前缀联想 DOM 断言（原生弹层 CDP 截图不可见，符合预期）、整值过滤与手输一致（直配在前 + Open to any location 分区回归）、facet chips ≤8 回归、seeded pipeline 职位地点入选项且删除后消失、375 严格 scrollWidth=375、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r308_*.png。
+
+## R309 — /jobs 加载骨架屏消 CLS + SPA 逐路由 canonical (2026-09-03)
+- 证据（一手实测，Lighthouse 12 打生产）：/jobs 性能 0.69、CLS 0.289（poor，>0.25）——加载期结果卡只有一行「Loading jobs…」，/api/jobs/search 返回后整卡撑高 ~550px、上方 R267 位置 facet chips（412px 下 224px 高）同时插入，双重下推；/builder、/jobs、/dashboard 全部 fail canonical SEO 审计——SPA shell index.html 写死 canonical=https://cv.zalize.com/，每个路由都声称首页是自己的 canonical。方案 docs/plan-r309-lighthouse-cls-canonical.md。
+- 实现：①Jobs.tsx——loading 时结果卡内渲染 8 行脉冲骨架（logo 方块+两条 bar，aria-busy + sr-only「Loading jobs…」），卡上方渲染 aria-hidden「Locations:」7 枚占位 pill（仅 loading && locFacets 空时）；②App.tsx——新 CanonicalSync 组件（useLocation effect）把 link[rel=canonical] 设为 https://cv.zalize.com + pathname。过滤/排序/facets/datalist 语义零改动，零 worker/schema 改动。
+- 部署后 Lighthouse 复测：/jobs CLS 0.289→0.009、性能 0.69→0.84、SEO 0.92→1.0；/builder canonical 过、SEO 1.0。
+- 生产 QA（bundle index-B4guyawe.js，curl 核实，零 AI 配额）全绿零 P0–P3：CDP Fetch 挂起真实 /api/jobs/search 捕获骨架态（8 行+7 pill+sr-only 文案）、放行后骨架消失 20 行真实列表+真实 chips、R308 datalist/facet chips/tabs/详情面回归、六路由 canonical===origin+pathname 且 window marker 证实 SPA 导航时更新、375 严格 scrollWidth=375（骨架态与加载后）、暗色骨架可辨、localStorage/主题还原。截图 /home/ubuntu/screenshots/r309_*.png。注意：访问 /builder 会写 honestcv.ev.builder-start 分析键，对比 localStorage 基线时须剔除。
+
+## R310 — Sample 缩略图按钮 WCAG 2.5.3 label-in-name 修复 (2026-09-03)
+- 证据：R309 基线 Lighthouse（生产 /dashboard）label-content-name-mismatch 得 0，9 个失败节点全部是 Sample library 缩略图 `<button aria-label="Preview {role} sample">`（可见文本=缩略图内迷你简历文字，aria-label 完全覆盖导致语音输入用户无法按可见文本激活）；/samples 同组件同失败。方案 docs/plan-r310-sample-thumb-a11y-name.md。
+- 实现：仅 Dashboard.tsx 一处——去掉该按钮的 aria-label，改为按钮内 `<span class="sr-only">Preview {role} sample</span>`（Thumb 子树本就 aria-hidden，可访问名逐字节不变）。
+- 复测（生产）：/dashboard 与 /samples mismatch 审计 → notApplicable，a11y 1.0。best-practices 仍 0.96：剩余唯一失败为 font-size（缩略图 zoom 0.35 迷你简历文字 <12px，占页面文本大头）——属缩略图固有 DOM 文本，正解需改为图片/canvas 渲染，记为候选轮。
+- 生产 QA（bundle index-B-uTEF4E.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：9 卡按钮无 aria-label、sr-only 文案精确、CDP AX tree 计算名 `Preview {role} sample`、预览对话框开合回归、星标按钮 aria-label/aria-pressed 不变、375 严格 scrollWidth=375、暗色正常、localStorage/主题还原。截图 /home/ubuntu/screenshots/r310_*.png。
+
+## R311 — /documents 标题层级修复 (heading-order) (2026-09-03)
+- 证据：生产 Lighthouse（/home/ubuntu/qa/r311_lh_*.json）四路由巡检——/jobs /builder /ats-checker a11y/bp/SEO 全 1.0；仅 /documents a11y 0.98，唯一失败 heading-order（score 0）：R305「Letter examples」写死 h3，而 /documents 页首是 h1「Career documents」，h1→h3 跳级。方案 docs/plan-r311-documents-heading-order.md。
+- 实现：Dashboard.tsx 一处——沿用三行外既有 section==='documents' h1/h2 分支模式，「Letter examples」在 /documents 渲染 h2、/dashboard 保持 h3，class 不变零视觉差。
+- 复测（生产，bundle index-BSLrm3ST.js curl+页面双核实）：/documents 与 /dashboard heading-order 均 pass、a11y 1.0。
+- 生产 QA 全绿零 P0–P3 零 AI 配额：/documents H1→H2 无跳级（全页零 H3）、计算样式 14px/600 与旧 h3 逐项一致、/dashboard H2→H3 分支双向正确、8 chips + 预览对话框开合回归、375 严格 scrollWidth=375、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r311_*.png。录屏仍不可用。
+
+## R312 — /jobs 搜索上下文 URL 双向同步 (2026-09-03)
+- 证据：Rezi changelog 2026-08 Week 4「Seamless Messaging Navigation: Navigate to messages or refresh the page without losing your place」；我方 /jobs 只读 ?attention/?q 种子、从不回写——刷新/误导航/分享即丢全部筛选与选中职位（生产复现）。方案 docs/plan-r312-jobs-url-state.md。
+- 实现：仅 Jobs.tsx——①种子扩展：?tab（TAB_PARAMS 白名单）/?q（present-but-empty 视为清空搜索）/?cat /?loc /?type /?skills /?sort（newest|match）/?job；?attention=1 语义不变；初始 fetch 带 seeded cat；②回写 effect：history.replaceState 序列化同组状态，默认值省略（q 等于默认种子时省略）；③选中回退：?job 仅当在结果或 pipeline 中才保留，否则回退首条。零 worker/schema/storage 改动，过滤排序语义字节不变。
+- 生产 QA（bundle index-JEH8609j.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：全状态写 URL+硬刷新逐项还原（含详情面同职位 aria-pressed）、?attention=1 回归（stale applied fixture）、?q=designer 种子、?q= 空值在 targetRole=Product Manager 下清空态存活+对照组、stale ?job 回退首条并改写参数、素 URL 仅 ?job=、默认值参数出现/消失精确、R308 datalist/facet chips/tabs/bulk 回归、375 严格 scrollWidth=375、暗色可读、基线还原。截图 /home/ubuntu/screenshots/r312_*.png。录屏仍不可用。
+
+## R313 — 探索性生产审计（历史/多简历/文件夹/定向副本/分享全链）(2026-09-03)
+- 审计范围（bundle index-JEH8609j.js）：Builder 编辑历史（区块级变更摘要、restore/前向 restore、存储无损坏）、多简历副本/改名/文件夹增删改/created 排序/删除无悬挂引用、职位定向副本+tailoring report（改名存活、删除优雅回退草稿）、配额展示（/builder 无 WorkspaceNav 属设计）、分享链（非法 slug 拒绝、自定义 slug、独立无痕上下文查看、375/暗色、撤销→404）。全绿零 P0–P2。
+- 唯一 P3 观察项（一次未复现）：撤销分享时本地 shareLink 被清但未见 DELETE，服务器链接仍活——源码确证机制存在：revokeRemote 吞掉所有失败（.catch(()=>undefined) 无 res.ok 检查），revokeShareLink 无条件清本地。→ R314 修复。截图 /home/ubuntu/screenshots/r313_*.png。
+
+## R314 — 分享撤销完整性（失败不再静默假装成功）(2026-09-03)
+- 证据：R313 P3 + share.ts 源码（见 docs/plan-r314-share-revoke-integrity.md）。风险：弱网下用户以为已撤销，实际链接仍可访问（隐私级静默失败）。
+- 实现：share.ts revokeRemote 检查响应——2xx/404/410 算撤销成功，其余状态与网络错误抛用户可读 Error；revokeShareLink 仅在远端删除确认后清本地（失败保留、可重试）；Builder 撤销分支补 .catch → 既有 shareError 内联报错。零 worker/schema 改动。
+- 生产 QA（bundle index-BvPx6jA9.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：happy path DELETE→404、CDP 注入 500 → 精确报错+select 保持 Can view+本地键保留+重试成功、网络失败 → connection 文案、服务端已删 404 → 视为成功无报错、slug/copy/无痕查看回归、375 严格（报错态）、暗色。所有测试链接 404 核实。截图 /home/ubuntu/screenshots/r314_*.png。录屏仍不可用。

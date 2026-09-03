@@ -92,8 +92,8 @@ export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
   )
   const items: NavItem[] = [
     { label: 'My resumes', to: '/dashboard', icon: Files, count: counts.resumes, active: pathname === '/dashboard' },
-    { label: 'Career documents', to: '/dashboard#documents', icon: FileText, count: counts.docs, active: false },
-    { label: 'Sample library', to: '/dashboard#samples', icon: LibraryBig, active: false },
+    { label: 'Career documents', to: '/documents', icon: FileText, count: counts.docs, active: pathname === '/documents' },
+    { label: 'Sample library', to: '/samples', icon: LibraryBig, active: pathname === '/samples' },
     {
       label: 'Job search',
       to: '/jobs',

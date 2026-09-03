@@ -1,5 +1,5 @@
-import { Suspense, lazy } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Suspense, lazy, useEffect } from 'react'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import Landing from '@/pages/Landing'
 import NotFound from '@/pages/NotFound'
 
@@ -31,14 +31,29 @@ function RouteFallback() {
   )
 }
 
+// Keeps the shell's <link rel="canonical"> pointing at the current route
+// (the static index.html can only carry the homepage URL).
+function CanonicalSync() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    document
+      .querySelector('link[rel="canonical"]')
+      ?.setAttribute('href', `https://cv.zalize.com${pathname}`)
+  }, [pathname])
+  return null
+}
+
 export default function App() {
   return (
     <Suspense fallback={<RouteFallback />}>
+      <CanonicalSync />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/builder" element={<Builder />} />
         <Route path="/ats-checker" element={<AtsChecker />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/documents" element={<Dashboard section="documents" />} />
+        <Route path="/samples" element={<Dashboard section="samples" />} />
         <Route path="/jobs" element={<Jobs />} />
         <Route path="/s/:id" element={<SharedResume />} />
         <Route path="*" element={<NotFound />} />

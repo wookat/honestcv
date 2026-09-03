@@ -138,6 +138,7 @@ export default function AtsChecker() {
     () => (checked ? scoreResumeText(resumeText, jd) : null),
     [checked, resumeText, jd]
   )
+  const isExample = resumeText === EXAMPLE_RESUME && jd === EXAMPLE_JD
 
   const prevScanRef = useRef<Map<string, boolean> | null>(null)
   const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
@@ -170,7 +171,8 @@ export default function AtsChecker() {
         action={
           <Button asChild size="sm">
             <Link to="/builder">
-              Build my resume <ArrowRight />
+              <span className="hidden lg:inline">Build my resume</span>
+              <span className="lg:hidden">Builder</span> <ArrowRight />
             </Link>
           </Button>
         }
@@ -306,7 +308,20 @@ export default function AtsChecker() {
           <Card className="mt-8 py-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Your ATS match score</h2>
+                <div>
+                  <h2 className="text-lg font-semibold">
+                    {isExample ? 'Example ATS match score' : 'Your ATS match score'}
+                  </h2>
+                  {isExample && (
+                    <Badge
+                      variant="secondary"
+                      className="mt-1 max-w-full gap-1 text-left whitespace-normal"
+                    >
+                      <Target className="size-3 shrink-0" /> Example report — paste your
+                      own resume above to check yours
+                    </Badge>
+                  )}
+                </div>
                 <ScoreRing score={result.score} />
               </div>
 

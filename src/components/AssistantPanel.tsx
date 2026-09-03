@@ -199,7 +199,9 @@ export function AssistantPanel({
         role: aiTargetRole(resume),
         scoreSummary,
       })
-      if (freeRemaining !== null) onQuota(freeRemaining)
+      if (typeof reply !== 'string' || !reply.trim())
+        throw new Error('The assistant sent back an empty reply — please try again.')
+      if (typeof freeRemaining === 'number') onQuota(freeRemaining)
       const withReply = [
         ...next,
         {

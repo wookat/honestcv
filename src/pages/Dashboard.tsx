@@ -55,8 +55,10 @@ import {
   deleteCareerDoc,
   listCareerDocs,
   saveCareerDoc,
+  splitAtSignature,
   updateCareerDoc,
 } from '@/lib/documents'
+import { LETTER_EXAMPLES, type LetterExample } from '@/lib/letterExamples'
 import {
   EXPERIENCE_LEVELS,
   EXPERIENCE_LEVEL_LABELS,
@@ -105,10 +107,15 @@ function LetterPreview({
   const tpl = resolveTemplate(letterhead.templateId, letterhead.accentColor)
   const c = letterhead.contact
   const contactLine = [c.email, c.phone, c.location, c.website].filter(Boolean).join(' \u00b7 ')
-  const paragraphs = text
-    .split(/\n{2,}/)
-    .map((b) => b.trim())
-    .filter(Boolean)
+  const signature = doc.kind !== 'interview' ? doc.signature : undefined
+  const split = signature ? splitAtSignature(text) : { before: text, after: '' }
+  const toParagraphs = (t: string) =>
+    t
+      .split(/\n{2,}/)
+      .map((b) => b.trim())
+      .filter(Boolean)
+  const paragraphs = toParagraphs(split.before)
+  const afterParagraphs = signature ? toParagraphs(split.after) : []
   const date = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -147,6 +154,14 @@ function LetterPreview({
           </p>
         ))
       )}
+      {signature && (
+        <img src={signature} alt="Signature" className="mt-3 max-h-16 w-auto max-w-40" />
+      )}
+      {afterParagraphs.map((p, i) => (
+        <p key={`after-${i}`} className="mt-2 whitespace-pre-wrap">
+          {p}
+        </p>
+      ))}
     </div>
   )
 }
@@ -164,10 +179,18 @@ function Thumb({ resume }: { resume: Resume }) {
   )
 }
 
-export default function Dashboard() {
+export default function Dashboard({ section }: { section?: 'documents' | 'samples' } = {}) {
   usePageMeta(
-    'My resumes — RezUp',
-    'Manage your resume drafts and job-tailored copies. Everything stays in your browser.'
+    section === 'documents'
+      ? 'Career documents — RezUp'
+      : section === 'samples'
+        ? 'Sample library — RezUp'
+        : 'My resumes — RezUp',
+    section === 'documents'
+      ? 'Cover letters, interview prep and resignation letters you saved. Everything stays in your browser.'
+      : section === 'samples'
+        ? 'Start from a proven resume example for your role. Everything stays in your browser.'
+        : 'Manage your resume drafts and job-tailored copies. Everything stays in your browser.'
   )
   const navigate = useNavigate()
   const { hash } = useLocation()
@@ -193,6 +216,9 @@ export default function Dashboard() {
   const [docText, setDocText] = useState('')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
+  const [previewLetter, setPreviewLetter] = useState<LetterExample | null>(null)
+  const signatureInputRef = useRef<HTMLInputElement>(null)
+  const [signatureError, setSignatureError] = useState('')
   const docImportInputRef = useRef<HTMLInputElement>(null)
   const [docImportBusy, setDocImportBusy] = useState(false)
   const [docImportError, setDocImportError] = useState('')
@@ -202,6 +228,7 @@ export default function Dashboard() {
   const [importDragOver, setImportDragOver] = useState(false)
   const [confirmImport, setConfirmImport] = useState<Resume | null>(null)
   const [importedLinkedIn, setImportedLinkedIn] = useState(false)
+  const [linkedInOpen, setLinkedInOpen] = useState(false)
   const [examples, setExamples] = useState<ExampleEntry[]>([])
   const [exampleQuery, setExampleQuery] = useState('')
   const [exampleSector, setExampleSector] = useState('All')
@@ -341,11 +368,11 @@ export default function Dashboard() {
           if (fmt === 'pdf') {
             const m = await import('@/lib/pdf')
             if (d.kind === 'interview') await m.downloadTextPdf(d.title, text, name)
-            else await m.downloadLetterPdf(letterhead, text, name)
+            else await m.downloadLetterPdf(letterhead, text, name, d.signature)
           } else {
             const m = await import('@/lib/docx')
             if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, name)
-            else await m.downloadLetterDocx(letterhead, text, name)
+            else await m.downloadLetterDocx(letterhead, text, name, d.signature)
           }
         } catch (e) {
           setDlError(
@@ -670,6 +697,8 @@ export default function Dashboard() {
       <main className="mx-auto flex w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8">
         <WorkspaceNav onCreate={() => setNewOpen(true)} />
         <div className="min-w-0 flex-1">
+        {!section && (
+        <>
         <div className="mb-6 grid gap-3 md:hidden">
           <Link
             to="/builder?assistant=1"
@@ -869,11 +898,14 @@ export default function Dashboard() {
               <p className="text-muted-foreground text-xs">
                 Click or drop a PDF, DOCX or TXT here — read entirely in your browser.
               </p>
-              <p className="text-muted-foreground text-xs">
-                No resume yet? On LinkedIn, use Profile → More → Save to PDF and import that
-                file.
-              </p>
               {importError && <p className="text-destructive text-xs">{importError}</p>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLinkedInOpen(true)}
+              className="text-primary mt-2 self-center text-xs underline-offset-4 hover:underline"
+            >
+              No resume yet? Import your LinkedIn profile →
             </button>
             <input
               ref={importInputRef}
@@ -947,8 +979,16 @@ export default function Dashboard() {
             </section>
           )
         })}
+        </>
+        )}
 
-        <h2 id="documents" className="mt-10 scroll-mt-20 text-lg font-semibold">Career documents</h2>
+        {section !== 'samples' && (
+        <>
+        {section === 'documents' ? (
+          <h1 className="text-2xl font-bold">Career documents</h1>
+        ) : (
+          <h2 id="documents" className="mt-10 scroll-mt-20 text-lg font-semibold">Career documents</h2>
+        )}
         <p className="text-muted-foreground mt-1 text-sm">
           Documents you saved from the AI tools in the editor.
         </p>
@@ -992,6 +1032,31 @@ export default function Dashboard() {
           />
         </div>
         {docImportError && <p className="text-destructive mt-2 text-xs">{docImportError}</p>}
+        <div className="mt-4">
+          {section === 'documents' ? (
+            <h2 className="text-sm font-semibold">Letter examples</h2>
+          ) : (
+            <h3 className="text-sm font-semibold">Letter examples</h3>
+          )}
+          <p className="text-muted-foreground mt-0.5 text-xs">
+            Start from a proven letter for your role — placeholders show exactly what to fill in.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Letter examples">
+            {LETTER_EXAMPLES.map((e) => (
+              <button
+                key={e.slug}
+                type="button"
+                onClick={() => setPreviewLetter(e)}
+                className="bg-card hover:border-muted-foreground/40 min-h-10 cursor-pointer rounded-md border px-2.5 py-1 text-left text-xs transition sm:min-h-8"
+              >
+                <span className="font-medium">{e.role}</span>{' '}
+                <span className="text-muted-foreground">
+                  · {e.kind === 'cover' ? 'Cover letter' : 'Resignation'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
         {docs.length > 0 && (
           <div
             className="mt-4 flex flex-wrap gap-1.5"
@@ -1095,9 +1160,15 @@ export default function Dashboard() {
             ))}
           </ul>
         )}
-        {examples.length > 0 && (
+        </>
+        )}
+        {section !== 'documents' && examples.length > 0 && (
           <>
-            <h2 id="samples" className="mt-10 scroll-mt-20 text-lg font-semibold">Sample library</h2>
+            {section === 'samples' ? (
+              <h1 className="text-2xl font-bold">Sample library</h1>
+            ) : (
+              <h2 id="samples" className="mt-10 scroll-mt-20 text-lg font-semibold">Sample library</h2>
+            )}
             <p className="text-muted-foreground mt-1 text-sm">
               Start from a proven example for your role, then make it yours in the editor.
             </p>
@@ -1163,9 +1234,9 @@ export default function Dashboard() {
                     <button
                       type="button"
                       onClick={() => setPreviewExample(e)}
-                      aria-label={`Preview ${e.role} sample`}
                       className="focus-visible:ring-ring cursor-pointer rounded-t-md text-left focus-visible:ring-2 focus-visible:outline-none"
                     >
+                      <span className="sr-only">Preview {e.role} sample</span>
                       <Thumb resume={exampleToResume(e.person)} />
                     </button>
                     <button
@@ -1614,7 +1685,109 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={openDoc !== null} onOpenChange={(o) => !o && setOpenDoc(null)}>
+      <Dialog open={linkedInOpen} onOpenChange={setLinkedInOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Import your LinkedIn profile</DialogTitle>
+            <DialogDescription>
+              LinkedIn's own profile export becomes a pre-filled resume — read entirely in your
+              browser, nothing is uploaded anywhere.
+            </DialogDescription>
+          </DialogHeader>
+          <ol className="list-decimal space-y-2 pl-5 text-sm">
+            <li>
+              On LinkedIn, open your profile and choose <strong>More</strong> (or{' '}
+              <strong>Resources</strong>) → <strong>Save to PDF</strong>.
+            </li>
+            <li>Pick the downloaded PDF below — sections are mapped automatically.</li>
+            <li>Review the imported resume before sending it anywhere.</li>
+          </ol>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setLinkedInOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setLinkedInOpen(false)
+                importInputRef.current?.click()
+              }}
+            >
+              Choose the LinkedIn PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={previewLetter !== null} onOpenChange={(o) => !o && setPreviewLetter(null)}>
+        <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-2xl">
+          {previewLetter && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{previewLetter.role}</DialogTitle>
+                <DialogDescription>
+                  {previewLetter.kind === 'cover'
+                    ? 'Cover letter example'
+                    : 'Resignation letter example'}{' '}
+                  — load it, then replace the [placeholders] with your details.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-md border p-3 sm:p-4">
+                <LetterPreview
+                  doc={{
+                    id: 'example',
+                    kind: previewLetter.kind,
+                    title: previewLetter.role,
+                    text: previewLetter.text,
+                    updatedAt: 0,
+                  }}
+                  text={previewLetter.text}
+                  letterhead={draft ?? emptyResume()}
+                />
+              </div>
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                  onClick={() => setPreviewLetter(null)}
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  className="min-h-10 sm:min-h-9"
+                  onClick={() => {
+                    const e = previewLetter
+                    const title =
+                      e.kind === 'cover'
+                        ? `${e.role} cover letter`
+                        : `Resignation letter — ${e.role}`
+                    const doc = saveCareerDoc(e.kind, title, e.text)
+                    setDocs(listCareerDocs())
+                    setPreviewLetter(null)
+                    setOpenDoc(doc)
+                    setDocText(doc.text)
+                    setDocView('edit')
+                  }}
+                >
+                  Use this example
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openDoc !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setOpenDoc(null)
+            setSignatureError('')
+          }
+        }}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{openDoc?.title}</DialogTitle>
@@ -1651,6 +1824,89 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
+          {openDoc && openDoc.kind !== 'interview' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={signatureInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                className="hidden"
+                aria-label="Signature image"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file || !openDoc) return
+                  setSignatureError('')
+                  if (file.size > 1024 * 1024) {
+                    setSignatureError('Signature image is too large — use a file under 1 MB.')
+                    return
+                  }
+                  const img = new Image()
+                  const url = URL.createObjectURL(file)
+                  img.onload = () => {
+                    URL.revokeObjectURL(url)
+                    const scale = Math.min(1, 480 / img.naturalWidth)
+                    const canvas = document.createElement('canvas')
+                    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
+                    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
+                    canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
+                    const dataUrl = canvas.toDataURL('image/png')
+                    setDocs(updateCareerDoc(openDoc.id, { signature: dataUrl }))
+                    setOpenDoc({ ...openDoc, signature: dataUrl })
+                  }
+                  img.onerror = () => {
+                    URL.revokeObjectURL(url)
+                    setSignatureError('Could not read that image — use a PNG or JPEG file.')
+                  }
+                  img.src = url
+                }}
+              />
+              {openDoc.signature ? (
+                <>
+                  <img
+                    src={openDoc.signature}
+                    alt="Signature"
+                    className="max-h-10 w-auto max-w-32 rounded border bg-white p-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => signatureInputRef.current?.click()}
+                  >
+                    Replace signature
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setDocs(updateCareerDoc(openDoc.id, { signature: '' }))
+                      const next = { ...openDoc }
+                      delete next.signature
+                      setOpenDoc(next)
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => signatureInputRef.current?.click()}
+                >
+                  Add signature
+                </Button>
+              )}
+              {signatureError !== '' && (
+                <p role="alert" className="text-destructive text-xs">
+                  {signatureError}
+                </p>
+              )}
+            </div>
+          )}
           {docView === 'preview' && openDoc ? (
             <LetterPreview doc={openDoc} text={docText} letterhead={draft ?? emptyResume()} />
           ) : (

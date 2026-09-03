@@ -17,10 +17,10 @@ const RESOURCE_LINKS: [string, string][] = [
   ['Resume guides', '/guides/'],
   ['Cover letter generator', '/cover-letter-generator/'],
   ['Interview prep', '/interview-prep/'],
-  ['RezUp vs Zety', '/vs/zety'],
-  ['RezUp vs LiveCareer', '/vs/livecareer'],
-  ['One-time payment builders', '/resume-builder-one-time-payment'],
-  ['About', '/about'],
+  ['RezUp vs Zety', '/vs/zety/'],
+  ['RezUp vs LiveCareer', '/vs/livecareer/'],
+  ['One-time payment builders', '/resume-builder-one-time-payment/'],
+  ['About', '/about/'],
 ]
 
 function ResourcesDropdown() {
@@ -117,9 +117,12 @@ function JobsAttentionBadge({ count }: { count: number }) {
   )
 }
 
-export function SiteHeader({ action }: { action?: React.ReactNode }) {
+export function SiteHeader({ action, wideAction = false }: { action?: React.ReactNode; wideAction?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const attention = useSyncExternalStore(subscribeNever, attentionCount, () => 0)
+  // Pages with a wide action cluster (Builder) keep the hamburger up to lg so
+  // the inline nav and the actions never fight for the same header width.
+  const navAt = wideAction ? 'lg' : 'md'
   return (
     <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -128,7 +131,10 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           RezUp
           <span className="text-muted-foreground hidden text-xs font-normal sm:inline">by Zalize</span>
         </Link>
-        <nav aria-label="Main" className="text-muted-foreground hidden items-center gap-5 text-sm md:flex">
+        <nav
+          aria-label="Main"
+          className={`text-muted-foreground hidden items-center gap-5 text-sm ${navAt === 'lg' ? 'lg:flex' : 'md:flex'}`}
+        >
           <a className="hover:text-foreground" href="/templates/">Templates</a>
           <a className="hover:text-foreground" href="/examples/">Examples</a>
           <ResourcesDropdown />
@@ -146,7 +152,7 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
             aria-label="Menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
-            className="hover:bg-accent -mr-2 inline-flex size-10 items-center justify-center rounded-md md:hidden"
+            className={`hover:bg-accent -mr-2 inline-flex size-10 items-center justify-center rounded-md ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
@@ -155,7 +161,7 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
       {menuOpen && (
         <nav
           aria-label="Main"
-          className="bg-background border-t px-4 pb-2 md:hidden"
+          className={`bg-background border-t px-4 pb-2 ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
         >
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/templates/">Templates</a>
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/examples/">Examples</a>
@@ -165,6 +171,8 @@ export function SiteHeader({ action }: { action?: React.ReactNode }) {
           </Link>
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/pricing/">Pricing</a>
           <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/dashboard" onClick={() => setMenuOpen(false)}>My resumes</Link>
+          <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/documents" onClick={() => setMenuOpen(false)}>Career documents</Link>
+          <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/samples" onClick={() => setMenuOpen(false)}>Sample library</Link>
           <Link className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" to="/builder?assistant=1" onClick={() => setMenuOpen(false)}>AI assistant</Link>
           <p className="text-muted-foreground mt-2 px-2 text-xs font-medium tracking-wide uppercase">Resources</p>
           {RESOURCE_LINKS.map(([label, href]) => (
@@ -202,19 +210,19 @@ const FOOTER_COLUMNS: [string, [string, string][]][] = [
   [
     'Compare',
     [
-      ['RezUp vs Zety', '/vs/zety'],
-      ['RezUp vs LiveCareer', '/vs/livecareer'],
-      ['RezUp vs Rezi', '/vs/rezi'],
-      ['RezUp vs Enhancv', '/vs/enhancv'],
-      ['One-time payment builders', '/resume-builder-one-time-payment'],
+      ['RezUp vs Zety', '/vs/zety/'],
+      ['RezUp vs LiveCareer', '/vs/livecareer/'],
+      ['RezUp vs Rezi', '/vs/rezi/'],
+      ['RezUp vs Enhancv', '/vs/enhancv/'],
+      ['One-time payment builders', '/resume-builder-one-time-payment/'],
     ],
   ],
   [
     'Company',
     [
-      ['About', '/about'],
-      ['Terms & refunds', '/terms'],
-      ['Privacy', '/privacy'],
+      ['About', '/about/'],
+      ['Terms & refunds', '/terms/'],
+      ['Privacy', '/privacy/'],
       ['Contact', 'mailto:support@zalize.com'],
     ],
   ],

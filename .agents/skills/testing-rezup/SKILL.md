@@ -801,3 +801,185 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - (Fixed in R293b, bundle index-DJ2vZh9q.js): stepping back to 0.75″ now removes the pageMargins key (normal maps to undefined).
 - At wide viewports (≥1536/2xl) the four full export buttons render and the compact dropdown trigger is hidden — download scripts should pick whichever `checkVisibility()` is true.
 - CDP click pitfall: measure the click point AFTER scrollIntoView settles (sleep ≥0.5s), else the click lands off-target and silently no-ops.
+
+## R294 notes (complete-bullet / quota / fixtures)
+- On page load the Builder fires GET /api/ai/quota; the production counter for a long-lived QA clientId may be 0, which disables all aiButtons ("0 free AI uses left"). Arm CDP Fetch on *api/ai/* BEFORE navigation and fulfill the quota GET with {"freeRemaining":42} to enable AI buttons without touching real quota.
+- Fixture pitfall: projects[].description and involvement[].description are newline-joined STRINGS, not arrays — seeding an array is silently coerced to "" by the parser. experience[].bullets IS an array.
+- The Projects editor panel can be collapsed; click the "Projects (optional)" header button to expand before asserting on its entry controls.
+- Complete-bullet anatomy: button "Complete line N" (after "…with key numbers"), dialog title "Completed bullet", primary "Replace line"; payload adds draft and excludes the draft line from bullets; experience payloads omit the section key (only project/involvement send section).
+
+## R295 notes (schema / assistant / ATS / downloads)
+- Resume schema actual names: `contact.fullName`, experience `startDate`/`endDate`,
+  `customSections[].bullets`; project/involvement `description` is a newline-joined string.
+- `/api/ai/assistant` response shape is `{text, action, freeRemaining}` (NOT `reply`);
+  a wrong-shape mock silently drops the turn with no visible error.
+- Assistant quick task "Improve my ATS score" is computed locally — no AI request fires.
+- Summary "Draft from my resume" → setup dialog → POST `/api/ai/summary-draft`
+  `{resumeText, role}`; variant picker has "Adjust role & skills" back to setup.
+- Keyword-bullet flow is two-step: "Yes — draft a bullet" opens dialog (no request);
+  "Draft the bullet" fires `/api/ai/keyword-bullet`; after "Add bullet" close explicitly.
+- Downloads: a "Final check before download" dialog (Keep editing / Download anyway)
+  intercepts export clicks when priority fixes exist — click "Download anyway".
+  Also close any open sheet/dialog first (an open assistant panel overlay occludes header
+  buttons — verify with `document.elementFromPoint` hit-test before dispatching clicks).
+- CDP `Browser.setDownloadBehavior {behavior:'allow', downloadPath, eventsEnabled:true}`.
+- HTML5 drag-reorder can't be driven by CDP Input mouse events; dispatch synthetic
+  DragEvents with a DataTransfer onto `[data-drag-card]` targets instead (disclose as harness).
+- ATS checker upload accepts `.pdf,.docx,.txt` (not .json); `DOM.setFileInputFiles` works;
+  beware the "See an example score first" button — its report looks identical to a real one.
+
+## R295b notes
+- The React ATS checker page is `/ats-checker`; `/free-ats-resume-checker` is a separate
+  static SEO page that does NOT include AtsChecker.tsx changes — verify fixes on /ats-checker.
+- Assistant open button: `button[title^="Resume assistant"]` in the Builder header.
+- CDP mobile emulation: set Emulation.setDeviceMetricsOverride BEFORE navigating; applying
+  it to an already-rendered page can leave innerWidth wrong. Also note mobile Chrome expands
+  innerWidth to match scrollWidth when content overflows (e.g. 375 → 525), so
+  scrollWidth<=innerWidth can pass vacuously — assert scrollWidth<=375 explicitly.
+- Badge UI component has `whitespace-nowrap` by default — long badge labels overflow narrow
+  viewports unless the instance overrides with whitespace-normal.
+
+## R296 notes — final-check ack + fixture pitfalls
+- Export "Final check before download" dialog is deduped per session by the exact
+  `finalCheckIssues.join('\n')` signature after "Download anyway" (Builder.tsx ref, not
+  persisted; "Keep editing" doesn't ack; reload resets). To re-trigger it, change the
+  issue list (e.g. add another `[...]` bracket placeholder).
+- `resume.skills` is a newline-joined STRING; "Label: item, item" lines satisfy the
+  skills-grouping check. Arrays get coerced and fail.
+- A fully issue-free resume needs: phone in contact, terminal periods on every bullet,
+  `location` on involvement/education entries, categorized skills, ≥400 words, and the
+  Auto-fit button to satisfy the 1-page check (word-count and page-count pull opposite
+  ways otherwise).
+- Radix dialogs are position:fixed → `offsetParent` is null; never filter dialog DOM
+  queries by offsetParent (use `data-state="open"`).
+- At 375px the export format buttons are behind the header button with aria-label
+  "Download your resume" (opens a PDF/DOCX/TXT/MD menu).
+- Post-download share dialog ("Resume downloaded — good luck out there") only fires when
+  `honestcv.shared` is unset; with `honestcv.subscribed` set the email gate is skipped, so
+  removing `shared` alone is the clean way to test it.
+
+## R297 notes — dashboard/share/jobs/import/career-doc deep flows
+- Dashboard sort is a native `<select id="version-sort">` — set `.value` + dispatch
+  `change`; access level in the share dialog is also a native select ("No access"/"Can view").
+- Rename/folder changes intentionally keep `updatedAt` (only content edits bump the
+  "edited" sort) — not a bug; see updateResumeVersion in src/lib/resume.ts.
+- "Open" a version pops a confirm dialog — click "Open and replace draft".
+- Shared route is `/s/:slug` (not /share/); revoke = set access select back to "No access".
+- Jobs stale/follow-up: set BOTH `updatedAt` and every `history[].at` ≥7 days back, reload,
+  and be on the Tracked tab; bulk checkboxes only appear after clearing the follow-up filter.
+  Tailoring report is inline (button flips to "Hide tailoring report"), not a dialog.
+  Avoid `navigator.clipboard.readText()` over CDP — it hangs; assert the "Copied" label.
+- Import file input remounts after DOM.setFileInputFiles — re-query node ids fresh; find it
+  by accept=".pdf,.docx,.txt". Known P3: DOCX import maps bullet lines into bogus
+  experience entries (PDF import is fine).
+- Career docs: "Cover letter"/"Resignation letter" buttons under the preview open dialogs
+  with a zero-AI "Start from a template" path; PDF/DOCX export buttons appear after a
+  draft exists; files download with letterhead (name/email/phone/location + date).
+- Known P3: /builder overflows horizontally for 768–1063px viewports (desktop layout min
+  width 1064 engages at md:768); strict scrollWidth checks at 768 will fail there.
+- Theme toggle is a single header button cycling Light→Dark→System (aria-label contains
+  "theme"), not a menu.
+
+## R297b notes — both R297 P3s fixed; header anatomy
+- DOCX bullet misparse and the /builder 768–1063 overflow are FIXED as of
+  index-B3yCZqsB.js / Builder-DrUleA5V.js / importText-CNBPnagQ.js.
+- Builder header (SiteHeader wideAction): hamburger below lg(1024) via aria-label "Menu";
+  the menu renders INLINE in #root (no Radix portal/menuitem roles) — assert by visible
+  links, not [role=menu]. Download toggle button uses title (not aria-label)
+  "Download your resume" on desktop and reveals the four format buttons inline (<1536);
+  ≥1536 they're always visible. Badge/Saved appear at xl(1280); undo/redo at lg(1024).
+- Known pre-existing P3: /ats-checker overflows at 768–~834 (nowrap "Build my resume"
+  header CTA + md nav); passes below md because nav hides. Fixed in R297c: the CTA
+  shows short "Builder" text below lg on /ats-checker and the landing page.
+
+## R298 notes
+- `wait_paused()` in r283_lib returns the RAW CDP event — request/requestId live under `p['params']`, not top-level. Unwrap before `Fetch.fulfillRequest`.
+- Interview prep dialog (Builder → "Interview prep"): question is an `<input>` (placeholder "e.g. Tell me about a time you led a difficult project"); typed answers render local instant analysis inline under the answer ("Practice score … Instant · local — no AI used"), answer is a `<textarea>`; "Get AI feedback" POSTs `/api/ai/interview-feedback` (mock with `{"text":…, "freeRemaining":41}`); empty question shows inline "Type the interview question first." "Start from a template" and "Instant questions" are fully local (no network).
+- "Career documents" sidebar link is an anchor to `/dashboard#documents`, not a separate route.
+- LinkedIn import exists via the generic "Import resume" path: a LinkedIn Save-to-PDF export is auto-detected (looksLikeLinkedInExport) and mapped section-by-section; there is no dedicated "LinkedIn" button (discoverability gap, not absence).
+- `honestcv.firstSeen` is auto-recreated on any page load — expect it in final localStorage even after cleanup.
+- Fixed in R298b: instant interview questions no longer template raw JD title words — skillLikeKeywords() stoplist filters job-title/targetRole tokens and the sentence names the keyword directly ("…where you used react and what the outcome was.").
+- Dashboard LinkedIn import (R299): entry is a text button under the import tile ("No resume yet? Import your LinkedIn profile →"); "Choose the LinkedIn PDF" just clicks the hidden `input[type=file].hidden` — inject fixtures there with DOM.setFileInputFiles. LinkedIn detection needs a `handle (LinkedIn)` line, a `Top Skills` heading, or linkedin URL + `Page N of M`. Fixtures MUST start with name/headline/location before any heading, or fullName parses empty and header lines leak into skills. A draft must exist in `honestcv.resume` for the confirm dialog to appear.
+
+- R300: /documents and /samples are first-class routes (Dashboard `section` prop); active
+  nav item = `a[aria-current="page"]`. Career docs live in `honestcv.careerDocs`
+  (`[{id,kind:'cover'|'interview'|'resignation',title,text,updatedAt}]`) — seed directly
+  for doc-card tests. Sample cards keyed by `aria-label="Preview/Save <role> sample"` +
+  "Use this example"; saved samples in `honestcv.savedSamples`. Clearing React-controlled
+  search inputs over CDP requires resetting `input._valueTracker` before dispatching the
+  input event, or the change is swallowed.
+
+- Share dialog (Builder "Share link"): access control is a `<select>` with options
+  `off`/`view` (not buttons) — revoke by setting it; custom slug input works; share state
+  in `honestcv.shareLink`; revoked /s/<slug> shows "This link is no longer available".
+  Theme toggle over CDP needs ~0.8s between clicks before re-checking `html.classList`.
+- R301 P3 (mobile hamburger lacked Career documents / Sample library links) fixed in
+  R301b: menu now includes both between My resumes and AI assistant.
+
+- R302: letter tone selects are `#cover-tone`/`#res-tone` (options ''/formal/friendly; Balanced omits the `tone` key). Cover Generate is gated on a non-empty `jobDescription` in the draft (`honestcv.resume.jobDescription`) — seed it or Generate no-ops with an inline hint. To capture AI request bodies, pause via Fetch and read `params.request.postData` before fulfilling. On mobile widths the Builder tool buttons may not match desktop text probes — open dialogs via `/builder?doc=cover|resignation|interview` instead. Resignation form ids: res-company/res-role/res-last-day/res-reason.
+
+- R303: file-upload testing over CDP — `DOM.setFileInputFiles` requires `DOM.enable` + `DOM.getDocument` fetched in the SAME session before `DOM.requestNode`, else it errors "Could not find node" (a bare eval-objectId path silently no-ops); no synthetic change event needed after a successful set. Scan-only PDF guards verified on all five surfaces (landing / dashboard-resume / documents-cover / ats-checker / builder-dialog) with per-surface copy variants; `.png` → "Unsupported file type — please upload a PDF, DOCX or TXT file." Dashboard text-PDF import with an empty draft replaces directly and navigates to /builder (confirm dialog only appears when a draft exists). Scan fixture: /home/ubuntu/qa/scan_only_resume.pdf. Still never exercised: the >2MB oversized-file message.
+
+## R304 lessons — letter signature upload QA
+- Letter-viewer dialog has a hidden `input[type=file][accept="image/png,image/jpeg"]` — inject via `DOM.setFileInputFiles` (remember same-session `DOM.getDocument` first); the signature is stored as a ≤480px-wide PNG data URL in the doc's `signature` key and persisted immediately (not gated on Save changes).
+- Remove deletes the `signature` key but bumps `updatedAt` (updateCareerDoc) — compare stored docs minus that field when asserting byte-identity.
+- Verify signed PDFs by rasterizing (`pdftoppm`) and masking the known ink color between the salutation and typed-name baselines; DOCX position via index of `<w:drawing` (NOT bare "drawing" — xmlns URIs contain "drawingml").
+- Set the download dir per-session with `Browser.setDownloadBehavior` in arm() (e.g. /home/ubuntu/qa/…).
+
+## R305 lessons (letter examples)
+- Letter examples chips live in the Career documents section on /documents and /dashboard; chip accessible text is `${role} · Cover letter|Resignation`.
+- Doc-card delete is an icon button with accessible name `Delete ${title}` (match aria-label/textContent against that, not a bare "Delete").
+- Example texts end `Sincerely,\n[Your name]` (single newline) and are stored byte-exact vs src/lib/letterExamples.ts.
+- "Use this example" saves immediately via saveCareerDoc and opens the letter viewer in edit mode.
+
+## R306 lessons (letter-example SEO pages)
+- Letter example data single source: src/lib/letterExamples.data.json (feeds the app chips AND the static pages /cover-letter-examples/ + /resignation-letter-examples/ built by scripts/build-seo.mjs).
+- Verify page letters by extracting `<pre>` blocks, html-unescaping, then byte-comparing to the JSON `text` fields; anchor ids are kebab-cased roles.
+- These SEO pages are static HTML like /guides/ — no dark-mode toggle, expected.
+
+## R307 lessons (exploratory audit + slash-less link fix)
+- ATS checker upload only fills `#resume-text`; results/file checks appear after filling `#jd-text` and clicking "Check my ATS score".
+- Builder import with an existing draft requires the enabled "Import — replaces current content" action; the bare "Import" button can be disabled.
+- >2 MB size check ("File size under 2 MB") is non-blocking; extraction still runs. Fixture recipe: valid large text PDF via comment padding after `%%EOF` plus a re-appended `startxref`/`%%EOF` trailer (/home/ubuntu/qa/r307_big2.pdf).
+- Slash-less static-link P3 fixed in R307b (bundle index-CujNNOAK.js): `slashed()` in scripts/build-seo.mjs + trailing-slash hrefs in src/components/Layout.tsx. SPA routes (/builder, /dashboard, /jobs, /ats-checker, /documents) intentionally remain slash-less and serve 200 direct — don't re-flag them.
+
+## R308 lessons (/jobs location datalist)
+- /jobs location datalist is `#job-location-options`; options = results + pipeline locations via `locationFacets(..., Infinity)` sorted with localeCompare.
+- Pipeline storage is `honestcv.jobPipeline` with entries shaped `{job: JobListing, status, updatedAt, history}` — NOT a flat job object (a flat fixture is silently ignored).
+- Location facet chips live in the group `[aria-label='Filter by a location found in these results']` — don't match bare `(\d+)` buttons; the status chips (Tracked/Saved/…) also match.
+- Native datalist popups don't render in CDP screenshots; assert the input↔datalist association and options via DOM.
+
+## R309 lessons (/jobs loading skeleton + canonical)
+- To test the /jobs loading skeleton, add a CDP Fetch pattern for `*api/jobs/search*` and hold the paused request while asserting/screenshotting, then `Fetch.continueRequest` — production loads too fast otherwise.
+- Skeleton = `[aria-busy=true].animate-pulse` (8 rows, sr-only 'Loading jobs…') + aria-hidden 'Locations:' pill row (7 pills), both gone after load.
+- CanonicalSync (App.tsx) sets `link[rel=canonical]` to origin+pathname on every route; static index.html carries only the homepage canonical, so verify SPA nav with a persisted `window` marker via `aside a` (WorkspaceNav router Links) — some header anchors cause full loads.
+- Visiting /builder creates an analytics key `honestcv.ev.builder-start` — expect/strip it when comparing localStorage baselines.
+
+## R310 lessons (sample thumbnail a11y)
+- Sample thumbnail preview buttons have no aria-label — select them via `button > span.sr-only` starting with "Preview "; verify computed accessible names with CDP `Accessibility.getPartialAXTree` (DOM.enable + Accessibility.enable + DOM.requestNode from a Runtime objectId in the same session).
+- Star save buttons keep `aria-label="Save {role} sample"` + aria-pressed.
+- sr-only visual check: getBoundingClientRect ≤1×1px plus screenshot inspection.
+
+## R311 lessons (documents heading order)
+- The "Letter examples" heading in Dashboard.tsx is conditional — h2 on /documents (section==='documents'), h3 on /dashboard.
+- When auditing heading order note the static footer contributes H2s (Product/Resources/Compare/Company) after main content.
+
+## R312 lessons (/jobs URL state sync)
+- /jobs syncs state to the URL via history.replaceState (params q/tab/attention/cat/loc/type/skills/sort/job; defaults omitted; q omitted when equal to loadResume targetRole or '').
+- Job row SELECT buttons are `ul li button.block.w-full` with aria-pressed — buttons matched by text may be Save/status buttons.
+- `loadResume()` rejects fixtures missing a `contact` object or `experience` array (silently returns null) — seed a full-shape resume when testing targetRole behavior.
+- Attention fixtures need status applied/interviewing with last history step ≥7 days old. Bulk-mode toggle on Tracked is labeled 'Select…' inside `[aria-label='Bulk actions on tracked jobs']`.
+- Switching to an empty Tracked tab clears the selection, dropping `job=` from the URL (by design).
+
+## R313 lessons (dashboard ops / history / share audit)
+- Dashboard copy controls are sr-only-labelled buttons: 'Edit name and target job for {name}', 'Move {name} to a folder' (dialog: input 'New folder name…' + 'Create & move'), 'Rename folder', 'Remove folder', 'Delete {name}'.
+- Created-sort tests must use ungrouped copies (folder groups render separately) with discriminator names where name- and created-order differ.
+- /builder does NOT render WorkspaceNav — the quota footer only exists on /jobs, /dashboard, /documents.
+- Share: slug input lowercases on input; select[aria-label='Link access'] off/view drives create/revoke; test incognito via browser-WS Target.createBrowserContext + createTarget + attachToTarget(flatten).
+- Theme control is a single cycle button (title 'System theme — switch to…') — click repeatedly until html.dark appears.
+
+## R314 lessons (share revoke failure paths)
+- To test revoke failure paths on production, temporarily add Fetch pattern `*api/share/*` and fulfill the DELETE with 500 (or failRequest ConnectionFailed) — errors surface inline as 'Turning off the link failed (…)'; 404/410 on DELETE are treated as success.
+- revokeShareLink keeps honestcv.shareLink on failure (select stays 'Can view'); retry works after disarming.
+- Server-side delete for fixtures: `curl -X DELETE -H 'x-share-token: <token>' https://cv.zalize.com/api/share/<id>`.
+- Don't run wait_paused from a second thread on the shared harness websocket — it races cmd() reads.
