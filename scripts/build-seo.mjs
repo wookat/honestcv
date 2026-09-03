@@ -3,7 +3,7 @@
  * keyword pages) into dist/client/, plus sitemap.xml and robots.txt.
  * Static assets win over the SPA fallback, so crawlers get real HTML.
  */
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 const SITE = 'https://cv.zalize.com'
@@ -1366,6 +1366,8 @@ const FOOTER_COLUMNS = [
       ['Cover letter generator', '/cover-letter-generator/'],
       ['Interview prep', '/interview-prep/'],
       ['Resignation letter writer', '/resignation-letter-generator/'],
+      ['Cover letter examples', '/cover-letter-examples/'],
+      ['Resignation letter examples', '/resignation-letter-examples/'],
       ['All comparisons', '/vs/'],
     ],
   ],
@@ -1477,6 +1479,8 @@ details.rnav .panel a:hover{background:var(--border)}
 const RESOURCE_LINKS = [
   ['Resume guides', '/guides/'],
   ['Cover letter generator', '/cover-letter-generator/'],
+  ['Cover letter examples', '/cover-letter-examples/'],
+  ['Resignation letter examples', '/resignation-letter-examples/'],
   ['Interview prep', '/interview-prep/'],
   ['RezUp vs Zety', '/vs/zety'],
   ['RezUp vs LiveCareer', '/vs/livecareer'],
@@ -3990,6 +3994,120 @@ for (const p of TOOL_PAGES) {
   console.log(`built /${p.slug}/index.html`)
 }
 
+// ---- Letter example pages: same 8 letters the app ships in Career documents ----
+const LETTER_EXAMPLES = JSON.parse(
+  readFileSync(path.resolve(import.meta.dirname, '../src/lib/letterExamples.data.json'), 'utf8')
+)
+if (!Array.isArray(LETTER_EXAMPLES) || LETTER_EXAMPLES.length < 8)
+  throw new Error('letterExamples.data.json: expected at least 8 examples')
+for (const e of LETTER_EXAMPLES)
+  if (!e.slug || !e.role || !e.kind || !e.text?.includes('Sincerely,'))
+    throw new Error(`letterExamples.data.json: malformed example ${e.slug}`)
+
+const LETTER_HUBS = [
+  {
+    slug: 'cover-letter-examples',
+    kind: 'cover',
+    title: 'Cover Letter Examples by Role — Copy, Customize, Send | RezUp',
+    description:
+      'Complete cover letter examples for software engineers, data analysts, product managers, marketers, customer service reps and nurses. Every fact is a [placeholder] — customize one in your browser for free.',
+    h1: 'Cover letter examples by role',
+    lede:
+      'Full-text cover letters you can copy or customize. Every fact slot is an explicit [placeholder] — nothing invented — so you replace them with your real details instead of un-writing someone else’s claims. Load any example into RezUp’s Career documents and edit it right in your browser.',
+    other: { label: 'Resignation letter examples', href: '/resignation-letter-examples/' },
+    generator: { label: 'AI cover letter generator', href: '/cover-letter-generator/' },
+  },
+  {
+    slug: 'resignation-letter-examples',
+    kind: 'resignation',
+    title: 'Resignation Letter Examples — Two-Weeks Notice & Short Notice | RezUp',
+    description:
+      'Professional resignation letter examples: a standard two-weeks notice and a short-notice resignation. Every fact is a [placeholder] — customize one in your browser for free.',
+    h1: 'Resignation letter examples',
+    lede:
+      'Resign professionally without burning bridges. These full-text resignation letters use explicit [placeholders] for every fact, so you fill in your real dates and handover plan. Load one into RezUp’s Career documents to edit, add an optional signature image, and download it as PDF or DOCX.',
+    other: { label: 'Cover letter examples', href: '/cover-letter-examples/' },
+    generator: { label: 'AI resignation letter writer', href: '/resignation-letter-generator/' },
+  },
+]
+
+function letterExamplesPage(p) {
+  const canonical = `${SITE}/${p.slug}/`
+  const items = LETTER_EXAMPLES.filter((e) => e.kind === p.kind)
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>${esc(p.title)}</title>
+<meta name="description" content="${esc(p.description)}" />
+<link rel="canonical" href="${canonical}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="RezUp" />
+<meta property="og:title" content="${esc(p.title)}" />
+<meta property="og:description" content="${esc(p.description)}" />
+<meta property="og:url" content="${canonical}" />
+<meta property="og:image" content="${SITE}/og2.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: p.h1, path: `/${p.slug}/` }]))}</script>
+<style>${CSS}
+.letter{border:1px solid var(--border);background:var(--card);border-radius:var(--radius);padding:1.5rem;margin-top:1rem;box-shadow:0 1px 2px rgb(0 0 0/.04)}
+.letter pre{margin:0;white-space:pre-wrap;font:inherit;font-size:.9375rem;line-height:1.7}
+.letter .act{margin:1.25rem 0 0;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.letter .act a.more{font-size:.875rem}
+h2[id]{margin-top:2.5rem}
+</style>
+${FP_BEACON}
+</head>
+<body>
+<header class="site"><div class="in">
+<a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
+${NAV_HTML}
+<a class="btn" href="/builder">Build my resume free</a>
+</div></header>
+<main>
+<h1>${esc(p.h1)}</h1>
+<p class="lede">${esc(p.lede)}</p>
+<nav class="toc" aria-label="Examples on this page"><strong>On this page</strong><ol>
+${items.map((e) => `<li><a href="#${anchorId(e.role)}">${esc(e.role)}</a></li>`).join('\n')}
+</ol></nav>
+${items
+    .map(
+      (e) => `<h2 id="${anchorId(e.role)}">${esc(e.role)}</h2>
+<div class="letter">
+<pre>${esc(e.text)}</pre>
+<div class="act">
+<a class="btn" href="/documents">Customize this letter free</a>
+<a class="more" href="${p.generator.href}">or draft one with AI</a>
+</div>
+</div>`
+    )
+    .join('\n')}
+<div class="cta">
+<p>The same ${items.length} examples are built into RezUp’s Career documents — load one, replace the [placeholders], and download it as PDF or DOCX. Everything stays in your browser: no account, no upload.</p>
+<a class="btn" href="/documents">Open Career documents</a>
+</div>
+<div class="related">
+<h2>Related</h2>
+<ul>
+<li><a href="${p.other.href}">${esc(p.other.label)}</a></li>
+<li><a href="${p.generator.href}">${esc(p.generator.label)}</a></li>
+<li><a href="/examples/">Resume examples by role</a></li>
+</ul>
+</div>
+</main>
+${siteFooter()}
+</body>
+</html>`
+}
+
+for (const p of LETTER_HUBS) {
+  mkdirSync(path.join(OUT_DIR, p.slug), { recursive: true })
+  writeFileSync(path.join(OUT_DIR, p.slug, 'index.html'), letterExamplesPage(p))
+  console.log(`built /${p.slug}/index.html`)
+}
+
 const urls = [
   '/',
   '/builder',
@@ -3997,6 +4115,7 @@ const urls = [
   '/pricing/',
   '/ai/',
   ...TOOL_PAGES.map((p) => `/${p.slug}/`),
+  ...LETTER_HUBS.map((p) => `/${p.slug}/`),
   ...PAGES.map((p) => `${p.path}/`),
   ...HUBS.map((h) => h.pathname),
   ...GUIDES.map((p) => `${p.path}/`),

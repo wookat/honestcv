@@ -2,9 +2,12 @@
  * Role-specific letter examples (cover + resignation), fully browser-local.
  * Every fact slot is an explicit [placeholder] — nothing invented; the user
  * fills them in after loading the example into Career documents.
+ * Data lives in letterExamples.data.json so the build-time SEO pages
+ * (scripts/build-seo.mjs) can render the same letters without duplication.
  */
 
 import type { CareerDocKind } from '@/lib/documents'
+import data from '@/lib/letterExamples.data.json'
 
 export interface LetterExample {
   slug: string
@@ -13,125 +16,9 @@ export interface LetterExample {
   text: string
 }
 
-export const LETTER_EXAMPLES: LetterExample[] = [
-  {
-    slug: 'cover-software-engineer',
-    role: 'Software Engineer',
-    kind: 'cover',
-    text: `Dear [Hiring manager's name],
-
-I'm writing to apply for the Software Engineer position at [Company]. At [Current company], I build and ship [product area] features in [languages/frameworks], and I'm drawn to [Company] because [specific reason tied to their product or mission].
-
-In my current role I [key achievement, e.g. reduced API latency by [X%] by [what you did]]. I also [second achievement, e.g. led the migration of [system] to [technology], cutting deploy time from [X] to [Y]]. I care about readable code, honest estimates, and tests that catch real bugs.
-
-I'd welcome the chance to talk about how that experience maps to [team or project at Company]. Thank you for your time and consideration.
-
-Sincerely,
-[Your name]`,
-  },
-  {
-    slug: 'cover-data-analyst',
-    role: 'Data Analyst',
-    kind: 'cover',
-    text: `Dear [Hiring manager's name],
-
-I'm excited to apply for the Data Analyst role at [Company]. For the past [X years] at [Current company], I've turned messy [domain] data into decisions — building dashboards in [tool], writing SQL against [warehouse], and presenting findings to [audience].
-
-Highlights I'd bring to [Company]: I [key achievement, e.g. identified a churn driver that recovered [X%] of at-risk accounts] and [second achievement, e.g. automated a weekly reporting pipeline, saving [X hours] per week]. I'm rigorous about data quality and plain-language communication.
-
-I'd love to discuss how I can help [team at Company] answer its hardest questions. Thank you for considering my application.
-
-Sincerely,
-[Your name]`,
-  },
-  {
-    slug: 'cover-product-manager',
-    role: 'Product Manager',
-    kind: 'cover',
-    text: `Dear [Hiring manager's name],
-
-I'm applying for the Product Manager position at [Company]. At [Current company] I own [product or feature area] end to end — from customer discovery through launch — and [Company]'s work on [specific product] is exactly the kind of problem I want to spend my time on.
-
-Recent results: I [key achievement, e.g. launched [feature], lifting [metric] by [X%]], and [second achievement, e.g. reprioritized the roadmap around [insight], cutting time-to-value for new users from [X] to [Y]]. I write crisp specs, say no with data, and keep engineers unblocked.
-
-I'd welcome a conversation about [Company]'s roadmap and where I could contribute fastest. Thank you for your time.
-
-Sincerely,
-[Your name]`,
-  },
-  {
-    slug: 'cover-marketing-manager',
-    role: 'Marketing Manager',
-    kind: 'cover',
-    text: `Dear [Hiring manager's name],
-
-I'm writing to express my interest in the Marketing Manager role at [Company]. I currently lead [channel or campaign area] at [Current company], and I admire how [Company] [specific thing about their brand or growth].
-
-What I'd bring: I [key achievement, e.g. grew organic traffic [X%] in [timeframe] by [what you did]] and [second achievement, e.g. ran a launch campaign that generated [X] qualified leads at [Y] CAC]. I pair creative instincts with a spreadsheet habit — every campaign gets a hypothesis and a readout.
-
-I'd be glad to share the playbooks behind those numbers. Thank you for considering my application.
-
-Sincerely,
-[Your name]`,
-  },
-  {
-    slug: 'cover-customer-service',
-    role: 'Customer Service Representative',
-    kind: 'cover',
-    text: `Dear [Hiring manager's name],
-
-I'm applying for the Customer Service Representative position at [Company]. At [Current company] I handle [X] customer conversations a day across [channels], and I take pride in turning frustrated customers into loyal ones.
-
-In the last [timeframe] I [key achievement, e.g. maintained a [X%] satisfaction score while cutting average handle time by [Y%]], and I [second achievement, e.g. wrote help-center articles that deflected [X] tickets a month]. I stay calm under pressure and escalate with full context.
-
-I'd love to bring that same care to [Company]'s customers. Thank you for your time and consideration.
-
-Sincerely,
-[Your name]`,
-  },
-  {
-    slug: 'cover-registered-nurse',
-    role: 'Registered Nurse',
-    kind: 'cover',
-    text: `Dear [Hiring manager's name],
-
-I'm writing to apply for the Registered Nurse position at [Facility]. I'm an RN with [X years] of experience in [unit/specialty] at [Current facility], licensed in [state], and I'm drawn to [Facility] because [specific reason].
-
-In my current role I care for [X] patients per shift, and I [key achievement, e.g. helped reduce medication errors by [X%] through [what you did]]. Colleagues know me for clear charting, calm triage, and advocating for patients and their families.
-
-I would welcome the opportunity to discuss how my experience fits your team. Thank you for your consideration.
-
-Sincerely,
-[Your name], RN`,
-  },
-  {
-    slug: 'resignation-two-weeks',
-    role: 'Standard two-weeks notice',
-    kind: 'resignation',
-    text: `Dear [Manager's name],
-
-Please accept this letter as formal notice of my resignation from my position as [Job title] at [Company]. My last day of work will be [date, two weeks from today].
-
-I'm grateful for the opportunities I've had here, especially [something specific you learned or accomplished]. Over the next two weeks I'll do everything I can to hand off my responsibilities smoothly, including [handover plan, e.g. documenting my projects and briefing [colleague]].
-
-Thank you for your support during my time at [Company]. I wish you and the team continued success.
-
-Sincerely,
-[Your name]`,
-  },
-  {
-    slug: 'resignation-short-notice',
-    role: 'Short-notice resignation',
-    kind: 'resignation',
-    text: `Dear [Manager's name],
-
-I am writing to resign from my position as [Job title] at [Company], effective [date]. I apologize for the shorter-than-standard notice; [brief reason, e.g. personal circumstances] make an earlier departure necessary.
-
-I want to make this transition as smooth as possible in the time available. I will [handover plan, e.g. document my open work and hand off [project] to [colleague]] before my last day.
-
-Thank you for your understanding, and for everything I've learned at [Company].
-
-Sincerely,
-[Your name]`,
-  },
-]
+export const LETTER_EXAMPLES: LetterExample[] = data.map((e) => ({
+  slug: e.slug,
+  role: e.role,
+  kind: e.kind === 'resignation' ? 'resignation' : 'cover',
+  text: e.text,
+}))
