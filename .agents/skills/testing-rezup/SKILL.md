@@ -925,3 +925,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Remove deletes the `signature` key but bumps `updatedAt` (updateCareerDoc) — compare stored docs minus that field when asserting byte-identity.
 - Verify signed PDFs by rasterizing (`pdftoppm`) and masking the known ink color between the salutation and typed-name baselines; DOCX position via index of `<w:drawing` (NOT bare "drawing" — xmlns URIs contain "drawingml").
 - Set the download dir per-session with `Browser.setDownloadBehavior` in arm() (e.g. /home/ubuntu/qa/…).
+
+## R305 lessons (letter examples)
+- Letter examples chips live in the Career documents section on /documents and /dashboard; chip accessible text is `${role} · Cover letter|Resignation`.
+- Doc-card delete is an icon button with accessible name `Delete ${title}` (match aria-label/textContent against that, not a bare "Delete").
+- Example texts end `Sincerely,\n[Your name]` (single newline) and are stored byte-exact vs src/lib/letterExamples.ts.
+- "Use this example" saves immediately via saveCareerDoc and opens the letter viewer in edit mode.
