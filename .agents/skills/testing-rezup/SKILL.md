@@ -915,3 +915,5 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
   Theme toggle over CDP needs ~0.8s between clicks before re-checking `html.classList`.
 - R301 P3 (mobile hamburger lacked Career documents / Sample library links) fixed in
   R301b: menu now includes both between My resumes and AI assistant.
+
+- R302: letter tone selects are `#cover-tone`/`#res-tone` (options ''/formal/friendly; Balanced omits the `tone` key). Cover Generate is gated on a non-empty `jobDescription` in the draft (`honestcv.resume.jobDescription`) — seed it or Generate no-ops with an inline hint. To capture AI request bodies, pause via Fetch and read `params.request.postData` before fulfilling. On mobile widths the Builder tool buttons may not match desktop text probes — open dialogs via `/builder?doc=cover|resignation|interview` instead. Resignation form ids: res-company/res-role/res-last-day/res-reason.

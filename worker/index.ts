@@ -909,7 +909,7 @@ app.post('/api/ai/cover-letter', async (c) => {
     freeRemaining = remaining
   }
   const body = await c.req
-    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string; addressee?: string; highlights?: string; language?: string }>()
+    .json<{ resumeText?: string; jobDescription?: string; company?: string; role?: string; addressee?: string; highlights?: string; language?: string; tone?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const resumeText = body.resumeText?.trim()
   const jd = body.jobDescription?.trim()
@@ -918,7 +918,15 @@ app.post('/api/ai/cover-letter', async (c) => {
   const result = await callLlm(
     c.env,
     withOutputLanguage(
-      buildCoverLetterMessages(resumeText, jd, body.company ?? '', body.role ?? '', body.addressee?.trim() ?? '', body.highlights?.trim() ?? ''),
+      buildCoverLetterMessages(
+        resumeText,
+        jd,
+        body.company ?? '',
+        body.role ?? '',
+        body.addressee?.trim() ?? '',
+        body.highlights?.trim() ?? '',
+        body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
+      ),
       body.language
     ),
     0.6
@@ -957,7 +965,7 @@ app.post('/api/ai/resignation-letter', async (c) => {
     freeRemaining = remaining
   }
   const body = await c.req
-    .json<{ company?: string; role?: string; lastDay?: string; reason?: string; name?: string }>()
+    .json<{ company?: string; role?: string; lastDay?: string; reason?: string; name?: string; tone?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const company = body.company?.trim()
   const role = body.role?.trim()
@@ -970,7 +978,8 @@ app.post('/api/ai/resignation-letter', async (c) => {
       role,
       body.lastDay?.trim() ?? '',
       body.reason ?? '',
-      body.name?.trim() ?? ''
+      body.name?.trim() ?? '',
+      body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
     ),
     0.6
   )
