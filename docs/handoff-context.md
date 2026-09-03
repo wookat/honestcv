@@ -843,3 +843,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产 QA（bundle index-BRVzEqOr.js，零 AI——tailor/keyword-bullet POST 全 mock）全绿零 P0–P2：Tab 可达+光暗焦点环、每按精确 8px、Shift 精确 4×、边界 clamp+页面不滚动、zoom 后垂直平移、像素级证明键盘平移改变保存裁剪（象限边界 43/86 vs 居中 128/128）、指针拖移回归、R340 回焦回归、375 严格、基线还原。截图 /home/ubuntu/screenshots/r349_*.png。
 - 覆盖收尾（R340 两个未测面，审计通过）：tailoring triage 卡与关键词 bullet 对话框端到端键盘可操作（打开/Enter 激活/接受/插入/Esc+精确回焦）。新 P3 候选：「Draft a bullet using <kw>」chips 距 JD textarea ~295 个 Tab 停（同 R340 undo/status 条 late-tab-order 类）；观察项（疑似有意）：tailor 对话框有未审阅建议时 Esc 静默关闭（已接受项保留，无 R333 式确认）。
 - 备注：zoom 1 横图 maxY=0 垂直方向键合法 no-op——先 zoom 再测垂直平移。
+
+## R343 — 关键词 chip 组 roving tabindex（Target job 面板）(2026-09-03)
+- 证据：R341 P3——missing 关键词 chips 每个 3 按钮全是 Tab 停（实测 Remaining 组 33 按钮），JD textarea 后 ~295 停；且 add/ignore 消耗 chip 后焦点掉 BODY。方案 docs/plan-r343-keyword-chip-roving-tabindex.md。
+- 实现（仅 Builder.tsx）：新 RovingChipGroup（W3C toolbar roving-tabindex 模式）包住 High priority / Remaining / Excluded 三个 chip 列表：每组仅 1 个 Tab 停，方向键/Home/End 在组内移动（clamp 不环绕、preventDefault）；chip 被消耗时焦点留在组内相邻按钮；整组卸载时（恢复最后一个 Excluded chip）microtask 兜底把焦点交给剩余的 [data-roving-group] 活动按钮。
+- 生产 QA（index-DVfpPc5J.js / Builder-By26a76b.js，零 AI——唯一 keyword-bullet POST 已 mock）全绿零 P0–P3：每组恰 1 个 tabIndex=0、单 Tab 进出组、箭头遍历 +kw/sparkles/×、消耗后组内 clamp 回焦（含 Excluded 空组边缘，当轮修复复验）、draft 对话框 Esc 精确回焦 sparkles、鼠标点击同步 roving、R342 回归、375 严格、暗色焦点环、基线还原。
+- 注意：主 index bundle 名可跨部署不变（仅 lazy chunk 变化）——须核对 bundle 内 Builder-*.js chunk 名。R340–R343 键盘审计三个 P3 至此全部闭环。
