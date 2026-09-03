@@ -6,6 +6,7 @@
 import { PDFDocument, PDFFont, PDFPage, PDFString, StandardFonts, rgb } from '@cantoo/pdf-lib'
 import * as fontkit from 'fontkit'
 import { downloadBlob } from '@/lib/download'
+import { splitAtSignature } from '@/lib/documents'
 import {
   type Resume,
   awardBullets,
@@ -1076,7 +1077,12 @@ export async function downloadTextPdf(title: string, text: string, filename: str
 
 /** Letter (cover / resignation) with the sender's letterhead, matching the
  *  resume's template accent, font family and page size. */
-export async function downloadLetterPdf(resume: Resume, body: string, filename: string) {
+export async function downloadLetterPdf(
+  resume: Resume,
+  body: string,
+  filename: string,
+  signature?: string
+) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const doc = await PDFDocument.create()
   const fonts: Fonts = await embedFontsFor(doc, resume, tpl.serif, body)
@@ -1113,13 +1119,35 @@ export async function downloadLetterPdf(resume: Resume, body: string, filename: 
   })
   w.text(date, { size: 10.5, color: w.soft })
   w.gap(12)
-  for (const block of body.split(/\n{2,}/)) {
-    const t = block.trim()
-    if (!t) continue
-    for (const line of t.split('\n')) {
-      w.text(line, { size: 10.5, lineGap: 1 })
+  const writeBlocks = (text: string) => {
+    for (const block of text.split(/\n{2,}/)) {
+      const t = block.trim()
+      if (!t) continue
+      for (const line of t.split('\n')) {
+        w.text(line, { size: 10.5, lineGap: 1 })
+      }
+      w.gap(8)
     }
-    w.gap(8)
+  }
+  if (signature) {
+    const { before, after } = splitAtSignature(body)
+    writeBlocks(before)
+    try {
+      const img = signature.startsWith('data:image/jpeg')
+        ? await doc.embedJpg(signature)
+        : await doc.embedPng(signature)
+      const drawW = Math.min(120, img.width)
+      const drawH = (img.height / img.width) * drawW
+      w.ensure(drawH + 4)
+      w.y -= drawH
+      w.page.drawImage(img, { x: w.margin, y: w.y, width: drawW, height: drawH })
+      w.gap(6)
+    } catch {
+      // unreadable signature image — export the letter unsigned
+    }
+    writeBlocks(after)
+  } else {
+    writeBlocks(body)
   }
   const bytes = await doc.save()
   downloadBlob(new Blob([bytes as BlobPart], { type: 'application/pdf' }), filename)

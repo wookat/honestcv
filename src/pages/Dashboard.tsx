@@ -55,6 +55,7 @@ import {
   deleteCareerDoc,
   listCareerDocs,
   saveCareerDoc,
+  splitAtSignature,
   updateCareerDoc,
 } from '@/lib/documents'
 import {
@@ -105,10 +106,15 @@ function LetterPreview({
   const tpl = resolveTemplate(letterhead.templateId, letterhead.accentColor)
   const c = letterhead.contact
   const contactLine = [c.email, c.phone, c.location, c.website].filter(Boolean).join(' \u00b7 ')
-  const paragraphs = text
-    .split(/\n{2,}/)
-    .map((b) => b.trim())
-    .filter(Boolean)
+  const signature = doc.kind !== 'interview' ? doc.signature : undefined
+  const split = signature ? splitAtSignature(text) : { before: text, after: '' }
+  const toParagraphs = (t: string) =>
+    t
+      .split(/\n{2,}/)
+      .map((b) => b.trim())
+      .filter(Boolean)
+  const paragraphs = toParagraphs(split.before)
+  const afterParagraphs = signature ? toParagraphs(split.after) : []
   const date = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -147,6 +153,14 @@ function LetterPreview({
           </p>
         ))
       )}
+      {signature && (
+        <img src={signature} alt="Signature" className="mt-3 max-h-16 w-auto max-w-40" />
+      )}
+      {afterParagraphs.map((p, i) => (
+        <p key={`after-${i}`} className="mt-2 whitespace-pre-wrap">
+          {p}
+        </p>
+      ))}
     </div>
   )
 }
@@ -201,6 +215,8 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [docText, setDocText] = useState('')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
+  const signatureInputRef = useRef<HTMLInputElement>(null)
+  const [signatureError, setSignatureError] = useState('')
   const docImportInputRef = useRef<HTMLInputElement>(null)
   const [docImportBusy, setDocImportBusy] = useState(false)
   const [docImportError, setDocImportError] = useState('')
@@ -350,11 +366,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           if (fmt === 'pdf') {
             const m = await import('@/lib/pdf')
             if (d.kind === 'interview') await m.downloadTextPdf(d.title, text, name)
-            else await m.downloadLetterPdf(letterhead, text, name)
+            else await m.downloadLetterPdf(letterhead, text, name, d.signature)
           } else {
             const m = await import('@/lib/docx')
             if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, name)
-            else await m.downloadLetterDocx(letterhead, text, name)
+            else await m.downloadLetterDocx(letterhead, text, name, d.signature)
           }
         } catch (e) {
           setDlError(
@@ -1676,7 +1692,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         </DialogContent>
       </Dialog>
 
-      <Dialog open={openDoc !== null} onOpenChange={(o) => !o && setOpenDoc(null)}>
+      <Dialog
+        open={openDoc !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setOpenDoc(null)
+            setSignatureError('')
+          }
+        }}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{openDoc?.title}</DialogTitle>
@@ -1713,6 +1737,89 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               </button>
             ))}
           </div>
+          {openDoc && openDoc.kind !== 'interview' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={signatureInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                className="hidden"
+                aria-label="Signature image"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file || !openDoc) return
+                  setSignatureError('')
+                  if (file.size > 1024 * 1024) {
+                    setSignatureError('Signature image is too large — use a file under 1 MB.')
+                    return
+                  }
+                  const img = new Image()
+                  const url = URL.createObjectURL(file)
+                  img.onload = () => {
+                    URL.revokeObjectURL(url)
+                    const scale = Math.min(1, 480 / img.naturalWidth)
+                    const canvas = document.createElement('canvas')
+                    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
+                    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
+                    canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
+                    const dataUrl = canvas.toDataURL('image/png')
+                    setDocs(updateCareerDoc(openDoc.id, { signature: dataUrl }))
+                    setOpenDoc({ ...openDoc, signature: dataUrl })
+                  }
+                  img.onerror = () => {
+                    URL.revokeObjectURL(url)
+                    setSignatureError('Could not read that image — use a PNG or JPEG file.')
+                  }
+                  img.src = url
+                }}
+              />
+              {openDoc.signature ? (
+                <>
+                  <img
+                    src={openDoc.signature}
+                    alt="Signature"
+                    className="max-h-10 w-auto max-w-32 rounded border bg-white p-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => signatureInputRef.current?.click()}
+                  >
+                    Replace signature
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setDocs(updateCareerDoc(openDoc.id, { signature: '' }))
+                      const next = { ...openDoc }
+                      delete next.signature
+                      setOpenDoc(next)
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => signatureInputRef.current?.click()}
+                >
+                  Add signature
+                </Button>
+              )}
+              {signatureError !== '' && (
+                <p role="alert" className="text-destructive text-xs">
+                  {signatureError}
+                </p>
+              )}
+            </div>
+          )}
           {docView === 'preview' && openDoc ? (
             <LetterPreview doc={openDoc} text={docText} letterhead={draft ?? emptyResume()} />
           ) : (

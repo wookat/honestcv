@@ -9,6 +9,7 @@ import {
   Document,
   LineRuleType,
   ExternalHyperlink,
+  ImageRun,
   Packer,
   Paragraph,
   ShadingType,
@@ -17,6 +18,7 @@ import {
   TextRun,
 } from 'docx'
 import { downloadBlob } from '@/lib/download'
+import { splitAtSignature } from '@/lib/documents'
 import { hasInlineMarks, parseInlineMarks, upperInlineMarks } from '@/lib/marks'
 import {
   type Resume,
@@ -690,7 +692,30 @@ export async function downloadTextDocx(
 
 /** Letter (cover / resignation) with the sender's letterhead, matching the
  *  resume's template accent, font family and page size. */
-export async function downloadLetterDocx(resume: Resume, body: string, filename: string) {
+/** Decode a PNG data URL into bytes + IHDR pixel dimensions. */
+function decodePngDataUrl(dataUrl: string): { data: Uint8Array; width: number; height: number } | null {
+  const m = /^data:image\/png;base64,(.+)$/.exec(dataUrl)
+  if (!m) return null
+  try {
+    const bin = atob(m[1])
+    const data = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i)
+    const view = new DataView(data.buffer)
+    const width = view.getUint32(16)
+    const height = view.getUint32(20)
+    if (!width || !height) return null
+    return { data, width, height }
+  } catch {
+    return null
+  }
+}
+
+export async function downloadLetterDocx(
+  resume: Resume,
+  body: string,
+  filename: string,
+  signature?: string
+) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const font = FONT_BY_KIND[familyOf(resume, tpl.serif)]
   const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
@@ -747,20 +772,43 @@ export async function downloadLetterDocx(resume: Resume, body: string, filename:
       children: [new TextRun({ text: date, size: 21, font })],
     })
   )
-  for (const block of body.split(/\n{2,}/)) {
-    const t = block.trim()
-    if (!t) continue
+  const pushBlocks = (text: string) => {
+    for (const block of text.split(/\n{2,}/)) {
+      const t = block.trim()
+      if (!t) continue
+      paragraphs.push(
+        new Paragraph({
+          spacing: { after: 200, line: 340 },
+          children: t
+            .split('\n')
+            .map(
+              (line, i) =>
+                new TextRun({ text: line, size: 22, font, break: i > 0 ? 1 : 0 })
+            ),
+        })
+      )
+    }
+  }
+  const png = signature ? decodePngDataUrl(signature) : null
+  if (png) {
+    const { before, after } = splitAtSignature(body)
+    pushBlocks(before)
+    const drawW = Math.min(150, png.width)
     paragraphs.push(
       new Paragraph({
-        spacing: { after: 200, line: 340 },
-        children: t
-          .split('\n')
-          .map(
-            (line, i) =>
-              new TextRun({ text: line, size: 22, font, break: i > 0 ? 1 : 0 })
-          ),
+        spacing: { after: 120 },
+        children: [
+          new ImageRun({
+            type: 'png',
+            data: png.data,
+            transformation: { width: drawW, height: (png.height / png.width) * drawW },
+          }),
+        ],
       })
     )
+    pushBlocks(after)
+  } else {
+    pushBlocks(body)
   }
   const doc = new Document({
     sections: [
