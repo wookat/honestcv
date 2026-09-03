@@ -942,3 +942,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Builder import with an existing draft requires the enabled "Import — replaces current content" action; the bare "Import" button can be disabled.
 - >2 MB size check ("File size under 2 MB") is non-blocking; extraction still runs. Fixture recipe: valid large text PDF via comment padding after `%%EOF` plus a re-appended `startxref`/`%%EOF` trailer (/home/ubuntu/qa/r307_big2.pdf).
 - Slash-less static-link P3 fixed in R307b (bundle index-CujNNOAK.js): `slashed()` in scripts/build-seo.mjs + trailing-slash hrefs in src/components/Layout.tsx. SPA routes (/builder, /dashboard, /jobs, /ats-checker, /documents) intentionally remain slash-less and serve 200 direct — don't re-flag them.
+
+## R308 lessons (/jobs location datalist)
+- /jobs location datalist is `#job-location-options`; options = results + pipeline locations via `locationFacets(..., Infinity)` sorted with localeCompare.
+- Pipeline storage is `honestcv.jobPipeline` with entries shaped `{job: JobListing, status, updatedAt, history}` — NOT a flat job object (a flat fixture is silently ignored).
+- Location facet chips live in the group `[aria-label='Filter by a location found in these results']` — don't match bare `(\d+)` buttons; the status chips (Tracked/Saved/…) also match.
+- Native datalist popups don't render in CDP screenshots; assert the input↔datalist association and options via DOM.
