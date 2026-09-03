@@ -612,3 +612,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：App.tsx 两新路由渲染 `<Dashboard section="documents"|"samples" />`；Dashboard.tsx 接受可选 section prop，单区模式只渲染对应区块（h1）并原样复用全部状态/导入/下载配额/对话框管线（零状态复制）；WorkspaceNav 两项指向新路由带 aria-current；worker SPA_ROUTES 增两路径。/dashboard 保持三区 + h2 锚点 id 不变，旧 #documents/#samples 链接兼容。
 - 生产 QA（bundle index-CAfEAaLA.js，curl 核实）：六项全绿零 P0–P3 零 AI 配额——/documents 直载 200 + h1 + 侧栏 active + 文档卡/Open 对话框/预览切换；/samples 搜索/行业/Saved 过滤；/dashboard 回归 + 锚点滚动；直接刷新 200；375 严格 scrollWidth=375；暗色可读；localStorage/主题还原。截图 /home/ubuntu/screenshots/r300_*.png。录屏不可用（enigo）。
 - QA 沉淀：honestcv.careerDocs 可直接种子；React 受控搜索框 CDP 清空需重置 _valueTracker。
+
+## R301 — 探索性生产审计 + 修 P3（移动端菜单缺新路由入口）(2026-09-03)
+
+- 审计（R290/R295/R297 同模式，bundle index-CAfEAaLA.js）：路由接缝/后退、jobs 闭环（保存→tailor→cover letter→interview prep）、R297/R299 导入回归、share 创建/只读/撤销、375+768 严格宽度、暗色——全部通过，唯一确证 P3：汉堡菜单（Layout.tsx）无 /documents、/samples 入口，<md 用户只能手输 URL（WorkspaceNav 为 hidden md:block）。
+- 修复（R301b）：Layout.tsx 菜单在 My resumes 与 AI assistant 之间加两 Link（点击关菜单）。生产复验全绿（bundle index-BR2mQy8q.js）：两项出现且导航正确、菜单态 scrollWidth=375、暗色可读、768/1024 无汉堡回归、零 AI、基线还原。截图 /home/ubuntu/screenshots/r301*.png。
+- 审计未覆盖：纯扫描 PDF 导入错误路径（缺 fixture，候选后续轮）。
