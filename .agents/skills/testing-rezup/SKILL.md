@@ -983,3 +983,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - revokeShareLink keeps honestcv.shareLink on failure (select stays 'Can view'); retry works after disarming.
 - Server-side delete for fixtures: `curl -X DELETE -H 'x-share-token: <token>' https://cv.zalize.com/api/share/<id>`.
 - Don't run wait_paused from a second thread on the shared harness websocket — it races cmd() reads.
+
+## R318 — assistant quick tasks, tracked-job pane, auto-fit contract
+
+- Assistant quick-task labels are exactly "Improve my ATS score" / "Draft my summary" / "Suggest skills" / "Target my job" / "Find matching jobs"; only the first and "Target my job" are deterministic-local (others POST /api/ai/chat). Scope assertions to the aside containing the "Resume assistant" heading; reply bubbles are div.bg-muted/.bg-primary.rounded-lg. The with-target-job state requires `resume.jobDescription` — a jobPipeline entry alone yields the "haven't pasted a job description" reply.
+- Jobs tailoring report is an inline toggle button "Tailoring report"→"Hide tailoring report", not a dialog.
+- Auto-fit's contract is fewest pages at most readable settings — "Fits 2 pages" on an oversized resume is success, not failure; status text is in p[role=status]. Experience hide toggles: button[aria-label='Hide role N from resume'].
+- Lighthouse `/ai/` BP may flake to 0.96 via inspector-issues CSP entries for same-origin t.js//api/hit — rerun before reporting.

@@ -689,3 +689,7 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据：R313 P3 + share.ts 源码（见 docs/plan-r314-share-revoke-integrity.md）。风险：弱网下用户以为已撤销，实际链接仍可访问（隐私级静默失败）。
 - 实现：share.ts revokeRemote 检查响应——2xx/404/410 算撤销成功，其余状态与网络错误抛用户可读 Error；revokeShareLink 仅在远端删除确认后清本地（失败保留、可重试）；Builder 撤销分支补 .catch → 既有 shareError 内联报错。零 worker/schema 改动。
 - 生产 QA（bundle index-BvPx6jA9.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：happy path DELETE→404、CDP 注入 500 → 精确报错+select 保持 Can view+本地键保留+重试成功、网络失败 → connection 文案、服务端已删 404 → 视为成功无报错、slug/copy/无痕查看回归、375 严格（报错态）、暗色。所有测试链接 404 核实。截图 /home/ubuntu/screenshots/r314_*.png。录屏仍不可用。
+
+## R318 — SOP-10 四维差距探索审计（操作台/功能深度/落地页/架构）(2026-09-03)
+- 审计范围（生产 bundle index-Dze0BxET.js，系 R317 部署整体重建所有 chunk 所致，属预期；零 AI 配额）：①操作台——tracked-only 幽灵职位详情面完整（完整 JD/结构化 sections/tags/timeline/tailoring report 内联切换）、助手五快捷任务两态（有/无 target job）确定性本地回复；②功能深度——auto-fit+xl 字号+wide 边距（1 页可行→"Fits 1 page"，超载→如实 "Fits 2 pages" 系合同行为）、隐藏角色+真实 TXT 导出零泄漏、undo/redo 跨 summary 编辑精确往返；③落地页——Lighthouse `/` 0.90/1.0/1.0/1.0、/pricing 全 1.0、/ai BP 0.96 单次 flake（inspector-issues 对同源 t.js//api/hit 报 CSP，重跑 1.0，记为环境瞬态）、375/768/1920 无溢出、暗色；④架构——五路由零 console error/warn、sitemap 抽样 5×200、健康端点、404 品牌页、/s/不存在 id 优雅 gone 卡。全绿零 P0–P2，无代码改动。
+- IA 观察（informational）：首页无社会证明带/评分徽章（无真实数据不造假，维持缓议）。截图 /home/ubuntu/screenshots/r318_*.png，LH JSON /tmp/r318_lh_*.json。录屏仍不可用。
