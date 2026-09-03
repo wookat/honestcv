@@ -908,3 +908,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
   "Use this example"; saved samples in `honestcv.savedSamples`. Clearing React-controlled
   search inputs over CDP requires resetting `input._valueTracker` before dispatching the
   input event, or the change is swallowed.
+
+- Share dialog (Builder "Share link"): access control is a `<select>` with options
+  `off`/`view` (not buttons) — revoke by setting it; custom slug input works; share state
+  in `honestcv.shareLink`; revoked /s/<slug> shows "This link is no longer available".
+  Theme toggle over CDP needs ~0.8s between clicks before re-checking `html.classList`.
+- R301 P3 (mobile hamburger lacked Career documents / Sample library links) fixed in
+  R301b: menu now includes both between My resumes and AI assistant.
