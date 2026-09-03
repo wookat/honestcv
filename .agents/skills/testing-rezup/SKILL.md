@@ -959,3 +959,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Sample thumbnail preview buttons have no aria-label — select them via `button > span.sr-only` starting with "Preview "; verify computed accessible names with CDP `Accessibility.getPartialAXTree` (DOM.enable + Accessibility.enable + DOM.requestNode from a Runtime objectId in the same session).
 - Star save buttons keep `aria-label="Save {role} sample"` + aria-pressed.
 - sr-only visual check: getBoundingClientRect ≤1×1px plus screenshot inspection.
+
+## R311 lessons (documents heading order)
+- The "Letter examples" heading in Dashboard.tsx is conditional — h2 on /documents (section==='documents'), h3 on /dashboard.
+- When auditing heading order note the static footer contributes H2s (Product/Resources/Compare/Company) after main content.
