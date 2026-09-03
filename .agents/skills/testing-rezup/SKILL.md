@@ -948,3 +948,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Pipeline storage is `honestcv.jobPipeline` with entries shaped `{job: JobListing, status, updatedAt, history}` — NOT a flat job object (a flat fixture is silently ignored).
 - Location facet chips live in the group `[aria-label='Filter by a location found in these results']` — don't match bare `(\d+)` buttons; the status chips (Tracked/Saved/…) also match.
 - Native datalist popups don't render in CDP screenshots; assert the input↔datalist association and options via DOM.
+
+## R309 lessons (/jobs loading skeleton + canonical)
+- To test the /jobs loading skeleton, add a CDP Fetch pattern for `*api/jobs/search*` and hold the paused request while asserting/screenshotting, then `Fetch.continueRequest` — production loads too fast otherwise.
+- Skeleton = `[aria-busy=true].animate-pulse` (8 rows, sr-only 'Loading jobs…') + aria-hidden 'Locations:' pill row (7 pills), both gone after load.
+- CanonicalSync (App.tsx) sets `link[rel=canonical]` to origin+pathname on every route; static index.html carries only the homepage canonical, so verify SPA nav with a persisted `window` marker via `aside a` (WorkspaceNav router Links) — some header anchors cause full loads.
+- Visiting /builder creates an analytics key `honestcv.ev.builder-start` — expect/strip it when comparing localStorage baselines.
