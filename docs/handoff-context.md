@@ -623,3 +623,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据：Rezi 一手 tools 页「generate a professional resignation letter in the right tone — formal, friendly, or somewhere in between」；我方 letter 弹窗此前无任何语气入口。方案 docs/plan-r302-letter-tone.md。
 - 实现：Builder.tsx 弹窗 cover 表单 #cover-tone / resignation 表单 #res-tone 三档 select（Balanced 默认不发 tone 键、payload 字节兼容；formal/friendly 加 "tone" 键）；api.ts 可选 tone；worker/index.ts 白名单只放行两值；prompts.ts 两 builder 可选 tone 加一句 register 指令（缺省提示词字节级不变，oracle .tmp-smoke/r302_oracle.ts 8/8）。kind 切换重置为 Balanced。
 - 生产 QA（bundle index-DHjo1_HT.js，零 AI 配额，CDP Fetch 拦截于网络前）全绿零 P0–P3：Balanced 键集与 R301 基线一致无 tone、formal/friendly 精确加键、resignation 同、关闭重开复位、interview 弹窗无 Tone、375 严格 scrollWidth=375、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r302*.png。
+
+## R303 — 探索性生产审计：scan-only PDF 导入路径全覆盖 (2026-09-03)
+- 目标：闭环 R301 遗留未测路径。自制 image-only PDF fixture（PIL，pdfminer 零文本，/home/ubuntu/qa/scan_only_resume.pdf），方案 docs/plan-r303-audit.md。
+- 结果（生产 bundle index-DHjo1_HT.js，零代码改动，零 AI 配额）：零 P0–P3。五个上传面（landing 拖放/dashboard 简历导入/documents 信件导入/ats-checker/builder 导入弹窗）scanned-image 守卫全部按源码文案生效、状态不落库、busy 复位；.png 报 Unsupported file type；文本 PDF 回归正常；375 严格 scrollWidth=375、暗色可读、基线还原。截图 /home/ubuntu/screenshots/r303_*.png。
+- 仍未覆盖：>2MB 超大文件文案（后续轮候选）。
