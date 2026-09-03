@@ -931,3 +931,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Doc-card delete is an icon button with accessible name `Delete ${title}` (match aria-label/textContent against that, not a bare "Delete").
 - Example texts end `Sincerely,\n[Your name]` (single newline) and are stored byte-exact vs src/lib/letterExamples.ts.
 - "Use this example" saves immediately via saveCareerDoc and opens the letter viewer in edit mode.
+
+## R306 lessons (letter-example SEO pages)
+- Letter example data single source: src/lib/letterExamples.data.json (feeds the app chips AND the static pages /cover-letter-examples/ + /resignation-letter-examples/ built by scripts/build-seo.mjs).
+- Verify page letters by extracting `<pre>` blocks, html-unescaping, then byte-comparing to the JSON `text` fields; anchor ids are kebab-cased roles.
+- These SEO pages are static HTML like /guides/ — no dark-mode toggle, expected.
