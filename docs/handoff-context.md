@@ -628,3 +628,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 目标：闭环 R301 遗留未测路径。自制 image-only PDF fixture（PIL，pdfminer 零文本，/home/ubuntu/qa/scan_only_resume.pdf），方案 docs/plan-r303-audit.md。
 - 结果（生产 bundle index-DHjo1_HT.js，零代码改动，零 AI 配额）：零 P0–P3。五个上传面（landing 拖放/dashboard 简历导入/documents 信件导入/ats-checker/builder 导入弹窗）scanned-image 守卫全部按源码文案生效、状态不落库、busy 复位；.png 报 Unsupported file type；文本 PDF 回归正常；375 严格 scrollWidth=375、暗色可读、基线还原。截图 /home/ubuntu/screenshots/r303_*.png。
 - 仍未覆盖：>2MB 超大文件文案（后续轮候选）。
+
+## R304 — Cover/Resignation letter 可选签名图片（上传/预览/导出）(2026-09-03)
+- 证据：Rezi 一手 resignation-letter 工作流「Step 6: Upload your signature」；我方 letter 预览/导出无任何签名能力。方案 docs/plan-r304-letter-signature.md。
+- 实现：documents.ts CareerDoc 可选 `signature?: string`（PNG data URL，缺省不序列化）+ 纯函数 splitAtSignature（最后一行 ≤30 字符收尾敬语切分）；updateCareerDoc 支持签名清除（falsy 删键）。Dashboard.tsx letter 查看器（cover/resignation，interview 无）新签名行：Add/Replace/Remove，FileReader→canvas 降采样至 480px 宽→PNG data URL，>1MB 与非图片内联报错，上传即持久化；LetterPreview 在切分点渲染 img。pdf.ts downloadLetterPdf / docx.ts downloadLetterDocx 可选 signature 参数（PDF embedPng ≤120pt 宽、DOCX ImageRun ≤150px），无签名字节路径不变。oracle .tmp-smoke/r304_oracle.ts 6/6。
+- 生产 QA（bundle index-DF71XuM8.js，curl 核实，零 AI 配额）全绿零 P0–P3：上传→缩至精确 480px 持久化、reload 存活；真实 PDF 签名墨迹位于 Sincerely,(223pt) 与姓名(278pt) 之间（236–254pt）、无签 PDF 零签名像素；真实 DOCX media+rel+`<w:drawing>` 段落顺序正确；Remove 删键（仅 updatedAt 变动，符合预期）、Replace 正常；>1MB/非图片精确内联报错零状态变化；无敬语信件追加尾部；interview 查看器无签名行；375 严格 scrollWidth=375、暗色可读；localStorage/主题还原。截图 /home/ubuntu/screenshots/r304_*.png。
