@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowDown,
@@ -773,6 +773,96 @@ function AiWaitHint() {
     <p role="status" className="text-muted-foreground text-xs">
       Rewriting… usually takes 15–40 seconds ({seconds}s)
     </p>
+  )
+}
+
+/**
+ * One Tab stop for a group of chip buttons (W3C toolbar pattern): only the active
+ * button is tabbable, arrow keys move focus, and when the active chip is consumed
+ * (added/ignored) focus stays in the group instead of falling to the page body.
+ */
+function RovingChipGroup({
+  label,
+  className,
+  children,
+}: {
+  label: string
+  className?: string
+  children: React.ReactNode
+}) {
+  const ref = useRef<HTMLSpanElement | null>(null)
+  const indexRef = useRef(0)
+  const focusInsideRef = useRef(false)
+  const buttonsOf = () =>
+    Array.from(ref.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])
+
+  useLayoutEffect(() => {
+    const root = ref.current
+    const list = buttonsOf()
+    if (!root || list.length === 0) return
+    if (indexRef.current >= list.length) indexRef.current = list.length - 1
+    list.forEach((b, i) => {
+      b.tabIndex = i === indexRef.current ? 0 : -1
+    })
+    if (focusInsideRef.current && !root.contains(document.activeElement))
+      list[indexRef.current]?.focus()
+  })
+
+  // If the whole group unmounts while focused (last chip consumed), hand focus
+  // to a sibling chip group instead of letting it fall to the page body.
+  useLayoutEffect(
+    () => () => {
+      if (!focusInsideRef.current) return
+      queueMicrotask(() => {
+        if (document.activeElement === document.body)
+          document
+            .querySelector<HTMLButtonElement>("[data-roving-group] button[tabindex='0']")
+            ?.focus()
+      })
+    },
+    []
+  )
+
+  return (
+    <span
+      ref={ref}
+      data-roving-group
+      role="group"
+      aria-label={label}
+      className={className}
+      onFocusCapture={(e) => {
+        focusInsideRef.current = true
+        const list = buttonsOf()
+        const i = list.indexOf(e.target as HTMLButtonElement)
+        if (i < 0) return
+        indexRef.current = i
+        list.forEach((b, j) => {
+          b.tabIndex = j === i ? 0 : -1
+        })
+      }}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) focusInsideRef.current = false
+      }}
+      onKeyDown={(e) => {
+        if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return
+        const list = buttonsOf()
+        if (list.length === 0) return
+        e.preventDefault()
+        const next =
+          e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? list.length - 1
+              : Math.min(
+                  list.length - 1,
+                  Math.max(0, indexRef.current + (e.key === 'ArrowRight' ? 1 : -1))
+                )
+        indexRef.current = next
+        list[next]?.focus()
+      }}
+    >
+      {children}
+    </span>
   )
 }
 
@@ -7002,7 +7092,10 @@ export default function Builder() {
                       <span className="text-muted-foreground">
                         {blurb}
                       </span>
-                      <span className="mt-1 flex flex-wrap gap-1">
+                      <RovingChipGroup
+                        label={`${label} missing keywords`}
+                        className="mt-1 flex flex-wrap gap-1"
+                      >
                         {kws.map((kw) => (
                           <span
                             key={kw}
@@ -7045,7 +7138,7 @@ export default function Builder() {
                             </button>
                           </span>
                         ))}
-                      </span>
+                      </RovingChipGroup>
                     </div>
                     )
                   )}
@@ -7057,7 +7150,10 @@ export default function Builder() {
                       <span className="text-muted-foreground">
                         — marked not relevant; not counted in coverage. Click to restore:
                       </span>
-                      <span className="mt-1 flex flex-wrap gap-1">
+                      <RovingChipGroup
+                        label="Excluded keywords"
+                        className="mt-1 flex flex-wrap gap-1"
+                      >
                         {ats.ignored.map((kw) => (
                           <button
                             key={kw}
@@ -7077,7 +7173,7 @@ export default function Builder() {
                             {kw}
                           </button>
                         ))}
-                      </span>
+                      </RovingChipGroup>
                     </div>
                   )}
                   <Button
