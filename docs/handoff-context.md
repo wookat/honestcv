@@ -703,3 +703,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build 绿（无 oracle：逻辑为单一字符串比较）。
 - 生产 QA（bundle index-BEn8R3EI.js / Builder-Diz-5o8M.js，curl 核实，零 AI 配额，CDP 双真实标签同 profile）全绿零 P0–P3：B 编辑→仅 A 出条（精确文案）；Load latest 后 A 重存与 B 写入字节一致、工具栏 Undo 精确回退加载；X 后 A 编辑 last-writer 胜且 B 对称出条；同标签编辑不出条；等值外部写入不出条；375 严格 scrollWidth=375 且条与底部切换栏 12px 间距；暗色可读；基线还原。截图 /home/ubuntu/screenshots/r321_*.png。录屏仍不可用（enigo）。CDP 派发 Ctrl+Z 在后台标签未触发（工具栏按钮验证等价路径），记录为测试手段局限非产品缺陷。
 - 部署坑：wrangler deploy 成功上传后边缘缓存可短暂返回旧 HTML+新资产清单错位（旧 Builder chunk 404）——判定部署状态须带 cache-buster 查询串再 curl，不要凭首次响应断言生产损坏。
+
+## R322 — 探索审计（inline 预览编辑链）+ P1 清空 bullet 白屏修复 (2026-09-03)
+- 审计范围（bundle index-BEn8R3EI.js，生产零 AI）：inline 预览编辑全链（summary/bullets/headline/contact/skills/custom sections 往返、标题改名、Enter 追加草稿 bullet、marks 完整性+Ctrl+B、undo/redo、R321 跨标签条联动、Stack roles 分组标题联动双条目、模板切换、关键词高亮共存、375 严格、暗色）——除一项全绿。
+- 确证 P1（100% 复现）：清空既有预览 bullet（全选+Backspace+blur）抛 removeChild NotFoundError 整个应用卸载白屏、bullet 未删（R130 契约失效）。根因：contentEditable 子节点被用户改动后，空提交使 index-keyed 列表原位 reconcile 下一条文本，React 触碰已销毁的文本节点。方案 docs/plan-r322-inline-clear-crash.md。
+- 修复（ResumePreview.tsx 一处）：InlineText span 加 key={shown}——提交值变化即整体重挂载，绝不 diff 用户改过的子节点；Escape/等值 blur 的 restoreMarkedDom 路径不变，DraftBullet 不动。
+- tsc/eslint/build 绿。生产复验（bundle index-AdLcvLFA.js / Builder-DPdh3Lco.js，curl cache-buster 核实，真实鼠标选择+真实 Backspace，零 AI）全绿零 P0–P3：experience 与 custom-section bullet 均正常删除、无异常、应用保持挂载、工具栏 Undo 双双还原原位置；重挂载敏感回归（非空 inline 编辑往返、Enter 于 i+1 插入、marks 保留渲染、标题改名/回退）全过；375 严格（编辑中）、暗色、基线还原。截图 /home/ubuntu/screenshots/r322_*.png、r323_*.png。
+- informational：education details 行非 inline 可编辑（设计差距候选）；录屏仍不可用（enigo）。
