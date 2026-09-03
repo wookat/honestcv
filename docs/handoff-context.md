@@ -675,3 +675,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：Dashboard.tsx 一处——沿用三行外既有 section==='documents' h1/h2 分支模式，「Letter examples」在 /documents 渲染 h2、/dashboard 保持 h3，class 不变零视觉差。
 - 复测（生产，bundle index-BSLrm3ST.js curl+页面双核实）：/documents 与 /dashboard heading-order 均 pass、a11y 1.0。
 - 生产 QA 全绿零 P0–P3 零 AI 配额：/documents H1→H2 无跳级（全页零 H3）、计算样式 14px/600 与旧 h3 逐项一致、/dashboard H2→H3 分支双向正确、8 chips + 预览对话框开合回归、375 严格 scrollWidth=375、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r311_*.png。录屏仍不可用。
+
+## R312 — /jobs 搜索上下文 URL 双向同步 (2026-09-03)
+- 证据：Rezi changelog 2026-08 Week 4「Seamless Messaging Navigation: Navigate to messages or refresh the page without losing your place」；我方 /jobs 只读 ?attention/?q 种子、从不回写——刷新/误导航/分享即丢全部筛选与选中职位（生产复现）。方案 docs/plan-r312-jobs-url-state.md。
+- 实现：仅 Jobs.tsx——①种子扩展：?tab（TAB_PARAMS 白名单）/?q（present-but-empty 视为清空搜索）/?cat /?loc /?type /?skills /?sort（newest|match）/?job；?attention=1 语义不变；初始 fetch 带 seeded cat；②回写 effect：history.replaceState 序列化同组状态，默认值省略（q 等于默认种子时省略）；③选中回退：?job 仅当在结果或 pipeline 中才保留，否则回退首条。零 worker/schema/storage 改动，过滤排序语义字节不变。
+- 生产 QA（bundle index-JEH8609j.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：全状态写 URL+硬刷新逐项还原（含详情面同职位 aria-pressed）、?attention=1 回归（stale applied fixture）、?q=designer 种子、?q= 空值在 targetRole=Product Manager 下清空态存活+对照组、stale ?job 回退首条并改写参数、素 URL 仅 ?job=、默认值参数出现/消失精确、R308 datalist/facet chips/tabs/bulk 回归、375 严格 scrollWidth=375、暗色可读、基线还原。截图 /home/ubuntu/screenshots/r312_*.png。录屏仍不可用。

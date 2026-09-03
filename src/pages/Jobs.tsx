@@ -75,6 +75,16 @@ const matchTone = (pct: number) =>
 
 type Tab = 'all' | 'tracked' | JobStatus
 
+const TAB_PARAMS: readonly Tab[] = [
+  'all',
+  'tracked',
+  'saved',
+  'applied',
+  'interviewing',
+  'offer',
+  'rejected',
+]
+
 const postedAgo = (iso: string) => {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
   if (!iso || Number.isNaN(days) || days < 0) return ''
@@ -98,29 +108,35 @@ export default function Jobs() {
     'Browse remote jobs, track your applications, and target your resume to a posting in one click.'
   )
   const navigate = useNavigate()
-  // ?attention=1 deep link opens the queue filtered to applications needing a follow-up
-  const [seedAttention] = useState(
-    () => new URLSearchParams(window.location.search).get('attention') === '1'
-  )
-  const [tab, setTab] = useState<Tab>(seedAttention ? 'tracked' : 'all')
+  // Search context lives in the query string so refresh/back/share keeps your place.
+  // ?attention=1 deep link opens the queue filtered to applications needing a follow-up.
+  const [seedParams] = useState(() => new URLSearchParams(window.location.search))
+  const seedAttention = seedParams.get('attention') === '1'
+  const seedTab = TAB_PARAMS.find((t) => t === seedParams.get('tab'))
+  const [tab, setTab] = useState<Tab>(seedAttention ? 'tracked' : (seedTab ?? 'all'))
   const [followUpOnly, setFollowUpOnly] = useState(seedAttention)
-  // ?q= deep link (e.g. the assistant's "Find matching jobs") seeds the search
-  const [seedQuery] = useState(
-    () => new URLSearchParams(window.location.search).get('q')?.trim() || null
-  )
+  // ?q= deep link (e.g. the assistant's "Find matching jobs") seeds the search;
+  // present-but-empty means a deliberately cleared search box
+  const [seedQuery] = useState(() => {
+    const q = seedParams.get('q')
+    return q === null ? null : q.trim()
+  })
   const [query, setQuery] = useState(() => seedQuery ?? loadResume()?.targetRole ?? '')
-  const [category, setCategory] = useState('')
-  const [locationFilter, setLocationFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
-  const [skillsFilter, setSkillsFilter] = useState('')
+  const [category, setCategory] = useState(() => seedParams.get('cat') ?? '')
+  const [locationFilter, setLocationFilter] = useState(() => seedParams.get('loc') ?? '')
+  const [typeFilter, setTypeFilter] = useState(() => seedParams.get('type') ?? '')
+  const [skillsFilter, setSkillsFilter] = useState(() => seedParams.get('skills') ?? '')
   const [tagsExpandedId, setTagsExpandedId] = useState<string | null>(null)
-  const [sort, setSort] = useState<'relevance' | 'newest' | 'match'>('relevance')
+  const [sort, setSort] = useState<'relevance' | 'newest' | 'match'>(() => {
+    const s = seedParams.get('sort')
+    return s === 'newest' || s === 'match' ? s : 'relevance'
+  })
   const [excluded, setExcluded] = useState<ReadonlySet<JobStatus>>(new Set())
   const [jobs, setJobs] = useState<JobListing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => listPipeline())
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(() => seedParams.get('job'))
   const [mobileDetail, setMobileDetail] = useState(false)
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(new Set())
@@ -141,7 +157,11 @@ export default function Jobs() {
     searchJobs(q, cat)
       .then((list) => {
         setJobs(list)
-        setSelectedId((cur) => cur ?? list[0]?.id ?? null)
+        setSelectedId((cur) =>
+          cur && (list.some((j) => j.id === cur) || listPipeline().some((e) => e.job.id === cur))
+            ? cur
+            : (list[0]?.id ?? null)
+        )
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
@@ -153,9 +173,24 @@ export default function Jobs() {
   }
 
   useEffect(() => {
-    void fetchJobs(seedQuery ?? loadResume()?.targetRole ?? '')
-    // seedQuery is set once from the URL and never changes
-  }, [seedQuery])
+    void fetchJobs(seedQuery ?? loadResume()?.targetRole ?? '', seedParams.get('cat') ?? '')
+    // seedQuery/seedParams are set once from the URL and never change
+  }, [seedQuery, seedParams])
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (query !== (loadResume()?.targetRole ?? '')) params.set('q', query)
+    if (tab !== 'all') params.set('tab', tab)
+    if (followUpOnly && tab === 'tracked') params.set('attention', '1')
+    if (category) params.set('cat', category)
+    if (locationFilter) params.set('loc', locationFilter)
+    if (typeFilter) params.set('type', typeFilter)
+    if (skillsFilter) params.set('skills', skillsFilter)
+    if (sort !== 'relevance') params.set('sort', sort)
+    if (selectedId) params.set('job', selectedId)
+    const qs = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+  }, [query, tab, followUpOnly, category, locationFilter, typeFilter, skillsFilter, sort, selectedId])
 
   const statusOf = useMemo(() => {
     const map = new Map<string, JobStatus>()

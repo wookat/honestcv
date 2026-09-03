@@ -963,3 +963,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R311 lessons (documents heading order)
 - The "Letter examples" heading in Dashboard.tsx is conditional — h2 on /documents (section==='documents'), h3 on /dashboard.
 - When auditing heading order note the static footer contributes H2s (Product/Resources/Compare/Company) after main content.
+
+## R312 lessons (/jobs URL state sync)
+- /jobs syncs state to the URL via history.replaceState (params q/tab/attention/cat/loc/type/skills/sort/job; defaults omitted; q omitted when equal to loadResume targetRole or '').
+- Job row SELECT buttons are `ul li button.block.w-full` with aria-pressed — buttons matched by text may be Save/status buttons.
+- `loadResume()` rejects fixtures missing a `contact` object or `experience` array (silently returns null) — seed a full-shape resume when testing targetRole behavior.
+- Attention fixtures need status applied/interviewing with last history step ≥7 days old. Bulk-mode toggle on Tracked is labeled 'Select…' inside `[aria-label='Bulk actions on tracked jobs']`.
+- Switching to an empty Tracked tab clears the selection, dropping `job=` from the URL (by design).
