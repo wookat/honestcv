@@ -860,3 +860,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 探索审计（编辑历史/undo-redo/版本链，生产 index-RooCYaJZ.js → Builder-CZLDBEAV.js，零真实 AI）确证唯一 P2：`honestcv.resumeHistory` 是全局单列表，Copy-B 打开 History 对话框会列出 Copy-A/改副本前草稿的 checkpoint 且不可分辨，Restore 会经 syncActiveVersion 静默改写 Copy-B 的已存数据（缓解：restore 前强制 checkpoint + 工具栏 Undo 可回退，均已实证）。其余全链绿：checkpoint 合并/字节级还原保真/restore 可逆/redo 失效/R321 跨标签/键盘/375/暗色。
 - 修复（docs/plan-r345-history-per-copy-scoping.md）：ResumeSnapshot 增 `versionId?: string|null`（捕获时 getActiveVersionId()，null=未链接草稿，legacy 缺字段视为 null）；recordResumeSnapshot 的去重/10 分钟间隔检查改为同 scope 内比较（切副本不互相压制）；HistoryDialog 只列 active scope 的 checkpoint。全局 15 槽上限保留（重度编辑某副本仍会挤掉他副本条目——informational 已接受）。oracle .tmp-smoke/r345_oracle.ts（npx tsx --tsconfig tsconfig.app.json）11/11；tsc/eslint/build 绿。
 - 遗留 P3（设计观察，未改）：会话首个 pre-edit 状态从不被 checkpoint（首个 checkpoint 记录在第一次保存后）；工具栏 Undo 在标签存活期覆盖该场景。
+
+## R346（2026-08-31）：Builder mount 记录 pre-edit 基线 checkpoint
+- 闭环 R345 遗留 P3：useDebouncedSave 首次 effect（mount，草稿刚载入）非强制调用 recordResumeSnapshot(resume)——会话起点在任何编辑前入历史。防刷屏零新逻辑：既有去重 + R345 per-scope 10 分钟间隔天然抑制（重复访问 /builder 不加条目）；每个副本各得自己的基线。存储/restore/undo/worker 零改动。
+- 方案 docs/plan-r346-session-baseline-checkpoint.md；oracle .tmp-smoke/r346_oracle.ts 5/5；tsc/eslint/build 绿。
+- 生产复验（index-DytXcFLg.js / Builder-DvYwQ9wx.js，零 AI、无分享、基线还原）全绿零新 P0–P3：fresh mount 恰 1 条 versionId=null 且=载入草稿（对话框标记 Current）、<10 分钟编辑合并、近期 checkpoint 下 reload 不加条、同值 reload 去重、打开副本立即得己方基线（versionId 戳、不被 null scope 同值条目压制）、restore 字节保真/pre-restore 可恢复/Undo 回退、15 槽上限、375 严格、暗色焦点环、Esc 回焦 opener。
+- 注意（QA 事实）：基线存的是规范化 resume（emptyResume 合并，links→website/linkedin 等），与内存草稿字节一致而非原始 localStorage 手植 blob——符合预期。History 自 R346 起访问过 /builder 就非空，测试空态需用无条目的新 scope。
