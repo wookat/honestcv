@@ -78,10 +78,10 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const font = FONT_BY_KIND[familyOf(resume, tpl.serif)]
   const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
-  // 20 twips per PDF point; sides default to 864 (0.6"), top/bottom to 720 (0.5")
-  const marginScale = pageMarginOf(resume) / 54
-  const sideMargin = Math.round(864 * marginScale)
-  const vertMargin = Math.round(720 * marginScale)
+  // 20 twips per PDF point; mirror the PDF's uniform margin so the labeled inches are exact
+  const marginTwips = pageMarginOf(resume) * 20
+  const sideMargin = marginTwips
+  const vertMargin = marginTwips
   const rightTab = pageSize.width - sideMargin * 2
   const accent = tpl.accent.replace('#', '')
   const fs = fontScaleOf(resume)

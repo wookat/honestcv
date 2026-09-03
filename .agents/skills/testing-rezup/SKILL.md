@@ -996,3 +996,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Real downloads: CDP `Page.setDownloadBehavior {behavior:'allow',downloadPath}` then click the PDF/DOCX/TXT/MD toolbar buttons; PDF may raise a "Final check before download" dialog — click "Download anyway".
 - Combined-settings assertions: PDF narrow margin = leftmost pdftotext -bbox xMin 36pt; DOCX narrow = w:pgMar left/right 576 twips (864×36/54 by design, NOT 720); contact icons best proven by icons-on/off export pixel-diff of the header.
 - Organizational ops (rename/move/folder rename/remove) must not change version updatedAt (resume.ts:1268).
+
+## R317 — DOCX margin parity assertions
+
+- Resume DOCX margins are uniform `pageMarginOf×20` twips (720/1080/1440) with right tab stop at pageWidth−2·margin; letter DOCX (downloadLetterDocx) keeps fixed 864/720 — assert both when touching docx.ts.
+- Letter DOCX is triggered from /documents card buttons titled "Download {title} as DOCX" after seeding `honestcv.careerDocs` (`[{id,kind:'cover',title,text,updatedAt}]`); it uses the current draft as letterhead.
+- Deploys that only touch a lazy chunk keep the main index-*.js hash — verify via curl 200 on the named chunk (e.g. /assets/docx-*.js).
