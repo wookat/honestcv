@@ -690,6 +690,29 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：share.ts revokeRemote 检查响应——2xx/404/410 算撤销成功，其余状态与网络错误抛用户可读 Error；revokeShareLink 仅在远端删除确认后清本地（失败保留、可重试）；Builder 撤销分支补 .catch → 既有 shareError 内联报错。零 worker/schema 改动。
 - 生产 QA（bundle index-BvPx6jA9.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：happy path DELETE→404、CDP 注入 500 → 精确报错+select 保持 Can view+本地键保留+重试成功、网络失败 → connection 文案、服务端已删 404 → 视为成功无报错、slug/copy/无痕查看回归、375 严格（报错态）、暗色。所有测试链接 404 核实。截图 /home/ubuntu/screenshots/r314_*.png。录屏仍不可用。
 
+## R315 — 缩略图 zoom→transform:scale 修复 Lighthouse font-size (2026-09-03)
+- 证据：R310 遗留候选——/dashboard 与 /samples best-practices 0.96，唯一失败 font-size：Thumb 用 zoom:0.35 缩小 ResumePreview，计算字号 ~4.9px。zoom 参与 computed style，transform: scale 不参与。方案 docs/plan-r315-thumb-font-size-audit.md。
+- 实现：Dashboard.tsx Thumb 一处——zoom:0.35 改 transform: scale(0.35) + origin top-left + width calc((100%−2rem)/0.35)，top-3 left-4 替代 inset-x-4，视觉像素等价。
+- 生产 QA（bundle index-C4BM_uQQ.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：Lighthouse 13.4.1 两路由 bp 1.0（原 0.96）+ a11y/SEO 1.0（注意 LH 13 已移除独立 font-size audit，以类别分+零失败二元 audit 为准）、CDP 证实 matrix(0.35) 视觉比精确 0.350 且计算字号回归真实值（24/14/11/11/10px，10px 为 ResumePreview meta 文本真实设计值）、9 卡左右缘 16px/顶 12px 与旧 inset-x-4 对齐无裁切、R310 sr-only/预览对话框/星标回归、375 严格 scrollWidth=375、暗色。截图 /home/ubuntu/screenshots/r315_*.png。录屏仍不可用。
+
+## R316 — 探索性生产审计（组织/版本链、组合设置导出、大屏、回归）(2026-09-03)
+- 审计范围（bundle index-C4BM_uQQ.js，curl 核实，零 AI 配额）：①R197 时间戳完整性——副本改名/移动文件夹/文件夹改名/删除/硬刷新后 updatedAt/createdAt 字节不变，卡片与 localStorage 一致；历史 checkpoint diff 摘要、restore/前向 restore、restore 前自动落 checkpoint；②组合设置导出链（photo + contact icons + es + margins 0.5″ + 最小字号 + 紧行距 + inline marks）四格式真实下载取证：PDF 左缘精确 36.0pt、es 标题、零 `**` 泄漏、链接 annotation、photo XObject、icons 以 on/off 像素 diff 证实；DOCX w:pgMar 576 twips（864×36/54 代码本意的按比例缩放，非 720，记为 informational——DOCX 与 PDF 边距 parity 若要求精确一致为候选 P3）、w:b/w:u 真实、TXT/MD 干净；③大屏 1920/2560 四路由无水平溢出、max-w-6xl 1152px 居中、/jobs 双栏完好；④回归：R314 注入 500 报错+本地保留+重试成功、R315 matrix(0.35) 比例 0.350、375 严格。全绿零 P0–P3。
+- 注意：历史 fixture 快照必须含 id 字段否则 listResumeHistory 静默丢弃（见 SKILL R316 节）。截图 /home/ubuntu/screenshots/r316_*.png，导出取证 /home/ubuntu/qa/r316_dl*。录屏仍不可用。
+
+## R317 — DOCX 页边距按标注英寸精确映射（与 PDF 对齐）(2026-09-03)
+- 证据：R316 informational——Margins stepper 标注 0.5″/0.75″/1″，PDF 精确 36/54/72pt，但 DOCX 按历史默认比例缩放（864×scale/720×scale）实为 0.4″/0.6″/0.8″，标签失实。方案 docs/plan-r317-docx-margin-parity.md。
+- 实现：docx.ts 一处——marginTwips = pageMarginOf(resume)*20 四边同值（720/1080/1440），rightTab 自动跟随；默认 DOCX 版式有意变化（864/720→1080 四边），标签诚实优先于错误版式的字节稳定。信件 DOCX/PDF/TXT/MD/预览零改动。
+- 生产 QA（docx chunk docx-D5fKdjnB.js curl 200 核实，主 bundle 不变，零 AI）全绿零 P0–P3：三档真实下载 w:pgMar 四边精确 720/1080/1440、rightTab w:pos=12240−2·margin、es 标题+b/u runs 无 ** 泄漏、PDF 左缘仍 36.0pt、信件 DOCX 在 draft 为 wide 时仍固定 864/720（对抗性回归）、375 严格、暗色。截图 /home/ubuntu/screenshots/r317_*.png，取证 /home/ubuntu/qa/r317_dl/。录屏仍不可用。
+
+## R318 — SOP-10 四维差距探索审计（操作台/功能深度/落地页/架构）(2026-09-03)
+- 审计范围（生产 bundle index-Dze0BxET.js，系 R317 部署整体重建所有 chunk 所致，属预期；零 AI 配额）：①操作台——tracked-only 幽灵职位详情面完整（完整 JD/结构化 sections/tags/timeline/tailoring report 内联切换）、助手五快捷任务两态（有/无 target job）确定性本地回复；②功能深度——auto-fit+xl 字号+wide 边距（1 页可行→"Fits 1 page"，超载→如实 "Fits 2 pages" 系合同行为）、隐藏角色+真实 TXT 导出零泄漏、undo/redo 跨 summary 编辑精确往返；③落地页——Lighthouse `/` 0.90/1.0/1.0/1.0、/pricing 全 1.0、/ai BP 0.96 单次 flake（inspector-issues 对同源 t.js//api/hit 报 CSP，重跑 1.0，记为环境瞬态）、375/768/1920 无溢出、暗色；④架构——五路由零 console error/warn、sitemap 抽样 5×200、健康端点、404 品牌页、/s/不存在 id 优雅 gone 卡。全绿零 P0–P2，无代码改动。
+- IA 观察（informational）：首页无社会证明带/评分徽章（无真实数据不造假，维持缓议）。截图 /home/ubuntu/screenshots/r318_*.png，LH JSON /tmp/r318_lh_*.json。录屏仍不可用。
+
+
+## R319 — AI 变体选择器 per-option「Not helpful」反馈 + regenerate avoid (2026-09-03)
+- 证据：Rezi 一手「Refined AI Rewrite Feedback / clearer options and feedback buttons」；我方 Regenerate 此前发送与上一轮完全相同的请求，无法避开被拒候选。方案 docs/plan-r319-rewrite-feedback-avoid.md。
+- 实现：worker/prompts.ts buildRewriteMessages/buildSummaryDraftMessages 可选 avoid（非空时在 Input/Candidate resume 前插入「The user rejected these earlier versions…」块，空时 prompt 字节不变，oracle 14/14）；worker/index.ts 两端点 sanitizeAvoid（string-only、trim、单条 400 字符、最多 6 条）；src/lib/api.ts aiRewrite/aiSummaryDraft 可选 avoid（仅非空序列化，默认 payload 字节兼容）；Builder.tsx variantPick 增 rejected 索引 + regenerate(avoid?)，每卡 ThumbsDown 切换（aria-pressed，相对容器兄弟按钮避免嵌套 button），标记卡 opacity-50+disabled 不可 apply，Regenerate 传被标记文本并改标签「Regenerate avoiding marked options」，新候选到达即重置标记。
+- 生产 QA（bundle index-D-o_1-Bf.js / Builder-BUafjiDS.js，curl 核实，CDP 拦截全部 /api/ai/*，零 AI 配额）全绿零 P0–P3：无反馈 payload 无 avoid 键且键序不变、标记选项2→regenerate payload=基线+avoid:[选项2原文]、无标记 regenerate 与基线字节一致、取消标记后可 apply、summary-draft 同行为、375 严格 scrollWidth=375 标签与切换钮 0 重叠、暗色 destructive 态可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r319_*.png，payload 存证 /home/ubuntu/qa/r319_captured*.json。录屏仍不可用（enigo）。
 ## R320 — 删除简历副本/职业文档可撤销（Undo）(2026-09-03)
 - 证据：Rezi User Docs「Delete Resume」(2026-08-19)——删除永久不可恢复，三步里两步在提醒用户先自查/备份内容；我方 /dashboard、/documents 确认后立即永久删（deleteResumeVersion/deleteCareerDoc filter+persist），误点确认即丢定制副本或信件。本地优先架构可以直接优于 Rezi：删除后限时 Undo。方案 docs/plan-r320-undo-delete.md。
 - 实现：resume.ts restoreResumeVersion(version,index) / documents.ts restoreCareerDoc(doc,index)——原对象按原位置重插（id 已存在为 no-op、index 夹取），时间戳不刷新排序不变；Dashboard.tsx 两个删除确认后置 undoDelete state，底部固定 role="status" 条：Deleted "<name>" + Undo（Undo2 图标）+ X（aria-label="Dismiss"），10s 自动消失（item 保持已删），新删除替换现有条。零 worker/schema 改动。

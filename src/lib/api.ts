@@ -49,13 +49,21 @@ export async function aiRewrite(
   text: string,
   context: { role?: string; jobDescription?: string; language?: string },
   variants = false,
-  emphasis?: 'key-numbers'
+  emphasis?: 'key-numbers',
+  avoid?: string[]
 ): Promise<{ text: string; texts?: string[]; freeRemaining: number | null }> {
   const data = await post<{
     text: string
     texts?: string[]
     freeRemaining: number | null
-  }>('/api/ai/rewrite', { kind, text, variants, ...(emphasis ? { emphasis } : {}), ...context })
+  }>('/api/ai/rewrite', {
+    kind,
+    text,
+    variants,
+    ...(emphasis ? { emphasis } : {}),
+    ...(avoid?.length ? { avoid } : {}),
+    ...context,
+  })
   return data
 }
 
@@ -77,6 +85,7 @@ export async function aiSummaryDraft(input: {
   role: string
   highlights?: string[]
   jobDescription?: string
+  avoid?: string[]
   language?: string
 }): Promise<{ text: string; texts: string[]; freeRemaining: number | null }> {
   return post<{ text: string; texts: string[]; freeRemaining: number | null }>(

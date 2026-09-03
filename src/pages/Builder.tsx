@@ -44,6 +44,7 @@ import {
   Star,
   Target,
   Timer,
+  ThumbsDown,
   Trash2,
   Undo2,
   Redo2,
@@ -888,8 +889,10 @@ export default function Builder() {
     apply: (text: string) => void
     /** AI busy/error tag of the generator that produced these candidates */
     tag?: string
+    /** Options the user marked as not helpful (indexes into candidates) */
+    rejected?: number[]
     /** Re-run the same generator; fresh candidates replace the open dialog */
-    regenerate?: () => void
+    regenerate?: (avoid?: string[]) => void
     /** Reopen the generator's setup dialog (e.g. summary role & skills) */
     adjust?: () => void
   } | null>(null)
@@ -1286,7 +1289,8 @@ export default function Builder() {
     kind: 'bullets' | 'summary' | 'skills',
     text: string,
     apply: (out: string) => void,
-    emphasis?: 'key-numbers'
+    emphasis?: 'key-numbers',
+    avoid?: string[]
   ) => {
     if (!text.trim()) {
       setAiErrorTag(tag)
@@ -1313,7 +1317,8 @@ export default function Builder() {
           language: resume.language,
         },
         wantVariants,
-        emphasis
+        emphasis,
+        avoid
       )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       if (texts && texts.length > 1) {
@@ -1323,7 +1328,7 @@ export default function Builder() {
           original: text,
           apply,
           tag,
-          regenerate: () => void runRewrite(tag, kind, text, apply, emphasis),
+          regenerate: (nextAvoid) => void runRewrite(tag, kind, text, apply, emphasis, nextAvoid),
         })
       } else {
         apply(out)
@@ -1571,7 +1576,7 @@ export default function Builder() {
     resume.skills.trim().length > 0 ||
     resume.education.some((e) => e.degree.trim() || e.school.trim())
 
-  const runSummaryDraft = async (position: string, highlights: string[]) => {
+  const runSummaryDraft = async (position: string, highlights: string[], avoid?: string[]) => {
     const tag = 'summary-draft'
     if (!resumeHasContent) {
       setAiErrorTag(tag)
@@ -1587,6 +1592,7 @@ export default function Builder() {
         role: position.trim() || aiTargetRole(resume),
         highlights: highlights.length ? highlights : undefined,
         jobDescription: resume.jobDescription.trim() || undefined,
+        ...(avoid?.length ? { avoid } : {}),
         language: resume.language,
       })
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
@@ -1596,7 +1602,7 @@ export default function Builder() {
         original: resume.summary,
         apply: (out) => set('summary', out),
         tag,
-        regenerate: () => void runSummaryDraft(position, highlights),
+        regenerate: (nextAvoid) => void runSummaryDraft(position, highlights, nextAvoid),
         adjust: () => {
           setVariantPick(null)
           setSummaryDraftSetup({
@@ -7505,35 +7511,77 @@ export default function Builder() {
                 <span className="whitespace-pre-wrap">{variantPick?.original}</span>
               </div>
             )}
-            {variantPick?.candidates.map((cand, i) => (
-              <button
-                key={cand.slice(0, 40) + String(i)}
-                type="button"
-                className="hover:border-primary hover:bg-muted/50 w-full rounded-lg border p-3 text-left text-sm whitespace-pre-wrap transition"
-                onClick={() => {
-                  variantPick.apply(cand)
-                  setVariantPick(null)
-                }}
-              >
-                <span className="text-muted-foreground mb-1 block text-xs font-medium">
-                  {['Concise', 'Impact-focused', 'Keyword-focused'][i] ?? `Option ${i + 1}`}
-                </span>
-                {variantPick.original?.trim()
-                  ? diffNewWords(variantPick.original, cand).map((chunk, j) =>
-                      chunk.added ? (
-                        <span
-                          key={String(j)}
-                          className="rounded-sm bg-emerald-100 dark:bg-emerald-900/50"
-                        >
-                          {chunk.text}
-                        </span>
-                      ) : (
-                        chunk.text
-                      )
-                    )
-                  : cand}
-              </button>
-            ))}
+            {variantPick?.candidates.map((cand, i) => {
+              const isRejected = variantPick.rejected?.includes(i) ?? false
+              return (
+                <div key={cand.slice(0, 40) + String(i)} className="relative">
+                  <button
+                    type="button"
+                    disabled={isRejected}
+                    className={`w-full rounded-lg border p-3 text-left text-sm whitespace-pre-wrap transition ${
+                      isRejected
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'hover:border-primary hover:bg-muted/50'
+                    }`}
+                    onClick={() => {
+                      variantPick.apply(cand)
+                      setVariantPick(null)
+                    }}
+                  >
+                    <span className="text-muted-foreground mb-1 block pr-24 text-xs font-medium">
+                      {['Concise', 'Impact-focused', 'Keyword-focused'][i] ?? `Option ${i + 1}`}
+                      {isRejected && ' · marked not helpful'}
+                    </span>
+                    {variantPick.original?.trim()
+                      ? diffNewWords(variantPick.original, cand).map((chunk, j) =>
+                          chunk.added ? (
+                            <span
+                              key={String(j)}
+                              className="rounded-sm bg-emerald-100 dark:bg-emerald-900/50"
+                            >
+                              {chunk.text}
+                            </span>
+                          ) : (
+                            chunk.text
+                          )
+                        )
+                      : cand}
+                  </button>
+                  {variantPick.regenerate && (
+                    <button
+                      type="button"
+                      aria-pressed={isRejected}
+                      aria-label={
+                        isRejected
+                          ? `Unmark option ${i + 1} as not helpful`
+                          : `Mark option ${i + 1} as not helpful`
+                      }
+                      title={
+                        isRejected
+                          ? 'Unmark — allow this option again'
+                          : 'Not helpful — Regenerate will steer away from it'
+                      }
+                      className={`absolute top-2 right-2 flex min-h-8 items-center gap-1 rounded-md border px-2 text-xs transition ${
+                        isRejected
+                          ? 'border-destructive/50 text-destructive bg-destructive/10'
+                          : 'text-muted-foreground hover:text-foreground bg-background'
+                      }`}
+                      onClick={() =>
+                        setVariantPick({
+                          ...variantPick,
+                          rejected: isRejected
+                            ? (variantPick.rejected ?? []).filter((r) => r !== i)
+                            : [...(variantPick.rejected ?? []), i],
+                        })
+                      }
+                    >
+                      <ThumbsDown className="size-3.5" />
+                      Not helpful
+                    </button>
+                  )}
+                </div>
+              )
+            })}
             {aiError && variantPick?.tag && aiErrorTag === variantPick.tag && (
               <p className="text-destructive text-sm">{aiError}</p>
             )}
@@ -7544,10 +7592,20 @@ export default function Builder() {
                   variant="outline"
                   className="min-h-10 sm:min-h-9"
                   disabled={aiBusy === variantPick.tag}
-                  onClick={() => variantPick.regenerate?.()}
+                  onClick={() =>
+                    variantPick.regenerate?.(
+                      variantPick.rejected
+                        ?.map((i) => variantPick.candidates[i])
+                        .filter((t): t is string => Boolean(t?.trim()))
+                    )
+                  }
                 >
                   {aiBusy === variantPick.tag ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                  {aiBusy === variantPick.tag ? 'Writing…' : 'Regenerate options'}
+                  {aiBusy === variantPick.tag
+                    ? 'Writing…'
+                    : variantPick.rejected?.length
+                      ? 'Regenerate avoiding marked options'
+                      : 'Regenerate options'}
                 </Button>
                 {variantPick.adjust && (
                   <Button
