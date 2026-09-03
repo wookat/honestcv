@@ -17,10 +17,10 @@ const RESOURCE_LINKS: [string, string][] = [
   ['Resume guides', '/guides/'],
   ['Cover letter generator', '/cover-letter-generator/'],
   ['Interview prep', '/interview-prep/'],
-  ['RezUp vs Zety', '/vs/zety'],
-  ['RezUp vs LiveCareer', '/vs/livecareer'],
-  ['One-time payment builders', '/resume-builder-one-time-payment'],
-  ['About', '/about'],
+  ['RezUp vs Zety', '/vs/zety/'],
+  ['RezUp vs LiveCareer', '/vs/livecareer/'],
+  ['One-time payment builders', '/resume-builder-one-time-payment/'],
+  ['About', '/about/'],
 ]
 
 function ResourcesDropdown() {
@@ -210,19 +210,19 @@ const FOOTER_COLUMNS: [string, [string, string][]][] = [
   [
     'Compare',
     [
-      ['RezUp vs Zety', '/vs/zety'],
-      ['RezUp vs LiveCareer', '/vs/livecareer'],
-      ['RezUp vs Rezi', '/vs/rezi'],
-      ['RezUp vs Enhancv', '/vs/enhancv'],
-      ['One-time payment builders', '/resume-builder-one-time-payment'],
+      ['RezUp vs Zety', '/vs/zety/'],
+      ['RezUp vs LiveCareer', '/vs/livecareer/'],
+      ['RezUp vs Rezi', '/vs/rezi/'],
+      ['RezUp vs Enhancv', '/vs/enhancv/'],
+      ['One-time payment builders', '/resume-builder-one-time-payment/'],
     ],
   ],
   [
     'Company',
     [
-      ['About', '/about'],
-      ['Terms & refunds', '/terms'],
-      ['Privacy', '/privacy'],
+      ['About', '/about/'],
+      ['Terms & refunds', '/terms/'],
+      ['Privacy', '/privacy/'],
       ['Contact', 'mailto:support@zalize.com'],
     ],
   ],

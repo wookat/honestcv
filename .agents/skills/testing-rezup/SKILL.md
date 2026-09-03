@@ -936,3 +936,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Letter example data single source: src/lib/letterExamples.data.json (feeds the app chips AND the static pages /cover-letter-examples/ + /resignation-letter-examples/ built by scripts/build-seo.mjs).
 - Verify page letters by extracting `<pre>` blocks, html-unescaping, then byte-comparing to the JSON `text` fields; anchor ids are kebab-cased roles.
 - These SEO pages are static HTML like /guides/ — no dark-mode toggle, expected.
+
+## R307 lessons (exploratory audit + slash-less link fix)
+- ATS checker upload only fills `#resume-text`; results/file checks appear after filling `#jd-text` and clicking "Check my ATS score".
+- Builder import with an existing draft requires the enabled "Import — replaces current content" action; the bare "Import" button can be disabled.
+- >2 MB size check ("File size under 2 MB") is non-blocking; extraction still runs. Fixture recipe: valid large text PDF via comment padding after `%%EOF` plus a re-appended `startxref`/`%%EOF` trailer (/home/ubuntu/qa/r307_big2.pdf).
+- Slash-less static-link P3 fixed in R307b (bundle index-CujNNOAK.js): `slashed()` in scripts/build-seo.mjs + trailing-slash hrefs in src/components/Layout.tsx. SPA routes (/builder, /dashboard, /jobs, /ats-checker, /documents) intentionally remain slash-less and serve 200 direct — don't re-flag them.

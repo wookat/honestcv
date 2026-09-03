@@ -7,6 +7,9 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 const SITE = 'https://cv.zalize.com'
+
+/** Static pages are served at trailing-slash URLs (asset dir index.html); slash-less hits 307-redirect. */
+const slashed = (p) => (p.endsWith('/') ? p : `${p}/`)
 const OUT_DIR = path.resolve(import.meta.dirname, '../dist/client')
 // Launch/traffic mode: static pages advertise free downloads instead of pricing
 const FREE_MODE = process.env.VITE_FREE_MODE !== 'false'
@@ -1374,19 +1377,19 @@ const FOOTER_COLUMNS = [
   [
     'Compare',
     [
-      ['RezUp vs Zety', '/vs/zety'],
-      ['RezUp vs LiveCareer', '/vs/livecareer'],
-      ['RezUp vs Rezi', '/vs/rezi'],
-      ['RezUp vs Enhancv', '/vs/enhancv'],
-      ['One-time payment builders', '/resume-builder-one-time-payment'],
+      ['RezUp vs Zety', '/vs/zety/'],
+      ['RezUp vs LiveCareer', '/vs/livecareer/'],
+      ['RezUp vs Rezi', '/vs/rezi/'],
+      ['RezUp vs Enhancv', '/vs/enhancv/'],
+      ['One-time payment builders', '/resume-builder-one-time-payment/'],
     ],
   ],
   [
     'Company',
     [
-      ['About', '/about'],
-      ['Terms & refunds', '/terms'],
-      ['Privacy', '/privacy'],
+      ['About', '/about/'],
+      ['Terms & refunds', '/terms/'],
+      ['Privacy', '/privacy/'],
       ['Contact', 'mailto:support@zalize.com'],
     ],
   ],
@@ -1482,10 +1485,10 @@ const RESOURCE_LINKS = [
   ['Cover letter examples', '/cover-letter-examples/'],
   ['Resignation letter examples', '/resignation-letter-examples/'],
   ['Interview prep', '/interview-prep/'],
-  ['RezUp vs Zety', '/vs/zety'],
-  ['RezUp vs LiveCareer', '/vs/livecareer'],
-  ['One-time payment builders', '/resume-builder-one-time-payment'],
-  ['About', '/about'],
+  ['RezUp vs Zety', '/vs/zety/'],
+  ['RezUp vs LiveCareer', '/vs/livecareer/'],
+  ['One-time payment builders', '/resume-builder-one-time-payment/'],
+  ['About', '/about/'],
 ]
 const RESOURCE_LINKS_HTML = RESOURCE_LINKS.map(([label, href]) => `<a href="${href}">${label}</a>`).join('\n')
 const NAV_HTML = `<nav class="main" aria-label="Main">
@@ -1532,13 +1535,13 @@ function breadcrumbLd(crumbs) {
       '@type': 'ListItem',
       position: i + 1,
       name: c.name,
-      item: `${SITE}${c.path}`,
+      item: `${SITE}${slashed(c.path)}`,
     })),
   }
 }
 
 function page(p) {
-  const canonical = `${SITE}${p.path}`
+  const canonical = `${SITE}${slashed(p.path)}`
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
@@ -1633,7 +1636,7 @@ const LEGAL_PAGES = [
 ]
 
 function legalPage(p) {
-  const canonical = `${SITE}${p.path}`
+  const canonical = `${SITE}${slashed(p.path)}`
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -1684,7 +1687,7 @@ for (const p of LEGAL_PAGES) {
 
 // About & press page — brand story + media kit
 function aboutPage() {
-  const canonical = `${SITE}/about`
+  const canonical = `${SITE}/about/`
   const title = 'About RezUp — The Resume Builder With No Subscription Traps'
   const description =
     'RezUp is a browser-local resume builder: ATS-safe templates, free ATS match scoring, AI that never invents your experience, and one-time pricing. Our story, plus a press kit.'
@@ -1758,7 +1761,7 @@ ${siteFooter()}
 }
 
 function guidePage(p) {
-  const canonical = `${SITE}${p.path}`
+  const canonical = `${SITE}${slashed(p.path)}`
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -1833,7 +1836,7 @@ ${siteFooter()}
 }
 
 function templatePage(p) {
-  const canonical = `${SITE}${p.path}`
+  const canonical = `${SITE}${slashed(p.path)}`
   const others = TEMPLATE_PAGES.filter((t) => t.path !== p.path)
   return `<!doctype html>
 <html lang="en">
@@ -1928,7 +1931,7 @@ function hubPage({
   filterPlaceholder,
   filterEmpty,
 }) {
-  const canonical = `${SITE}${pathname}`
+  const canonical = `${SITE}${slashed(pathname)}`
   const itemListLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',

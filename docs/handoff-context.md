@@ -643,3 +643,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据：Rezi 全站页脚/Resources 列常驻 Cover Letter Examples 与 Resignation Letter Examples 公开获客面；我方 R305 示例信只在应用内，公开静态面（build-seo.mjs 的 /examples/、/guides/ 等）没有任何信件示例页。方案 docs/plan-r306-letter-examples-seo.md。
 - 实现：8 封信数据迁至 src/lib/letterExamples.data.json 单一数据源（tsconfig.app.json 开 resolveJsonModule，letterExamples.ts 导出接口不变、app 行为不变）；build-seo.mjs 新增 /cover-letter-examples/（6 封）与 /resignation-letter-examples/（2 封）静态页——h1+lede+TOC 锚点+逐封 pre-wrap 信纸卡片+「Customize this letter free」→ /documents+generator 交叉链接+canonical/OG/Breadcrumb LD；两 URL 入 sitemap.xml、header Resources 下拉与页脚 Resources 列。构建期断言 JSON ≥8 封且含 Sincerely, 否则 build 失败。
 - 生产 QA（bundle index-BfsfpppA.js，curl 核实，零 AI 配额）全绿零 P0–P3：两页 200 直载/刷新、6+2 封 <pre> 正文与 JSON 字节一致、TOC 锚点滚动、CTA/generator/Related/页脚页头链接全通、sitemap 双 URL、375 严格 scrollWidth=375（pre-wrap）、/documents 8 chips + Use this example 回归字节一致、基线还原。截图 /home/ubuntu/screenshots/r306_*.png。SEO 页为静态 HTML 无暗色开关（与 /guides/ 同机制，预期）。
+
+## R307 — 探索性生产审计 + 修 P3（静态页 slash-less 内链 307）(2026-09-03)
+- 审计（R290/R295/R297/R301/R303 同模式，bundle index-BfsfpppA.js，方案 docs/plan-r307-exploratory-audit.md，零 AI 配额）：
+  1) >2MB 上传（R303 遗留）：自制 >2MB 文本 PDF（/home/ubuntu/qa/r307_big2.pdf）经 /ats-checker 与 builder 导入——「File size under 2 MB」检查按源码文案 fail、其余检查照常、非阻断、无卡死；
+  2) 端到端新链：/cover-letter-examples/ → Customize → /documents Use this example → 填占位 → R304 签名 → PDF/DOCX 导出正文+签名位置核验、R302 Tone 回归——全绿；
+  3) 公开面健康：sitemap.xml 全部 123 URL 200；
+  4) 375 严格 scrollWidth=375、暗色抽查、基线还原。唯一发现（P3-trivial）：静态页页脚 Company/Compare 内链用 slash-less href（/about、/terms、/privacy、/vs/*、/resume-builder-one-time-payment）307 跳转到带斜杠 200 页，且与 sitemap canonical 不一致。截图 /home/ubuntu/screenshots/r307_*.png。
+- 修复（R307b）：build-seo.mjs 新增 slashed() 帮助函数（canonical、breadcrumb JSON-LD、页脚/导航 Compare+Company 链接全部带斜杠）；src/components/Layout.tsx RESOURCE_LINKS 与页脚同步改带斜杠。SPA 路由（/builder、/documents 等）按设计保持 slash-less（直接 200 无跳转，不在修复范围）。
+- 生产复验（bundle index-CujNNOAK.js，curl 核实）全绿：四静态页全部内链 200 零跳转、canonical/breadcrumb 带斜杠、React 页脚+Resources 下拉导航正确、375 严格 scrollWidth=375、零 AI、基线还原。截图 /home/ubuntu/screenshots/r307b_*.png。
