@@ -746,3 +746,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 改动（仅 worker/index.ts notFound）：合法形状的 /s/<id> 增加一次 KV `share:<id>` 存在性检查——存在 → 200，撤销/过期/从不存在 → 404；SPA shell 两种状态都照常返回，读者仍看到品牌化「no longer available」卡片；noindex + no-store 头不变。方案 docs/plan-r329-share-hard-404.md。
 - 生产复验（testing agent，零 AI）：真实分享创建 → 200 + 只读快照；UI 撤销 → 同 URL 404 且卡片照常渲染、两头保留；未知合法形状 id → 404 + 卡片；畸形 id → 404；/documents 对照 200；375 严格 scrollWidth=375、暗色、基线还原。截图 /home/ubuntu/screenshots/r332_*.png。
 - bundle 不变（worker-only），R328 差距候选仅剩 (ii) /jobs tailoring-report chips 泛词展示过滤待议。
+
+## R330 — /ats-checker 草稿刷新不丢（sessionStorage 持久化）(2026-08-31)
+- 证据：Rezi「refresh the page without losing your place」标尺（R312/R324/R326 同源）；源码确证 AtsChecker.tsx 的 resumeText/jd/checked 纯 useState，全站粘贴成本最高的页面刷新即全丢。多 KB 文本不适合 URL，改用 sessionStorage（同标签、关标签即清、不落 localStorage/网络）。方案 docs/plan-r330-ats-checker-draft-persist.md。
+- 实现（仅 AtsChecker.tsx）：key `honestcv.atsCheckerDraft` 存 {resumeText, jd, checked}；种子优先级 router state.resumeText > 草稿 > 空白；effect 回写、两文本皆空删 key；fileChecks 有意不持久化（File 对象已失效）。
+- 生产 QA（bundle index-D7ftm4PG.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：Check 后硬刷新分数/两 tier/结构检查逐项一致还原（62/63/59）、未 Check 只还原文本无报告、清空删 key 刷新空白、新标签空白（session 作用域）、Landing hero drop 的 state 优先于旧草稿、示例按钮与 DOCX 上传回归（file-checks 卡刷新后消失属设计）、375 严格 scrollWidth=375、暗色、基线还原。截图 /home/ubuntu/screenshots/r333_*.png。
+- 备忘：全站唯一携 state.resumeText 的入口是 Landing hero drop zone（无 Dashboard「Check pasted text」入口）。R328 差距候选 (ii)（/jobs tailoring chips 泛词）仍待议。
