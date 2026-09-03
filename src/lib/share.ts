@@ -61,13 +61,23 @@ export async function createShareLink(resume: Resume, slug?: string): Promise<Sh
 }
 
 async function revokeRemote(id: string, token: string): Promise<void> {
-  await fetch(`/api/share/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-    headers: { 'x-share-token': token },
-  }).catch(() => undefined)
+  let res: Response
+  try {
+    res = await fetch(`/api/share/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'x-share-token': token },
+    })
+  } catch {
+    throw new Error('Turning off the link failed — check your connection and try again.')
+  }
+  // 404/410 mean the link is already gone, which is what revoking wants.
+  if (!res.ok && res.status !== 404 && res.status !== 410) {
+    throw new Error(`Turning off the link failed (${res.status}). Try again.`)
+  }
 }
 
-/** Revoke the current link (server delete + local forget). */
+/** Revoke the current link: the local copy is only forgotten once the server
+ *  confirms the delete, so a failed revoke stays visible and retryable. */
 export async function revokeShareLink(): Promise<void> {
   const link = loadShareLink()
   if (link) await revokeRemote(link.id, link.token)

@@ -970,3 +970,16 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - `loadResume()` rejects fixtures missing a `contact` object or `experience` array (silently returns null) — seed a full-shape resume when testing targetRole behavior.
 - Attention fixtures need status applied/interviewing with last history step ≥7 days old. Bulk-mode toggle on Tracked is labeled 'Select…' inside `[aria-label='Bulk actions on tracked jobs']`.
 - Switching to an empty Tracked tab clears the selection, dropping `job=` from the URL (by design).
+
+## R313 lessons (dashboard ops / history / share audit)
+- Dashboard copy controls are sr-only-labelled buttons: 'Edit name and target job for {name}', 'Move {name} to a folder' (dialog: input 'New folder name…' + 'Create & move'), 'Rename folder', 'Remove folder', 'Delete {name}'.
+- Created-sort tests must use ungrouped copies (folder groups render separately) with discriminator names where name- and created-order differ.
+- /builder does NOT render WorkspaceNav — the quota footer only exists on /jobs, /dashboard, /documents.
+- Share: slug input lowercases on input; select[aria-label='Link access'] off/view drives create/revoke; test incognito via browser-WS Target.createBrowserContext + createTarget + attachToTarget(flatten).
+- Theme control is a single cycle button (title 'System theme — switch to…') — click repeatedly until html.dark appears.
+
+## R314 lessons (share revoke failure paths)
+- To test revoke failure paths on production, temporarily add Fetch pattern `*api/share/*` and fulfill the DELETE with 500 (or failRequest ConnectionFailed) — errors surface inline as 'Turning off the link failed (…)'; 404/410 on DELETE are treated as success.
+- revokeShareLink keeps honestcv.shareLink on failure (select stays 'Can view'); retry works after disarming.
+- Server-side delete for fixtures: `curl -X DELETE -H 'x-share-token: <token>' https://cv.zalize.com/api/share/<id>`.
+- Don't run wait_paused from a second thread on the shared harness websocket — it races cmd() reads.

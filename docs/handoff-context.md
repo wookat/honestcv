@@ -680,3 +680,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据：Rezi changelog 2026-08 Week 4「Seamless Messaging Navigation: Navigate to messages or refresh the page without losing your place」；我方 /jobs 只读 ?attention/?q 种子、从不回写——刷新/误导航/分享即丢全部筛选与选中职位（生产复现）。方案 docs/plan-r312-jobs-url-state.md。
 - 实现：仅 Jobs.tsx——①种子扩展：?tab（TAB_PARAMS 白名单）/?q（present-but-empty 视为清空搜索）/?cat /?loc /?type /?skills /?sort（newest|match）/?job；?attention=1 语义不变；初始 fetch 带 seeded cat；②回写 effect：history.replaceState 序列化同组状态，默认值省略（q 等于默认种子时省略）；③选中回退：?job 仅当在结果或 pipeline 中才保留，否则回退首条。零 worker/schema/storage 改动，过滤排序语义字节不变。
 - 生产 QA（bundle index-JEH8609j.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：全状态写 URL+硬刷新逐项还原（含详情面同职位 aria-pressed）、?attention=1 回归（stale applied fixture）、?q=designer 种子、?q= 空值在 targetRole=Product Manager 下清空态存活+对照组、stale ?job 回退首条并改写参数、素 URL 仅 ?job=、默认值参数出现/消失精确、R308 datalist/facet chips/tabs/bulk 回归、375 严格 scrollWidth=375、暗色可读、基线还原。截图 /home/ubuntu/screenshots/r312_*.png。录屏仍不可用。
+
+## R313 — 探索性生产审计（历史/多简历/文件夹/定向副本/分享全链）(2026-09-03)
+- 审计范围（bundle index-JEH8609j.js）：Builder 编辑历史（区块级变更摘要、restore/前向 restore、存储无损坏）、多简历副本/改名/文件夹增删改/created 排序/删除无悬挂引用、职位定向副本+tailoring report（改名存活、删除优雅回退草稿）、配额展示（/builder 无 WorkspaceNav 属设计）、分享链（非法 slug 拒绝、自定义 slug、独立无痕上下文查看、375/暗色、撤销→404）。全绿零 P0–P2。
+- 唯一 P3 观察项（一次未复现）：撤销分享时本地 shareLink 被清但未见 DELETE，服务器链接仍活——源码确证机制存在：revokeRemote 吞掉所有失败（.catch(()=>undefined) 无 res.ok 检查），revokeShareLink 无条件清本地。→ R314 修复。截图 /home/ubuntu/screenshots/r313_*.png。
+
+## R314 — 分享撤销完整性（失败不再静默假装成功）(2026-09-03)
+- 证据：R313 P3 + share.ts 源码（见 docs/plan-r314-share-revoke-integrity.md）。风险：弱网下用户以为已撤销，实际链接仍可访问（隐私级静默失败）。
+- 实现：share.ts revokeRemote 检查响应——2xx/404/410 算撤销成功，其余状态与网络错误抛用户可读 Error；revokeShareLink 仅在远端删除确认后清本地（失败保留、可重试）；Builder 撤销分支补 .catch → 既有 shareError 内联报错。零 worker/schema 改动。
+- 生产 QA（bundle index-BvPx6jA9.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：happy path DELETE→404、CDP 注入 500 → 精确报错+select 保持 Can view+本地键保留+重试成功、网络失败 → connection 文案、服务端已删 404 → 视为成功无报错、slug/copy/无痕查看回归、375 严格（报错态）、暗色。所有测试链接 404 核实。截图 /home/ubuntu/screenshots/r314_*.png。录屏仍不可用。
