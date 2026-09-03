@@ -58,6 +58,7 @@ import {
   splitAtSignature,
   updateCareerDoc,
 } from '@/lib/documents'
+import { LETTER_EXAMPLES, type LetterExample } from '@/lib/letterExamples'
 import {
   EXPERIENCE_LEVELS,
   EXPERIENCE_LEVEL_LABELS,
@@ -215,6 +216,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [docText, setDocText] = useState('')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
+  const [previewLetter, setPreviewLetter] = useState<LetterExample | null>(null)
   const signatureInputRef = useRef<HTMLInputElement>(null)
   const [signatureError, setSignatureError] = useState('')
   const docImportInputRef = useRef<HTMLInputElement>(null)
@@ -1030,6 +1032,27 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           />
         </div>
         {docImportError && <p className="text-destructive mt-2 text-xs">{docImportError}</p>}
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold">Letter examples</h3>
+          <p className="text-muted-foreground mt-0.5 text-xs">
+            Start from a proven letter for your role — placeholders show exactly what to fill in.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Letter examples">
+            {LETTER_EXAMPLES.map((e) => (
+              <button
+                key={e.slug}
+                type="button"
+                onClick={() => setPreviewLetter(e)}
+                className="bg-card hover:border-muted-foreground/40 min-h-10 cursor-pointer rounded-md border px-2.5 py-1 text-left text-xs transition sm:min-h-8"
+              >
+                <span className="font-medium">{e.role}</span>{' '}
+                <span className="text-muted-foreground">
+                  · {e.kind === 'cover' ? 'Cover letter' : 'Resignation'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
         {docs.length > 0 && (
           <div
             className="mt-4 flex flex-wrap gap-1.5"
@@ -1689,6 +1712,66 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               Choose the LinkedIn PDF
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={previewLetter !== null} onOpenChange={(o) => !o && setPreviewLetter(null)}>
+        <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-2xl">
+          {previewLetter && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{previewLetter.role}</DialogTitle>
+                <DialogDescription>
+                  {previewLetter.kind === 'cover'
+                    ? 'Cover letter example'
+                    : 'Resignation letter example'}{' '}
+                  — load it, then replace the [placeholders] with your details.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-md border p-3 sm:p-4">
+                <LetterPreview
+                  doc={{
+                    id: 'example',
+                    kind: previewLetter.kind,
+                    title: previewLetter.role,
+                    text: previewLetter.text,
+                    updatedAt: 0,
+                  }}
+                  text={previewLetter.text}
+                  letterhead={draft ?? emptyResume()}
+                />
+              </div>
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10 sm:min-h-9"
+                  onClick={() => setPreviewLetter(null)}
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  className="min-h-10 sm:min-h-9"
+                  onClick={() => {
+                    const e = previewLetter
+                    const title =
+                      e.kind === 'cover'
+                        ? `${e.role} cover letter`
+                        : `Resignation letter — ${e.role}`
+                    const doc = saveCareerDoc(e.kind, title, e.text)
+                    setDocs(listCareerDocs())
+                    setPreviewLetter(null)
+                    setOpenDoc(doc)
+                    setDocText(doc.text)
+                    setDocView('edit')
+                  }}
+                >
+                  Use this example
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
