@@ -752,3 +752,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现（仅 AtsChecker.tsx）：key `honestcv.atsCheckerDraft` 存 {resumeText, jd, checked}；种子优先级 router state.resumeText > 草稿 > 空白；effect 回写、两文本皆空删 key；fileChecks 有意不持久化（File 对象已失效）。
 - 生产 QA（bundle index-D7ftm4PG.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：Check 后硬刷新分数/两 tier/结构检查逐项一致还原（62/63/59）、未 Check 只还原文本无报告、清空删 key 刷新空白、新标签空白（session 作用域）、Landing hero drop 的 state 优先于旧草稿、示例按钮与 DOCX 上传回归（file-checks 卡刷新后消失属设计）、375 严格 scrollWidth=375、暗色、基线还原。截图 /home/ubuntu/screenshots/r333_*.png。
 - 备忘：全站唯一携 state.resumeText 的入口是 Landing hero drop zone（无 Dashboard「Check pasted text」入口）。R328 差距候选 (ii)（/jobs tailoring chips 泛词）仍待议。
+
+## R331 — JD 关键词提取补齐 STOPWORDS 屈折形（2026-08-31）
+- 证据：一手 probe（.tmp-smoke/r331_probe.ts）确证 "used"/"daily" 被提取为关键词并进 missing chips（R328 候选 (ii) 的真实部分）；STOPWORDS 本意已排除该词汇（有 use/using、day/days）但漏屈折形。职称词（senior/engineer）有意保留——简历匹配职位标题是正当 ATS 建议（与 R325 面试口播边界不同）。方案 docs/plan-r331-stopword-inflections.md。
+- 实现（仅 ats.ts STOPWORDS）：新增 used uses worked works daily weekly monthly helps helping helped offered require requires requirement skill year jobs roles positions companies experiences seeks sought；有意不加 "teams"（Microsoft Teams 是真实产品关键词）。全部 extractKeywords 消费方（评分分母、/jobs chips、builder triage、guidance、高亮、面试教练）一致受益。oracle 6/6。
+- 生产 QA（bundle index-Dz4zc-sU.js，零 AI）全绿零 P0–P3：filler 重度 JD 在 /ats-checker 三 tier、/jobs 报告 chips、builder triage 均零 filler；六个技术词全提取；Teams JD 仍提取 teams；R330 草稿刷新回归 67/100 一致；375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r334_*.png。
