@@ -24,7 +24,14 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     if (res.status === 402 || data.code === 'payment_required') {
       throw new PaymentRequiredError(data.error || 'Unlock RezUp to continue.')
     }
-    throw new Error(data.error || `Request failed (${res.status})`)
+    throw new Error(
+      data.error ||
+        (res.status === 429
+          ? 'Too many requests right now — wait a moment and try again.'
+          : res.status >= 500
+            ? 'Something went wrong on our side — please try again in a moment.'
+            : `The request didn’t go through (error ${res.status}). Please try again.`)
+    )
   }
   if (path.startsWith('/api/ai/')) trackEvent('ai-use')
   return data

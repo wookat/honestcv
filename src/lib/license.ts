@@ -79,7 +79,12 @@ export async function activateLicense(licenseKey: string): Promise<LicenseState>
     error?: string
   }
   if (!res.ok || !data.token || !data.plan || !data.expiresAt) {
-    throw new Error(data.error || `Activation failed (${res.status})`)
+    throw new Error(
+      data.error ||
+        (res.ok
+          ? 'Activation returned an unexpected response — please try again or contact support.'
+          : `Activation didn’t go through (error ${res.status}). Check the key and try again.`)
+    )
   }
   const state: LicenseState = {
     token: data.token,

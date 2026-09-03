@@ -4,6 +4,20 @@ import { XIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
+// Last element that held focus, for dialogs opened while focus sits on <body>
+// (the opener button was disabled/blurred before the dialog opened).
+let lastFocused: HTMLElement | null = null
+if (typeof document !== 'undefined') {
+  document.addEventListener(
+    'focusin',
+    (e) => {
+      if (e.target instanceof HTMLElement && e.target !== document.body)
+        lastFocused = e.target
+    },
+    true
+  )
+}
+
 function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
@@ -49,6 +63,9 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   // Dialogs here are controlled (no DialogTrigger), so Radix has no trigger
   // to return focus to on close — remember the opener and restore it.
+  // When the dialog opens programmatically after the opener was disabled
+  // (e.g. a busy AI button hitting a 402), focus has already fallen to
+  // <body>; fall back to the last element that held focus.
   const openerRef = React.useRef<HTMLElement | null>(null)
   return (
     <DialogPortal data-slot="dialog-portal">
@@ -56,10 +73,12 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         onOpenAutoFocus={(event) => {
-          openerRef.current =
-            document.activeElement instanceof HTMLElement
+          const active =
+            document.activeElement instanceof HTMLElement &&
+            document.activeElement !== document.body
               ? document.activeElement
               : null
+          openerRef.current = active ?? lastFocused
           onOpenAutoFocus?.(event)
         }}
         onCloseAutoFocus={(event) => {

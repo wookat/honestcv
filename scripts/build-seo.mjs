@@ -15,7 +15,10 @@ const OUT_DIR = path.resolve(import.meta.dirname, '../dist/client')
 const FREE_MODE = process.env.VITE_FREE_MODE !== 'false'
 // First-party pageview beacon (the sole pageview source; path only, no PII).
 // External file so the strict CSP (script-src 'self') needs no inline scripts.
-const FP_BEACON = '<script defer src="/t.js"></script>'
+// Apply the app's device theme preference (honestcv.theme) before first paint
+// so static pages match the SPA's light/dark scheme (external file per CSP).
+const THEME_SCRIPT = '<script src="/theme.js"></script>'
+const FP_BEACON = THEME_SCRIPT + '<script defer src="/t.js"></script>'
 
 const PAGES = [
   {
@@ -1414,7 +1417,12 @@ ${links.map(([label, href]) => `<li><a href="${href}">${esc(label)}</a></li>`).j
 const CSS = `
 @font-face{font-family:'Inter';font-style:normal;font-weight:400 700;font-display:optional;src:url('/fonts/inter-latin.woff2') format('woff2')}
 @font-face{font-family:'Sora';font-style:normal;font-weight:600 800;font-display:optional;src:url('/fonts/sora-latin.woff2') format('woff2')}
-:root{--bg:oklch(0.99 0.002 250);--fg:oklch(0.18 0.02 260);--muted:oklch(0.52 0.02 260);--primary:oklch(0.5 0.18 265);--primary-fg:oklch(0.985 0 0);--border:oklch(0.91 0.01 260);--card:oklch(1 0 0);--accent:oklch(0.94 0.03 265);--radius:0.625rem}
+:root{--bg:oklch(0.99 0.002 250);--fg:oklch(0.18 0.02 260);--muted:oklch(0.52 0.02 260);--primary:oklch(0.5 0.18 265);--primary-fg:oklch(0.985 0 0);--border:oklch(0.91 0.01 260);--card:oklch(1 0 0);--accent:oklch(0.94 0.03 265);--radius:0.625rem;color-scheme:light}
+html.dark{--bg:oklch(0.16 0.01 260);--fg:oklch(0.95 0.005 260);--muted:oklch(0.68 0.02 260);--primary:oklch(0.68 0.14 265);--primary-fg:oklch(0.16 0.01 260);--border:oklch(0.3 0.01 260);--card:oklch(0.2 0.01 260);--accent:oklch(0.28 0.03 265);color-scheme:dark}
+html.dark .toc{background:var(--card)}
+html.dark .exdoc{background:var(--card)}
+html.dark .ai-art{background:var(--card)}
+#hub-filter{background:var(--card);color:var(--fg)}
 *{box-sizing:border-box;border-color:var(--border)}
 body{margin:0;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.7}
 a{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
@@ -1975,7 +1983,7 @@ ${NAV_HTML}
 <main${mainStyle ? ` style="${mainStyle}"` : ''}>
 <h1>${esc(h1)}</h1>
 <p class="lede">${esc(intro)}</p>
-${filterPlaceholder ? `<input id="hub-filter" type="search" hidden placeholder="${esc(filterPlaceholder)}" aria-label="Filter the list below" autocomplete="off" style="width:100%;max-width:26rem;min-height:2.75rem;margin-top:1rem;padding:0 .875rem;border:1px solid var(--border);border-radius:.5rem;font:inherit;background:#fff" />\n<p id="hub-filter-empty" hidden style="margin-top:1.5rem;color:#667085">${esc(filterEmpty ?? 'No examples match that search \u2014 try a broader word like \u201cengineer\u201d or \u201cmanager\u201d.')}</p>` : ''}
+${filterPlaceholder ? `<input id="hub-filter" type="search" hidden placeholder="${esc(filterPlaceholder)}" aria-label="Filter the list below" autocomplete="off" style="width:100%;max-width:26rem;min-height:2.75rem;margin-top:1rem;padding:0 .875rem;border:1px solid var(--border);border-radius:.5rem;font:inherit" />\n<p id="hub-filter-empty" hidden style="margin-top:1.5rem;color:#667085">${esc(filterEmpty ?? 'No examples match that search \u2014 try a broader word like \u201cengineer\u201d or \u201cmanager\u201d.')}</p>` : ''}
 ${bodyHtml ?? renderHubItems(items)}
 <div class="cta">
 <p>${FREE_MODE ? 'RezUp is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The RezUp builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
