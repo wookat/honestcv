@@ -73,15 +73,39 @@ function segmentJd(jd: string, matched: string[], missing: string[]): JdSegment[
   return out
 }
 
+const DRAFT_KEY = 'honestcv.atsCheckerDraft'
+
+interface CheckerDraft {
+  resumeText: string
+  jd: string
+  checked: boolean
+}
+
+/** Same-tab draft of the pasted texts, so a refresh doesn't lose them. */
+function loadDraft(): CheckerDraft | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const d = parsed as Partial<Record<keyof CheckerDraft, unknown>>
+    if (typeof d.resumeText !== 'string' || typeof d.jd !== 'string') return null
+    return { resumeText: d.resumeText, jd: d.jd, checked: d.checked === true }
+  } catch {
+    return null
+  }
+}
+
 export default function AtsChecker() {
   usePageMeta(
     'Free ATS Resume Checker — Instant Match Score | RezUp',
     'Paste your resume and a job description to get an instant ATS match score, missing keywords and format checks. 100% free, no sign-up — runs entirely in your browser.'
   )
   const { state } = useLocation() as { state?: { resumeText?: string } }
-  const [resumeText, setResumeText] = useState(state?.resumeText ?? '')
-  const [jd, setJd] = useState('')
-  const [checked, setChecked] = useState(Boolean(state?.resumeText))
+  const [draft] = useState(() => (state?.resumeText ? null : loadDraft()))
+  const [resumeText, setResumeText] = useState(state?.resumeText ?? draft?.resumeText ?? '')
+  const [jd, setJd] = useState(draft?.jd ?? '')
+  const [checked, setChecked] = useState(Boolean(state?.resumeText) || (draft?.checked ?? false))
   const [linkCopied, setLinkCopied] = useState(false)
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
@@ -133,6 +157,15 @@ export default function AtsChecker() {
     }
     void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
   }
+
+  useEffect(() => {
+    try {
+      if (!resumeText && !jd) sessionStorage.removeItem(DRAFT_KEY)
+      else sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ resumeText, jd, checked }))
+    } catch {
+      // storage unavailable (e.g. disabled) — the page still works, just without refresh safety
+    }
+  }, [resumeText, jd, checked])
 
   const result = useMemo(
     () => (checked ? scoreResumeText(resumeText, jd) : null),

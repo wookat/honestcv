@@ -1790,13 +1790,16 @@ app.notFound(async (c) => {
   if (shell.status !== 200) shell = await c.env.ASSETS.fetch(new Request(new URL('/', c.req.url)))
   // Shared-resume pages resolve to the SPA shell too, but must never be indexed
   const isShare = path.startsWith('/s/') && validShareId(path.slice(3))
+  // Revoked/expired/unknown share links get an honest 404 status; the SPA
+  // shell still renders the branded "no longer available" card either way.
+  const shareLive = isShare && (await c.env.KV.get(`share:${path.slice(3)}`)) !== null
   const headers: Record<string, string> = { 'content-type': 'text/html; charset=utf-8' }
   if (path.startsWith('/s/')) {
     headers['X-Robots-Tag'] = 'noindex'
     headers['Cache-Control'] = 'no-store'
   }
   return new Response(shell.body, {
-    status: SPA_ROUTES.has(path) || isShare ? 200 : 404,
+    status: SPA_ROUTES.has(path) || shareLive ? 200 : 404,
     headers,
   })
 })

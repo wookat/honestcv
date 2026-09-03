@@ -1288,6 +1288,16 @@ export function deleteResumeVersion(id: string): ResumeVersion[] {
   return versions
 }
 
+/** Put a just-deleted copy back exactly as it was, at its previous position. */
+export function restoreResumeVersion(version: ResumeVersion, index = 0): ResumeVersion[] {
+  const versions = listResumeVersions()
+  if (versions.some((v) => v.id === version.id)) return versions
+  const at = Math.min(Math.max(index, 0), versions.length)
+  const next = [...versions.slice(0, at), version, ...versions.slice(at)]
+  persistVersions(next)
+  return next
+}
+
 /**
  * Link between the working editor draft and the saved copy it was opened from.
  * While linked, autosaves write the draft back into that copy so it never goes
@@ -2104,6 +2114,17 @@ export function educationDetailLine(e: EducationItem): string {
   ]
     .filter(Boolean)
     .join(' · ')
+}
+
+/** Minor/GPA tail of the detail line, with a leading separator when present. */
+export function educationDetailSuffix(e: EducationItem): string {
+  const tail = [
+    e.minor?.trim() ? `Minor in ${e.minor.trim()}` : '',
+    e.gpa?.trim() ? `GPA: ${e.gpa.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  return tail ? ` · ${tail}` : ''
 }
 
 /** Date range for an experience entry — a blank end date on an ongoing role reads "start – Present" */

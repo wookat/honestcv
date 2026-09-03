@@ -32,6 +32,7 @@ import {
   pageMarginOf,
   lineSpacingOf,
   educationDetailLine,
+  educationDetailSuffix,
   orderedSectionKeys,
   projectDates,
   sectionHeading,
@@ -115,6 +116,11 @@ function InlineText({
   if (!onCommit) return <MarkedText text={shown} />
   return (
     <span
+      // Remount whenever the committed value changes: the user's typing has
+      // already mutated the span's children behind React's back, so in-place
+      // reconciliation would touch DOM nodes that no longer exist. Swapping
+      // the whole span only removes the (untouched) host element.
+      key={shown}
       contentEditable
       suppressContentEditableWarning
       spellCheck={false}
@@ -998,7 +1004,28 @@ function SectionBlock({
                   )}
                 </div>
                 {educationDetailLine(e) && (
-                  <p className="text-[11px]">{educationDetailLine(e)}</p>
+                  <p className="text-[11px]">
+                    {e.details.trim() ? (
+                      <>
+                        <InlineText
+                          value={e.details.trim()}
+                          onCommit={
+                            onEdit &&
+                            ((v) =>
+                              onEdit({
+                                ...resume,
+                                education: resume.education.map((x) =>
+                                  x.id === e.id ? { ...x, details: v } : x
+                                ),
+                              }))
+                          }
+                        />
+                        {educationDetailSuffix(e)}
+                      </>
+                    ) : (
+                      educationDetailLine(e)
+                    )}
+                  </p>
                 )}
               </div>
           ))}

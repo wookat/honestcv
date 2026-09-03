@@ -264,7 +264,9 @@ export function analyzeAnswer(
   let keywords: AnswerAnalysis['keywords'] = null
   if (jobDescription.trim()) {
     const ignored = new Set(ignoredKeywords.map((k) => k.toLowerCase()))
-    const kws = extractKeywords(jobDescription).filter((k) => !ignored.has(k))
+    const kws = coachableKeywords(
+      extractKeywords(jobDescription).filter((k) => !ignored.has(k))
+    )
     if (kws.length > 0) {
       const toks = tokens(answer)
       const covered: string[] = []
@@ -314,7 +316,9 @@ export function sessionReport(
     const coveredUnion = new Set<string>()
     for (const s of scored) for (const kw of s.analysis.keywords?.covered ?? []) coveredUnion.add(kw)
     const ignored = new Set(ignoredKeywords.map((k) => k.toLowerCase()))
-    const kws = extractKeywords(jobDescription).filter((k) => !ignored.has(k))
+    const kws = coachableKeywords(
+      extractKeywords(jobDescription).filter((k) => !ignored.has(k))
+    )
     const covered = kws.filter((k) => coveredUnion.has(k))
     const missing = kws.filter((k) => !coveredUnion.has(k))
     const high = highPriorityKeywords(jobDescription, kws)
@@ -340,6 +344,19 @@ const JOB_TITLE_WORDS = new Set([
   'onsite', 'full-time', 'part-time', 'contract', 'role', 'position', 'job',
   'team', 'company', 'experience', 'years',
 ])
+
+/** Generic JD verbs/filler that aren't skills and make poor coaching targets. */
+const GENERIC_JD_WORDS = new Set([
+  'used', 'using', 'use', 'daily', 'day', 'work', 'working', 'works',
+  'strong', 'ability', 'skills', 'knowledge', 'excellent', 'familiarity',
+])
+
+/** JD keywords worth coaching an interview answer toward — skills, not title/filler words. */
+function coachableKeywords(keywords: string[]): string[] {
+  return keywords.filter(
+    (kw) => kw.includes(' ') || (!JOB_TITLE_WORDS.has(kw) && !GENERIC_JD_WORDS.has(kw))
+  )
+}
 
 /** JD keywords that name a concrete skill/tool rather than the job title itself. */
 function skillLikeKeywords(resume: Resume, keywords: string[]): string[] {

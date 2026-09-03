@@ -713,3 +713,81 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据：Rezi 一手「Refined AI Rewrite Feedback / clearer options and feedback buttons」；我方 Regenerate 此前发送与上一轮完全相同的请求，无法避开被拒候选。方案 docs/plan-r319-rewrite-feedback-avoid.md。
 - 实现：worker/prompts.ts buildRewriteMessages/buildSummaryDraftMessages 可选 avoid（非空时在 Input/Candidate resume 前插入「The user rejected these earlier versions…」块，空时 prompt 字节不变，oracle 14/14）；worker/index.ts 两端点 sanitizeAvoid（string-only、trim、单条 400 字符、最多 6 条）；src/lib/api.ts aiRewrite/aiSummaryDraft 可选 avoid（仅非空序列化，默认 payload 字节兼容）；Builder.tsx variantPick 增 rejected 索引 + regenerate(avoid?)，每卡 ThumbsDown 切换（aria-pressed，相对容器兄弟按钮避免嵌套 button），标记卡 opacity-50+disabled 不可 apply，Regenerate 传被标记文本并改标签「Regenerate avoiding marked options」，新候选到达即重置标记。
 - 生产 QA（bundle index-D-o_1-Bf.js / Builder-BUafjiDS.js，curl 核实，CDP 拦截全部 /api/ai/*，零 AI 配额）全绿零 P0–P3：无反馈 payload 无 avoid 键且键序不变、标记选项2→regenerate payload=基线+avoid:[选项2原文]、无标记 regenerate 与基线字节一致、取消标记后可 apply、summary-draft 同行为、375 严格 scrollWidth=375 标签与切换钮 0 重叠、暗色 destructive 态可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r319_*.png，payload 存证 /home/ubuntu/qa/r319_captured*.json。录屏仍不可用（enigo）。
+## R320 — 删除简历副本/职业文档可撤销（Undo）(2026-09-03)
+- 证据：Rezi User Docs「Delete Resume」(2026-08-19)——删除永久不可恢复，三步里两步在提醒用户先自查/备份内容；我方 /dashboard、/documents 确认后立即永久删（deleteResumeVersion/deleteCareerDoc filter+persist），误点确认即丢定制副本或信件。本地优先架构可以直接优于 Rezi：删除后限时 Undo。方案 docs/plan-r320-undo-delete.md。
+- 实现：resume.ts restoreResumeVersion(version,index) / documents.ts restoreCareerDoc(doc,index)——原对象按原位置重插（id 已存在为 no-op、index 夹取），时间戳不刷新排序不变；Dashboard.tsx 两个删除确认后置 undoDelete state，底部固定 role="status" 条：Deleted "<name>" + Undo（Undo2 图标）+ X（aria-label="Dismiss"），10s 自动消失（item 保持已删），新删除替换现有条。零 worker/schema 改动。
+- oracle .tmp-smoke/r320_oracle.ts（npx tsx --tsconfig tsconfig.app.json）9/9 绿；tsc/eslint/build 绿。
+- 生产 QA（bundle index-D_X2ciG_.js / Dashboard-CbWVc8E-.js，curl 核实，零 AI 配额）全绿零 P0–P3：副本三件套删中间（在文件夹内）→ Undo 后 honestcv.resumeVersions 字节一致（位置/folder/时间戳全保留）；11s 自动消失保持已删；X 消除、新删除替换；带签名 cover 文档往返字节一致含签名 data-URL、删掉筛选 kind 最后一份时 docKind 回退 All；375 严格 scrollWidth=375 条完全在视口内；暗色可读；localStorage/主题还原。截图 /home/ubuntu/screenshots/r320_*.png。录屏仍不可用（enigo）。
+- 注意（QA 教训）：persistVersions 会把 version.data 规范化为完整 Resume 形状——字节比对须以 app 写入的存储为快照，手工最小 fixture 首次持久化会被规范化（非产品缺陷）。
+
+## R321 — Builder 跨标签页变更提示（防静默 last-writer 数据丢失）(2026-09-03)
+- 证据：Rezi 云端持久化（编辑器需登录、服务端 updated_at），双标签收敛同一服务器文档，无 stale-tab 覆盖问题；我方本地优先——源码确证 `grep -r "'storage'" src/` 零命中，Builder useDebouncedSave 每次编辑 400ms 后无条件覆写 honestcv.resume：双标签编辑时旧标签一次按键即静默覆盖新标签全部修改。方案 docs/plan-r321-cross-tab-change-notice.md。
+- 实现（仅 Builder.tsx）：lastKnownJson ref（JSON.stringify(resume)，与 saveResume 写入字节一致）+ window storage 监听（按规范只在非写入标签触发）——key=honestcv.resume 且 newValue≠lastKnownJson 时置 externalUpdate；role="status" 条（bottom-16 移动端高于 Edit/Preview 切换栏、lg:bottom-4）：This resume was changed in another tab. + Load latest（loadResume→setResume，正常保存链路重持久化+记 undo 快照，可用 Builder 撤销回退）+ X aria-label="Dismiss"（继续编辑=知情后 last-writer）。不自动合并、不改保存语义、零 worker/schema 改动。
+- tsc/eslint/build 绿（无 oracle：逻辑为单一字符串比较）。
+- 生产 QA（bundle index-BEn8R3EI.js / Builder-Diz-5o8M.js，curl 核实，零 AI 配额，CDP 双真实标签同 profile）全绿零 P0–P3：B 编辑→仅 A 出条（精确文案）；Load latest 后 A 重存与 B 写入字节一致、工具栏 Undo 精确回退加载；X 后 A 编辑 last-writer 胜且 B 对称出条；同标签编辑不出条；等值外部写入不出条；375 严格 scrollWidth=375 且条与底部切换栏 12px 间距；暗色可读；基线还原。截图 /home/ubuntu/screenshots/r321_*.png。录屏仍不可用（enigo）。CDP 派发 Ctrl+Z 在后台标签未触发（工具栏按钮验证等价路径），记录为测试手段局限非产品缺陷。
+- 部署坑：wrangler deploy 成功上传后边缘缓存可短暂返回旧 HTML+新资产清单错位（旧 Builder chunk 404）——判定部署状态须带 cache-buster 查询串再 curl，不要凭首次响应断言生产损坏。
+
+## R322 — 探索审计（inline 预览编辑链）+ P1 清空 bullet 白屏修复 (2026-09-03)
+- 审计范围（bundle index-BEn8R3EI.js，生产零 AI）：inline 预览编辑全链（summary/bullets/headline/contact/skills/custom sections 往返、标题改名、Enter 追加草稿 bullet、marks 完整性+Ctrl+B、undo/redo、R321 跨标签条联动、Stack roles 分组标题联动双条目、模板切换、关键词高亮共存、375 严格、暗色）——除一项全绿。
+- 确证 P1（100% 复现）：清空既有预览 bullet（全选+Backspace+blur）抛 removeChild NotFoundError 整个应用卸载白屏、bullet 未删（R130 契约失效）。根因：contentEditable 子节点被用户改动后，空提交使 index-keyed 列表原位 reconcile 下一条文本，React 触碰已销毁的文本节点。方案 docs/plan-r322-inline-clear-crash.md。
+- 修复（ResumePreview.tsx 一处）：InlineText span 加 key={shown}——提交值变化即整体重挂载，绝不 diff 用户改过的子节点；Escape/等值 blur 的 restoreMarkedDom 路径不变，DraftBullet 不动。
+- tsc/eslint/build 绿。生产复验（bundle index-AdLcvLFA.js / Builder-DPdh3Lco.js，curl cache-buster 核实，真实鼠标选择+真实 Backspace，零 AI）全绿零 P0–P3：experience 与 custom-section bullet 均正常删除、无异常、应用保持挂载、工具栏 Undo 双双还原原位置；重挂载敏感回归（非空 inline 编辑往返、Enter 于 i+1 插入、marks 保留渲染、标题改名/回退）全过；375 严格（编辑中）、暗色、基线还原。截图 /home/ubuntu/screenshots/r322_*.png、r323_*.png。
+- informational：education details 行非 inline 可编辑（设计差距候选）；录屏仍不可用（enigo）。
+
+## R323 — 教育 details 行 inline 可编辑 (2026-09-03)
+- 差距（R322 审计确证）：预览中教育 details 是唯一无 inline 控件的正文行（复合行 details · Minor in X · GPA: Y 整行纯文本）。方案 docs/plan-r323-inline-education-details.md。
+- 实现：ResumePreview.tsx details 段为 InlineText（提交 education[x].details，空提交=清除，R322 remount 下安全）；新 resume.ts educationDetailSuffix() 组装尾段（oracle 7/7 与 educationDetailLine 字节等价）；details 为空时整行保持纯文本；导出/ATS 用的 educationDetailLine 不动。
+- tsc/eslint/build 绿。生产 QA（bundle index-AdxSjhBj.js，零 AI）全绿零 P0–P3：行组成字节一致且仅 details 在 span 内、编辑往返存储+编辑卡、真实按键清空无崩溃回退纯文本、details-only/无 details 两向、**bold** 标记保留、375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r324_*.png。
+
+## R324 — /samples 筛选状态入 URL (2026-09-03)
+- 差距（Rezi changelog 2026-08 W4「refresh the page without losing your place」+ 源码/生产确证）：Sample library 的搜索/行业 chip/Saved 开关均为纯 useState，/samples 刷新或分享即丢上下文（R312 已为 /jobs 修过同类问题）。方案 docs/plan-r324-samples-url-state.md。
+- 实现：Dashboard.tsx 仅 /samples 路由——mount 时从 URL 种子 ?q/?sector/?saved=1，replaceState 回写（默认值省略保持素 URL）；非法 ?sector 经派生 activeSector 回退 All（chips/过滤/回写统一用 activeSector）；/dashboard 内嵌 samples 区不变（锚点语义保留）。已知副作用：/samples 上未知 query 参数（UTM/cache-buster）会在 mount 后被清掉（回写全量重建），记为 informational。
+- tsc/eslint/build 绿。生产 QA（bundle index-hppBh2DS.js，零 AI）全绿零 P0–P3：三筛选→URL→硬刷新/新标签深链全还原、非法 sector 回退且 URL 自清、清空回素 URL、/dashboard ?keep=1#samples 原样不动、375 严格、暗色、savedSamples/主题基线还原。截图 /home/ubuntu/screenshots/r325_*.png。
+
+## R325 — 面试链探索审计 + 教练关键词去噪 (2026-09-03)
+- 审计（生产全链走查，方案 docs/plan-r325-interview-chain-audit.md）零 P0–P2：R298 问题生成/回退、R201/R250 本地分析、R233–R236 计时/填充词/语气、R258 报告、R256 桥接、边界、375/暗色全绿。两 informational：①关键词教练层仍出职称/泛词（本轮采纳修复）；②超短计时窗的 /min 外推显得夸张（保留观察）。
+- 修复：interviewAnalysis.ts 新 GENERIC_JD_WORDS + coachableKeywords()（单词过滤 JOB_TITLE_WORDS/GENERIC_JD_WORDS，短语保留），套用在 analyzeAnswer 与 sessionReport 的关键词全集——面板 X/N、双层 tier、R256 桥接、报告全部只教技能词，分母同步收缩；纯职称/泛词 JD 优雅回退无关键词面板。ats.ts 共享提取器不动（与 R298 同边界）。残留：公司名与角色词（如 platform）无法通用过滤，保留。
+- oracle 8/8、tsc/lint/build 绿。生产 QA（bundle index-CdGX6uhl.js，零 AI）全绿零 P0–P3：面板 3/11→3/7 且 senior/engineer/used/daily 消失、报告双 tier 纯技能、纯泛词 JD 无面板不崩、问题生成/ATS 卡回归、375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r327_*.png。
+
+## R326 — /documents 类型筛选入 URL（刷新/分享不丢）(2026-08-31)
+- 证据：Rezi changelog 2026-08 Week 4「refresh the page without losing your place」；R324 方案中已列 /documents docKind 为剩余候选；源码确证 docKind 纯 useState，刷新即丢。方案 docs/plan-r326-documents-kind-url.md。
+- 实现：Dashboard.tsx——section==='documents' 时 ?kind= 种子 docKind（合法值 cover|interview|resignation，否则 all）；派生 activeDocKind 在该类无文档时回退 all（空类 chip 本就隐藏）；replaceState 回写、默认 all 省略保持素 URL；/dashboard 内嵌区（锚点语义）零改动。
+- 生产 QA（bundle index-13iBSGgP.js / Dashboard-zCYeLdon.js，curl 核实，零 AI 配额）全绿零 P0–P3：chip↔URL 双向、硬刷新/新标签深链还原、?kind=banana 与无文档 ?kind=interview 回退 All 且 URL 自清、删最后一份该类文档回退 All+URL 更新+undo 条恢复文档与 chip、/dashboard?keep=1#documents 零回写回归、R324 /samples ?sector 深链回归、375 严格 scrollWidth=375、暗色、careerDocs/主题基线还原。截图 /home/ubuntu/screenshots/r328_t*.png。录屏仍不可用（enigo）。
+
+## R327 — 探索性生产审计：AI 写作链（助手/变体选择器/信件），审出并修复 R319 生产脱落 (2026-08-31)
+- 审计范围（方案 docs/plan-r327-ai-writing-chain-audit.md，bundle index-13iBSGgP.js，CDP 拦截全部 /api/ai/* 于网络前、逐 POST mock，零 AI 配额）：①助手——三个本地快捷任务零 AI 请求、@@APPLY 提案卡 Show in editor 零副作用 + Add bullet + 工具栏 Undo 精确回退、rewrite-in-place、malformed 回复 R295 可见报错；②变体选择器——rewrite 基线 payload 字节断言、17 diff span、Keep my original、无标记 Regenerate 字节一致、summary-draft setup + R286 Adjust 保留输入；③信件——formal/Balanced/friendly tone payload 字节断言（Balanced 无 tone 键）、存档与 R305 示例共存、R304 签名增换删、带签名 PDF（pdfimages 证实 400×120 嵌入）/DOCX（恰 1 个 w:drawing）；④边界——mock 500/断网内联报错+busy 复位、freeRemaining=0 文案、402 内联报错、R165 空输入原因；⑤375 严格（助手面板+信件弹窗）、暗色、基线还原。
+- 唯一确证问题（审计价值）：R319「Not helpful」功能已从生产脱落——R320+ 分支从未含 #539 的 main 切出，R320 起每次部署都覆盖掉了 R319（grep 生产 chunk 零命中）。当轮修复：本地合并 r319 分支入部署线（tsc/lint/build 绿）重部署，bundle index-K-Eo0Uxr.js；生产复验全绿——标记卡禁用+regenerate payload=基线+avoid:[原文]（rewrite 与 summary-draft 双端点字节断言）、取消标记恢复、375/暗色、R326 ?kind= 回归。#539 与 main 的合并冲突（docs append-only）已解决推送。
+- informational：free mode 下 freeRemaining=0 不禁用 AI 按钮（title/banner 提示，402 内联报错而非 paywall 弹窗）——launch-mode 设计，记录备查。教训（流程）：链式 PR 从 main 切新线时必须确认所有已上线轮次已并入 main，否则部署会静默回滚旧功能——本次 R319 即如此脱落。
+- 截图 /home/ubuntu/screenshots/r329_*.png、r330_*.png；导出取证 /home/ubuntu/qa/dl_r329/。录屏仍不可用（enigo）。
+
+## R328 — SOP-10 四维差距探索审计（操作台/功能深度/落地页/架构）(2026-08-31)
+- 审计范围（方案 docs/plan-r328-sop10-audit.md，生产 bundle index-K-Eo0Uxr.js，零 AI 配额）：①操作台——文件夹/复制/移动/职位定向副本 + R320 删除撤销跨文件夹互操作（id/folder/位置/时间戳语义一致还原）、R197 rename/move 不动 updatedAt、/documents R326 ?kind= + R305 示例 + R304 签名信共存、WorkspaceNav aria-current 四路由（/builder 无 nav 属设计）；②功能深度——tailoring 黄金路径全链（存职位→定向副本入 Job applications 文件夹→R252 助手状态实时 7%→10%→tailoring report→Applied→interview bridge 只出 R325 过滤后技能词）、组合导出（auto-fit+narrow+es：PDF xMin 36.000pt、DOCX pgMar 全 720、西语标题）；③落地页——四页（/、两 letter examples、/interview-prep/）Lighthouse a11y/bp/SEO 全 1.0、23 条 nav/footer 内链全 200 零跳转、375/768/1920 无溢出；④架构——七路由零 console 错误、sitemap 抽样 200、health ok、404 页、share 创建/无痕只读/撤销。全绿零 P0–P2，docs-only。
+- 差距候选（P3，R329+ 择用）：(i) 撤销后的 /s/<id> 返回 HTTP 200 软 404（内容层正确显示 no longer available，SEO 层面爬虫视角是 soft-404）；(ii) /jobs tailoring report 关键词 chips 仍含职称/泛词（ATS/matchReport 宇宙，R325 有意未动——是否对展示层套 coachableKeywords 待议）。informational：undo 还原对象 JSON 键序与原文不同（语义等价，无用户可见影响）。
+- 截图 /home/ubuntu/screenshots/r331_*.png，Lighthouse JSON /home/ubuntu/qa/r331_lh_*.json，导出取证 /home/ubuntu/qa/dl_r331/。录屏仍不可用（enigo）。
+
+## R329 — 撤销/未知分享链接返回真实 HTTP 404（修 R328 差距候选 i）(2026-08-31)
+- 改动（仅 worker/index.ts notFound）：合法形状的 /s/<id> 增加一次 KV `share:<id>` 存在性检查——存在 → 200，撤销/过期/从不存在 → 404；SPA shell 两种状态都照常返回，读者仍看到品牌化「no longer available」卡片；noindex + no-store 头不变。方案 docs/plan-r329-share-hard-404.md。
+- 生产复验（testing agent，零 AI）：真实分享创建 → 200 + 只读快照；UI 撤销 → 同 URL 404 且卡片照常渲染、两头保留；未知合法形状 id → 404 + 卡片；畸形 id → 404；/documents 对照 200；375 严格 scrollWidth=375、暗色、基线还原。截图 /home/ubuntu/screenshots/r332_*.png。
+- bundle 不变（worker-only），R328 差距候选仅剩 (ii) /jobs tailoring-report chips 泛词展示过滤待议。
+
+## R330 — /ats-checker 草稿刷新不丢（sessionStorage 持久化）(2026-08-31)
+- 证据：Rezi「refresh the page without losing your place」标尺（R312/R324/R326 同源）；源码确证 AtsChecker.tsx 的 resumeText/jd/checked 纯 useState，全站粘贴成本最高的页面刷新即全丢。多 KB 文本不适合 URL，改用 sessionStorage（同标签、关标签即清、不落 localStorage/网络）。方案 docs/plan-r330-ats-checker-draft-persist.md。
+- 实现（仅 AtsChecker.tsx）：key `honestcv.atsCheckerDraft` 存 {resumeText, jd, checked}；种子优先级 router state.resumeText > 草稿 > 空白；effect 回写、两文本皆空删 key；fileChecks 有意不持久化（File 对象已失效）。
+- 生产 QA（bundle index-D7ftm4PG.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：Check 后硬刷新分数/两 tier/结构检查逐项一致还原（62/63/59）、未 Check 只还原文本无报告、清空删 key 刷新空白、新标签空白（session 作用域）、Landing hero drop 的 state 优先于旧草稿、示例按钮与 DOCX 上传回归（file-checks 卡刷新后消失属设计）、375 严格 scrollWidth=375、暗色、基线还原。截图 /home/ubuntu/screenshots/r333_*.png。
+- 备忘：全站唯一携 state.resumeText 的入口是 Landing hero drop zone（无 Dashboard「Check pasted text」入口）。R328 差距候选 (ii)（/jobs tailoring chips 泛词）仍待议。
+
+## R331 — JD 关键词提取补齐 STOPWORDS 屈折形（2026-08-31）
+- 证据：一手 probe（.tmp-smoke/r331_probe.ts）确证 "used"/"daily" 被提取为关键词并进 missing chips（R328 候选 (ii) 的真实部分）；STOPWORDS 本意已排除该词汇（有 use/using、day/days）但漏屈折形。职称词（senior/engineer）有意保留——简历匹配职位标题是正当 ATS 建议（与 R325 面试口播边界不同）。方案 docs/plan-r331-stopword-inflections.md。
+- 实现（仅 ats.ts STOPWORDS）：新增 used uses worked works daily weekly monthly helps helping helped offered require requires requirement skill year jobs roles positions companies experiences seeks sought；有意不加 "teams"（Microsoft Teams 是真实产品关键词）。全部 extractKeywords 消费方（评分分母、/jobs chips、builder triage、guidance、高亮、面试教练）一致受益。oracle 6/6。
+- 生产 QA（bundle index-Dz4zc-sU.js，零 AI）全绿零 P0–P3：filler 重度 JD 在 /ats-checker 三 tier、/jobs 报告 chips、builder triage 均零 filler；六个技术词全提取；Teams JD 仍提取 teams；R330 草稿刷新回归 67/100 一致；375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r334_*.png。
+
+## R332 — 导入链探索审计 + 教育 honors 行折叠修复（2026-08-31）
+- 审计（docs/plan-r332-import-chain-audit.md，生产 bundle index-Dz4zc-sU.js，零 AI）：Landing PDF handoff→R330/R331、Builder PDF/DOCX 导入→inline 编辑（R322/R323）→评分→PDF/DOCX 导出往返、LinkedIn 入口、scan-only/unsupported 负路径、375/暗色/基线全绿零 P0–P2。
+- 唯一 P3 当轮修复：EDUCATION 下无日期 honors 行（如 "GPA 3.8, Dean's List"）被 parseResumeText 当新条目（school="Dean's List"/degree="GPA 3.8"）。importText.ts 新 EDU_DETAIL_RE（gpa|dean's list|cum laude|hono(u)rs|minor|major|coursework|thesis|scholarship|award）+ education case 一分支：无日期且命中则折叠进 currentEdu.details（'; ' 连接，同 bullet 路径）。有日期行/普通 degree—school 行不受影响；行首 "Honors …" 仍走既有 CUSTOM_HEADING_RE 成 custom section（有意不动）。oracle .tmp-smoke/r332_oracle.ts 6/6。
+- 生产复验（bundle index-Co5ZMUoG.js，零 AI）全绿：PDF/DOCX 同 fixture 单条目 + details 正确、预览渲染、PDF/DOCX 导出往返、双 dated 条目仍拆分、多 cue 行折叠进前一条目、负路径 guard 文案精确、375 严格、暗色、基线还原。PR #552（QA 证据在评论），基于 #551——合并顺序 #549 → #550 → #551 → #552。
+
+## R333 — Builder 工具对话框关闭前确认，防丢未保存工作（2026-08-31）
+- 证据：源码确证 BundleToolDialog（Cover/Resignation/Interview）全部状态为纯 useState，onOpenChange 无条件关闭——面试多题 session（题目/长答案/逐题反馈）与已生成未保存的信件一次 Esc/遮罩点击/X 即静默清空，session report 不落任何存储；站内 /ats-checker 之后打字成本最高的面（R330 同标尺），与 R191 untrack、applyExample 既有 window.confirm 同模式。方案 docs/plan-r333-tool-dialog-close-guard.md。
+- 实现（仅 Builder.tsx BundleToolDialog）：unsavedWork = interview: session!==null || answer 非空；letters: result 已生成且 savedId===null（已保存自由关闭）；requestClose 以 window.confirm 包裹 onClose，接入 onOpenChange。无持久化、零 worker/schema 改动。
+- 生产 QA（bundle index-33HJ0prn.js，CDP Page.javascriptDialogOpening 断言真实 confirm，零 AI）全绿零 P0–P3：pristine 自由关闭、打字答案/进行中 session 三关闭路径均出精确文案确认且 Cancel 状态字节保留、mock 信件同守卫且「Save to My resumes」后自由关闭、kind 切换无确认、R327 变体选择器回归、375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r337_*.png。
+- 备忘：工具栏切换工具（kind 变化）不出确认——守卫只覆盖关闭路径，按设计；如需覆盖切换属候选轮。PR 基于 #552，合并顺序 #549 → #550 → #551 → #552 → 本 PR。

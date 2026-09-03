@@ -22,6 +22,8 @@ import {
   Pencil,
   Star,
   Trash2,
+  Undo2,
+  X,
 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
@@ -54,6 +56,7 @@ import {
   type CareerDocKind,
   deleteCareerDoc,
   listCareerDocs,
+  restoreCareerDoc,
   saveCareerDoc,
   splitAtSignature,
   updateCareerDoc,
@@ -73,6 +76,7 @@ import {
   exampleToResume,
   listResumeVersions,
   loadResume,
+  restoreResumeVersion,
   saveResume,
   saveResumeVersion,
   setActiveVersionId,
@@ -214,7 +218,14 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     jobDescription: string
   } | null>(null)
   const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
-  const [docKind, setDocKind] = useState<CareerDocKind | 'all'>('all')
+  // On /documents the type filter lives in the query string so refresh/share keeps your place.
+  const [docSeedParams] = useState(() =>
+    section === 'documents' ? new URLSearchParams(window.location.search) : null
+  )
+  const [docKind, setDocKind] = useState<CareerDocKind | 'all'>(() => {
+    const kind = docSeedParams?.get('kind')
+    return kind === 'cover' || kind === 'interview' || kind === 'resignation' ? kind : 'all'
+  })
   const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
   const [docText, setDocText] = useState('')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
@@ -233,8 +244,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [importedLinkedIn, setImportedLinkedIn] = useState(false)
   const [linkedInOpen, setLinkedInOpen] = useState(false)
   const [examples, setExamples] = useState<ExampleEntry[]>([])
-  const [exampleQuery, setExampleQuery] = useState('')
-  const [exampleSector, setExampleSector] = useState('All')
+  // On /samples the filters live in the query string so refresh/share keeps your place.
+  const [seedParams] = useState(() =>
+    section === 'samples' ? new URLSearchParams(window.location.search) : null
+  )
+  const [exampleQuery, setExampleQuery] = useState(() => seedParams?.get('q') ?? '')
+  const [exampleSector, setExampleSector] = useState(() => seedParams?.get('sector') ?? 'All')
   const [previewExample, setPreviewExample] = useState<ExampleEntry | null>(null)
   const [savedSamples, setSavedSamples] = useState<string[]>(() => {
     try {
@@ -244,7 +259,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       return []
     }
   })
-  const [savedOnly, setSavedOnly] = useState(false)
+  const [savedOnly, setSavedOnly] = useState(() => seedParams?.get('saved') === '1')
   const toggleSavedSample = (slug: string) =>
     setSavedSamples((s) => {
       const next = s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug]
@@ -279,6 +294,17 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [moveNewName, setMoveNewName] = useState('')
   const [renamingFolder, setRenamingFolder] = useState<{ from: string; to: string } | null>(null)
   const [confirmRemoveFolder, setConfirmRemoveFolder] = useState<string | null>(null)
+  const [undoDelete, setUndoDelete] = useState<
+    | { kind: 'copy'; version: ResumeVersion; index: number }
+    | { kind: 'doc'; doc: CareerDoc; index: number }
+    | null
+  >(null)
+
+  useEffect(() => {
+    if (!undoDelete) return
+    const t = setTimeout(() => setUndoDelete(null), 10000)
+    return () => clearTimeout(t)
+  }, [undoDelete])
   const [collapsedFolders, setCollapsedFolders] = useState<string[]>(() => {
     try {
       const parsed: unknown = JSON.parse(
@@ -465,15 +491,35 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     () => ['All', ...Array.from(new Set(examples.map((e) => e.sector)))],
     [examples]
   )
+  // A seeded ?sector= that isn't a real industry falls back to All.
+  const activeSector = examples.length > 0 && !sectors.includes(exampleSector) ? 'All' : exampleSector
+  useEffect(() => {
+    if (section !== 'samples') return
+    const params = new URLSearchParams()
+    if (exampleQuery) params.set('q', exampleQuery)
+    if (activeSector !== 'All') params.set('sector', activeSector)
+    if (savedOnly) params.set('saved', '1')
+    const qs = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+  }, [section, exampleQuery, activeSector, savedOnly])
+  // A seeded ?kind= with no matching saved docs falls back to All (its chip is hidden).
+  const activeDocKind = docKind !== 'all' && !docs.some((d) => d.kind === docKind) ? 'all' : docKind
+  useEffect(() => {
+    if (section !== 'documents') return
+    const params = new URLSearchParams()
+    if (activeDocKind !== 'all') params.set('kind', activeDocKind)
+    const qs = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+  }, [section, activeDocKind])
   const filteredExamples = useMemo(() => {
     const q = exampleQuery.trim().toLowerCase()
     return examples.filter(
       (e) =>
         (!savedOnly || savedSamples.includes(e.slug)) &&
-        (exampleSector === 'All' || e.sector === exampleSector) &&
+        (activeSector === 'All' || e.sector === activeSector) &&
         (!q || e.role.toLowerCase().includes(q) || e.sector.toLowerCase().includes(q))
     )
-  }, [examples, exampleQuery, exampleSector, savedOnly, savedSamples])
+  }, [examples, exampleQuery, activeSector, savedOnly, savedSamples])
 
   const closeNewDialog = () => {
     setNewOpen(false)
@@ -1081,10 +1127,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   <button
                     key={k}
                     type="button"
-                    aria-pressed={docKind === k}
+                    aria-pressed={activeDocKind === k}
                     onClick={() => setDocKind(k)}
                     className={`min-h-10 rounded-md border px-2 py-1 text-xs font-medium transition sm:min-h-8 ${
-                      docKind === k
+                      activeDocKind === k
                         ? 'border-primary ring-primary/40 ring-2'
                         : 'hover:border-muted-foreground/40'
                     }`}
@@ -1107,7 +1153,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         ) : (
           <ul className="mt-4 space-y-2">
             {docs
-              .filter((d) => docKind === 'all' || d.kind === docKind)
+              .filter((d) => activeDocKind === 'all' || d.kind === activeDocKind)
               .map((d) => (
               <li
                 key={d.id}
@@ -1206,10 +1252,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   <button
                     key={s}
                     type="button"
-                    aria-pressed={exampleSector === s}
+                    aria-pressed={activeSector === s}
                     onClick={() => setExampleSector(s)}
                     className={`min-h-10 rounded-md border px-2 py-1 text-xs font-medium transition sm:min-h-8 ${
-                      exampleSector === s
+                      activeSector === s
                         ? 'border-primary ring-primary/40 ring-2'
                         : 'hover:border-muted-foreground/40'
                     }`}
@@ -1966,9 +2012,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               variant="destructive"
               onClick={() => {
                 if (confirmDeleteDoc) {
+                  const index = docs.findIndex((d) => d.id === confirmDeleteDoc.id)
                   const next = deleteCareerDoc(confirmDeleteDoc.id)
                   setDocs(next)
                   if (docKind !== 'all' && !next.some((d) => d.kind === docKind)) setDocKind('all')
+                  setUndoDelete({ kind: 'doc', doc: confirmDeleteDoc, index: Math.max(index, 0) })
                 }
                 setConfirmDeleteDoc(null)
               }}
@@ -1995,7 +2043,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               type="button"
               variant="destructive"
               onClick={() => {
-                if (confirmDelete) setVersions(deleteResumeVersion(confirmDelete.id))
+                if (confirmDelete) {
+                  const index = versions.findIndex((v) => v.id === confirmDelete.id)
+                  setVersions(deleteResumeVersion(confirmDelete.id))
+                  setUndoDelete({
+                    kind: 'copy',
+                    version: confirmDelete,
+                    index: Math.max(index, 0),
+                  })
+                }
                 setConfirmDelete(null)
               }}
             >
@@ -2142,6 +2198,41 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         onOpenChange={setUpgradeOpen}
         reason="Downloading your resume as PDF or DOCX is the one thing we charge for — once, not monthly."
       />
+
+      {undoDelete && (
+        <div
+          role="status"
+          className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+        >
+          <span className="min-w-0 truncate">
+            Deleted "{undoDelete.kind === 'copy' ? undoDelete.version.name : undoDelete.doc.title}"
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (undoDelete.kind === 'copy') {
+                setVersions(restoreResumeVersion(undoDelete.version, undoDelete.index))
+              } else {
+                setDocs(restoreCareerDoc(undoDelete.doc, undoDelete.index))
+              }
+              setUndoDelete(null)
+            }}
+          >
+            <Undo2 className="size-4" />
+            Undo
+          </Button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setUndoDelete(null)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

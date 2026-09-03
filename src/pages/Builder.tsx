@@ -27,6 +27,7 @@ import {
   History,
   LayoutGrid,
   LayoutTemplate,
+  RefreshCw,
   Save,
   Share2,
   Lightbulb,
@@ -50,6 +51,7 @@ import {
   Unlock,
   Users,
   Wand2,
+  X,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -807,6 +809,22 @@ export default function Builder() {
     },
     []
   )
+  /** Set when another tab/window wrote a different resume to localStorage —
+   * `storage` events only fire in tabs that did not perform the write. */
+  const [externalUpdate, setExternalUpdate] = useState(false)
+  const lastKnownJson = useRef('')
+  useEffect(() => {
+    lastKnownJson.current = JSON.stringify(resume)
+  }, [resume])
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== 'honestcv.resume' || e.newValue === null) return
+      if (e.newValue === lastKnownJson.current) return
+      setExternalUpdate(true)
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [upgradeReason, setUpgradeReason] = useState('')
   const [aiBusy, setAiBusy] = useState<string | null>(null)
@@ -7238,6 +7256,36 @@ export default function Builder() {
         ))}
       </div>
 
+      {externalUpdate && (
+        <div
+          role="status"
+          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
+        >
+          <span className="min-w-0">This resume was changed in another tab.</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const latest = loadResume()
+              if (latest) setResume(latest)
+              setExternalUpdate(false)
+            }}
+          >
+            <RefreshCw className="size-4" />
+            Load latest
+          </Button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setExternalUpdate(false)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
       <SiteFooter />
 
       <UpgradeDialog
@@ -9027,8 +9075,24 @@ function BundleToolDialog({
       : kind === 'resignation'
         ? 'Resignation Letter'
         : 'Interview Prep Brief'
+  const unsavedWork =
+    kind === 'interview'
+      ? session !== null || answer.trim() !== ''
+      : kind !== null && result !== '' && savedId === null
+  const requestClose = () => {
+    if (
+      unsavedWork &&
+      !window.confirm(
+        kind === 'interview'
+          ? 'Close interview practice? Your current session and typed answer will be lost.'
+          : 'Close without saving? The generated letter will be lost.'
+      )
+    )
+      return
+    onClose()
+  }
   return (
-    <Dialog open={kind !== null} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={kind !== null} onOpenChange={(o) => !o && requestClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
