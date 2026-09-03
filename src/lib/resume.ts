@@ -1340,6 +1340,8 @@ export function syncActiveVersion(data: Resume) {
 export interface ResumeSnapshot {
   id: string
   at: number
+  /** Copy the draft was linked to at capture time; null/absent = unlinked draft. */
+  versionId?: string | null
   data: Resume
 }
 
@@ -1378,13 +1380,17 @@ function persistHistory(snapshots: ResumeSnapshot[]) {
  */
 export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapshot[] {
   const history = listResumeHistory()
-  const newest = history[0]
+  const versionId = getActiveVersionId()
+  const newest = history.find((s) => (s.versionId ?? null) === versionId)
   const json = JSON.stringify(data)
   if (newest) {
     if (JSON.stringify(newest.data) === json) return history
     if (!force && Date.now() - newest.at < HISTORY_MIN_GAP_MS) return history
   }
-  const next = [{ id: newId(), at: Date.now(), data: JSON.parse(json) as Resume }, ...history]
+  const next = [
+    { id: newId(), at: Date.now(), versionId, data: JSON.parse(json) as Resume },
+    ...history,
+  ]
   persistHistory(next)
   return next.slice(0, HISTORY_MAX)
 }

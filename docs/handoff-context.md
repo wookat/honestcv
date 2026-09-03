@@ -856,6 +856,16 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产 QA（index-RooCYaJZ.js / Builder-CZLDBEAV.js，5 次 tailor POST 全 mock 零真实 AI）全绿零 P0–P3：三关闭路径精确文案、Cancel 字节保留、单数文案、busy 变体（Cancel 后请求继续、迟到 fulfill 正常渲染）、四条免确认路径、R340 回焦/R333/R343 回归、375 严格、暗色、基线还原。
 - 注意：index bundle 名跨部署会变（旧名 404）——复核时永远从 HTML 重新解析 index-*.js，再查其中 Builder chunk 名。
 
+## R345 — 编辑历史按简历副本隔离 (2026-09-03)
+- 探索审计（编辑历史/undo-redo/版本链，生产 index-RooCYaJZ.js → Builder-CZLDBEAV.js，零真实 AI）确证唯一 P2：`honestcv.resumeHistory` 是全局单列表，Copy-B 打开 History 对话框会列出 Copy-A/改副本前草稿的 checkpoint 且不可分辨，Restore 会经 syncActiveVersion 静默改写 Copy-B 的已存数据（缓解：restore 前强制 checkpoint + 工具栏 Undo 可回退，均已实证）。其余全链绿：checkpoint 合并/字节级还原保真/restore 可逆/redo 失效/R321 跨标签/键盘/375/暗色。
+- 修复（docs/plan-r345-history-per-copy-scoping.md）：ResumeSnapshot 增 `versionId?: string|null`（捕获时 getActiveVersionId()，null=未链接草稿，legacy 缺字段视为 null）；recordResumeSnapshot 的去重/10 分钟间隔检查改为同 scope 内比较（切副本不互相压制）；HistoryDialog 只列 active scope 的 checkpoint。全局 15 槽上限保留（重度编辑某副本仍会挤掉他副本条目——informational 已接受）。oracle .tmp-smoke/r345_oracle.ts（npx tsx --tsconfig tsconfig.app.json）11/11；tsc/eslint/build 绿。
+- 遗留 P3（设计观察，未改）：会话首个 pre-edit 状态从不被 checkpoint（首个 checkpoint 记录在第一次保存后）；工具栏 Undo 在标签存活期覆盖该场景。
+
+## R346（2026-08-31）：Builder mount 记录 pre-edit 基线 checkpoint
+- 闭环 R345 遗留 P3：useDebouncedSave 首次 effect（mount，草稿刚载入）非强制调用 recordResumeSnapshot(resume)——会话起点在任何编辑前入历史。防刷屏零新逻辑：既有去重 + R345 per-scope 10 分钟间隔天然抑制（重复访问 /builder 不加条目）；每个副本各得自己的基线。存储/restore/undo/worker 零改动。
+- 方案 docs/plan-r346-session-baseline-checkpoint.md；oracle .tmp-smoke/r346_oracle.ts 5/5；tsc/eslint/build 绿。
+- 生产复验（index-DytXcFLg.js / Builder-DvYwQ9wx.js，零 AI、无分享、基线还原）全绿零新 P0–P3：fresh mount 恰 1 条 versionId=null 且=载入草稿（对话框标记 Current）、<10 分钟编辑合并、近期 checkpoint 下 reload 不加条、同值 reload 去重、打开副本立即得己方基线（versionId 戳、不被 null scope 同值条目压制）、restore 字节保真/pre-restore 可恢复/Undo 回退、15 槽上限、375 严格、暗色焦点环、Esc 回焦 opener。
+- 注意（QA 事实）：基线存的是规范化 resume（emptyResume 合并，links→website/linkedin 等），与内存草稿字节一致而非原始 localStorage 手植 blob——符合预期。History 自 R346 起访问过 /builder 就非空，测试空态需用无条目的新 scope。
 ## R347 — quota/paywall/license 生产审计 + 三项修复 (2026-09-03)
 - 审计（docs/plan-r347-quota-paywall-audit-fixes.md，生产实测、全部 /api/ai/* 与 billing/license/leads 在 dispatch 前 mock、零真实 AI/支付/分享）：freeMode 402 inline error、非 freeMode 402→UpgradeDialog、429 透传+可重试、in-flight 双击守卫、lead CTA（checkout disabled 时不发 checkout POST、不加载 Lemon script）、license 激活+x-license-token、免费下载 email gate、theme/language/previewView 持久化、375/暗色——零 P0/P1。确证 P3：①UpgradeDialog Esc 关闭后焦点落 BODY（程序化打开时 opener AI 按钮已因 busy disabled 被 blur，R340 机制捕获不到）；②静态 /pricing/ 等预渲染页忽略 honestcv.theme 恒亮色；③空 body 429/缺 expiresAt 的 200 显示技术串 fallback。
 - 修复：ui/dialog.tsx 模块级 focusin 记录 lastFocused，onOpenAutoFocus 时 activeElement 为 body 则以 lastFocused 为 opener（其余对话框行为不变）；scripts/build-seo.mjs 全部静态页 head 加载既有 public/theme.js（CSP 兼容外链）+ html.dark CSS 变量覆盖（含 .toc/.exdoc/.ai-art 修正）；api.ts/license.ts fallback 文案友好化（服务端 error 字段仍透传优先）。

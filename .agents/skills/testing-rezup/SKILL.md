@@ -1151,6 +1151,15 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - While a native window.confirm is open the renderer is blocked, so any in-flight CDP command (even the keyUp of the Esc that triggered it) times out — wrap trigger key/click dispatches in try/except and read `Page.javascriptDialogOpening` from the event queue.
 - Index bundle names change between deploys even when they look "unchanged" — always re-resolve via the HTML (`grep -o 'assets/index-[A-Za-z0-9_-]*.js'`) before curling, then verify lazy chunk names inside it.
 
+## R345 history QA lessons
+- `honestcv.resumeHistory` is a single 15-slot list (10-min min gap, duplicates skipped); to force checkpoints in tests, backdate the scope's newest `at -= 11*60*1000` before the next debounced save (~400ms). Restore force-checkpoints the pre-restore draft first and goes through useUndo, so toolbar Undo reverts a restore.
+- Since R345, snapshots carry `versionId` (null = unlinked draft) and the History dialog only lists the active copy's entries; the dup/gap check is per scope — switching copies allows an immediate first checkpoint for the new copy.
+- Dashboard 'Open' on a copy shows a confirm dialog ('Open and replace draft').
+- CDP clicks near the bottom edge can miss: visualViewport.height (~746) < innerHeight (761) — clamp click y or re-scroll.
+- Global undo shortcuts are intentionally skipped when focus is in an input/textarea (native text undo).
+- Dashboard copy 'Open' flow via CDP can silently fail when scripted as one uninterrupted helper (activeVersionId unchanged after Enter on 'Open and replace draft'); drive it stepwise with an ae()/dialog-text assertion after each Enter and re-check `honestcv.activeVersionId` before trusting the switch. Copy cards reorder by last-edited, so always re-query the 'Open' button by card text, not index.
+- Visiting `/builder` writes an analytics key `honestcv.ev.builder-start` to localStorage — remove it during baseline cleanup along with the resume keys.
+- Since R346, Builder mount records a non-forced baseline checkpoint (normalized resume, scope-stamped) — history is never empty after visiting /builder, so "empty state" tests must use a scope with no entries (e.g. a brand-new copy before mount) and raw seeded fixtures won't byte-match the baseline (normalization: links→website/linkedin, start→startDate).
 ## R347 quota/paywall/preferences notes
 - AI action buttons put the quota in `title` ("N free AI uses left") and the action name in textContent — selector helpers that do `aria-label||title||textContent` will short-circuit on title; match textContent explicitly for these.
 - `POST /api/ai/*` error mapping: 402 or `code:'payment_required'` → UpgradeDialog only when billing `freeMode:false` (mock `/api/billing/status` on page load to flip); in freeMode all AI errors render inline. Empty error body falls back to friendly copy since R347 (see R357 notes).
