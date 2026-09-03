@@ -983,3 +983,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - revokeShareLink keeps honestcv.shareLink on failure (select stays 'Can view'); retry works after disarming.
 - Server-side delete for fixtures: `curl -X DELETE -H 'x-share-token: <token>' https://cv.zalize.com/api/share/<id>`.
 - Don't run wait_paused from a second thread on the shared harness websocket — it races cmd() reads.
+
+## R315 lessons — thumbnail scale & Lighthouse version pitfalls
+
+- Dashboard/Samples `Thumb` = `div[aria-hidden].pointer-events-none` with a scaled inner wrapper (`transform: scale(0.35)`, origin top-left, `width: calc((100% - 2rem)/0.35)`); assert visual scale via rect.width/offsetWidth ≈ 0.35 and unscaled computed font sizes (ResumePreview legitimately uses 10px meta text — don't treat <12px there as a scaling bug).
+- Sample star buttons: aria-label flips between `Save {role} sample` and `Remove {role} sample from saved` on toggle — re-find by the new label after clicking; saved slugs live in `honestcv.savedSamples`.
+- Lighthouse 13.x removed the standalone `font-size` audit — assert category scores + the failing-binary-audit list instead, or pin an older LH version for that audit.

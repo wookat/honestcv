@@ -689,3 +689,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据：R313 P3 + share.ts 源码（见 docs/plan-r314-share-revoke-integrity.md）。风险：弱网下用户以为已撤销，实际链接仍可访问（隐私级静默失败）。
 - 实现：share.ts revokeRemote 检查响应——2xx/404/410 算撤销成功，其余状态与网络错误抛用户可读 Error；revokeShareLink 仅在远端删除确认后清本地（失败保留、可重试）；Builder 撤销分支补 .catch → 既有 shareError 内联报错。零 worker/schema 改动。
 - 生产 QA（bundle index-BvPx6jA9.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：happy path DELETE→404、CDP 注入 500 → 精确报错+select 保持 Can view+本地键保留+重试成功、网络失败 → connection 文案、服务端已删 404 → 视为成功无报错、slug/copy/无痕查看回归、375 严格（报错态）、暗色。所有测试链接 404 核实。截图 /home/ubuntu/screenshots/r314_*.png。录屏仍不可用。
+
+## R315 — 缩略图 zoom→transform:scale 修复 Lighthouse font-size (2026-09-03)
+- 证据：R310 遗留候选——/dashboard 与 /samples best-practices 0.96，唯一失败 font-size：Thumb 用 zoom:0.35 缩小 ResumePreview，计算字号 ~4.9px。zoom 参与 computed style，transform: scale 不参与。方案 docs/plan-r315-thumb-font-size-audit.md。
+- 实现：Dashboard.tsx Thumb 一处——zoom:0.35 改 transform: scale(0.35) + origin top-left + width calc((100%−2rem)/0.35)，top-3 left-4 替代 inset-x-4，视觉像素等价。
+- 生产 QA（bundle index-C4BM_uQQ.js，curl+页面双核实，零 AI 配额）全绿零 P0–P3：Lighthouse 13.4.1 两路由 bp 1.0（原 0.96）+ a11y/SEO 1.0（注意 LH 13 已移除独立 font-size audit，以类别分+零失败二元 audit 为准）、CDP 证实 matrix(0.35) 视觉比精确 0.350 且计算字号回归真实值（24/14/11/11/10px，10px 为 ResumePreview meta 文本真实设计值）、9 卡左右缘 16px/顶 12px 与旧 inset-x-4 对齐无裁切、R310 sr-only/预览对话框/星标回归、375 严格 scrollWidth=375、暗色。截图 /home/ubuntu/screenshots/r315_*.png。录屏仍不可用。
