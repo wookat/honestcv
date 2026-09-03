@@ -696,3 +696,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - oracle .tmp-smoke/r320_oracle.ts（npx tsx --tsconfig tsconfig.app.json）9/9 绿；tsc/eslint/build 绿。
 - 生产 QA（bundle index-D_X2ciG_.js / Dashboard-CbWVc8E-.js，curl 核实，零 AI 配额）全绿零 P0–P3：副本三件套删中间（在文件夹内）→ Undo 后 honestcv.resumeVersions 字节一致（位置/folder/时间戳全保留）；11s 自动消失保持已删；X 消除、新删除替换；带签名 cover 文档往返字节一致含签名 data-URL、删掉筛选 kind 最后一份时 docKind 回退 All；375 严格 scrollWidth=375 条完全在视口内；暗色可读；localStorage/主题还原。截图 /home/ubuntu/screenshots/r320_*.png。录屏仍不可用（enigo）。
 - 注意（QA 教训）：persistVersions 会把 version.data 规范化为完整 Resume 形状——字节比对须以 app 写入的存储为快照，手工最小 fixture 首次持久化会被规范化（非产品缺陷）。
+
+## R321 — Builder 跨标签页变更提示（防静默 last-writer 数据丢失）(2026-09-03)
+- 证据：Rezi 云端持久化（编辑器需登录、服务端 updated_at），双标签收敛同一服务器文档，无 stale-tab 覆盖问题；我方本地优先——源码确证 `grep -r "'storage'" src/` 零命中，Builder useDebouncedSave 每次编辑 400ms 后无条件覆写 honestcv.resume：双标签编辑时旧标签一次按键即静默覆盖新标签全部修改。方案 docs/plan-r321-cross-tab-change-notice.md。
+- 实现（仅 Builder.tsx）：lastKnownJson ref（JSON.stringify(resume)，与 saveResume 写入字节一致）+ window storage 监听（按规范只在非写入标签触发）——key=honestcv.resume 且 newValue≠lastKnownJson 时置 externalUpdate；role="status" 条（bottom-16 移动端高于 Edit/Preview 切换栏、lg:bottom-4）：This resume was changed in another tab. + Load latest（loadResume→setResume，正常保存链路重持久化+记 undo 快照，可用 Builder 撤销回退）+ X aria-label="Dismiss"（继续编辑=知情后 last-writer）。不自动合并、不改保存语义、零 worker/schema 改动。
+- tsc/eslint/build 绿（无 oracle：逻辑为单一字符串比较）。
+- 生产 QA（bundle index-BEn8R3EI.js / Builder-Diz-5o8M.js，curl 核实，零 AI 配额，CDP 双真实标签同 profile）全绿零 P0–P3：B 编辑→仅 A 出条（精确文案）；Load latest 后 A 重存与 B 写入字节一致、工具栏 Undo 精确回退加载；X 后 A 编辑 last-writer 胜且 B 对称出条；同标签编辑不出条；等值外部写入不出条；375 严格 scrollWidth=375 且条与底部切换栏 12px 间距；暗色可读；基线还原。截图 /home/ubuntu/screenshots/r321_*.png。录屏仍不可用（enigo）。CDP 派发 Ctrl+Z 在后台标签未触发（工具栏按钮验证等价路径），记录为测试手段局限非产品缺陷。
+- 部署坑：wrangler deploy 成功上传后边缘缓存可短暂返回旧 HTML+新资产清单错位（旧 Builder chunk 404）——判定部署状态须带 cache-buster 查询串再 curl，不要凭首次响应断言生产损坏。
