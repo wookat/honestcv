@@ -996,3 +996,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - CDP-dispatched Ctrl+Z may not reach the Builder undo handler on a freshly-focused tab; use the toolbar `button[title='Undo (Ctrl+Z)']` instead.
 - The cross-tab bar is `div[role=status]` containing "changed in another tab" with a "Load latest" outline button and `button[aria-label='Dismiss']`; mobile it sits at bottom-16 above the Edit/Preview switcher, desktop bottom-4.
 - After `wrangler deploy`, the edge can briefly serve stale HTML pointing at a mismatched asset manifest (old lazy chunk 404s) — verify deploys with a cache-buster query string before declaring production broken.
+
+## R322 lessons (inline preview editing audit)
+- Inline preview controls: `span[aria-label='Edit text']` (InlineText, blur commits via domToMarks) and `span[aria-label='New bullet']` (DraftBullet).
+- Fixture seeds for honestcv.resume MUST use the `contact:{fullName,…}` shape (flat fullName renders the empty resume) and be written from a non-Builder page, or the Builder's debounce save overwrites the seed.
+- Education "details" is plain text, not inline-editable. Stack roles is an Off/On button pair next to a 'Stack roles' label span (no switch role); template cards are `button[aria-pressed]` containing a name span.
+- For real-key tests, emulate a tall viewport (e.g. 1600×2400) so preview targets are truly on-screen before CDP mouse/key dispatch.
+- The R322 P1 (clearing a preview bullet white-screened the app via removeChild NotFoundError) is fixed via InlineText key={shown} remount — clear-to-delete works on experience and custom-section bullets and is undoable via the toolbar.

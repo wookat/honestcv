@@ -115,6 +115,11 @@ function InlineText({
   if (!onCommit) return <MarkedText text={shown} />
   return (
     <span
+      // Remount whenever the committed value changes: the user's typing has
+      // already mutated the span's children behind React's back, so in-place
+      // reconciliation would touch DOM nodes that no longer exist. Swapping
+      // the whole span only removes the (untouched) host element.
+      key={shown}
       contentEditable
       suppressContentEditableWarning
       spellCheck={false}
