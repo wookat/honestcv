@@ -849,3 +849,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现（仅 Builder.tsx）：新 RovingChipGroup（W3C toolbar roving-tabindex 模式）包住 High priority / Remaining / Excluded 三个 chip 列表：每组仅 1 个 Tab 停，方向键/Home/End 在组内移动（clamp 不环绕、preventDefault）；chip 被消耗时焦点留在组内相邻按钮；整组卸载时（恢复最后一个 Excluded chip）microtask 兜底把焦点交给剩余的 [data-roving-group] 活动按钮。
 - 生产 QA（index-DVfpPc5J.js / Builder-By26a76b.js，零 AI——唯一 keyword-bullet POST 已 mock）全绿零 P0–P3：每组恰 1 个 tabIndex=0、单 Tab 进出组、箭头遍历 +kw/sparkles/×、消耗后组内 clamp 回焦（含 Excluded 空组边缘，当轮修复复验）、draft 对话框 Esc 精确回焦 sparkles、鼠标点击同步 roving、R342 回归、375 严格、暗色焦点环、基线还原。
 - 注意：主 index bundle 名可跨部署不变（仅 lazy chunk 变化）——须核对 bundle 内 Builder-*.js chunk 名。R340–R343 键盘审计三个 P3 至此全部闭环。
+
+## R344 — Tailor 对话框未审阅建议关闭确认 (2026-09-03)
+- 证据：R341 QA 观察——TailorDialog `onOpenChange` 无条件关闭，Esc/遮罩/X 静默丢弃未审阅的 tailoring 建议（真实 AI 配额产物，重取需再花一次请求）；同类问题 R333 已为工具对话框建立 window.confirm 先例。方案 docs/plan-r344-tailor-dialog-discard-confirm.md。
+- 实现（仅 Builder.tsx TailorDialog）：关闭前守卫——busy（请求在途）出 "A tailoring request is still running — close and discard its results?"；否则 pending>0 出 "Discard N tailoring suggestion(s) you haven't reviewed yet? Getting them again will use another AI request."（N=1 单数）。Cancel 状态字节保留；pristine/error/空建议/全部已审阅自由关闭。
+- 生产 QA（index-RooCYaJZ.js / Builder-CZLDBEAV.js，5 次 tailor POST 全 mock 零真实 AI）全绿零 P0–P3：三关闭路径精确文案、Cancel 字节保留、单数文案、busy 变体（Cancel 后请求继续、迟到 fulfill 正常渲染）、四条免确认路径、R340 回焦/R333/R343 回归、375 严格、暗色、基线还原。
+- 注意：index bundle 名跨部署会变（旧名 404）——复核时永远从 HTML 重新解析 index-*.js，再查其中 Builder chunk 名。
+||||||| 138caed

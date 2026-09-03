@@ -1145,3 +1145,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - The keyword-bullet dialog opens WITHOUT a fetch; `POST /api/ai/keyword-bullet` fires on "Draft the bullet" inside the dialog.
 - The main index bundle name can stay identical across deploys when only a lazy chunk changed — verify the chunk name inside the bundle (grep `Builder-*.js`) and via `performance.getEntriesByType('resource')`, not just the index filename.
 - r321_lib `wait_paused` returns the raw event (request at `p['params']['request']`); `new_tab(url)` may return an about:blank target — always `nav()` the new tab explicitly.
+
+## R352 TailorDialog confirm QA lessons
+- The tailor POST fires on "Get tailoring suggestions" (mock `{suggestions:[{id,text}],freeRemaining}`); row buttons are 'Accept'/'Keep original' plus 'Accept all remaining'. Close is confirm-guarded only when busy or unreviewed rows exist — pristine/error/empty/all-reviewed close silently.
+- While a native window.confirm is open the renderer is blocked, so any in-flight CDP command (even the keyUp of the Esc that triggered it) times out — wrap trigger key/click dispatches in try/except and read `Page.javascriptDialogOpening` from the event queue.
+- Index bundle names change between deploys even when they look "unchanged" — always re-resolve via the HTML (`grep -o 'assets/index-[A-Za-z0-9_-]*.js'`) before curling, then verify lazy chunk names inside it.
+||||||| 138caed
