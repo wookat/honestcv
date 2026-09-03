@@ -843,3 +843,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产 QA（bundle index-BRVzEqOr.js，零 AI——tailor/keyword-bullet POST 全 mock）全绿零 P0–P2：Tab 可达+光暗焦点环、每按精确 8px、Shift 精确 4×、边界 clamp+页面不滚动、zoom 后垂直平移、像素级证明键盘平移改变保存裁剪（象限边界 43/86 vs 居中 128/128）、指针拖移回归、R340 回焦回归、375 严格、基线还原。截图 /home/ubuntu/screenshots/r349_*.png。
 - 覆盖收尾（R340 两个未测面，审计通过）：tailoring triage 卡与关键词 bullet 对话框端到端键盘可操作（打开/Enter 激活/接受/插入/Esc+精确回焦）。新 P3 候选：「Draft a bullet using <kw>」chips 距 JD textarea ~295 个 Tab 停（同 R340 undo/status 条 late-tab-order 类）；观察项（疑似有意）：tailor 对话框有未审阅建议时 Esc 静默关闭（已接受项保留，无 R333 式确认）。
 - 备注：zoom 1 横图 maxY=0 垂直方向键合法 no-op——先 zoom 再测垂直平移。
+
+## R342 — 瞬态操作条键盘可达（Dashboard undo / Builder 跨标签条）(2026-09-03)
+- 证据：R340 P3③——两条 role=status 固定操作条在 DOM 末尾（Builder 跨标签条约第 248/274 个 Tab 停）；Dashboard 删除后 opener 随卡片卸载、R340 回焦落 BODY，键盘用户在 10 秒窗口内基本够不到 Undo。方案 docs/plan-r342-status-bar-keyboard-reach.md。
+- 实现：Dashboard——undo 条出现 ~150ms 后焦点移到 Undo 按钮（非抢焦点：此刻焦点在 BODY）；焦点在条内时 10s 自动消失暂停（WCAG 2.2.1），失焦后重新计时。Builder——跨标签条 JSX 移到页面根第一个子元素（fixed 视觉不变），出现时不动焦点，成为页首第一个 Tab 停。
+- 生产 QA（bundle index-DvXsNS2A.js，零 AI——本轮零 /api/ai/* 请求）全绿零 P0–P3：焦点精确落 Undo（光暗焦点环）、Enter 按原 index 字节一致恢复（copy 经 sanitize 归一化基线、doc 直接字节一致）、聚焦 12.5s 不消失/失焦后恰 +10.0s 消失、X 路径、跨标签条第一 Tab 停且不抢输入焦点、Load latest+工具栏 Undo 回归、R340/R341 回归、375 严格（双条可见）、基线还原。截图 /home/ubuntu/screenshots/r342_*.png（忽略同名 15:3x 旧文件）。
+- 残留：R341 P3（Draft a bullet chips ~295 Tab 停）仍待方案。备注：Rezi changelog URL 已迁移至 /rezi-changelog（旧 /changelog 404），最新条目仍为 2026-08 Week 4。

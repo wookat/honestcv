@@ -1138,3 +1138,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R349 crop-pan QA lessons
 - Crop viewport is `[role=application]` inside the Adjust photo dialog; arrow steps are 8 viewport px (Shift=32) — with a W×H source at zoom z, crop=min(W,H)/z, s=192/crop, expected img `left` delta per press = −8px (viewport). At zoom 1 on a landscape image maxY=0, so vertical arrows legitimately no-op — zoom in first to test vertical pan. Prove saved crops by boundary math: boundary_px = (quadrant_boundary − sx)/crop × 256.
 - Target-job panel "Draft a bullet using <kw>" chips and the tailoring triage flow are keyboard-operable but the chips are ~295 Tab stops deep — locate via aria-label, not walking. Tailor dialog: suggestions fetch on "Get tailoring suggestions" (POST /api/ai/tailor, mock shape `{suggestions:[{id,text}],freeRemaining}`); keyword bullet mock shape `{text,freeRemaining}`. Esc on the tailor dialog closes silently even with unreviewed suggestions (accepted ones are kept).
+
+## R350 undo/cross-tab QA lessons
+- Seeded resume fixtures MUST match the Resume schema — `contact:{fullName,…}` object plus an `experience` array — or `loadResume`/`listResumeVersions` silently drop them and the dashboard shows "No resume yet".
+- `restoreResumeVersion` persists through `sanitizeResume`, so byte-identical restore checks need a normalized baseline (do one delete+undo cycle first); `careerDocs` persist raw and compare byte-identical directly.
+- Dashboard delete buttons are `button[title='Delete this copy'|'Delete this document']` with sr-only names.
+- First-Tab-stop tests: `blur()` leaves the browser's sequential-nav start point at the old element — focus body via a temporary `tabindex=-1` to emulate Tab-ing in from the address bar. `t.snap()` in r321_lib takes a bare name, not a path.

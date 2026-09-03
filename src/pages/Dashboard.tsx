@@ -300,9 +300,19 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     | null
   >(null)
 
+  // Auto-dismiss pauses while keyboard focus is inside the undo bar
+  const [undoBarFocused, setUndoBarFocused] = useState(false)
+  const undoButtonRef = useRef<HTMLButtonElement | null>(null)
+  useEffect(() => {
+    if (!undoDelete || undoBarFocused) return
+    const t = setTimeout(() => setUndoDelete(null), 10000)
+    return () => clearTimeout(t)
+  }, [undoDelete, undoBarFocused])
   useEffect(() => {
     if (!undoDelete) return
-    const t = setTimeout(() => setUndoDelete(null), 10000)
+    // The deleted card's controls are gone, so focus is on BODY; hand it to Undo
+    // after the confirm dialog's close autofocus settles.
+    const t = setTimeout(() => undoButtonRef.current?.focus(), 150)
     return () => clearTimeout(t)
   }, [undoDelete])
   const [collapsedFolders, setCollapsedFolders] = useState<string[]>(() => {
@@ -2203,11 +2213,16 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         <div
           role="status"
           className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          onFocus={() => setUndoBarFocused(true)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) setUndoBarFocused(false)
+          }}
         >
           <span className="min-w-0 truncate">
             Deleted "{undoDelete.kind === 'copy' ? undoDelete.version.name : undoDelete.doc.title}"
           </span>
           <Button
+            ref={undoButtonRef}
             type="button"
             size="sm"
             variant="outline"

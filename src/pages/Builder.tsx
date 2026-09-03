@@ -1804,6 +1804,36 @@ export default function Builder() {
 
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">
+      {/* First in DOM so keyboard users reach it in one Tab; fixed keeps it visually at the bottom */}
+      {externalUpdate && (
+        <div
+          role="status"
+          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
+        >
+          <span className="min-w-0">This resume was changed in another tab.</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const latest = loadResume()
+              if (latest) setResume(latest)
+              setExternalUpdate(false)
+            }}
+          >
+            <RefreshCw className="size-4" />
+            Load latest
+          </Button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setExternalUpdate(false)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
       <SiteHeader
         wideAction
         action={
@@ -7275,36 +7305,6 @@ export default function Builder() {
           </button>
         ))}
       </div>
-
-      {externalUpdate && (
-        <div
-          role="status"
-          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
-        >
-          <span className="min-w-0">This resume was changed in another tab.</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              const latest = loadResume()
-              if (latest) setResume(latest)
-              setExternalUpdate(false)
-            }}
-          >
-            <RefreshCw className="size-4" />
-            Load latest
-          </Button>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => setExternalUpdate(false)}
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
 
       <SiteFooter />
 
