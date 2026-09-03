@@ -21,6 +21,7 @@ import {
   FileText,
   Copy,
   FileUp,
+  PenLine,
   GraduationCap,
   GripVertical,
   HeartPulse,
@@ -991,6 +992,16 @@ export default function Builder() {
     adjust?: () => void
   } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(
+    () =>
+      !localStorage.getItem('honestcv.setupDone') &&
+      !localStorage.getItem('honestcv.tourDone') &&
+      !localStorage.getItem('honestcv.shared') &&
+      !new URLSearchParams(window.location.search).get('example')
+  )
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1)
+  const [wizardRole, setWizardRole] = useState('')
+  const [wizardLevel, setWizardLevel] = useState('')
   const [importText, setImportText] = useState('')
   const [importBusy, setImportBusy] = useState(false)
   const [importError, setImportError] = useState('')
@@ -8372,6 +8383,160 @@ export default function Builder() {
               >
                 Publish latest version
               </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={
+          wizardOpen &&
+          !resume.contact.fullName &&
+          !resume.summary &&
+          resume.experience.length === 0
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            localStorage.setItem('honestcv.setupDone', '1')
+            setWizardOpen(false)
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {wizardStep === 1 ? 'What job are you targeting?' : 'How do you want to start?'}
+            </DialogTitle>
+            <DialogDescription>
+              {wizardStep === 1
+                ? 'This tunes the ATS score, AI suggestions and section order to your goal. Both fields are optional — you can change them any time in the Target job panel.'
+                : 'Pick a starting point — everything stays editable.'}
+            </DialogDescription>
+          </DialogHeader>
+          {wizardStep === 1 ? (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="wizardRole">Target role</Label>
+                <Input
+                  id="wizardRole"
+                  placeholder="e.g. Frontend Engineer"
+                  value={wizardRole}
+                  onChange={(e) => setWizardRole(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="wizardLevel">Experience level</Label>
+                <select
+                  id="wizardLevel"
+                  className="h-11 w-full rounded-md border bg-transparent px-2 text-sm sm:h-9"
+                  value={wizardLevel}
+                  onChange={(e) => setWizardLevel(e.target.value)}
+                >
+                  <option value="">Not sure yet</option>
+                  {EXPERIENCE_LEVELS.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {EXPERIENCE_LEVEL_LABELS[lvl]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    localStorage.setItem('honestcv.setupDone', '1')
+                    setWizardOpen(false)
+                  }}
+                >
+                  Skip
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (wizardRole.trim()) set('targetRole', wizardRole.trim())
+                    if (wizardLevel)
+                      set('experienceLevel', wizardLevel as Resume['experienceLevel'])
+                    setWizardStep(2)
+                  }}
+                >
+                  Continue
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-auto w-full flex-col items-start gap-0.5 py-2.5"
+                onClick={() => {
+                  localStorage.setItem('honestcv.setupDone', '1')
+                  setWizardOpen(false)
+                  setImportOpen(true)
+                }}
+              >
+                <span className="flex items-center gap-1.5 font-medium">
+                  <FileUp className="size-4" /> Import your existing resume
+                </span>
+                <span className="text-muted-foreground text-xs font-normal">
+                  PDF, DOCX or pasted text — parsed entirely in your browser
+                </span>
+              </Button>
+              {examples.length > 0 && (
+                <div className="rounded-md border px-3 py-2.5">
+                  <span className="flex items-center gap-1.5 text-sm font-medium">
+                    <ListChecks className="size-4" /> Start from a role example
+                  </span>
+                  <select
+                    aria-label="Choose an example role"
+                    className="mt-1.5 h-11 w-full rounded-md border bg-transparent px-2 text-sm sm:h-9"
+                    value=""
+                    onChange={(e) => {
+                      const entry = examples.find((x) => x.slug === e.target.value)
+                      if (!entry) return
+                      localStorage.setItem('honestcv.setupDone', '1')
+                      setWizardOpen(false)
+                      applyExample(entry.person)
+                    }}
+                  >
+                    <option value="">Choose a role…</option>
+                    {[...examples]
+                      .sort((a, b) => {
+                        const q = wizardRole.trim().toLowerCase()
+                        if (!q) return 0
+                        const am = a.role.toLowerCase().includes(q) ? 0 : 1
+                        const bm = b.role.toLowerCase().includes(q) ? 0 : 1
+                        return am - bm
+                      })
+                      .map((e) => (
+                        <option key={e.slug} value={e.slug}>
+                          {e.role} ({e.sector})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                className="h-auto w-full flex-col items-start gap-0.5 py-2.5"
+                onClick={() => {
+                  localStorage.setItem('honestcv.setupDone', '1')
+                  setWizardOpen(false)
+                }}
+              >
+                <span className="flex items-center gap-1.5 font-medium">
+                  <PenLine className="size-4" /> Start from scratch
+                </span>
+                <span className="text-muted-foreground text-xs font-normal">
+                  Build section by section with the Getting started checklist
+                </span>
+              </Button>
+              <div className="flex justify-start">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setWizardStep(1)}>
+                  Back
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
