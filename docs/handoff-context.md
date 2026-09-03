@@ -720,3 +720,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 差距（Rezi changelog 2026-08 W4「refresh the page without losing your place」+ 源码/生产确证）：Sample library 的搜索/行业 chip/Saved 开关均为纯 useState，/samples 刷新或分享即丢上下文（R312 已为 /jobs 修过同类问题）。方案 docs/plan-r324-samples-url-state.md。
 - 实现：Dashboard.tsx 仅 /samples 路由——mount 时从 URL 种子 ?q/?sector/?saved=1，replaceState 回写（默认值省略保持素 URL）；非法 ?sector 经派生 activeSector 回退 All（chips/过滤/回写统一用 activeSector）；/dashboard 内嵌 samples 区不变（锚点语义保留）。已知副作用：/samples 上未知 query 参数（UTM/cache-buster）会在 mount 后被清掉（回写全量重建），记为 informational。
 - tsc/eslint/build 绿。生产 QA（bundle index-hppBh2DS.js，零 AI）全绿零 P0–P3：三筛选→URL→硬刷新/新标签深链全还原、非法 sector 回退且 URL 自清、清空回素 URL、/dashboard ?keep=1#samples 原样不动、375 严格、暗色、savedSamples/主题基线还原。截图 /home/ubuntu/screenshots/r325_*.png。
+
+## R325 — 面试链探索审计 + 教练关键词去噪 (2026-09-03)
+- 审计（生产全链走查，方案 docs/plan-r325-interview-chain-audit.md）零 P0–P2：R298 问题生成/回退、R201/R250 本地分析、R233–R236 计时/填充词/语气、R258 报告、R256 桥接、边界、375/暗色全绿。两 informational：①关键词教练层仍出职称/泛词（本轮采纳修复）；②超短计时窗的 /min 外推显得夸张（保留观察）。
+- 修复：interviewAnalysis.ts 新 GENERIC_JD_WORDS + coachableKeywords()（单词过滤 JOB_TITLE_WORDS/GENERIC_JD_WORDS，短语保留），套用在 analyzeAnswer 与 sessionReport 的关键词全集——面板 X/N、双层 tier、R256 桥接、报告全部只教技能词，分母同步收缩；纯职称/泛词 JD 优雅回退无关键词面板。ats.ts 共享提取器不动（与 R298 同边界）。残留：公司名与角色词（如 platform）无法通用过滤，保留。
+- oracle 8/8、tsc/lint/build 绿。生产 QA（bundle index-CdGX6uhl.js，零 AI）全绿零 P0–P3：面板 3/11→3/7 且 senior/engineer/used/daily 消失、报告双 tier 纯技能、纯泛词 JD 无面板不崩、问题生成/ATS 卡回归、375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r327_*.png。
