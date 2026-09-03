@@ -215,7 +215,14 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     jobDescription: string
   } | null>(null)
   const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
-  const [docKind, setDocKind] = useState<CareerDocKind | 'all'>('all')
+  // On /documents the type filter lives in the query string so refresh/share keeps your place.
+  const [docSeedParams] = useState(() =>
+    section === 'documents' ? new URLSearchParams(window.location.search) : null
+  )
+  const [docKind, setDocKind] = useState<CareerDocKind | 'all'>(() => {
+    const kind = docSeedParams?.get('kind')
+    return kind === 'cover' || kind === 'interview' || kind === 'resignation' ? kind : 'all'
+  })
   const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
   const [docText, setDocText] = useState('')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
@@ -492,6 +499,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     const qs = params.toString()
     window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
   }, [section, exampleQuery, activeSector, savedOnly])
+  // A seeded ?kind= with no matching saved docs falls back to All (its chip is hidden).
+  const activeDocKind = docKind !== 'all' && !docs.some((d) => d.kind === docKind) ? 'all' : docKind
+  useEffect(() => {
+    if (section !== 'documents') return
+    const params = new URLSearchParams()
+    if (activeDocKind !== 'all') params.set('kind', activeDocKind)
+    const qs = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+  }, [section, activeDocKind])
   const filteredExamples = useMemo(() => {
     const q = exampleQuery.trim().toLowerCase()
     return examples.filter(
@@ -1108,10 +1124,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   <button
                     key={k}
                     type="button"
-                    aria-pressed={docKind === k}
+                    aria-pressed={activeDocKind === k}
                     onClick={() => setDocKind(k)}
                     className={`min-h-10 rounded-md border px-2 py-1 text-xs font-medium transition sm:min-h-8 ${
-                      docKind === k
+                      activeDocKind === k
                         ? 'border-primary ring-primary/40 ring-2'
                         : 'hover:border-muted-foreground/40'
                     }`}
@@ -1134,7 +1150,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         ) : (
           <ul className="mt-4 space-y-2">
             {docs
-              .filter((d) => docKind === 'all' || d.kind === docKind)
+              .filter((d) => activeDocKind === 'all' || d.kind === activeDocKind)
               .map((d) => (
               <li
                 key={d.id}

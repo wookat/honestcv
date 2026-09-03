@@ -725,3 +725,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 审计（生产全链走查，方案 docs/plan-r325-interview-chain-audit.md）零 P0–P2：R298 问题生成/回退、R201/R250 本地分析、R233–R236 计时/填充词/语气、R258 报告、R256 桥接、边界、375/暗色全绿。两 informational：①关键词教练层仍出职称/泛词（本轮采纳修复）；②超短计时窗的 /min 外推显得夸张（保留观察）。
 - 修复：interviewAnalysis.ts 新 GENERIC_JD_WORDS + coachableKeywords()（单词过滤 JOB_TITLE_WORDS/GENERIC_JD_WORDS，短语保留），套用在 analyzeAnswer 与 sessionReport 的关键词全集——面板 X/N、双层 tier、R256 桥接、报告全部只教技能词，分母同步收缩；纯职称/泛词 JD 优雅回退无关键词面板。ats.ts 共享提取器不动（与 R298 同边界）。残留：公司名与角色词（如 platform）无法通用过滤，保留。
 - oracle 8/8、tsc/lint/build 绿。生产 QA（bundle index-CdGX6uhl.js，零 AI）全绿零 P0–P3：面板 3/11→3/7 且 senior/engineer/used/daily 消失、报告双 tier 纯技能、纯泛词 JD 无面板不崩、问题生成/ATS 卡回归、375 严格、暗色、基线还原。截图 /home/ubuntu/screenshots/r327_*.png。
+
+## R326 — /documents 类型筛选入 URL（刷新/分享不丢）(2026-08-31)
+- 证据：Rezi changelog 2026-08 Week 4「refresh the page without losing your place」；R324 方案中已列 /documents docKind 为剩余候选；源码确证 docKind 纯 useState，刷新即丢。方案 docs/plan-r326-documents-kind-url.md。
+- 实现：Dashboard.tsx——section==='documents' 时 ?kind= 种子 docKind（合法值 cover|interview|resignation，否则 all）；派生 activeDocKind 在该类无文档时回退 all（空类 chip 本就隐藏）；replaceState 回写、默认 all 省略保持素 URL；/dashboard 内嵌区（锚点语义）零改动。
+- 生产 QA（bundle index-13iBSGgP.js / Dashboard-zCYeLdon.js，curl 核实，零 AI 配额）全绿零 P0–P3：chip↔URL 双向、硬刷新/新标签深链还原、?kind=banana 与无文档 ?kind=interview 回退 All 且 URL 自清、删最后一份该类文档回退 All+URL 更新+undo 条恢复文档与 chip、/dashboard?keep=1#documents 零回写回归、R324 /samples ?sector 深链回归、375 严格 scrollWidth=375、暗色、careerDocs/主题基线还原。截图 /home/ubuntu/screenshots/r328_t*.png。录屏仍不可用（enigo）。
