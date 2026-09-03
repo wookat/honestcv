@@ -16,7 +16,12 @@ import {
 } from './resume'
 
 const EMAIL_RE = /[^\s@|,;]+@[^\s@|,;]+\.[a-z]{2,}/i
-const PHONE_RE = /(\+?\(?\d[\d\s().-]{7,}\d)/
+const PHONE_RE = /(\+?\(?\d[\d\s().-]{5,}\d)/
+const US_STATES = new Set(
+  ('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS ' +
+    'MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV ' +
+    'WI WY DC PR').split(' ')
+)
 const LINKEDIN_RE = /linkedin\.com\/[^\s|,;)]+/i
 const URL_RE = /(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s|,;)]*)?/i
 const DATE_RANGE_RE =
@@ -181,11 +186,14 @@ export function parseResumeText(raw: string): Resume {
   }
 
   // Location: a "City, ST" segment on one of the header contact lines
+  // (comma optional when the trailing token is a real USPS state code)
   for (const line of nonEmpty.slice(0, 5)) {
     if (matchHeading(line)) break
-    for (const seg of line.split(/\s*[|•·]\s*/)) {
-      if (/^[A-Za-z .'-]+,\s*[A-Z]{2}$/.test(seg.trim())) {
-        resume.contact.location = seg.trim()
+    for (const raw of line.split(/\s*[|•·]\s*/)) {
+      const seg = raw.trim()
+      const m = seg.match(/^([A-Za-z .'-]+?)(?:,\s*|\s+)([A-Z]{2})$/)
+      if (m && (seg.includes(',') || US_STATES.has(m[2]))) {
+        resume.contact.location = seg
         break
       }
     }
