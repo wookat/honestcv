@@ -11,11 +11,18 @@ export class PaymentRequiredError extends Error {
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...licenseHeaders() },
-    body: JSON.stringify(body),
-  })
+  let res: Response
+  try {
+    res = await fetch(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...licenseHeaders() },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new Error(
+      'You appear to be offline — check your connection and try again.'
+    )
+  }
   const data = (await res.json().catch(() => ({}))) as T & {
     error?: string
     code?: string
