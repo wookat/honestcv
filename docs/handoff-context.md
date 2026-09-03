@@ -698,3 +698,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 ## R316 — 探索性生产审计（组织/版本链、组合设置导出、大屏、回归）(2026-09-03)
 - 审计范围（bundle index-C4BM_uQQ.js，curl 核实，零 AI 配额）：①R197 时间戳完整性——副本改名/移动文件夹/文件夹改名/删除/硬刷新后 updatedAt/createdAt 字节不变，卡片与 localStorage 一致；历史 checkpoint diff 摘要、restore/前向 restore、restore 前自动落 checkpoint；②组合设置导出链（photo + contact icons + es + margins 0.5″ + 最小字号 + 紧行距 + inline marks）四格式真实下载取证：PDF 左缘精确 36.0pt、es 标题、零 `**` 泄漏、链接 annotation、photo XObject、icons 以 on/off 像素 diff 证实；DOCX w:pgMar 576 twips（864×36/54 代码本意的按比例缩放，非 720，记为 informational——DOCX 与 PDF 边距 parity 若要求精确一致为候选 P3）、w:b/w:u 真实、TXT/MD 干净；③大屏 1920/2560 四路由无水平溢出、max-w-6xl 1152px 居中、/jobs 双栏完好；④回归：R314 注入 500 报错+本地保留+重试成功、R315 matrix(0.35) 比例 0.350、375 严格。全绿零 P0–P3。
 - 注意：历史 fixture 快照必须含 id 字段否则 listResumeHistory 静默丢弃（见 SKILL R316 节）。截图 /home/ubuntu/screenshots/r316_*.png，导出取证 /home/ubuntu/qa/r316_dl*。录屏仍不可用。
+
+## R317 — DOCX 页边距按标注英寸精确映射（与 PDF 对齐）(2026-09-03)
+- 证据：R316 informational——Margins stepper 标注 0.5″/0.75″/1″，PDF 精确 36/54/72pt，但 DOCX 按历史默认比例缩放（864×scale/720×scale）实为 0.4″/0.6″/0.8″，标签失实。方案 docs/plan-r317-docx-margin-parity.md。
+- 实现：docx.ts 一处——marginTwips = pageMarginOf(resume)*20 四边同值（720/1080/1440），rightTab 自动跟随；默认 DOCX 版式有意变化（864/720→1080 四边），标签诚实优先于错误版式的字节稳定。信件 DOCX/PDF/TXT/MD/预览零改动。
+- 生产 QA（docx chunk docx-D5fKdjnB.js curl 200 核实，主 bundle 不变，零 AI）全绿零 P0–P3：三档真实下载 w:pgMar 四边精确 720/1080/1440、rightTab w:pos=12240−2·margin、es 标题+b/u runs 无 ** 泄漏、PDF 左缘仍 36.0pt、信件 DOCX 在 draft 为 wide 时仍固定 864/720（对抗性回归）、375 严格、暗色。截图 /home/ubuntu/screenshots/r317_*.png，取证 /home/ubuntu/qa/r317_dl/。录屏仍不可用。
