@@ -8045,6 +8045,11 @@ export default function Builder() {
                   setShareBusy(true)
                   void revokeShareLink()
                     .then(() => setShareLink(null))
+                    .catch((err: unknown) =>
+                      setShareError(
+                        err instanceof Error ? err.message : 'Turning off the link failed.'
+                      )
+                    )
                     .finally(() => setShareBusy(false))
                 }
               }}
