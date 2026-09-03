@@ -234,6 +234,18 @@ export default function Jobs() {
       .slice(0, 12)
   }, [pipeline])
 
+  /** Every distinct location across listings and tracked jobs, for the input's autocomplete. */
+  const locationOptions = useMemo(
+    () =>
+      locationFacets(
+        [...jobs, ...pipeline.map((e) => e.job)].map((j) => j.location),
+        Infinity
+      )
+        .map((f) => f.label)
+        .sort((a, b) => a.localeCompare(b)),
+    [jobs, pipeline]
+  )
+
   const loc = locationFilter.trim().toLowerCase()
   /** Whole application queue, grouped saved → applied → interviewing → offer → rejected,
    *  most recently updated first within a group. */
@@ -587,7 +599,13 @@ export default function Jobs() {
               placeholder="Location, e.g. Europe"
               aria-label="Filter by location"
               className="h-10 w-36"
+              list="job-location-options"
             />
+            <datalist id="job-location-options">
+              {locationOptions.map((label) => (
+                <option key={label.toLowerCase()} value={label} />
+              ))}
+            </datalist>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as 'relevance' | 'newest')}

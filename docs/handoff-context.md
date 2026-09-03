@@ -652,3 +652,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
   4) 375 严格 scrollWidth=375、暗色抽查、基线还原。唯一发现（P3-trivial）：静态页页脚 Company/Compare 内链用 slash-less href（/about、/terms、/privacy、/vs/*、/resume-builder-one-time-payment）307 跳转到带斜杠 200 页，且与 sitemap canonical 不一致。截图 /home/ubuntu/screenshots/r307_*.png。
 - 修复（R307b）：build-seo.mjs 新增 slashed() 帮助函数（canonical、breadcrumb JSON-LD、页脚/导航 Compare+Company 链接全部带斜杠）；src/components/Layout.tsx RESOURCE_LINKS 与页脚同步改带斜杠。SPA 路由（/builder、/documents 等）按设计保持 slash-less（直接 200 无跳转，不在修复范围）。
 - 生产复验（bundle index-CujNNOAK.js，curl 核实）全绿：四静态页全部内链 200 零跳转、canonical/breadcrumb 带斜杠、React 页脚+Resources 下拉导航正确、375 严格 scrollWidth=375、零 AI、基线还原。截图 /home/ubuntu/screenshots/r307b_*.png。
+
+## R308 — /jobs 位置输入原生 datalist 自动补全 (2026-09-03)
+- 证据：Rezi changelog 2026-08 Week 4「Faster Job Location Entry: New location autocomplete feature for quick, accurate job location search」；我方 /jobs 位置过滤为纯自由文本 + R267 facet chips（当前结果 top 8），长尾地点无发现入口。方案 docs/plan-r308-job-location-autocomplete.md。
+- 实现：仅改 src/pages/Jobs.tsx——位置 Input 挂 list="job-location-options"，新 <datalist> 选项 = 当前搜索结果 + tracked pipeline 职位的全部去重地点（复用 locationFacets(…, Infinity)，大小写不敏感去重、按字母序、剔除 Remote/Worldwide/Anywhere/空白——与 facets 同规则）。过滤/排序/facets/R195 agnostic 分区零改动，零 worker/schema 改动。
+- 生产 QA（bundle index-CSemBJ9E.js，curl 核实，零 AI 配额）全绿零 P0–P3：datalist 7 选项字母序无 agnostic 项、前缀联想 DOM 断言（原生弹层 CDP 截图不可见，符合预期）、整值过滤与手输一致（直配在前 + Open to any location 分区回归）、facet chips ≤8 回归、seeded pipeline 职位地点入选项且删除后消失、375 严格 scrollWidth=375、暗色可读、localStorage/主题还原。截图 /home/ubuntu/screenshots/r308_*.png。
