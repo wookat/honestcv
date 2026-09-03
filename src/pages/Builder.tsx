@@ -9017,8 +9017,24 @@ function BundleToolDialog({
       : kind === 'resignation'
         ? 'Resignation Letter'
         : 'Interview Prep Brief'
+  const unsavedWork =
+    kind === 'interview'
+      ? session !== null || answer.trim() !== ''
+      : kind !== null && result !== '' && savedId === null
+  const requestClose = () => {
+    if (
+      unsavedWork &&
+      !window.confirm(
+        kind === 'interview'
+          ? 'Close interview practice? Your current session and typed answer will be lost.'
+          : 'Close without saving? The generated letter will be lost.'
+      )
+    )
+      return
+    onClose()
+  }
   return (
-    <Dialog open={kind !== null} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={kind !== null} onOpenChange={(o) => !o && requestClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
