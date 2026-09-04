@@ -49,6 +49,8 @@ export interface PipelineEntry {
   history?: StatusChange[]
   /** Free-form notes: recruiter names, interview dates, follow-ups */
   notes?: string
+  /** User-set follow-up reminder (ms epoch, local midnight of the chosen day) */
+  remindAt?: number
 }
 
 /** The entry's status timeline, synthesizing one step for pre-history entries. */
@@ -66,9 +68,14 @@ export function staleDays(entry: PipelineEntry): number | null {
   return days >= 7 ? days : null
 }
 
-/** Tracked applications with no status update in 7+ days. */
+/** True when the entry's user-set follow-up reminder date has arrived. */
+export function reminderDue(entry: PipelineEntry): boolean {
+  return entry.remindAt !== undefined && Date.now() >= entry.remindAt
+}
+
+/** Tracked applications gone quiet for 7+ days or with a due follow-up reminder. */
 export function attentionCount(pipeline: PipelineEntry[] = listPipeline()): number {
-  return pipeline.filter((e) => staleDays(e) !== null).length
+  return pipeline.filter((e) => staleDays(e) !== null || reminderDue(e)).length
 }
 
 /** Whole days since the entry's last status change, regardless of the stale threshold. */
@@ -290,6 +297,7 @@ function sanitizeEntry(raw: unknown): PipelineEntry | null {
   }
   if (typeof e.resumeVersionId === 'string') entry.resumeVersionId = e.resumeVersionId
   if (typeof e.notes === 'string') entry.notes = e.notes
+  if (typeof e.remindAt === 'number' && Number.isFinite(e.remindAt)) entry.remindAt = e.remindAt
   return entry
 }
 
@@ -330,6 +338,7 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
       history,
       ...(prev?.resumeVersionId ? { resumeVersionId: prev.resumeVersionId } : {}),
       ...(prev?.notes ? { notes: prev.notes } : {}),
+      ...(prev?.remindAt !== undefined ? { remindAt: prev.remindAt } : {}),
     },
     ...rest,
   ])
@@ -358,6 +367,15 @@ export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] 
   return savePipeline(
     listPipeline().map((e) =>
       e.job.id === jobId ? { ...e, notes: notes.trim() ? notes : undefined } : e
+    )
+  )
+}
+
+/** Set or clear (null) the follow-up reminder on the pipeline entry for a job. */
+export function setPipelineReminder(jobId: string, remindAt: number | null): PipelineEntry[] {
+  return savePipeline(
+    listPipeline().map((e) =>
+      e.job.id === jobId ? { ...e, remindAt: remindAt ?? undefined } : e
     )
   )
 }

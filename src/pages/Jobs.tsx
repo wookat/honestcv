@@ -44,7 +44,9 @@ import {
   removeFromPipeline,
   removeManyFromPipeline,
   searchJobs,
+  reminderDue,
   setPipelineNotes,
+  setPipelineReminder,
   setPipelineVersion,
   staleDays,
   structureJobDescription,
@@ -94,6 +96,19 @@ const postedAgo = (iso: string) => {
 
 const shortDate = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+
+/** ms epoch → yyyy-mm-dd in the user's local calendar (for <input type="date">). */
+const toDateInput = (ms: number) => {
+  const d = new Date(ms)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+/** yyyy-mm-dd → ms epoch at local midnight of that day. */
+const fromDateInput = (value: string) => {
+  const [y, m, d] = value.split('-').map(Number)
+  return new Date(y, m - 1, d).getTime()
+}
 
 const agoFromMs = (ms: number) => {
   const days = Math.floor((Date.now() - ms) / 86_400_000)
@@ -288,7 +303,9 @@ export default function Jobs() {
     () =>
       JOB_STATUSES.flatMap((s) =>
         pipeline
-          .filter((e) => e.status === s && (!followUpOnly || staleDays(e) !== null))
+          .filter(
+            (e) => e.status === s && (!followUpOnly || staleDays(e) !== null || reminderDue(e))
+          )
           .sort((a, b) => b.updatedAt - a.updatedAt)
           .map((e) => e.job)
       ),
@@ -976,12 +993,20 @@ export default function Jobs() {
                             {(() => {
                               const entry = pipeline.find((e) => e.job.id === j.id)
                               const stale = entry ? staleDays(entry) : null
+                              const due = entry !== undefined && reminderDue(entry)
                               return (
-                                stale !== null && (
-                                  <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
-                                    No update · {stale}d
-                                  </span>
-                                )
+                                <>
+                                  {stale !== null && (
+                                    <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+                                      No update · {stale}d
+                                    </span>
+                                  )}
+                                  {due && (
+                                    <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+                                      Follow up due
+                                    </span>
+                                  )}
+                                </>
                               )
                             })()}
                             {hasNotes.has(j.id) && (
@@ -1340,6 +1365,39 @@ export default function Jobs() {
                           )
                         )
                       })()}
+                      <label htmlFor="job-remind" className="mt-3 block text-sm font-medium">
+                        Remind me to follow up
+                      </label>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <input
+                          id="job-remind"
+                          type="date"
+                          value={entry.remindAt !== undefined ? toDateInput(entry.remindAt) : ''}
+                          onChange={(e) =>
+                            setPipeline(
+                              setPipelineReminder(
+                                selected.id,
+                                e.target.value ? fromDateInput(e.target.value) : null
+                              )
+                            )
+                          }
+                          className="border-input bg-background min-h-8 rounded-md border px-2.5 py-1 text-sm"
+                        />
+                        {entry.remindAt !== undefined && (
+                          <button
+                            type="button"
+                            className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
+                            onClick={() => setPipeline(setPipelineReminder(selected.id, null))}
+                          >
+                            Clear reminder
+                          </button>
+                        )}
+                        {entry.remindAt !== undefined && reminderDue(entry) && (
+                          <p className="text-xs font-medium text-amber-700">
+                            Reminder due {shortDate(entry.remindAt)} — consider following up.
+                          </p>
+                        )}
+                      </div>
                       <label
                         htmlFor="job-notes"
                         className="mt-3 block text-sm font-medium"
