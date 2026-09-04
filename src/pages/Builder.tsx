@@ -1929,7 +1929,7 @@ export default function Builder() {
             {saveState === 'error' ? (
               <span
                 role="alert"
-                className="text-destructive text-xs font-medium"
+                className="text-destructive max-w-32 text-xs font-medium leading-tight sm:max-w-none"
                 title="Your browser storage is full, so recent changes are not being saved. Free up space — delete old resume copies or large photos — and keep editing to resume saving."
               >
                 Not saved — storage full
