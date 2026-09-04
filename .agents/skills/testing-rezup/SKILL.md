@@ -1283,3 +1283,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Pipeline notes save via focusout on `#job-notes` (native setter + input + focusout works headlessly); follow-up dialog fields are `#follow-up-subject` / `#follow-up-body`.
 - `followUpEmail()` is fully local (zero network); recruiter greeting requires an explicit capitalized "Recruiter: Name"-style mention in notes.
 - Never `Runtime.evaluate` with `awaitPromise` on `navigator.clipboard.*` in an unfocused tab — the promise never settles and wedges the CDP websocket (reconnect the tab to recover). Assert mailto links via the `href` attribute; never navigate them.
+
+## R372 test notes
+- To test clipboard failure states safely over CDP, synchronously override `navigator.clipboard.writeText = () => Promise.reject(new Error('denied'))` (and `Promise.resolve()` for success) — never `awaitPromise` on clipboard calls.
+- The builder setup wizard dialog ("What job are you targeting?") appears on first /builder visit for a clean profile and writes `honestcv.setupDone` when skipped — clear it at baseline restore.

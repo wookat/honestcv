@@ -151,7 +151,7 @@ export default function Jobs() {
   const [followUpDraft, setFollowUpDraft] = useState<{ subject: string; body: string } | null>(
     null
   )
-  const [followUpCopied, setFollowUpCopied] = useState(false)
+  const [followUpCopied, setFollowUpCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
 
   const fetchJobs = (q: string, cat = '') =>
     searchJobs(q, cat)
@@ -1310,23 +1310,31 @@ export default function Jobs() {
                       </ol>
                       {(() => {
                         const stale = staleDays(entry)
+                        const canDraft =
+                          entry.status === 'applied' ||
+                          entry.status === 'interviewing' ||
+                          entry.status === 'offer'
                         return (
-                          stale !== null && (
+                          canDraft && (
                             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                              <p className="text-xs font-medium text-amber-700">
-                                No update in {stale} days — consider following up.
-                              </p>
+                              {stale !== null && (
+                                <p className="text-xs font-medium text-amber-700">
+                                  No update in {stale} days — consider following up.
+                                </p>
+                              )}
                               <button
                                 type="button"
                                 className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
                                 onClick={() => {
-                                  setFollowUpCopied(false)
+                                  setFollowUpCopied('idle')
                                   setFollowUpDraft(
                                     followUpEmail(entry, loadResume()?.contact.fullName)
                                   )
                                 }}
                               >
-                                Draft follow-up email
+                                {entry.status === 'offer'
+                                  ? 'Draft thank-you email'
+                                  : 'Draft follow-up email'}
                               </button>
                             </div>
                           )
@@ -1522,10 +1530,17 @@ export default function Jobs() {
                 if (!followUpDraft) return
                 void navigator.clipboard
                   .writeText(`Subject: ${followUpDraft.subject}\n\n${followUpDraft.body}`)
-                  .then(() => setFollowUpCopied(true))
+                  .then(
+                    () => setFollowUpCopied('copied'),
+                    () => setFollowUpCopied('failed')
+                  )
               }}
             >
-              {followUpCopied ? 'Copied' : 'Copy email'}
+              {followUpCopied === 'copied'
+                ? 'Copied'
+                : followUpCopied === 'failed'
+                  ? 'Copy failed'
+                  : 'Copy email'}
             </Button>
           </DialogFooter>
         </DialogContent>
