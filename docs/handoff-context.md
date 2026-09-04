@@ -873,3 +873,20 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产 QA（index-D3WF3L0e.js / Builder-BEcPBW1-.js）全绿：402→UpgradeDialog→Esc/X/遮罩三路径回焦精确 opener、History 回焦回归、四条 fallback 文案精确+透传回归、license 成功路径回归、/pricing//guides//vs/rezi//examples 暗/亮/系统暗全过、375 严格、基线还原。截图 /home/ubuntu/screenshots/r347fix_*.png、r347fix2_*.png。
 - 额外：main 上 SKILL.md 与 handoff-context.md 各遗留一行 `||||||| 138caed` 冲突标记（#565 合并遗留），本轮已清除。
 - 备注：成功的 mock /api/ai/* 调用会写 localStorage honestcv.ev.ai-use——QA 基线清理需包含。
+
+## R348 — SOP-10 四维审计 + 离线 AI 文案 + 导入联系人解析 (2026-08-31)
+- SOP-10 审计（docs/plan-r348-sop10-audit-offline-error-import-contact.md，生产 index-D3WF3L0e.js，零真实 AI/支付/分享）四维全绿零 P0–P2：D1 首访黄金路径（hero TXT 上传→/ats-checker 即时评分、Builder 首屏 Getting started、粘贴导入全节）、D2 静态页暗色/27 内链全 200/375-1920、D3 es/fr 全链（本地化标题、AI payload language:'fr'、DOCX/PDF 字节验证、德语复合词 375 不溢出）、D4 lazy chunk 单次加载零 404、离线本地保存、4MB 近配额、R321 跨标签回归。
+- 确证 P3 两项当轮修复：①离线/断网时 AI 动作裸显浏览器串 "Failed to fetch."——api.ts post() 的 fetch 包 try/catch，网络级失败抛 "You appear to be offline — check your connection and try again."（服务端 error、402、R347 429/5xx 文案全部不变）；②管道分隔联系行 `jane@example.com | 555-0100 | Austin TX` 只导入 email——importText.ts PHONE_RE 内段 {7,}→{5,}（7 位电话可匹配，findPhone 仍拒年份区间与 <7 位数字）+ 头部 location 扫描新增无逗号 "City ST"（仅当尾 token 是真实 USPS 州码白名单，"Engineer II" 仍拒；"City, ST"/"London, UK" 逗号形式不变）。
+- oracle .tmp-smoke/r348_oracle.ts 9/9；tsc/eslint/build 绿。生产复验（index-CRTRAXjB.js / api-BPvYnDpq.js / importText-BnBP3Cg7.js）全绿零 P0–P3：离线错误精确文案+按钮恢复+零 dispatch、429 透传/空 body 回退回归、导入 fixture A/B/C/D 全过、375 暗色、基线还原。截图 /home/ubuntu/screenshots/r348fix_*.png。
+- Informational 已记录未改：Rezi 多步 onboarding wizard vs 我们的 checklist（深度差距，需单独设计轮）；粘贴导入对话框两个同名 Import 按钮（外层禁用）；硬配额满时简历自身写入失败未强制触发。
+
+## R349 — 导入对话框备用来源审计 + 重复 Import 标签消歧 (2026-08-31)
+- 闭环 R348 informational：导入对话框内 Resume Center 拉取按钮与粘贴按钮同名 "Import"（视觉与读屏均混淆）。仅 Builder.tsx 一行：改为 "Import from Resume Center"（busy 文案不变），零行为改动。方案 docs/plan-r349-import-dialog-sources.md。
+- 同轮补齐该对话框备用来源的首次生产 QA（index-DpZA_LCv.js / Builder-wN6OdgtK.js，全部 /api/za/session 与 resume.zalize.com/api/export/:id 拦截于 dispatch 前，零真实请求/AI/分享）：完整 share 链接与裸 ID 拉取→GET /api/export/:id→草稿整体替换+activeVersionId 解链+对话框关闭+输入清空；垃圾输入/404/空白文件三条负路径文案精确且对话框保持打开；R348 粘贴导入回归；375 暗色；基线还原。全绿零新 P0–P3。
+- Informational：点击 RC 按钮总会先发一次 GET /api/za/session 探测（含纯 share-ID 路径）——非缺陷已记录。
+
+## R350 — 首访引导式设置向导 (2026-08-31)
+- 闭环 R348 informational（Rezi 多步 onboarding wizard 深度差距）：/builder 空草稿首访新增两步向导对话框（docs/plan-r350-first-run-setup-wizard.md）。Step 1 目标职位 + 经验级别（均可选，Continue 写入 resume.targetRole/experienceLevel）；Step 2 三个起点——打开既有导入对话框 / 按角色示例开始（输入的角色子串匹配排前，applyExample 后重放向导填写的 role/level）/ 从零开始。任何关闭路径写 honestcv.setupDone=1 不再纠缠；tourDone/shared/?example= 或草稿非空（空白种子 experience 条目视为空）时不出现。既有虚线框与 Getting started checklist 不变。
+- 首轮 QA 抓到 3 项当轮修复：P1 gate 用 experience.length===0 而 emptyResume() 种一条空 experience → 向导生产不可达（改为逐条空白判断）；P2 本分支部署时缺 R349 标签（#569/#570 又被级联合并进 base 分支未进 main，已把该链 merge 进本分支）；P3 step2 选示例会整体替换草稿丢掉向导填写的 role/level（applyExample 后重放）。
+- 生产复验（index-RmUSyXIX.js / Builder-gLSSZdas.js，零 AI/分享/支付）全绿零 P0–P3：干净档案向导出现、Designer+Senior→UX Designer 示例保留 targetRole/experienceLevel、reload 不再现、Esc=完成、tourDone/非空草稿/deep link 三守卫、375 暗色、基线还原。截图 /home/ubuntu/screenshots/r350fix_*.png。
+- 新增 localStorage key：honestcv.setupDone（QA 基线清理需包含）。

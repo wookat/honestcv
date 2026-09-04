@@ -1175,3 +1175,16 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - P2 found+fixed same round: `#hub-filter` inputs on /guides/ and /examples/ used to carry inline `style="…background:#fff"` (white-on-white in dark mode); now styled via the shared `#hub-filter{background:var(--card);color:var(--fg)}` rule — pixel-verified readable in both schemes.
 - Friendly fallback strings (api.ts/license.ts) verified live: 429→"Too many requests right now — wait a moment and try again."; 5xx→"Something went wrong on our side — please try again in a moment."; license 200 w/o expiresAt→"Activation returned an unexpected response — please try again or contact support." (nothing stored); non-OK w/o error→"Activation didn’t go through (error N). Check the key and try again."; server `error` still passes through.
 - A successful mocked /api/ai/* call writes `honestcv.ev.ai-use` — include it in baseline cleanup.
+
+## R348 SOP-10 + fix-verification notes
+- Template gallery "Modern sans/Minimal" chips are filters, not templates — click a "Jordan Reyes" preview card to change templateId; photo upload opens an "Adjust photo" crop dialog requiring "Save photo" before anything persists; DOCX/PDF downloads pass through a "Final check before download" dialog ("Download anyway") and end with a share-nudge dialog; Browser.setDownloadBehavior works for both formats; hero TXT upload routes to /ats-checker not /builder.
+- Builder's paste-import opener is the button labeled "Import resume (PDF/DOCX/text)" — a generic /Import/ text match hits other buttons (e.g. Resources panel) first.
+- Since R348: network-level AI fetch failure shows "You appear to be offline — check your connection and try again." (server error/402/429/5xx copy unchanged); paste import extracts 7-digit phones and comma-less "City ST" when ST is a real USPS code.
+
+## R349 Resume Center pull notes
+- Clicking "Import from Resume Center" first fires GET /api/za/session (mock 401 for signed-out) before GET https://resume.zalize.com/api/export/:id — arm Fetch on both patterns; mocked export responses need schemaVersion:1 + a basics object or the client rejects with "Unexpected data format".
+- In the backgrounded QA tab, Radix dialog exit animations can linger (data-state="closed" element stays in DOM for seconds) — assert data-state, not element presence.
+
+## R350 first-run wizard notes
+- /builder shows a two-step setup wizard only when localStorage lacks honestcv.setupDone/tourDone/shared, there is no ?example= param, and the draft is empty — the seeded blank experience entry counts as empty (fixed in R350), so a clean profile reaches it directly. Any close path writes honestcv.setupDone=1; include it in baseline cleanup.
+- React-controlled inputs here reject synthetic value-setter events — focus the element and use CDP Input.insertText. honestcv.resume saves are debounced ~1s; wait ≥1.5s before asserting storage.
