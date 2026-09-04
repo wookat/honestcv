@@ -884,3 +884,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环 R348 informational：导入对话框内 Resume Center 拉取按钮与粘贴按钮同名 "Import"（视觉与读屏均混淆）。仅 Builder.tsx 一行：改为 "Import from Resume Center"（busy 文案不变），零行为改动。方案 docs/plan-r349-import-dialog-sources.md。
 - 同轮补齐该对话框备用来源的首次生产 QA（index-DpZA_LCv.js / Builder-wN6OdgtK.js，全部 /api/za/session 与 resume.zalize.com/api/export/:id 拦截于 dispatch 前，零真实请求/AI/分享）：完整 share 链接与裸 ID 拉取→GET /api/export/:id→草稿整体替换+activeVersionId 解链+对话框关闭+输入清空；垃圾输入/404/空白文件三条负路径文案精确且对话框保持打开；R348 粘贴导入回归；375 暗色；基线还原。全绿零新 P0–P3。
 - Informational：点击 RC 按钮总会先发一次 GET /api/za/session 探测（含纯 share-ID 路径）——非缺陷已记录。
+
+## R350 — 首访引导式设置向导 (2026-08-31)
+- 闭环 R348 informational（Rezi 多步 onboarding wizard 深度差距）：/builder 空草稿首访新增两步向导对话框（docs/plan-r350-first-run-setup-wizard.md）。Step 1 目标职位 + 经验级别（均可选，Continue 写入 resume.targetRole/experienceLevel）；Step 2 三个起点——打开既有导入对话框 / 按角色示例开始（输入的角色子串匹配排前，applyExample 后重放向导填写的 role/level）/ 从零开始。任何关闭路径写 honestcv.setupDone=1 不再纠缠；tourDone/shared/?example= 或草稿非空（空白种子 experience 条目视为空）时不出现。既有虚线框与 Getting started checklist 不变。
+- 首轮 QA 抓到 3 项当轮修复：P1 gate 用 experience.length===0 而 emptyResume() 种一条空 experience → 向导生产不可达（改为逐条空白判断）；P2 本分支部署时缺 R349 标签（#569/#570 又被级联合并进 base 分支未进 main，已把该链 merge 进本分支）；P3 step2 选示例会整体替换草稿丢掉向导填写的 role/level（applyExample 后重放）。
+- 生产复验（index-RmUSyXIX.js / Builder-gLSSZdas.js，零 AI/分享/支付）全绿零 P0–P3：干净档案向导出现、Designer+Senior→UX Designer 示例保留 targetRole/experienceLevel、reload 不再现、Esc=完成、tourDone/非空草稿/deep link 三守卫、375 暗色、基线还原。截图 /home/ubuntu/screenshots/r350fix_*.png。
+- 新增 localStorage key：honestcv.setupDone（QA 基线清理需包含）。

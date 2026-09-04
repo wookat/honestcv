@@ -1184,3 +1184,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R349 Resume Center pull notes
 - Clicking "Import from Resume Center" first fires GET /api/za/session (mock 401 for signed-out) before GET https://resume.zalize.com/api/export/:id — arm Fetch on both patterns; mocked export responses need schemaVersion:1 + a basics object or the client rejects with "Unexpected data format".
 - In the backgrounded QA tab, Radix dialog exit animations can linger (data-state="closed" element stays in DOM for seconds) — assert data-state, not element presence.
+
+## R350 first-run wizard notes
+- /builder shows a two-step setup wizard only when localStorage lacks honestcv.setupDone/tourDone/shared, there is no ?example= param, and the draft is empty — the seeded blank experience entry counts as empty (fixed in R350), so a clean profile reaches it directly. Any close path writes honestcv.setupDone=1; include it in baseline cleanup.
+- React-controlled inputs here reject synthetic value-setter events — focus the element and use CDP Input.insertText. honestcv.resume saves are debounced ~1s; wait ≥1.5s before asserting storage.
