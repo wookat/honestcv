@@ -922,3 +922,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复（仅 ats.ts 提取层）：STOPWORDS 增 know/knows/knowing、understand/understands/understood、familiar、prefer/prefers/preferably、communicate/communicates、demonstrate 系、sense；KNOWN_PHRASES 增 'product sense'。匹配/分层/辅导代码零改动。oracle .tmp-smoke/r357_oracle.ts 13/13。
 - 生产复验（index-BQNfD2pg.js / Builder-seyv4k6b.js，零 AI）全绿：Target 面板 chips 无 knows/sense 且出 product sense 短语、辅导高优含 product sense/kubernetes/analytics/planning、普通 JD 提取字节不变、R356 role-token 排除回归、375 暗色、基线还原。
 - 观察未立案（有意设计边界）：ATS Target 面板原始提取仍列 bare "manager"（R356 排除只在面试辅导层）；若要面板本身 role-aware 属独立轮。
+
+## R358 — SOP-10 四维审计 + 副本编号命名 + 向导跳过已答职位问题 (2026-08-31)
+- SOP-10 四维生产审计（index-BQNfD2pg.js，零 AI/分享/支付）零 P0–P2：D1 dashboard 12 副本管理/重命名/文件夹/undo、助手快捷任务（本地+mock AI）、ATS checker 真实 PDF fixture 上传全链；D2 功能深度观察（无 bulk/搜索，助手为快捷任务+自由聊天而非 Rezi 行内评审）；D3 静态页 375/768/1440 严格+暗色；D4 刷新持久/深链 ?assistant=1、?doc=cover/慢网 AI busy 态零重复请求。方案 docs/plan-r358-sop10-copy-naming-wizard.md。
+- 两个确证 P3 当轮修复：①duplicateResumeVersion() 追加 " (copy)" 致无限复合（×11 不可读）→ 改编号命名：剥离一层 " (copy)"/" (N)" 后取最小空闲 "${base} (n)" (n≥2)，与现有名去重；②dashboard 创建对话框已设 targetRole 时 /builder 向导仍从 Step 1 再问一次职位并焦点陷阱 → 向导状态从 resume 初始化：有 targetRole 直接 Step 2，wizardRole/wizardLevel 预填。开启守卫（R350）零改动。oracle .tmp-smoke/r358_oracle.ts 7/7。
+- 生产复验（index-CMcyuhvX.js / Dashboard-CH4hkiC3.js / Builder-DP3JFGQI.js / resume-B-yXyShJ.js）全绿零新 P0–P3：X→(2)→(3)、占用跳 (4)、删 (3) 后 gap-fill 回 (3)、legacy "(copy)"→"(2)"、undo/aria 短名；带 role 创建落 Step 2 无重复提问、Back 预填 role、示例排序优先匹配且选中后保留 role/level、无 role 回 Step 1、setupDone/?example= 守卫回归、375 暗色严格、基线还原。覆盖注：dialog level→Back 预填仅间接证明（select 选项为小写值）。
+- 审计观察未立案：副本列表无 bulk 操作/搜索框；助手 mock 需 {"text":...} 形；back/forward 在 builder 内不可区分（打开后剥离 ?assistant=1）。
