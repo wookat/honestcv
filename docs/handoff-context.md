@@ -948,3 +948,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 本地：oracle .tmp-smoke/r361_oracle.ts 5/5（批删/按原序还原/未知 id no-op）、tsc/eslint/build 绿（选择剪枝由 useEffect 改为派生值以过 react-hooks/set-state-in-effect 与 React Compiler memo 检查）。
 - 生产复验（index-CykocGOb.js / Dashboard-DKKhO5X9.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：跨文件夹选择计数、搜索/chip 过滤下 Select all shown 仅选可见、隐藏选中项按存在性保留、批移动（既有/新建/移出）updatedAt 字节不变、批删 3 一次 Undo localStorage 字节一致、bulk 模式内单副本 rename/move/delete/Open 全可用、<2 副本隐藏切换、键盘可达、375 光暗严格、R360 搜索/R358 编号/chips 计数回归。
 - 行为决策（有意设计）：Select all shown 为替换式（非追加）；批量移动完成后自动清空选择。测试 skill 已记 R361 选择器与对话框文案笔记。
+
+## R362 — 求职文档 TXT 下载 (2026-08-31)
+- 闭环 R353 审计观察：cover/resignation/interview prep 只有 PDF/DOCX 下载 + Copy text，而简历本体有 PDF/DOCX/TXT/Markdown；求职门户与邮件流程常要 .txt 文件，剪贴板不是持久产物。方案 docs/plan-r362-letter-txt-export.md。
+- 实现（Builder.tsx 工具对话框结果区 + Dashboard.tsx docDownload 扩展 'txt'）：三个入口（Builder 工具对话框、Dashboard 文档卡、viewer 对话框 footer）各加 TXT 按钮；内容规则——信件 = 正文字节原样（与 Copy text 一致，刻意不含 letterhead/联系头，纯文本用于粘贴）、interview = `title\n\nbody`（对齐 downloadTextPdf/Docx 渲染标题）；文件名走 R239 professionalFileName（如 jane-doe-acme-cover-letter.txt）；viewer 下载用当前（可能未保存编辑的）docText。复用既有 downloadText，零新依赖。
+- 本地：tsc/eslint/build 绿。生产复验（index-Cos9snkW.js / Dashboard-4QricovJ.js / Builder-SHCwB0c0.js，零 AI——唯一 cover POST 预派发 mock、零分享/支付、基线还原）全绿零 P0–P3：三种 kind 卡片/viewer TXT 字节一致、文件名 slug 精确、viewer 未保存编辑反映入 TXT 而存储不变、Builder 工具 TXT=mock 正文字节一致、PDF/DOCX letterhead 回归、375 光暗按钮行换行无溢出、R361 bulk 切换回归。

@@ -1233,3 +1233,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Bulk move dialog: "Move N copies to a folder" with existing-folder buttons, "Remove from folder", and a new-folder input + "Create & move"; does not touch updatedAt or order.
 - Bulk delete confirm: "Delete N copies?" / "This removes the selected copies from this browser permanently."; undo bar role=status "Deleted N copies" + Undo restores localStorage byte-identically.
 - Per-copy "Open" with an existing draft shows an "Open \"<name>\"?" replace-draft dialog (Radix, not native confirm) — safe under headless CDP.
+
+## R362 TXT export notes
+- Capture downloads under CDP with `Browser.setDownloadBehavior {behavior:'allow', downloadPath}` (reset to 'default' at cleanup); byte-compare downloaded .txt against expected strings.
+- Dashboard doc cards: buttons titled `Download <title> as {PDF,DOCX,TXT}`; open the viewer via the card's "Open" button (find via its sibling `Delete <title>` button). Viewer footer order: Edit/Preview/Add signature/PDF/DOCX/TXT/Copy text/Save changes.
+- TXT content: letters = exact body (no letterhead); interview = `${title}\n\n${body}`. Filenames: dashboard `<fullname>-{cover-letter,resignation-letter,interview-prep}.txt`, builder cover `<fullname>-<company>-cover-letter.txt`.
+- Builder letter tools require a JD in #jd first ("Paste the job description in 'Target job' first"), and controlled inputs may reject the prototype-setter trick — use focus + `Input.insertText` instead. Mock POST /api/ai/cover-letter with `{text, freeRemaining}` (r357_helpers fulfill(p, 200, body)).
