@@ -959,3 +959,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：documents.ts 新增 renameCareerDoc(id, title)——只改 title 不动 updatedAt（组织性操作，R197 规则；updateCareerDoc 的时间戳提升保留给真实文本编辑）；Dashboard.tsx 文档行加铅笔按钮（sr-only "Rename <title>"）开对话框（预填输入、Enter/Rename 提交 trim 后标题、空白禁用、Cancel/Esc 丢弃）。viewer 与 Builder 工具对话框不动。
 - 本地：oracle .tmp-smoke/r363_oracle.ts 6/6（title 变/updatedAt 字节不变/其余字段与顺序保留/未知 id no-op）、tsc/eslint/build 绿。
 - 生产复验（index-CIe6fVho.js / Dashboard-C7hUgzeH.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：三种 kind 重命名（含 Enter 提交、前后空白 trim）、updatedAt/text/signature 字节不变、新标题流入 viewer 标题与 interview TXT/PDF 标题、cover TXT 仍正文原样且文件名 slug 不受标题影响（kind 基）、删除确认/undo 用新标题且还原字节一致、R340 回焦（信任点击）、375 光暗严格。QA 首轮抓到 P3（第 6 个按钮致 375 行溢出 scrollWidth 394，按钮组 shrink-0 拒收缩）当轮修复（shrink-0→min-w-0 换行）并复验 375/768/1440 全过。
+
+## R364 — 文档查看器未保存编辑关闭确认 (2026-08-31)
+- 闭环源码+生产实证缺陷：文档查看器（Dashboard/documents Open 对话框）文本编辑只存于 docText state，Esc/X/遮罩关闭无条件 setOpenDoc(null) 静默丢弃未保存编辑，且对话框描述写着 "edits are saved to this browser" 有误导；Builder 工具对话框（R333）与 tailor 对话框（R344）均有弃稿确认，查看器是最后一个没有守卫的编辑对话框。方案 docs/plan-r364-viewer-discard-confirm.md。
+- 实现：viewer Dialog onOpenChange 关闭分支——docText !== openDoc.text 时 window.confirm(`Discard unsaved changes to "<title>"?`)，Cancel 保留对话框与编辑，OK 照旧关闭丢弃；干净打开/已保存关闭免确认；Save changes 按钮直接 setOpenDoc(null) 天然绕过守卫（保存即关闭为既有设计）；签名增删即时持久化不触发守卫。
+- 本地：tsc/eslint/build 绿。生产复验（index-Boj-c-of.js / Dashboard-BS2-Xzuy.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：三关闭路径干净免确认、脏编辑 Esc 出精确文案且 Cancel 保留/OK 后存储与编辑前字节一致、Save 后关闭免确认、签名单独增删免确认、R363 rename/viewer TXT 用未保存文本/PDF 标题/删除 undo/375 光暗全回归。QA 方法注：headless CDP 下原生 confirm 会卡死标签页，经 addScriptToEvaluateOnNewDocument 覆写断言文案与分支后还原（已入测试 skill）。
