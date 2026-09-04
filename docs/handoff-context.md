@@ -910,3 +910,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 面试链（R107/R201/R233–236/R250/R256–258/R325 累积特性）此前无专项 E2E 审计。方案 docs/plan-r355-interview-chain-audit.md。全链生产实测（全部 AI POST 预派发 mock 零真实配额）绿：R257 本地即时问题零网络、AI questions/feedback/brief payload 字段精确（brief 无 language 系 R354 既定范围）、R233–236 计时/语速/口头禅/语气指标与 oracle 一致、R201/R325 本地分析与技能词建议、R258 报告、R256 keywords→resume 真实写入 skills、R333 三关闭路径守卫、375 暗色严格、基线还原。
 - 两个 P3（均在 R256 "Open keyword targeting →" 桥接）当轮修复：①绕过 R333 弃稿确认——抽出 confirmDiscard() 复用于 requestClose 与桥接点击；②跳转过冲落到页脚——对话框卸载/解除 body scroll lock 前执行 scrollIntoView 所致，改为关闭后延迟 250ms 再 jumpToSection('target')。
 - 修复生产复验（index-DFKqDEIn.js / Builder-DpwqY-CW.js）全绿：确认弹出且 Cancel 字节保留 session、accept 后 #jd 入视口无过冲、Esc/遮罩/X 回归、375 暗色严格、基线还原。结构性说明：桥接仅在有答案分析卡时渲染，故 unsavedWork 恒 true——无确认分支经报告态 Esc 等价验证。观察未立案：单词职称过滤留下 "product" 进高优关键词；chips 组桌面端在跳转落点下一屏。
+
+## R356 — 面试关键词辅导排除目标职位词 (2026-08-31)
+- R355 审计观察闭环：targetRole "Product Manager" 时 R201/R250 答案辅导与 R258 报告把 "product" 列为待覆盖关键词（静态 JOB_TITLE_WORDS 过滤 "manager" 但不含 "product"），与 R325 提问侧 skillLikeKeywords（排除 targetRole tokens）不一致。方案 docs/plan-r356-role-word-coaching.md。
+- 修复：analyzeAnswer/sessionReport 增可选 targetRole 参数，coachableKeywords 排除 role tokens（同 R325 分词，多词短语从不排除，空 role 行为字节不变）；Builder 两处调用传 resume.targetRole。oracle .tmp-smoke/r356_oracle.ts 11/11。
+- 生产复验（index-D55s5AM-.js / Builder-oacG5yAq.js，零 AI）全绿：PM JD 下 covered/missing/high-priority/桥接行均无 product/manager 而保留 roadmap/sql/kubernetes、报告关键词行同、清空 role 后 product 复现（旧行为）、R355 桥接回归、375 暗色严格、零 console 错误、基线还原。
+- 观察未立案（P3 候选）：JD 提取器会把 "knows"/"sense" 等泛化词当辅导关键词（GENERIC_JD_WORDS 未含）。
