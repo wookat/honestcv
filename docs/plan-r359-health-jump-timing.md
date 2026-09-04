@@ -16,9 +16,19 @@ ends short. Identical mechanism to the R355 interview-bridge overshoot, which wa
 delaying the jump 250ms after close.
 
 ## Fix (minimal)
-In `HealthDialog`, replace the `requestAnimationFrame` in both `jump` and `jumpEntry` with
-`window.setTimeout(..., 250)` — the proven R355 pattern. `jumpToEntry` itself (expansion +
-`scrollIntoView block:'center'` + ring flash) is unchanged.
+Two parts, both required (the first alone was deployed and production QA proved it insufficient):
+
+1. Timing: in `HealthDialog`, replace the `requestAnimationFrame` in both `jump` and `jumpEntry`
+   with `window.setTimeout(..., 250)` — the proven R355 pattern. Section/keyboard jumps verified
+   fixed by this alone.
+2. Target: production re-test showed the entry-level finding QA clicked ("3–6 bullet points per
+   role — …") is an ATS *structure check*, which only carried a section `anchor` — its Fix→
+   called `jump('experience')` and flashed/centered the whole ~1472px Experience section, leaving
+   the offending card below the fold. Fix: the check type gains optional `entryId`;
+   `bulletsPerEntryCheck` sets it to the offending entry (Builder path passes `id: e.id`; the
+   text-based checker has no ids, stays undefined); `priorityFixes` forwards it; the dialog's
+   Fix→ buttons prefer `jumpEntry(entryId)` over the section anchor when present.
+   Oracle: `.tmp-smoke/r359_oracle.ts` (4/4).
 
 ## Non-goals
 - No change to `jumpToSection`, the ATS-card "Update job description" jump (works, no dialog

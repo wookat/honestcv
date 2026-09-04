@@ -407,6 +407,7 @@ export function priorityFixes(ats: AtsResult, health: HealthReport, limit = 5): 
       impact: perCheck >= 10 ? 'high' : 'medium',
       points: Math.round(perCheck * 10) / 10,
       anchor: check.anchor,
+      entryId: check.entryId,
     })
   }
 
