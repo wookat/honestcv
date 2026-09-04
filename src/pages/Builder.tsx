@@ -935,7 +935,9 @@ export default function Builder() {
   const [shareOpen, setShareOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
   const [shareLinkOpen, setShareLinkOpen] = useState(false)
-  const [shareLink, setShareLink] = useState<ShareLink | null>(() => loadShareLink())
+  const [shareLink, setShareLink] = useState<ShareLink | null>(() =>
+    loadShareLink(getActiveVersionId() ?? 'draft')
+  )
   const [shareBusy, setShareBusy] = useState(false)
   const [shareError, setShareError] = useState('')
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
@@ -1025,7 +1027,12 @@ export default function Builder() {
   const linkVersion = (id: string | null) => {
     setActiveVersionId(id)
     setActiveVersionIdState(id)
+    setShareLink(loadShareLink(id ?? 'draft'))
+    setShareSlug('')
+    setShareError('')
+    setShareLinkCopied(false)
   }
+  const shareScope = activeVersionId ?? 'draft'
   const activeVersion = activeVersionId
     ? (versions.find((v) => v.id === activeVersionId) ?? null)
     : null
@@ -2282,6 +2289,7 @@ export default function Builder() {
               onClick={() => {
                 setVersions(listResumeVersions())
                 setActiveVersionIdState(getActiveVersionId())
+                setShareLink(loadShareLink(getActiveVersionId() ?? 'draft'))
                 setVersionName(resume.targetRole || '')
                 setRenamingId(null)
                 setVersionsOpen(true)
@@ -8270,7 +8278,8 @@ export default function Builder() {
             <DialogTitle>Share this resume</DialogTitle>
             <DialogDescription>
               Anyone with the link sees a read-only snapshot of this resume — no
-              signup needed. Turn it off anytime.
+              signup needed. Each saved copy publishes its own link. Turn it off
+              anytime.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-between gap-2 text-sm">
@@ -8299,7 +8308,7 @@ export default function Builder() {
                     return
                   }
                   setShareBusy(true)
-                  createShareLink(shown, slug || undefined)
+                  createShareLink(shown, shareScope, slug || undefined)
                     .then((link) => setShareLink(link))
                     .catch((err: unknown) =>
                       setShareError(err instanceof Error ? err.message : 'Sharing failed.')
@@ -8307,7 +8316,7 @@ export default function Builder() {
                     .finally(() => setShareBusy(false))
                 } else {
                   setShareBusy(true)
-                  void revokeShareLink()
+                  void revokeShareLink(shareScope)
                     .then(() => setShareLink(null))
                     .catch((err: unknown) =>
                       setShareError(
@@ -8401,7 +8410,7 @@ export default function Builder() {
                   setShareError('')
                   setShareLinkCopied(false)
                   setShareBusy(true)
-                  createShareLink(shown)
+                  createShareLink(shown, shareScope)
                     .then((link) => setShareLink(link))
                     .catch((err: unknown) =>
                       setShareError(err instanceof Error ? err.message : 'Sharing failed.')
