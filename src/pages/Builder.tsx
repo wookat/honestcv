@@ -10307,11 +10307,11 @@ function HealthDialog({
 }) {
   const jump = (anchor: SectionAnchor) => {
     onClose()
-    requestAnimationFrame(() => onJump(anchor))
+    window.setTimeout(() => onJump(anchor), 250)
   }
   const jumpEntry = (id: string) => {
     onClose()
-    requestAnimationFrame(() => onJumpEntry(id))
+    window.setTimeout(() => onJumpEntry(id), 250)
   }
   const fixes = priorityFixes(ats, health)
   const structureFindings = ats.checks
