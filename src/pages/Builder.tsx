@@ -8392,7 +8392,9 @@ export default function Builder() {
           wizardOpen &&
           !resume.contact.fullName &&
           !resume.summary &&
-          resume.experience.length === 0
+          resume.experience.every(
+            (e) => !e.company && !e.role && e.bullets.every((b) => !b.trim())
+          )
         }
         onOpenChange={(open) => {
           if (!open) {
@@ -8497,6 +8499,9 @@ export default function Builder() {
                       localStorage.setItem('honestcv.setupDone', '1')
                       setWizardOpen(false)
                       applyExample(entry.person)
+                      if (wizardRole.trim()) set('targetRole', wizardRole.trim())
+                      if (wizardLevel)
+                        set('experienceLevel', wizardLevel as Resume['experienceLevel'])
                     }}
                   >
                     <option value="">Choose a role…</option>
