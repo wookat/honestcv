@@ -20,6 +20,7 @@ import {
   Loader2,
   MessagesSquare,
   Pencil,
+  Search,
   Star,
   Trash2,
   Undo2,
@@ -289,6 +290,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     localStorage.setItem('honestcv.dashboardView', v)
   }
   const [sortBy, setSortBy] = useState<'edited' | 'created' | 'name'>('edited')
+  const [copyQuery, setCopyQuery] = useState('')
   const [folderFilter, setFolderFilter] = useState<string>('all')
   const [moving, setMoving] = useState<ResumeVersion | null>(null)
   const [moveNewName, setMoveNewName] = useState('')
@@ -354,15 +356,22 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       ? folderFilter
       : 'all'
   const sortedVersions = useMemo(() => {
-    const arr = versions.filter((v) =>
-      activeFolder === 'all' ? true : activeFolder === 'none' ? !v.folder : v.folder === activeFolder
+    const q = copyQuery.trim().toLowerCase()
+    const arr = versions.filter(
+      (v) =>
+        (activeFolder === 'all'
+          ? true
+          : activeFolder === 'none'
+            ? !v.folder
+            : v.folder === activeFolder) &&
+        (!q || v.name.toLowerCase().includes(q) || (v.folder ?? '').toLowerCase().includes(q))
     )
     if (sortBy === 'name') arr.sort((a, b) => a.name.localeCompare(b.name))
     else if (sortBy === 'created')
       arr.sort((a, b) => (b.createdAt ?? b.updatedAt) - (a.createdAt ?? a.updatedAt))
     else arr.sort((a, b) => b.updatedAt - a.updatedAt)
     return arr
-  }, [versions, sortBy, activeFolder])
+  }, [versions, sortBy, activeFolder, copyQuery])
   const folderGroups = useMemo(() => {
     if (activeFolder !== 'all' || folders.length === 0) return []
     return folders
@@ -782,6 +791,17 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
 
         {versions.length > 0 && (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+            <div className="relative">
+              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2" />
+              <input
+                type="search"
+                value={copyQuery}
+                onChange={(e) => setCopyQuery(e.target.value)}
+                placeholder="Search copies"
+                aria-label="Search saved copies by name or folder"
+                className="bg-card min-h-10 w-44 rounded-md border py-1 pr-2 pl-7 text-sm sm:min-h-8"
+              />
+            </div>
             <div className="flex items-center gap-1.5">
               <label htmlFor="version-sort" className="text-muted-foreground text-xs">
                 Sort saved copies
@@ -973,6 +993,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
 
         {view === 'list' && ungroupedVersions.length > 0 && (
           <ul className="mt-4 space-y-2">{ungroupedVersions.map((v) => versionRow(v))}</ul>
+        )}
+
+        {copyQuery.trim() !== '' && versions.length > 0 && sortedVersions.length === 0 && (
+          <p role="status" className="text-muted-foreground mt-4 text-sm">
+            No saved copies match “{copyQuery.trim()}”.
+          </p>
         )}
 
         {folderGroups.map(([f, list]) => {
