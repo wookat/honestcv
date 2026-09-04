@@ -9577,6 +9577,19 @@ function BundleToolDialog({
                 variant="outline"
                 size="sm"
                 className="min-h-10 sm:min-h-8"
+                onClick={() =>
+                  downloadText(
+                    kind === 'interview' ? `${title}\n\n${result}` : result,
+                    docFileName('txt')
+                  )
+                }
+              >
+                <Download /> TXT
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-10 sm:min-h-8"
                 title="Keep this document — reopen it anytime from My resumes"
                 onClick={() => {
                   const docTitle =

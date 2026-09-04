@@ -49,7 +49,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { scoreResume } from '@/lib/ats'
-import { professionalFileName } from '@/lib/download'
+import { downloadText, professionalFileName } from '@/lib/download'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { looksLikeLinkedInExport, parseResumeText } from '@/lib/importText'
 import {
@@ -404,7 +404,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     [folderGroups, sortedVersions]
   )
 
-  const docDownload = (d: CareerDoc, text: string, fmt: 'pdf' | 'docx', key: string) => (
+  const docDownload = (d: CareerDoc, text: string, fmt: 'pdf' | 'docx' | 'txt', key: string) => (
     <Button
       type="button"
       variant="outline"
@@ -424,7 +424,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 ? 'resignation-letter'
                 : 'interview-prep'
           const name = professionalFileName([letterhead.contact.fullName, base], fmt)
-          if (fmt === 'pdf') {
+          if (fmt === 'txt') {
+            downloadText(d.kind === 'interview' ? `${d.title}\n\n${text}` : text, name)
+          } else if (fmt === 'pdf') {
             const m = await import('@/lib/pdf')
             if (d.kind === 'interview') await m.downloadTextPdf(d.title, text, name)
             else await m.downloadLetterPdf(letterhead, text, name, d.signature)
@@ -1328,6 +1330,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   </Button>
                   {docDownload(d, d.text, 'pdf', `${d.id}-pdf`)}
                   {docDownload(d, d.text, 'docx', `${d.id}-docx`)}
+                  {docDownload(d, d.text, 'txt', `${d.id}-txt`)}
                   <Button
                     type="button"
                     variant="outline"
@@ -2107,6 +2110,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           <DialogFooter className="gap-2">
             {openDoc && docDownload(openDoc, docText, 'pdf', 'viewer-pdf')}
             {openDoc && docDownload(openDoc, docText, 'docx', 'viewer-docx')}
+            {openDoc && docDownload(openDoc, docText, 'txt', 'viewer-txt')}
             <Button
               type="button"
               variant="outline"
