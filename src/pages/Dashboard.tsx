@@ -1316,7 +1316,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     </p>
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                <div className="flex min-w-0 flex-wrap justify-end gap-1.5">
                   <Button
                     type="button"
                     variant="outline"
