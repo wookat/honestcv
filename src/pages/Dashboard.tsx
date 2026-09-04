@@ -431,13 +431,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         setDlError(null)
         try {
           const letterhead = draft ?? emptyResume()
-          const base =
-            d.kind === 'cover'
-              ? 'cover-letter'
-              : d.kind === 'resignation'
-                ? 'resignation-letter'
-                : 'interview-prep'
-          const name = professionalFileName([letterhead.contact.fullName, base], fmt)
+          const name = professionalFileName([letterhead.contact.fullName, d.title], fmt)
           if (fmt === 'txt') {
             downloadText(d.kind === 'interview' ? `${d.title}\n\n${text}` : text, name)
           } else if (fmt === 'pdf') {
