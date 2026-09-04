@@ -228,14 +228,23 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     jobDescription: string
   } | null>(null)
   const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
-  const [docStorageError, setDocStorageError] = useState(false)
+  const [storageError, setStorageError] = useState(false)
   /** Applies a document mutation; surfaces the storage-full alert when nothing was written. */
   const applyDocs = (next: CareerDoc[] | null): boolean => {
     if (next === null) {
-      setDocStorageError(true)
+      setStorageError(true)
       return false
     }
     setDocs(next)
+    return true
+  }
+  /** Applies a resume-copy mutation; surfaces the storage-full alert when nothing was written. */
+  const applyVersions = (next: ResumeVersion[] | null): boolean => {
+    if (next === null) {
+      setStorageError(true)
+      return false
+    }
+    setVersions(next)
     return true
   }
   // On /documents the type filter lives in the query string so refresh/share keeps your place.
@@ -355,12 +364,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const moveVersionTo = (folder: string | undefined) => {
     if (!moving) return
     if (moving === 'bulk') {
-      let next: ResumeVersion[] = versions
-      for (const id of bulkSelected) next = updateResumeVersion(id, { folder })
-      setVersions(next)
+      let next: ResumeVersion[] | null = versions
+      for (const id of bulkSelected) {
+        next = updateResumeVersion(id, { folder })
+        if (next === null) break
+      }
+      if (!applyVersions(next)) return
       setBulkIds(new Set())
-    } else {
-      setVersions(updateResumeVersion(moving.id, { folder }))
+    } else if (!applyVersions(updateResumeVersion(moving.id, { folder }))) {
+      return
     }
     setMoving(null)
     setMoveNewName('')
@@ -375,10 +387,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   /** Selection pruned to copies that still exist. */
   const bulkSelected = versions.filter((v) => bulkIds.has(v.id)).map((v) => v.id)
   const renameFolder = (from: string, to: string) => {
-    let next: ResumeVersion[] = versions
-    for (const v of versions)
-      if (v.folder === from) next = updateResumeVersion(v.id, { folder: to })
-    setVersions(next)
+    let next: ResumeVersion[] | null = versions
+    for (const v of versions) {
+      if (v.folder !== from) continue
+      next = updateResumeVersion(v.id, { folder: to })
+      if (next === null) break
+    }
+    if (!applyVersions(next)) return
     setCollapsedFolders((c) => {
       const updated = c.map((x) => (x === from ? to : x))
       localStorage.setItem('honestcv.dashboardFoldersCollapsed', JSON.stringify(updated))
@@ -386,10 +401,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     })
   }
   const removeFolder = (name: string) => {
-    let next: ResumeVersion[] = versions
-    for (const v of versions)
-      if (v.folder === name) next = updateResumeVersion(v.id, { folder: undefined })
-    setVersions(next)
+    let next: ResumeVersion[] | null = versions
+    for (const v of versions) {
+      if (v.folder !== name) continue
+      next = updateResumeVersion(v.id, { folder: undefined })
+      if (next === null) break
+    }
+    applyVersions(next)
   }
   const folders = useMemo(() => {
     const names = new Set<string>()
@@ -583,9 +601,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
 
   const startNewResume = () => {
     if (draft && newKeepCopy && !activeCopy) {
-      setVersions(
-        saveResumeVersion(draft.targetRole || draft.contact.fullName || 'Untitled resume', draft)
+      if (
+        !applyVersions(
+          saveResumeVersion(draft.targetRole || draft.contact.fullName || 'Untitled resume', draft)
+        )
       )
+        return
     }
     setActiveVersionId(null)
     saveResume({
@@ -627,7 +648,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         size="sm"
         className="min-h-10 sm:min-h-8"
         title="Duplicate this copy"
-        onClick={() => setVersions(duplicateResumeVersion(v.id))}
+        onClick={() => applyVersions(duplicateResumeVersion(v.id))}
       >
         <Copy className="size-3.5" />
         <span className="sr-only">Duplicate {v.name}</span>
@@ -1034,7 +1055,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     size="sm"
                     className="min-h-10 gap-1 sm:min-h-8"
                     onClick={() =>
-                      setVersions(
+                      applyVersions(
                         saveResumeVersion(
                           draft.targetRole || draft.contact.fullName || 'Untitled copy',
                           draft
@@ -1823,8 +1844,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               onClick={() => {
                 if (!editing) return
                 const current = versions.find((v) => v.id === editing.id)
-                if (current) {
-                  setVersions(
+                if (
+                  current &&
+                  !applyVersions(
                     updateResumeVersion(editing.id, {
                       name: editing.name.trim() || current.name,
                       folder: editing.folder.trim() || undefined,
@@ -1837,7 +1859,8 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                       },
                     })
                   )
-                }
+                )
+                  return
                 setEditing(null)
               }}
             >
@@ -1862,12 +1885,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setVersions(
-                    saveResumeVersion(
-                      draft.targetRole || draft.contact.fullName || 'Untitled copy',
-                      draft
+                  if (
+                    !applyVersions(
+                      saveResumeVersion(
+                        draft.targetRole || draft.contact.fullName || 'Untitled copy',
+                        draft
+                      )
                     )
                   )
+                    return
                   if (confirmOpen) openCopy(confirmOpen)
                 }}
               >
@@ -1900,12 +1926,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setVersions(
-                    saveResumeVersion(
-                      draft.targetRole || draft.contact.fullName || 'Untitled copy',
-                      draft
+                  if (
+                    !applyVersions(
+                      saveResumeVersion(
+                        draft.targetRole || draft.contact.fullName || 'Untitled copy',
+                        draft
+                      )
                     )
                   )
+                    return
                   if (confirmImport) openImported(confirmImport)
                 }}
               >
@@ -1999,7 +2028,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                         : `Resignation letter — ${e.role}`
                     const doc = saveCareerDoc(e.kind, title, e.text)
                     if (!doc) {
-                      setDocStorageError(true)
+                      setStorageError(true)
                       return
                     }
                     setDocs(listCareerDocs())
@@ -2247,8 +2276,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               onClick={() => {
                 if (confirmDelete) {
                   const index = versions.findIndex((v) => v.id === confirmDelete.id)
+                  if (!applyVersions(deleteResumeVersion(confirmDelete.id))) {
+                    setConfirmDelete(null)
+                    return
+                  }
                   revokeShareLinksFor([confirmDelete.id])
-                  setVersions(deleteResumeVersion(confirmDelete.id))
                   setUndoDelete({
                     kind: 'copy',
                     version: confirmDelete,
@@ -2293,8 +2325,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   .map((version, index) => ({ version, index }))
                   .filter((e) => bulkIds.has(e.version.id))
                 if (entries.length > 0) {
+                  if (!applyVersions(deleteResumeVersions(entries.map((e) => e.version.id)))) {
+                    setConfirmBulkDelete(false)
+                    return
+                  }
                   revokeShareLinksFor(entries.map((e) => e.version.id))
-                  setVersions(deleteResumeVersions(entries.map((e) => e.version.id)))
                   setUndoDelete({ kind: 'copies', entries })
                 }
                 setBulkIds(new Set())
@@ -2485,7 +2520,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         reason="Downloading your resume as PDF or DOCX is the one thing we charge for — once, not monthly."
       />
 
-      {docStorageError && (
+      {storageError && (
         <div
           role="alert"
           className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
@@ -2497,7 +2532,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             type="button"
             aria-label="Dismiss"
             className="text-muted-foreground hover:text-foreground"
-            onClick={() => setDocStorageError(false)}
+            onClick={() => setStorageError(false)}
           >
             <X className="size-4" />
           </button>
@@ -2520,11 +2555,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             variant="outline"
             onClick={() => {
               if (undoDelete.kind === 'copy') {
-                setVersions(restoreResumeVersion(undoDelete.version, undoDelete.index))
+                if (!applyVersions(restoreResumeVersion(undoDelete.version, undoDelete.index)))
+                  return
               } else if (undoDelete.kind === 'copies') {
-                let next: ResumeVersion[] = versions
-                for (const e of undoDelete.entries) next = restoreResumeVersion(e.version, e.index)
-                setVersions(next)
+                let next: ResumeVersion[] | null = versions
+                for (const e of undoDelete.entries) {
+                  next = restoreResumeVersion(e.version, e.index)
+                  if (next === null) break
+                }
+                if (!applyVersions(next)) return
               } else if (!applyDocs(restoreCareerDoc(undoDelete.doc, undoDelete.index))) {
                 return
               }

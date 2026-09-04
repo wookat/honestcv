@@ -15,6 +15,7 @@ import {
   Lightbulb,
   Search,
   StickyNote,
+  X,
 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
@@ -157,6 +158,7 @@ export default function Jobs() {
   const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
   const [reportOpenId, setReportOpenId] = useState<string | null>(null)
   const [confirmUntrack, setConfirmUntrack] = useState<JobListing | null>(null)
+  const [storageError, setStorageError] = useState(false)
   const [followUpDraft, setFollowUpDraft] = useState<{ subject: string; body: string } | null>(
     null
   )
@@ -415,6 +417,10 @@ export default function Jobs() {
       },
       'Job applications'
     )
+    if (!version) {
+      setStorageError(true)
+      return null
+    }
     if (!listPipeline().some((e) => e.job.id === job.id)) upsertPipeline(job, 'saved')
     setPipeline(setPipelineVersion(job.id, version.id))
     return version
@@ -437,6 +443,7 @@ export default function Jobs() {
   const targetResume = (job: JobListing, intent: 'target' | 'cover') => {
     if (intent === 'target') {
       const version = linkedVersion(job.id) ?? prepareTargetedCopy(job)
+      if (!version) return
       saveResume(version.data)
       setActiveVersionId(version.id)
       void navigate('/builder')
@@ -1663,6 +1670,25 @@ export default function Jobs() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {storageError && (
+        <div
+          role="alert"
+          className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+        >
+          <span className="text-destructive min-w-0">
+            Not saved — your browser storage is full. Free up space and try again.
+          </span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setStorageError(false)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

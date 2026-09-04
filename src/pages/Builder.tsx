@@ -307,10 +307,10 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' | 'error' {
     window.clearTimeout(t.current)
     t.current = window.setTimeout(() => {
       const ok = saveResume(resume)
-      syncActiveVersion(resume)
+      const synced = syncActiveVersion(resume)
       recordResumeSnapshot(resume)
       pending.current = null
-      setState(ok ? 'saved' : 'error')
+      setState(ok && synced ? 'saved' : 'error')
     }, 400)
     return () => window.clearTimeout(t.current)
   }, [resume])
@@ -1027,6 +1027,16 @@ export default function Builder() {
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [versionName, setVersionName] = useState('')
+  const [copyStorageError, setCopyStorageError] = useState(false)
+  /** Applies a copy mutation; surfaces the storage-full alert when nothing was written. */
+  const applyVersions = (next: ResumeVersion[] | null): boolean => {
+    if (next === null) {
+      setCopyStorageError(true)
+      return false
+    }
+    setVersions(next)
+    return true
+  }
   const [activeVersionId, setActiveVersionIdState] = useState<string | null>(() =>
     getActiveVersionId()
   )
@@ -1053,8 +1063,8 @@ export default function Builder() {
   const commitRename = (v: ResumeVersion) => {
     const name = renameText.trim() || v.name
     const folder = renameFolder.trim() || undefined
-    if (name !== v.name || folder !== v.folder)
-      setVersions(updateResumeVersion(v.id, { name, folder }))
+    if ((name !== v.name || folder !== v.folder) && !applyVersions(updateResumeVersion(v.id, { name, folder })))
+      return
     setRenamingId(null)
   }
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
@@ -8337,7 +8347,13 @@ export default function Builder() {
           if (fmt) void download(fmt)
         }}
       />
-      <Dialog open={versionsOpen} onOpenChange={setVersionsOpen}>
+      <Dialog
+        open={versionsOpen}
+        onOpenChange={(open) => {
+          setVersionsOpen(open)
+          if (!open) setCopyStorageError(false)
+        }}
+      >
         <DialogContent
           className="sm:max-w-lg"
           onEscapeKeyDown={(e) => {
@@ -8374,7 +8390,7 @@ export default function Builder() {
                     'Untitled copy',
                   resume
                 )
-                setVersions(next)
+                if (!applyVersions(next) || next === null) return
                 linkVersion(next[0]?.id ?? null)
                 setVersionName('')
               }}
@@ -8382,6 +8398,11 @@ export default function Builder() {
               Save current as copy
             </Button>
           </div>
+          {copyStorageError && (
+            <p role="alert" className="text-destructive text-xs">
+              Not saved — your browser storage is full. Free up space and try again.
+            </p>
+          )}
           {versions.length === 0 ? (
             <p className="text-muted-foreground text-sm">No saved copies yet.</p>
           ) : (
@@ -8461,7 +8482,7 @@ export default function Builder() {
                       size="sm"
                       className="h-10 w-10 p-0 text-xs sm:h-7 sm:w-7"
                       aria-label={`Duplicate copy ${v.name}`}
-                      onClick={() => setVersions(duplicateResumeVersion(v.id))}
+                      onClick={() => applyVersions(duplicateResumeVersion(v.id))}
                     >
                       <Copy className="size-3.5" />
                     </Button>
@@ -8485,8 +8506,8 @@ export default function Builder() {
                       size="sm"
                       className="text-destructive h-10 text-xs sm:h-7"
                       onClick={() => {
+                        if (!applyVersions(deleteResumeVersion(v.id))) return
                         revokeShareLinksFor([v.id])
-                        setVersions(deleteResumeVersion(v.id))
                         if (v.id === activeVersionId) linkVersion(null)
                       }}
                     >
