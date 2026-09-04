@@ -1220,15 +1220,18 @@ export function listResumeVersions(): ResumeVersion[] {
   }
 }
 
-function persistVersions(versions: ResumeVersion[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistVersions(versions: ResumeVersion[]): boolean {
   try {
     localStorage.setItem(VERSIONS_KEY, JSON.stringify(versions))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
+/** Returns null when the copy could not be persisted (storage full). */
+export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] | null {
   const existing = listResumeVersions()
   const versions = [
     {
@@ -1240,12 +1243,15 @@ export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
     },
     ...existing,
   ]
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
 /** Save a new copy and return it (unlike saveResumeVersion, which returns the list). */
-export function createResumeVersion(name: string, data: Resume, folder?: string): ResumeVersion {
+export function createResumeVersion(
+  name: string,
+  data: Resume,
+  folder?: string
+): ResumeVersion | null {
   const version: ResumeVersion = {
     id: newId(),
     name: uniqueVersionName(name, listResumeVersions()),
@@ -1254,21 +1260,19 @@ export function createResumeVersion(name: string, data: Resume, folder?: string)
     ...(folder?.trim() ? { folder: folder.trim() } : {}),
     data,
   }
-  persistVersions([version, ...listResumeVersions()])
-  return version
+  return persistVersions([version, ...listResumeVersions()]) ? version : null
 }
 
-export function renameResumeVersion(id: string, name: string): ResumeVersion[] {
+export function renameResumeVersion(id: string, name: string): ResumeVersion[] | null {
   const versions = listResumeVersions().map((v) => (v.id === id ? { ...v, name } : v))
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
 /** Organizational changes (name/folder) keep the edit timestamp; only content changes bump it. */
 export function updateResumeVersion(
   id: string,
   patch: { name?: string; folder?: string; data?: Resume }
-): ResumeVersion[] {
+): ResumeVersion[] | null {
   const versions = listResumeVersions().map((v) => {
     if (v.id !== id) return v
     const contentChanged =
@@ -1276,8 +1280,7 @@ export function updateResumeVersion(
       JSON.stringify(sanitizeResume(patch.data)) !== JSON.stringify(sanitizeResume(v.data))
     return { ...v, ...patch, ...(contentChanged ? { updatedAt: Date.now() } : {}) }
   })
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
 /** Copies need distinct names; number a new copy when its name is already taken. */
@@ -1294,7 +1297,7 @@ function duplicateName(source: string, taken: Set<string>): string {
   }
 }
 
-export function duplicateResumeVersion(id: string): ResumeVersion[] {
+export function duplicateResumeVersion(id: string): ResumeVersion[] | null {
   const existing = listResumeVersions()
   const source = existing.find((v) => v.id === id)
   if (!source) return existing
@@ -1303,31 +1306,27 @@ export function duplicateResumeVersion(id: string): ResumeVersion[] {
     { ...source, id: newId(), name, updatedAt: Date.now(), createdAt: Date.now() },
     ...existing,
   ]
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
-export function deleteResumeVersion(id: string): ResumeVersion[] {
+export function deleteResumeVersion(id: string): ResumeVersion[] | null {
   const versions = listResumeVersions().filter((v) => v.id !== id)
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
-export function deleteResumeVersions(ids: readonly string[]): ResumeVersion[] {
+export function deleteResumeVersions(ids: readonly string[]): ResumeVersion[] | null {
   const drop = new Set(ids)
   const versions = listResumeVersions().filter((v) => !drop.has(v.id))
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
 /** Put a just-deleted copy back exactly as it was, at its previous position. */
-export function restoreResumeVersion(version: ResumeVersion, index = 0): ResumeVersion[] {
+export function restoreResumeVersion(version: ResumeVersion, index = 0): ResumeVersion[] | null {
   const versions = listResumeVersions()
   if (versions.some((v) => v.id === version.id)) return versions
   const at = Math.min(Math.max(index, 0), versions.length)
   const next = [...versions.slice(0, at), version, ...versions.slice(at)]
-  persistVersions(next)
-  return next
+  return persistVersions(next) ? next : null
 }
 
 /**
@@ -1354,16 +1353,17 @@ export function setActiveVersionId(id: string | null) {
   }
 }
 
-/** Write the draft back into its linked copy; unlink if the copy is gone. */
-export function syncActiveVersion(data: Resume) {
+/** Write the draft back into its linked copy; unlink if the copy is gone.
+ * Returns false when the copy write failed (storage full). */
+export function syncActiveVersion(data: Resume): boolean {
   const id = getActiveVersionId()
-  if (!id) return
+  if (!id) return true
   const versions = listResumeVersions()
   if (!versions.some((v) => v.id === id)) {
     setActiveVersionId(null)
-    return
+    return true
   }
-  persistVersions(
+  return persistVersions(
     versions.map((v) => (v.id === id ? { ...v, data, updatedAt: Date.now() } : v))
   )
 }
