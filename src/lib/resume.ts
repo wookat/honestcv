@@ -1273,12 +1273,22 @@ export function updateResumeVersion(
   return versions
 }
 
+function duplicateName(source: string, taken: Set<string>): string {
+  const base = source.replace(/ \((?:copy|\d+)\)$/, '')
+  for (let n = 2; ; n++) {
+    const candidate = `${base} (${n})`
+    if (!taken.has(candidate)) return candidate
+  }
+}
+
 export function duplicateResumeVersion(id: string): ResumeVersion[] {
-  const source = listResumeVersions().find((v) => v.id === id)
-  if (!source) return listResumeVersions()
+  const existing = listResumeVersions()
+  const source = existing.find((v) => v.id === id)
+  if (!source) return existing
+  const name = duplicateName(source.name, new Set(existing.map((v) => v.name)))
   const versions = [
-    { ...source, id: newId(), name: `${source.name} (copy)`, updatedAt: Date.now(), createdAt: Date.now() },
-    ...listResumeVersions(),
+    { ...source, id: newId(), name, updatedAt: Date.now(), createdAt: Date.now() },
+    ...existing,
   ]
   persistVersions(versions)
   return versions
