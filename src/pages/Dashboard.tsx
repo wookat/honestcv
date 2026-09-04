@@ -991,7 +991,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           </div>
         )}
 
-        <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${versions.length > 0 ? 'mt-3' : 'mt-6'}`}>
+        <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 ${versions.length > 0 ? 'mt-3' : 'mt-6'}`}>
           {draft ? (
             <div className="bg-card flex flex-col rounded-md border shadow-sm">
               <Thumb resume={draft} />
@@ -1160,7 +1160,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               </div>
               {!isCollapsed &&
                 (view === 'grid' ? (
-                  <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {list.map((v) => versionCard(v))}
                   </div>
                 ) : (
@@ -1438,7 +1438,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     : `No samples match “${exampleQuery}” — try another role or clear the search.`}
               </p>
             ) : (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredExamples.slice(0, 9).map((e) => (
                   <div
                     key={e.slug}
