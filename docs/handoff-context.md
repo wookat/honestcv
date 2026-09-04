@@ -1026,3 +1026,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：ats.ts check 形状加可选 na（not applicable，无内容可查）；各 factory 输入为空时置 na（无条目/无日期/无 bullet 行/无文本段/未知页数），scoreResume 内联的 Employment dates listed（无命名条目）与 Skills grouped into categories（skills 空）同理；finalize 在算 structure 比例前过滤 na 并只返回 applicable checks——全部消费方（分类行/清单计数/guidance 权重/readiness/assistant 摘要/Fixed chips）零改动自然收敛。始终适用的 8 项（contact/summary/experience/quantified/skills/education/word count/LinkedIn）保证分母非零。
 - 语义：空简历 no-JD 得 11/100、readiness not-yet；满内容简历所有检查均适用，得分与旧公式一致；文本 checker 经共享 factory 同语义；页数未知时 page 检查不再计入（此前恒 pass）。
 - 本地：oracle 20/20（.tmp-smoke/r375_oracle.ts）、tsc/eslint/build 绿。
+
+## R376 — Target 面板关键词不再列自己的职位头衔词 (2026-08-31)
+- 闭环 R357 SOP-04 银行观察：targetRole "Product Manager" 时 Builder Target job 面板/分诊/助手状态/tailoring 报告仍把 bare "manager" 列为待补关键词（R356 只在面试辅导层排除）。一手实证 .tmp-smoke/r376_probe.ts：matchReport missing 含 manager。方案 docs/plan-r376-role-aware-keywords.md。
+- 实现：ats.ts 增 roleTokensOf/withoutRoleTokens（与 R356 同分词，多词短语从不排除）；scoreResume 按 resume.targetRole 过滤 extractKeywords 结果（在 ignoredKeywords 拆分前）；matchReport 增可选第三参 targetRole，Builder resumeGaps 与 AssistantPanel 状态行传 resume.targetRole。关键词 % 按过滤后集合重算（分子分母同降，诚实）。
+- 有意不动：Jobs.tsx matchScore/matchReport（对任意职位板 JD 比对，用户自身 targetRole 不是该职位头衔）、/ats-checker scoreResumeText（无 role 概念）、手动 ignoredKeywords 机制。空/空白 role 字节不变。
+- 本地：oracle 19/19（.tmp-smoke/r376_oracle.ts）+ r375 20/20 + r373 11/11 回归、tsc/eslint/build 绿。

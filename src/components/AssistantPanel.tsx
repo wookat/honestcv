@@ -168,7 +168,7 @@ export function AssistantPanel({
   onLocate?: (action: AssistantAction) => void
 }) {
   // Live tailoring status — same helper as the Target job panel and /jobs report
-  const report = matchReport(resumeToPlainText(resume), jobDescription)
+  const report = matchReport(resumeToPlainText(resume), jobDescription, resume.targetRole)
 
   const [turns, setTurns] = useState<ChatMsg[]>(loadChat)
   const [input, setInput] = useState('')
