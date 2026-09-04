@@ -964,3 +964,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环源码+生产实证缺陷：文档查看器（Dashboard/documents Open 对话框）文本编辑只存于 docText state，Esc/X/遮罩关闭无条件 setOpenDoc(null) 静默丢弃未保存编辑，且对话框描述写着 "edits are saved to this browser" 有误导；Builder 工具对话框（R333）与 tailor 对话框（R344）均有弃稿确认，查看器是最后一个没有守卫的编辑对话框。方案 docs/plan-r364-viewer-discard-confirm.md。
 - 实现：viewer Dialog onOpenChange 关闭分支——docText !== openDoc.text 时 window.confirm(`Discard unsaved changes to "<title>"?`)，Cancel 保留对话框与编辑，OK 照旧关闭丢弃；干净打开/已保存关闭免确认；Save changes 按钮直接 setOpenDoc(null) 天然绕过守卫（保存即关闭为既有设计）；签名增删即时持久化不触发守卫。
 - 本地：tsc/eslint/build 绿。生产复验（index-Boj-c-of.js / Dashboard-BS2-Xzuy.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：三关闭路径干净免确认、脏编辑 Esc 出精确文案且 Cancel 保留/OK 后存储与编辑前字节一致、Save 后关闭免确认、签名单独增删免确认、R363 rename/viewer TXT 用未保存文本/PDF 标题/删除 undo/375 光暗全回归。QA 方法注：headless CDP 下原生 confirm 会卡死标签页，经 addScriptToEvaluateOnNewDocument 覆写断言文案与分支后还原（已入测试 skill）。
+
+## R365 — 求职文档复制 (2026-08-31)
+- 闭环审计观察：文档行只有 Open/Rename/PDF/DOCX/TXT/Delete，无复制——为另一家公司改一封已存 cover letter 只能原地改（丢原稿）或再花一次 AI 请求；同页副本已有 duplicateResumeVersion（R358 编号命名），文档是最后一个没有 duplicate 的 dashboard 对象。方案 docs/plan-r365-duplicate-career-docs.md。
+- 实现：documents.ts 新增 duplicateCareerDoc(id)——复制 kind/text/signature，标题按 R358 规则（剥一层尾部 " (copy)"/" (n)" 后取最小空闲 "base (n)" n>=2），新 id、updatedAt=now、插入列表顶部、源文档字节不动；Dashboard 行 Rename 后新增 Copy 图标按钮（sr-only "Duplicate <title>"）。
+- 本地：oracle 10/10（.tmp-smoke/r365_oracle.ts，跑法 npx tsx --tsconfig tsconfig.app.json）、tsc/eslint/build 绿。生产复验（index-CDh7rooQ.js / Dashboard-Cnbs4qCz.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：(2)/(3)、复制 "(2)" 得 (4)、"(copy)"→(2)、签名随拷、源字节不动、副本独立（rename/编辑保存/删除+undo）、副本导出用副本标题、R364 守卫回归、375 光暗 7 按钮行严格无溢出。
