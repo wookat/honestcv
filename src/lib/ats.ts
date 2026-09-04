@@ -742,6 +742,18 @@ export function extractKeywords(jd: string, limit = 30): string[] {
     .map(([k]) => k)
 }
 
+/** Tokens of the user's own target job title — noise as resume keywords, not skills. */
+function roleTokensOf(role: string): Set<string> {
+  return new Set(role.toLowerCase().split(/[^a-z0-9+#]+/).filter(Boolean))
+}
+
+/** Drop single-word keywords that are just the target role's title words; phrases always stay. */
+function withoutRoleTokens(keywords: string[], targetRole: string): string[] {
+  const roleTokens = roleTokensOf(targetRole.trim())
+  if (roleTokens.size === 0) return keywords
+  return keywords.filter((kw) => kw.includes(' ') || !roleTokens.has(kw))
+}
+
 const REQUIREMENTS_HEADING_RE =
   /^.*\b(requirements|qualifications|must[- ]haves?|what you.ll need|what we.re looking for|who you are)\b.*$/im
 
@@ -802,8 +814,12 @@ export interface MatchReport {
 }
 
 /** Per-keyword breakdown behind matchScore — same extraction, matching and rounding. */
-export function matchReport(resumeTextRaw: string, jd: string): MatchReport | null {
-  const keywords = jd.trim() ? extractKeywords(jd) : []
+export function matchReport(
+  resumeTextRaw: string,
+  jd: string,
+  targetRole = ''
+): MatchReport | null {
+  const keywords = withoutRoleTokens(jd.trim() ? extractKeywords(jd) : [], targetRole)
   if (keywords.length === 0) return null
   const resumeText = resumeTextRaw.toLowerCase()
   const resumeTokens = matchTokenSet(tokenize(resumeText))
@@ -976,7 +992,7 @@ export function scoreResume(
   const resumeTokens = matchTokenSet(resumeTokenList)
 
   const ignoredSet = new Set((resume.ignoredKeywords ?? []).map((k) => k.toLowerCase()))
-  const allKeywords = jd.trim() ? extractKeywords(jd) : []
+  const allKeywords = withoutRoleTokens(jd.trim() ? extractKeywords(jd) : [], resume.targetRole)
   const ignored = allKeywords.filter((kw) => ignoredSet.has(kw))
   const keywords = allKeywords.filter((kw) => !ignoredSet.has(kw))
   const matched: string[] = []
