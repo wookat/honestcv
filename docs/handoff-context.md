@@ -928,3 +928,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 两个确证 P3 当轮修复：①duplicateResumeVersion() 追加 " (copy)" 致无限复合（×11 不可读）→ 改编号命名：剥离一层 " (copy)"/" (N)" 后取最小空闲 "${base} (n)" (n≥2)，与现有名去重；②dashboard 创建对话框已设 targetRole 时 /builder 向导仍从 Step 1 再问一次职位并焦点陷阱 → 向导状态从 resume 初始化：有 targetRole 直接 Step 2，wizardRole/wizardLevel 预填。开启守卫（R350）零改动。oracle .tmp-smoke/r358_oracle.ts 7/7。
 - 生产复验（index-CMcyuhvX.js / Dashboard-CH4hkiC3.js / Builder-DP3JFGQI.js / resume-B-yXyShJ.js）全绿零新 P0–P3：X→(2)→(3)、占用跳 (4)、删 (3) 后 gap-fill 回 (3)、legacy "(copy)"→"(2)"、undo/aria 短名；带 role 创建落 Step 2 无重复提问、Back 预填 role、示例排序优先匹配且选中后保留 role/level、无 role 回 Step 1、setupDone/?example= 守卫回归、375 暗色严格、基线还原。覆盖注：dialog level→Back 预填仅间接证明（select 选项为小写值）。
 - 审计观察未立案：副本列表无 bulk 操作/搜索框；助手 mock 需 {"text":...} 形；back/forward 在 builder 内不可区分（打开后剥离 ?assistant=1）。
+
+## R359 — 评分/引导链探索审计 + 健康报告 Fix→ 落到具体条目 (2026-08-31)
+- 探索审计（生产实测，零 AI）覆盖 Resume strength 卡/Score breakdown/ATS 结构类别/audit chips/粘性导航/关键词分诊/确定性重评/375 暗色键盘——全绿，唯一确证缺陷：健康报告 "3–6 bullet points per role" 的 Fix→ 只带 anchor:'experience'，跳转后 ring 闪整个 ~1472px Experience 区块、违规条目在折叠线以下。方案 docs/plan-r359-health-jump-timing.md（含两次根因迭代：先修 250ms 关闭延迟——只解决 section/键盘跳，再修目标解析）。
+- 修复：ats.ts check 类型增可选 entryId；bulletsPerEntryCheck 设 offender 的 entryId（Builder 路径传 e.id，文本版 checker 无 id 保持 undefined）；priorityFixes 透传；Score breakdown 两处 Fix→ 有 entryId 时优先 jumpEntry（居中+ring+自动展开），否则回退 section anchor。250ms 延迟保留。oracle .tmp-smoke/r359_oracle.ts 4/4。
+- 生产复验（index-OM0G13mp.js / Builder-BWdeVGgM.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：Priority fixes 与结构维度两路 Fix→ 均 ring 闪目标卡并居中（h650 卡 48–698/761）、折叠时自动展开、section anchor/Update JD/键盘 Enter 回归、文本版 /ats-checker deep link 不受影响、375 暗色严格。截图 /home/ubuntu/screenshots/r359fix2_*.png。
+- 澄清早前误报：expanded audit chip 弹层实现存在且正常——headless 无 hover 能力（(hover:hover)=false）致 group-hover 类不激活；hover-capable Chrome flags 与键盘 focus 均可复现弹层，已入测试 skill。
+- 测试注意（已入 skill）：/ats-checker "Fix in builder →" 触发原生 confirm() 会永久卡死 headless CDP 标签页——点击前需覆写 window.confirm。

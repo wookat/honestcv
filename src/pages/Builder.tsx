@@ -10307,18 +10307,18 @@ function HealthDialog({
 }) {
   const jump = (anchor: SectionAnchor) => {
     onClose()
-    requestAnimationFrame(() => onJump(anchor))
+    window.setTimeout(() => onJump(anchor), 250)
   }
   const jumpEntry = (id: string) => {
     onClose()
-    requestAnimationFrame(() => onJumpEntry(id))
+    window.setTimeout(() => onJumpEntry(id), 250)
   }
   const fixes = priorityFixes(ats, health)
   const structureFindings = ats.checks
     .filter((c) => !c.pass)
-    .map((c) => ({ text: `${c.label} \u2014 ${c.hint}`, anchor: c.anchor }))
+    .map((c) => ({ text: `${c.label} \u2014 ${c.hint}`, anchor: c.anchor, entryId: c.entryId }))
   const atsDimensions: (HealthDimension & {
-    richFindings?: { text: string; anchor?: SectionAnchor }[]
+    richFindings?: { text: string; anchor?: SectionAnchor; entryId?: string }[]
   })[] = [
     ...(ats.keywordScore !== null
       ? [
@@ -10383,7 +10383,9 @@ function HealthDialog({
                         <button
                           type="button"
                           className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
-                          onClick={() => f.anchor && jump(f.anchor)}
+                          onClick={() =>
+                            f.entryId ? jumpEntry(f.entryId) : f.anchor && jump(f.anchor)
+                          }
                         >
                           Fix →
                         </button>
@@ -10482,7 +10484,9 @@ function HealthDialog({
                         <button
                           type="button"
                           className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
-                          onClick={() => f.anchor && jump(f.anchor)}
+                          onClick={() =>
+                            f.entryId ? jumpEntry(f.entryId) : f.anchor && jump(f.anchor)
+                          }
                         >
                           Fix →
                         </button>

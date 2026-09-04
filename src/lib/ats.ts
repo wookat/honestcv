@@ -81,6 +81,8 @@ export interface AtsResult {
     hint: string
     anchor?: SectionAnchor
     category: CheckCategory
+    /** Builder entry the failing check points at, when it comes from one entry */
+    entryId?: string
   }[]
 }
 
@@ -664,10 +666,11 @@ const BULLETS_PER_ENTRY_LABEL = '3–6 bullet points per role'
 
 /** Per-entry bullet-count check: every role should carry 3–6 bullet points */
 function bulletsPerEntryCheck(
-  entries: { name: string; count: number }[]
+  entries: { name: string; count: number; id?: string }[]
 ): AtsResult['checks'][number] {
   const offender = entries.find((e) => e.count < 3 || e.count > 6)
   return {
+    entryId: offender?.id,
     label: BULLETS_PER_ENTRY_LABEL,
     pass: !offender,
     hint: offender
@@ -1053,6 +1056,7 @@ export function scoreResume(
         .map((e) => ({
           name: [stripInlineMarks(e.role).trim(), stripInlineMarks(e.company).trim()].filter(Boolean).join(' at '),
           count: e.bullets.filter((b) => b.trim()).length,
+          id: e.id,
         }))
     ),
     dateFormatCheck(
