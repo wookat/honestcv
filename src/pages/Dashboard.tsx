@@ -72,6 +72,7 @@ import {
   type Resume,
   type ResumeVersion,
   deleteResumeVersion,
+  deleteResumeVersions,
   duplicateResumeVersion,
   emptyResume,
   exampleToResume,
@@ -292,12 +293,16 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [sortBy, setSortBy] = useState<'edited' | 'created' | 'name'>('edited')
   const [copyQuery, setCopyQuery] = useState('')
   const [folderFilter, setFolderFilter] = useState<string>('all')
-  const [moving, setMoving] = useState<ResumeVersion | null>(null)
+  const [moving, setMoving] = useState<ResumeVersion | 'bulk' | null>(null)
   const [moveNewName, setMoveNewName] = useState('')
+  const [bulkMode, setBulkMode] = useState(false)
+  const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(new Set())
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   const [renamingFolder, setRenamingFolder] = useState<{ from: string; to: string } | null>(null)
   const [confirmRemoveFolder, setConfirmRemoveFolder] = useState<string | null>(null)
   const [undoDelete, setUndoDelete] = useState<
     | { kind: 'copy'; version: ResumeVersion; index: number }
+    | { kind: 'copies'; entries: { version: ResumeVersion; index: number }[] }
     | { kind: 'doc'; doc: CareerDoc; index: number }
     | null
   >(null)
@@ -325,10 +330,26 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     })
   const moveVersionTo = (folder: string | undefined) => {
     if (!moving) return
-    setVersions(updateResumeVersion(moving.id, { folder }))
+    if (moving === 'bulk') {
+      let next: ResumeVersion[] = versions
+      for (const id of bulkSelected) next = updateResumeVersion(id, { folder })
+      setVersions(next)
+      setBulkIds(new Set())
+    } else {
+      setVersions(updateResumeVersion(moving.id, { folder }))
+    }
     setMoving(null)
     setMoveNewName('')
   }
+  const toggleBulk = (id: string) =>
+    setBulkIds((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  /** Selection pruned to copies that still exist. */
+  const bulkSelected = versions.filter((v) => bulkIds.has(v.id)).map((v) => v.id)
   const renameFolder = (from: string, to: string) => {
     let next: ResumeVersion[] = versions
     for (const v of versions)
@@ -642,17 +663,30 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     </>
   )
 
+  const bulkCheckbox = (v: ResumeVersion) => (
+    <input
+      type="checkbox"
+      checked={bulkIds.has(v.id)}
+      onChange={() => toggleBulk(v.id)}
+      aria-label={`Select ${v.name}`}
+      className="accent-primary mt-0.5 size-4 shrink-0"
+    />
+  )
+
   const versionCard = (v: ResumeVersion) => (
     <div key={v.id} className="bg-card flex flex-col rounded-md border shadow-sm">
       <Thumb resume={{ ...emptyResume(), ...v.data }} />
       <div className="flex flex-1 flex-col gap-2 p-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{v.name}</p>
-          <p className="text-muted-foreground text-xs">
-            {editedAgo(v.updatedAt)} · ATS{' '}
-            {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
-            {v.folder ? ` · ${v.folder}` : ''}
-          </p>
+        <div className="flex items-start gap-2">
+          {bulkMode && bulkCheckbox(v)}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{v.name}</p>
+            <p className="text-muted-foreground text-xs">
+              {editedAgo(v.updatedAt)} · ATS{' '}
+              {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+              {v.folder ? ` · ${v.folder}` : ''}
+            </p>
+          </div>
         </div>
         <div className="mt-auto flex flex-wrap gap-1.5">{versionActions(v)}</div>
       </div>
@@ -664,13 +698,16 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       key={v.id}
       className="bg-card flex flex-col gap-2 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between"
     >
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{v.name}</p>
-        <p className="text-muted-foreground text-xs">
-          {editedAgo(v.updatedAt)} · ATS{' '}
-          {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
-          {v.folder ? ` · ${v.folder}` : ''}
-        </p>
+      <div className="flex items-start gap-2">
+        {bulkMode && bulkCheckbox(v)}
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{v.name}</p>
+          <p className="text-muted-foreground text-xs">
+            {editedAgo(v.updatedAt)} · ATS{' '}
+            {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+            {v.folder ? ` · ${v.folder}` : ''}
+          </p>
+        </div>
       </div>
       <div className="flex flex-wrap gap-1.5">{versionActions(v)}</div>
     </li>
@@ -817,6 +854,21 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 <option value="name">Name A–Z</option>
               </select>
             </div>
+            {versions.length > 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-pressed={bulkMode}
+                className={`min-h-10 sm:min-h-8 ${bulkMode ? 'border-primary ring-primary/40 ring-2' : ''}`}
+                onClick={() => {
+                  setBulkMode((v) => !v)
+                  setBulkIds(new Set())
+                }}
+              >
+                {bulkMode ? 'Done selecting' : 'Select…'}
+              </Button>
+            )}
             <div className="flex gap-1" role="group" aria-label="Saved copies view">
               <Button
                 type="button"
@@ -843,6 +895,63 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 <span className="sr-only">List view</span>
               </Button>
             </div>
+          </div>
+        )}
+
+        {bulkMode && (
+          <div
+            role="group"
+            aria-label="Bulk actions on saved copies"
+            className="bg-card mt-3 flex flex-wrap items-center gap-2 rounded-md border p-2"
+          >
+            <span className="text-muted-foreground text-xs" role="status">
+              {bulkSelected.length} selected
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 sm:min-h-8"
+              onClick={() => setBulkIds(new Set(sortedVersions.map((v) => v.id)))}
+            >
+              Select all shown
+            </Button>
+            {bulkSelected.length > 0 && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  onClick={() => {
+                    setMoveNewName('')
+                    setMoving('bulk')
+                  }}
+                >
+                  <FolderInput className="size-3.5" />
+                  Move to folder…
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive min-h-10 sm:min-h-8"
+                  onClick={() => setConfirmBulkDelete(true)}
+                >
+                  <Trash2 className="size-3.5" />
+                  Delete {bulkSelected.length}…
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="min-h-10 sm:min-h-8"
+                  onClick={() => setBulkIds(new Set())}
+                >
+                  Clear
+                </Button>
+              </>
+            )}
           </div>
         )}
 
@@ -2087,6 +2196,41 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         </DialogContent>
       </Dialog>
 
+      <Dialog open={confirmBulkDelete} onOpenChange={(o) => !o && setConfirmBulkDelete(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {bulkSelected.length} {bulkSelected.length === 1 ? 'copy' : 'copies'}?
+            </DialogTitle>
+            <DialogDescription>
+              This removes the selected copies from this browser permanently.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setConfirmBulkDelete(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                const entries = versions
+                  .map((version, index) => ({ version, index }))
+                  .filter((e) => bulkIds.has(e.version.id))
+                if (entries.length > 0) {
+                  setVersions(deleteResumeVersions(entries.map((e) => e.version.id)))
+                  setUndoDelete({ kind: 'copies', entries })
+                }
+                setBulkIds(new Set())
+                setConfirmBulkDelete(false)
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
         open={moving !== null}
         onOpenChange={(o) => {
@@ -2098,7 +2242,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Move "{moving?.name}" to a folder</DialogTitle>
+            <DialogTitle>
+              {moving === 'bulk'
+                ? `Move ${bulkSelected.length} ${bulkSelected.length === 1 ? 'copy' : 'copies'} to a folder`
+                : `Move "${moving?.name ?? ''}" to a folder`}
+            </DialogTitle>
             <DialogDescription>
               Folders group your saved copies on this dashboard — the copy itself is unchanged.
             </DialogDescription>
@@ -2108,14 +2256,14 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               <Button
                 key={f}
                 type="button"
-                variant={moving?.folder === f ? 'default' : 'outline'}
+                variant={moving !== 'bulk' && moving?.folder === f ? 'default' : 'outline'}
                 className="min-h-10 justify-start sm:min-h-8"
                 onClick={() => moveVersionTo(f)}
               >
                 {f}
               </Button>
             ))}
-            {moving?.folder && (
+            {(moving === 'bulk' || moving?.folder) && (
               <Button
                 type="button"
                 variant="outline"
@@ -2231,7 +2379,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
         >
           <span className="min-w-0 truncate">
-            Deleted "{undoDelete.kind === 'copy' ? undoDelete.version.name : undoDelete.doc.title}"
+            {undoDelete.kind === 'copies'
+              ? `Deleted ${undoDelete.entries.length} ${undoDelete.entries.length === 1 ? 'copy' : 'copies'}`
+              : `Deleted "${undoDelete.kind === 'copy' ? undoDelete.version.name : undoDelete.doc.title}"`}
           </span>
           <Button
             type="button"
@@ -2240,6 +2390,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             onClick={() => {
               if (undoDelete.kind === 'copy') {
                 setVersions(restoreResumeVersion(undoDelete.version, undoDelete.index))
+              } else if (undoDelete.kind === 'copies') {
+                let next: ResumeVersion[] = versions
+                for (const e of undoDelete.entries) next = restoreResumeVersion(e.version, e.index)
+                setVersions(next)
               } else {
                 setDocs(restoreCareerDoc(undoDelete.doc, undoDelete.index))
               }

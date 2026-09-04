@@ -1300,6 +1300,13 @@ export function deleteResumeVersion(id: string): ResumeVersion[] {
   return versions
 }
 
+export function deleteResumeVersions(ids: readonly string[]): ResumeVersion[] {
+  const drop = new Set(ids)
+  const versions = listResumeVersions().filter((v) => !drop.has(v.id))
+  persistVersions(versions)
+  return versions
+}
+
 /** Put a just-deleted copy back exactly as it was, at its previous position. */
 export function restoreResumeVersion(version: ResumeVersion, index = 0): ResumeVersion[] {
   const versions = listResumeVersions()
