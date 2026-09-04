@@ -9410,6 +9410,7 @@ function BundleToolDialog({
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
   const [savedId, setSavedId] = useState<string | null>(null)
+  const [saveDocFailed, setSaveDocFailed] = useState(false)
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -9494,6 +9495,7 @@ function BundleToolDialog({
     setResult('')
     setError('')
     setSavedId(null)
+    setSaveDocFailed(false)
     setFeedback('')
     setFeedbackError('')
     setFeedbackBusy(false)
@@ -9536,6 +9538,7 @@ function BundleToolDialog({
       `Practice session — ${role}\n${entries.length} of ${s.questions.length} questions answered\n\n${report ? `${report}\n\n` : ''}${transcript}`
     )
     setSavedId(null)
+    setSaveDocFailed(false)
     setSession(null)
     setQuestion('')
     setAnswer('')
@@ -9629,6 +9632,7 @@ function BundleToolDialog({
         })
         setResult(text)
         setSavedId(null)
+    setSaveDocFailed(false)
         if (freeRemaining !== null) onQuota(freeRemaining)
         return
       }
@@ -9657,6 +9661,7 @@ function BundleToolDialog({
             })
       setResult(text)
       setSavedId(null)
+    setSaveDocFailed(false)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
       setError((e as Error).message)
@@ -9910,7 +9915,7 @@ function BundleToolDialog({
                         ? `${company || 'Untitled'} — Resignation letter`
                         : `${resume.targetRole || 'Untitled'} — Interview prep`
                   if (savedId) {
-                    updateCareerDoc(savedId, { title: docTitle, text: result })
+                    setSaveDocFailed(updateCareerDoc(savedId, { title: docTitle, text: result }) === null)
                   } else {
                     const doc = saveCareerDoc(
                       kind === 'cover'
@@ -9921,6 +9926,8 @@ function BundleToolDialog({
                       docTitle,
                       result
                     )
+                    setSaveDocFailed(doc === null)
+                    if (!doc) return
                     if (kind === 'cover' && jobId) setPipelineCoverDoc(jobId, doc.id)
                     setSavedId(doc.id)
                   }
@@ -9937,6 +9944,11 @@ function BundleToolDialog({
                 )}
               </Button>
             </div>
+            {saveDocFailed && (
+              <p role="alert" className="text-destructive text-xs">
+                Not saved — your browser storage is full. Free up space and try again.
+              </p>
+            )}
           </>
         )}
         {kind === 'interview' && (

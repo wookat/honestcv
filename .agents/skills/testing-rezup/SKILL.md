@@ -1332,3 +1332,10 @@ CRITICAL: Fetch interception is per-CDP-session — if a script exits while a se
 - The assistant's quick-task chips ("Improve my ATS score", "Target job") are answered locally with no network — type a custom message to force a real `/api/ai/assistant` POST.
 - TailorDialog does not auto-run: click "Get tailoring suggestions" inside the dialog; closing it with unreviewed rows fires a native confirm.
 - Single-variant `/api/ai/rewrite` mock replies apply immediately to the resume, so byte-identity checks must compare against the value captured at dispatch.
+
+## R392 lessons — simulating localStorage-full
+
+- To simulate localStorage-full, fill `qa.fill.N` chunks of decreasing size down to **1 char** (headroom must be 0 — ~1KB left lets small doc writes succeed). Replacing a key with same/smaller JSON still succeeds at 0 headroom; to force a failed *update*, first shrink the stored value so the write must grow.
+- Documents card action buttons use generic `title` attrs ('Rename this document', 'Duplicate this document', 'Delete this document') — scope by card container text, not button title.
+- Letter examples live in `[aria-label="Letter examples"] button`; the cover-letter import input is `input[aria-label="Import a cover letter file"]` (use DOM.setFileInputFiles).
+- Always delete all qa.fill.* keys during restore, including at the START of the next script in case of a prior crash.
