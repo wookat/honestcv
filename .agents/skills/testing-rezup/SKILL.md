@@ -1348,3 +1348,9 @@ CRITICAL: Fetch interception is per-CDP-session — if a script exits while a se
 - Assistant opens via `button[title^='Resume assistant']` or `/builder?assistant=1`; mock replies need shape `{text, action:null, freeRemaining}`.
 - Assistant/rewrite paused requests escape to production if a script crashes mid-pump — wrap fulfill calls so exceptions still fail/fulfill pending requests before exit.
 - Deleting a copy writes a *smaller* array, which always fits at zero headroom — failed-delete branches can't be forced via quota; verify them by code review and test that delete still works with storage full.
+
+## R394 lessons
+
+- On /jobs, per-job status selects use `aria-label='Status of <title> at <company>'` and the bulk move select uses `aria-label='Move selected jobs to a status'`; the track button is the exact-text "Save" button (a loose /Save|Track/ regex hits the "Tracked (n)" tab first).
+- Notes save on textarea `#job-notes` blur; reminder is date input `#job-remind` (dispatch 'change'). Untracking a job with notes/timeline opens a "Stop tracking …?" confirm dialog.
+- Pipeline removals shrink `honestcv.jobPipeline`, so their storage-full failure branches cannot be quota-forced — test happy paths and note the branch as code-verified.
