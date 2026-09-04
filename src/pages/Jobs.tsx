@@ -462,17 +462,23 @@ export default function Jobs() {
     )
   }
 
-  /** Set the draft's target job and open the interview prep tools in the editor. */
+  /** Open the job's targeted copy (or aim the draft at the job) and open interview prep. */
   const openInterviewPrep = (job: JobListing) => {
-    const draft = loadResume() ?? emptyResume()
-    const next = {
-      ...draft,
-      targetRole: job.title,
-      targetCompany: job.company,
-      jobDescription: job.description,
+    const version = linkedVersion(job.id)
+    if (version) {
+      saveResume(version.data)
+      setActiveVersionId(version.id)
+    } else {
+      const draft = loadResume() ?? emptyResume()
+      const next = {
+        ...draft,
+        targetRole: job.title,
+        targetCompany: job.company,
+        jobDescription: job.description,
+      }
+      saveResume(next)
+      syncActiveVersion(next)
     }
-    saveResume(next)
-    syncActiveVersion(next)
     void navigate('/builder?doc=interview')
   }
 
