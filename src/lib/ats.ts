@@ -83,6 +83,8 @@ export interface AtsResult {
     category: CheckCategory
     /** Builder entry the failing check points at, when it comes from one entry */
     entryId?: string
+    /** Not applicable — the check had no content to inspect; dropped from scoring */
+    na?: boolean
   }[]
 }
 
@@ -183,6 +185,7 @@ function reverseChronCheck(
   return {
     label: REVERSE_CHRON_LABEL,
     pass: !offender,
+    na: keyed.length === 0 || undefined,
     hint: offender
       ? `"${offender}" appears below a less recent role — list your most recent position first (the Sort-by-date toggle fixes this in one click).`
       : REVERSE_CHRON_PASS_HINT,
@@ -274,6 +277,7 @@ function dateFormatCheck(dates: string[]): AtsResult['checks'][number] {
   return {
     label: 'Consistent date formatting',
     pass,
+    na: dates.every((d) => !d.trim()) || undefined,
     hint: pass
       ? 'Dates use one format — ATS parsers read your timeline consistently.'
       : `Dates mix formats ("${monthYear}" vs "${numeric}") — pick one style so ATS parsers read your timeline consistently.`,
@@ -307,6 +311,7 @@ function namedMonthDatesCheck(dates: string[]): AtsResult['checks'][number] {
   return {
     label: 'Dates use a written month',
     pass: !offender,
+    na: dates.every((d) => !d.trim()) || undefined,
     hint: offender
       ? `"${offender}" is numeric — write dates with a month name ("${namedMonthSuggestion(offender)}") so employers grasp your timeline at a glance.`
       : 'Dates use written month names — employers grasp your timeline at a glance.',
@@ -332,6 +337,7 @@ function pronounCheck(
   return {
     label: 'No first-person pronouns',
     pass: !found,
+    na: segments.every((s) => !s.text.trim()) || undefined,
     hint: found
       ? `Found "${found}" — drop first-person pronouns ("I", "me", "my") and lead with the action itself: "Led a team of 8", not "I led my team".`
       : 'Written in the implied first person — no "I", "me" or "my" for recruiters to trip over.',
@@ -370,6 +376,7 @@ function activeVoiceCheck(lines: string[]): AtsResult['checks'][number] {
   return {
     label: 'Active voice in bullet points',
     pass: !phrase,
+    na: lines.every((l) => !l.trim()) || undefined,
     hint: phrase
       ? `"${phrase}" is passive voice ("${line.length > 60 ? `${line.slice(0, 60)}…` : line}") — lead with an active verb so employers see your specific contribution.`
       : 'Bullets use active voice — employers see your specific contributions.',
@@ -408,6 +415,7 @@ function weakOpenerCheck(lines: string[]): AtsResult['checks'][number] {
   return {
     label: 'Strong bullet openers',
     pass: !opener,
+    na: lines.every((l) => !l.trim()) || undefined,
     hint: opener
       ? `"${line.length > 60 ? `${line.slice(0, 60)}…` : line}" opens with "${opener}" — lead with a strong action verb (Led, Built, Cut…) so employers see your impact first.`
       : 'Bullets open with strong action verbs — employers see your impact first.',
@@ -450,6 +458,7 @@ function buzzwordCheck(
   return {
     label: 'No empty buzzwords',
     pass: !found,
+    na: segments.every((s) => !s.text.trim()) || undefined,
     hint: found
       ? `"${found}" is an empty claim — replace it with a concrete, checkable fact (what you did, for whom, with what result).`
       : 'No generic buzzwords — your claims stay concrete and checkable.',
@@ -491,6 +500,7 @@ function fillerWordCheck(
   return {
     label: 'No filler words',
     pass: !found,
+    na: segments.every((s) => !s.text.trim()) || undefined,
     hint: found
       ? `"${found}" is a filler word — cut it and state the concrete fact directly ("Cut load time 40%", not "really improved various things").`
       : 'No filler words — every word carries weight and reads confident.',
@@ -508,6 +518,7 @@ function quantifiedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
   return {
     label: 'Quantified bullet points',
     pass,
+    na: lines.every((l) => !l.trim()) || undefined,
     hint: pass
       ? 'Enough bullets carry real numbers — your achievements are concrete and comparable.'
       : `Only ${quantified} of ${total} bullets ${quantified === 1 ? 'carries' : 'carry'} a number — quantify at least a third (scope, scale, %, time or money) so achievements are concrete.`,
@@ -524,6 +535,7 @@ function punctuatedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
   return {
     label: 'Punctuated bullet points',
     pass: !offender,
+    na: lines.every((l) => !l.trim()) || undefined,
     hint: offender
       ? `"${offender.length > 60 ? `${offender.slice(0, 60)}…` : offender}" — start each bullet with a capital letter and end it with a period so your resume reads professionally.`
       : 'Bullets are properly punctuated — capitalized starts and terminal periods read professionally.',
@@ -548,6 +560,7 @@ function bulletLengthCheck(lines: string[]): AtsResult['checks'][number] {
   return {
     label: 'Bullet points the right length',
     pass: !offender,
+    na: trimmed.length === 0 || undefined,
     hint: offender
       ? words < 4
         ? `"${quoted}" is only ${words} word${words === 1 ? '' : 's'} — describe what you did and the result (aim for 8–25 words).`
@@ -568,6 +581,7 @@ function pageLengthCheck(
     return {
       label: 'Fits the recommended page count',
       pass: true,
+      na: true,
       hint: 'Page count is measured from the live PDF preview in the builder.',
       anchor: 'experience',
       category: 'format',
@@ -618,6 +632,7 @@ function entryLocationsCheck(
   return {
     label: ENTRY_LOCATIONS_LABEL,
     pass: !offender,
+    na: entries.length === 0 || undefined,
     hint: offender
       ? `"${offender.name}" has no location — add a city (or "Remote") to every entry so employers can validate your experience.`
       : ENTRY_LOCATIONS_PASS_HINT,
@@ -673,6 +688,7 @@ function bulletsPerEntryCheck(
     entryId: offender?.id,
     label: BULLETS_PER_ENTRY_LABEL,
     pass: !offender,
+    na: entries.length === 0 || undefined,
     hint: offender
       ? `"${offender.name}" has ${offender.count} bullet point${offender.count === 1 ? '' : 's'} — aim for 3–6 per role so each entry shows enough impact without overwhelming the reader.`
       : 'Every role carries 3–6 bullet points — enough detail without overwhelming the reader.',
@@ -901,7 +917,8 @@ function finalize(
   checks: AtsResult['checks'],
   keywordDetail: KeywordDetail[]
 ): AtsResult {
-  const structureRatio = checks.filter((c) => c.pass).length / checks.length
+  const applicable = checks.filter((c) => !c.na)
+  const structureRatio = applicable.filter((c) => c.pass).length / applicable.length
   const structureScore = Math.round(structureRatio * 100)
   const keywordScore =
     keywords.length > 0 ? Math.round((matched.length / keywords.length) * 100) : null
@@ -909,7 +926,7 @@ function finalize(
     keywordScore !== null
       ? Math.round((keywordScore * 70 + structureScore * 30) / 100)
       : structureScore
-  return { score, matched, missing, ignored, keywordDetail, keywordScore, structureScore, checks }
+  return { score, matched, missing, ignored, keywordDetail, keywordScore, structureScore, checks: applicable }
 }
 
 /**
@@ -1013,6 +1030,8 @@ export function scoreResume(
       pass: resume.experience
         .filter((e) => e.role.trim() || e.company.trim())
         .every((e) => e.startDate.trim()),
+      na:
+        !resume.experience.some((e) => e.role.trim() || e.company.trim()) || undefined,
       hint: 'ATS parsers build your work timeline from dates — add a start date to every role.',
       anchor: 'experience',
       category: 'format',
@@ -1026,6 +1045,7 @@ export function scoreResume(
     },
     {
       label: 'Skills grouped into categories',
+      na: !resume.skills.trim() || undefined,
       pass:
         resume.skills.split(/[,\n]/).filter((s) => s.trim()).length < 8 ||
         skillLines(resume).some((l) => l.label),
