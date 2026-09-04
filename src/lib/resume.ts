@@ -1229,9 +1229,16 @@ function persistVersions(versions: ResumeVersion[]) {
 }
 
 export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
+  const existing = listResumeVersions()
   const versions = [
-    { id: newId(), name, updatedAt: Date.now(), createdAt: Date.now(), data },
-    ...listResumeVersions(),
+    {
+      id: newId(),
+      name: uniqueVersionName(name, existing),
+      updatedAt: Date.now(),
+      createdAt: Date.now(),
+      data,
+    },
+    ...existing,
   ]
   persistVersions(versions)
   return versions
@@ -1241,7 +1248,7 @@ export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
 export function createResumeVersion(name: string, data: Resume, folder?: string): ResumeVersion {
   const version: ResumeVersion = {
     id: newId(),
-    name,
+    name: uniqueVersionName(name, listResumeVersions()),
     updatedAt: Date.now(),
     createdAt: Date.now(),
     ...(folder?.trim() ? { folder: folder.trim() } : {}),
@@ -1271,6 +1278,12 @@ export function updateResumeVersion(
   })
   persistVersions(versions)
   return versions
+}
+
+/** Copies need distinct names; number a new copy when its name is already taken. */
+function uniqueVersionName(name: string, existing: readonly ResumeVersion[]): string {
+  const taken = new Set(existing.map((v) => v.name))
+  return taken.has(name) ? duplicateName(name, taken) : name
 }
 
 function duplicateName(source: string, taken: Set<string>): string {
