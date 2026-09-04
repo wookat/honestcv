@@ -1983,6 +1983,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         open={openDoc !== null}
         onOpenChange={(o) => {
           if (!o) {
+            if (
+              openDoc &&
+              docText !== openDoc.text &&
+              !window.confirm(`Discard unsaved changes to "${openDoc.title}"?`)
+            )
+              return
             setOpenDoc(null)
             setSignatureError('')
           }
