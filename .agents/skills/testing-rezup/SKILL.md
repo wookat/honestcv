@@ -1224,3 +1224,12 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Entry audit chips: expanded card shows a `span[tabindex=0]` "⚠ N" (aria "Role X: N suggestions"); collapsed card turns it into a real button ("— expand to review") whose click expands the entry. There is NO grouped popover — per-check explanations render inline under the bullets textarea ("⚠ Line 1: Capitalize…" + "Fix line N with AI"). Chip count updates live while typing (debounce ~1s).
 - Keyword triage card ("Is this missing keyword relevant…", 1 of N): "Add to Skills" appends the keyword to skills, bumps matched count and ATS/keyword scores immediately, and advances to the next keyword. Clearing #jd removes triage + keyword clauses (ATS card falls back to Structure-only + "Add a job description →" prompt). Scores are deterministic across reload.
 - Length meter ("Resume length: X page(s)") sits above the template Auto-fit row; >1 page swaps in trimming advice. Keyboard: Fix→ buttons are Tab-reachable in the dialog, but CDP `keyDown` alone won't activate them — dispatch rawKeyDown + char('\r') + keyUp to synthesize Enter clicks.
+
+## R361 dashboard bulk operations notes
+- Bulk toggle button text "Select…" (ellipsis char) / "Done selecting", aria-pressed; hidden with <2 saved copies.
+- Toolbar: `[role=group][aria-label="Bulk actions on saved copies"]`, status "<N> selected", buttons: Select all shown / Move to folder… / Delete N… / Clear (Move/Delete only when N>0).
+- Checkboxes: `input[type=checkbox][aria-label="Select <name>"]` on cards and list rows.
+- "Select all shown" REPLACES the selection with the currently visible (search+chip filtered) copies — it is not additive. Copies hidden by a later filter remain selected/counted.
+- Bulk move dialog: "Move N copies to a folder" with existing-folder buttons, "Remove from folder", and a new-folder input + "Create & move"; does not touch updatedAt or order.
+- Bulk delete confirm: "Delete N copies?" / "This removes the selected copies from this browser permanently."; undo bar role=status "Deleted N copies" + Undo restores localStorage byte-identically.
+- Per-copy "Open" with an existing draft shows an "Open \"<name>\"?" replace-draft dialog (Radix, not native confirm) — safe under headless CDP.
