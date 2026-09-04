@@ -1253,3 +1253,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R365 duplicate career docs notes
 - Copy button `button[title="Duplicate this document"]` (sr-only `Duplicate <title>`) sits between Rename and PDF. Numbering: strips one trailing " (copy)"/" (n)" from source title, then smallest free "base (n)" n>=2; copy gets new id + updatedAt=now, inserted at TOP of the list; source stays byte-identical.
 - Duplicates are fully independent docs (rename/edit/delete/undo don't touch the source); downloads from a copy use the copy's title where titles apply (interview TXT/PDF).
+
+## R366 per-copy share links notes
+- Share links live in `honestcv.shareLinks` (JSON map keyed by saved-copy versionId or 'draft'); legacy `honestcv.shareLink` migrates one-time to the FIRST scope that calls loadShareLink (the currently active copy), never clobbers an existing scoped entry, malformed legacy dropped silently.
+- Share dialog: access is a native `<select aria-label="Link access">` (off/view) — set via HTMLSelectElement value setter + change event; the published URL lives in an `<input>` (not innerText). Publish POST /api/share body: `{resume}` (+`{slug}` when custom slug typed, +`{id,token}` on "Publish latest version" republish). Revoke = DELETE /api/share/<id>. Mock both with Fetch interception (`*/api/share*`); 400 `{error}` renders the error string in the dialog.
+- The Copies dialog trigger button is labeled "Copies" with no active copy, but shows the ACTIVE COPY NAME once a copy is active. "Save current as copy" creates+activates a new copy. Opening a saved copy from /dashboard shows a Radix replace-draft dialog first.
+- Dashboard has "Open" buttons for both saved copies and docs — pick the doc row by adjacent Rename/Duplicate labels, not the first "Open".
