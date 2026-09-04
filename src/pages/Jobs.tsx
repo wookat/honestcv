@@ -97,17 +97,10 @@ const postedAgo = (iso: string) => {
 const shortDate = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 
-/** ms epoch → yyyy-mm-dd in the user's local calendar (for <input type="date">). */
-const toDateInput = (ms: number) => {
-  const d = new Date(ms)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
-
-/** yyyy-mm-dd → ms epoch at local midnight of that day. */
-const fromDateInput = (value: string) => {
-  const [y, m, d] = value.split('-').map(Number)
-  return new Date(y, m - 1, d).getTime()
+/** yyyy-mm-dd → "Mon D" using the day's components (no timezone shifting). */
+const shortDay = (day: string) => {
+  const [y, m, d] = day.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 const agoFromMs = (ms: number) => {
@@ -1372,18 +1365,15 @@ export default function Jobs() {
                         <input
                           id="job-remind"
                           type="date"
-                          value={entry.remindAt !== undefined ? toDateInput(entry.remindAt) : ''}
+                          value={entry.remindOn ?? ''}
                           onChange={(e) =>
                             setPipeline(
-                              setPipelineReminder(
-                                selected.id,
-                                e.target.value ? fromDateInput(e.target.value) : null
-                              )
+                              setPipelineReminder(selected.id, e.target.value || null)
                             )
                           }
                           className="border-input bg-background min-h-8 rounded-md border px-2.5 py-1 text-sm"
                         />
-                        {entry.remindAt !== undefined && (
+                        {entry.remindOn !== undefined && (
                           <button
                             type="button"
                             className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
@@ -1392,9 +1382,9 @@ export default function Jobs() {
                             Clear reminder
                           </button>
                         )}
-                        {entry.remindAt !== undefined && reminderDue(entry) && (
+                        {entry.remindOn !== undefined && reminderDue(entry) && (
                           <p className="text-xs font-medium text-amber-700">
-                            Reminder due {shortDate(entry.remindAt)} — consider following up.
+                            Reminder due {shortDay(entry.remindOn)} — consider following up.
                           </p>
                         )}
                       </div>
