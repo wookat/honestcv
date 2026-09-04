@@ -1195,3 +1195,11 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R352 save-indicator notes
 - The save indicator's role=status wrapper exists at all widths — assert icon vs text via the inner spans' computed display (`hidden xl:inline` text, `xl:hidden inline-flex` icon), not element presence. The storage-full alert is icon-only (TriangleAlert + sr-only text) below sm.
 - A wrapped flex item renders at its longest-line width, not its max-w cap — for narrow-viewport overflow checks, compare summed child widths against the viewport and isolate culprits by toggling display and re-reading scrollWidth. Run strict-overflow checks in the storage-full error state too.
+
+## R353 career documents notes
+- Letter tools open via /builder?doc=cover|resignation|interview; cover needs a non-empty resume.jobDescription (#jd textarea in Target job) or Generate errors inline. Cover fields: #company #cover-addressee #cover-tone #cover-highlights; resignation: #res-company #res-role #res-last-day #res-reason #res-tone. Selects accept the native value-setter + change event (unlike text inputs).
+- /documents: type-filter chips live in a [role=group] labeled "Filter documents by type" with counts in the label ("Cover letters (1)") — match with startsWith; the per-doc Delete buttons carry their label as sr-only textContent ("Delete <title>"), NOT aria-label. Delete → confirm dialog → "Deleted …" undo bar; Undo restores honestcv.careerDocs byte-identically.
+- Signature upload input is input[aria-label="Signature image"] (DOM.setFileInputFiles works); the letterhead preview then renders the PNG between the closing line and the typed name, and the exported letter PDF embeds it as an image XObject.
+- Letter exports are PDF/DOCX/Copy text only (no TXT download); filenames slug the letterhead name: <name-slug>-cover-letter.pdf / -resignation-letter.pdf. "Import a cover letter" uses input[aria-label="Import a cover letter file"] (.pdf/.docx/.txt) and titles the doc from the filename.
+- If Page.captureScreenshot times out on the backgrounded QA tab, call Page.bringToFront first — captures then succeed reliably.
+- Public example pages /cover-letter-examples/ and /resignation-letter-examples/ are static (no API calls), honor honestcv.theme='dark' on load, and have self-canonical link tags.

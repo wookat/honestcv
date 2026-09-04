@@ -900,3 +900,7 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 一手确证：Builder 工具栏 Saving…/Saved 为 hidden xl:inline，<1280px（全部手机/平板）无任何自动保存反馈（R351 QA 证实 375 处 display:none）；移动端适配是验收硬指标。方案 docs/plan-r352-mobile-save-indicator.md。
 - 实现：同槽位 <xl 渲染 icon-only role="status"（saving=Loader2 spinner、saved=Check，muted size-3.5，aria-label/title "Saving…"/"All changes saved"），xl+ 文本不变。
 - QA 抓到 P3 两轮闭环：R351 storage-full alert 在 375 使 header scrollWidth 386（溢出 11px）；max-w-32 wrap 不足（flex item 按最长行渲染宽度）→ 最终 <sm 改 icon-only destructive TriangleAlert + sr-only 全文 + title 提示，sm+ 保留文本。生产复验（index-CMulBl1A.js / Builder-oMjrj6mk.js，零 AI/分享/支付）全绿：375/768 icon 态与 aria、1440 文本不变、error 态 375 严格无溢出、恢复链、暗色、基线还原。截图 /home/ubuntu/screenshots/r352*.png。
+
+## R353 — 求职文档链探索审计（docs only） (2026-08-31)
+- Rezi changelog 无新条目（仍 2026-08 Week 4）。求职文档面（R173/R238/R246/R248/R302/R304/R305/R306 多轮功能）首次端到端生产审计：cover/resignation payload（addressee/tone/highlights/lastDay）、编辑/保存/更新、R333 弃稿确认、签名图上传入 letterhead 与 PDF、/documents 列表/预览/R326 URL 过滤/R320 删除撤销字节一致/R248 导入、PDF/DOCX/Copy text 导出保真、R305 示例种入、R306 公开示例页光暗、375 严格、R340 回焦、零 console 错误、零 AI/分享/支付、基线还原——全绿零 P0–P3。
+- 观察（非缺陷）：信件无 TXT 导出（PDF/DOCX/Copy text）；cover payload 默认语言时无 language 键。截图 /home/ubuntu/screenshots/r353_*.png。
