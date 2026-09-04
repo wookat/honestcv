@@ -29,7 +29,9 @@ many multiple several various successful proven passionate motivated driven
 day days week weeks month months daily weekly monthly
 used uses worked works helps helping helped offered require requires
 requirement skill year jobs roles positions companies experiences seeks
-sought`.split(/\s+/)
+sought know knows knowing understand understands understood familiar
+prefer prefers preferably communicate communicates demonstrate demonstrates
+demonstrated demonstrable sense`.split(/\s+/)
 )
 
 /** Multi-word tech/business phrases worth matching as units */
@@ -43,7 +45,7 @@ const KNOWN_PHRASES = [
   'stakeholder management', 'cross-functional', 'problem solving',
   'social media', 'content marketing', 'search engine optimization',
   'account management', 'digital marketing', 'financial analysis',
-  'risk management', 'change management', 'human resources',
+  'risk management', 'change management', 'human resources', 'product sense',
 ]
 
 /** Builder editor section that fixes a failing structural check */

@@ -916,3 +916,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：analyzeAnswer/sessionReport 增可选 targetRole 参数，coachableKeywords 排除 role tokens（同 R325 分词，多词短语从不排除，空 role 行为字节不变）；Builder 两处调用传 resume.targetRole。oracle .tmp-smoke/r356_oracle.ts 11/11。
 - 生产复验（index-D55s5AM-.js / Builder-oacG5yAq.js，零 AI）全绿：PM JD 下 covered/missing/high-priority/桥接行均无 product/manager 而保留 roadmap/sql/kubernetes、报告关键词行同、清空 role 后 product 复现（旧行为）、R355 桥接回归、375 暗色严格、零 console 错误、基线还原。
 - 观察未立案（P3 候选）：JD 提取器会把 "knows"/"sense" 等泛化词当辅导关键词（GENERIC_JD_WORDS 未含）。
+
+## R357 — JD 提取排除泛化动词屈折与 product sense 短语 (2026-08-31)
+- R356 QA 观察闭环：PM JD（"who knows SQL"、"Product sense required"）时高优关键词含 knows/sense。根因 STOPWORDS 只含名词形（knowledge/understanding/familiarity/preferred/communication）缺动词/形容词屈折。方案 docs/plan-r357-generic-jd-inflections.md。
+- 修复（仅 ats.ts 提取层）：STOPWORDS 增 know/knows/knowing、understand/understands/understood、familiar、prefer/prefers/preferably、communicate/communicates、demonstrate 系、sense；KNOWN_PHRASES 增 'product sense'。匹配/分层/辅导代码零改动。oracle .tmp-smoke/r357_oracle.ts 13/13。
+- 生产复验（index-BQNfD2pg.js / Builder-seyv4k6b.js，零 AI）全绿：Target 面板 chips 无 knows/sense 且出 product sense 短语、辅导高优含 product sense/kubernetes/analytics/planning、普通 JD 提取字节不变、R356 role-token 排除回归、375 暗色、基线还原。
+- 观察未立案（有意设计边界）：ATS Target 面板原始提取仍列 bare "manager"（R356 排除只在面试辅导层）；若要面板本身 role-aware 属独立轮。
