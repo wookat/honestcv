@@ -56,6 +56,7 @@ import {
   type CareerDoc,
   type CareerDocKind,
   deleteCareerDoc,
+  duplicateCareerDoc,
   listCareerDocs,
   renameCareerDoc,
   restoreCareerDoc,
@@ -1340,6 +1341,17 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   >
                     <Pencil className="size-3.5" />
                     <span className="sr-only">Rename {d.title}</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    title="Duplicate this document"
+                    onClick={() => setDocs(duplicateCareerDoc(d.id))}
+                  >
+                    <Copy className="size-3.5" />
+                    <span className="sr-only">Duplicate {d.title}</span>
                   </Button>
                   {docDownload(d, d.text, 'pdf', `${d.id}-pdf`)}
                   {docDownload(d, d.text, 'docx', `${d.id}-docx`)}
