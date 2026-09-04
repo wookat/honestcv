@@ -1249,3 +1249,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Viewer close (Esc/X/overlay) fires `window.confirm('Discard unsaved changes to "<title>"?')` only when textarea differs from stored doc; Save changes bypasses the guard AND closes the dialog itself. Signature add/remove saves immediately (no dirty state).
 - "Add signature" uses a hidden `input[type=file]` inside the viewer dialog — set it headlessly via `DOM.setFileInputFiles` with a PNG path; no drawing pad.
 - Test the confirm safely under headless CDP with `Page.addScriptToEvaluateOnNewDocument` overriding `window.confirm` (capture message array + scripted return); remove the script id and reload to restore the native confirm before finishing.
+
+## R365 duplicate career docs notes
+- Copy button `button[title="Duplicate this document"]` (sr-only `Duplicate <title>`) sits between Rename and PDF. Numbering: strips one trailing " (copy)"/" (n)" from source title, then smallest free "base (n)" n>=2; copy gets new id + updatedAt=now, inserted at TOP of the list; source stays byte-identical.
+- Duplicates are fully independent docs (rename/edit/delete/undo don't touch the source); downloads from a copy use the copy's title where titles apply (interview TXT/PDF).
