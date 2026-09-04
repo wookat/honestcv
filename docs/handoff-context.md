@@ -1016,9 +1016,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 银行观察（未做，R373 审计 P3）：空简历 "Improve my ATS score" 仍报 63/100（基线分下限在空极端下误导）；assistant payload 的 jobDescription 无大小上限（20.8KB 原样发送，成本项）。
 - 本地：oracle 11/11（.tmp-smoke/r373_oracle.ts）、tsc/eslint/build 绿。
 
+## R374 — /jobs 对畸形管道存储免疫（读侧净化） (2026-08-31)
+- 闭环 R373 银行观察：honestcv.jobPipeline 中一条错形条目（events/date 键、缺 job.id）即让 /jobs 整页白屏（TypeError: Cannot read properties of null (reading 'text')，React root 卸载），且每次访问都崩、无任何恢复路径——listPipeline 只有 JSON.parse try/catch，零形状校验（resume.ts 早有读侧 coerce，管道是例外）。方案 docs/plan-r374-pipeline-storage-sanitize.md。
+- 实现（确定性读侧净化）：jobs.ts 新增 sanitizeEntry(raw)→PipelineEntry|null——非对象条目/非对象 job/无 id 且无 title 丢弃；缺 job.id 用 "title @ company" 合成；JobListing 全字符串字段 asStr coerce（title/company trim 对齐 R368）、tags 仅留字符串数组、logo 仅留字符串；status 不在 JOB_STATUSES → 'saved'；updatedAt 非有限数 → Date.now()；history 仅留 {status∈枚举, at 有限数} 步（空则 undefined 让 timelineOf 合成）；resumeVersionId/notes 仅留字符串。listPipeline 根非数组 → []。合法条目值恒等透传；净化只在读侧，下一次变更自然持久化干净形状。
+- 本地：oracle 15/15（.tmp-smoke/r374_oracle.ts，含 R373 QA 崩溃种子原样、恒等透传、垃圾根/条目、各字段 coercion）+ r372 oracle 回归 14/14、tsc/eslint/build 绿。
+
 ## R375 — 空简历不再靠空泛通过的 ATS 检查拿分 (2026-08-31)
 - 闭环 R373 银行观察：全新空简历 ATS 得 63/100（"Almost ready"）。本地实证：24 项结构检查中 15 项在零内容时空泛 PASS（[].every 恒真、无 offender 即过、未知页数计 pass）。方案 docs/plan-r375-vacuous-ats-checks.md。
 - 实现：ats.ts check 形状加可选 na（not applicable，无内容可查）；各 factory 输入为空时置 na（无条目/无日期/无 bullet 行/无文本段/未知页数），scoreResume 内联的 Employment dates listed（无命名条目）与 Skills grouped into categories（skills 空）同理；finalize 在算 structure 比例前过滤 na 并只返回 applicable checks——全部消费方（分类行/清单计数/guidance 权重/readiness/assistant 摘要/Fixed chips）零改动自然收敛。始终适用的 8 项（contact/summary/experience/quantified/skills/education/word count/LinkedIn）保证分母非零。
 - 语义：空简历 no-JD 得 11/100、readiness not-yet；满内容简历所有检查均适用，得分与旧公式一致；文本 checker 经共享 factory 同语义；页数未知时 page 检查不再计入（此前恒 pass）。
 - 本地：oracle 20/20（.tmp-smoke/r375_oracle.ts）、tsc/eslint/build 绿。
-

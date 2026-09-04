@@ -245,10 +245,63 @@ export function structureJobDescription(description: string): JobDescriptionSect
   return sections.length > 0 ? sections : [{ heading: null, body: description }]
 }
 
+const asStr = (v: unknown): string => (typeof v === 'string' ? v : '')
+
+/** Coerce one stored pipeline entry to the schema; null when irrecoverable. */
+function sanitizeEntry(raw: unknown): PipelineEntry | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const e = raw as Record<string, unknown>
+  if (typeof e.job !== 'object' || e.job === null) return null
+  const j = e.job as Record<string, unknown>
+  const title = asStr(j.title).trim()
+  const company = asStr(j.company).trim()
+  const id = asStr(j.id) || (title ? `${title} @ ${company}` : '')
+  if (!id) return null
+  const job: JobListing = {
+    id,
+    title,
+    company,
+    category: asStr(j.category),
+    type: asStr(j.type),
+    location: asStr(j.location),
+    postedAt: asStr(j.postedAt),
+    salary: asStr(j.salary),
+    url: asStr(j.url),
+    description: asStr(j.description),
+  }
+  if (typeof j.logo === 'string') job.logo = j.logo
+  if (Array.isArray(j.tags)) job.tags = j.tags.filter((t): t is string => typeof t === 'string')
+  const status = JOB_STATUSES.includes(e.status as JobStatus)
+    ? (e.status as JobStatus)
+    : 'saved'
+  const updatedAt =
+    typeof e.updatedAt === 'number' && Number.isFinite(e.updatedAt) ? e.updatedAt : Date.now()
+  const entry: PipelineEntry = { job, status, updatedAt }
+  if (Array.isArray(e.history)) {
+    const steps = e.history.filter(
+      (s): s is StatusChange =>
+        typeof s === 'object' &&
+        s !== null &&
+        JOB_STATUSES.includes((s as StatusChange).status) &&
+        typeof (s as StatusChange).at === 'number' &&
+        Number.isFinite((s as StatusChange).at)
+    )
+    if (steps.length > 0) entry.history = steps
+  }
+  if (typeof e.resumeVersionId === 'string') entry.resumeVersionId = e.resumeVersionId
+  if (typeof e.notes === 'string') entry.notes = e.notes
+  return entry
+}
+
 export function listPipeline(): PipelineEntry[] {
   try {
     const raw = localStorage.getItem(PIPELINE_KEY)
-    return raw ? (JSON.parse(raw) as PipelineEntry[]) : []
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((e) => {
+      const entry = sanitizeEntry(e)
+      return entry ? [entry] : []
+    })
   } catch {
     return []
   }
