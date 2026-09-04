@@ -4188,6 +4188,40 @@ export default function Builder() {
                     variant="ghost"
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={invIdx === 0}
+                    title="Move up"
+                    aria-label={`Move involvement ${invIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: moveItem(r.involvement ?? [], invIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={invIdx === (resume.involvement ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move involvement ${invIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: moveItem(r.involvement ?? [], invIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
                     title={inv.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={inv.hidden === true}
                     aria-label={`${inv.hidden ? 'Show' : 'Hide'} involvement ${invIdx + 1} ${inv.hidden ? 'on' : 'from'} resume`}
@@ -4560,6 +4594,40 @@ export default function Builder() {
                     variant="ghost"
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={cwIdx === 0}
+                    title="Move up"
+                    aria-label={`Move coursework ${cwIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: moveItem(r.coursework ?? [], cwIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={cwIdx === (resume.coursework ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move coursework ${cwIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: moveItem(r.coursework ?? [], cwIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
                     title={cw.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={cw.hidden === true}
                     aria-label={`${cw.hidden ? 'Show' : 'Hide'} coursework ${cwIdx + 1} ${cw.hidden ? 'on' : 'from'} resume`}
@@ -4776,6 +4844,40 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={aIdx === 0}
+                    title="Move up"
+                    aria-label={`Move award ${aIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: moveItem(r.awards ?? [], aIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={aIdx === (resume.awards ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move award ${aIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: moveItem(r.awards ?? [], aIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -5022,6 +5124,40 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={pubIdx === 0}
+                    title="Move up"
+                    aria-label={`Move publication ${pubIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: moveItem(r.publications ?? [], pubIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={pubIdx === (resume.publications ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move publication ${pubIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: moveItem(r.publications ?? [], pubIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -5287,6 +5423,40 @@ export default function Builder() {
                     variant="ghost"
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={refIdx === 0}
+                    title="Move up"
+                    aria-label={`Move reference ${refIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        references: moveItem(r.references ?? [], refIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={refIdx === (resume.references ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move reference ${refIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        references: moveItem(r.references ?? [], refIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
                     title={ref.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={ref.hidden === true}
                     aria-label={`${ref.hidden ? 'Show' : 'Hide'} reference ${refIdx + 1} ${ref.hidden ? 'on' : 'from'} resume`}
@@ -5436,7 +5606,7 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               Your service record — rank, branch, where you were stationed and what you did.
             </p>
-            {(resume.military ?? []).map((m) => (
+            {(resume.military ?? []).map((m, mIdx) => (
               <div
                 key={m.id}
                 className={`space-y-2 rounded-lg border p-3 ${m.hidden ? 'opacity-60' : ''}`}
@@ -5536,6 +5706,40 @@ export default function Builder() {
                     variant="ghost"
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={mIdx === 0}
+                    title="Move up"
+                    aria-label={`Move military service ${mIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        military: moveItem(r.military ?? [], mIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={mIdx === (resume.military ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move military service ${mIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        military: moveItem(r.military ?? [], mIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
                     title={m.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={m.hidden === true}
                     aria-label={`${m.hidden ? 'Show' : 'Hide'} military service ${m.hidden ? 'on' : 'from'} resume`}
@@ -5594,7 +5798,7 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               AI agents you built — what they were called, when, and why they mattered.
             </p>
-            {(resume.agents ?? []).map((a) => (
+            {(resume.agents ?? []).map((a, agIdx) => (
               <div
                 key={a.id}
                 className={`space-y-2 rounded-lg border p-3 ${a.hidden ? 'opacity-60' : ''}`}
@@ -5659,6 +5863,40 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={agIdx === 0}
+                    title="Move up"
+                    aria-label={`Move agent ${agIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        agents: moveItem(r.agents ?? [], agIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={agIdx === (resume.agents ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move agent ${agIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        agents: moveItem(r.agents ?? [], agIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -6005,6 +6243,40 @@ export default function Builder() {
                         }))
                       }
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      disabled={cIdx === 0}
+                      title="Move up"
+                      aria-label={`Move certification ${cIdx + 1} up`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: moveItem(r.certItems ?? [], cIdx, -1),
+                        }))
+                      }
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      disabled={cIdx === (resume.certItems ?? []).length - 1}
+                      title="Move down"
+                      aria-label={`Move certification ${cIdx + 1} down`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: moveItem(r.certItems ?? [], cIdx, 1),
+                        }))
+                      }
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
