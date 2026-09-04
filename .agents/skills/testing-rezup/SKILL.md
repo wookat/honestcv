@@ -1325,3 +1325,10 @@ CRITICAL: Fetch interception is per-CDP-session — if a script exits while a se
 - The free-download email gate posts to `/api/leads` (`submitLead` in src/lib/checkout.ts) — intercept it BEFORE clicking "Unlock downloads", and keep the Fetch pump loop running well past the click; a script exiting with the POST paused releases a REAL lead to production (this happened once — same release-on-close trap as AI requests).
 - Builder final-check heuristics (3–6 bullets/role, dates, word count) flag most minimal seeded resumes, so expect the "Final check before download" dialog on every download and ack via "Download anyway".
 - The one-time share promo after the first download is a non-blocking `[role=status]` bar containing "Resume downloaded" (not a modal since R390); its dismiss button is `button[aria-label=Dismiss]`.
+
+## R391 lessons — intercepted-request-body assertions
+
+- When asserting on intercepted request bodies, the pump loop must ALSO drain `t.events` — helper `t.cmd` calls swallow `Fetch.requestPaused` events into that queue, so a paused request can otherwise look like it never fired.
+- The assistant's quick-task chips ("Improve my ATS score", "Target job") are answered locally with no network — type a custom message to force a real `/api/ai/assistant` POST.
+- TailorDialog does not auto-run: click "Get tailoring suggestions" inside the dialog; closing it with unreviewed rows fires a native confirm.
+- Single-variant `/api/ai/rewrite` mock replies apply immediately to the resume, so byte-identity checks must compare against the value captured at dispatch.
