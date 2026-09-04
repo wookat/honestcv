@@ -442,15 +442,21 @@ export default function Jobs() {
       void navigate('/builder')
       return
     }
-    const draft = loadResume() ?? emptyResume()
-    const next = {
-      ...draft,
-      targetRole: job.title,
-      targetCompany: job.company,
-      jobDescription: job.description,
+    const version = linkedVersion(job.id)
+    if (version) {
+      saveResume(version.data)
+      setActiveVersionId(version.id)
+    } else {
+      const draft = loadResume() ?? emptyResume()
+      const next = {
+        ...draft,
+        targetRole: job.title,
+        targetCompany: job.company,
+        jobDescription: job.description,
+      }
+      saveResume(next)
+      syncActiveVersion(next)
     }
-    saveResume(next)
-    syncActiveVersion(next)
     void navigate(
       `/builder?doc=cover&company=${encodeURIComponent(job.company)}&job=${encodeURIComponent(job.id)}`
     )
@@ -1473,7 +1479,9 @@ export default function Jobs() {
             </DialogTitle>
             <DialogDescription>
               {confirmTarget?.intent === 'cover'
-                ? "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any."
+                ? confirmTarget && linkedVersion(confirmTarget.job.id)
+                  ? 'This opens the resume copy targeted at this job in the editor, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
+                  : "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any."
                 : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'This job already has a targeted copy of your resume — the editor opens that copy. Your other resumes keep their own target jobs.'
                   : 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard) and opens it in the editor. Your current draft keeps its own target job.'}
