@@ -77,7 +77,8 @@ export function followUpEmail(
   senderName?: string
 ): { subject: string; body: string } {
   const days = staleDays(entry) ?? 0
-  const { title, company } = entry.job
+  const title = entry.job.title.trim()
+  const company = entry.job.company.trim()
   const interviewing = entry.status === 'interviewing'
   const subject = interviewing
     ? `Following up on my ${title} interview at ${company}`
@@ -158,7 +159,12 @@ export async function searchJobs(q: string, category = ''): Promise<JobListing[]
     error?: string
   }
   if (!res.ok) throw new Error(data.error || `Job search failed (${res.status})`)
-  return data.jobs ?? []
+  // Upstream company/title strings can carry stray whitespace (e.g. Remotive)
+  return (data.jobs ?? []).map((j) => ({
+    ...j,
+    title: (j.title ?? '').trim(),
+    company: (j.company ?? '').trim(),
+  }))
 }
 
 /** One section of a structured job description; `heading: null` for the preamble. */

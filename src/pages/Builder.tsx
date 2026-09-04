@@ -141,7 +141,7 @@ import {
   resumeStrength,
   unfinishedBulletLine,
 } from '@/lib/guidance'
-import { parseResumeText } from '@/lib/importText'
+import { keepTargetOnImport, parseResumeText } from '@/lib/importText'
 import {
   parseShareId,
   fetchResumeProfile,
@@ -8716,7 +8716,7 @@ export default function Builder() {
             onClick={() => {
               if (!importText.trim()) return
               linkVersion(null)
-              setResume(parseResumeText(importText))
+              setResume(keepTargetOnImport(resume, parseResumeText(importText)))
               setImportOpen(false)
               setImportText('')
             }}
