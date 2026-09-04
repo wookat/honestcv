@@ -151,7 +151,7 @@ export default function AtsChecker() {
       parsed.jobDescription = jd
       setActiveVersionId(null)
       saveResume(parsed)
-    } else if (existing) {
+    } else if (existing && jd.trim()) {
       existing.jobDescription = jd
       saveResume(existing)
     }
