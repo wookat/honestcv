@@ -228,6 +228,16 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     jobDescription: string
   } | null>(null)
   const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
+  const [docStorageError, setDocStorageError] = useState(false)
+  /** Applies a document mutation; surfaces the storage-full alert when nothing was written. */
+  const applyDocs = (next: CareerDoc[] | null): boolean => {
+    if (next === null) {
+      setDocStorageError(true)
+      return false
+    }
+    setDocs(next)
+    return true
+  }
   // On /documents the type filter lives in the query string so refresh/share keeps your place.
   const [docSeedParams] = useState(() =>
     section === 'documents' ? new URLSearchParams(window.location.search) : null
@@ -742,6 +752,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             .replace(/\s+/g, ' ')
             .trim() || 'Imported cover letter'
         const doc = saveCareerDoc('cover', title, text)
+        if (!doc) {
+          setDocImportError('Not saved — your browser storage is full. Free up space and try again.')
+          return
+        }
         setDocs(listCareerDocs())
         setOpenDoc(doc)
         setDocText(doc.text)
@@ -1355,7 +1369,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     size="sm"
                     className="min-h-10 sm:min-h-8"
                     title="Duplicate this document"
-                    onClick={() => setDocs(duplicateCareerDoc(d.id))}
+                    onClick={() => applyDocs(duplicateCareerDoc(d.id))}
                   >
                     <Copy className="size-3.5" />
                     <span className="sr-only">Duplicate {d.title}</span>
@@ -1984,6 +1998,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                         ? `${e.role} cover letter`
                         : `Resignation letter — ${e.role}`
                     const doc = saveCareerDoc(e.kind, title, e.text)
+                    if (!doc) {
+                      setDocStorageError(true)
+                      return
+                    }
                     setDocs(listCareerDocs())
                     setPreviewLetter(null)
                     setOpenDoc(doc)
@@ -2077,8 +2095,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
                     canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
                     const dataUrl = canvas.toDataURL('image/png')
-                    setDocs(updateCareerDoc(openDoc.id, { signature: dataUrl }))
-                    setOpenDoc({ ...openDoc, signature: dataUrl })
+                    if (applyDocs(updateCareerDoc(openDoc.id, { signature: dataUrl }))) {
+                      setOpenDoc({ ...openDoc, signature: dataUrl })
+                    }
                   }
                   img.onerror = () => {
                     URL.revokeObjectURL(url)
@@ -2107,10 +2126,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setDocs(updateCareerDoc(openDoc.id, { signature: '' }))
-                      const next = { ...openDoc }
-                      delete next.signature
-                      setOpenDoc(next)
+                      if (applyDocs(updateCareerDoc(openDoc.id, { signature: '' }))) {
+                        const next = { ...openDoc }
+                        delete next.signature
+                        setOpenDoc(next)
+                      }
                     }}
                   >
                     Remove
@@ -2160,7 +2180,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             <Button
               type="button"
               onClick={() => {
-                if (openDoc) setDocs(updateCareerDoc(openDoc.id, { text: docText }))
+                if (openDoc && !applyDocs(updateCareerDoc(openDoc.id, { text: docText }))) return
                 setOpenDoc(null)
               }}
             >
@@ -2192,9 +2212,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 if (confirmDeleteDoc) {
                   const index = docs.findIndex((d) => d.id === confirmDeleteDoc.id)
                   const next = deleteCareerDoc(confirmDeleteDoc.id)
-                  setDocs(next)
-                  if (docKind !== 'all' && !next.some((d) => d.kind === docKind)) setDocKind('all')
-                  setUndoDelete({ kind: 'doc', doc: confirmDeleteDoc, index: Math.max(index, 0) })
+                  if (applyDocs(next) && next) {
+                    if (docKind !== 'all' && !next.some((d) => d.kind === docKind)) setDocKind('all')
+                    setUndoDelete({ kind: 'doc', doc: confirmDeleteDoc, index: Math.max(index, 0) })
+                  }
                 }
                 setConfirmDeleteDoc(null)
               }}
@@ -2362,8 +2383,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             onSubmit={(e) => {
               e.preventDefault()
               if (renamingDoc && renamingDoc.title.trim()) {
-                setDocs(renameCareerDoc(renamingDoc.doc.id, renamingDoc.title.trim()))
-                setRenamingDoc(null)
+                if (applyDocs(renameCareerDoc(renamingDoc.doc.id, renamingDoc.title.trim()))) {
+                  setRenamingDoc(null)
+                }
               }
             }}
           >
@@ -2463,6 +2485,25 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         reason="Downloading your resume as PDF or DOCX is the one thing we charge for — once, not monthly."
       />
 
+      {docStorageError && (
+        <div
+          role="alert"
+          className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+        >
+          <span className="min-w-0">
+            Not saved — your browser storage is full. Free up space and try again.
+          </span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setDocStorageError(false)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
       {undoDelete && (
         <div
           role="status"
@@ -2484,8 +2525,8 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 let next: ResumeVersion[] = versions
                 for (const e of undoDelete.entries) next = restoreResumeVersion(e.version, e.index)
                 setVersions(next)
-              } else {
-                setDocs(restoreCareerDoc(undoDelete.doc, undoDelete.index))
+              } else if (!applyDocs(restoreCareerDoc(undoDelete.doc, undoDelete.index))) {
+                return
               }
               setUndoDelete(null)
             }}

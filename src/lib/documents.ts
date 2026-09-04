@@ -42,11 +42,13 @@ export function splitAtSignature(text: string): { before: string; after: string 
 
 const DOCS_KEY = 'honestcv.careerDocs'
 
-function persistDocs(docs: CareerDoc[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistDocs(docs: CareerDoc[]): boolean {
   try {
     localStorage.setItem(DOCS_KEY, JSON.stringify(docs))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
@@ -61,35 +63,33 @@ export function listCareerDocs(): CareerDoc[] {
   }
 }
 
-export function saveCareerDoc(kind: CareerDocKind, title: string, text: string): CareerDoc {
+/** Returns null when the document could not be persisted (storage full). */
+export function saveCareerDoc(kind: CareerDocKind, title: string, text: string): CareerDoc | null {
   const doc: CareerDoc = { id: newId(), kind, title, text, updatedAt: Date.now() }
-  persistDocs([doc, ...listCareerDocs()])
-  return doc
+  return persistDocs([doc, ...listCareerDocs()]) ? doc : null
 }
 
 export function updateCareerDoc(
   id: string,
   patch: Partial<Pick<CareerDoc, 'title' | 'text' | 'signature'>>
-): CareerDoc[] {
+): CareerDoc[] | null {
   const docs = listCareerDocs().map((d) => {
     if (d.id !== id) return d
     const next = { ...d, ...patch, updatedAt: Date.now() }
     if ('signature' in patch && !patch.signature) delete next.signature
     return next
   })
-  persistDocs(docs)
-  return docs
+  return persistDocs(docs) ? docs : null
 }
 
 /** Rename a document without touching its edited timestamp (organizational action). */
-export function renameCareerDoc(id: string, title: string): CareerDoc[] {
+export function renameCareerDoc(id: string, title: string): CareerDoc[] | null {
   const docs = listCareerDocs().map((d) => (d.id === id ? { ...d, title } : d))
-  persistDocs(docs)
-  return docs
+  return persistDocs(docs) ? docs : null
 }
 
 /** Copy a document under a numbered name ("base (2)", "base (3)", …). */
-export function duplicateCareerDoc(id: string): CareerDoc[] {
+export function duplicateCareerDoc(id: string): CareerDoc[] | null {
   const docs = listCareerDocs()
   const source = docs.find((d) => d.id === id)
   if (!source) return docs
@@ -102,22 +102,19 @@ export function duplicateCareerDoc(id: string): CareerDoc[] {
   }
   const copy: CareerDoc = { ...source, id: newId(), title, updatedAt: Date.now() }
   const next = [copy, ...docs]
-  persistDocs(next)
-  return next
+  return persistDocs(next) ? next : null
 }
 
-export function deleteCareerDoc(id: string): CareerDoc[] {
+export function deleteCareerDoc(id: string): CareerDoc[] | null {
   const docs = listCareerDocs().filter((d) => d.id !== id)
-  persistDocs(docs)
-  return docs
+  return persistDocs(docs) ? docs : null
 }
 
 /** Put a just-deleted document back exactly as it was, at its previous position. */
-export function restoreCareerDoc(doc: CareerDoc, index = 0): CareerDoc[] {
+export function restoreCareerDoc(doc: CareerDoc, index = 0): CareerDoc[] | null {
   const docs = listCareerDocs()
   if (docs.some((d) => d.id === doc.id)) return docs
   const at = Math.min(Math.max(index, 0), docs.length)
   const next = [...docs.slice(0, at), doc, ...docs.slice(at)]
-  persistDocs(next)
-  return next
+  return persistDocs(next) ? next : null
 }
