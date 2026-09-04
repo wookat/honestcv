@@ -238,7 +238,8 @@ function tokens(text: string): Set<string> {
 export function analyzeAnswer(
   answer: string,
   jobDescription: string,
-  ignoredKeywords: string[] = []
+  ignoredKeywords: string[] = [],
+  targetRole = ''
 ): AnswerAnalysis {
   const words = answer.trim() ? answer.trim().split(/\s+/).length : 0
   const lengthBand: AnswerAnalysis['lengthBand'] = words < 40 ? 'short' : words > 250 ? 'long' : 'ideal'
@@ -265,7 +266,8 @@ export function analyzeAnswer(
   if (jobDescription.trim()) {
     const ignored = new Set(ignoredKeywords.map((k) => k.toLowerCase()))
     const kws = coachableKeywords(
-      extractKeywords(jobDescription).filter((k) => !ignored.has(k))
+      extractKeywords(jobDescription).filter((k) => !ignored.has(k)),
+      roleTokensOf(targetRole)
     )
     if (kws.length > 0) {
       const toks = tokens(answer)
@@ -298,10 +300,14 @@ export function analyzeAnswer(
 export function sessionReport(
   entries: { q: string; a: string }[],
   jobDescription: string,
-  ignoredKeywords: string[] = []
+  ignoredKeywords: string[] = [],
+  targetRole = ''
 ): string {
   const scored = entries
-    .map((e, i) => ({ index: i + 1, analysis: analyzeAnswer(e.a, jobDescription, ignoredKeywords) }))
+    .map((e, i) => ({
+      index: i + 1,
+      analysis: analyzeAnswer(e.a, jobDescription, ignoredKeywords, targetRole),
+    }))
     .filter((s) => s.analysis.words >= 10)
   if (scored.length === 0) return ''
 
@@ -317,7 +323,8 @@ export function sessionReport(
     for (const s of scored) for (const kw of s.analysis.keywords?.covered ?? []) coveredUnion.add(kw)
     const ignored = new Set(ignoredKeywords.map((k) => k.toLowerCase()))
     const kws = coachableKeywords(
-      extractKeywords(jobDescription).filter((k) => !ignored.has(k))
+      extractKeywords(jobDescription).filter((k) => !ignored.has(k)),
+      roleTokensOf(targetRole)
     )
     const covered = kws.filter((k) => coveredUnion.has(k))
     const missing = kws.filter((k) => !coveredUnion.has(k))
@@ -351,18 +358,23 @@ const GENERIC_JD_WORDS = new Set([
   'strong', 'ability', 'skills', 'knowledge', 'excellent', 'familiarity',
 ])
 
+/** Tokens of a job title, for excluding title words from skill coaching. */
+function roleTokensOf(role: string): Set<string> {
+  return new Set(role.toLowerCase().split(/[^a-z0-9+#]+/).filter(Boolean))
+}
+
 /** JD keywords worth coaching an interview answer toward — skills, not title/filler words. */
-function coachableKeywords(keywords: string[]): string[] {
+function coachableKeywords(keywords: string[], roleTokens: Set<string>): string[] {
   return keywords.filter(
-    (kw) => kw.includes(' ') || (!JOB_TITLE_WORDS.has(kw) && !GENERIC_JD_WORDS.has(kw))
+    (kw) =>
+      kw.includes(' ') ||
+      (!JOB_TITLE_WORDS.has(kw) && !GENERIC_JD_WORDS.has(kw) && !roleTokens.has(kw))
   )
 }
 
 /** JD keywords that name a concrete skill/tool rather than the job title itself. */
 function skillLikeKeywords(resume: Resume, keywords: string[]): string[] {
-  const roleTokens = new Set(
-    resume.targetRole.toLowerCase().split(/[^a-z0-9+#]+/).filter(Boolean)
-  )
+  const roleTokens = roleTokensOf(resume.targetRole)
   return keywords.filter(
     (kw) => kw.includes(' ') || (!JOB_TITLE_WORDS.has(kw) && !roleTokens.has(kw))
   )

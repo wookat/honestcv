@@ -9142,8 +9142,8 @@ function BundleToolDialog({
   const analysis = useMemo(() => {
     if (kind !== 'interview') return null
     if (answer.trim().split(/\s+/).filter(Boolean).length < 10) return null
-    return analyzeAnswer(answer, resume.jobDescription, resume.ignoredKeywords ?? [])
-  }, [kind, answer, resume.jobDescription, resume.ignoredKeywords])
+    return analyzeAnswer(answer, resume.jobDescription, resume.ignoredKeywords ?? [], resume.targetRole)
+  }, [kind, answer, resume.jobDescription, resume.ignoredKeywords, resume.targetRole])
 
   const delivery = useMemo(
     () => (kind === 'interview' && elapsedSec !== null ? analyzeDelivery(answer, elapsedSec) : null),
@@ -9220,7 +9220,7 @@ function BundleToolDialog({
           `Q${i + 1}. ${e.q}\n\nYour answer:\n${e.a || '[skipped]'}${e.fb ? `\n\nAI coaching:\n${e.fb}` : ''}`
       )
       .join('\n\n---\n\n')
-    const report = sessionReport(entries, resume.jobDescription, resume.ignoredKeywords ?? [])
+    const report = sessionReport(entries, resume.jobDescription, resume.ignoredKeywords ?? [], resume.targetRole)
     setResult(
       `Practice session — ${role}\n${entries.length} of ${s.questions.length} questions answered\n\n${report ? `${report}\n\n` : ''}${transcript}`
     )
