@@ -890,3 +890,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 首轮 QA 抓到 3 项当轮修复：P1 gate 用 experience.length===0 而 emptyResume() 种一条空 experience → 向导生产不可达（改为逐条空白判断）；P2 本分支部署时缺 R349 标签（#569/#570 又被级联合并进 base 分支未进 main，已把该链 merge 进本分支）；P3 step2 选示例会整体替换草稿丢掉向导填写的 role/level（applyExample 后重放）。
 - 生产复验（index-RmUSyXIX.js / Builder-gLSSZdas.js，零 AI/分享/支付）全绿零 P0–P3：干净档案向导出现、Designer+Senior→UX Designer 示例保留 targetRole/experienceLevel、reload 不再现、Esc=完成、tourDone/非空草稿/deep link 三守卫、375 暗色、基线还原。截图 /home/ubuntu/screenshots/r350fix_*.png。
 - 新增 localStorage key：honestcv.setupDone（QA 基线清理需包含）。
+
+## R351 — 本地保存失败可见化（storage full） (2026-08-31)
+- 闭环 R348 informational（硬配额满时简历写入失败未触达用户）：saveResume() 静默吞 QuotaExceededError 而工具栏恒显 "Saved"——配额满时每次编辑看似已存实则丢失，reload 即失。方案 docs/plan-r351-storage-full-save-error.md。
+- 修复最小化：saveResume 返回 boolean；useDebouncedSave 增 'error' 态；工具栏指示器 error 时渲染全宽可见 destructive role="alert" "Not saved — storage full"（title 带恢复指引），后续成功保存自动恢复 Saved。其余 saveResume 调用方忽略返回值零行为改动。
+- 生产复验（index-CPYaDd2k.js / Builder-CNtLON4f.js，零 AI/分享/支付）全绿零 P0–P3：正常路径回归、配额榨干后编辑出精确 alert、reload 诚实丢弃未存编辑、清空间后恢复且持久、375 暗色可见（常规 Saved 在 375 隐藏而 error 可见）、向导不受扰、零 console 错误、基线还原。截图 /home/ubuntu/screenshots/r351_*.png。

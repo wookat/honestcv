@@ -1188,3 +1188,6 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R350 first-run wizard notes
 - /builder shows a two-step setup wizard only when localStorage lacks honestcv.setupDone/tourDone/shared, there is no ?example= param, and the draft is empty — the seeded blank experience entry counts as empty (fixed in R350), so a clean profile reaches it directly. Any close path writes honestcv.setupDone=1; include it in baseline cleanup.
 - React-controlled inputs here reject synthetic value-setter events — focus the element and use CDP Input.insertText. honestcv.resume saves are debounced ~1s; wait ≥1.5s before asserting storage.
+
+## R351 storage-full notes
+- To force the storage-full save error, fill localStorage in descending chunk sizes (1MB→100KB→1KB→10B) until even tiny setItem throws — small resume edits still fit (and correctly show "Saved") if any space remains; clean up with a `qafill.` key prefix filter. Contact inputs use `c-` prefixed ids (c-fullName, c-title…). honestcv.setupDone is a baseline key to remove after wizard rounds.
