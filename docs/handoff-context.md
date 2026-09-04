@@ -953,3 +953,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环 R353 审计观察：cover/resignation/interview prep 只有 PDF/DOCX 下载 + Copy text，而简历本体有 PDF/DOCX/TXT/Markdown；求职门户与邮件流程常要 .txt 文件，剪贴板不是持久产物。方案 docs/plan-r362-letter-txt-export.md。
 - 实现（Builder.tsx 工具对话框结果区 + Dashboard.tsx docDownload 扩展 'txt'）：三个入口（Builder 工具对话框、Dashboard 文档卡、viewer 对话框 footer）各加 TXT 按钮；内容规则——信件 = 正文字节原样（与 Copy text 一致，刻意不含 letterhead/联系头，纯文本用于粘贴）、interview = `title\n\nbody`（对齐 downloadTextPdf/Docx 渲染标题）；文件名走 R239 professionalFileName（如 jane-doe-acme-cover-letter.txt）；viewer 下载用当前（可能未保存编辑的）docText。复用既有 downloadText，零新依赖。
 - 本地：tsc/eslint/build 绿。生产复验（index-Cos9snkW.js / Dashboard-4QricovJ.js / Builder-SHCwB0c0.js，零 AI——唯一 cover POST 预派发 mock、零分享/支付、基线还原）全绿零 P0–P3：三种 kind 卡片/viewer TXT 字节一致、文件名 slug 精确、viewer 未保存编辑反映入 TXT 而存储不变、Builder 工具 TXT=mock 正文字节一致、PDF/DOCX letterhead 回归、375 光暗按钮行换行无溢出、R361 bulk 切换回归。
+
+## R363 — 求职文档重命名 (2026-08-31)
+- 闭环审计观察：文档标题在 Builder 保存时自动生成（如 "Untitled — Cover letter"），dashboard 行只有 Open/PDF/DOCX/TXT/Delete，无法改名；副本与文件夹均有 rename，文档是唯一没有的命名对象；Rezi 可重命名 AI 文档。方案 docs/plan-r363-rename-career-docs.md。
+- 实现：documents.ts 新增 renameCareerDoc(id, title)——只改 title 不动 updatedAt（组织性操作，R197 规则；updateCareerDoc 的时间戳提升保留给真实文本编辑）；Dashboard.tsx 文档行加铅笔按钮（sr-only "Rename <title>"）开对话框（预填输入、Enter/Rename 提交 trim 后标题、空白禁用、Cancel/Esc 丢弃）。viewer 与 Builder 工具对话框不动。
+- 本地：oracle .tmp-smoke/r363_oracle.ts 6/6（title 变/updatedAt 字节不变/其余字段与顺序保留/未知 id no-op）、tsc/eslint/build 绿。
+- 生产复验（index-CIe6fVho.js / Dashboard-C7hUgzeH.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：三种 kind 重命名（含 Enter 提交、前后空白 trim）、updatedAt/text/signature 字节不变、新标题流入 viewer 标题与 interview TXT/PDF 标题、cover TXT 仍正文原样且文件名 slug 不受标题影响（kind 基）、删除确认/undo 用新标题且还原字节一致、R340 回焦（信任点击）、375 光暗严格。QA 首轮抓到 P3（第 6 个按钮致 375 行溢出 scrollWidth 394，按钮组 shrink-0 拒收缩）当轮修复（shrink-0→min-w-0 换行）并复验 375/768/1440 全过。
