@@ -9,6 +9,7 @@ import {
   ArrowUp,
   Briefcase,
   Check,
+  TriangleAlert,
   ChevronDown,
   ChevronUp,
   Bookmark,
@@ -1929,10 +1930,11 @@ export default function Builder() {
             {saveState === 'error' ? (
               <span
                 role="alert"
-                className="text-destructive max-w-32 text-xs font-medium leading-tight sm:max-w-none"
-                title="Your browser storage is full, so recent changes are not being saved. Free up space — delete old resume copies or large photos — and keep editing to resume saving."
+                className="text-destructive inline-flex items-center text-xs font-medium"
+                title="Not saved — your browser storage is full, so recent changes are not being saved. Free up space — delete old resume copies or large photos — and keep editing to resume saving."
               >
-                Not saved — storage full
+                <TriangleAlert aria-hidden="true" className="size-4 sm:hidden" />
+                <span className="sr-only sm:not-sr-only">Not saved — storage full</span>
               </span>
             ) : (
               <span
