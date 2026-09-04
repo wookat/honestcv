@@ -49,8 +49,17 @@ export interface PipelineEntry {
   history?: StatusChange[]
   /** Free-form notes: recruiter names, interview dates, follow-ups */
   notes?: string
-  /** User-set follow-up reminder (ms epoch, local midnight of the chosen day) */
-  remindAt?: number
+  /** User-set follow-up reminder as a calendar day (yyyy-mm-dd, no timezone) */
+  remindOn?: string
+}
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** ms epoch → yyyy-mm-dd in the user's local calendar. */
+export function localDayOf(ms: number): string {
+  const d = new Date(ms)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
 /** The entry's status timeline, synthesizing one step for pre-history entries. */
@@ -68,9 +77,9 @@ export function staleDays(entry: PipelineEntry): number | null {
   return days >= 7 ? days : null
 }
 
-/** True when the entry's user-set follow-up reminder date has arrived. */
+/** True when the entry's user-set follow-up reminder day has arrived (local calendar). */
 export function reminderDue(entry: PipelineEntry): boolean {
-  return entry.remindAt !== undefined && Date.now() >= entry.remindAt
+  return entry.remindOn !== undefined && localDayOf(Date.now()) >= entry.remindOn
 }
 
 /** Tracked applications gone quiet for 7+ days or with a due follow-up reminder. */
@@ -297,7 +306,10 @@ function sanitizeEntry(raw: unknown): PipelineEntry | null {
   }
   if (typeof e.resumeVersionId === 'string') entry.resumeVersionId = e.resumeVersionId
   if (typeof e.notes === 'string') entry.notes = e.notes
-  if (typeof e.remindAt === 'number' && Number.isFinite(e.remindAt)) entry.remindAt = e.remindAt
+  if (typeof e.remindOn === 'string' && DAY_RE.test(e.remindOn)) entry.remindOn = e.remindOn
+  // Entries saved before reminders became calendar days stored a local-midnight epoch
+  else if (typeof e.remindAt === 'number' && Number.isFinite(e.remindAt))
+    entry.remindOn = localDayOf(e.remindAt)
   return entry
 }
 
@@ -338,7 +350,7 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
       history,
       ...(prev?.resumeVersionId ? { resumeVersionId: prev.resumeVersionId } : {}),
       ...(prev?.notes ? { notes: prev.notes } : {}),
-      ...(prev?.remindAt !== undefined ? { remindAt: prev.remindAt } : {}),
+      ...(prev?.remindOn !== undefined ? { remindOn: prev.remindOn } : {}),
     },
     ...rest,
   ])
@@ -371,12 +383,11 @@ export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] 
   )
 }
 
-/** Set or clear (null) the follow-up reminder on the pipeline entry for a job. */
-export function setPipelineReminder(jobId: string, remindAt: number | null): PipelineEntry[] {
+/** Set or clear (null) the follow-up reminder day (yyyy-mm-dd) on the entry for a job. */
+export function setPipelineReminder(jobId: string, remindOn: string | null): PipelineEntry[] {
+  const day = remindOn !== null && DAY_RE.test(remindOn) ? remindOn : undefined
   return savePipeline(
-    listPipeline().map((e) =>
-      e.job.id === jobId ? { ...e, remindAt: remindAt ?? undefined } : e
-    )
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, remindOn: day } : e))
   )
 }
 
