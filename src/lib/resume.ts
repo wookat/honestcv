@@ -2372,6 +2372,33 @@ export function categorizeSkills(skills: string): string | null {
   return ordered.map((l) => `${l}: ${buckets.get(l)!.join(', ')}`).join('\n')
 }
 
+/**
+ * Merge new skills into a skills text block without destroying its line/category
+ * structure. Dedupes case-insensitively against every existing item (category
+ * labels excluded). Multi-line or labeled blocks keep their lines and get the
+ * additions on a new line; a single plain line grows in place.
+ */
+export function mergeSkills(existing: string, added: string[]): string {
+  const lines = existing.split('\n').map((l) => l.trim()).filter(Boolean)
+  const items = lines.flatMap((line) => {
+    const m = line.match(/^[^:]{1,40}:\s*(.+)$/)
+    return (m ? m[1] : line).split(',').map((s) => s.trim()).filter(Boolean)
+  })
+  const have = new Set(items.map((s) => s.toLowerCase()))
+  const fresh: string[] = []
+  for (const s of added) {
+    const t = s.trim()
+    if (!t || have.has(t.toLowerCase())) continue
+    have.add(t.toLowerCase())
+    fresh.push(t)
+  }
+  if (fresh.length === 0) return existing
+  if (lines.length === 0) return fresh.join(', ')
+  if (lines.length === 1 && !/^[^:]{1,40}:\s*.+$/.test(lines[0]))
+    return `${lines[0]}, ${fresh.join(', ')}`
+  return [...lines, fresh.join(', ')].join('\n')
+}
+
 /** Award entries with any content */
 export const awardEntries = (r: Resume): AwardItem[] =>
   (r.awards ?? []).filter((a) => a.name.trim() || a.organization.trim())
