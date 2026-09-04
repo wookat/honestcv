@@ -935,3 +935,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产复验（index-OM0G13mp.js / Builder-BWdeVGgM.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：Priority fixes 与结构维度两路 Fix→ 均 ring 闪目标卡并居中（h650 卡 48–698/761）、折叠时自动展开、section anchor/Update JD/键盘 Enter 回归、文本版 /ats-checker deep link 不受影响、375 暗色严格。截图 /home/ubuntu/screenshots/r359fix2_*.png。
 - 澄清早前误报：expanded audit chip 弹层实现存在且正常——headless 无 hover 能力（(hover:hover)=false）致 group-hover 类不激活；hover-capable Chrome flags 与键盘 focus 均可复现弹层，已入测试 skill。
 - 测试注意（已入 skill）：/ats-checker "Fix in builder →" 触发原生 confirm() 会永久卡死 headless CDP 标签页——点击前需覆写 window.confirm。
+
+## R360 — Dashboard 副本搜索 + 部署分支漂移事故闭环 (2026-08-31)
+- 闭环 R358 审计观察：dashboard 大量副本（实测 12）无搜索。Rezi dashboard 有常驻搜索框。方案 docs/plan-r360-dashboard-copy-search.md。
+- 修复（仅 Dashboard.tsx）：type=search 输入框（controls 行、≥1 副本时显示），trim+大小写不敏感子串匹配副本名与文件夹名，作用于 sortedVersions（grid/list/文件夹分组统一生效，空分组隐藏）；文件夹 chips 计数刻意不过滤并与查询取交集；零匹配出 role=status "No saved copies match …"。
+- 部署事故（P2，当轮闭环）：R360 从 main 构建部署，静默回滚了仅在 r359 分支上的 entryId 修复（6f8e178）——生产 entry Fix→ 复现回归。处置：merge r359 分支入 r360 分支重部署，测试代理复验两路 entry Fix→ 恢复居中 ring（Builder-DyMjVglc.js）。教训已入测试 skill：每次部署轮必须 `git branch -a --contains <fix-commit>` 确认既往修复是部署分支祖先，并 spot-check 一项既往修复。
+- 生产复验（index-pXO2mX-r.js / Dashboard-DsDYvA6n.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：8 副本 2 文件夹逐键收窄、文件夹名匹配显示整夹、trim/大小写、chip+搜索交集、list 视图过滤+排序仍生效、零匹配态、0 副本隐藏、Tab 可达+原生 Escape 清空、375 光暗严格、R358 编号命名回归。
