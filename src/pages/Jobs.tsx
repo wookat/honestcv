@@ -54,6 +54,7 @@ import {
   updateStatuses,
   upsertPipeline,
 } from '@/lib/jobs'
+import { listCareerDocs } from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
 import {
   createResumeVersion,
@@ -450,7 +451,9 @@ export default function Jobs() {
     }
     saveResume(next)
     syncActiveVersion(next)
-    void navigate(`/builder?doc=cover&company=${encodeURIComponent(job.company)}`)
+    void navigate(
+      `/builder?doc=cover&company=${encodeURIComponent(job.company)}&job=${encodeURIComponent(job.id)}`
+    )
   }
 
   /** Set the draft's target job and open the interview prep tools in the editor. */
@@ -1305,6 +1308,25 @@ export default function Jobs() {
                           </Button>
                         )}
                       </div>
+                      {(() => {
+                        const coverDoc = entry.coverDocId
+                          ? listCareerDocs().find((d) => d.id === entry.coverDocId)
+                          : undefined
+                        if (!coverDoc) return null
+                        return (
+                          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                            <span className="text-muted-foreground">Cover letter:</span>
+                            <span className="font-medium">{coverDoc.title}</span>
+                            <button
+                              type="button"
+                              className="text-primary underline-offset-2 hover:underline"
+                              onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
+                            >
+                              Open
+                            </button>
+                          </p>
+                        )
+                      })()}
                       <p className="text-sm font-medium">Application timeline</p>
                       <ol className="mt-1.5 flex flex-wrap items-center gap-y-1 text-xs">
                         {steps.map((step, i) => (

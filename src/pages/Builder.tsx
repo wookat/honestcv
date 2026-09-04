@@ -153,6 +153,7 @@ import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText, professionalFileName } from '@/lib/download'
 import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
+import { setPipelineCoverDoc } from '@/lib/jobs'
 import { trackEvent } from '@/lib/track'
 import {
   type ShareLink,
@@ -951,6 +952,9 @@ export default function Builder() {
   })
   const [toolCompany] = useState(
     () => new URLSearchParams(window.location.search).get('company') ?? ''
+  )
+  const [toolJobId] = useState(
+    () => new URLSearchParams(window.location.search).get('job') ?? ''
   )
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('doc')) {
@@ -7740,6 +7744,7 @@ export default function Builder() {
         initialCompany={
           toolOpen === 'cover' ? toolCompany || (resume.targetCompany ?? '') : toolCompany
         }
+        jobId={toolOpen === 'cover' ? toolJobId : ''}
         onClose={() => setToolOpen(null)}
         resume={shown}
         onQuota={setFreeLeft}
@@ -9373,6 +9378,7 @@ function BulletGuidance({
 function BundleToolDialog({
   kind,
   initialCompany = '',
+  jobId = '',
   onClose,
   resume,
   onQuota,
@@ -9380,6 +9386,8 @@ function BundleToolDialog({
 }: {
   kind: 'cover' | 'interview' | 'resignation' | null
   initialCompany?: string
+  /** Tracked job to link a saved cover letter to (from the /jobs deep link) */
+  jobId?: string
   onClose: () => void
   resume: Resume
   onQuota: (remaining: number) => void
@@ -9898,17 +9906,17 @@ function BundleToolDialog({
                   if (savedId) {
                     updateCareerDoc(savedId, { title: docTitle, text: result })
                   } else {
-                    setSavedId(
-                      saveCareerDoc(
-                        kind === 'cover'
-                          ? 'cover'
-                          : kind === 'resignation'
-                            ? 'resignation'
-                            : 'interview',
-                        docTitle,
-                        result
-                      ).id
+                    const doc = saveCareerDoc(
+                      kind === 'cover'
+                        ? 'cover'
+                        : kind === 'resignation'
+                          ? 'resignation'
+                          : 'interview',
+                      docTitle,
+                      result
                     )
+                    if (kind === 'cover' && jobId) setPipelineCoverDoc(jobId, doc.id)
+                    setSavedId(doc.id)
                   }
                 }}
               >
