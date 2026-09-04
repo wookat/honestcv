@@ -8220,11 +8220,29 @@ export default function Builder() {
               ))}
             </ul>
           )}
-          <p className="text-muted-foreground text-xs">
-            {activeVersion
-              ? `Edits save to "${activeVersion.name}" automatically — open another copy to switch without losing work.`
-              : "Opening a copy replaces what's in the editor — save the current resume as a copy first if you want to keep it."}
-          </p>
+          {activeVersion ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-muted-foreground min-w-0 flex-1 text-xs">
+                Edits save to "{activeVersion.name}" automatically — open another
+                copy to switch without losing work.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 shrink-0 text-xs sm:h-7"
+                title="Keep editing this content as a plain draft — the copy keeps its last saved state"
+                onClick={() => linkVersion(null)}
+              >
+                Stop editing this copy
+              </Button>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              Opening a copy replaces what's in the editor — save the current
+              resume as a copy first if you want to keep it.
+            </p>
+          )}
         </DialogContent>
       </Dialog>
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
