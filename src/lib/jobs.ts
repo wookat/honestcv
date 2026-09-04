@@ -330,12 +330,17 @@ export function listPipeline(): PipelineEntry[] {
   }
 }
 
-function savePipeline(entries: PipelineEntry[]): PipelineEntry[] {
-  localStorage.setItem(PIPELINE_KEY, JSON.stringify(entries))
-  return entries
+/** Returns null when nothing was written (storage full / private mode). */
+function savePipeline(entries: PipelineEntry[]): PipelineEntry[] | null {
+  try {
+    localStorage.setItem(PIPELINE_KEY, JSON.stringify(entries))
+    return entries
+  } catch {
+    return null
+  }
 }
 
-export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntry[] {
+export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntry[] | null {
   const all = listPipeline()
   const prev = all.find((e) => e.job.id === job.id)
   const rest = all.filter((e) => e.job.id !== job.id)
@@ -361,7 +366,10 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
 }
 
 /** Move several tracked jobs to a status in one write, appending to each timeline. */
-export function updateStatuses(ids: readonly string[], status: JobStatus): PipelineEntry[] {
+export function updateStatuses(
+  ids: readonly string[],
+  status: JobStatus
+): PipelineEntry[] | null {
   const set = new Set(ids)
   const now = Date.now()
   return savePipeline(
@@ -373,13 +381,13 @@ export function updateStatuses(ids: readonly string[], status: JobStatus): Pipel
 }
 
 /** Untrack several jobs in one write. */
-export function removeManyFromPipeline(ids: readonly string[]): PipelineEntry[] {
+export function removeManyFromPipeline(ids: readonly string[]): PipelineEntry[] | null {
   const set = new Set(ids)
   return savePipeline(listPipeline().filter((e) => !set.has(e.job.id)))
 }
 
 /** Save free-form notes on the pipeline entry for a job. */
-export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] {
+export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] | null {
   return savePipeline(
     listPipeline().map((e) =>
       e.job.id === jobId ? { ...e, notes: notes.trim() ? notes : undefined } : e
@@ -388,7 +396,10 @@ export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] 
 }
 
 /** Set or clear (null) the follow-up reminder day (yyyy-mm-dd) on the entry for a job. */
-export function setPipelineReminder(jobId: string, remindOn: string | null): PipelineEntry[] {
+export function setPipelineReminder(
+  jobId: string,
+  remindOn: string | null
+): PipelineEntry[] | null {
   const day = remindOn !== null && DAY_RE.test(remindOn) ? remindOn : undefined
   return savePipeline(
     listPipeline().map((e) => (e.job.id === jobId ? { ...e, remindOn: day } : e))
@@ -396,19 +407,22 @@ export function setPipelineReminder(jobId: string, remindOn: string | null): Pip
 }
 
 /** Link the pipeline entry for a job to the cover letter written for it. */
-export function setPipelineCoverDoc(jobId: string, coverDocId: string): PipelineEntry[] {
+export function setPipelineCoverDoc(jobId: string, coverDocId: string): PipelineEntry[] | null {
   return savePipeline(
     listPipeline().map((e) => (e.job.id === jobId ? { ...e, coverDocId } : e))
   )
 }
 
 /** Link the pipeline entry for a job to its targeted resume copy. */
-export function setPipelineVersion(jobId: string, resumeVersionId: string): PipelineEntry[] {
+export function setPipelineVersion(
+  jobId: string,
+  resumeVersionId: string
+): PipelineEntry[] | null {
   return savePipeline(
     listPipeline().map((e) => (e.job.id === jobId ? { ...e, resumeVersionId } : e))
   )
 }
 
-export function removeFromPipeline(id: string): PipelineEntry[] {
+export function removeFromPipeline(id: string): PipelineEntry[] | null {
   return savePipeline(listPipeline().filter((e) => e.job.id !== id))
 }

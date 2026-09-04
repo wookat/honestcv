@@ -398,6 +398,16 @@ export default function Jobs() {
     return c
   }, [pipeline])
 
+  /** Applies a pipeline mutation; surfaces the storage-full alert when nothing was written. */
+  const applyPipeline = (next: PipelineEntry[] | null): boolean => {
+    if (next === null) {
+      setStorageError(true)
+      return false
+    }
+    setPipeline(next)
+    return true
+  }
+
   /** The job's targeted copy if the pipeline links one that still exists. */
   const linkedVersion = (jobId: string) => {
     const id = pipeline.find((e) => e.job.id === jobId)?.resumeVersionId
@@ -421,8 +431,12 @@ export default function Jobs() {
       setStorageError(true)
       return null
     }
-    if (!listPipeline().some((e) => e.job.id === job.id)) upsertPipeline(job, 'saved')
-    setPipeline(setPipelineVersion(job.id, version.id))
+    if (
+      !listPipeline().some((e) => e.job.id === job.id) &&
+      !applyPipeline(upsertPipeline(job, 'saved'))
+    )
+      return null
+    if (!applyPipeline(setPipelineVersion(job.id, version.id))) return null
     return version
   }
 
@@ -433,10 +447,10 @@ export default function Jobs() {
         setConfirmUntrack(job)
         return
       }
-      setPipeline(removeFromPipeline(job.id))
+      applyPipeline(removeFromPipeline(job.id))
       return
     }
-    setPipeline(upsertPipeline(job, status))
+    if (!applyPipeline(upsertPipeline(job, status))) return
     if (status === 'saved' && !linkedVersion(job.id)) prepareTargetedCopy(job)
   }
 
@@ -804,7 +818,7 @@ export default function Jobs() {
                   onChange={(e) => {
                     const status = e.target.value as JobStatus
                     if (!status) return
-                    setPipeline(updateStatuses([...bulkIds], status))
+                    if (!applyPipeline(updateStatuses([...bulkIds], status))) return
                     setBulkIds(new Set())
                   }}
                   aria-label="Move selected jobs to a status"
@@ -1408,7 +1422,7 @@ export default function Jobs() {
                           type="date"
                           value={entry.remindOn ?? ''}
                           onChange={(e) =>
-                            setPipeline(
+                            applyPipeline(
                               setPipelineReminder(selected.id, e.target.value || null)
                             )
                           }
@@ -1418,7 +1432,7 @@ export default function Jobs() {
                           <button
                             type="button"
                             className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
-                            onClick={() => setPipeline(setPipelineReminder(selected.id, null))}
+                            onClick={() => applyPipeline(setPipelineReminder(selected.id, null))}
                           >
                             Clear reminder
                           </button>
@@ -1443,7 +1457,8 @@ export default function Jobs() {
                         }
                         onBlur={() => {
                           if (notesDraft?.jobId !== selected.id) return
-                          setPipeline(setPipelineNotes(selected.id, notesDraft.text))
+                          if (!applyPipeline(setPipelineNotes(selected.id, notesDraft.text)))
+                            return
                           setNotesDraft(null)
                         }}
                         rows={3}
@@ -1550,7 +1565,8 @@ export default function Jobs() {
               variant="destructive"
               className="min-h-10"
               onClick={() => {
-                if (confirmUntrack) setPipeline(removeFromPipeline(confirmUntrack.id))
+                if (confirmUntrack && !applyPipeline(removeFromPipeline(confirmUntrack.id)))
+                  return
                 setConfirmUntrack(null)
               }}
             >
@@ -1660,7 +1676,7 @@ export default function Jobs() {
               variant="destructive"
               className="min-h-10"
               onClick={() => {
-                setPipeline(removeManyFromPipeline([...bulkIds]))
+                if (!applyPipeline(removeManyFromPipeline([...bulkIds]))) return
                 setBulkIds(new Set())
                 setConfirmBulkUntrack(false)
               }}
