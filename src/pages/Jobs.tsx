@@ -1506,6 +1506,15 @@ export default function Jobs() {
             >
               Close
             </Button>
+            {followUpDraft && (
+              <Button asChild variant="outline" className="min-h-10">
+                <a
+                  href={`mailto:?subject=${encodeURIComponent(followUpDraft.subject)}&body=${encodeURIComponent(followUpDraft.body)}`}
+                >
+                  Open in email app
+                </a>
+              </Button>
+            )}
             <Button
               type="button"
               className="min-h-10"
