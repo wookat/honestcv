@@ -1259,3 +1259,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Share dialog: access is a native `<select aria-label="Link access">` (off/view) — set via HTMLSelectElement value setter + change event; the published URL lives in an `<input>` (not innerText). Publish POST /api/share body: `{resume}` (+`{slug}` when custom slug typed, +`{id,token}` on "Publish latest version" republish). Revoke = DELETE /api/share/<id>. Mock both with Fetch interception (`*/api/share*`); 400 `{error}` renders the error string in the dialog.
 - The Copies dialog trigger button is labeled "Copies" with no active copy, but shows the ACTIVE COPY NAME once a copy is active. "Save current as copy" creates+activates a new copy. Opening a saved copy from /dashboard shows a Radix replace-draft dialog first.
 - Dashboard has "Open" buttons for both saved copies and docs — pick the doc row by adjacent Rename/Duplicate labels, not the first "Open".
+
+## R367 revoke-links-on-delete notes
+- Deleting a linked copy sends fire-and-forget `DELETE /api/share/:id` with header `x-share-token`; local `honestcv.shareLinks` entry removed only on 2xx/404/410, kept on 5xx/network failure (retryable after Undo).
+- Dashboard confirm dialogs append: single "Its public share link will also be turned off."; bulk "One of them has a public share link…" / "N of them have public share links…". Builder Copies-dialog Delete revokes with no confirm.
+- Seeding gotcha: `honestcv.resume` must have a `contact` object and `experience` array (not `basics`) or loadResume() returns null and the dashboard shows the empty state; `honestcv.resumeVersions` entries need the copy under the `data` field (`{id,name,updatedAt,data:<resume>}`), not `resume`.
+- Builder Share opener has no "Share" text — find the button whose `title` includes "read-only link". The published link lives in a dialog input value, not textContent.

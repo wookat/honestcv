@@ -137,6 +137,26 @@ export async function revokeShareLink(scope: ShareScope): Promise<void> {
   persistShareLink(scope, null)
 }
 
+/** Whether a scope has a stored link. Pure peek — never runs the legacy
+ *  attribution that `loadShareLink` performs. */
+export function hasShareLink(scope: ShareScope): boolean {
+  return scope in loadShareLinks()
+}
+
+/** Best-effort revoke for copies being deleted. Each local record is only
+ *  forgotten once the server confirms, so a failed revoke survives for an
+ *  undo-restored copy to retry; without an undo the leftover is harmless. */
+export function revokeShareLinksFor(scopes: readonly ShareScope[]): void {
+  const links = loadShareLinks()
+  for (const scope of scopes) {
+    const link = links[scope]
+    if (!link) continue
+    void revokeRemote(link.id, link.token)
+      .then(() => persistShareLink(scope, null))
+      .catch(() => {})
+  }
+}
+
 /** Fetch a shared resume snapshot; null when the link is gone. */
 export async function fetchSharedResume(
   id: string
