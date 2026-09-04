@@ -7463,7 +7463,9 @@ export default function Builder() {
         onQuota={setFreeLeft}
         onJumpToTarget={() => {
           setToolOpen(null)
-          jumpToSection('target')
+          // Wait for the dialog to unmount and release its body scroll lock,
+          // otherwise the smooth scroll targets a mid-transition layout.
+          window.setTimeout(() => jumpToSection('target'), 250)
         }}
       />
       {tailorOpen && (
@@ -9395,17 +9397,15 @@ function BundleToolDialog({
     kind === 'interview'
       ? session !== null || answer.trim() !== ''
       : kind !== null && result !== '' && savedId === null
-  const requestClose = () => {
-    if (
-      unsavedWork &&
-      !window.confirm(
-        kind === 'interview'
-          ? 'Close interview practice? Your current session and typed answer will be lost.'
-          : 'Close without saving? The generated letter will be lost.'
-      )
+  const confirmDiscard = () =>
+    !unsavedWork ||
+    window.confirm(
+      kind === 'interview'
+        ? 'Close interview practice? Your current session and typed answer will be lost.'
+        : 'Close without saving? The generated letter will be lost.'
     )
-      return
-    onClose()
+  const requestClose = () => {
+    if (confirmDiscard()) onClose()
   }
   return (
     <Dialog open={kind !== null} onOpenChange={(o) => !o && requestClose()}>
@@ -9808,7 +9808,9 @@ function BundleToolDialog({
                     but {resumeGaps.length === 1 ? "it's" : "they're"} not on your resume yet.{' '}
                     <button
                       type="button"
-                      onClick={onJumpToTarget}
+                      onClick={() => {
+                        if (confirmDiscard()) onJumpToTarget()
+                      }}
                       className="font-medium underline underline-offset-2"
                     >
                       Open keyword targeting →
