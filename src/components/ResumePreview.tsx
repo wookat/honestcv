@@ -351,7 +351,7 @@ export function ResumePreview({
         {resume.photo && (
           <img
             src={resume.photo}
-            alt=""
+            alt="Profile photo"
             className="absolute top-0 right-0 h-16 w-16 rounded object-cover"
           />
         )}
