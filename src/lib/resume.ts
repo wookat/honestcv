@@ -1175,11 +1175,13 @@ export function loadResume(): Resume | null {
   }
 }
 
-export function saveResume(resume: Resume) {
+export function saveResume(resume: Resume): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(resume))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    // storage full / private mode
+    return false
   }
 }
 
