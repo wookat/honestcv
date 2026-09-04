@@ -978,7 +978,7 @@ app.post('/api/ai/resignation-letter', async (c) => {
     freeRemaining = remaining
   }
   const body = await c.req
-    .json<{ company?: string; role?: string; lastDay?: string; reason?: string; name?: string; tone?: string }>()
+    .json<{ company?: string; role?: string; lastDay?: string; reason?: string; name?: string; language?: string; tone?: string }>()
     .catch(() => ({}) as Record<string, never>)
   const company = body.company?.trim()
   const role = body.role?.trim()
@@ -986,13 +986,16 @@ app.post('/api/ai/resignation-letter', async (c) => {
   if (!role) return c.json({ error: 'Add your current role first.' }, 400)
   const result = await callLlm(
     c.env,
-    buildResignationLetterMessages(
-      company,
-      role,
-      body.lastDay?.trim() ?? '',
-      body.reason ?? '',
-      body.name?.trim() ?? '',
-      body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
+    withOutputLanguage(
+      buildResignationLetterMessages(
+        company,
+        role,
+        body.lastDay?.trim() ?? '',
+        body.reason ?? '',
+        body.name?.trim() ?? '',
+        body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
+      ),
+      body.language
     ),
     0.6
   )

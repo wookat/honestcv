@@ -9311,6 +9311,7 @@ function BundleToolDialog({
           lastDay,
           reason,
           name: resume.contact.fullName,
+          language: resume.language,
           tone: letterTone || undefined,
         })
         setResult(text)
