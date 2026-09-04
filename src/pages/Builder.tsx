@@ -1000,9 +1000,9 @@ export default function Builder() {
       !localStorage.getItem('honestcv.shared') &&
       !new URLSearchParams(window.location.search).get('example')
   )
-  const [wizardStep, setWizardStep] = useState<1 | 2>(1)
-  const [wizardRole, setWizardRole] = useState('')
-  const [wizardLevel, setWizardLevel] = useState('')
+  const [wizardStep, setWizardStep] = useState<1 | 2>(() => (resume.targetRole ? 2 : 1))
+  const [wizardRole, setWizardRole] = useState(() => resume.targetRole ?? '')
+  const [wizardLevel, setWizardLevel] = useState<string>(() => resume.experienceLevel ?? '')
   const [importText, setImportText] = useState('')
   const [importBusy, setImportBusy] = useState(false)
   const [importError, setImportError] = useState('')
