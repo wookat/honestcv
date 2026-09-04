@@ -78,6 +78,7 @@ import {
   duplicateResumeVersion,
   emptyResume,
   exampleToResume,
+  getActiveVersionId,
   listResumeVersions,
   loadResume,
   restoreResumeVersion,
@@ -211,6 +212,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   }, [hash])
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [draft] = useState<Resume | null>(() => loadResume())
+  const [activeId] = useState<string | null>(() => getActiveVersionId())
+  // The copy the Builder is currently editing (if any) — its card is the
+  // live content, so the separate draft card would be a duplicate.
+  const activeCopy = activeId ? (versions.find((v) => v.id === activeId) ?? null) : null
   const [confirmOpen, setConfirmOpen] = useState<ResumeVersion | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<ResumeVersion | null>(null)
   const [editing, setEditing] = useState<{
@@ -568,7 +573,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   }
 
   const startNewResume = () => {
-    if (draft && newKeepCopy) {
+    if (draft && newKeepCopy && !activeCopy) {
       setVersions(
         saveResumeVersion(draft.targetRole || draft.contact.fullName || 'Untitled resume', draft)
       )
@@ -603,7 +608,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         type="button"
         size="sm"
         className="min-h-10 flex-1 sm:min-h-8 sm:flex-none"
-        onClick={() => (draft ? setConfirmOpen(v) : openCopy(v))}
+        onClick={() => (draft && !activeCopy ? setConfirmOpen(v) : openCopy(v))}
       >
         Open
       </Button>
@@ -691,6 +696,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               {editedAgo(v.updatedAt)} · ATS{' '}
               {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
               {v.folder ? ` · ${v.folder}` : ''}
+              {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
             </p>
           </div>
         </div>
@@ -712,6 +718,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             {editedAgo(v.updatedAt)} · ATS{' '}
             {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
             {v.folder ? ` · ${v.folder}` : ''}
+            {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
           </p>
         </div>
       </div>
@@ -992,7 +999,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         )}
 
         <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 ${versions.length > 0 ? 'mt-3' : 'mt-6'}`}>
-          {draft ? (
+          {draft && !activeCopy ? (
             <div className="bg-card flex flex-col rounded-md border shadow-sm">
               <Thumb resume={draft} />
               <div className="flex flex-1 flex-col gap-2 p-3">
@@ -1650,7 +1657,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 className="text-xs"
               />
             </div>
-            {draft && (
+            {draft && !activeCopy && (
               <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -1869,12 +1876,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               {importedLinkedIn
                 ? 'This file was recognized as a LinkedIn profile export and mapped section-by-section — review the result before sending it anywhere. '
                 : ''}
-              This replaces what's currently in the editor. Save the current draft as
-              a copy first if you want to keep it.
+              {activeCopy
+                ? `This replaces what's currently in the editor. Your current work is already saved to "${activeCopy.name}" — that copy keeps its content.`
+                : "This replaces what's currently in the editor. Save the current draft as a copy first if you want to keep it."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            {draft && (
+            {draft && !activeCopy && (
               <Button
                 type="button"
                 variant="outline"
