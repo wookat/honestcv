@@ -71,6 +71,16 @@ export function attentionCount(pipeline: PipelineEntry[] = listPipeline()): numb
   return pipeline.filter((e) => staleDays(e) !== null).length
 }
 
+/** Recruiter name written explicitly in the entry's notes ("Recruiter: Dana Smith"), if any. */
+export function recruiterNameFromNotes(notes?: string): string | null {
+  const m = notes?.match(
+    /recruiters?(?:['\u2019]s)?(?:\s+name)?\s*(?:[:\-\u2013\u2014]|\bis\b)\s*([^\n,;.(]{2,60})/i
+  )
+  if (!m) return null
+  const words = m[1].trim().split(/\s+/).slice(0, 3)
+  return words.every((w) => /^[A-Z][A-Za-z'\u2019.-]*$/.test(w)) ? words.join(' ') : null
+}
+
 /** Deterministic follow-up email draft for a quiet application. */
 export function followUpEmail(
   entry: PipelineEntry,
@@ -83,15 +93,23 @@ export function followUpEmail(
   const subject = interviewing
     ? `Following up on my ${title} interview at ${company}`
     : `Following up on my ${title} application at ${company}`
+  const steps = timelineOf(entry)
+  const spokeOn = new Date(steps[steps.length - 1].at).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })
   const opener = interviewing
-    ? `It has been ${days} days since we last spoke about the ${title} position, and I wanted to follow up on where things stand.`
+    ? `It has been ${days} days since we last spoke about the ${title} position on ${spokeOn}, and I wanted to follow up on where things stand.`
     : `I applied for the ${title} position ${days} days ago and wanted to follow up on the status of my application.`
+  const recruiter = recruiterNameFromNotes(entry.notes)
   const body = [
-    `Hi ${company} hiring team,`,
+    recruiter ? `Hi ${recruiter.split(' ')[0]},` : `Hi ${company} hiring team,`,
     '',
     opener,
     '',
-    'I remain very interested in the role and would be glad to share any additional information that would be helpful.',
+    entry.resumeVersionId
+      ? 'I remain very interested in the role — my resume was tailored specifically to this position, and I would be glad to share an updated copy or any additional information that would be helpful.'
+      : 'I remain very interested in the role and would be glad to share any additional information that would be helpful.',
     '',
     'Thank you for your time and consideration.',
     '',

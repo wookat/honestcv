@@ -998,3 +998,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：Dashboard.tsx 三处卡片 grid 加 `grid-cols-1`（repeat(1, minmax(0,1fr))，归零 track min-content 下限）；≥sm 的 grid-cols-2/3 本就 minmax(0,1fr) 字节不变。
 - 本地 tsc/eslint/build 绿（纯 CSS 类，无 oracle）。首次部署（index-CQGirkNP.js）QA 抓到 P1 部署漂移：R370 分支基于 main 未含未合并的 R369 → 生产命名回归；merge R369 分支重部署（index-G4X9IZjs.js）后复验全绿：375 grid scrollWidth 375（光暗）、49 字符名省略号、samples grid 严格、768/1440 两/三列不变、list 视图不变、R369 命名 (2)/(3) 恢复、基线还原零 AI/分享/支付。
 - QA 更正 R369 报告：当时"最宽元素是草稿卡"系长名副本卡撑宽 track 后全卡被拉伸所致，真实 culprit 是长名副本卡。
+
+## R371 — follow-up 邮件个性化 + mailto (2026-08-31)
+- 闭环 R368 D2 观察（独立 QA 深度审计 follow-up 链后择优）：followUpEmail 只用 title/company/staleDays/status/fullName，无视同条目上已有的 notes（"Recruiter: Dana Smith" 仍 "Hi Acme Corp hiring team,"）、时间线（interviewing 稿不提上次沟通日期）与已链接 targeted copy；对话框写 "copy it into your email client" 却无 mailto。方案 docs/plan-r371-personalized-followup.md。
+- 实现（全确定性零 AI）：jobs.ts 新增 recruiterNameFromNotes（保守解析显式 recruiter 提及：recruiter['s][ name] + :/-/–/—/is + ≤3 个首字母大写词），命中则问候 "Hi <FirstName>,"；interviewing opener 引用最后时间线步日期 "…position on <Mon D>,"；有 resumeVersionId 时中段换 tailored 变体（否则字节不变）；Jobs.tsx 对话框 footer 加 "Open in email app" outline 按钮（mailto:?subject&body，encodeURIComponent，跟随编辑态）。
+- 银行观察（未做）：follow-up 按钮锁定 ≥7d applied/interviewing 窗口（offer 无入口）；Copy email 剪贴板失败静默；管道无提醒/日期概念。
+- 本地：oracle 14/14（.tmp-smoke/r371_oracle.ts）、tsc/eslint/build 绿。生产复验（index-ck2aApsl.js / Jobs-mVH5_4k9.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：无 notes/无 copy 草稿与修复前字节一致、"Recruiter: Dana Smith"→"Hi Dana," 而 "recruiter: someone maybe" 回退通用、interviewing 引用正确步日期、tailored 段、mailto href 实时跟随编辑（仅断言未导航）、375 光暗三按钮 footer 严格、R369/R370 回归。
