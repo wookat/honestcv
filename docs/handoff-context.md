@@ -900,3 +900,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 一手确证：Builder 工具栏 Saving…/Saved 为 hidden xl:inline，<1280px（全部手机/平板）无任何自动保存反馈（R351 QA 证实 375 处 display:none）；移动端适配是验收硬指标。方案 docs/plan-r352-mobile-save-indicator.md。
 - 实现：同槽位 <xl 渲染 icon-only role="status"（saving=Loader2 spinner、saved=Check，muted size-3.5，aria-label/title "Saving…"/"All changes saved"），xl+ 文本不变。
 - QA 抓到 P3 两轮闭环：R351 storage-full alert 在 375 使 header scrollWidth 386（溢出 11px）；max-w-32 wrap 不足（flex item 按最长行渲染宽度）→ 最终 <sm 改 icon-only destructive TriangleAlert + sr-only 全文 + title 提示，sm+ 保留文本。生产复验（index-CMulBl1A.js / Builder-oMjrj6mk.js，零 AI/分享/支付）全绿：375/768 icon 态与 aria、1440 文本不变、error 态 375 严格无溢出、恢复链、暗色、基线还原。截图 /home/ubuntu/screenshots/r352*.png。
+
+## R354 — 辞职信输出语言随简历语言 (2026-08-31)
+- 一手确证（源自 R353 审计观察）：cover letter 走 language→withOutputLanguage 本地化，而 /api/ai/resignation-letter 全链无 language——api.ts 签名无字段、Builder 不传、worker 不解析也不包 withOutputLanguage。西语简历（R167）同一对话框里 cover 出西语、辞职信恒英语。方案 docs/plan-r354-resignation-language.md。
+- 实现最小化三处：aiResignationLetter 增 language?；Builder 辞职信调用传 resume.language；worker 解析 body.language 并包 withOutputLanguage（en/未知码 no-op，默认简历字节不变）。提示词零改动。非目标：interview 系列保持英语教练输出（R167 既定范围）。
+- 生产复验（index-CZGDjtPF.js，全部 /api/ai/* POST 预派发 mock，零真实 AI/分享/支付）全绿零 P0–P3：es 简历辞职 payload 带 language:"es"+tone:"formal" 全字段；en 简历带显式 language:"en"（#resume-language 无 unset 态，en 为默认首项）；cover 回归（language/addressee/tone/highlights 完整）；R333 弃稿确认回归；375 暗色严格；基线还原。注意：worker 侧 withOutputLanguage 包装按规不做真实 AI 调用验证，证据为客户端 payload + worker 上传成功。截图 /home/ubuntu/screenshots/r354_*.png。

@@ -1195,3 +1195,6 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R352 save-indicator notes
 - The save indicator's role=status wrapper exists at all widths — assert icon vs text via the inner spans' computed display (`hidden xl:inline` text, `xl:hidden inline-flex` icon), not element presence. The storage-full alert is icon-only (TriangleAlert + sr-only text) below sm.
 - A wrapped flex item renders at its longest-line width, not its max-w cap — for narrow-viewport overflow checks, compare summed child widths against the viewport and isolate culprits by toggling display and re-reading scrollWidth. Run strict-overflow checks in the storage-full error state too.
+
+## R354 letter language notes
+- The resume language select is `#resume-language` (native value-setter + change works; options en/es/fr/de/pt…). `en` is the first/default value — there is no unset state, so AI letter payloads always carry an explicit `language`. Since R354 the resignation payload includes `language` alongside company/role/lastDay/reason/name/tone.
