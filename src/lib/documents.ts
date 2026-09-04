@@ -81,6 +81,31 @@ export function updateCareerDoc(
   return docs
 }
 
+/** Rename a document without touching its edited timestamp (organizational action). */
+export function renameCareerDoc(id: string, title: string): CareerDoc[] {
+  const docs = listCareerDocs().map((d) => (d.id === id ? { ...d, title } : d))
+  persistDocs(docs)
+  return docs
+}
+
+/** Copy a document under a numbered name ("base (2)", "base (3)", …). */
+export function duplicateCareerDoc(id: string): CareerDoc[] {
+  const docs = listCareerDocs()
+  const source = docs.find((d) => d.id === id)
+  if (!source) return docs
+  const taken = new Set(docs.map((d) => d.title))
+  const base = source.title.replace(/ \((?:copy|\d+)\)$/, '')
+  let title = ''
+  for (let n = 2; !title; n++) {
+    const candidate = `${base} (${n})`
+    if (!taken.has(candidate)) title = candidate
+  }
+  const copy: CareerDoc = { ...source, id: newId(), title, updatedAt: Date.now() }
+  const next = [copy, ...docs]
+  persistDocs(next)
+  return next
+}
+
 export function deleteCareerDoc(id: string): CareerDoc[] {
   const docs = listCareerDocs().filter((d) => d.id !== id)
   persistDocs(docs)

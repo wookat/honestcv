@@ -151,6 +151,22 @@ function splitRoleCompany(text: string): { role: string; company: string; locati
 const EDU_DETAIL_RE =
   /\b(gpa|dean'?s list|cum laude|hono(?:u?rs)|minor|major|coursework|thesis|scholarship|award)\b/i
 
+/**
+ * Pasted resume text can't express the target job or resume settings, so a
+ * content-replacing import carries them over from the resume being replaced.
+ */
+export function keepTargetOnImport(prev: Resume, parsed: Resume): Resume {
+  return {
+    ...parsed,
+    targetRole: prev.targetRole,
+    jobDescription: prev.jobDescription,
+    experienceLevel: prev.experienceLevel,
+    targetCompany: prev.targetCompany,
+    ignoredKeywords: prev.ignoredKeywords,
+    language: prev.language,
+  }
+}
+
 export function parseResumeText(raw: string): Resume {
   if (looksLikeLinkedInExport(raw)) return parseLinkedInText(raw)
   const resume = emptyResume()

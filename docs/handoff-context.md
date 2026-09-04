@@ -953,3 +953,36 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环 R353 审计观察：cover/resignation/interview prep 只有 PDF/DOCX 下载 + Copy text，而简历本体有 PDF/DOCX/TXT/Markdown；求职门户与邮件流程常要 .txt 文件，剪贴板不是持久产物。方案 docs/plan-r362-letter-txt-export.md。
 - 实现（Builder.tsx 工具对话框结果区 + Dashboard.tsx docDownload 扩展 'txt'）：三个入口（Builder 工具对话框、Dashboard 文档卡、viewer 对话框 footer）各加 TXT 按钮；内容规则——信件 = 正文字节原样（与 Copy text 一致，刻意不含 letterhead/联系头，纯文本用于粘贴）、interview = `title\n\nbody`（对齐 downloadTextPdf/Docx 渲染标题）；文件名走 R239 professionalFileName（如 jane-doe-acme-cover-letter.txt）；viewer 下载用当前（可能未保存编辑的）docText。复用既有 downloadText，零新依赖。
 - 本地：tsc/eslint/build 绿。生产复验（index-Cos9snkW.js / Dashboard-4QricovJ.js / Builder-SHCwB0c0.js，零 AI——唯一 cover POST 预派发 mock、零分享/支付、基线还原）全绿零 P0–P3：三种 kind 卡片/viewer TXT 字节一致、文件名 slug 精确、viewer 未保存编辑反映入 TXT 而存储不变、Builder 工具 TXT=mock 正文字节一致、PDF/DOCX letterhead 回归、375 光暗按钮行换行无溢出、R361 bulk 切换回归。
+
+## R363 — 求职文档重命名 (2026-08-31)
+- 闭环审计观察：文档标题在 Builder 保存时自动生成（如 "Untitled — Cover letter"），dashboard 行只有 Open/PDF/DOCX/TXT/Delete，无法改名；副本与文件夹均有 rename，文档是唯一没有的命名对象；Rezi 可重命名 AI 文档。方案 docs/plan-r363-rename-career-docs.md。
+- 实现：documents.ts 新增 renameCareerDoc(id, title)——只改 title 不动 updatedAt（组织性操作，R197 规则；updateCareerDoc 的时间戳提升保留给真实文本编辑）；Dashboard.tsx 文档行加铅笔按钮（sr-only "Rename <title>"）开对话框（预填输入、Enter/Rename 提交 trim 后标题、空白禁用、Cancel/Esc 丢弃）。viewer 与 Builder 工具对话框不动。
+- 本地：oracle .tmp-smoke/r363_oracle.ts 6/6（title 变/updatedAt 字节不变/其余字段与顺序保留/未知 id no-op）、tsc/eslint/build 绿。
+- 生产复验（index-CIe6fVho.js / Dashboard-C7hUgzeH.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：三种 kind 重命名（含 Enter 提交、前后空白 trim）、updatedAt/text/signature 字节不变、新标题流入 viewer 标题与 interview TXT/PDF 标题、cover TXT 仍正文原样且文件名 slug 不受标题影响（kind 基）、删除确认/undo 用新标题且还原字节一致、R340 回焦（信任点击）、375 光暗严格。QA 首轮抓到 P3（第 6 个按钮致 375 行溢出 scrollWidth 394，按钮组 shrink-0 拒收缩）当轮修复（shrink-0→min-w-0 换行）并复验 375/768/1440 全过。
+
+## R364 — 文档查看器未保存编辑关闭确认 (2026-08-31)
+- 闭环源码+生产实证缺陷：文档查看器（Dashboard/documents Open 对话框）文本编辑只存于 docText state，Esc/X/遮罩关闭无条件 setOpenDoc(null) 静默丢弃未保存编辑，且对话框描述写着 "edits are saved to this browser" 有误导；Builder 工具对话框（R333）与 tailor 对话框（R344）均有弃稿确认，查看器是最后一个没有守卫的编辑对话框。方案 docs/plan-r364-viewer-discard-confirm.md。
+- 实现：viewer Dialog onOpenChange 关闭分支——docText !== openDoc.text 时 window.confirm(`Discard unsaved changes to "<title>"?`)，Cancel 保留对话框与编辑，OK 照旧关闭丢弃；干净打开/已保存关闭免确认；Save changes 按钮直接 setOpenDoc(null) 天然绕过守卫（保存即关闭为既有设计）；签名增删即时持久化不触发守卫。
+- 本地：tsc/eslint/build 绿。生产复验（index-Boj-c-of.js / Dashboard-BS2-Xzuy.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：三关闭路径干净免确认、脏编辑 Esc 出精确文案且 Cancel 保留/OK 后存储与编辑前字节一致、Save 后关闭免确认、签名单独增删免确认、R363 rename/viewer TXT 用未保存文本/PDF 标题/删除 undo/375 光暗全回归。QA 方法注：headless CDP 下原生 confirm 会卡死标签页，经 addScriptToEvaluateOnNewDocument 覆写断言文案与分支后还原（已入测试 skill）。
+
+## R365 — 求职文档复制 (2026-08-31)
+- 闭环审计观察：文档行只有 Open/Rename/PDF/DOCX/TXT/Delete，无复制——为另一家公司改一封已存 cover letter 只能原地改（丢原稿）或再花一次 AI 请求；同页副本已有 duplicateResumeVersion（R358 编号命名），文档是最后一个没有 duplicate 的 dashboard 对象。方案 docs/plan-r365-duplicate-career-docs.md。
+- 实现：documents.ts 新增 duplicateCareerDoc(id)——复制 kind/text/signature，标题按 R358 规则（剥一层尾部 " (copy)"/" (n)" 后取最小空闲 "base (n)" n>=2），新 id、updatedAt=now、插入列表顶部、源文档字节不动；Dashboard 行 Rename 后新增 Copy 图标按钮（sr-only "Duplicate <title>"）。
+- 本地：oracle 10/10（.tmp-smoke/r365_oracle.ts，跑法 npx tsx --tsconfig tsconfig.app.json）、tsc/eslint/build 绿。生产复验（index-CDh7rooQ.js / Dashboard-Cnbs4qCz.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：(2)/(3)、复制 "(2)" 得 (4)、"(copy)"→(2)、签名随拷、源字节不动、副本独立（rename/编辑保存/删除+undo）、副本导出用副本标题、R364 守卫回归、375 光暗 7 按钮行严格无溢出。
+
+## R366 — 分享链接按副本隔离 (2026-08-31)
+- 闭环源码+语义实证缺陷：honestcv.shareLink 为全局单链接——副本 B 激活时发布会带着 A 的 {id,token} 重发，A 发给雇主的公开页被 B 的内容静默改写/撤销；对话框却写 "Share this resume"。副本域其他对象（历史 R345、targeted copies R183）早已按副本隔离。方案 docs/plan-r366-per-copy-share-links.md。
+- 实现：share.ts 改存 honestcv.shareLinks（scope→ShareLink 映射，scope=versionId 或 'draft'），loadShareLink/createShareLink/revokeShareLink 全部带 scope；legacy honestcv.shareLink 首读迁移到当前 scope（正是旧对话框展示它的那个副本）、不覆盖已有 scoped 记录、畸形丢弃。Builder scope=activeVersionId??'draft'，linkVersion 换副本时同步换链接状态并清 slug/error/copied，对话框描述补 "Each saved copy publishes its own link."。删副本不撤销其链接（撤销需保留 token，属非目标）。
+- 本地：oracle 12/12（.tmp-smoke/r366_oracle.ts）、tsc/eslint/build 绿。生产复验（index-C4iIr3Wf.js / Builder-C8KGfK7n.js / share-ChhdQyPP.js，/api/share POST/DELETE 全部派发前 mock 零真实分享、基线还原）全绿零 P0–P3：draft/A/B 三 scope 独立发布与撤销（撤 B 仅删 B 键，A/draft 字节不动）、slug 只在新建时入 body、republish 带存储 {id,token}、legacy 迁移/不覆盖/畸形丢弃、换副本无 stale link/slug/error、400 友好文案、R365/R364 回归、375 光暗严格。注：republish 保 URL 依赖服务端对同 id 回显同 url（真实 API 如此），客户端不强制钉死。
+
+## R367 — 删除副本时关闭其公开分享链接 (2026-08-31)
+- 闭环 R366 非目标：删除副本后其公开链接永久在线（Share 对话框随副本消失，无处撤销），违背 "Turn it off anytime"；R366 缓期原因是纯本地剪枝会丢 token 致不可撤销，正解是服务端撤销即本轮。方案 docs/plan-r367-revoke-links-on-delete.md。
+- 实现：share.ts 增 hasShareLink(scope)（纯 peek，不触发 legacy 迁移）与 revokeShareLinksFor(scopes)（best-effort fire-and-forget：对每个有链接的 scope 发既有 DELETE /api/share/:id 带存储 token，仅 2xx/404/410 后删本地记录；失败保留记录，undo 还原的副本可重试撤销）。三个删除路径接入：Dashboard 单删确认（有链接时描述追加 "Its public share link will also be turned off."）、批删确认（"One of them has…"/"N of them have public share links…"）、Builder Copies 对话框 Delete。有意语义：undo 只还原本地字节，已撤销的公开 URL 不复活（删除即用户明确下线信号）。
+- 本地：oracle 13/13（.tmp-smoke/r367_oracle.ts）、tsc/eslint/build 绿。生产复验（index-CuvEi5IQ.js / Dashboard-CiCGr20t.js / share-BmmvaPQA.js，/api/share 全 mock 零真实分享、基线还原）全绿零 P0–P3：单删精确一条 DELETE 带 token、200/404 仅删该 scope、无链接删除零请求、批删句式+仅删有链接项、500 失败保留记录且 undo 还原后 Share 对话框仍显链接可重试、Builder 路径、R366/R365 回归、375 光暗两确认对话框严格无溢出。
+
+## R368 — SOP-10 四维审计 + 导入保留目标职位 + Remotive 字符串修剪 (2026-08-31)
+- SOP-10 节点：独立 QA 在生产走完全新用户黄金路径（落地页→向导→粘贴导入→编辑→ATS→PDF/TXT 导出→存副本→mock 发布→dashboard 管理）、Jobs 管道链、assistant 面板、6 页×3 宽×光暗 36 项静态检查、健壮性探针（reload/深链/慢网 AI/console），零 P0/P1。方案 docs/plan-r368-sop10-import-target-trim.md。
+- P2 修复：向导填的目标职位在 Import — replaces current content 后被静默清空（parseResumeText 全量替换，share payload 实证 targetRole:""）。importText.ts 新增 keepTargetOnImport(prev, parsed)，保留 targetRole/jobDescription/experienceLevel/targetCompany/ignoredKeywords/language，内容仍全部来自解析；Builder 粘贴按钮（文件上传同漏斗）接入；Dashboard 导入建新副本路径有意不动。
+- P3 修复：Remotive company_name 带尾部空格泄漏到 follow-up email（"Hi Coalition Technologies  hiring team,"）与 targeted copy 名。三层修剪：worker /api/jobs/search 映射 trim、客户端 searchJobs 逐条 trim（覆盖 KV 旧缓存）、followUpEmail 组稿时 trim（覆盖修复前已存管道条目）。
+- 本地：oracle 15/15（.tmp-smoke/r368_oracle.ts）、tsc/eslint/build 绿。生产复验（index-DRybDTYD.js）全绿零新 P0–P3：向导 role/level 经导入存活且 share payload 带非空 targetRole、JD+ignoredKeywords 经导入存活且 ATS 按保留 JD 对新内容重算（22%→45%）、空目标不虚构、36 条搜索字符串零杂空白、旧管道条目邮件单空格、R366/R367 回归、375 光暗。
+- 观察入库（候选后续轮）：导入后 Target job 区块折叠易漏看；下载后促销弹窗挡工作区下一步操作；"Save current as copy" 无命名提示得 "Untitled copy"；D2 深度差距（follow-up 邮件为本地模板无个性化、assistant 快捷任务为本地启发式、管道无提醒/附件/联系人）；assistant 成功路径聊天回复渲染与管道批量操作两项覆盖缺口待复测。

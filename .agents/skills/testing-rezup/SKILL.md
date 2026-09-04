@@ -1239,3 +1239,29 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Dashboard doc cards: buttons titled `Download <title> as {PDF,DOCX,TXT}`; open the viewer via the card's "Open" button (find via its sibling `Delete <title>` button). Viewer footer order: Edit/Preview/Add signature/PDF/DOCX/TXT/Copy text/Save changes.
 - TXT content: letters = exact body (no letterhead); interview = `${title}\n\n${body}`. Filenames: dashboard `<fullname>-{cover-letter,resignation-letter,interview-prep}.txt`, builder cover `<fullname>-<company>-cover-letter.txt`.
 - Builder letter tools require a JD in #jd first ("Paste the job description in 'Target job' first"), and controlled inputs may reject the prototype-setter trick — use focus + `Input.insertText` instead. Mock POST /api/ai/cover-letter with `{text, freeRemaining}` (r357_helpers fulfill(p, 200, body)).
+
+## R363 rename career docs notes
+- Dashboard doc rows: Pencil button `button[title="Rename this document"]` with sr-only `Rename <title>`, ordered Open · Rename · PDF · DOCX · TXT · Delete. Dialog title `Rename "<old>"`, input `aria-label="Document name"` prefilled; Rename disabled on trimmed-empty; Enter submits; Cancel/Esc leave `honestcv.careerDocs` byte-identical; rename never bumps `updatedAt` (R197 organizational rule) and preserves text/signature.
+- Focus-return (R340) only works when the dialog is opened by a trusted CDP mouse click on the pencil — a JS `.click()` opener will NOT restore focus; don't report that as a bug.
+- 375px overflow found in R363 (fixed in Dashboard-C7hUgzeH.js by `shrink-0`→`min-w-0` on the action group, now wraps to 2 rows at 375/768): doc-row action group (`div.flex.shrink-0.flex-wrap.justify-end.gap-1.5`) has `shrink-0` + `whitespace-nowrap` buttons, so with 6 buttons it overflows the 343px card (~394px scrollWidth). Recheck after fix; passing rule is strict `document.documentElement.scrollWidth === 375`.
+
+## R364 viewer unsaved-edit close guard notes
+- Viewer close (Esc/X/overlay) fires `window.confirm('Discard unsaved changes to "<title>"?')` only when textarea differs from stored doc; Save changes bypasses the guard AND closes the dialog itself. Signature add/remove saves immediately (no dirty state).
+- "Add signature" uses a hidden `input[type=file]` inside the viewer dialog — set it headlessly via `DOM.setFileInputFiles` with a PNG path; no drawing pad.
+- Test the confirm safely under headless CDP with `Page.addScriptToEvaluateOnNewDocument` overriding `window.confirm` (capture message array + scripted return); remove the script id and reload to restore the native confirm before finishing.
+
+## R365 duplicate career docs notes
+- Copy button `button[title="Duplicate this document"]` (sr-only `Duplicate <title>`) sits between Rename and PDF. Numbering: strips one trailing " (copy)"/" (n)" from source title, then smallest free "base (n)" n>=2; copy gets new id + updatedAt=now, inserted at TOP of the list; source stays byte-identical.
+- Duplicates are fully independent docs (rename/edit/delete/undo don't touch the source); downloads from a copy use the copy's title where titles apply (interview TXT/PDF).
+
+## R366 per-copy share links notes
+- Share links live in `honestcv.shareLinks` (JSON map keyed by saved-copy versionId or 'draft'); legacy `honestcv.shareLink` migrates one-time to the FIRST scope that calls loadShareLink (the currently active copy), never clobbers an existing scoped entry, malformed legacy dropped silently.
+- Share dialog: access is a native `<select aria-label="Link access">` (off/view) — set via HTMLSelectElement value setter + change event; the published URL lives in an `<input>` (not innerText). Publish POST /api/share body: `{resume}` (+`{slug}` when custom slug typed, +`{id,token}` on "Publish latest version" republish). Revoke = DELETE /api/share/<id>. Mock both with Fetch interception (`*/api/share*`); 400 `{error}` renders the error string in the dialog.
+- The Copies dialog trigger button is labeled "Copies" with no active copy, but shows the ACTIVE COPY NAME once a copy is active. "Save current as copy" creates+activates a new copy. Opening a saved copy from /dashboard shows a Radix replace-draft dialog first.
+- Dashboard has "Open" buttons for both saved copies and docs — pick the doc row by adjacent Rename/Duplicate labels, not the first "Open".
+
+## R367 revoke-links-on-delete notes
+- Deleting a linked copy sends fire-and-forget `DELETE /api/share/:id` with header `x-share-token`; local `honestcv.shareLinks` entry removed only on 2xx/404/410, kept on 5xx/network failure (retryable after Undo).
+- Dashboard confirm dialogs append: single "Its public share link will also be turned off."; bulk "One of them has a public share link…" / "N of them have public share links…". Builder Copies-dialog Delete revokes with no confirm.
+- Seeding gotcha: `honestcv.resume` must have a `contact` object and `experience` array (not `basics`) or loadResume() returns null and the dashboard shows the empty state; `honestcv.resumeVersions` entries need the copy under the `data` field (`{id,name,updatedAt,data:<resume>}`), not `resume`.
+- Builder Share opener has no "Share" text — find the button whose `title` includes "read-only link". The published link lives in a dialog input value, not textContent.

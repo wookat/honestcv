@@ -56,7 +56,9 @@ import {
   type CareerDoc,
   type CareerDocKind,
   deleteCareerDoc,
+  duplicateCareerDoc,
   listCareerDocs,
+  renameCareerDoc,
   restoreCareerDoc,
   saveCareerDoc,
   splitAtSignature,
@@ -85,6 +87,7 @@ import {
   updateResumeVersion,
   visibleResume,
 } from '@/lib/resume'
+import { hasShareLink, revokeShareLinksFor } from '@/lib/share'
 import { resolveTemplate } from '@/lib/templates'
 
 interface ExampleEntry {
@@ -232,6 +235,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [docText, setDocText] = useState('')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
+  const [renamingDoc, setRenamingDoc] = useState<{ doc: CareerDoc; title: string } | null>(null)
   const [previewLetter, setPreviewLetter] = useState<LetterExample | null>(null)
   const signatureInputRef = useRef<HTMLInputElement>(null)
   const [signatureError, setSignatureError] = useState('')
@@ -1314,7 +1318,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     </p>
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                <div className="flex min-w-0 flex-wrap justify-end gap-1.5">
                   <Button
                     type="button"
                     variant="outline"
@@ -1327,6 +1331,28 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     }}
                   >
                     Open
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    title="Rename this document"
+                    onClick={() => setRenamingDoc({ doc: d, title: d.title })}
+                  >
+                    <Pencil className="size-3.5" />
+                    <span className="sr-only">Rename {d.title}</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    title="Duplicate this document"
+                    onClick={() => setDocs(duplicateCareerDoc(d.id))}
+                  >
+                    <Copy className="size-3.5" />
+                    <span className="sr-only">Duplicate {d.title}</span>
                   </Button>
                   {docDownload(d, d.text, 'pdf', `${d.id}-pdf`)}
                   {docDownload(d, d.text, 'docx', `${d.id}-docx`)}
@@ -1970,6 +1996,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         open={openDoc !== null}
         onOpenChange={(o) => {
           if (!o) {
+            if (
+              openDoc &&
+              docText !== openDoc.text &&
+              !window.confirm(`Discard unsaved changes to "${openDoc.title}"?`)
+            )
+              return
             setOpenDoc(null)
             setSignatureError('')
           }
@@ -2172,6 +2204,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             <DialogTitle>Delete "{confirmDelete?.name}"?</DialogTitle>
             <DialogDescription>
               This removes the copy from this browser permanently.
+              {confirmDelete && hasShareLink(confirmDelete.id)
+                ? ' Its public share link will also be turned off.'
+                : ''}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -2184,6 +2219,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               onClick={() => {
                 if (confirmDelete) {
                   const index = versions.findIndex((v) => v.id === confirmDelete.id)
+                  revokeShareLinksFor([confirmDelete.id])
                   setVersions(deleteResumeVersion(confirmDelete.id))
                   setUndoDelete({
                     kind: 'copy',
@@ -2208,6 +2244,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             </DialogTitle>
             <DialogDescription>
               This removes the selected copies from this browser permanently.
+              {(() => {
+                const linked = bulkSelected.filter((id) => hasShareLink(id)).length
+                if (linked === 0) return ''
+                return linked === 1
+                  ? ' One of them has a public share link, which will also be turned off.'
+                  : ` ${linked} of them have public share links, which will also be turned off.`
+              })()}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -2222,6 +2265,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   .map((version, index) => ({ version, index }))
                   .filter((e) => bulkIds.has(e.version.id))
                 if (entries.length > 0) {
+                  revokeShareLinksFor(entries.map((e) => e.version.id))
                   setVersions(deleteResumeVersions(entries.map((e) => e.version.id)))
                   setUndoDelete({ kind: 'copies', entries })
                 }
@@ -2295,6 +2339,41 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               </Button>
             </form>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={renamingDoc !== null} onOpenChange={(o) => !o && setRenamingDoc(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename "{renamingDoc?.doc.title}"</DialogTitle>
+            <DialogDescription>
+              The new name appears in this list and on downloads of this document.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="grid gap-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (renamingDoc && renamingDoc.title.trim()) {
+                setDocs(renameCareerDoc(renamingDoc.doc.id, renamingDoc.title.trim()))
+                setRenamingDoc(null)
+              }
+            }}
+          >
+            <Input
+              value={renamingDoc?.title ?? ''}
+              onChange={(e) => setRenamingDoc((r) => (r ? { ...r, title: e.target.value } : r))}
+              aria-label="Document name"
+            />
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setRenamingDoc(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!renamingDoc?.title.trim()}>
+                Rename
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

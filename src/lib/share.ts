@@ -3,7 +3,11 @@
 import { licenseHeaders } from '@/lib/license'
 import { type Resume, sanitizeResume } from '@/lib/resume'
 
-const SHARE_LINK_KEY = 'honestcv.shareLink'
+const SHARE_LINKS_KEY = 'honestcv.shareLinks'
+const LEGACY_SHARE_LINK_KEY = 'honestcv.shareLink'
+
+/** A resume copy id, or 'draft' for the unlinked working draft. */
+export type ShareScope = string
 
 export interface ShareLink {
   id: string
@@ -12,32 +16,73 @@ export interface ShareLink {
   sharedAt: number
 }
 
-export function loadShareLink(): ShareLink | null {
+function isShareLink(v: unknown): v is ShareLink {
+  if (typeof v !== 'object' || v === null) return false
+  const link = v as Record<string, unknown>
+  return (
+    typeof link.id === 'string' && typeof link.token === 'string' && typeof link.url === 'string'
+  )
+}
+
+function loadShareLinks(): Record<ShareScope, ShareLink> {
   try {
-    const raw = localStorage.getItem(SHARE_LINK_KEY)
-    if (!raw) return null
-    const v = JSON.parse(raw) as ShareLink
-    if (typeof v.id !== 'string' || typeof v.token !== 'string' || typeof v.url !== 'string') {
-      return null
+    const raw = localStorage.getItem(SHARE_LINKS_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as unknown
+    if (typeof parsed !== 'object' || parsed === null) return {}
+    const map: Record<ShareScope, ShareLink> = {}
+    for (const [scope, link] of Object.entries(parsed)) {
+      if (isShareLink(link)) map[scope] = link
     }
-    return v
+    return map
   } catch {
-    return null
+    return {}
   }
 }
 
-function persistShareLink(link: ShareLink | null) {
-  if (link) localStorage.setItem(SHARE_LINK_KEY, JSON.stringify(link))
-  else localStorage.removeItem(SHARE_LINK_KEY)
+/** Each copy owns its link; the pre-R366 single global link is attributed to
+ *  the scope that first reads it — the copy the user is looking at, which is
+ *  exactly the link the old dialog showed there. */
+export function loadShareLink(scope: ShareScope): ShareLink | null {
+  const links = loadShareLinks()
+  const legacyRaw = localStorage.getItem(LEGACY_SHARE_LINK_KEY)
+  if (legacyRaw) {
+    try {
+      const legacy = JSON.parse(legacyRaw) as unknown
+      if (isShareLink(legacy) && !links[scope]) {
+        links[scope] = { ...legacy, sharedAt: typeof legacy.sharedAt === 'number' ? legacy.sharedAt : Date.now() }
+        localStorage.setItem(SHARE_LINKS_KEY, JSON.stringify(links))
+      }
+    } catch {
+      // malformed legacy record — drop it
+    }
+    localStorage.removeItem(LEGACY_SHARE_LINK_KEY)
+  }
+  return links[scope] ?? null
+}
+
+function persistShareLink(scope: ShareScope, link: ShareLink | null) {
+  const links = loadShareLinks()
+  if (link) links[scope] = link
+  else delete links[scope]
+  try {
+    localStorage.setItem(SHARE_LINKS_KEY, JSON.stringify(links))
+  } catch {
+    // storage full / private mode — ignore
+  }
 }
 
 /** Lowercase letters, numbers and hyphens, 3-40 chars, no edge hyphens. */
 export const SHARE_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/
 
-/** Publish a snapshot of the resume; re-publishing keeps the same URL.
+/** Publish a snapshot of the resume; re-publishing keeps the copy's URL.
  *  A slug (only used when creating a new link) requests a custom URL. */
-export async function createShareLink(resume: Resume, slug?: string): Promise<ShareLink> {
-  const prev = loadShareLink()
+export async function createShareLink(
+  resume: Resume,
+  scope: ShareScope,
+  slug?: string
+): Promise<ShareLink> {
+  const prev = loadShareLink(scope)
   let res: Response
   try {
     res = await fetch('/api/share', {
@@ -64,7 +109,7 @@ export async function createShareLink(resume: Resume, slug?: string): Promise<Sh
     throw new Error(clientMessage || `Creating the link failed (${res.status}). Try again.`)
   }
   const link: ShareLink = { id: data.id, token: data.token, url: data.url, sharedAt: Date.now() }
-  persistShareLink(link)
+  persistShareLink(scope, link)
   return link
 }
 
@@ -84,12 +129,32 @@ async function revokeRemote(id: string, token: string): Promise<void> {
   }
 }
 
-/** Revoke the current link: the local copy is only forgotten once the server
+/** Revoke a copy's link: the local record is only forgotten once the server
  *  confirms the delete, so a failed revoke stays visible and retryable. */
-export async function revokeShareLink(): Promise<void> {
-  const link = loadShareLink()
+export async function revokeShareLink(scope: ShareScope): Promise<void> {
+  const link = loadShareLink(scope)
   if (link) await revokeRemote(link.id, link.token)
-  persistShareLink(null)
+  persistShareLink(scope, null)
+}
+
+/** Whether a scope has a stored link. Pure peek — never runs the legacy
+ *  attribution that `loadShareLink` performs. */
+export function hasShareLink(scope: ShareScope): boolean {
+  return scope in loadShareLinks()
+}
+
+/** Best-effort revoke for copies being deleted. Each local record is only
+ *  forgotten once the server confirms, so a failed revoke survives for an
+ *  undo-restored copy to retry; without an undo the leftover is harmless. */
+export function revokeShareLinksFor(scopes: readonly ShareScope[]): void {
+  const links = loadShareLinks()
+  for (const scope of scopes) {
+    const link = links[scope]
+    if (!link) continue
+    void revokeRemote(link.id, link.token)
+      .then(() => persistShareLink(scope, null))
+      .catch(() => {})
+  }
 }
 
 /** Fetch a shared resume snapshot; null when the link is gone. */

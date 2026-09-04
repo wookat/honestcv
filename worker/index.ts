@@ -434,8 +434,8 @@ app.get('/api/jobs/search', async (c) => {
     .filter((j) => !category || matchesCategory(category, j.category ?? ''))
     .map((j) => ({
       id: String(j.id),
-      title: j.title ?? '',
-      company: j.company_name ?? '',
+      title: (j.title ?? '').trim(),
+      company: (j.company_name ?? '').trim(),
       logo: j.company_logo ?? '',
       category: j.category ?? '',
       type: (j.job_type ?? '').replace(/_/g, ' '),
