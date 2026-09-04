@@ -1287,3 +1287,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 ## R372 test notes
 - To test clipboard failure states safely over CDP, synchronously override `navigator.clipboard.writeText = () => Promise.reject(new Error('denied'))` (and `Promise.resolve()` for success) — never `awaitPromise` on clipboard calls.
 - The builder setup wizard dialog ("What job are you targeting?") appears on first /builder visit for a clean profile and writes `honestcv.setupDone` when skipped — clear it at baseline restore.
+
+## R373 lessons — assistant skills merge & pipeline seeding
+
+- Seed `honestcv.jobPipeline` with the exact schema `{job:{id,title,company,location,url,description}, status, addedAt, updatedAt, history:[{status,at:<ms>}]}` — wrong field names (e.g. `events`/`date`, missing `job.id`) white-screen /jobs with no error boundary.
+- r321_lib exposes `Tab`/`tabs_list` (no `tab()` helper) — reattach via `[Tab(x['webSocketDebuggerUrl']) for x in tabs_list() if 'cv.zalize.com' in x.get('url','')][0]`; bump `t.ws.settimeout(60)` before `Page.captureScreenshot` to avoid websocket timeouts.
