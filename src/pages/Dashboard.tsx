@@ -236,8 +236,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     const kind = docSeedParams?.get('kind')
     return kind === 'cover' || kind === 'interview' || kind === 'resignation' ? kind : 'all'
   })
-  const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
-  const [docText, setDocText] = useState('')
+  // ?doc=<id> deep link (e.g. the /jobs "Cover letter: … Open" row) opens the viewer;
+  // the kind-filter URL sync effect drops the one-shot param after mount.
+  const [openDoc, setOpenDoc] = useState<CareerDoc | null>(() => {
+    const id = docSeedParams?.get('doc')
+    return id ? (listCareerDocs().find((d) => d.id === id) ?? null) : null
+  })
+  const [docText, setDocText] = useState(() => openDoc?.text ?? '')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
   const [renamingDoc, setRenamingDoc] = useState<{ doc: CareerDoc; title: string } | null>(null)

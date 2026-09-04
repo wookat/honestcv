@@ -45,6 +45,8 @@ export interface PipelineEntry {
   updatedAt: number
   /** Saved resume copy targeted at this job, prepared when the job is saved */
   resumeVersionId?: string
+  /** Saved cover letter written for this job (career document id) */
+  coverDocId?: string
   /** Status changes in chronological order (entries saved before R190 have none) */
   history?: StatusChange[]
   /** Free-form notes: recruiter names, interview dates, follow-ups */
@@ -305,6 +307,7 @@ function sanitizeEntry(raw: unknown): PipelineEntry | null {
     if (steps.length > 0) entry.history = steps
   }
   if (typeof e.resumeVersionId === 'string') entry.resumeVersionId = e.resumeVersionId
+  if (typeof e.coverDocId === 'string') entry.coverDocId = e.coverDocId
   if (typeof e.notes === 'string') entry.notes = e.notes
   if (typeof e.remindOn === 'string' && DAY_RE.test(e.remindOn)) entry.remindOn = e.remindOn
   // Entries saved before reminders became calendar days stored a local-midnight epoch
@@ -349,6 +352,7 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
       updatedAt: now,
       history,
       ...(prev?.resumeVersionId ? { resumeVersionId: prev.resumeVersionId } : {}),
+      ...(prev?.coverDocId ? { coverDocId: prev.coverDocId } : {}),
       ...(prev?.notes ? { notes: prev.notes } : {}),
       ...(prev?.remindOn !== undefined ? { remindOn: prev.remindOn } : {}),
     },
@@ -388,6 +392,13 @@ export function setPipelineReminder(jobId: string, remindOn: string | null): Pip
   const day = remindOn !== null && DAY_RE.test(remindOn) ? remindOn : undefined
   return savePipeline(
     listPipeline().map((e) => (e.job.id === jobId ? { ...e, remindOn: day } : e))
+  )
+}
+
+/** Link the pipeline entry for a job to the cover letter written for it. */
+export function setPipelineCoverDoc(jobId: string, coverDocId: string): PipelineEntry[] {
+  return savePipeline(
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, coverDocId } : e))
   )
 }
 
