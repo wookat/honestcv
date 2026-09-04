@@ -992,3 +992,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：resume.ts 新增 uniqueVersionName——saveResumeVersion/createResumeVersion 持久化前重名则走 R358 duplicateName 编号（剥一层尾部 " (copy)/(n)" 取最小空闲 "base (n)" n≥2），不重名字节不变；覆盖 Builder Copies 保存、Dashboard 三路径、Jobs targeted copies。rename/updateResumeVersion 有意不动（显式改名允许重名）。
 - 本地：oracle 9/9（.tmp-smoke/r369_oracle.ts）、tsc/eslint/build 绿。生产复验（index-BcNiJfwy.js，零 AI/分享/支付、基线还原）全绿零新 P0–P3：连存三次得 (2)/(3)、Builder 留空得 (4) 不重复、删 (2) 再存 gap-fill 回 (2)、同职位二次 target 得 "… — Coalition Technologies (2)" 且入 Job applications、R368 trim/导入保 target、R358/R361/搜索回归、375 光暗 list 视图与 Copies 对话框严格无溢出。
 - 观察入库（P3 候选）：dashboard grid 视图 375px 溢出 ~7px（scrollWidth 382，最宽元素为草稿预览卡 div.bg-card，与命名无关的既有布局问题）。
+
+## R370 — dashboard grid 375px 溢出修复 (2026-08-31)
+- 闭环 R369 银行观察：dashboard grid 视图 375px 溢出 ~7px。独立 QA 生产实证根因（阈值型，非环境）：三个卡片 grid 未设基础列，移动端隐式列按 item min-content 自适应；副本名 `<p class="truncate">` 的 nowrap min-content（如 49 字符名 340px）经 min-width:auto 的 flex-col 祖先传导进 grid track（366px > 343px 可用宽），truncate 从未生效。toggle 证明：仅该 <p> 改 white-space:normal 即 382→375。方案 docs/plan-r370-grid-375-overflow.md。
+- 修复：Dashboard.tsx 三处卡片 grid 加 `grid-cols-1`（repeat(1, minmax(0,1fr))，归零 track min-content 下限）；≥sm 的 grid-cols-2/3 本就 minmax(0,1fr) 字节不变。
+- 本地 tsc/eslint/build 绿（纯 CSS 类，无 oracle）。首次部署（index-CQGirkNP.js）QA 抓到 P1 部署漂移：R370 分支基于 main 未含未合并的 R369 → 生产命名回归；merge R369 分支重部署（index-G4X9IZjs.js）后复验全绿：375 grid scrollWidth 375（光暗）、49 字符名省略号、samples grid 严格、768/1440 两/三列不变、list 视图不变、R369 命名 (2)/(3) 恢复、基线还原零 AI/分享/支付。
+- QA 更正 R369 报告：当时"最宽元素是草稿卡"系长名副本卡撑宽 track 后全卡被拉伸所致，真实 culprit 是长名副本卡。

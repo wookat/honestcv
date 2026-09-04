@@ -1272,3 +1272,9 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Dashboard card action buttons use `title=` attributes (not aria-label), e.g. `button[title="Edit name & target job"]`.
 - A targeted job's card button flips to "Open targeted resume"; to re-exercise "Target my resume", delete `resumeVersionId` from the `honestcv.jobPipeline` entry.
 - The bulk-delete Undo toast expires quickly — click it immediately after the delete.
+
+## R370 test notes
+- 375px dashboard grid overflow needs a copy name whose nowrap `text-sm` width > ~317px (e.g. "Freelance Copywriter — Coalition Technologies (2)"); probe width culprits by toggling `white-space` per element and re-reading scrollWidth.
+- Copy-naming logic lives in the lazy `resume-*.js` chunk, not `index-*.js` — for deploy-drift checks list loaded chunks via `performance.getEntriesByType('resource')` and grep the right chunk.
+- A huge CDP screenshot at deviceScaleFactor 2 can time out the websocket — reconnect the Tab and retry at dsf 1.
+- `honestcv.resume` is only persisted after a first edit (visiting /builder alone doesn't create it) — focus a field and `Input.insertText` to seed a draft; editing also writes `honestcv.ev.builder-start` and `honestcv.resumeHistory` — clear them at baseline restore.
