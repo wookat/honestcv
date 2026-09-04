@@ -8522,49 +8522,55 @@ export default function Builder() {
           )}
         </DialogContent>
       </Dialog>
-      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Resume downloaded — good luck out there</DialogTitle>
-            <DialogDescription>
-              If RezUp helped, pass the free ATS checker to a friend who's job
-              hunting. No signup, no subscription trap — just a match score.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                void navigator.clipboard
-                  .writeText('https://cv.zalize.com/ats-checker')
-                  .then(() => setShareCopied(true))
-              }}
+      {shareOpen && (
+        <div
+          role="status"
+          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
+        >
+          <span className="min-w-0">
+            Resume downloaded — if RezUp helped, pass the free ATS checker to a
+            friend.
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void navigator.clipboard
+                .writeText('https://cv.zalize.com/ats-checker')
+                .then(() => setShareCopied(true))
+            }}
+          >
+            {shareCopied ? 'Copied!' : 'Copy checker link'}
+          </Button>
+          <Button type="button" variant="outline" size="sm" asChild>
+            <a
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Free ATS resume checker — no signup, runs in your browser: https://cv.zalize.com/ats-checker')}`}
+              target="_blank"
+              rel="noreferrer"
             >
-              {shareCopied ? 'Copied!' : 'Copy checker link'}
-            </Button>
-            <Button type="button" variant="outline" size="sm" asChild>
-              <a
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Free ATS resume checker — no signup, runs in your browser: https://cv.zalize.com/ats-checker')}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Share on X
-              </a>
-            </Button>
-            <Button type="button" variant="outline" size="sm" asChild>
-              <a
-                href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcv.zalize.com%2Fats-checker"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Share on LinkedIn
-              </a>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+              Share on X
+            </a>
+          </Button>
+          <Button type="button" variant="outline" size="sm" asChild>
+            <a
+              href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcv.zalize.com%2Fats-checker"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Share on LinkedIn
+            </a>
+          </Button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setShareOpen(false)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
       <Dialog open={shareLinkOpen} onOpenChange={setShareLinkOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
