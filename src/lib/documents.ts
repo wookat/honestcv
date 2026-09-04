@@ -81,6 +81,13 @@ export function updateCareerDoc(
   return docs
 }
 
+/** Rename a document without touching its edited timestamp (organizational action). */
+export function renameCareerDoc(id: string, title: string): CareerDoc[] {
+  const docs = listCareerDocs().map((d) => (d.id === id ? { ...d, title } : d))
+  persistDocs(docs)
+  return docs
+}
+
 export function deleteCareerDoc(id: string): CareerDoc[] {
   const docs = listCareerDocs().filter((d) => d.id !== id)
   persistDocs(docs)

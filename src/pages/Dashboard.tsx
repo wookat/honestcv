@@ -57,6 +57,7 @@ import {
   type CareerDocKind,
   deleteCareerDoc,
   listCareerDocs,
+  renameCareerDoc,
   restoreCareerDoc,
   saveCareerDoc,
   splitAtSignature,
@@ -232,6 +233,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [docText, setDocText] = useState('')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
+  const [renamingDoc, setRenamingDoc] = useState<{ doc: CareerDoc; title: string } | null>(null)
   const [previewLetter, setPreviewLetter] = useState<LetterExample | null>(null)
   const signatureInputRef = useRef<HTMLInputElement>(null)
   const [signatureError, setSignatureError] = useState('')
@@ -1328,6 +1330,17 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   >
                     Open
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    title="Rename this document"
+                    onClick={() => setRenamingDoc({ doc: d, title: d.title })}
+                  >
+                    <Pencil className="size-3.5" />
+                    <span className="sr-only">Rename {d.title}</span>
+                  </Button>
                   {docDownload(d, d.text, 'pdf', `${d.id}-pdf`)}
                   {docDownload(d, d.text, 'docx', `${d.id}-docx`)}
                   {docDownload(d, d.text, 'txt', `${d.id}-txt`)}
@@ -2295,6 +2308,41 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               </Button>
             </form>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={renamingDoc !== null} onOpenChange={(o) => !o && setRenamingDoc(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename "{renamingDoc?.doc.title}"</DialogTitle>
+            <DialogDescription>
+              The new name appears in this list and on downloads of this document.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="grid gap-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (renamingDoc && renamingDoc.title.trim()) {
+                setDocs(renameCareerDoc(renamingDoc.doc.id, renamingDoc.title.trim()))
+                setRenamingDoc(null)
+              }
+            }}
+          >
+            <Input
+              value={renamingDoc?.title ?? ''}
+              onChange={(e) => setRenamingDoc((r) => (r ? { ...r, title: e.target.value } : r))}
+              aria-label="Document name"
+            />
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setRenamingDoc(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!renamingDoc?.title.trim()}>
+                Rename
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
