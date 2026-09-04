@@ -259,6 +259,7 @@ import {
   type AutoSortSection,
   skillLines,
   categorizeSkills,
+  mergeSkills,
   sortEntriesByDate,
   TEXT_INKS,
   visibleResume,
@@ -7556,15 +7557,7 @@ export default function Builder() {
             })
             return
           }
-          setResume((r) => {
-            const existing = r.skills
-              .split(/[,\n]/)
-              .map((s) => s.trim())
-              .filter(Boolean)
-            const have = new Set(existing.map((s) => s.toLowerCase()))
-            const added = action.value.filter((s) => !have.has(s.trim().toLowerCase()))
-            return { ...r, skills: [...existing, ...added].join(', ') }
-          })
+          setResume((r) => ({ ...r, skills: mergeSkills(r.skills, action.value) }))
         }}
         onLocate={(action) => {
           if (window.innerWidth < 640) setAssistantOpen(false)
