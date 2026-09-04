@@ -1009,3 +1009,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环 R371 银行观察：Draft follow-up email 按钮锁死在 ≥7d stale nudge 内（<7d 无入口、offer 完全无 affordance），且 followUpEmail 用 staleDays()??0 会把 pre-threshold 草稿写成 "0 days ago"；Copy email 剪贴板失败静默。方案 docs/plan-r372-followup-anytime.md。
 - 实现（全确定性零 AI）：jobs.ts 新增 daysSinceLastStep（不设阈值），applied opener 措辞 today/yesterday/N days ago；interviewing <2d 换 "We spoke about the <title> position on <Mon D>," 形式（≥2d 字节不变）；offer 变体（subject "Thank you for the <title> offer at <company>"、感谢+next steps opener、excited 中段、即便有 resumeVersionId 也不用 tailored 段，recruiter 问候规则仍适用）。Jobs.tsx：按钮对所有 applied/interviewing/offer 条目渲染（offer 标签 "Draft thank-you email"），nudge 文案仍仅 stale 时出现；saved/rejected 无按钮；followUpCopied 三态 idle/copied/failed，剪贴板 reject 显 "Copy failed"。
 - 本地：oracle 14/14（.tmp-smoke/r372_oracle.ts）+ r371 oracle 回归 14/14、tsc/eslint/build 绿。生产复验（index-CLVnPsCm.js / Jobs-D3uK0bMk.js，零 AI/分享/支付、基线还原）全绿零 P0–P3：today/yesterday/10d 字节一致、interviewing 1d/12d 两形式、offer 感谢信全字段+Hi Dana+无 tailored 段、saved/rejected 无按钮、强制剪贴板 reject→"Copy failed"→成功→"Copied"、mailto 跟随编辑回归、375 光暗严格、R369/R370 回归。
+
+## R375 — 空简历不再靠空泛通过的 ATS 检查拿分 (2026-08-31)
+- 闭环 R373 银行观察：全新空简历 ATS 得 63/100（"Almost ready"）。本地实证：24 项结构检查中 15 项在零内容时空泛 PASS（[].every 恒真、无 offender 即过、未知页数计 pass）。方案 docs/plan-r375-vacuous-ats-checks.md。
+- 实现：ats.ts check 形状加可选 na（not applicable，无内容可查）；各 factory 输入为空时置 na（无条目/无日期/无 bullet 行/无文本段/未知页数），scoreResume 内联的 Employment dates listed（无命名条目）与 Skills grouped into categories（skills 空）同理；finalize 在算 structure 比例前过滤 na 并只返回 applicable checks——全部消费方（分类行/清单计数/guidance 权重/readiness/assistant 摘要/Fixed chips）零改动自然收敛。始终适用的 8 项（contact/summary/experience/quantified/skills/education/word count/LinkedIn）保证分母非零。
+- 语义：空简历 no-JD 得 11/100、readiness not-yet；满内容简历所有检查均适用，得分与旧公式一致；文本 checker 经共享 factory 同语义；页数未知时 page 检查不再计入（此前恒 pass）。
+- 本地：oracle 20/20（.tmp-smoke/r375_oracle.ts）、tsc/eslint/build 绿。
