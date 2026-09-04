@@ -9,6 +9,7 @@ import {
   ArrowUp,
   Briefcase,
   Check,
+  TriangleAlert,
   ChevronDown,
   ChevronUp,
   Bookmark,
@@ -285,9 +286,9 @@ import {
   toggleTemplateFavorite,
 } from '@/lib/templatePrefs'
 
-function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
+function useDebouncedSave(resume: Resume): 'saving' | 'saved' | 'error' {
   const t = useRef<number | undefined>(undefined)
-  const [state, setState] = useState<'saving' | 'saved'>('saved')
+  const [state, setState] = useState<'saving' | 'saved' | 'error'>('saved')
   const first = useRef(true)
   const pending = useRef<Resume | null>(null)
   useEffect(() => {
@@ -302,11 +303,11 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' {
     pending.current = resume
     window.clearTimeout(t.current)
     t.current = window.setTimeout(() => {
-      saveResume(resume)
+      const ok = saveResume(resume)
       syncActiveVersion(resume)
       recordResumeSnapshot(resume)
       pending.current = null
-      setState('saved')
+      setState(ok ? 'saved' : 'error')
     }, 400)
     return () => window.clearTimeout(t.current)
   }, [resume])
@@ -1926,9 +1927,34 @@ export default function Builder() {
                 <Lock className="size-3.5" /> Unlock — $9.99 once
               </Button>
             )}
-            <span className="text-muted-foreground hidden text-xs xl:inline">
-              {saveState === 'saving' ? 'Saving…' : 'Saved'}
-            </span>
+            {saveState === 'error' ? (
+              <span
+                role="alert"
+                className="text-destructive inline-flex items-center text-xs font-medium"
+                title="Not saved — your browser storage is full, so recent changes are not being saved. Free up space — delete old resume copies or large photos — and keep editing to resume saving."
+              >
+                <TriangleAlert aria-hidden="true" className="size-4 sm:hidden" />
+                <span className="sr-only sm:not-sr-only">Not saved — storage full</span>
+              </span>
+            ) : (
+              <span
+                role="status"
+                aria-label={saveState === 'saving' ? 'Saving…' : 'All changes saved'}
+                title={saveState === 'saving' ? 'Saving…' : 'All changes saved'}
+                className="text-muted-foreground text-xs"
+              >
+                <span className="hidden xl:inline">
+                  {saveState === 'saving' ? 'Saving…' : 'Saved'}
+                </span>
+                <span aria-hidden="true" className="inline-flex xl:hidden">
+                  {saveState === 'saving' ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Check className="size-3.5" />
+                  )}
+                </span>
+              </span>
+            )}
             <Button
               size="sm"
               variant="ghost"
