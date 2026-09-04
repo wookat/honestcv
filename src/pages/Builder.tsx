@@ -160,6 +160,7 @@ import {
   createShareLink,
   loadShareLink,
   revokeShareLink,
+  revokeShareLinksFor,
 } from '@/lib/share'
 
 import {
@@ -8211,6 +8212,7 @@ export default function Builder() {
                       size="sm"
                       className="text-destructive h-10 text-xs sm:h-7"
                       onClick={() => {
+                        revokeShareLinksFor([v.id])
                         setVersions(deleteResumeVersion(v.id))
                         if (v.id === activeVersionId) linkVersion(null)
                       }}

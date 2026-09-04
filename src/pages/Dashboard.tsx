@@ -87,6 +87,7 @@ import {
   updateResumeVersion,
   visibleResume,
 } from '@/lib/resume'
+import { hasShareLink, revokeShareLinksFor } from '@/lib/share'
 import { resolveTemplate } from '@/lib/templates'
 
 interface ExampleEntry {
@@ -2203,6 +2204,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             <DialogTitle>Delete "{confirmDelete?.name}"?</DialogTitle>
             <DialogDescription>
               This removes the copy from this browser permanently.
+              {confirmDelete && hasShareLink(confirmDelete.id)
+                ? ' Its public share link will also be turned off.'
+                : ''}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -2215,6 +2219,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               onClick={() => {
                 if (confirmDelete) {
                   const index = versions.findIndex((v) => v.id === confirmDelete.id)
+                  revokeShareLinksFor([confirmDelete.id])
                   setVersions(deleteResumeVersion(confirmDelete.id))
                   setUndoDelete({
                     kind: 'copy',
@@ -2239,6 +2244,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             </DialogTitle>
             <DialogDescription>
               This removes the selected copies from this browser permanently.
+              {(() => {
+                const linked = bulkSelected.filter((id) => hasShareLink(id)).length
+                if (linked === 0) return ''
+                return linked === 1
+                  ? ' One of them has a public share link, which will also be turned off.'
+                  : ` ${linked} of them have public share links, which will also be turned off.`
+              })()}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -2253,6 +2265,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   .map((version, index) => ({ version, index }))
                   .filter((e) => bulkIds.has(e.version.id))
                 if (entries.length > 0) {
+                  revokeShareLinksFor(entries.map((e) => e.version.id))
                   setVersions(deleteResumeVersions(entries.map((e) => e.version.id)))
                   setUndoDelete({ kind: 'copies', entries })
                 }
