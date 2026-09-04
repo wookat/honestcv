@@ -1265,3 +1265,10 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Dashboard confirm dialogs append: single "Its public share link will also be turned off."; bulk "One of them has a public share link…" / "N of them have public share links…". Builder Copies-dialog Delete revokes with no confirm.
 - Seeding gotcha: `honestcv.resume` must have a `contact` object and `experience` array (not `basics`) or loadResume() returns null and the dashboard shows the empty state; `honestcv.resumeVersions` entries need the copy under the `data` field (`{id,name,updatedAt,data:<resume>}`), not `resume`.
 - Builder Share opener has no "Share" text — find the button whose `title` includes "read-only link". The published link lives in a dialog input value, not textContent.
+
+## R369 test notes
+- Builder collapsible Section headers toggle on click — probing a header mutates its open state (caused a false "Target job collapsed after import" finding in R368; it is `defaultOpen=true`).
+- `honestcv.shared=1` permanently suppresses both the beta email download gate and the post-download promo dialog; clear it to re-test download dialogs.
+- Dashboard card action buttons use `title=` attributes (not aria-label), e.g. `button[title="Edit name & target job"]`.
+- A targeted job's card button flips to "Open targeted resume"; to re-exercise "Target my resume", delete `resumeVersionId` from the `honestcv.jobPipeline` entry.
+- The bulk-delete Undo toast expires quickly — click it immediately after the delete.

@@ -986,3 +986,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - P3 修复：Remotive company_name 带尾部空格泄漏到 follow-up email（"Hi Coalition Technologies  hiring team,"）与 targeted copy 名。三层修剪：worker /api/jobs/search 映射 trim、客户端 searchJobs 逐条 trim（覆盖 KV 旧缓存）、followUpEmail 组稿时 trim（覆盖修复前已存管道条目）。
 - 本地：oracle 15/15（.tmp-smoke/r368_oracle.ts）、tsc/eslint/build 绿。生产复验（index-DRybDTYD.js）全绿零新 P0–P3：向导 role/level 经导入存活且 share payload 带非空 targetRole、JD+ignoredKeywords 经导入存活且 ATS 按保留 JD 对新内容重算（22%→45%）、空目标不虚构、36 条搜索字符串零杂空白、旧管道条目邮件单空格、R366/R367 回归、375 光暗。
 - 观察入库（候选后续轮）：导入后 Target job 区块折叠易漏看；下载后促销弹窗挡工作区下一步操作；"Save current as copy" 无命名提示得 "Untitled copy"；D2 深度差距（follow-up 邮件为本地模板无个性化、assistant 快捷任务为本地启发式、管道无提醒/附件/联系人）；assistant 成功路径聊天回复渲染与管道批量操作两项覆盖缺口待复测。
+
+## R369 — 保存副本自动去重命名 (2026-08-31)
+- 闭环 R368 观察（独立 QA 生产实证三候选后择优）：/dashboard「Save as copy」对无 targetRole 无姓名草稿连点即得多个不可区分的 "Untitled copy"（无提示无编号）；Builder Copies 对话框留空同 fallback；「Save draft as copy, then open」同。另两候选降级：导入后 Target job 区块实为展开只是低于首屏（R368「collapsed」报告系测试点击头部误触所致，已更正）；下载后促销弹窗为一次性标准模态（honestcv.shared=1 后永不再现）。方案 docs/plan-r369-unique-copy-names.md。
+- 实现：resume.ts 新增 uniqueVersionName——saveResumeVersion/createResumeVersion 持久化前重名则走 R358 duplicateName 编号（剥一层尾部 " (copy)/(n)" 取最小空闲 "base (n)" n≥2），不重名字节不变；覆盖 Builder Copies 保存、Dashboard 三路径、Jobs targeted copies。rename/updateResumeVersion 有意不动（显式改名允许重名）。
+- 本地：oracle 9/9（.tmp-smoke/r369_oracle.ts）、tsc/eslint/build 绿。生产复验（index-BcNiJfwy.js，零 AI/分享/支付、基线还原）全绿零新 P0–P3：连存三次得 (2)/(3)、Builder 留空得 (4) 不重复、删 (2) 再存 gap-fill 回 (2)、同职位二次 target 得 "… — Coalition Technologies (2)" 且入 Job applications、R368 trim/导入保 target、R358/R361/搜索回归、375 光暗 list 视图与 Copies 对话框严格无溢出。
+- 观察入库（P3 候选）：dashboard grid 视图 375px 溢出 ~7px（scrollWidth 382，最宽元素为草稿预览卡 div.bg-card，与命名无关的既有布局问题）。
