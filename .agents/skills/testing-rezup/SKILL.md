@@ -1191,3 +1191,7 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 
 ## R351 storage-full notes
 - To force the storage-full save error, fill localStorage in descending chunk sizes (1MB→100KB→1KB→10B) until even tiny setItem throws — small resume edits still fit (and correctly show "Saved") if any space remains; clean up with a `qafill.` key prefix filter. Contact inputs use `c-` prefixed ids (c-fullName, c-title…). honestcv.setupDone is a baseline key to remove after wizard rounds.
+
+## R352 save-indicator notes
+- The save indicator's role=status wrapper exists at all widths — assert icon vs text via the inner spans' computed display (`hidden xl:inline` text, `xl:hidden inline-flex` icon), not element presence. The storage-full alert is icon-only (TriangleAlert + sr-only text) below sm.
+- A wrapped flex item renders at its longest-line width, not its max-w cap — for narrow-viewport overflow checks, compare summed child widths against the viewport and isolate culprits by toggling display and re-reading scrollWidth. Run strict-overflow checks in the storage-full error state too.
