@@ -1935,8 +1935,22 @@ export default function Builder() {
                 Not saved — storage full
               </span>
             ) : (
-              <span className="text-muted-foreground hidden text-xs xl:inline">
-                {saveState === 'saving' ? 'Saving…' : 'Saved'}
+              <span
+                role="status"
+                aria-label={saveState === 'saving' ? 'Saving…' : 'All changes saved'}
+                title={saveState === 'saving' ? 'Saving…' : 'All changes saved'}
+                className="text-muted-foreground text-xs"
+              >
+                <span className="hidden xl:inline">
+                  {saveState === 'saving' ? 'Saving…' : 'Saved'}
+                </span>
+                <span aria-hidden="true" className="inline-flex xl:hidden">
+                  {saveState === 'saving' ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Check className="size-3.5" />
+                  )}
+                </span>
               </span>
             )}
             <Button
