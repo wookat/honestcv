@@ -1278,3 +1278,8 @@ To test the R107 interview practice session with zero quota, stub `window.fetch`
 - Copy-naming logic lives in the lazy `resume-*.js` chunk, not `index-*.js` — for deploy-drift checks list loaded chunks via `performance.getEntriesByType('resource')` and grep the right chunk.
 - A huge CDP screenshot at deviceScaleFactor 2 can time out the websocket — reconnect the Tab and retry at dsf 1.
 - `honestcv.resume` is only persisted after a first edit (visiting /builder alone doesn't create it) — focus a field and `Input.insertText` to seed a draft; editing also writes `honestcv.ev.builder-start` and `honestcv.resumeHistory` — clear them at baseline restore.
+
+## R371 test notes
+- Pipeline notes save via focusout on `#job-notes` (native setter + input + focusout works headlessly); follow-up dialog fields are `#follow-up-subject` / `#follow-up-body`.
+- `followUpEmail()` is fully local (zero network); recruiter greeting requires an explicit capitalized "Recruiter: Name"-style mention in notes.
+- Never `Runtime.evaluate` with `awaitPromise` on `navigator.clipboard.*` in an unfocused tab — the promise never settles and wedges the CDP websocket (reconnect the tab to recover). Assert mailto links via the `href` attribute; never navigate them.
