@@ -416,6 +416,13 @@ export default function AtsChecker() {
                     decision.
                   </li>
                   <li>
+                    <strong className="text-foreground">In the builder</strong> — this
+                    page can only check the pasted text. After you carry your resume
+                    over, the builder re-checks the imported version with deeper
+                    structured checks (contact fields, grouped skills, locations on
+                    each entry), so its score can differ from this one.
+                  </li>
+                  <li>
                     <strong className="text-foreground">What to do</strong> — add the
                     missing keywords below <em>only where they&apos;re true of you</em>, keep
                     the layout simple, then re-check. Aim for 70+.
@@ -732,6 +739,10 @@ export default function AtsChecker() {
                 <Button className="mt-3 h-auto max-w-full whitespace-normal" onClick={() => openInBuilder()}>
                   Fix it in the builder — resume &amp; job carried over <ArrowRight />
                 </Button>
+                <p className="text-muted-foreground mt-2 text-xs">
+                  The builder re-checks the imported resume with deeper structured
+                  checks, so its score can differ from the one above.
+                </p>
               </div>
 
               <p className="text-muted-foreground mt-4 text-center text-xs">
