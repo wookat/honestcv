@@ -1513,3 +1513,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：① 本机 sharp 从 favicon.svg 栅格化 icon-192/icon-512/apple-touch-icon(180) 入库 public/；② public/manifest.webmanifest（RezUp、start_url /、standalone、theme/background #fbfcfd、192+512 icons）；③ index.html + build-seo 11 处模板 favicon 后加 rel=manifest + rel=apple-touch-icon 两条 link。CSP 零改动（default-src 'self' 覆盖）。非目标：无 Service Worker/离线、无 maskable 变体。
 - tsc/eslint/build/verify-dist 绿；dist 含 manifest+3 PNG、抽查页 link 各恰一次。部署照旧：126 资产上传成功、Workers Routes auth code 10000。
 - 生产 QA（测试代理独立复验，全新 context）全绿零 P0–P3：4 页 raw 双 link 恰一次；manifest 200 application/manifest+json 字段严格相等；3 图标 200 image/png 尺寸 PIL 实测正确；CDP Page.getAppManifest errors=[]、getInstallabilityErrors=[]（如实备案：本版 headless Chrome 无 SW 也返回空，正向可安装结论限于此 Chrome，非 Play/Android 保证）；icon-512 白底合成 1522 色非空白；零 console 错误零 CSP issue；R481 theme-color + ThemeToggle 回归、375 光暗零溢出；零逃逸、存储字节级还原。
+
+## R483 — maskable 图标变体（Android 自适应遮罩）（2026-09-05）
+- 一手证据（SOP-10 节点）：7 SPA 路由 375/1440 双视口复扫零错误零溢出；像素实测 R482 的 icon-512 有 47.0%（116,668/248,456）不透明像素落在 maskable 安全区（40% 半径圆，W3C manifest 规范）之外、42,564 像素在内切圆之外——Android 自适应遮罩会裁掉圆角卡片四角；且 manifest 零 purpose:maskable 条目，遮罩型启动器按 legacy 模式白圈缩小显示。方案：docs/plan-r483-maskable-icon.md。
+- 修复最小：sharp 生成 icon-maskable-192/512（白底满幅方形画布 + favicon.svg 图稿 64% 居中，实测全部非白像素落在 40% 安全圆内）入库 public/，manifest icons 追加两条 purpose:maskable。HTML/CSP 零改动。非目标：无 SW/离线、无 monochrome、不动 any 图标与 apple-touch-icon。
+- tsc/eslint/build/verify-dist 绿；dist/client manifest 4 icons（2 any + 2 maskable）。部署照旧：3 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA（本机直验，改动纯静态资产）：manifest 200 四条 icons 字段正确；两 PNG 200 image/png 尺寸正确且下载后像素复测安全区零越界；CDP Page.getAppManifest errors=[] 且解析出 2 条 maskable。
