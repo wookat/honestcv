@@ -1594,6 +1594,14 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R508 — Builder 信件弹窗：覆盖已编辑草稿前先确认（2026-08-31）
+- SOP-10 节点：7 路由×2 视口零溢出、7 路由 console/unhandledrejection 全空、Rezi changelog 无新可落地缺口。
+- 一手证据（生产 CDP）：/builder?doc=cover「Start from a template」→ 编辑 textarea →再点模板/Regenerate，编辑内容被静默覆盖零确认零撤销；dialog 关闭已有 R333 confirmingClose 保护，但弹窗内两个最具破坏性按钮绕过了它；Regenerate 还会额外消耗 AI 请求。
+- 修复仅 Builder.tsx ToolDialog：autoResult 跟踪最近一次程序化输出（applyResult 辅助统一 generate/insertTemplate 的 setResult）；resultEdited = result 非空且 ≠ autoResult；Generate/模板按钮经 requestOverwrite——已编辑先弹「Replace your edited draft?」（destructive Replace draft / 默认 Keep my draft），未编辑直接执行；kind 切换清空。方案：docs/plan-r508-builder-letter-overwrite-guard.md。
+- 非目标：不做草稿历史/undo、不改生成与模板内容、不动 R507 占位符 guard、不改 Dashboard。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-CjCDyHfB.js）：未编辑重插模板零弹窗；编辑后模板/Regenerate 均弹确认；Keep my draft 保留编辑、Regenerate 确认前零 /api/ai/ 请求；Replace draft 照常替换；375px 弹窗零溢出零 console 错误；QA 后 localStorage 无残留。
+
 ## R507 — Builder 信件弹窗补齐占位符警告与定位器（2026-08-31）
 - 审计先行：面试模板/即时问题实证已用 targetRole/当前公司/角色，其余开放式提示需用户判断或 JD 信息，自动编造不诚实——如实驳回"面试模板个性化"候选。
 - 一手证据（生产 CDP）：/builder?doc=cover「Start from a template」后结果含 5 个 `[bracketed]` 占位符，textarea 上方零计数零定位辅助；PDF/DOCX/TXT 三按钮静默下载——R504/R505 的保护只覆盖了 /documents 出口，Builder 弹窗出口一键放行。

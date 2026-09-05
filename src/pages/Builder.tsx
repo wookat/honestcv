@@ -10040,7 +10040,14 @@ function BundleToolDialog({
   const [savedId, setSavedId] = useState<string | null>(null)
   const [saveDocFailed, setSaveDocFailed] = useState(false)
   const [placeholderWarn, setPlaceholderWarn] = useState<'pdf' | 'docx' | 'txt' | null>(null)
+  const [autoResult, setAutoResult] = useState('')
+  const [overwriteWarn, setOverwriteWarn] = useState<'generate' | 'template' | null>(null)
   const resultRef = useRef<HTMLTextAreaElement>(null)
+
+  const applyResult = (text: string) => {
+    setResult(text)
+    setAutoResult(text)
+  }
 
   const jumpToNextPlaceholder = () => {
     const ta = resultRef.current
@@ -10142,6 +10149,8 @@ function BundleToolDialog({
     setSavedId(null)
     setSaveDocFailed(false)
     setPlaceholderWarn(null)
+    setAutoResult('')
+    setOverwriteWarn(null)
     setFeedback('')
     setFeedbackError('')
     setFeedbackBusy(false)
@@ -10276,7 +10285,7 @@ function BundleToolDialog({
           language: resume.language,
           tone: letterTone || undefined,
         })
-        setResult(text)
+        applyResult(text)
         setSavedId(null)
     setSaveDocFailed(false)
         if (freeRemaining !== null) onQuota(freeRemaining)
@@ -10305,7 +10314,7 @@ function BundleToolDialog({
               jobDescription: jd,
               role: aiTargetRole(resume),
             })
-      setResult(text)
+      applyResult(text)
       setSavedId(null)
     setSaveDocFailed(false)
       if (freeRemaining !== null) onQuota(freeRemaining)
@@ -10328,7 +10337,7 @@ function BundleToolDialog({
       const co = company || currentJob?.company.trim() || '[Company]'
       const role = currentRole || currentJob?.role.trim() || '[your role]'
       const day = lastDay || '[last working day — typically two weeks from today]'
-      setResult(
+      applyResult(
         `Dear [Manager name],\n\nPlease accept this letter as formal notice of my resignation from my position as ${role} at ${co}. My last working day will be ${day}.\n\nI'm grateful for the opportunities I've had here — [one specific thing you genuinely appreciated: a project, a skill you grew, the team]. Thank you for your support during my time with the company.\n\nI'm committed to a smooth handover: I'll document my ongoing work and am happy to help train a replacement before I leave.\n\nSincerely,\n${name}`
       )
       setError('')
@@ -10336,7 +10345,7 @@ function BundleToolDialog({
     }
     if (kind === 'interview') {
       const role = resume.targetRole || '[role]'
-      setResult(
+      applyResult(
         `Interview prep — ${role}\n\n1. Your story (2 minutes)\n- Why you: [the one-line version of your background that fits this role]\n- Why this company: [a product, mission or recent news you genuinely care about]\n- Why now: [what you want next that this role offers]\n\n2. Evidence to have ready\n- [Your strongest achievement relevant to the posting — with the real number]\n- [A hard problem you solved — situation, action, result]\n- [A failure or conflict and what you changed afterwards]\n\n3. Keywords from the posting to work into answers\n- [Copy the top 5 requirements from the job description here]\n\n4. Questions to ask them\n- What does success in this role look like after 6 months?\n- What's the hardest problem the team is working on right now?\n- [A question specific to this company you couldn't ask anywhere else]\n\n5. Logistics\n- [Interviewer names + roles] / [format and length] / [what to bring or prepare]`
       )
       setError('')
@@ -10350,7 +10359,7 @@ function BundleToolDialog({
       ? `\n\nI'd particularly like to highlight: ${highlights.trim()}.`
       : ''
     const currentCo = currentJob?.company.trim() || '[current company]'
-    setResult(
+    applyResult(
       `Dear ${to},\n\nI'm writing to apply for the ${role} position at ${co}. [One sentence on why this company or team specifically — a product, a mission, a recent launch.]\n\nIn my current role at ${currentCo}, I [your strongest, most relevant achievement — with a real number if you have one]. Before that, I [second relevant achievement or responsibility]. These map directly to what you're looking for: [requirement from the job description you meet best].${spotlight}\n\nI'd welcome the chance to talk about how I can help ${co} [team goal from the posting]. Thank you for your consideration.\n\nSincerely,\n${name}`
     )
     setError('')
@@ -10382,6 +10391,15 @@ function BundleToolDialog({
   const requestLetterDownload = (fmt: 'pdf' | 'docx' | 'txt') => {
     if (countLetterPlaceholders(result) > 0) setPlaceholderWarn(fmt)
     else void runLetterDownload(fmt)
+  }
+  const resultEdited = result.trim() !== '' && result !== autoResult
+  const runOverwriteAction = (action: 'generate' | 'template') => {
+    if (action === 'generate') void generate()
+    else insertTemplate()
+  }
+  const requestOverwrite = (action: 'generate' | 'template') => {
+    if (resultEdited) setOverwriteWarn(action)
+    else runOverwriteAction(action)
   }
   const unsavedWork =
     kind === 'interview'
@@ -10419,6 +10437,36 @@ function BundleToolDialog({
               }}
             >
               Discard and close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={overwriteWarn !== null} onOpenChange={(o) => !o && setOverwriteWarn(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Replace your edited draft?</DialogTitle>
+            <DialogDescription>
+              {`You've edited this ${kind === 'interview' ? 'prep sheet' : 'letter'} since it was ${
+                overwriteWarn === 'generate' ? 'written' : 'inserted'
+              }. ${
+                overwriteWarn === 'generate' ? 'Regenerating' : 'Starting from a template'
+              } will replace your edits with a new draft.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                const action = overwriteWarn
+                setOverwriteWarn(null)
+                if (action) runOverwriteAction(action)
+              }}
+            >
+              Replace draft
+            </Button>
+            <Button type="button" onClick={() => setOverwriteWarn(null)}>
+              Keep my draft
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -10566,14 +10614,14 @@ function BundleToolDialog({
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button className="min-h-10 sm:min-h-9" onClick={() => void generate()} disabled={busy}>
+          <Button className="min-h-10 sm:min-h-9" onClick={() => requestOverwrite('generate')} disabled={busy}>
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {busy ? 'Writing…' : result ? 'Regenerate' : 'Generate'}
           </Button>
           <Button
             className="min-h-10 sm:min-h-9"
             variant="outline"
-            onClick={insertTemplate}
+            onClick={() => requestOverwrite('template')}
             disabled={busy}
           >
             Start from a template
