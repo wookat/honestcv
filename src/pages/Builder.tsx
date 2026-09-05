@@ -1302,6 +1302,8 @@ export default function Builder() {
     []
   )
   const [pendingExample, setPendingExample] = useState<ExamplePerson | null>(null)
+  const [exampleLoadFailed, setExampleLoadFailed] = useState(false)
+  const [exampleLoadAttempt, setExampleLoadAttempt] = useState(0)
   const replaceWithExample = (person: ExamplePerson) => {
     linkVersion(null)
     setResume((cur) => ({
@@ -1316,26 +1318,35 @@ export default function Builder() {
     if (resume.contact.fullName || resume.summary) setPendingExample(person)
     else replaceWithExample(person)
   }
+  const applyExampleRef = useRef(applyExample)
+  useEffect(() => {
+    applyExampleRef.current = applyExample
+  })
 
   useEffect(() => {
     let cancelled = false
     void fetch('/examples/examples.json')
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((list: { slug: string; role: string; sector: string; person: ExamplePerson }[]) => {
         if (cancelled) return
         setExamples(list)
         // ?example=<slug> deep link from the /examples/ pages
         const slug = new URLSearchParams(window.location.search).get('example')
         const entry = slug ? list.find((e) => e.slug === slug) : undefined
+        setExampleLoadFailed(false)
         if (!entry) return
         window.history.replaceState(null, '', window.location.pathname)
-        applyExample(entry.person)
+        applyExampleRef.current(entry.person)
       })
-      .catch(() => {})
+      .catch(() => {
+        if (cancelled) return
+        if (new URLSearchParams(window.location.search).get('example'))
+          setExampleLoadFailed(true)
+      })
     return () => {
       cancelled = true
     }
-  }, [applyExample])
+  }, [exampleLoadAttempt])
 
   const unlocked = Boolean(license)
   const hasBundlePlan = license?.plan === 'bundle'
@@ -7821,6 +7832,36 @@ export default function Builder() {
             aria-label="Dismiss"
             className="text-muted-foreground hover:text-foreground"
             onClick={() => setStorageAlert('')}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {exampleLoadFailed && (
+        <div
+          role="alert"
+          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
+        >
+          <span className="min-w-0">
+            Loading the example resume failed — check your connection and try again.
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setExampleLoadFailed(false)
+              setExampleLoadAttempt((n) => n + 1)
+            }}
+          >
+            Try again
+          </Button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setExampleLoadFailed(false)}
           >
             <X className="size-4" />
           </button>

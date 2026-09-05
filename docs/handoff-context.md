@@ -1137,3 +1137,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（CDP 强制 /examples/examples.json 网络失败）：/samples 主区完全空白——无标题、无错误、无重试（整块 gated 于 examples.length>0，fetch 错误被吞）。方案：docs/plan-r415-samples-load-failure.md。
 - 修复仅 Dashboard.tsx：examplesState 'loading'|'ready'|'failed'（非 ok HTTP 也算失败）；/samples 专页失败时渲染 h1 + role=alert "Loading the sample library failed — check your connection and try again." + Try again 重取（examplesAttempt）；dashboard 内嵌样本条保持空则隐藏；成功路径字节不变。
 - tsc/eslint/build 绿。生产 QA 全绿（Dashboard-CkU4KodD.js）：失败态精确文案+重试恢复全网格、mock 500 同卡不泄漏响应体、happy path/?q=/?sector=/收藏星回归、dashboard 无错误卡、375 光暗零溢出、R414 回归、零逃逸、基线字节还原。
+
+## R416 — /builder?example= 深链失败不再沉默 + 修掉 examples.json 无限重取循环（2026-08-31）
+- 生产实证（CDP 强制 /examples/examples.json 失败）：/builder?example=software-engineer 打开后就是普通空草稿，零提示，?example 参数原地无效（probe_r416.py，截图 r416_builder_example_offline.png）。QA 另实测出既有 P1：fetch effect 依赖未 memoize 的 applyExample，成功路径 setExamples→重渲染→effect 重跑→重取，自持循环实测 ~240 req/s（45s 内 10,192 次请求）。
+- 修复仅 Builder.tsx：examples fetch 非 ok HTTP 也 reject；URL 带 ?example= 时失败置 exampleLoadFailed，渲染固定底部 role=alert 条 "Loading the example resume failed — check your connection and try again." + Try again（bump exampleLoadAttempt 重取）+ X Dismiss；applyExample 入 ref（被动 effect 更新），fetch effect 依赖只剩 [exampleLoadAttempt] —— 每次挂载恰好 1 次请求，循环与"Dismiss 不生效"一并消灭。无 ?example 失败不出条，空态角色选择器保持空则隐藏。
+- tsc/eslint(0 errors)/build 绿。两轮生产 QA（Builder-BeGf0iQu.js → Builder-BVfSkPhs.js）全绿：失败态精确文案/参数保留/草稿不动、Try again 恢复并应用示例（replaceState 去参）、mock 500 不泄漏、Dismiss 持久、/builder 20s 恰 1 次请求、无参无条、happy path、R415 /samples 回归、375 光暗零溢出、零逃逸、基线字节还原。
