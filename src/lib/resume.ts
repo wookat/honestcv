@@ -1175,6 +1175,26 @@ export function loadResume(): Resume | null {
   }
 }
 
+const CORRUPT_BACKUP_KEY = 'honestcv.resume.unreadable'
+
+/**
+ * When a stored draft exists but cannot be read (corrupted JSON or an invalid
+ * shape), preserve the raw value under a backup key before any save can
+ * overwrite it. Returns true when the stored draft is unreadable.
+ */
+export function stashUnreadableDraft(): boolean {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw === null || loadResume() !== null) return false
+    if (localStorage.getItem(CORRUPT_BACKUP_KEY) === null) {
+      localStorage.setItem(CORRUPT_BACKUP_KEY, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function saveResume(resume: Resume): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(resume))
