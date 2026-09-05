@@ -289,6 +289,11 @@ import {
   toggleTemplateFavorite,
 } from '@/lib/templatePrefs'
 
+const LIBRARY_STORAGE_FULL_MSG =
+  'Not saved to your library — your browser storage is full. Free up space and try again.'
+const HISTORY_STORAGE_FULL_MSG =
+  'Not restored — your browser storage is full, so a checkpoint of the current draft could not be saved first. Free up space and try again.'
+
 function useDebouncedSave(resume: Resume): 'saving' | 'saved' | 'error' {
   const t = useRef<number | undefined>(undefined)
   const [state, setState] = useState<'saving' | 'saved' | 'error'>('saved')
@@ -1028,7 +1033,8 @@ export default function Builder() {
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [versionName, setVersionName] = useState('')
   const [copyStorageError, setCopyStorageError] = useState(false)
-  const [libraryStorageError, setLibraryStorageError] = useState(false)
+  /** Message for the fixed-bottom storage-full alert; empty = hidden. */
+  const [storageAlert, setStorageAlert] = useState('')
   /** Applies a copy mutation; surfaces the storage-full alert when nothing was written. */
   const applyVersions = (next: ResumeVersion[] | null): boolean => {
     if (next === null) {
@@ -2694,7 +2700,7 @@ export default function Builder() {
                 onClick={() => {
                   const next = saveSummaryToLibrary(resume.summary)
                   if (next === null) {
-                    setLibraryStorageError(true)
+                    setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                     return
                   }
                   setSummaryLibrary(next)
@@ -2906,7 +2912,7 @@ export default function Builder() {
                       onClick={() => {
                         const next = saveExperienceToLibrary(e)
                         if (next === null) {
-                          setLibraryStorageError(true)
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                           return
                         }
                         setExpLibrary(next)
@@ -3543,7 +3549,7 @@ export default function Builder() {
                     onClick={() => {
                       const next = saveEducationToLibrary(e)
                       if (next === null) {
-                        setLibraryStorageError(true)
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                         return
                       }
                       setEduLibrary(next)
@@ -3745,7 +3751,7 @@ export default function Builder() {
                       onClick={() => {
                         const next = saveProjectToLibrary(p)
                         if (next === null) {
-                          setLibraryStorageError(true)
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                           return
                         }
                         setProjLibrary(next)
@@ -4284,7 +4290,7 @@ export default function Builder() {
                     onClick={() => {
                       const next = saveInvolvementToLibrary(inv)
                       if (next === null) {
-                        setLibraryStorageError(true)
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                         return
                       }
                       setInvLibrary(next)
@@ -4695,7 +4701,7 @@ export default function Builder() {
                     onClick={() => {
                       const next = saveCourseworkToLibrary(cw)
                       if (next === null) {
-                        setLibraryStorageError(true)
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                         return
                       }
                       setCwLibrary(next)
@@ -4955,7 +4961,7 @@ export default function Builder() {
                     onClick={() => {
                       const next = saveAwardToLibrary(a)
                       if (next === null) {
-                        setLibraryStorageError(true)
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                         return
                       }
                       setAwardLibrary(next)
@@ -5243,7 +5249,7 @@ export default function Builder() {
                     onClick={() => {
                       const next = savePublicationToLibrary(pub)
                       if (next === null) {
-                        setLibraryStorageError(true)
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                         return
                       }
                       setPubLibrary(next)
@@ -5539,7 +5545,7 @@ export default function Builder() {
                     onClick={() => {
                       const next = saveReferenceToLibrary(ref)
                       if (next === null) {
-                        setLibraryStorageError(true)
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                         return
                       }
                       setRefLibrary(next)
@@ -6099,7 +6105,7 @@ export default function Builder() {
                   onClick={() => {
                     const next = saveSkillsToLibrary(resume.skills)
                     if (next === null) {
-                      setLibraryStorageError(true)
+                      setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                       return
                     }
                     setSkillsLibrary(next)
@@ -6372,7 +6378,7 @@ export default function Builder() {
                       onClick={() => {
                         const next = saveCertToLibrary(c)
                         if (next === null) {
-                          setLibraryStorageError(true)
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
                           return
                         }
                         setCertLibrary(next)
@@ -7764,20 +7770,17 @@ export default function Builder() {
         ))}
       </div>
 
-      {libraryStorageError && (
+      {storageAlert && (
         <div
           role="alert"
           className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
         >
-          <span className="min-w-0">
-            Not saved to your library — your browser storage is full. Free up space and try
-            again.
-          </span>
+          <span className="min-w-0">{storageAlert}</span>
           <button
             type="button"
             aria-label="Dismiss"
             className="text-muted-foreground hover:text-foreground"
-            onClick={() => setLibraryStorageError(false)}
+            onClick={() => setStorageAlert('')}
           >
             <X className="size-4" />
           </button>
@@ -7862,7 +7865,10 @@ export default function Builder() {
           resume={resume}
           onClose={() => setHistoryOpen(false)}
           onRestore={(snap) => {
-            recordResumeSnapshot(resume, true)
+            if (recordResumeSnapshot(resume, true) === null) {
+              setStorageAlert(HISTORY_STORAGE_FULL_MSG)
+              return
+            }
             setResume({ ...emptyResume(), ...snap.data })
             setHistoryOpen(false)
           }}
