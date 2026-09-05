@@ -1781,6 +1781,39 @@ const SPA_ROUTES = new Set([
   '/jobs',
 ])
 
+// Per-route snippet metadata for the raw shell HTML; copy is identical to
+// each page's client-side usePageMeta call.
+const SPA_META: Record<string, { title: string; description: string }> = {
+  '/builder': {
+    title: 'Resume Builder — RezUp',
+    description:
+      'Build an ATS-friendly resume in your browser: 25 templates, drag-and-drop sections, live ATS match score, free PDF &amp; DOCX download. No account, no subscription.',
+  },
+  '/ats-checker': {
+    title: 'Free ATS Resume Checker — Instant Match Score | RezUp',
+    description:
+      'Paste your resume and a job description to get an instant ATS match score, missing keywords and format checks. 100% free, no sign-up — runs entirely in your browser.',
+  },
+  '/dashboard': {
+    title: 'My resumes — RezUp',
+    description: 'Manage your resume drafts and job-tailored copies. Everything stays in your browser.',
+  },
+  '/documents': {
+    title: 'Career documents — RezUp',
+    description:
+      'Cover letters, interview prep and resignation letters you saved. Everything stays in your browser.',
+  },
+  '/samples': {
+    title: 'Sample library — RezUp',
+    description: 'Start from a proven resume example for your role. Everything stays in your browser.',
+  },
+  '/jobs': {
+    title: 'Job search — RezUp',
+    description:
+      'Browse remote jobs, track your applications, and target your resume to a posting in one click.',
+  },
+}
+
 app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {
     return c.json({ error: 'Not Found' }, 404)
@@ -1801,15 +1834,24 @@ app.notFound(async (c) => {
     headers['X-Robots-Tag'] = 'noindex'
     headers['Cache-Control'] = 'no-store'
   }
-  // The shell inherits the homepage canonical/og:url; point them at the
-  // route being served so the raw HTML doesn't declare every SPA route a
-  // duplicate of the homepage.
+  // The shell inherits the homepage canonical/og:url and title/description;
+  // point them at the route being served so the raw HTML doesn't declare
+  // every SPA route a duplicate of the homepage.
   let body: BodyInit | null = shell.body
   if (SPA_ROUTES.has(path) && path !== '/') {
     const url = `https://cv.zalize.com${path}`
-    body = (await shell.text())
+    let html = (await shell.text())
       .replace(/<link rel="canonical" href="[^"]*"/, `<link rel="canonical" href="${url}"`)
       .replace(/<meta property="og:url" content="[^"]*"/, `<meta property="og:url" content="${url}"`)
+    const meta = SPA_META[path]
+    if (meta) {
+      html = html
+        .replace(/<title>[^<]*<\/title>/, `<title>${meta.title}</title>`)
+        .replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${meta.description}"`)
+        .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${meta.title}"`)
+        .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${meta.description}"`)
+    }
+    body = html
   }
   return new Response(body, {
     status: SPA_ROUTES.has(path) || shareLive ? 200 : 404,
