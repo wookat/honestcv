@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R436 — 分享页原始 HTML 的 canonical 不再指向主页（2026-08-31）
+- 生产实证（curl，特批临时分享、验毕删净 404）：live /s/<id> 原始 HTML 经 R432 重写后 title/og:url 已是候选人/分享 URL，但 canonical 仍是主页——head 自相矛盾（R431/R435 同族），向爬虫声明分享页是主页副本；水合后 CanonicalSync 才修正。方案：docs/plan-r436-share-canonical.md。
+- 修复仅 worker/index.ts share 分支一行：重写链前追加 canonical replace（与 SPA_ROUTES 分支同款写法）；revoked/未知 id、SPA、'/' 分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：curl live 分享页 canonical==og:url==分享 URL 且 R432 五标签/noindex/no-store/200 回归、水合 R435 行为不变（Back 后四标签复原）、/s/bogus 仍 404 不重写、/builder 原始 HTML R429/R430 回归、PDF/Print 回归、375 光暗零溢出零 console 错误、删净分享 404、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R435 — 分享页客户端导航后 head 不再自相矛盾（2026-09-05）
 - 生产实证（特批临时分享，验毕删净 404）：/s/<id> → /builder → Back 后 title/description/og:title/og:description 停在 "Resume Builder — RezUp"，而 canonical/og:url 已被 CanonicalSync 更新为分享 URL——head 自相矛盾、标签页丢候选人姓名（R431 同族：SharedResume 是唯一不调 usePageMeta 的路由页）。方案：docs/plan-r435-share-client-meta.md。
 - 修复仅 SharedResume.tsx：顶部调用 usePageMeta，文案与 R432 worker shell 重写逐字一致（ready 态 "<fullName> — <contact.title> | RezUp" + "<fullName>'s resume, shared with you via RezUp."，无名/loading/error/gone 回退通用句）。其余分支字节不变。

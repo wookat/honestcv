@@ -1860,6 +1860,7 @@ app.notFound(async (c) => {
     )
     const url = `https://cv.zalize.com${path}`
     body = (await shell.text())
+      .replace(/<link rel="canonical" href="[^"]*"/, `<link rel="canonical" href="${url}"`)
       .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
       .replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${description}"`)
       .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${title}"`)
