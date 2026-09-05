@@ -1045,3 +1045,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 本轮修复确证 P3：面试准备文档 targetRole 为空时命名 "Untitled — Interview prep"。docTitle 面试分支兜底链改为 targetRole → contact.fullName → Untitled（与 R378 副本命名兜底一致），cover/resignation 不动。
 - 银行（待源码/a11y 验证）：dashboard 文件夹分组标题疑似非语义 heading 元素（假设级，无用户可见缺陷）。
 - 本地：tsc/eslint(产品文件)/build 绿（.tmp-smoke 旧 oracle 的 lint error 为历史遗留非本轮）。方案：docs/plan-r398-sop10-audit.md。
+
+## R399 — dashboard 文件夹分组标题成为语义 h2（2026-08-31）
+- 闭环 R398 银行假设（已实证）：/dashboard 文件夹分组的可见标题只是一个样式化的 `<button aria-expanded>`，无任何 heading 元素——读屏用户按标题导航无法发现/跳转文件夹分组；同页 h1 My resumes、h2 Career documents/Sample library 均为语义标题。方案 docs/plan-r399-folder-group-headings.md。
+- 实现（最小）：Dashboard.tsx 将 toggle 按钮包进 `<h2 className="contents">`（标准 disclosure 模式：heading 包 control，aria-expanded 留在按钮上）；`contents` 使按钮仍是行 flex 直接子项，布局字节不变；折叠/改名/删除逻辑零改动。
+- 本地：tsc、eslint(Dashboard.tsx)、build 全绿（仓库全量 lint 的 .tmp-smoke 历史错误依旧、与本轮无关）。
+- 生产 QA（Dashboard-DRg07npx.js / index-C_8_v3CI.js）：AX 树暴露 heading level=2 "Applications (2)"、heading 顺序正常、布局零偏移（h2 computed display:contents、rename/remove 同行 Δy=0）、grid+list、375 光暗、折叠持久/改名/删文件夹回归、零 console 错误、基线还原。QA 种子教训（数值时间戳等）已入测试 skill。
