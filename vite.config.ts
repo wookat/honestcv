@@ -6,6 +6,11 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), cloudflare()],
+  build: {
+    // One stylesheet, referenced only from the HTML shells (which inline it in
+    // scripts/prerender.mjs) — keeps lazy route chunks from re-fetching it.
+    cssCodeSplit: false,
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
