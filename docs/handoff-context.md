@@ -1569,3 +1569,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复最小：三处改 `behavior: prefersReducedMotion() ? 'auto' : 'smooth'`（复用 src/lib/motion.ts 既有 helper，调用时求值，偏好中途变化也生效）；App.tsx ScrollReset、CSS 动画规则、其余滚动语义零改动。
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新 tab，新 bundle Builder-KVTTlf2O.js）：reduce 下章节 chip 跳转即时（0→3669 单步）、Score "Fix →" 条目跳转即时（0→1535 单步）且 ring-2 闪烁环照常出现、冷载 /dashboard#samples 即时落 857；非 reduce 下滚动保持 smooth 动画（0→16→103→…采样确认）；R490 冷载 hash 回归正常；375 光暗零溢出；四次探测全程零 console 错误零未捕获 rejection。
+
+## R492 — Builder 程序化跳转把键盘焦点移到目标（2026-09-05）
+- 一手证据（生产 CDP，Builder-KVTTlf2O.js）：/builder?example=software-engineer 点 Score 面板 "Fix →"，视口跳到 scrollY 1535 + ring 闪烁，但 document.activeElement 仍是原 "Fix →" 按钮（activeIsFix:true）；章节导航 chip 同样（activeIsChip:true，y 3669）——下一次 Tab 从数千像素外的出发点继续，键盘/读屏用户完全得不到位置迁移（WCAG 2.4.3 焦点顺序；成熟编辑器 jump-to-error 均移焦点）。目标卡片无 tabindex 不可编程聚焦。
+- 修复最小（仅 Builder.tsx 两处跳转路径，滚动/闪烁/R489–R491 语义零改动）：scrollIntoView 后 `el.tabIndex = -1; el.focus({ preventScroll: true })`——tabindex=-1 不进自然 Tab 序，preventScroll 防与既有滚动打架。方案：docs/plan-r492-jump-focus.md。
+- tsc/eslint/build/verify-dist 绿（lint 7 errors 全在未跟踪 .tmp-smoke/ 草稿，src 零）。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（新 bundle Builder-BgCRr3Eo.js）：章节 chip 跳转后 activeElement=目标 section 卡（data-section-anchor=skills，tabindex -1）；"Fix →" 跳转后 activeElement=目标卡（tabindex -1，ring 照常）；reduce 下跳转即时单步且焦点同样落卡（focus=experience）；375 光暗零溢出；全程零 console 错误。
+- 如实备案：本例简历的全部 health findings 均映射到 section 跳转（jumpToSection），jumpToEntry（条目级 finding，R157/R359 路径）代码改动与 section 路径逐行同构但本轮无真实条目级 finding 可在生产触发，未独立复验。

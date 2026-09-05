@@ -668,10 +668,14 @@ function Section({
       if ((ev as CustomEvent<string>).detail !== anchor) return
       setOpen(true)
       requestAnimationFrame(() => {
-        ref.current?.scrollIntoView({
+        const el = ref.current
+        if (!el) return
+        el.scrollIntoView({
           behavior: prefersReducedMotion() ? 'auto' : 'smooth',
           block: 'start',
         })
+        el.tabIndex = -1
+        el.focus({ preventScroll: true })
       })
       setFlash(true)
       window.setTimeout(() => setFlash(false), 1600)
@@ -1331,12 +1335,15 @@ export default function Builder() {
       return next
     })
     requestAnimationFrame(() => {
-      document
-        .querySelector(`[data-entry-id="${id}"]`)
-        ?.scrollIntoView({
+      const el = document.querySelector<HTMLElement>(`[data-entry-id="${id}"]`)
+      if (el) {
+        el.scrollIntoView({
           behavior: prefersReducedMotion() ? 'auto' : 'smooth',
           block: 'center',
         })
+        el.tabIndex = -1
+        el.focus({ preventScroll: true })
+      }
       setFlashEntryId(id)
       window.setTimeout(() => setFlashEntryId((cur) => (cur === id ? null : cur)), 1600)
     })
