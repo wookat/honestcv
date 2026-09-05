@@ -237,7 +237,7 @@ export default function AtsChecker() {
         }
       />
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
         <div className="text-center">
           <Badge variant="secondary" className="mb-3 gap-1">
             <Target className="size-3" /> Free ATS resume checker

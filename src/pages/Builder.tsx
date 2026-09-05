@@ -2230,7 +2230,7 @@ export default function Builder() {
           </p>
         </div>
       )}
-      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 pb-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:pb-6">
+      <main id="main" tabIndex={-1} className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 pb-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:pb-6">
         <h1 className="sr-only">Resume builder</h1>
         {/* ---- Left: editor ---- */}
         <div className={`min-w-0 space-y-4 ${mobilePane === 'edit' ? '' : 'hidden lg:block'}`}>

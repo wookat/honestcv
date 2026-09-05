@@ -580,7 +580,7 @@ export default function Jobs() {
           </Button>
         }
       />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8">
+      <main id="main" tabIndex={-1} className="mx-auto flex w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8">
         <WorkspaceNav />
         <div className="min-w-0 flex-1">
         <h1 className="text-2xl font-bold">Job search</h1>

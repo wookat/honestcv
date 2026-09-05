@@ -97,7 +97,7 @@ export default function SharedResume() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-4xl px-2 py-6 sm:px-4">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-4xl px-2 py-6 sm:px-4">
         {dl === 'failed' && (
           <div
             role="alert"
