@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
+  Download,
   FileDown,
   FilePlus2,
   FileText,
@@ -51,6 +52,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { scoreResume } from '@/lib/ats'
 import { downloadText, professionalFileName } from '@/lib/download'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
+import { exportWorkspace, parseWorkspaceBackup, restoreWorkspace } from '@/lib/workspace'
 import { looksLikeLinkedInExport, parseResumeText } from '@/lib/importText'
 import {
   type CareerDoc,
@@ -333,6 +335,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   const [renamingFolder, setRenamingFolder] = useState<{ from: string; to: string } | null>(null)
   const [confirmRemoveFolder, setConfirmRemoveFolder] = useState<string | null>(null)
+  const workspaceFileRef = useRef<HTMLInputElement>(null)
+  const [pendingRestore, setPendingRestore] = useState<Record<string, string> | null>(null)
+  const [workspaceError, setWorkspaceError] = useState('')
   const [undoDelete, setUndoDelete] = useState<
     | { kind: 'copy'; version: ResumeVersion; index: number }
     | { kind: 'copies'; entries: { version: ResumeVersion; index: number }[] }
@@ -869,9 +874,58 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         </div>
         <h1 className="text-2xl font-bold">My resumes</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          One copy per job you're applying to. Everything is stored in this browser
-          only — use Backup in the editor to keep a file copy.
+          One copy per job you're applying to. Everything is stored in this browser only.
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10 gap-1 text-xs sm:h-7"
+            title="Save everything — copies, documents, job pipeline, libraries — to one .json file"
+            onClick={() => {
+              downloadText(exportWorkspace(), 'rezup-workspace-backup.json', 'application/json')
+            }}
+          >
+            <Download className="size-3" /> Back up everything
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10 gap-1 text-xs sm:h-7"
+            title="Restore a workspace backup file into this browser"
+            onClick={() => workspaceFileRef.current?.click()}
+          >
+            <FileUp className="size-3" /> Restore
+          </Button>
+          <input
+            ref={workspaceFileRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            aria-label="Restore a workspace backup file"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (!file) return
+              void file.text().then((raw) => {
+                const data = parseWorkspaceBackup(raw)
+                if (!data) {
+                  setWorkspaceError('That file is not a RezUp workspace backup.')
+                  return
+                }
+                setWorkspaceError('')
+                setPendingRestore(data)
+              })
+            }}
+          />
+          {workspaceError && (
+            <p role="alert" className="text-destructive text-xs">
+              {workspaceError}
+            </p>
+          )}
+        </div>
 
         {versions.length > 0 && (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
@@ -2502,6 +2556,38 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               }}
             >
               Remove folder
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pendingRestore !== null} onOpenChange={(o) => !o && setPendingRestore(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Restore this workspace backup?</DialogTitle>
+            <DialogDescription>
+              Everything currently in this browser — resumes, copies, documents, job pipeline and
+              libraries — is replaced with the backup. This can't be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setPendingRestore(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (!pendingRestore) return
+                if (restoreWorkspace(pendingRestore)) {
+                  window.location.reload()
+                  return
+                }
+                setPendingRestore(null)
+                setStorageError(true)
+              }}
+            >
+              Replace and restore
             </Button>
           </DialogFooter>
         </DialogContent>
