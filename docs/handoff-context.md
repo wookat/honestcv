@@ -1197,3 +1197,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证：/builder?template=bogus&example=bogus 时 R426 模板条与 R425 示例条渲染在完全相同的 fixed 位置（rect top=687 bottom=745 双双相同）——后渲染的条盖住前者的文案与按钮；Builder 六个底部状态条（存储满、示例拉取失败、模板 not-found、示例 not-found、跨标签更新、下载分享推广）共用同一 `fixed inset-x-4 bottom-16 z-50` 槽位，任意并发即互相遮盖。方案：docs/plan-r427-status-bar-stack.md。
 - 修复仅 Builder.tsx：一个 `pointer-events-none` 的 fixed flex-col 堆叠容器（inset-x-4 bottom-16 z-50 items-center gap-2 lg:bottom-4）承载全部六条；各条去掉自身 fixed/inset/bottom/z/mx-auto，加 `pointer-events-auto`（内容/role/文案/handler 字节不变）；shareOpen 推广块 JSX 移入容器。
 - tsc/eslint/build 绿。生产 QA 全绿（Builder-DceEvUzY.js）：双 bogus 参数两条垂直堆叠 8px 间距零重叠、独立 Dismiss、双参数剥离；单条位置与旧行为等价（lg:bottom-4）；容器空白带点击穿透到底层控件；metro/software-engineer/纯 /builder/R416 fetch 失败条+Try again 全回归；375 光暗双条堆叠零溢出；零 console 错误、零原生对话框、零逃逸、基线字节还原。未逐一实渲染存储满/跨标签/分享推广三条（需配额满/多标签/真实下载流），其堆叠由共用容器推定。部署照旧：上传成功、route auth code 10000。
+
+## R428 — SOP-10 审计 + 三个复制按钮失败不再沉默（2026-08-31）
+- SOP-10 四维审计：11 页 1600/375 双视口零横向溢出、零 console 错误；sitemap 123 URL、/templates/ 25 深链全部映射真实模板 id；"sora-latin.woff2 preloaded but not used" 告警经全新浏览器 context 实证为 Chrome 本地启发式伪影（新 context 每字体恰 1 次带 Origin 请求），非站点缺陷，不修。方案：docs/plan-r428-copy-failed-feedback.md。
+- 确证缺陷（生产实证 clipboard 强制 reject）：三个复制按钮只在成功时置 copied 态，失败零反馈+未处理 rejection——/ats-checker "Copy the checker link"、Builder 下载分享推广条 "Copy checker link"、Builder 分享对话框 "Copy"（最重：用户以为分享 URL 已复制实际粘贴为空）。R372/R414 已有 Copied/Copy failed 双 handler 先例。
+- 修复仅 Builder.tsx / AtsChecker.tsx：三个布尔 copied 态改 'idle'|'copied'|'failed'，writeText 双 handler，失败显 "Copy failed"；成功路径与布局字节不变；既有 reset 改 'idle'。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-BqvGrmLc.js / AtsChecker-Yh81A1H9.js）：三面 reject→"Copy failed" 零 console 错误零未处理 rejection、真实剪贴板成功标签+回读精确（/api/share 全 mock 零真实链接）、R414/R372 回归、推广条居 R427 堆叠容器、375 光暗零溢出、基线字节还原。部署照旧：上传成功、route auth code 10000。

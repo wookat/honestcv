@@ -117,7 +117,7 @@ export default function AtsChecker() {
   const [resumeText, setResumeText] = useState(state?.resumeText ?? draft?.resumeText ?? '')
   const [jd, setJd] = useState(draft?.jd ?? '')
   const [checked, setChecked] = useState(Boolean(state?.resumeText) || (draft?.checked ?? false))
-  const [linkCopied, setLinkCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
   const [fileChecks, setFileChecks] = useState<{ name: string; checks: FileCheck[] } | null>(
@@ -785,10 +785,17 @@ export default function AtsChecker() {
                   onClick={() => {
                     void navigator.clipboard
                       .writeText('https://cv.zalize.com/ats-checker')
-                      .then(() => setLinkCopied(true))
+                      .then(
+                        () => setLinkCopied('copied'),
+                        () => setLinkCopied('failed')
+                      )
                   }}
                 >
-                  {linkCopied ? 'Link copied!' : 'Copy the checker link'}
+                  {linkCopied === 'copied'
+                    ? 'Link copied!'
+                    : linkCopied === 'failed'
+                      ? 'Copy failed'
+                      : 'Copy the checker link'}
                 </button>{' '}
                 — free, no sign-up, nothing leaves the browser.
               </p>
