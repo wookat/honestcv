@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R442 — 死 ?doc= 深链诚实反馈（2026-09-05）
+- 生产实证（CDP）：/documents?doc=<失效id>（/jobs 行 "Cover letter: … Open" 深链，文档删除后）静默渲染普通列表并剥掉死参数，零提示——R425/R426/R441 死深链同族最后一个面。方案：docs/plan-r442-dead-doc-deeplink.md。
+- 修复仅 src/pages/Dashboard.tsx：docLinkNotFound 在挂载初始化器一次性校验 ?doc= 是否在 listCareerDocs()（纯本地零 fetch 零 effect）；不在 ⇒ 文档 section 副标题下 role=alert 卡（R441 同款样式）"The document in that link wasn't found — it may have been deleted." + Dismiss。有效 ?doc=/无参/?kind= 过滤/参数清理 effect 不变。
+- tsc/eslint/build 绿。生产 QA 全绿：bogus 精确文案卡+Dismiss 只清卡+死参数照旧剥离、有效 id 照常开 viewer 无卡、无参与 ?kind=cover 回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R441 — 死 ?job= 深链诚实反馈（2026-09-05）
 - 生产实证（CDP）：/jobs?job=<失效id> 静默把详情面板顶替成搜索结果第一条并原地改写 URL，移动端还自动全屏打开顶替职位详情——分享/收藏的职位链接过期后用户零提示看到无关职位（R425/R426 死深链同族）。方案：docs/plan-r441-dead-job-deeplink.md。
 - 修复仅 src/pages/Jobs.tsx：pendingSeedJob 在首次 fetch 成功回调里一次性校验（结果列表 + 本地 pipeline 都不含 ⇒ role=alert 卡（R417 同款样式）"The job in that link wasn't found…" + Dismiss，且不再为顶替职位自动开移动详情面板）；有效深链/无参/重试路径不变。

@@ -264,6 +264,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     const id = docSeedParams?.get('doc')
     return id ? (listCareerDocs().find((d) => d.id === id) ?? null) : null
   })
+  // A dead ?doc= link (document deleted or wrong id) gets an honest notice
+  // instead of silently showing the plain documents list.
+  const [docLinkNotFound, setDocLinkNotFound] = useState(() => {
+    const id = docSeedParams?.get('doc')
+    return Boolean(id) && !listCareerDocs().some((d) => d.id === id)
+  })
   const [docText, setDocText] = useState(() => openDoc?.text ?? '')
   const [docCopied, setDocCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
@@ -1289,6 +1295,22 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         <p className="text-muted-foreground mt-1 text-sm">
           Documents you saved from the AI tools in the editor.
         </p>
+        {docLinkNotFound && (
+          <div
+            role="alert"
+            className="border-destructive/50 bg-destructive/10 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span>The document in that link wasn&apos;t found — it may have been deleted.</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDocLinkNotFound(false)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Button asChild variant="outline" size="sm" className="min-h-10 sm:min-h-8">
             <Link to="/builder?doc=cover">
