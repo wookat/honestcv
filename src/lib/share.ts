@@ -61,14 +61,16 @@ export function loadShareLink(scope: ShareScope): ShareLink | null {
   return links[scope] ?? null
 }
 
-function persistShareLink(scope: ShareScope, link: ShareLink | null) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistShareLink(scope: ShareScope, link: ShareLink | null): boolean {
   const links = loadShareLinks()
   if (link) links[scope] = link
   else delete links[scope]
   try {
     localStorage.setItem(SHARE_LINKS_KEY, JSON.stringify(links))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
@@ -109,7 +111,13 @@ export async function createShareLink(
     throw new Error(clientMessage || `Creating the link failed (${res.status}). Try again.`)
   }
   const link: ShareLink = { id: data.id, token: data.token, url: data.url, sharedAt: Date.now() }
-  persistShareLink(scope, link)
+  if (!persistShareLink(scope, link) && !prev) {
+    // Without a local record the link could never be revoked — take it back down.
+    void revokeRemote(link.id, link.token).catch(() => {})
+    throw new Error(
+      'Saving the link in this browser failed — your storage is full. The link was turned off; free up space and try again.'
+    )
+  }
   return link
 }
 
