@@ -1525,3 +1525,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复最小：sharp 生成 icon-maskable-192/512（白底满幅方形画布 + favicon.svg 图稿 64% 居中，实测全部非白像素落在 40% 安全圆内）入库 public/，manifest icons 追加两条 purpose:maskable。HTML/CSP 零改动。非目标：无 SW/离线、无 monochrome、不动 any 图标与 apple-touch-icon。
 - tsc/eslint/build/verify-dist 绿；dist/client manifest 4 icons（2 any + 2 maskable）。部署照旧：3 资产上传成功、Workers Routes auth code 10000。
 - 生产 QA（本机直验，改动纯静态资产）：manifest 200 四条 icons 字段正确；两 PNG 200 image/png 尺寸正确且下载后像素复测安全区零越界；CDP Page.getAppManifest errors=[] 且解析出 2 条 maskable。
+
+## R485 — manifest screenshots 成员（更丰富的安装 UI）（2026-09-05）
+- 一手证据：R485 审计——4 条应用面 SPA 路由（/dashboard、/documents、/jobs、/builder）×1280/375 双视口 axe 全净；manifest content-type、robots/sitemap、404 x-robots-tag: noindex 全部正确。生产 manifest（R484 后）有 id/scope/4 icons/2 shortcuts 但无 screenshots——W3C/Chrome：wide 截图驱动桌面富安装对话框、narrow 驱动 Android 富安装 sheet，缺失时回退最简安装提示（R484 已入银行项）。rezi manifest 亦无 screenshots，属超越项。方案：docs/plan-r485-manifest-screenshots.md。
+- 修复最小：CDP 从生产捕获两张策划截图入库 public/——screenshot-wide.png（1280×800 桌面首页 hero+产品 mock；Builder 捕获因首屏右列为模板选择器而非实时预览被弃用）、screenshot-narrow.png（750×1334，375×667@2x 移动首页 hero）；manifest 追加 screenshots 两条（form_factor wide/narrow、label 如实描述内容）。HTML/CSP/icons/shortcuts 零改动。非目标：无 SW/离线、不加更多截图。
+- tsc/eslint/build/verify-dist 绿；dist manifest 2 screenshots 且 PNG 尺寸 PIL 实测与声明一致、id/scope/4 icons/2 shortcuts 保持。部署照旧：3 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA（本机直验，纯静态资产）：manifest 200 含 2 screenshots（连续 6 次采样稳定）且 id/icons/shortcuts 回归；两 PNG 200 image/png 尺寸正确；CDP Page.getAppManifest errors=[] 且解析出 wide+narrow 两条。
