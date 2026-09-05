@@ -1472,26 +1472,27 @@ export function listExperienceLibrary(): SavedExperience[] {
   }
 }
 
-function persistExperienceLibrary(items: SavedExperience[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistExperienceLibrary(items: SavedExperience[]): boolean {
   try {
     localStorage.setItem(
       EXPERIENCE_LIBRARY_KEY,
       JSON.stringify(items.slice(0, EXPERIENCE_LIBRARY_MAX))
     )
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveExperienceToLibrary(entry: ExperienceItem): SavedExperience[] {
+export function saveExperienceToLibrary(entry: ExperienceItem): SavedExperience[] | null {
   const data = sanitizeExperienceItem(entry)
   if (!data) return listExperienceLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listExperienceLibrary(),
   ].slice(0, EXPERIENCE_LIBRARY_MAX)
-  persistExperienceLibrary(items)
-  return items
+  return persistExperienceLibrary(items) ? items : null
 }
 
 export function deleteLibraryExperience(id: string): SavedExperience[] {
@@ -1545,23 +1546,24 @@ export function listEducationLibrary(): SavedEducation[] {
   }
 }
 
-function persistEducationLibrary(items: SavedEducation[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistEducationLibrary(items: SavedEducation[]): boolean {
   try {
     localStorage.setItem(EDUCATION_LIBRARY_KEY, JSON.stringify(items.slice(0, EDUCATION_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveEducationToLibrary(entry: EducationItem): SavedEducation[] {
+export function saveEducationToLibrary(entry: EducationItem): SavedEducation[] | null {
   const data = sanitizeEducationItem(entry)
   if (!data) return listEducationLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listEducationLibrary(),
   ].slice(0, EDUCATION_LIBRARY_MAX)
-  persistEducationLibrary(items)
-  return items
+  return persistEducationLibrary(items) ? items : null
 }
 
 export function deleteLibraryEducation(id: string): SavedEducation[] {
@@ -1614,23 +1616,24 @@ export function listProjectLibrary(): SavedProject[] {
   }
 }
 
-function persistProjectLibrary(items: SavedProject[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistProjectLibrary(items: SavedProject[]): boolean {
   try {
     localStorage.setItem(PROJECT_LIBRARY_KEY, JSON.stringify(items.slice(0, PROJECT_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveProjectToLibrary(entry: ProjectItem): SavedProject[] {
+export function saveProjectToLibrary(entry: ProjectItem): SavedProject[] | null {
   const data = sanitizeProjectItem(entry)
   if (!data) return listProjectLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listProjectLibrary(),
   ].slice(0, PROJECT_LIBRARY_MAX)
-  persistProjectLibrary(items)
-  return items
+  return persistProjectLibrary(items) ? items : null
 }
 
 export function deleteLibraryProject(id: string): SavedProject[] {
@@ -1680,26 +1683,27 @@ export function listInvolvementLibrary(): SavedInvolvement[] {
   }
 }
 
-function persistInvolvementLibrary(items: SavedInvolvement[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistInvolvementLibrary(items: SavedInvolvement[]): boolean {
   try {
     localStorage.setItem(
       INVOLVEMENT_LIBRARY_KEY,
       JSON.stringify(items.slice(0, INVOLVEMENT_LIBRARY_MAX))
     )
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveInvolvementToLibrary(entry: InvolvementItem): SavedInvolvement[] {
+export function saveInvolvementToLibrary(entry: InvolvementItem): SavedInvolvement[] | null {
   const data = sanitizeInvolvementItem(entry)
   if (!data) return listInvolvementLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listInvolvementLibrary(),
   ].slice(0, INVOLVEMENT_LIBRARY_MAX)
-  persistInvolvementLibrary(items)
-  return items
+  return persistInvolvementLibrary(items) ? items : null
 }
 
 export function deleteLibraryInvolvement(id: string): SavedInvolvement[] {
@@ -1748,26 +1752,27 @@ export function listCourseworkLibrary(): SavedCoursework[] {
   }
 }
 
-function persistCourseworkLibrary(items: SavedCoursework[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistCourseworkLibrary(items: SavedCoursework[]): boolean {
   try {
     localStorage.setItem(
       COURSEWORK_LIBRARY_KEY,
       JSON.stringify(items.slice(0, COURSEWORK_LIBRARY_MAX))
     )
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveCourseworkToLibrary(entry: CourseworkItem): SavedCoursework[] {
+export function saveCourseworkToLibrary(entry: CourseworkItem): SavedCoursework[] | null {
   const data = sanitizeCourseworkItem(entry)
   if (!data) return listCourseworkLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listCourseworkLibrary(),
   ].slice(0, COURSEWORK_LIBRARY_MAX)
-  persistCourseworkLibrary(items)
-  return items
+  return persistCourseworkLibrary(items) ? items : null
 }
 
 export function deleteLibraryCoursework(id: string): SavedCoursework[] {
@@ -1815,23 +1820,24 @@ export function listAwardLibrary(): SavedAward[] {
   }
 }
 
-function persistAwardLibrary(items: SavedAward[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistAwardLibrary(items: SavedAward[]): boolean {
   try {
     localStorage.setItem(AWARD_LIBRARY_KEY, JSON.stringify(items.slice(0, AWARD_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveAwardToLibrary(entry: AwardItem): SavedAward[] {
+export function saveAwardToLibrary(entry: AwardItem): SavedAward[] | null {
   const data = sanitizeAwardItem(entry)
   if (!data) return listAwardLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listAwardLibrary(),
   ].slice(0, AWARD_LIBRARY_MAX)
-  persistAwardLibrary(items)
-  return items
+  return persistAwardLibrary(items) ? items : null
 }
 
 export function deleteLibraryAward(id: string): SavedAward[] {
@@ -1881,26 +1887,27 @@ export function listReferenceLibrary(): SavedReference[] {
   }
 }
 
-function persistReferenceLibrary(items: SavedReference[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistReferenceLibrary(items: SavedReference[]): boolean {
   try {
     localStorage.setItem(
       REFERENCE_LIBRARY_KEY,
       JSON.stringify(items.slice(0, REFERENCE_LIBRARY_MAX))
     )
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveReferenceToLibrary(entry: ReferenceItem): SavedReference[] {
+export function saveReferenceToLibrary(entry: ReferenceItem): SavedReference[] | null {
   const data = sanitizeReferenceItem(entry)
   if (!data) return listReferenceLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listReferenceLibrary(),
   ].slice(0, REFERENCE_LIBRARY_MAX)
-  persistReferenceLibrary(items)
-  return items
+  return persistReferenceLibrary(items) ? items : null
 }
 
 export function deleteLibraryReference(id: string): SavedReference[] {
@@ -1948,23 +1955,24 @@ export function listCertLibrary(): SavedCertification[] {
   }
 }
 
-function persistCertLibrary(items: SavedCertification[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistCertLibrary(items: SavedCertification[]): boolean {
   try {
     localStorage.setItem(CERT_LIBRARY_KEY, JSON.stringify(items.slice(0, CERT_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveCertToLibrary(entry: CertificationItem): SavedCertification[] {
+export function saveCertToLibrary(entry: CertificationItem): SavedCertification[] | null {
   const data = sanitizeCertificationItem(entry)
   if (!data) return listCertLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listCertLibrary(),
   ].slice(0, CERT_LIBRARY_MAX)
-  persistCertLibrary(items)
-  return items
+  return persistCertLibrary(items) ? items : null
 }
 
 export function deleteLibraryCert(id: string): SavedCertification[] {
@@ -2015,26 +2023,27 @@ export function listPublicationLibrary(): SavedPublication[] {
   }
 }
 
-function persistPublicationLibrary(items: SavedPublication[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistPublicationLibrary(items: SavedPublication[]): boolean {
   try {
     localStorage.setItem(
       PUBLICATION_LIBRARY_KEY,
       JSON.stringify(items.slice(0, PUBLICATION_LIBRARY_MAX))
     )
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function savePublicationToLibrary(entry: PublicationItem): SavedPublication[] {
+export function savePublicationToLibrary(entry: PublicationItem): SavedPublication[] | null {
   const data = sanitizePublicationItem(entry)
   if (!data) return listPublicationLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listPublicationLibrary(),
   ].slice(0, PUBLICATION_LIBRARY_MAX)
-  persistPublicationLibrary(items)
-  return items
+  return persistPublicationLibrary(items) ? items : null
 }
 
 export function deleteLibraryPublication(id: string): SavedPublication[] {
@@ -2069,22 +2078,23 @@ export function listSkillsLibrary(): SavedSkills[] {
   }
 }
 
-function persistSkillsLibrary(items: SavedSkills[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistSkillsLibrary(items: SavedSkills[]): boolean {
   try {
     localStorage.setItem(SKILLS_LIBRARY_KEY, JSON.stringify(items.slice(0, SKILLS_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveSkillsToLibrary(skills: string): SavedSkills[] {
+export function saveSkillsToLibrary(skills: string): SavedSkills[] | null {
   if (!skills.trim()) return listSkillsLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), skills },
     ...listSkillsLibrary(),
   ].slice(0, SKILLS_LIBRARY_MAX)
-  persistSkillsLibrary(items)
-  return items
+  return persistSkillsLibrary(items) ? items : null
 }
 
 export function deleteLibrarySkills(id: string): SavedSkills[] {
@@ -2119,22 +2129,23 @@ export function listSummaryLibrary(): SavedSummary[] {
   }
 }
 
-function persistSummaryLibrary(items: SavedSummary[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistSummaryLibrary(items: SavedSummary[]): boolean {
   try {
     localStorage.setItem(SUMMARY_LIBRARY_KEY, JSON.stringify(items.slice(0, SUMMARY_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveSummaryToLibrary(summary: string): SavedSummary[] {
+export function saveSummaryToLibrary(summary: string): SavedSummary[] | null {
   if (!summary.trim()) return listSummaryLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), summary },
     ...listSummaryLibrary(),
   ].slice(0, SUMMARY_LIBRARY_MAX)
-  persistSummaryLibrary(items)
-  return items
+  return persistSummaryLibrary(items) ? items : null
 }
 
 export function deleteLibrarySummary(id: string): SavedSummary[] {

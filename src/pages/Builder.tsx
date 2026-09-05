@@ -1028,6 +1028,7 @@ export default function Builder() {
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [versionName, setVersionName] = useState('')
   const [copyStorageError, setCopyStorageError] = useState(false)
+  const [libraryStorageError, setLibraryStorageError] = useState(false)
   /** Applies a copy mutation; surfaces the storage-full alert when nothing was written. */
   const applyVersions = (next: ResumeVersion[] | null): boolean => {
     if (next === null) {
@@ -2691,7 +2692,12 @@ export default function Builder() {
                 aria-label="Save summary to library"
                 disabled={!resume.summary.trim()}
                 onClick={() => {
-                  setSummaryLibrary(saveSummaryToLibrary(resume.summary))
+                  const next = saveSummaryToLibrary(resume.summary)
+                  if (next === null) {
+                    setLibraryStorageError(true)
+                    return
+                  }
+                  setSummaryLibrary(next)
                   setSummaryLibrarySaved(true)
                   window.setTimeout(() => setSummaryLibrarySaved(false), 1600)
                 }}
@@ -2898,7 +2904,12 @@ export default function Builder() {
                       aria-label={`Save role ${idx + 1} to library`}
                       disabled={!e.role.trim() && !e.company.trim() && !e.bullets.some((b) => b.trim())}
                       onClick={() => {
-                        setExpLibrary(saveExperienceToLibrary(e))
+                        const next = saveExperienceToLibrary(e)
+                        if (next === null) {
+                          setLibraryStorageError(true)
+                          return
+                        }
+                        setExpLibrary(next)
                         setExpLibrarySavedId(e.id)
                         window.setTimeout(() => setExpLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
                       }}
@@ -3530,7 +3541,12 @@ export default function Builder() {
                     aria-label={`Save education ${idx + 1} to library`}
                     disabled={!e.school.trim() && !e.degree.trim() && !e.details.trim()}
                     onClick={() => {
-                      setEduLibrary(saveEducationToLibrary(e))
+                      const next = saveEducationToLibrary(e)
+                      if (next === null) {
+                        setLibraryStorageError(true)
+                        return
+                      }
+                      setEduLibrary(next)
                       setEduLibrarySavedId(e.id)
                       window.setTimeout(() => setEduLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
                     }}
@@ -3727,7 +3743,12 @@ export default function Builder() {
                       aria-label={`Save project ${pIdx + 1} to library`}
                       disabled={!p.name.trim() && !p.link.trim() && !p.description.trim()}
                       onClick={() => {
-                        setProjLibrary(saveProjectToLibrary(p))
+                        const next = saveProjectToLibrary(p)
+                        if (next === null) {
+                          setLibraryStorageError(true)
+                          return
+                        }
+                        setProjLibrary(next)
                         setProjLibrarySavedId(p.id)
                         window.setTimeout(
                           () => setProjLibrarySavedId((v) => (v === p.id ? null : v)),
@@ -4261,7 +4282,12 @@ export default function Builder() {
                       !inv.role.trim() && !inv.organization.trim() && !inv.description.trim()
                     }
                     onClick={() => {
-                      setInvLibrary(saveInvolvementToLibrary(inv))
+                      const next = saveInvolvementToLibrary(inv)
+                      if (next === null) {
+                        setLibraryStorageError(true)
+                        return
+                      }
+                      setInvLibrary(next)
                       setInvLibrarySavedId(inv.id)
                       window.setTimeout(
                         () => setInvLibrarySavedId((v) => (v === inv.id ? null : v)),
@@ -4667,7 +4693,12 @@ export default function Builder() {
                       !cw.name.trim() && !cw.institution.trim() && !cw.description.trim()
                     }
                     onClick={() => {
-                      setCwLibrary(saveCourseworkToLibrary(cw))
+                      const next = saveCourseworkToLibrary(cw)
+                      if (next === null) {
+                        setLibraryStorageError(true)
+                        return
+                      }
+                      setCwLibrary(next)
                       setCwLibrarySavedId(cw.id)
                       window.setTimeout(
                         () => setCwLibrarySavedId((v) => (v === cw.id ? null : v)),
@@ -4922,7 +4953,12 @@ export default function Builder() {
                       !a.name.trim() && !a.organization.trim() && !a.description.trim()
                     }
                     onClick={() => {
-                      setAwardLibrary(saveAwardToLibrary(a))
+                      const next = saveAwardToLibrary(a)
+                      if (next === null) {
+                        setLibraryStorageError(true)
+                        return
+                      }
+                      setAwardLibrary(next)
                       setAwardLibrarySavedId(a.id)
                       window.setTimeout(
                         () => setAwardLibrarySavedId((v) => (v === a.id ? null : v)),
@@ -5205,7 +5241,12 @@ export default function Builder() {
                       !pub.description.trim()
                     }
                     onClick={() => {
-                      setPubLibrary(savePublicationToLibrary(pub))
+                      const next = savePublicationToLibrary(pub)
+                      if (next === null) {
+                        setLibraryStorageError(true)
+                        return
+                      }
+                      setPubLibrary(next)
                       setPubLibrarySavedId(pub.id)
                       window.setTimeout(
                         () => setPubLibrarySavedId((v) => (v === pub.id ? null : v)),
@@ -5496,7 +5537,12 @@ export default function Builder() {
                       !ref.name.trim() && !ref.employer.trim() && !ref.email.trim()
                     }
                     onClick={() => {
-                      setRefLibrary(saveReferenceToLibrary(ref))
+                      const next = saveReferenceToLibrary(ref)
+                      if (next === null) {
+                        setLibraryStorageError(true)
+                        return
+                      }
+                      setRefLibrary(next)
                       setRefLibrarySavedId(ref.id)
                       window.setTimeout(
                         () => setRefLibrarySavedId((v) => (v === ref.id ? null : v)),
@@ -6051,7 +6097,12 @@ export default function Builder() {
                   aria-label="Save skills to library"
                   disabled={!resume.skills.trim()}
                   onClick={() => {
-                    setSkillsLibrary(saveSkillsToLibrary(resume.skills))
+                    const next = saveSkillsToLibrary(resume.skills)
+                    if (next === null) {
+                      setLibraryStorageError(true)
+                      return
+                    }
+                    setSkillsLibrary(next)
                     setSkillsLibrarySaved(true)
                     window.setTimeout(() => setSkillsLibrarySaved(false), 1600)
                   }}
@@ -6319,7 +6370,12 @@ export default function Builder() {
                       aria-label={`Save certification ${cIdx + 1} to library`}
                       disabled={!c.name.trim() && !c.issuer.trim() && !c.description.trim()}
                       onClick={() => {
-                        setCertLibrary(saveCertToLibrary(c))
+                        const next = saveCertToLibrary(c)
+                        if (next === null) {
+                          setLibraryStorageError(true)
+                          return
+                        }
+                        setCertLibrary(next)
                         setCertLibrarySavedId(c.id)
                         window.setTimeout(
                           () => setCertLibrarySavedId((v) => (v === c.id ? null : v)),
@@ -7707,6 +7763,26 @@ export default function Builder() {
           </button>
         ))}
       </div>
+
+      {libraryStorageError && (
+        <div
+          role="alert"
+          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
+        >
+          <span className="min-w-0">
+            Not saved to your library — your browser storage is full. Free up space and try
+            again.
+          </span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setLibraryStorageError(false)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
 
       {externalUpdate && (
         <div
