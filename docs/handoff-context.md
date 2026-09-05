@@ -1594,6 +1594,14 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R505 — 文档编辑器占位符定位器（2026-08-31）
+- 一手证据（生产 CDP）：R504「Fill them in」落地的编辑器是裸 textarea（内容 288px>视口 240px 需滚动），15 个占位符零计数零定位辅助，用户须肉眼逐个找。
+- 修复仅 Dashboard.tsx edit 视图：占位符>0 时 textarea 上方琥珀状态条（role=status 报 "N placeholders left…"）+「Next placeholder」按钮——从光标处找下一个括号槽位（到底回绕），focus+setSelectionRange 选中并按行高滚动进视口；清零即消失。方案：docs/plan-r505-placeholder-locator.md。
+- 备案：嵌套占位符（`[… [X] …]`）外层在内层被替换后才可数——正则本就不匹配含内层括号的外层，属既有语义非本轮引入。
+- 非目标：textarea 内彩色高亮（需 overlay 重构，入银行）、自动替换。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：状态条报 15、Next placeholder 依次选中 [Hiring manager's name]/[Company]/[Current company] 且 16 次后回绕、替换后计数实时降、清零消失；关闭走 Discard changes 存储未污染（15 槽位原样）；375px 弹窗零溢出、Next placeholder 正常；零 console 错误/未捕获 rejection。
+
 ## R504 — 导出带 [占位符] 的信件前诚实警示（SOP-10 节点）（2026-08-31）
 - 审计先行：生产复现 Documents 信件示例流全链路，此前疑似"Use this example 后弹窗未关"实证为预期行为（saveCareerDoc 保存成功→关预览→开已存文档编辑器，honestcv.careerDocs 落库、TXT 导出成功），如实驳回。
 - 一手证据（生产 CDP）：产品自己播种的角色示例信全文是 [Hiring manager's name]/[Company] 等括号占位符，示例弹窗明示"replace the [placeholders] with your details"，但卡片/编辑器 6 个下载按钮（PDF/DOCX/TXT×2处）一键静默导出——用户拿到写给 [Company] 的信，零提示零确认（anchor-click 钩子实证直接下载、零 alert/status 节点）。

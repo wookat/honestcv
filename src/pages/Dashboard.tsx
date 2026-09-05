@@ -282,6 +282,21 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [renamingDoc, setRenamingDoc] = useState<{ doc: CareerDoc; title: string } | null>(null)
   const [previewLetter, setPreviewLetter] = useState<LetterExample | null>(null)
   const signatureInputRef = useRef<HTMLInputElement>(null)
+  const docTextRef = useRef<HTMLTextAreaElement>(null)
+
+  const jumpToNextPlaceholder = () => {
+    const ta = docTextRef.current
+    if (!ta) return
+    const re = /\[[^\][\n]{1,60}\]/g
+    re.lastIndex = ta.selectionEnd
+    const m = re.exec(ta.value) ?? ((re.lastIndex = 0), re.exec(ta.value))
+    if (!m) return
+    ta.focus()
+    ta.setSelectionRange(m.index, m.index + m[0].length)
+    const line = ta.value.slice(0, m.index).split('\n').length - 1
+    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 16
+    ta.scrollTop = Math.max(0, line * lineHeight - ta.clientHeight / 2)
+  }
   const [signatureError, setSignatureError] = useState('')
   const [confirmingDocClose, setConfirmingDocClose] = useState(false)
   const [placeholderWarn, setPlaceholderWarn] = useState<{
@@ -2394,15 +2409,36 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           {docView === 'preview' && openDoc ? (
             <LetterPreview doc={openDoc} text={docText} letterhead={draft ?? emptyResume()} />
           ) : (
-            <Textarea
-              id="career-doc-text"
-              name="career-doc-text"
-              rows={14}
-              value={docText}
-              onChange={(e) => setDocText(e.target.value)}
-              className="font-mono text-xs"
-              aria-label="Document text"
-            />
+            <>
+              {countLetterPlaceholders(docText) > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-300/60 bg-amber-500/10 px-2 py-1.5 dark:border-amber-400/30">
+                  <p role="status" className="text-xs">
+                    {`${countLetterPlaceholders(docText)} ${
+                      countLetterPlaceholders(docText) === 1 ? 'placeholder' : 'placeholders'
+                    } left — replace the [bracketed] parts with your details.`}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-8 px-2 text-xs"
+                    onClick={jumpToNextPlaceholder}
+                  >
+                    Next placeholder
+                  </Button>
+                </div>
+              )}
+              <Textarea
+                ref={docTextRef}
+                id="career-doc-text"
+                name="career-doc-text"
+                rows={14}
+                value={docText}
+                onChange={(e) => setDocText(e.target.value)}
+                className="font-mono text-xs"
+                aria-label="Document text"
+              />
+            </>
           )}
           <DialogFooter className="gap-2">
             {openDoc && docDownload(openDoc, docText, 'pdf', 'viewer-pdf')}
