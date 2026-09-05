@@ -318,6 +318,7 @@ function sanitizeEntry(raw: unknown): PipelineEntry | null {
     url: asStr(j.url),
     description: asStr(j.description),
   }
+  if (j.descriptionTruncated === true) job.descriptionTruncated = true
   if (typeof j.logo === 'string') job.logo = j.logo
   if (Array.isArray(j.tags)) job.tags = j.tags.filter((t): t is string => typeof t === 'string')
   const status = JOB_STATUSES.includes(e.status as JobStatus)

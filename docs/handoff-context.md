@@ -1594,6 +1594,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R499 — 保存/跟踪职位后诚实截断提示不再丢失（2026-08-31）
+- 一手证据（生产 CDP，job 2091068）：API 返回 descriptionTruncated:true、详情面板显示 R498 截断提示；点 Save 后 localStorage['honestcv.jobPipeline'] 条目里该键 MISSING（保存流程 upsertPipeline→prepareTargetedCopy→setPipelineVersion 立即经 listPipeline() 重写全表）；刷新后从 tracked 打开详情提示消失。Rezi 2026-08 changelog 恰有 "Improved Job Description Visibility … for tracked roles"。
+- 根因：src/lib/jobs.ts sanitizeEntry() 重建 JobListing 时复制 logo/tags 但不复制可选 descriptionTruncated，任何 pipeline 写路径都会剥掉该标志。
+- 修复一行：`if (j.descriptionTruncated === true) job.descriptionTruncated = true`（仅严格 true 保留；旧条目无键维持 undefined，兼容不变）。方案：docs/plan-r499-pipeline-truncation-flag.md。
+- tsc/单查 eslint/build/verify-dist 绿（全仓 lint 红仅历史 .tmp-smoke 草稿）。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Jobs-COqkbubZ.js）：保存 2091068 后 stored flag true（len 7995）；用不命中该职位的搜索（q=zzzunfindable&job=2091068）强制详情走 pipeline 数据——截断提示照常显示、外链指向 remotive 原帖（target=_blank rel="noopener noreferrer"）；pipeline 中其余职位无标志；375 零溢出；QA 后 pipeline 清理。
+
 ## R494 — 按路由 modulepreload：非 Builder 路由不再白拉 72KB Builder 块（2026-09-05）
 - 一手证据（生产 Lighthouse 网络日志）：/samples 冷加载在 ~247ms 抢先下载 Builder 块（72KB 传输、全站最大路由块，从不执行），本路由 Dashboard 块反而 ~435ms 才到——根因是 prerender.mjs 往 spa.html 注入固定 Builder modulepreload，Worker 对所有 SPA 路由/分享页/404 都发同一 shell。
 - 修复两处：prerender.mjs 在 spa.html 注入 route→chunk map（meta name=route-chunks，Builder/Dashboard×3/Jobs/AtsChecker/SharedResume，缺块即 build 失败）；worker applyRoutePreload() 按路径把 preload 改写成本路由真实水合的块（/builder 字节不变、未知路由删除 preload），三个 shell 文本分支全部套用。
