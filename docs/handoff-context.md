@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R450 — 六个 /examples/ 页修复跳级标题（2026-08-31）
+- 生产实证：axe-core 4.10.2 扫 10 条静态预渲染路由 + SPA 全路由（桌面/375/菜单展开态），唯一违规是六个 /examples/<slug>/ 页的 heading-order（moderate）：H1 "<Role> resume example" 后直接跟示例简历的 H3 Summary/Experience/Skills/Education（跳过 H2），页面真正的 H2 提示区在其后。源头：scripts/build-seo.mjs exdoc 块硬编码 <h3>。方案：docs/plan-r450-example-heading-order.md。
+- 修复仅 build-seo.mjs：exdoc 四个 <h3>→<h2>，CSS 选择器 .exdoc h3→.exdoc h2（声明不变，视觉像素级等价）；pricing FAQ/promo 页 h3（正确跟在 h2 后）与模板卡 h3 不动。
+- tsc/eslint/build 绿。生产 QA 全绿：六页 raw HTML 零 <h3>、axe 全零违规、outline 恰为 H1→全 H2、computed style（.8rem/uppercase/.08em/1px 底边框）与旧 h3 一致、375 光暗零溢出、/examples/ hub 与 R422 静态 skip link 与 /pricing/ 与 R449 全回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R449 — SPA skip link 补上真实 #main 目标（2026-08-31）
 - 生产实证：axe-core 4.10.2 扫 8 条生产路由，所有渲染共享 header 的 SPA 路由（/、/dashboard、/documents、/jobs、/ats-checker、/samples）全报 skip-link（moderate）；CDP 确认 document.querySelector('#main')===null——R421 的 "Skip to content" 链接 href="#main" 全靠 JS onClick，SPA 页面的 <main> 从未有过 id（120 个静态页 R422 早已是 <main id="main" tabindex="-1">）。本轮另驳回两条线索：Builder 对话框缺 aria-modal 是 Radix 1.1.23 有意为之（hideOthers 对外部 65 节点加 aria-hidden，非缺陷）；/builder 页 Cache-Control 缺失是 curl -I（HEAD）探测伪影，GET 正常带 s-maxage=60。方案：docs/plan-r449-skip-link-target.md。
 - 修复：7 个 SPA 页面（Builder/Dashboard/Jobs/AtsChecker/Landing/SharedResume/NotFound）的 <main> 补 id="main" tabIndex={-1}，与静态页同款；Layout 的 onClick 行为不动，href 从此诚实、无 JS 也有原生 fragment 回退。
