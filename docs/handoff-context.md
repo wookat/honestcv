@@ -1213,3 +1213,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证：R429 修好 canonical/og:url 后，六个 SPA 路由原始 HTML 的 <title>/meta description/og:title/og:description 仍全是主页文案（curl 无 JS 实测），/builder、/ats-checker 在 sitemap 内——搜索摘要与链接卡片展示主页标题；usePageMeta 只在水合后修正；120 个静态页早已各有唯一元数据，SPA 路由是唯一缺口。方案：docs/plan-r430-spa-title-description.md。
 - 修复仅 worker/index.ts：SPA_META 映射（文案与各页 usePageMeta 逐字一致），R429 重写块内一并替换 title/description/og:title/og:description；'/'、/s/、未知 404 分支不动。
 - tsc/eslint/build 绿。生产 QA 全绿：/builder、/ats-checker 原始 HTML 每路由元数据+自指 canonical、水合后 document.title 与原始 shell 字节一致零闪变、客户端导航 usePageMeta+CanonicalSync 回归、/nope-xyz 与 /s/bogus 仍 404 主页 shell 不重写、/pricing/ 不变、375 光暗零溢出、零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R431 — 客户端导航后 og:url/og:title/og:description 跟随路由（2026-09-05）
+- 生产实证（CDP）：R430 后原始 HTML 已每路由正确，但客户端导航后 head 自相矛盾——canonical/title/description 跟随当前路由，og:url/og:title/og:description 仍停在入口路由（/builder 进入→导航 /jobs，og:url 仍 /builder）。R429 QA 银行项确证。方案：docs/plan-r431-clientnav-og-meta.md。
+- 修复仅客户端两处：CanonicalSync（App.tsx）同步 og:url；usePageMeta（Layout.tsx）同步 og:title/og:description。worker 原始 shell 重写不动。
+- tsc/eslint/build 绿。生产 QA 全绿：/builder→/jobs→/dashboard→/documents 每步六标签全一致且与 R430 shell 文案字节相同、/ats-checker 直载水合零闪变、主页往返还原、curl 原始 HTML R429/R430 回归、/nope-xyz 仍 404、375 光暗零溢出、零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
