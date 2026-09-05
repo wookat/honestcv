@@ -75,6 +75,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
+import { prefersReducedMotion } from '@/lib/motion'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
   FreeDownloadDialog,
@@ -667,7 +668,10 @@ function Section({
       if ((ev as CustomEvent<string>).detail !== anchor) return
       setOpen(true)
       requestAnimationFrame(() => {
-        ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        ref.current?.scrollIntoView({
+          behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+          block: 'start',
+        })
       })
       setFlash(true)
       window.setTimeout(() => setFlash(false), 1600)
@@ -1329,7 +1333,10 @@ export default function Builder() {
     requestAnimationFrame(() => {
       document
         .querySelector(`[data-entry-id="${id}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        ?.scrollIntoView({
+          behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+          block: 'center',
+        })
       setFlashEntryId(id)
       window.setTimeout(() => setFlashEntryId((cur) => (cur === id ? null : cur)), 1600)
     })

@@ -68,6 +68,7 @@ import {
   updateCareerDoc,
 } from '@/lib/documents'
 import { LETTER_EXAMPLES, type LetterExample } from '@/lib/letterExamples'
+import { prefersReducedMotion } from '@/lib/motion'
 import {
   EXPERIENCE_LEVELS,
   EXPERIENCE_LEVEL_LABELS,
@@ -295,7 +296,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   // The samples heading only mounts once examples load, so the hash target can
   // appear after the first run of this effect on a cold deep-linked load.
   useEffect(() => {
-    if (hash) document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
+    if (hash)
+      document
+        .querySelector(hash)
+        ?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
   }, [hash, examplesState])
   // On /samples the filters live in the query string so refresh/share keeps your place.
   const [seedParams] = useState(() =>

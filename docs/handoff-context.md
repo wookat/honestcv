@@ -1562,3 +1562,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 Dashboard.tsx：hash effect 移到 examplesState 声明之后，deps 改为 [hash, examplesState]——'loading'→'ready' 转换重跑 effect 补上滚动；目标已存在的路径（同文档切换、#documents）行为不变；无 hash 不滚动。
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新 tab）：冷载 #samples 落 821（901−80 scroll-mt-20）、冷载 #documents 落 445、无 hash 停 0；同文档 #documents/#samples 切换 445/821；R489 回归——滚 600 后 push 到 /jobs 落 0、POP back 恢复 /dashboard#samples 821；375 光暗零溢出；零 console 错误/警告/未捕获 rejection。
+
+## R491 — 程序化 smooth 滚动尊重 prefers-reduced-motion（2026-09-05）
+- 一手证据（生产 CDP，Emulation 强制 prefers-reduced-motion: reduce，matchMedia 在页内确认为 true）：/builder?example=software-engineer 点 "Skills" 章节导航 chip，scrollY 40ms 采样 0→4→66→…→3669，~800ms 长动画——违背用户减少动效偏好。index.css 的全局 reduce 规则（scroll-behavior: auto !important）按 CSSOM View 规范不覆盖显式 `scrollIntoView({ behavior: 'smooth' })`——只有 behavior:'auto' 才咨询 CSS 属性。
+- 根因：三处调用点硬编码 behavior:'smooth'——Dashboard.tsx hash effect、Builder.tsx 章节跳转（JUMP_EVENT）、Builder.tsx jumpToEntry。方案：docs/plan-r491-reduced-motion-scroll.md。
+- 修复最小：三处改 `behavior: prefersReducedMotion() ? 'auto' : 'smooth'`（复用 src/lib/motion.ts 既有 helper，调用时求值，偏好中途变化也生效）；App.tsx ScrollReset、CSS 动画规则、其余滚动语义零改动。
+- tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（全新 tab，新 bundle Builder-KVTTlf2O.js）：reduce 下章节 chip 跳转即时（0→3669 单步）、Score "Fix →" 条目跳转即时（0→1535 单步）且 ring-2 闪烁环照常出现、冷载 /dashboard#samples 即时落 857；非 reduce 下滚动保持 smooth 动画（0→16→103→…采样确认）；R490 冷载 hash 回归正常；375 光暗零溢出；四次探测全程零 console 错误零未捕获 rejection。
