@@ -1465,3 +1465,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：仅 vite.config.ts——command==='build' 时把 /^react-router$/ 与 /^react-router\/dom$/ 精确别名到 dist/production 对应 mjs（绝对路径，绕过 exports）；dev server 不别名（保留 dev 警告，符合上游本意）。react-router-dom 是薄 re-export，别名对其内部裸导入同样生效。方案：docs/plan-r475-react-router-production-build.md。
 - 效果（本地构建对比）：入口 sourcemap 归因变为 dist/production/chunk-YBLPXYCV.mjs（35,297B），入口 372.7→371.4KB。实事求是：体积收益小（~1.3KB raw），本质收益是生产不再执行 dev-warning 代码路径、与上游生产语义一致。
 - tsc/eslint/build/verify-dist 绿。
+
+## R476 — Landing 路由懒加载（预渲染改用 react-dom/static）（2026-08-31）
+- 证据：R475 部署后 Lighthouse /builder perf 0.52、FCP 3.1s、LCP 4.7s、TBT 1350ms，bootup-time 主因是入口脚本执行 ~2.5s；本地 sourcemap 归因入口 371,132B 中 src/pages/Landing.tsx 占 35,899B——App.tsx 里唯一 eager 的大路由，所有非首页路由都在白付这份代价。
+- 修复：①src/App.tsx：Landing 改 lazy()（与其余五路由同款，NotFound 保持 eager）。②src/entry-server.tsx：renderToString → react-dom/static 的 prerenderToNodeStream——本地负例实证 renderToString 下 lazy(Landing) 服务端 suspend、预渲染 index.html 变成 RouteFallback 骨架（首页 SEO/LCP 直接回退），static prerender 等 lazy 解析后输出完整 HTML；prerender.mjs 加门禁：index.html 含 aria-busy 即构建失败。③prerender.mjs：index.html 注入 Landing chunk modulepreload（与入口并行下载，避免水合瀑布）；spa.html 的 Builder preload 不动。
+- 效果：入口 371,132→288,661B（Landing-*.js 37,456B 独立 chunk，仅首页加载）。本地 CDP 负例：扣住 Landing chunk 3s——预渲染 hero 全程可见零骨架闪烁（dehydrated boundary）；彻底阻断→R456 错误卡。
+- 生产 QA（测试代理独立复验）全绿零 P0–P1：raw / 含真 hero + Landing preload、扣块 5s hero 像素级不变（0.82% 动态像素差）、阻断→R456 卡+Reload 恢复、/builder 冷加载零 Landing 请求、SPA 导航/404/R468/R469/R474/375 光暗全回归、零 console 错误、零逃逸、基线字节还原。Lighthouse：首页 perf 0.98（FCP/LCP 1.2s）；/builder 三跑 0.42/0.42/0.58——TBT 450–960ms（基线 1350ms，方向与入口瘦身一致），但 FCP 4.8–6.0s/LCP 5.0–6.2s 比基线（3.1/4.7s）差，无法排除当日网络/CDN 方差（P2 观察项，下轮复测）。
+- tsc/eslint/build/verify-dist 绿。部署照旧：上传成功、Workers Routes auth code 10000。
