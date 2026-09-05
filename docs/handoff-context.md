@@ -1544,3 +1544,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿（Layout.tsx 仅既有 react-refresh warning）。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（测试代理独立复验，全新 context，entry index-vBMh4rZF.js）全绿零 P0–P2：SW 受控 /builder 离线→恰一条 role=status 精确文案+WifiOff、紧贴 header 下方；SPA 导航 /jobs、/dashboard 条保持；重连 1s 内消失；离线编辑照常保存（R351 "Saved"）条与工具栏零重叠；375 光暗零溢出、带条 axe /builder 0 违规；在线冷载 raw HTML 与水合后均无该文案、零 console 错误零 #418；R486 SW 离线整页加载、R468 Ctrl+S、R469 Ctrl+/、R481 主题回归全过；零逃逸、存储字节级还原、QA 后 SW/缓存清理。
 - 备案：既有 P3——Jobs.tsx:581 用普通 `<a href="/dashboard">` 触发整页刷新（非本轮引入，入银行）；CDP offline 仿真跨文档导航后 navigator.onLine 复位为 true 系仿真局限非产品缺陷。
+
+## R488 — /jobs 头部 "My resumes" 改为真 SPA Link（2026-09-05，SOP-10 节点）
+- 一手证据：SOP-10 四维复扫 7 路由×2 视口零水平溢出；生产 CDP 实证 /jobs 头部 action 是普通 `<a href="/dashboard">`——点击前设置的 window.__probe 哨兵点击后丢失（整文档重载），全站其余 SPA 路由导航（Landing/Dashboard header action、WorkspaceNav）均已用 router `<Link>`；指向静态预渲染页的普通锚（/templates/、/examples/、/privacy/）为有意整页加载不改。R487 QA 备案的 P3 就此闭合。方案：docs/plan-r488-jobs-spa-link.md。
+- 修复仅 src/pages/Jobs.tsx 两行：导入 `Link`（文件已用 react-router-dom），`<a href="/dashboard">` → `<Link to="/dashboard">`，Button asChild 样式不变（与 Dashboard.tsx:848 同款）。
+- tsc/eslint/build/verify-dist 绿（Jobs.tsx 仅既有 exhaustive-deps warning）。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 银行项（未选，证据在 R478/R487）：/builder 启动 JS 执行成本（perf 0.53、TBT 1.3s，入口 61% 为 react-dom 已到地板，树级拆分需新证据支撑）。

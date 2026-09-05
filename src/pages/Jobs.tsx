@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -578,7 +578,7 @@ export default function Jobs() {
       <SiteHeader
         action={
           <Button asChild size="sm" variant="outline">
-            <a href="/dashboard">My resumes</a>
+            <Link to="/dashboard">My resumes</Link>
           </Button>
         }
       />
