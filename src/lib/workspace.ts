@@ -62,6 +62,21 @@ export function parseWorkspaceBackup(raw: string): Record<string, string> | null
   }
 }
 
+/** True when the backup's active-copy link points at no version in the backup. */
+function danglingActiveVersion(data: Record<string, string>): boolean {
+  const active = data['honestcv.activeVersionId']
+  if (!active) return false
+  try {
+    const versions = JSON.parse(data['honestcv.resumeVersions'] ?? '[]') as unknown
+    return !(
+      Array.isArray(versions) &&
+      versions.some((v) => (v as { id?: unknown } | null)?.id === active)
+    )
+  } catch {
+    return true
+  }
+}
+
 /**
  * Replace the current workspace with the backup. Returns false — with the
  * previous workspace rolled back — when writing fails (storage full).
@@ -75,6 +90,7 @@ export function restoreWorkspace(data: Record<string, string>): boolean {
   try {
     for (const key of Object.keys(snapshot)) localStorage.removeItem(key)
     for (const [key, value] of Object.entries(data)) localStorage.setItem(key, value)
+    if (danglingActiveVersion(data)) localStorage.removeItem('honestcv.activeVersionId')
     return true
   } catch {
     try {
