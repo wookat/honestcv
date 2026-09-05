@@ -63,6 +63,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -1029,6 +1030,7 @@ export default function Builder() {
   const importFileRef = useRef<HTMLInputElement>(null)
   const backupFileRef = useRef<HTMLInputElement>(null)
   const [restoreError, setRestoreError] = useState('')
+  const [pendingBackupRestore, setPendingBackupRestore] = useState<Resume | null>(null)
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [versionName, setVersionName] = useState('')
@@ -2367,8 +2369,7 @@ export default function Builder() {
                       return
                     }
                     setRestoreError('')
-                    linkVersion(null)
-                    setResume({ ...emptyResume(), ...parsed })
+                    setPendingBackupRestore(parsed)
                   } catch {
                     setRestoreError('That file is not a RezUp backup.')
                   }
@@ -2381,6 +2382,46 @@ export default function Builder() {
               {restoreError}
             </p>
           )}
+          <Dialog
+            open={pendingBackupRestore !== null}
+            onOpenChange={(o) => !o && setPendingBackupRestore(null)}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Restore this backup?</DialogTitle>
+                <DialogDescription>
+                  The resume loaded in the editor is replaced with the backup. A checkpoint of the
+                  current resume is saved to History first, and any linked copy keeps its last saved
+                  state but stops receiving edits.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPendingBackupRestore(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => {
+                    if (!pendingBackupRestore) return
+                    if (recordResumeSnapshot(resume, true) === null) {
+                      setStorageAlert(HISTORY_STORAGE_FULL_MSG)
+                      return
+                    }
+                    linkVersion(null)
+                    setResume({ ...emptyResume(), ...pendingBackupRestore })
+                    setPendingBackupRestore(null)
+                  }}
+                >
+                  Replace and restore
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <div className="bg-card rounded-lg border p-3">
             <div className="flex items-center justify-between gap-2 text-sm">
