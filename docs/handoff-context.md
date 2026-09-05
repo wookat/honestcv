@@ -1203,3 +1203,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 确证缺陷（生产实证 clipboard 强制 reject）：三个复制按钮只在成功时置 copied 态，失败零反馈+未处理 rejection——/ats-checker "Copy the checker link"、Builder 下载分享推广条 "Copy checker link"、Builder 分享对话框 "Copy"（最重：用户以为分享 URL 已复制实际粘贴为空）。R372/R414 已有 Copied/Copy failed 双 handler 先例。
 - 修复仅 Builder.tsx / AtsChecker.tsx：三个布尔 copied 态改 'idle'|'copied'|'failed'，writeText 双 handler，失败显 "Copy failed"；成功路径与布局字节不变；既有 reset 改 'idle'。
 - tsc/eslint/build 绿。生产 QA 全绿（Builder-BqvGrmLc.js / AtsChecker-Yh81A1H9.js）：三面 reject→"Copy failed" 零 console 错误零未处理 rejection、真实剪贴板成功标签+回读精确（/api/share 全 mock 零真实链接）、R414/R372 回归、推广条居 R427 堆叠容器、375 光暗零溢出、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R429 — SPA 路由原始 HTML 自指 canonical/og:url（2026-08-31）
+- 生产实证：全量爬取 123 个 sitemap 页 + 193 个内链全 200、静态页 canonical/title/desc/main-id 全对；唯 SPA 路由（/builder、/ats-checker 在 sitemap 内）原始 HTML canonical 与 og:url 均硬编码指向主页——等于向爬虫声明"本页是主页副本"，可致 sitemap 页被去重出索引；CanonicalSync（R309）只在 JS 水合后修正。方案：docs/plan-r429-spa-canonical.md。
+- 修复仅 worker/index.ts notFound：SPA_ROUTES 且非 '/' 时把 shell 的 canonical href 与 og:url 重写为 https://cv.zalize.com<path>；/s/（noindex）与未知路由 404 分支不动。
+- tsc/eslint/build 绿。生产 QA 全绿：六 SPA 路由 curl 无 JS 自指 canonical+og:url、主页/静态页不变、/s/bogus 与 /nope-xyz 仍 404+noindex/no-store 且 shell 不重写、真实浏览器 /builder//jobs 零损坏零 console 错误、客户端导航 CanonicalSync 回归、R428 复制回归、375 光暗零溢出、基线字节还原。既有小观察（非本轮回归）：客户端导航后 CanonicalSync 只更新 canonical 不更新 og:url（爬虫读原始 HTML，无实害），银行为候选。部署照旧：上传成功、route auth code 10000。
