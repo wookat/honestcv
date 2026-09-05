@@ -6,9 +6,11 @@
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
     <!-- Pre-paint theme class; inlined and allowed via a CSP sha256 hash -->
     <!-- prettier-ignore -->
-    <script>;(function(){try{var v=localStorage.getItem('honestcv.theme');if(v==='dark'||(v!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}})()</script>
+    <script>;(function(){try{var v=localStorage.getItem('honestcv.theme');var d=v==='dark'||(v!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');if(v==='dark'||v==='light'){var c=d?'#090d14':'#fbfcfd';var m=document.querySelectorAll('meta[name=theme-color]');for(var i=0;i<m.length;i++)m[i].setAttribute('content',c)}}catch(e){}})()</script>
     <!-- prettier-ignore -->
     <meta name="description" content="RezUp: the AI resume builder that gets you interviews faster — free during beta. ATS-friendly templates, free ATS match score, AI rewrites, real PDF & DOCX export. Pay once if you ever pay; never a subscription." />
     <title>RezUp — AI Resume Builder. ATS-Friendly Resumes in Minutes.</title>

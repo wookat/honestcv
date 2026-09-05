@@ -35,11 +35,18 @@ export function saveThemePref(pref: ThemePref) {
   for (const cb of listeners) cb()
 }
 
+/** Browser-chrome colors matching the light/dark `--background` tokens. */
+const THEME_COLORS = { light: '#fbfcfd', dark: '#090d14' } as const
+
 export function applyThemePref(pref: ThemePref) {
   const dark =
     pref === 'dark' ||
     (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   document.documentElement.classList.toggle('dark', dark)
+  const color = dark ? THEME_COLORS.dark : THEME_COLORS.light
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    meta.setAttribute('content', color)
+  }
 }
 
 /** Keep a `system` preference in sync with live OS scheme changes. */

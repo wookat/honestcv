@@ -19,7 +19,7 @@ const FREE_MODE = process.env.VITE_FREE_MODE !== 'false'
 // so static pages match the SPA's light/dark scheme. Inlined (render-blocking
 // external request avoided) and allowed by an exact CSP sha256 hash.
 const THEME_INLINE =
-  ";(function(){try{var v=localStorage.getItem('honestcv.theme');if(v==='dark'||(v!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}})()"
+  ";(function(){try{var v=localStorage.getItem('honestcv.theme');var d=v==='dark'||(v!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');if(v==='dark'||v==='light'){var c=d?'#090d14':'#fbfcfd';var m=document.querySelectorAll('meta[name=theme-color]');for(var i=0;i<m.length;i++)m[i].setAttribute('content',c)}}catch(e){}})()"
 const THEME_SCRIPT = `<script>${THEME_INLINE}</script>`
 const FP_BEACON = THEME_SCRIPT + '<script defer src="/t.js"></script>'
 
@@ -1591,6 +1591,8 @@ function page(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
@@ -1672,6 +1674,8 @@ function legalPage(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.sections[0][1])}" />
@@ -1735,6 +1739,8 @@ function aboutPage() {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}" />
@@ -1820,6 +1826,8 @@ function guidePage(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
@@ -1876,6 +1884,8 @@ function templatePage(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
@@ -1984,6 +1994,8 @@ function hubPage({
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}" />
@@ -3309,6 +3321,8 @@ ${per.experience
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>${esc(p.role)} Resume Example (2026) — RezUp</title>
 <meta name="description" content="${esc(p.description)}" />
@@ -3699,6 +3713,8 @@ ${features.map((f) => `<li style="margin:.4rem 0">· ${esc(f)}</li>`).join('\n')
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>RezUp Pricing — $9.99 Once, Never a Subscription</title>
 <meta name="description" content="RezUp pricing: everything free during beta. When billing opens: Single Resume $9.99 one-time, Career Bundle $19.99 one-time. No subscription, no stored card, nothing to cancel." />
@@ -3837,6 +3853,8 @@ function aiPage() {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>AI Resume Tools — Tailoring, Scoring, Rewriting | RezUp</title>
 <meta name="description" content="RezUp's AI toolkit: job-targeted tailoring, a free in-browser ATS match score, honest bullet rewriting that never invents facts, and AI cover letters with interview prep." />
@@ -3977,6 +3995,8 @@ function toolPage(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
@@ -4081,6 +4101,8 @@ function letterExamplesPage(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
