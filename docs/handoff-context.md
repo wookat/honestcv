@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R437 — 未知路由 404 的原始 HTML 不再自称主页（2026-08-31）
+- 生产实证（curl）：/nope-xyz 返回 404 但原始 HTML 四标签是主页营销文案、canonical/og:url 指向主页（R429–R436 同族）；/s/bogus 同理。水合后 usePageMeta 才修正。方案：docs/plan-r437-notfound-shell-meta.md。
+- 修复仅 worker/index.ts 新增 404 分支：删除 canonical/og:url 标签，四标签重写为水合后逐字文案（普通未知路由 "Page not found — RezUp"+NotFound 描述；/s/* 用 "Shared resume | RezUp" 回退句）；live share、SPA、'/' 分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：/nope-xyz 404+NotFound 文案+零 canonical/og:url、/s/bogus 404+noindex/no-store+回退文案+gone 卡、水合 CanonicalSync 对缺失标签 no-op 零 console 错误、live share R432/R436 与 /builder R429/R430 与 R435 Back 全回归、375 光暗零溢出、删净分享 404、基线字节还原。QA 观察（非回归、待议）：普通 404 分支无 noindex/no-store 头（/s/ 分支才有），canonical 已删故 SEO 影响趋零。部署照旧：上传成功、route auth code 10000。
+
 ## R436 — 分享页原始 HTML 的 canonical 不再指向主页（2026-08-31）
 - 生产实证（curl，特批临时分享、验毕删净 404）：live /s/<id> 原始 HTML 经 R432 重写后 title/og:url 已是候选人/分享 URL，但 canonical 仍是主页——head 自相矛盾（R431/R435 同族），向爬虫声明分享页是主页副本；水合后 CanonicalSync 才修正。方案：docs/plan-r436-share-canonical.md。
 - 修复仅 worker/index.ts share 分支一行：重写链前追加 canonical replace（与 SPA_ROUTES 分支同款写法）；revoked/未知 id、SPA、'/' 分支字节不变。
