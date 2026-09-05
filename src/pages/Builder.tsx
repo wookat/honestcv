@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowDown,
@@ -399,6 +400,18 @@ function usePdfLength(resume: Resume): import('@/lib/pdf').ResumeLength | null {
     return () => window.clearTimeout(t)
   }, [resume])
   return len
+}
+
+/** Whether the viewport is at the lg breakpoint, where both panes show side by side. */
+function useIsLgViewport(): boolean {
+  const [isLg, setIsLg] = useState(() => window.matchMedia('(min-width: 64rem)').matches)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 64rem)')
+    const onChange = () => setIsLg(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return isLg
 }
 
 const FIT_COMBOS: Array<
@@ -1265,6 +1278,17 @@ export default function Builder() {
   const [templateRecents, setTemplateRecents] = useState<string[]>(loadTemplateRecents)
   /** Which pane is visible on small screens (both show side-by-side on lg+) */
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit')
+  const isLgViewport = useIsLgViewport()
+  /** Print styles show only the resume preview, so it must be in the DOM before the snapshot. */
+  const [printArmed, setPrintArmed] = useState(false)
+  useEffect(() => {
+    const onBeforePrint = () => flushSync(() => setPrintArmed(true))
+    window.addEventListener('beforeprint', onBeforePrint)
+    return () => window.removeEventListener('beforeprint', onBeforePrint)
+  }, [])
+  /** Once opened on mobile, the pane stays mounted so pane switching never re-runs its measurements. */
+  const [previewSeen, setPreviewSeen] = useState(false)
+  const renderPreviewPane = isLgViewport || printArmed || previewSeen || mobilePane === 'preview'
   /** Optional sections the user added this visit — shown even while still empty */
   const [addedSections, setAddedSections] = useState<string[]>([])
   /** Scroll the editor section that fixes a failing ATS check into view */
@@ -1508,7 +1532,7 @@ export default function Builder() {
       if (previewWrapRef.current) applyKeywordHighlight(previewWrapRef.current, ats.matched)
     }, 150)
     return () => window.clearTimeout(t)
-  }, [highlightKw, shown, ats.matched, previewView])
+  }, [highlightKw, shown, ats.matched, previewView, renderPreviewPane])
   useEffect(() => clearKeywordHighlight, [])
   const prevPassRef = useRef<Map<string, boolean> | null>(null)
   const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
@@ -6958,6 +6982,8 @@ export default function Builder() {
             mobilePane === 'preview' ? '' : 'hidden lg:block'
           }`}
         >
+          {renderPreviewPane && (
+            <>
           {pdfLength !== null && (
             <div className="flex flex-wrap items-center gap-2">
               <span
@@ -7980,6 +8006,8 @@ export default function Builder() {
               {!hasBundlePlan && !freeMode && <Lock className="size-3 opacity-60" />}
             </Button>
           </div>
+            </>
+          )}
         </div>
       </main>
 
@@ -8006,6 +8034,7 @@ export default function Builder() {
             }`}
             onClick={() => {
               setMobilePane(pane)
+              if (pane === 'preview') setPreviewSeen(true)
               window.scrollTo({ top: 0 })
             }}
           >
