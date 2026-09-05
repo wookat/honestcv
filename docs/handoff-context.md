@@ -1451,3 +1451,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：新建 src/lib/freeMode.ts 原样搬 useFreeMode；Landing 改从 lib 导入；Paywall.tsx 改为 re-export（Builder/Dashboard 导入零改动）。方案：docs/plan-r473-freemode-out-of-entry.md。
 - 效果（本地构建对比）：付费墙全栈（Paywall/checkout/license/radix-dialog/remove-scroll 等 ~30KB）离开入口；rolldown 顺势把原 Layout 共享块（97.6KB raw，每路由都要）并进入口——启动关键 JS 由 index 325.7KB+Layout 97.6KB（gzip 131.5KB、两个请求）变为单个 index 372.7KB（gzip 114.7KB），省 ~50KB raw / 17KB gzip / 一个请求；Paywall 成为 Builder/Dashboard 路由块的并行依赖。
 - 本地 tsc/eslint/build/verify-dist 全绿。
+
+## R474 — 预览测量 effect 去掉 resume 依赖：每次按键不再强制同步 reflow（2026-08-31）
+- 证据：Lighthouse /builder forced-reflow-insight 第一名 = ResumePreview.tsx PaginatedPages.measure()（clientWidth/scrollHeight 读取）；CDP 4x profile 中该帧是应用代码非 idle 第一名。
+- 根因：PaginatedPages/FlowPage 测量 effect deps 带整个 resume（体内未用）——每按键 RO disconnect → 同步 measure（提交后立读 layout = 强制回流）→ re-observe。
+- 修复：两个 deps 改 [baseW, windowH]（pageSize/margins 变化仍覆盖）；内容/框架尺寸变化由既有双 ResizeObserver 异步接管（无强制回流）。
+- 生产 QA（index-Cy07OTKI.js / Builder-DlsU4Wbk.js）：键入越页 1→2 页、删回 1 页（RO 路径正确）、Letter↔A4/边距/桌面 resize 重测、Flow 分页标记 = 页数−1 并实时更新、打字无 layout storm（~2 layout/键）、R468/R469 回归、375 光暗零溢出、零错误零逃逸、基线字节还原。诚实边界：无旧版数值基线，回流"减少量"由删除的代码路径断言。
+- tsc/eslint/build/verify-dist 绿；部署照旧（上传成功、route auth code 10000）。

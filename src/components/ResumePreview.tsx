@@ -485,7 +485,7 @@ function PaginatedPages({
     ro.observe(frame)
     ro.observe(content)
     return () => ro.disconnect()
-  }, [resume, baseW, windowH])
+  }, [baseW, windowH])
 
   return (
     <div className="space-y-4">
@@ -580,7 +580,7 @@ function FlowPage({
     ro.observe(frame)
     ro.observe(content)
     return () => ro.disconnect()
-  }, [resume, baseW, windowH])
+  }, [baseW, windowH])
 
   const breaks = Math.max(0, Math.ceil((contentH - 1) / windowH) - 1)
   return (
