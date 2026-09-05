@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -184,9 +184,12 @@ export default function AtsChecker() {
     }
   }, [resumeText, jd, checked])
 
+  // Deferred so rescoring a very large pasted text can't block each keystroke.
+  const scoredResumeText = useDeferredValue(resumeText)
+  const scoredJd = useDeferredValue(jd)
   const result = useMemo(
-    () => (checked ? scoreResumeText(resumeText, jd) : null),
-    [checked, resumeText, jd]
+    () => (checked ? scoreResumeText(scoredResumeText, scoredJd) : null),
+    [checked, scoredResumeText, scoredJd]
   )
   const isExample = resumeText === EXAMPLE_RESUME && jd === EXAMPLE_JD
 
@@ -208,17 +211,18 @@ export default function AtsChecker() {
   }, [result])
 
   const jdSegments = useMemo(
-    () => (result ? segmentJd(jd.slice(0, HIGHLIGHT_LIMIT), result.matched, result.missing) : []),
-    [jd, result]
+    () =>
+      result ? segmentJd(scoredJd.slice(0, HIGHLIGHT_LIMIT), result.matched, result.missing) : [],
+    [scoredJd, result]
   )
 
   const analysis = useMemo(() => {
     if (!result) return null
-    const parsed = parseResumeText(resumeText)
-    parsed.jobDescription = jd
+    const parsed = parseResumeText(scoredResumeText)
+    parsed.jobDescription = scoredJd
     const health = resumeHealth(parsed)
     return { health, fixes: priorityFixes(result, health) }
-  }, [result, resumeText, jd])
+  }, [result, scoredResumeText, scoredJd])
 
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">

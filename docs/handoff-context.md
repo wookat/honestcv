@@ -1083,3 +1083,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环 R403 同族问题：源码扫描（window.confirm|alert|prompt）显示 R403 后仍余四处原生 confirm，全部是既有样式化 Dialog 内的未保存工作关闭守卫：BundleToolDialog（面试会话/未保存生成信两种文案，另有 R355 的 keyword-targeting 跳转桥也走同一守卫）、TailorDialog（请求进行中 / 未审阅建议两分支）、Dashboard 求职文档查看器（未保存编辑）。原生框与全站样式化守卫不一致，且无对话框处理的嵌入/自动化环境会硬阻塞渲染进程（R403 已实测）。方案 docs/plan-r405-styled-close-confirms.md。
 - 实现（同 R403 模式，嵌套 Radix Dialog，决策入本地 state）：BundleToolDialog 增 confirmingClose: false|'close'|'jump'——无未保存工作即时关闭；有则弹样式化确认（interview/letter 两种文案原样保留），Keep working 取消，Discard and close 走原 onClose()（'jump' 分支走 onJumpToTarget()，R355 桥语义保留）。TailorDialog 增 confirmingClose: 'busy'|'pending'|null，busy 优先，pending 文案含"再取建议将消耗一次 AI 请求"原话，Keep reviewing 取消，Discard and close 走原 onClose()。Dashboard 查看器 docText 未变即时关闭，变了弹确认，Discard changes 走原 setOpenDoc(null)+setSignatureError('')。Cancel/Esc/外点均保留父对话框与内容，零写入。
 - 本地 tsc/eslint(0 errors)/build 绿。生产 QA 见 PR。
+
+## R406 — ATS checker 巨型 JD 不再冻结页面（2026-08-31）
+- 闭环 R403/R404 银行 P4（已生产实证）：种子 ~1.03MB JD + checked:true 后 /ats-checker 渲染 220,537 个 DOM 节点（main 内 110,110 个 span）——"Job description with keywords highlighted" 框对整个 JD 跑 segmentJd 并逐段渲染 span/mark，且每次按键重算重挂；单个 3145ms long task + 按键延迟高达 957ms。R404 已证计算链 <260ms（Node），冻结在渲染侧。方案 docs/plan-r406-ats-highlight-cap.md。
+- 测量更正（实事求是）：早前报告的 "load-to-report 133s/120s/240s" 均为测量皮层伪影——轮询字符串 'Match score' 与页面实际文案（"Your ATS match score"）大小写不匹配，循环跑满超时；修正后实测修复版 time-to-report 1.0s。
+- 实现（仅 AtsChecker.tsx）：①高亮框只渲染 JD 前 20,000 字符（HIGHLIGHT_LIMIT，超限显示 muted 说明"评分仍用全文"），segmentJd 结果 useMemo；②评分/analysis 改用 useDeferredValue(resumeText/jd)，1MB 全文重评分（Node 实测 139ms）作为 deferred render 不再阻塞按键紧急更新。评分、关键词、草稿持久化、正常尺寸 JD 行为零改动。
+- 本地 tsc/eslint(AtsChecker.tsx)/build 绿。生产修复后实测：4,812 节点/2,246 span、time-to-report 1.0s、按键 285/327/307ms（残余为 1MB 受控 textarea 布局+草稿持久化，非评分）。
+- 生产 QA（index-DmlNuwxC.js / AtsChecker-CDkHIXI7.js）全绿零 P0–P3：100KB JD（关键词只在 20k 之后）出报告+截断说明+高亮框恰 20,000 字符、关键词出现在 chips 但不在高亮框（全文评分铁证）、20k 后追加 docker 重查即入 chips、1MB 草稿 1.0s 可交互+输入 50ms 往返、示例报告无截断说明、R403 styled dialog/R387 keep-saved 字节一致/R389 文案回归、375 光暗、零 console 错误、零 AI/lead/分享/支付流量、基线还原。
+- 银行：/jobs bogus ?job=<id> 深链回退（源码已读、生产未验，R407 候选）。
