@@ -81,6 +81,9 @@ function segmentJd(jd: string, matched: string[], missing: string[]): JdSegment[
   return out
 }
 
+/** Longest JD prefix rendered in the inline highlight view — the score always uses the full text. */
+const HIGHLIGHT_LIMIT = 20_000
+
 const DRAFT_KEY = 'honestcv.atsCheckerDraft'
 
 interface CheckerDraft {
@@ -203,6 +206,11 @@ export default function AtsChecker() {
         : new Set()
     )
   }, [result])
+
+  const jdSegments = useMemo(
+    () => (result ? segmentJd(jd.slice(0, HIGHLIGHT_LIMIT), result.matched, result.missing) : []),
+    [jd, result]
+  )
 
   const analysis = useMemo(() => {
     if (!result) return null
@@ -589,7 +597,7 @@ export default function AtsChecker() {
                     missing.
                   </p>
                   <div className="bg-muted/40 mt-2 max-h-56 overflow-y-auto rounded-md border p-3 text-sm whitespace-pre-wrap">
-                    {segmentJd(jd, result.matched, result.missing).map((s, i) =>
+                    {jdSegments.map((s, i) =>
                       s.kind === 'plain' ? (
                         <span key={i}>{s.text}</span>
                       ) : (
@@ -606,6 +614,12 @@ export default function AtsChecker() {
                       )
                     )}
                   </div>
+                  {jd.length > HIGHLIGHT_LIMIT && (
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Highlighting the first {HIGHLIGHT_LIMIT.toLocaleString()} characters of
+                      this long job description — the score uses the full text.
+                    </p>
+                  )}
                 </div>
               )}
 
