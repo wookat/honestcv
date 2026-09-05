@@ -1507,3 +1507,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿；dist 抽查 4 页各含 3 个 theme-color，dist 内联脚本 hash 与 worker CSP 严格相等。部署照旧：上传成功（149 资产+worker）、Workers Routes auth code 10000。
 - 生产 QA（测试代理独立复验，全新 context）全绿零 P0–P3：4 页 raw HTML 双 meta；system light/dark 两态 meta/html.dark 正确；显式 dark+light OS 在 /builder readyState=loading（预水合）即 html.dark+双 meta #090d14（document_start 采样器），/about/ 上内联脚本为唯一脚本且生效 = CSP hash 实证放行；反向显式 light+dark OS 正确；真实 ThemeToggle 循环 system→light→dark→system meta 实时跟随、system 时正确删键；全程零 ContentSecurityPolicyIssue、零 console 错误；375 光暗零溢出；R480 axe landmark 回归 0 违规；零逃逸、存储字节级还原。
 - 备案：静态页在 system（非显式）偏好下 meta 保持构建值、由 media 属性让浏览器自选——设计如此。/builder Audits 报 8 条既有 GenericIssue（表单 autofill 提示），非本轮引入。
+
+## R482 — Web manifest + 主屏图标（apple-touch-icon / 192 / 512 PNG）（2026-09-05）
+- 一手证据：生产 /manifest.webmanifest 与 /apple-touch-icon.png 均 404，全站唯一图标 favicon.svg——iOS「添加到主屏幕」回退页面截图、Android 无法以应用形态安装；竞品 rezi.ai 首页带 apple-touch-icon（curl 实证）。方案：docs/plan-r482-manifest-touch-icons.md。
+- 修复：① 本机 sharp 从 favicon.svg 栅格化 icon-192/icon-512/apple-touch-icon(180) 入库 public/；② public/manifest.webmanifest（RezUp、start_url /、standalone、theme/background #fbfcfd、192+512 icons）；③ index.html + build-seo 11 处模板 favicon 后加 rel=manifest + rel=apple-touch-icon 两条 link。CSP 零改动（default-src 'self' 覆盖）。非目标：无 Service Worker/离线、无 maskable 变体。
+- tsc/eslint/build/verify-dist 绿；dist 含 manifest+3 PNG、抽查页 link 各恰一次。部署照旧：126 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA（测试代理独立复验，全新 context）全绿零 P0–P3：4 页 raw 双 link 恰一次；manifest 200 application/manifest+json 字段严格相等；3 图标 200 image/png 尺寸 PIL 实测正确；CDP Page.getAppManifest errors=[]、getInstallabilityErrors=[]（如实备案：本版 headless Chrome 无 SW 也返回空，正向可安装结论限于此 Chrome，非 Play/Android 保证）；icon-512 白底合成 1522 色非空白；零 console 错误零 CSP issue；R481 theme-color + ThemeToggle 回归、375 光暗零溢出；零逃逸、存储字节级还原。
