@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Printer } from 'lucide-react'
+import { Download, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ResumePreview } from '@/components/ResumePreview'
+import { professionalFileName } from '@/lib/download'
 import { fetchSharedResume } from '@/lib/share'
 import type { Resume } from '@/lib/resume'
 
@@ -15,6 +16,22 @@ export default function SharedResume() {
     | { status: 'ready'; resume: Resume; createdAt: number }
   >(id ? { status: 'loading' } : { status: 'gone' })
   const [attempt, setAttempt] = useState(0)
+  const [dl, setDl] = useState<'idle' | 'busy' | 'failed'>('idle')
+
+  const downloadPdf = async () => {
+    if (state.status !== 'ready' || dl === 'busy') return
+    setDl('busy')
+    try {
+      const { contact, targetRole } = state.resume
+      await (await import('@/lib/pdf')).downloadResumePdf(
+        state.resume,
+        professionalFileName([contact.fullName, targetRole, 'resume'], 'pdf')
+      )
+      setDl('idle')
+    } catch {
+      setDl('failed')
+    }
+  }
 
   useEffect(() => {
     if (!id) return
@@ -47,6 +64,11 @@ export default function SharedResume() {
           </p>
           <div className="flex items-center gap-2">
             {state.status === 'ready' && (
+              <Button size="sm" onClick={() => void downloadPdf()} disabled={dl === 'busy'}>
+                <Download /> {dl === 'busy' ? 'Preparing…' : 'Download PDF'}
+              </Button>
+            )}
+            {state.status === 'ready' && (
               <Button
                 size="sm"
                 variant="outline"
@@ -63,6 +85,14 @@ export default function SharedResume() {
         </div>
       </header>
       <main className="mx-auto max-w-4xl px-2 py-6 sm:px-4">
+        {dl === 'failed' && (
+          <p
+            role="alert"
+            className="border-destructive/50 bg-destructive/10 text-destructive mx-auto mb-4 max-w-3xl rounded-md border px-3 py-2 text-sm"
+          >
+            Preparing the PDF failed — try again.
+          </p>
+        )}
         {state.status === 'loading' && (
           <div aria-busy="true" className="bg-background mx-auto aspect-[17/22] max-w-3xl animate-pulse rounded-md border" />
         )}
