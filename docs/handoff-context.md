@@ -1488,3 +1488,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 七路由 CDP 扫描（~/audit-r1/r478_audit.py）零 console 错误零溢出唯一 #main；Rezi 2026-08 changelog 逐条对照无一轮内可落地深度缺口（location autocomplete/job match score/大屏/updated-at 均已有；Auto-Apply/移动 App/Apple 登录在 local-first 边界外）。
 - 银行项：①编辑列 section 卡按需渲染（R477 思路的编辑列版，需先 CDP 计数折叠态节点，单独一轮）；②tailwind-merge 27KB 微收益高风险暂不动。
 - 无源码改动，无部署。
+
+## R479 — 编辑列渲染规模与 sora 字体双下载调查（docs-only）（2026-09-05）
+- 两条候选缺口经一手实证后均不成立，本轮不改源码不部署（先例 R303/R328/R478）。方案与全部证据：docs/plan-r479-editor-column-audit.md。
+- 银行项①关闭：生产 /builder?example=software-engineer 1600×761 逐块测量（~/audit-r1/r479_measure.py）——编辑列 819 节点/15 可见子块/37 控件，最大块 Experience 345 节点，全部子块 offsetParent!==null（无 display:none 大子树），折叠卡展开内容本就条件渲染。与 R477（883 节点隐藏 Preview 完整渲染）不同，不存在"不可见但完整渲染"内容，按需渲染/虚拟化无证据支撑，不做。
+- 新观察项排除：本机老 profile 下生产 sora-latin.woff2 双下载（首个请求 no-cors、无 Origin、initiator 0:0）。归因实验：生产 HTML 原样本地服务→各一次；生产站全新 browser context→各一次且均 cors 匹配 preload；无 Link 头/无 Early Hints。判定为浏览器基于访问历史的推测式字体预取（浏览器侧行为），非站点缺陷，站点侧无合理改动，不改。
+- 无源码改动，无部署。
