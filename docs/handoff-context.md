@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R441 — 死 ?job= 深链诚实反馈（2026-09-05）
+- 生产实证（CDP）：/jobs?job=<失效id> 静默把详情面板顶替成搜索结果第一条并原地改写 URL，移动端还自动全屏打开顶替职位详情——分享/收藏的职位链接过期后用户零提示看到无关职位（R425/R426 死深链同族）。方案：docs/plan-r441-dead-job-deeplink.md。
+- 修复仅 src/pages/Jobs.tsx：pendingSeedJob 在首次 fetch 成功回调里一次性校验（结果列表 + 本地 pipeline 都不含 ⇒ role=alert 卡（R417 同款样式）"The job in that link wasn't found…" + Dismiss，且不再为顶替职位自动开移动详情面板）；有效深链/无参/重试路径不变。
+- tsc/eslint/build 绿。生产 QA 全绿：bogus 深链精确文案卡+Dismiss、375 光暗不自动开面板零溢出、有效 id 无卡照常选中并开面板、tracked-only id 视为找到无卡、R417 失败卡+重试与 tracked tab 回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R440 — spa.html 剥离主页 FAQPage 结构化数据（2026-09-05）
 - 生产实证（curl）：/builder 等六个可索引 SPA 路由的 raw HTML 带主页 FAQPage JSON-LD，但 FAQ 内容只在 Landing（'/'）可见——违反 Google FAQPage 可见内容要求（R429/R430 shell 诚实化的同族残留）。方案：docs/plan-r440-spa-shell-faq-ldjson.md。
 - 修复仅 scripts/prerender.mjs：生成 spaShell 时按块剥掉含 "FAQPage" 的 ld+json（WebApplication 站点级实体保留），并加构建期防回归断言；index.html（'/'）字节不变。

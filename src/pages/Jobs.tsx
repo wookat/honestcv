@@ -149,6 +149,10 @@ export default function Jobs() {
   const [selectedId, setSelectedId] = useState<string | null>(() => seedParams.get('job'))
   // A ?job= deep link should read like tapping that row: open the detail pane on mobile.
   const [mobileDetail, setMobileDetail] = useState(() => seedParams.get('job') !== null)
+  // Pending ?job= deep link, checked once against the first fetched list so a
+  // dead link says so instead of silently showing an unrelated job.
+  const [pendingSeedJob, setPendingSeedJob] = useState(() => seedParams.get('job'))
+  const [jobLinkNotFound, setJobLinkNotFound] = useState(false)
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(new Set())
   const [confirmBulkUntrack, setConfirmBulkUntrack] = useState(false)
@@ -169,6 +173,16 @@ export default function Jobs() {
     searchJobs(q, cat)
       .then((list) => {
         setJobs(list)
+        if (pendingSeedJob) {
+          setPendingSeedJob(null)
+          if (
+            !list.some((j) => j.id === pendingSeedJob) &&
+            !listPipeline().some((e) => e.job.id === pendingSeedJob)
+          ) {
+            setJobLinkNotFound(true)
+            setMobileDetail(false)
+          }
+        }
         setSelectedId((cur) =>
           cur && (list.some((j) => j.id === cur) || listPipeline().some((e) => e.job.id === cur))
             ? cur
@@ -577,6 +591,23 @@ export default function Jobs() {
           </a>
           . Your application pipeline is stored in this browser only.
         </p>
+
+        {jobLinkNotFound && (
+          <div
+            role="alert"
+            className="border-destructive/50 bg-destructive/10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span>The job in that link wasn&apos;t found — it may have expired or been removed.</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setJobLinkNotFound(false)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
 
         <div
           className="mt-4 flex flex-wrap gap-1.5"
