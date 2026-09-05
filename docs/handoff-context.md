@@ -1594,6 +1594,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R503 — /jobs URL 不再携带自动选中的职位（SOP-10 节点）（2026-08-31）
+- 四维审计先行：核心 7 路由 1280/375 零溢出、/jobs /documents /ats-checker /samples 生产 axe 零违规、Lighthouse 四页 CLS 全 0（/jobs 0.82 /documents 0.81 /dashboard 0.78 /ats-checker 0.88）、123 sitemap URL + 194 内部链接全 200、源码零 confirm/alert/空 catch——均无缺口，如实驳回。
+- 一手证据（生产 CDP）：零交互冷载 /jobs，加载完成后 URL 被 replaceState 改写为 /jobs?job=1749306（第一条职位 id，用户从未点击）；仅改排序后 /jobs?sort=newest&job=1749306。根因：fetch 回调回落 setSelectedId(list[0]?.id) 喂桌面详情栏，URL 同步 effect 对 selectedId 无差别写 job 参数。后果：分享/收藏的"列表"URL 永远带一个没选过的瞬态职位 id；该 URL 在移动端（R407 深链语义）强行打开发送者从没点过的详情浮层；职位过期后 R441 dead-link 警示对用户从未构造的 URL 触发。
+- 修复仅 Jobs.tsx：explicitSelection ref（?job= 深链 seed true、行点击 true、自动回落 false），URL effect 改为 selectedId && explicitSelection.current 才写 job；详情栏自动选中行为零改动。方案：docs/plan-r503-url-autoselect-job-param.md。
+- tsc/单查 eslint（仅既有 exhaustive-deps 警告）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：零交互冷载 URL 保持 /jobs；改排序后仅 ?sort=newest；点击行后 ?sort=newest&job=2091100；?job=1749306 深链回归（桌面选中 Freelance Copywriter、375 详情浮层打开）；搜索提交后 URL 收敛为 ?q=engineer（自动选中不再回写）；375 零溢出。
+
 ## R502 — /jobs 结果计数状态行（WCAG 4.1.3）（2026-08-31）
 - 一手证据：生产 /jobs?q=engineer 结果列 9 条但界面任何位置零结果计数（main 内 `\d+ jobs?` 零命中）、结果呈现路径零 role=status/aria-live——搜索/筛选完成后读屏用户收不到任何"结果已更新、共 N 条"状态消息（WCAG 4.1.3），明眼用户也无从确认筛选是否生效。
 - 修复仅 Jobs.tsx：all 标签非 loading/error 时列表上方渲染一行 `role="status"` 页眉 "{n} job(s) found"（0 条同样渲染保证零结果也有播报，空态文案与 R501 按钮仍在其下）；tracked/status 标签不加（tab 标签已带计数）。方案：docs/plan-r502-results-count-status.md。

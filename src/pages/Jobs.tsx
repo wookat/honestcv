@@ -5,7 +5,7 @@
  * scoring flow picks it up in the editor.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -149,6 +149,9 @@ export default function Jobs() {
   const [pipelineUnreadable, setPipelineUnreadable] = useState(() => stashUnreadablePipeline())
   const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => listPipeline())
   const [selectedId, setSelectedId] = useState<string | null>(() => seedParams.get('job'))
+  // Only selections the user made (row tap or ?job= deep link) belong in the
+  // URL; the automatic first-row selection that feeds the desktop pane does not.
+  const explicitSelection = useRef(seedParams.get('job') !== null)
   // A ?job= deep link should read like tapping that row: open the detail pane on mobile.
   const [mobileDetail, setMobileDetail] = useState(() => seedParams.get('job') !== null)
   // Pending ?job= deep link, checked once against the first fetched list so a
@@ -185,11 +188,16 @@ export default function Jobs() {
             setMobileDetail(false)
           }
         }
-        setSelectedId((cur) =>
-          cur && (list.some((j) => j.id === cur) || listPipeline().some((e) => e.job.id === cur))
-            ? cur
-            : (list[0]?.id ?? null)
-        )
+        setSelectedId((cur) => {
+          if (
+            cur &&
+            (list.some((j) => j.id === cur) || listPipeline().some((e) => e.job.id === cur))
+          ) {
+            return cur
+          }
+          explicitSelection.current = false
+          return list[0]?.id ?? null
+        })
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
@@ -215,7 +223,7 @@ export default function Jobs() {
     if (typeFilter) params.set('type', typeFilter)
     if (skillsFilter) params.set('skills', skillsFilter)
     if (sort !== 'relevance') params.set('sort', sort)
-    if (selectedId) params.set('job', selectedId)
+    if (selectedId && explicitSelection.current) params.set('job', selectedId)
     const qs = params.toString()
     window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
   }, [query, tab, followUpOnly, category, locationFilter, typeFilter, skillsFilter, sort, selectedId])
@@ -1075,6 +1083,7 @@ export default function Jobs() {
                         <button
                           type="button"
                           onClick={() => {
+                            explicitSelection.current = true
                             setSelectedId(j.id)
                             setMobileDetail(true)
                           }}
