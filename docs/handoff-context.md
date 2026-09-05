@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R439 — CanonicalSync 归一化尾斜杠，水合后 canonical 不再指向 /builder/ 变体（2026-09-05）
+- 生产实证：curl /builder/ 200 且 raw shell 自指 /builder（worker 已归一化），但 CDP 直载 /builder/ 水合后 CanonicalSync 用 pathname 原文把 canonical/og:url 改写成带斜杠变体——raw-vs-hydrated 自相矛盾（R429/R431/R436 同族）。方案：docs/plan-r439-trailing-slash-canonical.md。
+- 修复仅 src/App.tsx CanonicalSync 一行：与 worker 相同的 `pathname.replace(/\/+$/, '')`（根路径除外）后再拼 URL；客户端导航从不产生尾斜杠，行为字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-COSA535S.js）：/builder/、/jobs/ 水合后 canonical==og:url 无斜杠、/builder 与 / 回归（根斜杠保留）、R431 六标签导航回归、curl raw 回归、/nope-xyz 404+noindex（R438 回归）、375 光暗零溢出零 console 错误、基线字节还原、零逃逸。部署照旧：上传成功、route auth code 10000。
+
 ## R438 — 普通未知路由 404 补 X-Robots-Tag: noindex（2026-09-05）
 - 生产实证（curl）：/nope-xyz 404 无 x-robots-tag（/s/ 分支才有），R437 QA 银行项经直接复证后立项。方案：docs/plan-r438-404-noindex.md。
 - 修复仅 worker/index.ts notFound 头块加 else-if：非 SPA、非 /s/ 的 404 补 noindex（不加 no-store，安全头中间件只给 200 设缓存头，维持现状）；body 重写与其余分支字节不变。
