@@ -1127,3 +1127,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（CDP Fetch.failRequest /api/jobs/search）：/jobs 错误横幅直接渲染浏览器原始 TypeError "Failed to fetch"。源码扫描确证同族缺口：searchJobs、submitLead、claimTransaction（另有未守卫 res.json() 可抛原始 SyntaxError）、openLemonCheckout、activateLicense（同 json 缺口）、fetchZalizePrimary/fetchResumeProfile 全部无网络失败 catch。方案：docs/plan-r413-friendly-offline-errors.md。
 - 修复：各调用点 try/catch 抛面向用户的 "… — check your connection and try again." 分面文案（对齐 R348/R412 模式）；两处 res.json() 加 .catch(()=>({})) 让非 JSON 体落回既有友好状态码文案。HTTP 错误路径文案字节不变。
 - tsc/eslint/build 绿。生产 QA 全绿：jobs/lead 门/激活/Resume Center 四面精确新文案、非 JSON 200 激活落友好文案零 SyntaxError、RC 真实 404 文案回归、R412 分享页回归、375 光暗零溢出、零逃逸（全部 /api/leads 与 activate 均拦截）、基线字节还原。未运行时验证：claimTransaction/openLemonCheckout 文案（无真实 Lemon Squeezy 流程不可达，代码同型）。
+
+## R414 — 文档查看器 Copy text 有了诚实反馈（2026-08-31）
+- 生产实证（CDP 点击 /documents 查看器 Copy text）：按钮点击后无任何反馈，成功失败一律沉默（`void navigator.clipboard.writeText(docText)` 丢弃 promise）；全应用其余复制按钮（R372 follow-up、分享链接、checker 链接）均有 Copied/失败态。方案：docs/plan-r414-copy-text-feedback.md。
+- 修复仅 Dashboard.tsx：docCopied 'idle'|'copied'|'failed' 状态，按 R372 模式 then(copied, failed) 渲染 "Copied"/"Copy failed"，三处打开查看器时重置 idle。
+- tsc/eslint/build 绿。生产 QA 全绿（Dashboard-CCUlK0Kh.js）：真实剪贴板回读字节一致、reject 覆写→"Copy failed" 零 console 错误、重开重置（含失败态后）、Save/下载行与 R413 jobs 横幅回归、375 光暗零溢出、零逃逸、基线字节还原。
