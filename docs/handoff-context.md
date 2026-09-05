@@ -1147,3 +1147,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（probe_r417.py，CDP 强制 /api/jobs/search 失败）：/jobs 显示 R413 友好文案，但只是裸 `<p class="text-destructive">`——无 role=alert（读屏不播报）、无 Try again 按钮（文案让用户"try again"却没有明显重试入口）；R412 以来其余失败面（分享页/samples/?example）均为 alert 卡 + 重试。方案：docs/plan-r417-jobs-error-retry.md。
 - 修复仅 Jobs.tsx：错误分支改为 role=alert 卡（R415 同款 destructive 样式）+ outline "Try again" 按钮（runSearch(query) 重取当前搜索）。QA 首轮揪出既有遮蔽（继承自旧裸 <p>）：错误分支占据所有 tab 的列表槽，离线用户在 ?tab=tracked 看不到本地管道——当轮跟进：error && tab === 'all' 才渲染卡，tracked/status tab 始终从 honestcv.jobPipeline 渲染。
 - tsc/eslint/build 绿。两轮生产 QA（Jobs-ChxwPjcy.js → Jobs-QvadXlzM.js）全绿零 P0–P3：失败→alert 卡精确文案+Try again、重试→清卡渲染列表无整页刷新、mock 500 "Job search failed (500)" 不泄漏原始体、tracked tab 失败下渲染本地管道无卡、All tab 保留卡、happy path 不变、375 光暗零溢出、R407/R416 回归、零逃逸、基线字节还原。
+
+## R418 — SOP-10 节点：Builder 头部在 2xl（1536–1640px）不再横向溢出（2026-09-05）
+- SOP-10 四维生产扫描（11 个页面标题/h1/溢出/无 alt 图/断图）确证唯一 P2：/builder 在 1536–1640px 视口整页横向滚动（scrollWidth 1587@1536 / 1619@1600 / 1629@1620），Print 按钮被裁——2xl 起工具栏把下载下拉换成展开的 PDF/DOCX/TXT/MD/Print 五按钮，头部内容 ~1419px 塞进 max-w-6xl(1152px) 容器右溢；1536 恰是 Windows 125% 缩放下 1920 屏的有效宽度。/resources/ 404 无内链指向（非缺陷）；/jobs 19 个公司 logo 无 alt 银行为 P4 候选。方案：docs/plan-r418-builder-header-overflow.md。
+- 修复仅 Layout.tsx SiteHeader：wideAction（Builder 传入）时头部容器 max-w-6xl → max-w-[1600px]（1536 内容盒 1504 ≥ 1419），其余页面字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-CqEuuk_W.js / Builder-K7xMr_2O.js）：1520–1920 六宽度零横向溢出、≥1536 五按钮全可见（Print 右缘 1505@1536）、1520 紧凑下拉回归可开、非 Builder 页 1536 仍 max-w-6xl、375 光暗、R417 jobs 回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000（既有 token 权限缺口，不影响上线）。

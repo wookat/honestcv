@@ -125,7 +125,9 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
   const navAt = wideAction ? 'lg' : 'md'
   return (
     <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+      <div
+        className={`mx-auto flex h-14 items-center justify-between px-4 ${wideAction ? 'max-w-[1600px]' : 'max-w-6xl'}`}
+      >
         <Link to="/" className="flex items-center gap-2 font-semibold">
           <LogoMark className="size-6" />
           RezUp
