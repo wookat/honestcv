@@ -1157,3 +1157,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（probe_r419.py @1280）：打开工具栏紧凑 "Download your resume" 菜单后，外点与 Escape 均不关闭（aria-expanded 保持 true）——全应用唯一不可 dismiss 的浮层（同页 Resources 下拉外点即关，Radix 对话框均支持 Esc/外点）；键盘用户无退出路径（WAI-ARIA menu-button 模式期望 Esc 关闭）。方案：docs/plan-r419-download-menu-dismiss.md。
 - 修复仅 Builder.tsx：镜像 ResourcesDropdown 模式——downloadMenuRef + 打开期间 document 级 pointerdown（ref 外即关）与 Escape keydown 监听；项点击/toggle 行为字节不变。
 - tsc/eslint/build 绿。生产 QA 全绿（index-C3Y5TGU3.js / Builder-qolcHyMH.js）：外点关闭零副作用、Esc 关闭且关闭态 Esc 无操作、popover 内 padding 点击不关、TXT 项点击走既有质检对话框→真实下载、toggle 回归、Resources 下拉回归、R418 1536 回归、375 光暗触摸开关、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R420 — 移动端汉堡导航支持外点/Esc 关闭（2026-09-05）
+- 生产实证（CDP @375×812 /ats-checker）：打开汉堡菜单（近全屏面板，高 673px）后外点与 Escape 均不关闭（aria-expanded 保持 true）——R419 后头部唯一无 dismiss 的 disclosure（Resources 下拉与紧凑下载菜单均已支持）；静态预渲染页（/about/ 等）用独立头部不受影响。方案：docs/plan-r420-mobile-menu-dismiss.md。
+- 修复仅 Layout.tsx SiteHeader：headerRef 挂 <header>（toggle+面板+ThemeToggle 都算"内部"），menuOpen 期间 document 级 pointerdown（header 外即关）与 Escape keydown；Link 项 onClick 关闭、静态 <a> 整页跳转等行为不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-yIR63SNL.js / Builder-CNj6w3ia.js）：外点关闭零副作用（URL/storage 字节不变）、Esc 关闭且关闭态无操作、面板内 padding 点击不关、Link 点击照常跳转并关闭、菜单开着点 ThemeToggle 循环主题菜单不关、Resources/R419 下载菜单/R418 1536 回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
