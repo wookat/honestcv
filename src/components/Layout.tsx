@@ -28,13 +28,16 @@ const RESOURCE_LINKS: [string, string][] = [
 function ResourcesDropdown() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!open) return
     const onDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      if (ref.current?.contains(document.activeElement)) btnRef.current?.focus()
     }
     document.addEventListener('pointerdown', onDown)
     document.addEventListener('keydown', onKey)
@@ -46,6 +49,7 @@ function ResourcesDropdown() {
   return (
     <div ref={ref} className="relative">
       <button
+        ref={btnRef}
         type="button"
         aria-haspopup="true"
         aria-expanded={open}
@@ -122,13 +126,17 @@ function JobsAttentionBadge({ count }: { count: number }) {
 export function SiteHeader({ action, wideAction = false }: { action?: React.ReactNode; wideAction?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const headerRef = useRef<HTMLElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const mobileNavRef = useRef<HTMLElement>(null)
   useEffect(() => {
     if (!menuOpen) return
     const onDown = (e: PointerEvent) => {
       if (!headerRef.current?.contains(e.target as Node)) setMenuOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false)
+      if (e.key !== 'Escape') return
+      setMenuOpen(false)
+      if (mobileNavRef.current?.contains(document.activeElement)) menuButtonRef.current?.focus()
     }
     document.addEventListener('pointerdown', onDown)
     document.addEventListener('keydown', onKey)
@@ -182,6 +190,7 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
           <ThemeToggle />
           {action}
           <button
+            ref={menuButtonRef}
             type="button"
             aria-label="Menu"
             aria-expanded={menuOpen}
@@ -194,6 +203,7 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
       </div>
       {menuOpen && (
         <nav
+          ref={mobileNavRef}
           aria-label="Main"
           className={`bg-background border-t px-4 pb-2 ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
         >
