@@ -103,6 +103,9 @@ interface ExampleEntry {
   person: ExamplePerson
 }
 
+/** Bracketed fill-in slots ([Company], [Your name], …) still left in a letter. */
+const countLetterPlaceholders = (text: string) => text.match(/\[[^\][\n]{1,60}\]/g)?.length ?? 0
+
 const editedAgo = (ms: number) => {
   if (!ms) return 'Edited a while ago'
   const days = Math.floor((Date.now() - ms) / 86400000)
@@ -281,6 +284,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const signatureInputRef = useRef<HTMLInputElement>(null)
   const [signatureError, setSignatureError] = useState('')
   const [confirmingDocClose, setConfirmingDocClose] = useState(false)
+  const [placeholderWarn, setPlaceholderWarn] = useState<{
+    doc: CareerDoc
+    text: string
+    fmt: 'pdf' | 'docx' | 'txt'
+    key: string
+    count: number
+  } | null>(null)
   const docImportInputRef = useRef<HTMLInputElement>(null)
   const [docImportBusy, setDocImportBusy] = useState(false)
   const [docImportError, setDocImportError] = useState('')
@@ -471,18 +481,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     [folderGroups, sortedVersions]
   )
 
-  const docDownload = (d: CareerDoc, text: string, fmt: 'pdf' | 'docx' | 'txt', key: string) => (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className="min-h-10 gap-1 px-2 text-xs sm:min-h-8"
-      title={`Download ${d.title} as ${fmt.toUpperCase()}`}
-      disabled={downloading === key}
-      onClick={async () => {
-        setDownloading(key)
-        setDlError(null)
-        try {
+  const runDocDownload = async (
+    d: CareerDoc,
+    text: string,
+    fmt: 'pdf' | 'docx' | 'txt',
+    key: string
+  ) => {
+    setDownloading(key)
+    setDlError(null)
+    try {
           const letterhead = draft ?? emptyResume()
           const name = professionalFileName([letterhead.contact.fullName, d.title], fmt)
           if (fmt === 'txt') {
@@ -496,13 +503,30 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, name)
             else await m.downloadLetterDocx(letterhead, text, name, d.signature)
           }
-        } catch (e) {
-          setDlError(
-            `${fmt.toUpperCase()} download failed: ${e instanceof Error ? e.message : String(e)}`
-          )
-        } finally {
-          setDownloading(null)
+    } catch (e) {
+      setDlError(
+        `${fmt.toUpperCase()} download failed: ${e instanceof Error ? e.message : String(e)}`
+      )
+    } finally {
+      setDownloading(null)
+    }
+  }
+
+  const docDownload = (d: CareerDoc, text: string, fmt: 'pdf' | 'docx' | 'txt', key: string) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="min-h-10 gap-1 px-2 text-xs sm:min-h-8"
+      title={`Download ${d.title} as ${fmt.toUpperCase()}`}
+      disabled={downloading === key}
+      onClick={() => {
+        const count = countLetterPlaceholders(text)
+        if (count > 0) {
+          setPlaceholderWarn({ doc: d, text, fmt, key, count })
+          return
         }
+        void runDocDownload(d, text, fmt, key)
       }}
     >
       {downloading === key ? (
@@ -2434,6 +2458,50 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               }}
             >
               Discard changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={placeholderWarn !== null} onOpenChange={(o) => !o && setPlaceholderWarn(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Unfilled placeholders</DialogTitle>
+            <DialogDescription>
+              {`"${placeholderWarn?.doc.title ?? ''}" still contains ${
+                placeholderWarn?.count ?? 0
+              } bracketed ${
+                (placeholderWarn?.count ?? 0) === 1 ? 'placeholder' : 'placeholders'
+              } like [Company]. Fill them in with your details before sending it out.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (placeholderWarn) {
+                  const { doc, text, fmt, key } = placeholderWarn
+                  void runDocDownload(doc, text, fmt, key)
+                }
+                setPlaceholderWarn(null)
+              }}
+            >
+              Download anyway
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (placeholderWarn) {
+                  setOpenDoc(placeholderWarn.doc)
+                  setDocText(placeholderWarn.text)
+                  setDocCopied('idle')
+                  setDocView('edit')
+                }
+                setPlaceholderWarn(null)
+              }}
+            >
+              Fill them in
             </Button>
           </DialogFooter>
         </DialogContent>

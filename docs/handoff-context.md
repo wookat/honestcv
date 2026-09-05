@@ -1594,6 +1594,14 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R504 — 导出带 [占位符] 的信件前诚实警示（SOP-10 节点）（2026-08-31）
+- 审计先行：生产复现 Documents 信件示例流全链路，此前疑似"Use this example 后弹窗未关"实证为预期行为（saveCareerDoc 保存成功→关预览→开已存文档编辑器，honestcv.careerDocs 落库、TXT 导出成功），如实驳回。
+- 一手证据（生产 CDP）：产品自己播种的角色示例信全文是 [Hiring manager's name]/[Company] 等括号占位符，示例弹窗明示"replace the [placeholders] with your details"，但卡片/编辑器 6 个下载按钮（PDF/DOCX/TXT×2处）一键静默导出——用户拿到写给 [Company] 的信，零提示零确认（anchor-click 钩子实证直接下载、零 alert/status 节点）。
+- 修复仅 Dashboard.tsx：countLetterPlaceholders（/\[[^\][\n]{1,60}\]/g）；docDownload onClick 命中>0 时弹「Unfilled placeholders」确认弹窗（报数量+示例），主按钮 Fill them in 打开该文档编辑视图、次按钮 Download anyway 照常导出（不阻断）；下载体抽为 runDocDownload 复用。方案：docs/plan-r504-letter-placeholder-export-warning.md。
+- 非目标：不改示例内容/简历导出/Builder 工具弹窗、不做占位符文本内高亮（入银行）。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：占位符信 TXT→弹窗报"15 bracketed placeholders"零下载；Download anyway→正常下载 software-engineer-cover-letter.txt 弹窗关闭；PDF→Fill them in→打开编辑器（textarea 就位）；编辑器内清空占位符后 TXT 直接下载零弹窗；375px 编辑器内 TXT→双弹窗叠加正常、Fill them in 收敛回编辑器、零溢出；零 console 错误。
+
 ## R503 — /jobs URL 不再携带自动选中的职位（SOP-10 节点）（2026-08-31）
 - 四维审计先行：核心 7 路由 1280/375 零溢出、/jobs /documents /ats-checker /samples 生产 axe 零违规、Lighthouse 四页 CLS 全 0（/jobs 0.82 /documents 0.81 /dashboard 0.78 /ats-checker 0.88）、123 sitemap URL + 194 内部链接全 200、源码零 confirm/alert/空 catch——均无缺口，如实驳回。
 - 一手证据（生产 CDP）：零交互冷载 /jobs，加载完成后 URL 被 replaceState 改写为 /jobs?job=1749306（第一条职位 id，用户从未点击）；仅改排序后 /jobs?sort=newest&job=1749306。根因：fetch 回调回落 setSelectedId(list[0]?.id) 喂桌面详情栏，URL 同步 effect 对 selectedId 无差别写 job 参数。后果：分享/收藏的"列表"URL 永远带一个没选过的瞬态职位 id；该 URL 在移动端（R407 深链语义）强行打开发送者从没点过的详情浮层；职位过期后 R441 dead-link 警示对用户从未构造的 URL 触发。
