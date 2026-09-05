@@ -1091,3 +1091,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 本地 tsc/eslint(AtsChecker.tsx)/build 绿。生产修复后实测：4,812 节点/2,246 span、time-to-report 1.0s、按键 285/327/307ms（残余为 1MB 受控 textarea 布局+草稿持久化，非评分）。
 - 生产 QA（index-DmlNuwxC.js / AtsChecker-CDkHIXI7.js）全绿零 P0–P3：100KB JD（关键词只在 20k 之后）出报告+截断说明+高亮框恰 20,000 字符、关键词出现在 chips 但不在高亮框（全文评分铁证）、20k 后追加 docker 重查即入 chips、1MB 草稿 1.0s 可交互+输入 50ms 往返、示例报告无截断说明、R403 styled dialog/R387 keep-saved 字节一致/R389 文案回归、375 光暗、零 console 错误、零 AI/lead/分享/支付流量、基线还原。
 - 银行：/jobs bogus ?job=<id> 深链回退（源码已读、生产未验，R407 候选）。
+
+## R407 — /jobs?job=<id> 深链在移动端直接打开详情面板（2026-08-31）
+- 闭环 R406 银行候选（生产实证）：R312 让 /jobs 搜索上下文可分享（含 ?job=<id>），R384 又铸 &job= 深链，但 mobileDetail 恒以 false 初始化——375×812 实测详情面板 display:none，手机上收到分享链接/刷新只见列表。bogus id 无需修（fetchJobs 已自动换选 list[0]）。方案 docs/plan-r407-mobile-job-deeplink.md。
+- 实现（一行，Jobs.tsx）：`mobileDetail` 以 `seedParams.get('job') !== null` 播种——深链等价于点击该行，既有 "Back to list" 返回列表；无参 /jobs 与桌面端零变化。
+- 本地 tsc/eslint(Jobs.tsx)/build 绿。生产 QA（Jobs-EGR7DlP0.js / index-BNZr2RzR.js，零 AI/lead/分享/支付逃逸、基线字节还原）全绿零 P0–P3：375 深链详情 block/列表 none+Back to list 还原、无参默认列表、bogus 自动修复选首个、桌面 1440 双面板、R384 cover 行/R394 管道写入/R406 ATS 示例回归、375 光暗零溢出、零 console 错误、零原生对话框。

@@ -147,7 +147,8 @@ export default function Jobs() {
   const [error, setError] = useState('')
   const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => listPipeline())
   const [selectedId, setSelectedId] = useState<string | null>(() => seedParams.get('job'))
-  const [mobileDetail, setMobileDetail] = useState(false)
+  // A ?job= deep link should read like tapping that row: open the detail pane on mobile.
+  const [mobileDetail, setMobileDetail] = useState(() => seedParams.get('job') !== null)
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(new Set())
   const [confirmBulkUntrack, setConfirmBulkUntrack] = useState(false)
