@@ -119,12 +119,28 @@ function JobsAttentionBadge({ count }: { count: number }) {
 
 export function SiteHeader({ action, wideAction = false }: { action?: React.ReactNode; wideAction?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const headerRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (!headerRef.current?.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
   const attention = useSyncExternalStore(subscribeNever, attentionCount, () => 0)
   // Pages with a wide action cluster (Builder) keep the hamburger up to lg so
   // the inline nav and the actions never fight for the same header width.
   const navAt = wideAction ? 'lg' : 'md'
   return (
-    <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
+    <header ref={headerRef} className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
       <div
         className={`mx-auto flex h-14 items-center justify-between px-4 ${wideAction ? 'max-w-[1600px]' : 'max-w-6xl'}`}
       >
