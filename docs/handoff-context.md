@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R434 — 分享页 PDF 失败提示给出真正可行的恢复路径（2026-09-05）
+- 闭环 R433 银行 P3：Chrome 对失败的动态 import() 做文档级缓存，同文档内 "try again" 永远失败，需刷新才恢复——原文案不诚实。方案：docs/plan-r434-share-pdf-retry.md。
+- 修复仅 SharedResume.tsx：失败 alert 改 flex div，文案 "Preparing the PDF failed — check your connection, then reload and try again." + "Reload page" 按钮（window.location.reload()；分享页无未保存状态，刷新零代价）。其余分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（特批一条分享，验毕删净 404）：冷加载阻断 pdf chunk→新文案+按钮零未捕获错误、解除阻断→Reload→下载成功（恢复路径流内闭环）、happy path 文件名/busy/pypdf、375 光暗 alert 换行零溢出、Print//s/bogus 404 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R433 — 分享页 /s/<id> 一键下载真实 PDF（2026-09-05）
 - 生产实证：分享页 ready 态只有 Print（window.print，浏览器另存 PDF）和 Build-your-own——接收链接的招聘官/内推人拿不到真实导出 PDF（真实字体嵌入/链接注解/分页，与打印渲染不同），移动端 print-to-PDF 更繁琐。方案：docs/plan-r433-share-pdf-download.md。
 - 修复仅 SharedResume.tsx：头部新增 Download PDF（primary，Print 左侧），懒加载 @/lib/pdf downloadResumePdf + professionalFileName([fullName, targetRole, 'resume'], 'pdf')；busy 态禁用显 "Preparing…"，失败在 main 顶部 role=alert "Preparing the PDF failed — try again."。不加下载门（接收者非门对象）。gone/error/loading/Print 全不动。
