@@ -1371,3 +1371,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/App.tsx：getDerivedStateFromError(error) 记录 storageBlocked = error instanceof DOMException && name==='SecurityError'（chunk 失败是 TypeError，零重叠）；命中时错误卡改为 "Your browser is blocking site data" / "RezUp stores your resumes in your browser. Allow cookies and site data for cv.zalize.com in your browser settings, then reload."；其余错误保持 R456/R457 文案与壳。方案：docs/plan-r460-storage-blocked.md。
 - tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3：阻断存储载 /builder //dashboard→新文案严格相等、壳/role=alert/Reload 齐全零未捕获错误；判别回归——存储正常仅阻断 Builder chunk→旧连接文案（无误报）；正常加载三路由零 console 错误；375 光暗零溢出（暗色经 prefers-color-scheme 模拟，存储被封时 localStorage 主题种子不可用——QA 方法论教训）；主页封锁下仍正常；零逃逸、存储字节级还原。
 - PR 基于 #680。部署照旧：上传成功、route auth code 10000。
+
+## R461 — 损坏草稿不再被静默销毁（2026-08-31）
+- 审计：r458_audit.py 复扫 7 条 SPA 路由全净。确证缺陷（CDP 一手实证 r461_corrupt.py/r461_corrupt2.py）：localStorage 'honestcv.resume' 存在但不可解析（截断 JSON/形状非法）时，loadResume() 返回 null → Builder 静默从 emptyResume() 起步且重开首跑向导，零提示；任意一次按键的防抖自动保存即用空简历覆盖原始草稿——用户（可能完全可恢复的）数据被无警告销毁。更糟：?template= 深链在挂载初始化器内就调 saveResume()，用户零动作即销毁。
+- 驳回替代方案：自动修复 JSON（复杂度无界、可能捏造内容）；阻塞 Builder 强制用户抉择（罕见态重 UX，只要不销毁+告知即可）。
+- 修复：src/lib/resume.ts 新增 stashUnreadableDraft()——raw 存在且 loadResume()===null 时把原始字节备份到 'honestcv.resume.unreadable'（绝不覆盖既有备份）并返回 true；src/pages/Builder.tsx draftUnreadable 状态初始化器置于 resume 初始化器之前（备份先于 ?template= 挂载保存路径），R427 堆叠容器渲染可 Dismiss 的 role=alert 条 "Your saved draft couldn't be read, so the builder started fresh. The unreadable copy was kept in your browser storage as a backup."。可读草稿/无草稿路径字节不变。方案：docs/plan-r461-unreadable-draft.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3（Builder-MCyDeIpp.js 运行时确认）：损坏草稿→精确文案条+备份键字节相等；按键后 honestcv.resume 被合法 JSON 覆盖而备份仍持原字节（数据丢失路径闭合）；?template=modern 竞态备份先行；OLD-BACKUP-SENTINEL 既有备份不被覆盖；Dismiss 只清条；可读草稿/无草稿零条零备份；R460 封锁存储卡回归；375 光暗零溢出；零 console 错误零逃逸、存储字节级还原。QA 教训：Builder 联系人字段 id 为 #c-<key>（如 #c-fullName），placeholder 是示例值非标签；新草稿会开向导对话框，Escape 关闭会写 honestcv.setupDone（还原时需清）。
+- PR 基于 #681。部署照旧：上传成功、route auth code 10000。

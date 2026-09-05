@@ -196,6 +196,7 @@ import {
   LINE_SPACING,
   SECTION_SPACING,
   loadResume,
+  stashUnreadableDraft,
   newId,
   orderedSectionKeys,
   listResumeVersions,
@@ -887,6 +888,9 @@ export default function Builder() {
     'Build an ATS-friendly resume in your browser: 25 templates, drag-and-drop sections, live ATS match score, free PDF & DOCX download. No account, no subscription.'
   )
   useEffect(() => trackEvent('builder-start'), [])
+  // An unreadable stored draft gets backed up and an honest notice instead of
+  // being silently replaced by an empty resume on the next save.
+  const [draftUnreadable, setDraftUnreadable] = useState(() => stashUnreadableDraft())
   const [resume, setResumeRaw] = useState<Resume>(() => {
     const r = applyAutoSort(loadResume() ?? emptyResume())
     // ?template=<id> deep link from the landing gallery / static template pages
@@ -8062,6 +8066,26 @@ export default function Builder() {
               aria-label="Dismiss"
               className="text-muted-foreground hover:text-foreground"
               onClick={() => setJumpNotFound(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {draftUnreadable && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">
+              Your saved draft couldn't be read, so the builder started fresh. The
+              unreadable copy was kept in your browser storage as a backup.
+            </span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setDraftUnreadable(false)}
             >
               <X className="size-4" />
             </button>
