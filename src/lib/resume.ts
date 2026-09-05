@@ -1217,6 +1217,30 @@ export interface ResumeVersion {
 }
 
 const VERSIONS_KEY = 'honestcv.resumeVersions'
+const VERSIONS_BACKUP_KEY = 'honestcv.resumeVersions.unreadable'
+
+/**
+ * When the stored copies list exists but cannot be read at all (corrupted
+ * JSON or not an array), preserve the raw value under a backup key before any
+ * write can overwrite it. Returns true when the stored list is unreadable.
+ */
+export function stashUnreadableVersions(): boolean {
+  try {
+    const raw = localStorage.getItem(VERSIONS_KEY)
+    if (raw === null) return false
+    try {
+      if (Array.isArray(JSON.parse(raw))) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    if (localStorage.getItem(VERSIONS_BACKUP_KEY) === null) {
+      localStorage.setItem(VERSIONS_BACKUP_KEY, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
 
 export function listResumeVersions(): ResumeVersion[] {
   try {
@@ -1243,6 +1267,7 @@ export function listResumeVersions(): ResumeVersion[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistVersions(versions: ResumeVersion[]): boolean {
   try {
+    stashUnreadableVersions()
     localStorage.setItem(VERSIONS_KEY, JSON.stringify(versions))
     return true
   } catch {

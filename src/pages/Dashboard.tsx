@@ -87,6 +87,7 @@ import {
   saveResume,
   saveResumeVersion,
   setActiveVersionId,
+  stashUnreadableVersions,
   updateResumeVersion,
   visibleResume,
 } from '@/lib/resume'
@@ -213,6 +214,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   useEffect(() => {
     if (hash) document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
   }, [hash])
+  const [versionsUnreadable, setVersionsUnreadable] = useState(() => stashUnreadableVersions())
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [draft] = useState<Resume | null>(() => loadResume())
   const [activeId] = useState<string | null>(() => getActiveVersionId())
@@ -944,7 +946,28 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           )}
         </div>
 
+        {versionsUnreadable && (
+          <div
+            role="alert"
+            className="border-destructive/50 bg-destructive/10 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span>
+              Your saved copies couldn&apos;t be read, so the list started fresh. The unreadable
+              copy was kept in your browser storage as a backup.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setVersionsUnreadable(false)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
+
         {versions.length > 0 && (
+
           <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
             <div className="relative">
               <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2" />
