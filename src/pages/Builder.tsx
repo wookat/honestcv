@@ -199,6 +199,7 @@ import {
   loadResume,
   stashUnreadableDraft,
   stashUnreadableHistory,
+  stashUnreadableLibraries,
   newId,
   orderedSectionKeys,
   listResumeVersions,
@@ -901,6 +902,9 @@ export default function Builder() {
   // An unreadable edit-history list gets backed up before the mount-time
   // baseline checkpoint can overwrite it.
   const [historyUnreadable, setHistoryUnreadable] = useState(() => stashUnreadableHistory())
+  // Unreadable content libraries get backed up before any library save/delete
+  // can overwrite them.
+  const [librariesUnreadable, setLibrariesUnreadable] = useState(() => stashUnreadableLibraries())
   const [resume, setResumeRaw] = useState<Resume>(() => {
     const r = applyAutoSort(loadResume() ?? emptyResume())
     // ?template=<id> deep link from the landing gallery / static template pages
@@ -8116,6 +8120,27 @@ export default function Builder() {
               aria-label="Dismiss"
               className="text-muted-foreground hover:text-foreground"
               onClick={() => setHistoryUnreadable(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {librariesUnreadable && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">
+              Some of your saved library items couldn't be read, so they're not
+              shown here. The unreadable copies were kept in your browser
+              storage as backups.
+            </span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setLibrariesUnreadable(false)}
             >
               <X className="size-4" />
             </button>
