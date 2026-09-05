@@ -13,7 +13,7 @@ R425（死 ?example）/R426（死 ?template）同族缺口：死深链必须诚�
 
 ## 方案（最小修复，仅 src/pages/Jobs.tsx）
 
-- `seedJobRef` 记录挂载时的 `?job=` id，首次 fetch 结果返回后一次性校验：
+- `pendingSeedJob` state 记录挂载时的 `?job=` id，首次 fetch 成功回调里一次性校验（校验后清空）：
   既不在结果列表也不在本地 pipeline ⇒ `jobLinkNotFound=true` 且
   `setMobileDetail(false)`（不再为顶替职位打开移动详情面板）。
 - 列表上方渲染 role=alert 卡（R417 同款 destructive 样式）：
