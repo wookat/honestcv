@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R435 — 分享页客户端导航后 head 不再自相矛盾（2026-09-05）
+- 生产实证（特批临时分享，验毕删净 404）：/s/<id> → /builder → Back 后 title/description/og:title/og:description 停在 "Resume Builder — RezUp"，而 canonical/og:url 已被 CanonicalSync 更新为分享 URL——head 自相矛盾、标签页丢候选人姓名（R431 同族：SharedResume 是唯一不调 usePageMeta 的路由页）。方案：docs/plan-r435-share-client-meta.md。
+- 修复仅 SharedResume.tsx：顶部调用 usePageMeta，文案与 R432 worker shell 重写逐字一致（ready 态 "<fullName> — <contact.title> | RezUp" + "<fullName>'s resume, shared with you via RezUp."，无名/loading/error/gone 回退通用句）。其余分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（SharedResume-yJKVsQg-.js）：冷加载水合后四标签与 shell 字节一致零闪回、Back 后四标签复原且与 canonical/og:url 一致、/s/bogus 回退文案+gone 卡+404/noindex/no-store、R433/R434 happy path 回归、375 光暗零溢出零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R434 — 分享页 PDF 失败提示给出真正可行的恢复路径（2026-09-05）
 - 闭环 R433 银行 P3：Chrome 对失败的动态 import() 做文档级缓存，同文档内 "try again" 永远失败，需刷新才恢复——原文案不诚实。方案：docs/plan-r434-share-pdf-retry.md。
 - 修复仅 SharedResume.tsx：失败 alert 改 flex div，文案 "Preparing the PDF failed — check your connection, then reload and try again." + "Reload page" 按钮（window.location.reload()；分享页无未保存状态，刷新零代价）。其余分支字节不变。

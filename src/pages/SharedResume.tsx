@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Download, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ResumePreview } from '@/components/ResumePreview'
+import { usePageMeta } from '@/components/Layout'
 import { professionalFileName } from '@/lib/download'
 import { fetchSharedResume } from '@/lib/share'
 import type { Resume } from '@/lib/resume'
@@ -17,6 +18,18 @@ export default function SharedResume() {
   >(id ? { status: 'loading' } : { status: 'gone' })
   const [attempt, setAttempt] = useState(0)
   const [dl, setDl] = useState<'idle' | 'busy' | 'failed'>('idle')
+
+  // Mirrors the worker's raw-HTML rewrite so the tab keeps the candidate's
+  // name after client-side navigation (e.g. Back from /builder).
+  const fullName =
+    state.status === 'ready' ? state.resume.contact.fullName.trim().slice(0, 120) : ''
+  const role = state.status === 'ready' ? state.resume.contact.title.trim().slice(0, 120) : ''
+  usePageMeta(
+    `${fullName ? (role ? `${fullName} — ${role}` : fullName) : 'Shared resume'} | RezUp`,
+    fullName
+      ? `${fullName}'s resume, shared with you via RezUp.`
+      : 'A resume shared with you via RezUp.'
+  )
 
   const downloadPdf = async () => {
     if (state.status !== 'ready' || dl === 'busy') return
