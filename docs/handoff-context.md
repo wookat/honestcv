@@ -1172,3 +1172,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - R421 只覆盖 SPA，静态页银行为本轮。生产实证（CDP @1280 五个静态页）：每页 <main> 前 15 个可聚焦控件、零 skip link。方案：docs/plan-r422-static-skip-links.md。
 - 修复仅 scripts/build-seo.mjs：全部 11 个头部模板前加 <a class="skip" href="#main">、全部 <main> 加 id="main" tabindex="-1"（纯原生 fragment 导航零 JS），CSS a.skip 离屏 -9999px 聚焦回 .5rem；覆盖全部 120 个静态页。
 - tsc/eslint/build 绿（120/120 页含 skip+id）。生产 QA 全绿：五页首 Tab 显形（8,8）、Enter 后 activeElement=MAIN 且 URL 得 #main（原生导航预期行为，与 SPA preventDefault 不同）、后续 Tab 落 main 内、零布局偏移（头 57px 粘性不变）、prefers-color-scheme 暗色可见、头部导航与 /examples/ hub-filter 回归、SPA R421 回归（bundle 不变）、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R423 — SOP-10 审计 + Builder 全部 placeholder-only 字段补可及名称（2026-08-31）
+- SOP-10 四维生产扫描（六页标题/alt/按钮命名/重复 id/lang）唯一缺口：/builder 大量可见表单字段唯一"名称"是 placeholder（WCAG 1.3.1/4.1.2——输入后 placeholder 消失、读屏无名）。方案：docs/plan-r423-builder-field-labels.md。
+- 三轮收敛：①默认态 7 字段+日期对（MonthYearField 新增 ariaLabel prop 透传内层 Input）；②QA 挂载可选 section 后揪出 12 个残留，静态扫描扩到全部——Projects/Involvement/Military/Coursework/Awards/Publications/References/Agents/Certifications/自定义 section 的全部文本域与 textarea、导入粘贴框、生成信结果框（共 ~44 处 aria-label，纯属性零视觉变更）；③Import 对话框 Share link or share ID 输入框。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-Cc_mvfKF.js）：UI 逐个挂载全部可选 section + 打开 Import 对话框后 unlabeled 探针归零、AX 计算名逐项确认（Course name/Certificate name/Reference email/Share link or share ID 等）、placeholder 与视觉零变化、日期 picker 行为不变、R421 skip link 回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
