@@ -11,7 +11,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 execSync('npx vite build --config vite.ssr.config.ts', { cwd: root, stdio: 'inherit' })
 
 const { render } = await import(path.join(root, 'dist/prerender/entry-server.js'))
-const html = render('/')
+const html = await render('/')
+if (html.includes('aria-busy'))
+  throw new Error('prerender: homepage HTML contains the Suspense fallback, not Landing')
 
 const shellPath = path.join(root, 'dist/client/index.html')
 const rawShell = readFileSync(shellPath, 'utf8')
@@ -65,5 +67,16 @@ const spaShell = shell
   .replace(marker, `<div id="root">${skeleton}</div>`)
 if (spaShell.includes('FAQPage')) throw new Error('prerender: FAQPage markup leaked into spa.html')
 writeFileSync(path.join(root, 'dist/client/spa.html'), spaShell)
-writeFileSync(shellPath, shell.replace(marker, `<div id="root">${html}</div>`))
+
+// The homepage hydrates the lazy Landing chunk, so preload it in parallel
+// with the main bundle instead of waiting for React to request it.
+const landingChunk = readdirSync(path.join(root, 'dist/client/assets')).find((f) =>
+  /^Landing-.+\.js$/.test(f)
+)
+if (!landingChunk) throw new Error('prerender: Landing chunk not found in dist/client/assets')
+const homeShell = shell.replace(
+  '</head>',
+  `    <link rel="modulepreload" href="/assets/${landingChunk}" />\n  </head>`
+)
+writeFileSync(shellPath, homeShell.replace(marker, `<div id="root">${html}</div>`))
 console.log('prerendered / into dist/client/index.html (shell kept as spa.html)')
