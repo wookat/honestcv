@@ -1038,3 +1038,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环诚实存储系列收官后残留缺口：persistHistory 吞配额异常、recordResumeSnapshot 恒返回新列表——历史 Restore 承诺"先存当前草稿检查点"，存储满时检查点静默失败仍覆盖草稿（数据丢失级）。
 - 实现：resume.ts persistHistory 返回 boolean；recordResumeSnapshot 返回 ResumeSnapshot[] | null（仅当尝试新写入且失败时为 null，去重/10 分钟间隔早退路径不受影响）；Builder onRestore 检查点为 null 时显示底部 alert、对话框保持打开、不替换草稿；R396 库告警与本告警合并为通用 storageAlert 状态。autosave 路径保持 fire-and-forget。
 - 生产 QA（Builder-DWxMMwN9.js）：零余量 Restore 被拒且 resumeHistory 字节一致、释放后 Restore 写入 pre-restore 检查点并还原、R396 回归、375 光暗无用户可见溢出（scrollWidth 532 为 overflow-hidden 容器内 SVG 所致的量测噪声，以 visualViewport/scrollX 断言为准）、零 console 错误。PR #618。
+
+## R398 — SOP-10 四维审计 + 面试准备文档命名兜底 (2026-08-31)
+- SOP-10 四维生产审计（操作台文件夹/批量/undo/分享 scoping、导入→ATS→Fix→四格式导出→面试准备全链、5 个静态页 375/768/1440 光暗+40 内链、畸形存储/深链/XSS/配额/慢与失败 AI 探针）：零 P0–P2。
+- 撤销一项初报 P2：「AI 失败显示原始服务端错误体」为 mock 伪影非产品缺陷——postJson 优先显示 data.error 属有意设计，worker 所有 {error} 体均为用户措辞（callLlm 已把上游错误映射为友好文案），非 JSON 5xx 体走友好 500 兜底；真实 worker 不可能产出 "mocked failure" 这类体。压掉 5xx 的 data.error 反而会隐藏真实的友好上游不可用文案。
+- 本轮修复确证 P3：面试准备文档 targetRole 为空时命名 "Untitled — Interview prep"。docTitle 面试分支兜底链改为 targetRole → contact.fullName → Untitled（与 R378 副本命名兜底一致），cover/resignation 不动。
+- 银行（待源码/a11y 验证）：dashboard 文件夹分组标题疑似非语义 heading 元素（假设级，无用户可见缺陷）。
+- 本地：tsc/eslint(产品文件)/build 绿（.tmp-smoke 旧 oracle 的 lint error 为历史遗留非本轮）。方案：docs/plan-r398-sop10-audit.md。
