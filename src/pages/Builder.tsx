@@ -1037,13 +1037,27 @@ export default function Builder() {
     adjust?: () => void
   } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
-  const [wizardOpen, setWizardOpen] = useState(
-    () =>
-      !localStorage.getItem('honestcv.setupDone') &&
-      !localStorage.getItem('honestcv.tourDone') &&
-      !localStorage.getItem('honestcv.shared') &&
-      !new URLSearchParams(window.location.search).get('example')
-  )
+  const [wizardOpen, setWizardOpen] = useState(() => {
+    if (
+      localStorage.getItem('honestcv.setupDone') ||
+      localStorage.getItem('honestcv.tourDone') ||
+      localStorage.getItem('honestcv.shared')
+    )
+      return false
+    // Deep links that open their own surface or target a section take
+    // precedence over the first-run wizard.
+    const params = new URLSearchParams(window.location.search)
+    const doc = params.get('doc')
+    const jump = params.get('jump')
+    return !(
+      params.get('example') ||
+      doc === 'cover' ||
+      doc === 'interview' ||
+      doc === 'resignation' ||
+      params.get('assistant') === '1' ||
+      (jump !== null && JUMP_ANCHORS.includes(jump))
+    )
+  })
   const [wizardStep, setWizardStep] = useState<1 | 2>(() => (resume.targetRole ? 2 : 1))
   const [wizardRole, setWizardRole] = useState(() => resume.targetRole ?? '')
   const [wizardLevel, setWizardLevel] = useState<string>(() => resume.experienceLevel ?? '')
