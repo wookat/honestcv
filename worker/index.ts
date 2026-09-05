@@ -239,7 +239,9 @@ app.use('*', async (c, next) => {
   h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   h.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+    // The sha256 hash allows exactly the inline pre-paint theme snippet
+    // (see THEME_INLINE in scripts/build-seo.mjs, which verifies the hash).
+    "default-src 'self'; script-src 'self' 'sha256-MZ8XjS6YdLL4vJ5M2sqLscENvOD3KriLIkIWJIMgS+Y='; style-src 'self' 'unsafe-inline'; " +
       "img-src 'self' data: blob: https://remotive.com; font-src 'self'; connect-src 'self' https://resume.zalize.com https://resume-forge.wookat520.workers.dev; " +
       "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; " +
       "form-action 'self'; frame-ancestors 'self'"
