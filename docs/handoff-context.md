@@ -1472,3 +1472,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 效果：入口 371,132→288,661B（Landing-*.js 37,456B 独立 chunk，仅首页加载）。本地 CDP 负例：扣住 Landing chunk 3s——预渲染 hero 全程可见零骨架闪烁（dehydrated boundary）；彻底阻断→R456 错误卡。
 - 生产 QA（测试代理独立复验）全绿零 P0–P1：raw / 含真 hero + Landing preload、扣块 5s hero 像素级不变（0.82% 动态像素差）、阻断→R456 卡+Reload 恢复、/builder 冷加载零 Landing 请求、SPA 导航/404/R468/R469/R474/375 光暗全回归、零 console 错误、零逃逸、基线字节还原。Lighthouse：首页 perf 0.98（FCP/LCP 1.2s）；/builder 三跑 0.42/0.42/0.58——TBT 450–960ms（基线 1350ms，方向与入口瘦身一致），但 FCP 4.8–6.0s/LCP 5.0–6.2s 比基线（3.1/4.7s）差，无法排除当日网络/CDN 方差（P2 观察项，下轮复测）。
 - tsc/eslint/build/verify-dist 绿。部署照旧：上传成功、Workers Routes auth code 10000。
+
+## R477 — 移动端隐藏预览列延迟渲染（首次需要才挂载）（2026-08-31）
+- 证据（生产 CDP，~/audit-r1/r477_mobilepane.py）：375px 冷加载 /builder 默认 Edit 态下，#preview 列 display:none 却完整渲染——883 个节点 / 108,375B HTML（约占 main 区 1546 节点的 57%），含模板/ATS/整棵 ResumePreview 的昂贵子树；1440px 同一子树可见（桌面确需渲染）。
+- 修复（仅 src/pages/Builder.tsx）：#preview 外层 div 保留（锚点/布局不变），其子内容由 renderPreviewPane 门控 = useIsLgViewport()（matchMedia min-width:64rem，随 resize 更新）|| printArmed（beforeprint 监听器 flushSync(setPrintArmed(true))——打印 CSS 只保留 [data-resume-preview] 子树，必须在打印快照前同步挂载）|| previewSeen（用户点「Preview & score」切换器时置 true 的首次使用闩，之后 Edit↔Preview 切换不再重挂载/重测量）|| mobilePane==='preview'。关键词高亮 effect 的 deps 追加 renderPreviewPane（延迟挂载后补高亮）。
+- 教训（ESLint react-hooks 双重驳回）：effect 内 setState 闩（cascading render）与 render 期读写 ref（react-hooks/refs）均被规则拒绝；最终用事件处理器内 setPreviewSeen(true)（切换器 onClick）——闩必须落在事件点而非 render/effect。
+- 生产 QA（测试代理独立复验，chunk Builder-DpQVZ3Vo.js/index-nZhCq4fI.js）全绿零 P0–P3：375 冷载 Edit 态 #preview 子元素 0 个/innerHTML 0 字节（原 ~883 节点）；点 Preview & score 完整挂载（简历+ATS 分正确、CSS Custom Highlight kw-match 12 个 range）；从未开过预览的 Edit 态直接 Page.printToPDF（触发 beforeprint）→ 132KB 含完整简历文本的 PDF 非空白页，打印后子树保持挂载；1440 冷载分栏不变、375→1440 resize 即挂载、1440→375 切换器正常；全程零 console 错误/未捕获 rejection；R468 Ctrl+S/R469 Ctrl+/ 回归；375 光暗零溢出；零逃逸、存储字节级还原。
+- tsc/eslint/build/verify-dist 绿。部署照旧：上传成功、Workers Routes auth code 10000。收益边界：减少的是移动端首载渲染工作量（节点数/隐藏 HTML 实测归零）；未做受控 Lighthouse 对比，不宣称具体分数提升。

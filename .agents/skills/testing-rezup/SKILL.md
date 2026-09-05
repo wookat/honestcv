@@ -1498,3 +1498,32 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Assert status-bar/alert copy by strict-comparing the inner `<span>` text; the alert element's `textContent` concatenates the Dismiss button label.
 - The Builder Copies flow ("Copies" toolbar button → "Save current as copy") writes `honestcv.activeVersionId` — add it to the storage restore sweep alongside setupDone/ev.builder-start/resumeHistory/ev.export.
 - Unreadable-data backup keys `honestcv.resume.unreadable` and `honestcv.resumeVersions.unreadable` are written once and never overwritten — test both the read site (page load) and the write site (a persist call in a document that never visited the reading page).
+
+## Unreadable-storage backup family (R461–R467)
+- Write-once backup keys (`<key>.unreadable`, never overwritten): `honestcv.resume`, `honestcv.resumeVersions`, `honestcv.careerDocs`, `honestcv.jobPipeline`, `honestcv.shareLinks`, `honestcv.resumeHistory`, plus the 11 content-library keys `honestcv.{experience,education,project,involvement,coursework,award,reference,cert,publication,skills,summary}Library`. The libraries share ONE Builder alert bar ("Some of your saved library items couldn't be read…"); the backup key names identify which library was affected.
+- Builder mount itself writes `honestcv.resumeHistory` (baseline checkpoint) — a "no keys → no backups" assertion must account for that key appearing after mount.
+- The experience-library write funnel is the per-entry toolbar button whose `title` starts with "Save role to library" — it needs a draft with one experience entry and `honestcv.setupDone=1` (also seed setupDone for clean desktop screenshots; otherwise the first-run wizard dims the page).
+- Restore sweep must clear every library key plus every `.unreadable` backup in addition to setupDone/theme/ev.builder-start/resumeHistory/activeVersionId.
+
+## R468 keyboard-shortcut QA notes
+- The Builder undo hook (Ctrl+Z/Y) deliberately ignores events when `document.activeElement` is an INPUT/TEXTAREA (native undo wins) — probe app-level undo with body focus.
+- Mark shortcuts (Ctrl+B/I/U/K) are React `onKeyDown` handlers on the field — dispatch the keydown ON the textarea element, not window.
+- Ctrl+S save-flush is testable headlessly via `defaultPrevented` on a cancelable synthetic keydown plus a <400ms localStorage probe race against the 400ms autosave debounce.
+- Save indicator strings are exactly "Saving…" / "Saved" / "Not saved — storage full".
+
+## R469 shortcuts-dialog QA notes
+- The Builder shortcuts dialog toggles on Ctrl/Cmd+/ (no Alt/Shift); the toolbar button `title="Keyboard shortcuts (Ctrl+/)"` is lg-only (display:none below 1024px) — at mobile widths test via the keyboard shortcut.
+- Dialog kbd labels are platform-dependent: "Ctrl" on Linux/Windows, "⌘" when navigator.platform matches Mac/iPad.
+- When the dialog is opened via the window-level shortcut (no trigger element), Radix restores focus to BODY on Esc — expected semantics, not a focus bug.
+
+## R470 LCP/first-paint QA notes
+- To QA first-paint/LCP visibility claims, inject a `Page.addScriptToEvaluateOnNewDocument` rAF sampler recording `getComputedStyle(el).opacity/transform` per frame; sample ≥300 frames — short windows miss the animation end.
+- `animation-fill-mode: both` settles computed transform at `matrix(1,0,0,1,0,0)`, never the literal `none`.
+- Hero classes: `animate-rise-slide` (transform-only, LCP-safe) vs `animate-rise` (fades from opacity 0 — will delay paint); `el.getAnimations()[0].effect.getKeyframes()` distinguishes them at runtime.
+- Emulate reduced motion via `Emulation.setEmulatedMedia` features `prefers-reduced-motion=reduce` (site collapses all animations to 0.01ms).
+
+## R477 deferred mobile preview QA notes
+- `Emulation.setDeviceMetricsOverride` is per-CDP-session — it silently resets when you reconnect a new websocket to the same tab; always assert `innerWidth` immediately before any viewport-dependent assertion.
+- Keyword highlighting renders via the CSS Custom Highlight API — assert `CSS.highlights.has('kw-match')` / range count, not `<mark>` elements.
+- `Page.printToPDF` fires `beforeprint`, making it a good end-to-end probe for print-arming logic (as of R477 the mobile preview subtree mounts on beforeprint via flushSync).
+- As of R477 a cold 375px /builder in Edit state has `#preview` in the DOM with 0 descendant elements; the subtree mounts on lg viewport, beforeprint, or the "Preview & score" tap (then stays mounted).
