@@ -1032,3 +1032,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：ats.ts 增 roleTokensOf/withoutRoleTokens（与 R356 同分词，多词短语从不排除）；scoreResume 按 resume.targetRole 过滤 extractKeywords 结果（在 ignoredKeywords 拆分前）；matchReport 增可选第三参 targetRole，Builder resumeGaps 与 AssistantPanel 状态行传 resume.targetRole。关键词 % 按过滤后集合重算（分子分母同降，诚实）。
 - 有意不动：Jobs.tsx matchScore/matchReport（对任意职位板 JD 比对，用户自身 targetRole 不是该职位头衔）、/ats-checker scoreResumeText（无 role 概念）、手动 ignoredKeywords 机制。空/空白 role 字节不变。
 - 本地：oracle 19/19（.tmp-smoke/r376_oracle.ts）+ r375 20/20 + r373 11/11 回归、tsc/eslint/build 绿。
+
+## R397 — 编辑历史检查点存储满时不再假成功 (2026-08-31)
+- （R377–R396 各轮详情见对应 PR #598–#617 描述与 docs/plan-r3xx-*.md。）
+- 闭环诚实存储系列收官后残留缺口：persistHistory 吞配额异常、recordResumeSnapshot 恒返回新列表——历史 Restore 承诺"先存当前草稿检查点"，存储满时检查点静默失败仍覆盖草稿（数据丢失级）。
+- 实现：resume.ts persistHistory 返回 boolean；recordResumeSnapshot 返回 ResumeSnapshot[] | null（仅当尝试新写入且失败时为 null，去重/10 分钟间隔早退路径不受影响）；Builder onRestore 检查点为 null 时显示底部 alert、对话框保持打开、不替换草稿；R396 库告警与本告警合并为通用 storageAlert 状态。autosave 路径保持 fire-and-forget。
+- 生产 QA（Builder-DWxMMwN9.js）：零余量 Restore 被拒且 resumeHistory 字节一致、释放后 Restore 写入 pre-restore 检查点并还原、R396 回归、375 光暗无用户可见溢出（scrollWidth 532 为 overflow-hidden 容器内 SVG 所致的量测噪声，以 visualViewport/scrollX 断言为准）、零 console 错误。PR #618。
