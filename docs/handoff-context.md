@@ -1479,3 +1479,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 教训（ESLint react-hooks 双重驳回）：effect 内 setState 闩（cascading render）与 render 期读写 ref（react-hooks/refs）均被规则拒绝；最终用事件处理器内 setPreviewSeen(true)（切换器 onClick）——闩必须落在事件点而非 render/effect。
 - 生产 QA（测试代理独立复验，chunk Builder-DpQVZ3Vo.js/index-nZhCq4fI.js）全绿零 P0–P3：375 冷载 Edit 态 #preview 子元素 0 个/innerHTML 0 字节（原 ~883 节点）；点 Preview & score 完整挂载（简历+ATS 分正确、CSS Custom Highlight kw-match 12 个 range）；从未开过预览的 Edit 态直接 Page.printToPDF（触发 beforeprint）→ 132KB 含完整简历文本的 PDF 非空白页，打印后子树保持挂载；1440 冷载分栏不变、375→1440 resize 即挂载、1440→375 切换器正常；全程零 console 错误/未捕获 rejection；R468 Ctrl+S/R469 Ctrl+/ 回归；375 光暗零溢出；零逃逸、存储字节级还原。
 - tsc/eslint/build/verify-dist 绿。部署照旧：上传成功、Workers Routes auth code 10000。收益边界：减少的是移动端首载渲染工作量（节点数/隐藏 HTML 实测归零）；未做受控 Lighthouse 对比，不宣称具体分数提升。
+
+## R478 — SOP-10 四维审计（docs-only）：R476 方差观察项闭合、入口归因到地板（2026-08-31）
+- 节点轮（上一次 SOP-10：R473）。四维全净零 P0–P2，docs-only 轮（先例 R303/R316/R328/R339）。方案与全部证据：docs/plan-r478-sop10-audit.md。
+- 银行项闭合：生产 Lighthouse 两跑一致（perf 0.54/0.54，FCP 2.8s，LCP 4.7s，TBT 1310/1350ms，CLS 0），FCP 优于 R476 前基线（3.1s）——R476 当日 FCP/LCP 劣化确证为网络/CDN 方差，非回归。
+- 入口块归因（手写 VLQ 脚本 ~/audit-r1/smap_attr.py；source-map-explorer 对 rolldown map 报 generated column Infinity 不可用）：288.7KB 中 react-dom-client 175.1KB（61%）+ react-router 35.3KB + tailwind-merge 27.1KB，应用代码仅 ~25KB——入口瘦身已到地板，/builder TBT 只剩首渲染树规模一条路（长任务 844/287/232/229ms 全在入口块执行）。
+- 定性修订：/builder 干净态 LCP 元素 = R350 first-run 向导描述段（新访客无 localStorage → 向导自动开），是真实新用户首屏而非状态污染（修订 R477 计划文档的推断）。
+- 七路由 CDP 扫描（~/audit-r1/r478_audit.py）零 console 错误零溢出唯一 #main；Rezi 2026-08 changelog 逐条对照无一轮内可落地深度缺口（location autocomplete/job match score/大屏/updated-at 均已有；Auto-Apply/移动 App/Apple 登录在 local-first 边界外）。
+- 银行项：①编辑列 section 卡按需渲染（R477 思路的编辑列版，需先 CDP 计数折叠态节点，单独一轮）；②tailwind-merge 27KB 微收益高风险暂不动。
+- 无源码改动，无部署。
