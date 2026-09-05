@@ -163,6 +163,7 @@ import {
   loadShareLink,
   revokeShareLink,
   revokeShareLinksFor,
+  stashUnreadableShareLinks,
 } from '@/lib/share'
 
 import {
@@ -891,6 +892,11 @@ export default function Builder() {
   // An unreadable stored draft gets backed up and an honest notice instead of
   // being silently replaced by an empty resume on the next save.
   const [draftUnreadable, setDraftUnreadable] = useState(() => stashUnreadableDraft())
+  // An unreadable share-link map gets backed up before any write can destroy
+  // the tokens — they are the only way to take live links down.
+  const [shareLinksUnreadable, setShareLinksUnreadable] = useState(() =>
+    stashUnreadableShareLinks()
+  )
   const [resume, setResumeRaw] = useState<Resume>(() => {
     const r = applyAutoSort(loadResume() ?? emptyResume())
     // ?template=<id> deep link from the landing gallery / static template pages
@@ -8086,6 +8092,26 @@ export default function Builder() {
               aria-label="Dismiss"
               className="text-muted-foreground hover:text-foreground"
               onClick={() => setDraftUnreadable(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {shareLinksUnreadable && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">
+              Your saved share links couldn't be read, so they're not shown here.
+              The unreadable copy was kept in your browser storage as a backup.
+            </span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setShareLinksUnreadable(false)}
             >
               <X className="size-4" />
             </button>
