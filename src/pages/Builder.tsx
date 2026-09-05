@@ -365,6 +365,22 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' | 'error' {
   return state
 }
 
+let pdfMeasureIdle: Promise<void> | null = null
+/** Resolves once the page has loaded and the main thread is idle, so the
+ * heavy PDF engine never competes with Builder startup. */
+function whenIdleForPdfMeasure(): Promise<void> {
+  pdfMeasureIdle ??= new Promise((resolve) => {
+    const idle = () => {
+      if (typeof window.requestIdleCallback === 'function')
+        window.requestIdleCallback(() => resolve(), { timeout: 4000 })
+      else window.setTimeout(resolve, 1500)
+    }
+    if (document.readyState === 'complete') idle()
+    else window.addEventListener('load', idle, { once: true })
+  })
+  return pdfMeasureIdle
+}
+
 /** Debounced fractional length of the exported PDF, shown next to the preview. */
 function usePdfLength(resume: Resume): import('@/lib/pdf').ResumeLength | null {
   const [len, setLen] = useState<import('@/lib/pdf').ResumeLength | null>(null)
@@ -372,7 +388,8 @@ function usePdfLength(resume: Resume): import('@/lib/pdf').ResumeLength | null {
   useEffect(() => {
     const id = ++seq.current
     const t = window.setTimeout(() => {
-      void import('@/lib/pdf')
+      void whenIdleForPdfMeasure()
+        .then(() => import('@/lib/pdf'))
         .then((m) => m.measureResumePdf(resume))
         .then((n) => {
           if (seq.current === id) setLen(n)
