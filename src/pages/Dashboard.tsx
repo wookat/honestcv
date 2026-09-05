@@ -265,6 +265,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     return id ? (listCareerDocs().find((d) => d.id === id) ?? null) : null
   })
   const [docText, setDocText] = useState(() => openDoc?.text ?? '')
+  const [docCopied, setDocCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
   const [renamingDoc, setRenamingDoc] = useState<{ doc: CareerDoc; title: string } | null>(null)
@@ -787,6 +788,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         setDocs(listCareerDocs())
         setOpenDoc(doc)
         setDocText(doc.text)
+        setDocCopied('idle')
         setDocView('edit')
       })
       .catch((err: unknown) => {
@@ -1426,6 +1428,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     onClick={() => {
                       setOpenDoc(d)
                       setDocText(d.text)
+                      setDocCopied('idle')
                       setDocView('edit')
                     }}
                   >
@@ -2093,6 +2096,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     setPreviewLetter(null)
                     setOpenDoc(doc)
                     setDocText(doc.text)
+                    setDocCopied('idle')
                     setDocView('edit')
                   }}
                 >
@@ -2258,9 +2262,18 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             <Button
               type="button"
               variant="outline"
-              onClick={() => void navigator.clipboard.writeText(docText)}
+              onClick={() => {
+                void navigator.clipboard.writeText(docText).then(
+                  () => setDocCopied('copied'),
+                  () => setDocCopied('failed')
+                )
+              }}
             >
-              Copy text
+              {docCopied === 'copied'
+                ? 'Copied'
+                : docCopied === 'failed'
+                  ? 'Copy failed'
+                  : 'Copy text'}
             </Button>
             <Button
               type="button"
