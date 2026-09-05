@@ -183,6 +183,30 @@ export function locationFacets(
 }
 
 const PIPELINE_KEY = 'honestcv.jobPipeline'
+const PIPELINE_BACKUP_KEY = 'honestcv.jobPipeline.unreadable'
+
+/**
+ * When the stored pipeline exists but cannot be read at all (corrupted JSON or
+ * not an array), preserve the raw value under a backup key before any write
+ * can overwrite it. Returns true when the stored pipeline is unreadable.
+ */
+export function stashUnreadablePipeline(): boolean {
+  try {
+    const raw = localStorage.getItem(PIPELINE_KEY)
+    if (raw === null) return false
+    try {
+      if (Array.isArray(JSON.parse(raw))) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    if (localStorage.getItem(PIPELINE_BACKUP_KEY) === null) {
+      localStorage.setItem(PIPELINE_BACKUP_KEY, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** Category slugs accepted by the jobs API (Remotive's fixed list). */
 export const JOB_CATEGORIES: [slug: string, label: string][] = [
@@ -338,6 +362,7 @@ export function listPipeline(): PipelineEntry[] {
 /** Returns null when nothing was written (storage full / private mode). */
 function savePipeline(entries: PipelineEntry[]): PipelineEntry[] | null {
   try {
+    stashUnreadablePipeline()
     localStorage.setItem(PIPELINE_KEY, JSON.stringify(entries))
     return entries
   } catch {
