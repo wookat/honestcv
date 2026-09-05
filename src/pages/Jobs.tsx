@@ -921,8 +921,22 @@ export default function Jobs() {
                   </div>
                 ))}
               </div>
-            ) : error ? (
-              <p className="text-destructive p-4 text-sm">{error}</p>
+            ) : error && tab === 'all' ? (
+              <div
+                role="alert"
+                className="border-destructive/50 bg-destructive/10 m-4 rounded-md border p-4 text-sm"
+              >
+                <p>{error}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => runSearch(query)}
+                >
+                  Try again
+                </Button>
+              </div>
             ) : shown.length === 0 ? (
               <p className="text-muted-foreground p-4 text-sm">
                 {tab === 'all'
