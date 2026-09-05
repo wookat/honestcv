@@ -50,7 +50,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { scoreResume } from '@/lib/ats'
-import { downloadText, professionalFileName } from '@/lib/download'
+import { downloadText, loadExporter, professionalFileName } from '@/lib/download'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { exportWorkspace, parseWorkspaceBackup, restoreWorkspace } from '@/lib/workspace'
 import { looksLikeLinkedInExport, parseResumeText } from '@/lib/importText'
@@ -478,11 +478,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           if (fmt === 'txt') {
             downloadText(d.kind === 'interview' ? `${d.title}\n\n${text}` : text, name)
           } else if (fmt === 'pdf') {
-            const m = await import('@/lib/pdf')
+            const m = await loadExporter(() => import('@/lib/pdf'))
             if (d.kind === 'interview') await m.downloadTextPdf(d.title, text, name)
             else await m.downloadLetterPdf(letterhead, text, name, d.signature)
           } else {
-            const m = await import('@/lib/docx')
+            const m = await loadExporter(() => import('@/lib/docx'))
             if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, name)
             else await m.downloadLetterDocx(letterhead, text, name, d.signature)
           }
@@ -510,8 +510,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     try {
       const name = professionalFileName([r.contact.fullName, r.targetRole, 'resume'], fmt)
       const out = visibleResume(r)
-      if (fmt === 'pdf') await (await import('@/lib/pdf')).downloadResumePdf(out, name)
-      else await (await import('@/lib/docx')).downloadResumeDocx(out, name)
+      if (fmt === 'pdf')
+        await (await loadExporter(() => import('@/lib/pdf'))).downloadResumePdf(out, name)
+      else await (await loadExporter(() => import('@/lib/docx'))).downloadResumeDocx(out, name)
       if (!localStorage.getItem('honestcv.shared')) localStorage.setItem('honestcv.shared', '1')
     } catch (e) {
       setDlError(

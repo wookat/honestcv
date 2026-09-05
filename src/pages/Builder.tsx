@@ -152,7 +152,7 @@ import {
 } from '@/lib/resumeCenter'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
-import { downloadText, professionalFileName } from '@/lib/download'
+import { downloadText, loadExporter, professionalFileName } from '@/lib/download'
 import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import { setPipelineCoverDoc } from '@/lib/jobs'
 import { trackEvent } from '@/lib/track'
@@ -1958,9 +1958,12 @@ export default function Builder() {
       const fname = (ext: string) =>
         professionalFileName([resume.contact.fullName, resume.targetRole, 'resume'], ext)
       if (fmt === 'pdf')
-        await (await import('@/lib/pdf')).downloadResumePdf(shown, fname('pdf'))
+        await (await loadExporter(() => import('@/lib/pdf'))).downloadResumePdf(shown, fname('pdf'))
       else if (fmt === 'docx')
-        await (await import('@/lib/docx')).downloadResumeDocx(shown, fname('docx'))
+        await (await loadExporter(() => import('@/lib/docx'))).downloadResumeDocx(
+          shown,
+          fname('docx')
+        )
       else if (fmt === 'md') downloadText(resumeToMarkdown(shown), fname('md'), 'text/markdown')
       else downloadText(resumeToPlainText(shown, { keepLinkUrls: true }), fname('txt'))
       setDlDone(true)
@@ -10317,13 +10320,16 @@ function BundleToolDialog({
                 variant="outline"
                 size="sm"
                 className="min-h-10 sm:min-h-8"
-                onClick={() =>
-                  void import('@/lib/pdf').then((m) =>
-                    kind === 'interview'
-                      ? m.downloadTextPdf(title, result, docFileName('pdf'))
-                      : m.downloadLetterPdf(resume, result, docFileName('pdf'))
-                  )
-                }
+                onClick={async () => {
+                  try {
+                    const m = await loadExporter(() => import('@/lib/pdf'))
+                    if (kind === 'interview')
+                      await m.downloadTextPdf(title, result, docFileName('pdf'))
+                    else await m.downloadLetterPdf(resume, result, docFileName('pdf'))
+                  } catch (e) {
+                    setError((e as Error).message)
+                  }
+                }}
               >
                 <Download /> PDF
               </Button>
@@ -10331,13 +10337,16 @@ function BundleToolDialog({
                 variant="outline"
                 size="sm"
                 className="min-h-10 sm:min-h-8"
-                onClick={() =>
-                  void import('@/lib/docx').then((m) =>
-                    kind === 'interview'
-                      ? m.downloadTextDocx(title, result, docFileName('docx'))
-                      : m.downloadLetterDocx(resume, result, docFileName('docx'))
-                  )
-                }
+                onClick={async () => {
+                  try {
+                    const m = await loadExporter(() => import('@/lib/docx'))
+                    if (kind === 'interview')
+                      await m.downloadTextDocx(title, result, docFileName('docx'))
+                    else await m.downloadLetterDocx(resume, result, docFileName('docx'))
+                  } catch (e) {
+                    setError((e as Error).message)
+                  }
+                }}
               >
                 <Download /> DOCX
               </Button>
