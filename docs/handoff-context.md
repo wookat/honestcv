@@ -1358,3 +1358,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：src/lib/download.ts 新增 loadExporter()（extractFile loadEngine 同款），失败抛 "Could not load the download component — check your connection, then reload and try again."；五个调用面包上：Builder 工具栏 pdf/docx、Builder 文档对话框 pdf/docx（改 async try/catch → setError，复用对话框既有 error 展示位）、Dashboard docDownload 与 runDownload。TXT/MD、SharedResume（R434）、usePdfLength 后台测量不动。
 - tsc/eslint/build 绿。生产 QA 全绿零 P0–P3（chunk 运行时实测 pdf-BX8eQrNH/docx-nRMiABN1）：六个阻断面全部精确友好文案零未捕获 rejection（对话框面从静默变可见）、解封后真实 PDF(%PDF-)/DOCX(PK) 落盘恢复、TXT 零 chunk 请求、375 光暗带 alert 零溢出、纯加载零 console 错误、零逃逸、存储字节级还原。备案：/builder 挂载时 usePdfLength 的 idle import 失败被静默吞掉（无用户动作、非缺陷）。
 - PR 基于 #678。部署照旧：上传成功、route auth code 10000。
+
+## R459 — 暗色主题下预渲染骨架屏不再闪亮灰（2026-08-31）
+- SOP-10 四维审计：7 条 SPA 路由健康采样全净；og:image/缓存头全净；驳回两条线索（Auto-fit "please try again" 文案在 pdf 块失败时不可达——按钮仅在 pdfLength!==null 时渲染；404 shell 带 Builder modulepreload 是 prerender.mjs 既定设计）。确证缺陷（CDP 一手实证）：spa.html 静态骨架块硬编码 background:#e2e8f0，暗色主题（R451 pre-paint 已在首绘前置 html.dark，body 为 oklch(0.16 0.015 260) 近黑）下慢网冷加载出现刺眼亮灰块闪烁；React RouteFallback 用 bg-muted 本就随主题。方案：docs/plan-r459-dark-skeleton.md。
+- 修复：仅 scripts/prerender.mjs——骨架块背景改为 class="hcv-sk"，内联 <style> 增加 `.hcv-sk{background:var(--muted,#e2e8f0)}html.dark .hcv-sk{background:var(--muted,oklch(0.26 0.02 260))}`（样式表 render-blocking，首绘时 var(--muted) 必已解析；字面量仅作 CSS 失败兜底）。index.html（预渲染落地页）与 React 侧不动。
+- tsc/eslint/build/verify-dist 绿；部署仅 /spa.html 一个资产变更。生产 QA 全绿零 P0–P3：阻断 index-*.js 持住预水合态，暗色下 9 个 .hcv-sk 块 computed oklch(0.26 0.02 260)（像素直方图 rgb(22,29,37) on rgb(9,13,20)），/builder、/dashboard、404 路由一致；浅色不变（oklch(0.96 0.01 260)）；解封水合零 console 错误；375 暗色零溢出且 hcv-sk-side 正确隐藏；意外加测证实 CSS 失败字面量兜底也生效；零逃逸、存储字节级还原。QA 教训：阻断 pattern 用 `*assets/index-*.js`，裸 `*assets/index-*` 会连样式表一起杀掉、悄悄切到兜底路径。
+- PR 基于 #679。部署照旧：上传成功、route auth code 10000。
