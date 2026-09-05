@@ -1594,6 +1594,8 @@ function page(p) {
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -1677,6 +1679,8 @@ function legalPage(p) {
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.sections[0][1])}" />
 <link rel="canonical" href="${canonical}" />
@@ -1742,6 +1746,8 @@ function aboutPage() {
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -1829,6 +1835,8 @@ function guidePage(p) {
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -1887,6 +1895,8 @@ function templatePage(p) {
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -1997,6 +2007,8 @@ function hubPage({
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -3324,6 +3336,8 @@ ${per.experience
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.role)} Resume Example (2026) — RezUp</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -3716,6 +3730,8 @@ ${features.map((f) => `<li style="margin:.4rem 0">· ${esc(f)}</li>`).join('\n')
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>RezUp Pricing — $9.99 Once, Never a Subscription</title>
 <meta name="description" content="RezUp pricing: everything free during beta. When billing opens: Single Resume $9.99 one-time, Career Bundle $19.99 one-time. No subscription, no stored card, nothing to cancel." />
 <link rel="canonical" href="${canonical}" />
@@ -3856,6 +3872,8 @@ function aiPage() {
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>AI Resume Tools — Tailoring, Scoring, Rewriting | RezUp</title>
 <meta name="description" content="RezUp's AI toolkit: job-targeted tailoring, a free in-browser ATS match score, honest bullet rewriting that never invents facts, and AI cover letters with interview prep." />
 <link rel="canonical" href="${canonical}" />
@@ -3998,6 +4016,8 @@ function toolPage(p) {
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -4104,6 +4124,8 @@ function letterExamplesPage(p) {
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
