@@ -3272,18 +3272,18 @@ function examplePage(p) {
 <div class="exdoc" aria-label="Example resume">
 <p class="exname">${esc(per.name)}</p>
 <p class="exmeta">${esc(per.title)} · ${esc(per.location)}</p>
-<h3>Summary</h3>
+<h2>Summary</h2>
 <p>${esc(per.summary)}</p>
-<h3>Experience</h3>
+<h2>Experience</h2>
 ${per.experience
   .map(
     (x) => `<p class="exrole">${esc(x.role)} — ${esc(x.company)} <span>${esc(x.dates)}</span></p>
 <ul>${x.bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>`
   )
   .join('\n')}
-<h3>Skills</h3>
+<h2>Skills</h2>
 <p>${per.skills.map(esc).join(' · ')}</p>
-<h3>Education</h3>
+<h2>Education</h2>
 <p>${esc(per.education)}</p>
 </div>`
   return `<!doctype html>
@@ -3308,7 +3308,7 @@ ${per.experience
 .exdoc{border:1px solid var(--border);border-radius:10px;padding:1.5rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);margin:1.5rem 0}
 .exdoc .exname{font-size:1.3rem;font-weight:700;margin:0}
 .exdoc .exmeta{color:var(--muted);margin:.15rem 0 1rem;font-size:.9rem}
-.exdoc h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--primary);border-bottom:1px solid var(--border);padding-bottom:.25rem;margin:1.25rem 0 .5rem}
+.exdoc h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--primary);border-bottom:1px solid var(--border);padding-bottom:.25rem;margin:1.25rem 0 .5rem}
 .exdoc .exrole{font-weight:600;margin:.75rem 0 .25rem;display:flex;flex-wrap:wrap;gap:.25rem .75rem;justify-content:space-between}
 .exdoc .exrole span{color:var(--muted);font-weight:400;font-size:.85rem}
 .exdoc ul{margin:.25rem 0 .5rem 1.1rem;padding:0}
