@@ -101,6 +101,7 @@ interface ExampleEntry {
 }
 
 const editedAgo = (ms: number) => {
+  if (!ms) return 'Edited a while ago'
   const days = Math.floor((Date.now() - ms) / 86400000)
   if (days <= 0) return 'Edited today'
   return days === 1 ? 'Edited 1 day ago' : `Edited ${days} days ago`

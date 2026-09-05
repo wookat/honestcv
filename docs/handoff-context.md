@@ -1073,3 +1073,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：Builder applyExample 决策移出 updater——非空草稿（fullName||summary）置 pendingExample 弹样式化 Dialog（Cancel / Replace with example），确认才 linkVersion(null)+setResume（模板保留规则不变）；空草稿即时应用如旧；deep-link 效果照旧先剥离 ?example。AtsChecker openInBuilder 拆为 replaceAndOpen / keepSavedAndOpen（R387 空 JD 不写回语义保留），有存档时弹 Dialog（Keep saved resume / Replace resume 两个显式按钮，Esc/外点=留在原页，严格更安全的超集）。
 - 银行 P4：/jobs?job=<bogus> 静默回退第一条、~1MB ATS 草稿同步加载 ~10s 冻结、updatedAt=0 渲染 "Edited 20701 days ago"。
 - 本地 tsc/eslint(0 errors)/build 绿；生产 QA 见 PR。
+
+## R404 — updatedAt=0 的求职文档不再显示 "Edited 20701 days ago"（2026-08-31）
+- 闭环 R403 银行 P4：R402 净化器把缺失/非法 updatedAt 强转为 0，dashboard editedAgo(0) 渲染 "Edited 20701 days ago"（把 epoch 距离当事实展示）。方案 docs/plan-r404-unknown-edit-date.md。
+- 实现（一行，Dashboard.tsx）：editedAgo 对 falsy ms 返回 "Edited a while ago"；排序不动（0 仍排最旧，未知时间排最后合理）；真实时间戳随下次内容编辑自然落盘（updateCareerDoc）。注意 renameCareerDoc 按 R197 设计不触碰时间戳（组织性操作），rename 不会"治愈"该值——QA 确证此为既定语义。
+- 另实证：~1MB ATS 草稿的计算链（scoreResumeText+parseResumeText+resumeHealth+priorityFixes）Node 实测 <260ms，冻结在渲染侧（1MB 受控 textarea），该 P4 继续银行待浏览器 profile。
+- 本地 tsc/eslint/build 绿。生产 QA（Dashboard-CR_XnwaE.js / index-9L7DV6ZE.js，零逃逸、基线还原）全绿零 P0–P3：updatedAt 为 0/缺失/'nope' 三种种子全部渲染 "Edited a while ago"、真实时间戳文档 "Edited today"、页面零 "20701"、查看器内容编辑后自愈为 "Edited today"、副本卡与排序回归、375 光暗无溢出、零 console 错误。
