@@ -82,6 +82,9 @@ async function staleWhileRevalidate(request) {
 }
 
 const STATIC_PATH = /\.(?:woff2|png|svg|webmanifest)$/
+// Build-generated sample library data: changes only on deploy, so SWR keeps
+// it available offline while refreshing in the background.
+const EXAMPLES_JSON = /^\/examples\/[^/]+\.json$/
 
 self.addEventListener('fetch', (event) => {
   const request = event.request
@@ -97,7 +100,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(assetCacheFirst(request))
     return
   }
-  if (STATIC_PATH.test(url.pathname)) {
+  if (STATIC_PATH.test(url.pathname) || EXAMPLES_JSON.test(url.pathname)) {
     event.respondWith(staleWhileRevalidate(request))
   }
 })

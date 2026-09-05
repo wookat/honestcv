@@ -1570,6 +1570,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新 tab，新 bundle Builder-KVTTlf2O.js）：reduce 下章节 chip 跳转即时（0→3669 单步）、Score "Fix →" 条目跳转即时（0→1535 单步）且 ring-2 闪烁环照常出现、冷载 /dashboard#samples 即时落 857；非 reduce 下滚动保持 smooth 动画（0→16→103→…采样确认）；R490 冷载 hash 回归正常；375 光暗零溢出；四次探测全程零 console 错误零未捕获 rejection。
 
+## R497 — 示例库 JSON 进入 SW 离线缓存（SWR）（2026-08-31）
+- 一手证据：public/sw.js fetch 分派逐条核对——/examples/examples.json 不落任何缓存分支（导航/assets/STATIC_PATH/api 均不匹配），纯网络；生产 CDP 实证 SW 受控离线打开 /samples，shell 正常（R486）但样本列表须走网络。R482–R486 已把产品定位为可离线 PWA，示例库是唯一被排除在外的构建期静态内容（仅随部署变化）。方案：docs/plan-r497-examples-offline.md。另本轮 Lighthouse 复测：/samples perf 0.76→0.81（R496 生效，CLS 0、TBT 160ms），/builder 维持 0.51（TBT 1450ms 全在入口 react-dom 渲染，R478 已定为地板）。
+- 修复仅 public/sw.js：新增 `EXAMPLES_JSON = /^\/examples\/[^/]+\.json$/`，与 STATIC_PATH 同走既有 staleWhileRevalidate()（STATIC_CACHE）——在线命中回缓存+后台刷新（部署后下次访问收敛），离线已访问直接回缓存；fetch effect、R415 重试卡、R496 preload、页面/资产策略零改动。
+- tsc/eslint（public/sw.js 单查绿）/build/verify-dist 绿。部署照旧：1 资产（sw.js）上传成功、Workers Routes auth code 10000。
+- 生产 QA（CDP 全新 SW/缓存/存储）：在线访问后 hcv-static-v1 实证 HIT 200 缓存了 examples.json；离线重载 /samples 出 9 真卡零重试卡、R487 离线条照常；恢复在线 9 卡照常、零 console 错误；QA 后 SW/缓存/存储全清理。如实备案：负例（缓存逐出后离线）因 HTTP 磁盘缓存兜底仍出 9 卡，未能在生产直接观测重试卡路径——该路径代码零改动且 R415 已验证过。
+
 ## R496 — 从 HTML 预加载 examples.json，摘掉 JS 执行关键链（2026-08-31）
 - 一手证据（生产 Lighthouse network-dependency-tree，/dashboard 冷载）：/examples/examples.json（16.7KB）要等 entry(172ms)→api 块(339ms) 执行完 mount effect 才被发现，~653ms 才发请求；它在 /samples 上直接门控 R493 骨架→9 真卡的替换，属用户可见延迟。源码：Dashboard.tsx（服务 /dashboard、/documents、/samples）与 Builder.tsx（示例选择器 + ?example= 深链）挂载即 fetch；首页 Landing 硬编码 slug 不 fetch。方案：docs/plan-r496-examples-preload.md。
 - 修复仅 worker/index.ts：applyRoutePreload() 追加——对 /builder、/dashboard、/documents、/samples 四路由往 </head> 注入 `<link rel="preload" href="/examples/examples.json" as="fetch" crossorigin="anonymous" />`（crossorigin 匹配 window.fetch 的 cors/same-origin 语义，否则 Chrome 双下载）；其余路由/404/s/* 不注入。prerender、SW、fetch effect 零改动。
