@@ -331,6 +331,18 @@ const JOBS_CACHE_TTL = 60 * 60
 const JOBS_MAX_QUERY = 80
 const JOBS_MAX_DESCRIPTION = 8_000
 
+// Cut over-limit descriptions at the last whitespace inside the cap so the
+// visible text never ends mid-word; the flag lets the client disclose the cut.
+const truncateDescription = (text: string): { description: string; descriptionTruncated: boolean } => {
+  if (text.length <= JOBS_MAX_DESCRIPTION) return { description: text, descriptionTruncated: false }
+  const head = text.slice(0, JOBS_MAX_DESCRIPTION)
+  const lastSpace = head.search(/\s\S*$/)
+  return {
+    description: (lastSpace > 0 ? head.slice(0, lastSpace) : head).trimEnd(),
+    descriptionTruncated: true,
+  }
+}
+
 const htmlToText = (html: string) =>
   html
     .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
@@ -412,7 +424,7 @@ app.get('/api/jobs/search', async (c) => {
   const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
   const rawCategory = (c.req.query('category') ?? '').trim()
   const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
-  const cacheKey = `jobs:v4:${q.toLowerCase()}|${category}`
+  const cacheKey = `jobs:v5:${q.toLowerCase()}|${category}`
   const cached = await c.env.KV.get(cacheKey)
   if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
   const upstreamUrl = new URL('https://remotive.com/api/remote-jobs')
@@ -446,7 +458,7 @@ app.get('/api/jobs/search', async (c) => {
       salary: j.salary ?? '',
       url: j.url ?? '',
       tags: normalizeTags(j.tags),
-      description: htmlToText(j.description ?? '').slice(0, JOBS_MAX_DESCRIPTION),
+      ...truncateDescription(htmlToText(j.description ?? '')),
     }))
   const payload = { jobs, source: 'remotive' }
   c.executionCtx.waitUntil(

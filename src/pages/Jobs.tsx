@@ -1556,6 +1556,20 @@ export default function Jobs() {
                       )}
                     </section>
                   ))}
+                  {selected.descriptionTruncated && (
+                    <p className="text-muted-foreground mt-4 text-sm">
+                      Description shortened —{' '}
+                      <a
+                        href={selected.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-foreground underline underline-offset-2"
+                      >
+                        read the full posting on the original site
+                        <ExternalLink className="ml-1 inline size-3.5 align-[-2px]" />
+                      </a>
+                    </p>
+                  )}
                 </div>
               </>
             ) : (

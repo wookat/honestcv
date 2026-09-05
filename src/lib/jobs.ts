@@ -17,6 +17,8 @@ export interface JobListing {
   salary: string
   url: string
   description: string
+  /** True when the description was cut to the server-side length cap */
+  descriptionTruncated?: boolean
   /** Upstream skill tags (may be missing on entries saved before it existed) */
   tags?: string[]
 }

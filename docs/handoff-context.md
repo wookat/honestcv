@@ -1570,6 +1570,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新 tab，新 bundle Builder-KVTTlf2O.js）：reduce 下章节 chip 跳转即时（0→3669 单步）、Score "Fix →" 条目跳转即时（0→1535 单步）且 ring-2 闪烁环照常出现、冷载 /dashboard#samples 即时落 857；非 reduce 下滚动保持 smooth 动画（0→16→103→…采样确认）；R490 冷载 hash 回归正常；375 光暗零溢出；四次探测全程零 console 错误零未捕获 rejection。
 
+## R498 — 超长职位描述词边界收口 + 诚实截断提示（2026-08-31）
+- 一手证据（生产）：`/api/jobs/search` 五个查询每批 15 条均有 1 条 description 恰为 8000 字符（= worker `JOBS_MAX_DESCRIPTION` 纯 slice 上限），样本（garden3d Head of Marketing & Communications）结尾 `…experimental media bran` 词中间硬切；客户端无任何截断元数据，Jobs 详情面板就此戛然而止，同一 description 还喂 matchScore/matchReport/tailoring。Rezi 2026-08 changelog 当期方向即「Improved Job Description Visibility」。方案：docs/plan-r498-truncated-jd.md。
+- 修复最小：worker/index.ts `truncateDescription()`（超限时在上限内最后一个空白处收口 + `descriptionTruncated: true`，缓存键 jobs:v4→v5 因响应形状变化）；src/lib/jobs.ts `JobListing` 加可选 `descriptionTruncated`（旧本地 pipeline 条目兼容）；Jobs.tsx 详情描述末尾在截断时显示「Description shortened — read the full posting on the original site」外链（复用 selected.url + noopener）。非目标：不提高/取消 8000 上限、不改匹配/裁剪算法、不代理原站全文。
+- tsc/eslint（改动三文件单查绿，仅既有 Jobs.tsx useEffect 警告）/build/verify-dist 绿；全仓 lint 红全在历史 .tmp-smoke/ 草稿（未跟踪、未改动）。部署照旧：worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：API 实测 engineer 批次唯一超长条目 description 7995 字符、结尾整词 `…experimental media`、flag 恰该条 true 其余 false；/jobs?q=engineer&job=2091068 详情面板出提示 + 外链正确指向 remotive 原帖（target=_blank rel=noopener noreferrer）；普通职位无提示；375 零溢出；零 console 错误。
+
 ## R497 — 示例库 JSON 进入 SW 离线缓存（SWR）（2026-08-31）
 - 一手证据：public/sw.js fetch 分派逐条核对——/examples/examples.json 不落任何缓存分支（导航/assets/STATIC_PATH/api 均不匹配），纯网络；生产 CDP 实证 SW 受控离线打开 /samples，shell 正常（R486）但样本列表须走网络。R482–R486 已把产品定位为可离线 PWA，示例库是唯一被排除在外的构建期静态内容（仅随部署变化）。方案：docs/plan-r497-examples-offline.md。另本轮 Lighthouse 复测：/samples perf 0.76→0.81（R496 生效，CLS 0、TBT 160ms），/builder 维持 0.51（TBT 1450ms 全在入口 react-dom 渲染，R478 已定为地板）。
 - 修复仅 public/sw.js：新增 `EXAMPLES_JSON = /^\/examples\/[^/]+\.json$/`，与 STATIC_PATH 同走既有 staleWhileRevalidate()（STATIC_CACHE）——在线命中回缓存+后台刷新（部署后下次访问收敛），离线已访问直接回缓存；fetch effect、R415 重试卡、R496 preload、页面/资产策略零改动。
