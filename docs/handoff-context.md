@@ -1238,6 +1238,7 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复一行：extractDocx() 内 `await import('fflate')`（与既有 pdfjs 懒加载同款），调用方/API/依赖零改动。入口 329.9→324.4KB（gzip 101.9→99.1KB）；fflate 成独立 browser-*.js 懒块（5.5KB，88KB sourcemap 数字是含注释源码、压缩 tree-shake 后仅此）。
 - tsc/eslint/build 绿。生产 QA 全绿零 P0–P2：三页面纯加载零 browser-*.js 请求且入口恰为新 chunk、本地构造 .docx 经 DOM.setFileInputFiles 注入 /ats-checker 与 Builder 导入双路径均在上传瞬间恰好拉取 fflate 块并正确解析（file checks 卡 'No tables' 对含表 fixture 正确红失败）、坏 .docx 友好文案零未处理 rejection、TXT 路径不变、断网块失败为已捕获可见错误非白屏（文案偏技术，P4 备案）、R452 计数环/R451 主题/375 光暗全回归、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
 - QA 银行（既有非回归）：/builder 挂载请求 /examples/examples.json 返回 404（仅 console 噪音，Builder 正常）——候选后续轮查明（疑似静态资产路径或 build 产物缺失）。
+- 【生产事故复盘（2026-09-05）】追查上条银行项发现：R453 部署后生产丢失了全部 120 个静态预渲染页（/pricing/、/templates/、/examples/* 等全 404，examples.json 同），仅 SPA shell + assets 在线——推断当时 dist/client 只含 vite 产物（vite build 会清空 dist，prerender/build-seo 未跑或跑在部署之后），wrangler 按 dist 现状整体替换 asset manifest。已于 09-05 12:30 用完整 `npm run build && wrangler deploy`（299 files）恢复，全部路由复验 200/404 正确。铁律：部署必须走 `npm run deploy`（完整 build 链），禁止在任何部分构建后直接 `wrangler deploy`；部署后必须 curl 抽查至少一个静态页（如 /pricing/）非仅 SPA 路由。
 
 ## R450 — 六个 /examples/ 页修复跳级标题（2026-08-31）
 - 生产实证：axe-core 4.10.2 扫 10 条静态预渲染路由 + SPA 全路由（桌面/375/菜单展开态），唯一违规是六个 /examples/<slug>/ 页的 heading-order（moderate）：H1 "<Role> resume example" 后直接跟示例简历的 H3 Summary/Experience/Skills/Education（跳过 H2），页面真正的 H2 提示区在其后。源头：scripts/build-seo.mjs exdoc 块硬编码 <h3>。方案：docs/plan-r450-example-heading-order.md。
