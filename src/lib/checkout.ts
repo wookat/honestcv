@@ -33,11 +33,16 @@ export async function fetchCheckoutEnabled(): Promise<boolean> {
 
 /** Email waitlist while checkout is not yet enabled */
 export async function submitLead(email: string, plan: Plan | 'free-download'): Promise<void> {
-  const res = await fetch('/api/leads', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...licenseHeaders() },
-    body: JSON.stringify({ email, plan }),
-  })
+  let res: Response
+  try {
+    res = await fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...licenseHeaders() },
+      body: JSON.stringify({ email, plan }),
+    })
+  } catch {
+    throw new Error('Sending your email failed — check your connection and try again.')
+  }
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as { error?: string }
     throw new Error(data.error || `Something went wrong (${res.status})`)
@@ -46,12 +51,17 @@ export async function submitLead(email: string, plan: Plan | 'free-download'): P
 
 /** Claim a license with the order id (idempotent) */
 export async function claimTransaction(transactionId: string): Promise<LicenseState> {
-  const res = await fetch('/api/license/claim', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ transactionId }),
-  })
-  const data = (await res.json()) as {
+  let res: Response
+  try {
+    res = await fetch('/api/license/claim', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ transactionId }),
+    })
+  } catch {
+    throw new Error('Claiming your purchase failed — check your connection and try again.')
+  }
+  const data = (await res.json().catch(() => ({}))) as {
     token?: string
     licenseKey?: string
     plan?: Plan
@@ -129,11 +139,16 @@ async function openLemonCheckout(
   plan: Plan,
   onCompleted: (orderId: string) => void
 ): Promise<void> {
-  const res = await fetch('/api/billing/checkout', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...licenseHeaders() },
-    body: JSON.stringify({ plan }),
-  })
+  let res: Response
+  try {
+    res = await fetch('/api/billing/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...licenseHeaders() },
+      body: JSON.stringify({ plan }),
+    })
+  } catch {
+    throw new Error('Opening checkout failed — check your connection and try again.')
+  }
   const data = (await res.json().catch(() => ({}))) as {
     url?: string
     error?: string
