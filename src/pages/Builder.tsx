@@ -1301,24 +1301,21 @@ export default function Builder() {
   >(
     []
   )
-  const applyExample = useCallback((person: ExamplePerson) => {
-    setResume((cur) => {
-      const hasContent = Boolean(cur.contact.fullName || cur.summary)
-      if (
-        hasContent &&
-        !window.confirm(
-          'Replace your current resume content with this example? Your saved copies are unaffected.'
-        )
-      )
-        return cur
-      linkVersion(null)
-      return {
-        ...exampleToResume(person),
-        // Keep a template the user deliberately picked
-        ...(cur.templateId !== emptyResume().templateId ? { templateId: cur.templateId } : {}),
-      }
-    })
-  }, [setResume])
+  const [pendingExample, setPendingExample] = useState<ExamplePerson | null>(null)
+  const replaceWithExample = (person: ExamplePerson) => {
+    linkVersion(null)
+    setResume((cur) => ({
+      ...exampleToResume(person),
+      // Keep a template the user deliberately picked
+      ...(cur.templateId !== emptyResume().templateId ? { templateId: cur.templateId } : {}),
+    }))
+    setPendingExample(null)
+  }
+  /** A non-empty draft gets a confirm dialog before being replaced. */
+  const applyExample = (person: ExamplePerson) => {
+    if (resume.contact.fullName || resume.summary) setPendingExample(person)
+    else replaceWithExample(person)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -9167,6 +9164,29 @@ export default function Builder() {
           >
             <ClipboardPaste /> Import — replaces current content (Ctrl+Z to undo)
           </Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={pendingExample !== null} onOpenChange={(o) => !o && setPendingExample(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Load this example?</DialogTitle>
+            <DialogDescription>
+              The resume content currently in the editor is replaced with the example. Your saved
+              copies are unaffected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setPendingExample(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => pendingExample && replaceWithExample(pendingExample)}
+            >
+              Replace with example
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={finalCheckOpen} onOpenChange={setFinalCheckOpen}>

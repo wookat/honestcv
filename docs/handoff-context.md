@@ -1066,3 +1066,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环源码实证缺陷：listCareerDocs 的 `parsed.filter((d) => d.id && d.text)` 遇单个 null/非对象元素即在 filter 内抛异常被外层吞掉→返回 []（全部求职文档从 UI 消失），且任何 mutator（保存/改名/复制/删除）基于 [] 回写即永久销毁全部文档；错误字段类型也原样放行（非字符串 title 会打崩 UI/文件名代码）。resume/pipeline/libraries 早有读侧 coerce（R374 模式），careerDocs 是最后一个未净化的用户内容存储。方案 docs/plan-r402-careerdocs-sanitize.md。
 - 实现（仅 documents.ts）：sanitizeCareerDoc 逐元素 coerce（id/text 必须非空字符串否则丢弃；kind 限三值默认 cover；title 强转字符串；updatedAt 非有限数→0；signature 仅留非空字符串），listCareerDocs flatMap；读取零写入，修复随下次自然保存落盘。
 - oracle 10/10、tsc/lint/build 绿。生产 QA（index-xQfsXRHE.js / Dashboard-5qQr2lXy.js，零逃逸、基线还原）全绿零 P0–P3：损坏种子下 2 个幸存文档正常渲染（旧行为零文档，delta 已证）、纯读字节零写入、首次改名修复存储且好文档全文保留、R392 存储满/R388 文件名/查看器回归、375 光暗、零 console 错误。P4 观察：updatedAt=0 渲染 "Edited 20701 days ago"（可加 fallback 文案，银行）。
+
+## R403 — SOP-10 四维审计 + 两处原生 confirm 替换守卫改为样式化对话框（2026-08-31）
+- SOP-10 四维生产审计（操作台搜索/文件夹/批量/备份/焦点陷阱、示例→跟踪→targeted copy→ATS→四格式导出→cover/interview 全链、5 静态页 375/768/1440 光暗+内链、畸形深链/ATS 草稿损坏/1MB 草稿/多标签/近配额探针）：零 P0–P2。方案 docs/plan-r403-styled-replace-confirms.md。
+- 本轮修复确证 P3：示例替换的 `window.confirm` 跑在 setResume updater 内部（副作用入 updater，StrictMode 双调用会弹两次；原生框与全站样式化守卫不一致；无对话框处理的嵌入/自动化环境直接硬阻塞渲染进程——QA 实测 100% CPU 钉死）。ATS checker openInBuilder 同款原生 confirm。
+- 实现：Builder applyExample 决策移出 updater——非空草稿（fullName||summary）置 pendingExample 弹样式化 Dialog（Cancel / Replace with example），确认才 linkVersion(null)+setResume（模板保留规则不变）；空草稿即时应用如旧；deep-link 效果照旧先剥离 ?example。AtsChecker openInBuilder 拆为 replaceAndOpen / keepSavedAndOpen（R387 空 JD 不写回语义保留），有存档时弹 Dialog（Keep saved resume / Replace resume 两个显式按钮，Esc/外点=留在原页，严格更安全的超集）。
+- 银行 P4：/jobs?job=<bogus> 静默回退第一条、~1MB ATS 草稿同步加载 ~10s 冻结、updatedAt=0 渲染 "Edited 20701 days ago"。
+- 本地 tsc/eslint(0 errors)/build 绿；生产 QA 见 PR。

@@ -4,6 +4,14 @@ import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-reac
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { ScanIllustration } from '@/components/Illustrations'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -136,26 +144,32 @@ export default function AtsChecker() {
       .finally(() => setFileBusy(false))
   }
 
+  const [pendingBuilderJump, setPendingBuilderJump] = useState<{ anchor?: string } | null>(null)
+  const goToBuilder = (anchor?: string) => {
+    void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
+  }
+  const replaceAndOpen = (anchor?: string) => {
+    const parsed = parseResumeText(resumeText)
+    parsed.jobDescription = jd
+    setActiveVersionId(null)
+    saveResume(parsed)
+    goToBuilder(anchor)
+  }
+  const keepSavedAndOpen = (anchor?: string) => {
+    const existing = loadResume()
+    if (existing && jd.trim()) {
+      existing.jobDescription = jd
+      saveResume(existing)
+    }
+    goToBuilder(anchor)
+  }
   const openInBuilder = (anchor?: string) => {
     const existing = loadResume()
     const hasContent = Boolean(
       existing && (existing.contact.fullName || existing.experience.length)
     )
-    if (
-      !hasContent ||
-      window.confirm(
-        'Replace the resume currently saved in the builder with this pasted one? (Cancel keeps your saved resume; the job description still carries over.)'
-      )
-    ) {
-      const parsed = parseResumeText(resumeText)
-      parsed.jobDescription = jd
-      setActiveVersionId(null)
-      saveResume(parsed)
-    } else if (existing && jd.trim()) {
-      existing.jobDescription = jd
-      saveResume(existing)
-    }
-    void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
+    if (!hasContent) replaceAndOpen(anchor)
+    else setPendingBuilderJump({ anchor })
   }
 
   useEffect(() => {
@@ -824,6 +838,37 @@ export default function AtsChecker() {
           </div>
         </section>
       </main>
+
+      <Dialog
+        open={pendingBuilderJump !== null}
+        onOpenChange={(o) => !o && setPendingBuilderJump(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Replace the saved resume?</DialogTitle>
+            <DialogDescription>
+              The builder already has a saved resume. Replace it with this pasted one, or keep it —
+              a pasted job description carries over either way.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => keepSavedAndOpen(pendingBuilderJump?.anchor)}
+            >
+              Keep saved resume
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => replaceAndOpen(pendingBuilderJump?.anchor)}
+            >
+              Replace resume
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <SiteFooter />
     </div>
