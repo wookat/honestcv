@@ -1162,20 +1162,22 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           return (
             <section key={f} className="mt-6">
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-expanded={!isCollapsed}
-                  onClick={() => toggleFolder(f)}
-                  className="hover:bg-accent flex min-h-10 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold sm:min-h-8"
-                >
-                  {isCollapsed ? (
-                    <ChevronRight className="size-4" aria-hidden />
-                  ) : (
-                    <ChevronDown className="size-4" aria-hidden />
-                  )}
-                  {f}
-                  <span className="text-muted-foreground font-normal">({list.length})</span>
-                </button>
+                <h2 className="contents">
+                  <button
+                    type="button"
+                    aria-expanded={!isCollapsed}
+                    onClick={() => toggleFolder(f)}
+                    className="hover:bg-accent flex min-h-10 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold sm:min-h-8"
+                  >
+                    {isCollapsed ? (
+                      <ChevronRight className="size-4" aria-hidden />
+                    ) : (
+                      <ChevronDown className="size-4" aria-hidden />
+                    )}
+                    {f}
+                    <span className="text-muted-foreground font-normal">({list.length})</span>
+                  </button>
+                </h2>
                 <Button
                   type="button"
                   variant="ghost"
