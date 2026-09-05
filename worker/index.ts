@@ -1880,6 +1880,24 @@ app.notFound(async (c) => {
         .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${meta.description}"`)
     }
     body = html
+  } else if (!SPA_ROUTES.has(path)) {
+    // Unknown routes hydrate into the NotFound page (dead share links into
+    // the gone card); say so in the raw shell instead of serving the
+    // homepage marketing copy with a canonical/og:url pointing at '/'.
+    const meta = path.startsWith('/s/')
+      ? { title: 'Shared resume | RezUp', description: 'A resume shared with you via RezUp.' }
+      : {
+          title: 'Page not found — RezUp',
+          description:
+            'That page does not exist. Build an ATS-friendly resume or check your ATS match score for free.',
+        }
+    body = (await shell.text())
+      .replace(/[^\S\n]*<link rel="canonical" href="[^"]*" \/>\n?/, '')
+      .replace(/[^\S\n]*<meta property="og:url" content="[^"]*" \/>\n?/, '')
+      .replace(/<title>[^<]*<\/title>/, `<title>${meta.title}</title>`)
+      .replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${meta.description}"`)
+      .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${meta.title}"`)
+      .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${meta.description}"`)
   }
   return new Response(body, {
     status: SPA_ROUTES.has(path) || shareLive ? 200 : 404,
