@@ -1594,6 +1594,14 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R507 — Builder 信件弹窗补齐占位符警告与定位器（2026-08-31）
+- 审计先行：面试模板/即时问题实证已用 targetRole/当前公司/角色，其余开放式提示需用户判断或 JD 信息，自动编造不诚实——如实驳回"面试模板个性化"候选。
+- 一手证据（生产 CDP）：/builder?doc=cover「Start from a template」后结果含 5 个 `[bracketed]` 占位符，textarea 上方零计数零定位辅助；PDF/DOCX/TXT 三按钮静默下载——R504/R505 的保护只覆盖了 /documents 出口，Builder 弹窗出口一键放行。
+- 修复仅 Builder.tsx ToolDialog：countLetterPlaceholders（与 Dashboard 同一正则）；result 上方琥珀 role=status 状态条 +「Next placeholder」定位（光标起、回绕、滚动进视口）；下载体抽为 runLetterDownload(fmt)，count>0 先弹「Unfilled placeholders」——Download anyway 照常下载、Fill them in 关弹窗并选中下一个占位符；kind 切换清空警告态。方案：docs/plan-r507-builder-letter-placeholder-guard.md。
+- 非目标：不改 Dashboard 已有实现、不做 textarea 高亮、不阻断下载。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-qJaYKdyZ.js）：cover 状态条报 5、Next placeholder 依次选中且回绕；TXT/PDF 前弹确认、Download anyway 照常、Fill them in 焦点落 textarea 且选中下一槽位；resignation 报 2 同套保护；占位符清零后状态条消失且直接下载零弹窗；375px 弹窗零溢出零 console 错误；QA 后 honestcv.resume 移除（原值即空）。
+
 ## R506 — 信件模板自动填充当前职位（2026-08-31）
 - 一手证据（生产 CDP）：/builder?doc=cover 自述 "Tailored to your resume"，简历含进行中职位（endDate 空）时模板仍输出 `In my current role at [current company]`；resignation 两输入留空时输出 `[Company]`/`[your role]`——这些值就在简历里（targetRole/fullName 已被正确使用，属遗漏非设计）。
 - 修复仅 Builder.tsx insertTemplate：取第一个未 hidden、company 非空、endDate 空或匹配 ONGOING_RE 的 experience 条目；cover 的 `[current company]` 与 resignation 空输入回退该条目的 company/role，无当前职位保留原占位符；显式输入仍优先；interview/AI 路径零改动。

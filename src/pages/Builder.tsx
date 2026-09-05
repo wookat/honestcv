@@ -10007,6 +10007,8 @@ function BulletGuidance({
   )
 }
 
+const countLetterPlaceholders = (text: string) => text.match(/\[[^\][\n]{1,60}\]/g)?.length ?? 0
+
 function BundleToolDialog({
   kind,
   initialCompany = '',
@@ -10037,6 +10039,22 @@ function BundleToolDialog({
   const [result, setResult] = useState('')
   const [savedId, setSavedId] = useState<string | null>(null)
   const [saveDocFailed, setSaveDocFailed] = useState(false)
+  const [placeholderWarn, setPlaceholderWarn] = useState<'pdf' | 'docx' | 'txt' | null>(null)
+  const resultRef = useRef<HTMLTextAreaElement>(null)
+
+  const jumpToNextPlaceholder = () => {
+    const ta = resultRef.current
+    if (!ta) return
+    const re = /\[[^\][\n]{1,60}\]/g
+    re.lastIndex = ta.selectionEnd
+    const m = re.exec(ta.value) ?? ((re.lastIndex = 0), re.exec(ta.value))
+    if (!m) return
+    ta.focus()
+    ta.setSelectionRange(m.index, m.index + m[0].length)
+    const line = ta.value.slice(0, m.index).split('\n').length - 1
+    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 16
+    ta.scrollTop = Math.max(0, line * lineHeight - ta.clientHeight / 2)
+  }
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -10123,6 +10141,7 @@ function BundleToolDialog({
     setError('')
     setSavedId(null)
     setSaveDocFailed(false)
+    setPlaceholderWarn(null)
     setFeedback('')
     setFeedbackError('')
     setFeedbackBusy(false)
@@ -10343,6 +10362,27 @@ function BundleToolDialog({
       : kind === 'resignation'
         ? 'Resignation Letter'
         : 'Interview Prep Brief'
+  const runLetterDownload = async (fmt: 'pdf' | 'docx' | 'txt') => {
+    try {
+      if (fmt === 'txt') {
+        downloadText(kind === 'interview' ? `${title}\n\n${result}` : result, docFileName('txt'))
+      } else if (fmt === 'pdf') {
+        const m = await loadExporter(() => import('@/lib/pdf'))
+        if (kind === 'interview') await m.downloadTextPdf(title, result, docFileName('pdf'))
+        else await m.downloadLetterPdf(resume, result, docFileName('pdf'))
+      } else {
+        const m = await loadExporter(() => import('@/lib/docx'))
+        if (kind === 'interview') await m.downloadTextDocx(title, result, docFileName('docx'))
+        else await m.downloadLetterDocx(resume, result, docFileName('docx'))
+      }
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+  const requestLetterDownload = (fmt: 'pdf' | 'docx' | 'txt') => {
+    if (countLetterPlaceholders(result) > 0) setPlaceholderWarn(fmt)
+    else void runLetterDownload(fmt)
+  }
   const unsavedWork =
     kind === 'interview'
       ? session !== null || answer.trim() !== ''
@@ -10379,6 +10419,40 @@ function BundleToolDialog({
               }}
             >
               Discard and close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={placeholderWarn !== null} onOpenChange={(o) => !o && setPlaceholderWarn(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Unfilled placeholders</DialogTitle>
+            <DialogDescription>
+              {`This ${kind === 'interview' ? 'prep sheet' : 'letter'} still contains ${countLetterPlaceholders(result)} bracketed ${
+                countLetterPlaceholders(result) === 1 ? 'placeholder' : 'placeholders'
+              } like [Company]. Fill them in with your details before sending it out.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const fmt = placeholderWarn
+                setPlaceholderWarn(null)
+                if (fmt) void runLetterDownload(fmt)
+              }}
+            >
+              Download anyway
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setPlaceholderWarn(null)
+                requestAnimationFrame(jumpToNextPlaceholder)
+              }}
+            >
+              Fill them in
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -10513,7 +10587,26 @@ function BundleToolDialog({
         {error && <p className="text-destructive text-sm">{error}</p>}
         {result && (
           <>
+            {countLetterPlaceholders(result) > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-300/60 bg-amber-500/10 px-2 py-1.5 dark:border-amber-400/30">
+                <p role="status" className="text-xs">
+                  {`${countLetterPlaceholders(result)} ${
+                    countLetterPlaceholders(result) === 1 ? 'placeholder' : 'placeholders'
+                  } left — replace the [bracketed] parts with your details.`}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-8 px-2 text-xs"
+                  onClick={jumpToNextPlaceholder}
+                >
+                  Next placeholder
+                </Button>
+              </div>
+            )}
             <Textarea
+              ref={resultRef}
               aria-label="Generated letter"
               rows={14}
               value={result}
@@ -10525,16 +10618,7 @@ function BundleToolDialog({
                 variant="outline"
                 size="sm"
                 className="min-h-10 sm:min-h-8"
-                onClick={async () => {
-                  try {
-                    const m = await loadExporter(() => import('@/lib/pdf'))
-                    if (kind === 'interview')
-                      await m.downloadTextPdf(title, result, docFileName('pdf'))
-                    else await m.downloadLetterPdf(resume, result, docFileName('pdf'))
-                  } catch (e) {
-                    setError((e as Error).message)
-                  }
-                }}
+                onClick={() => requestLetterDownload('pdf')}
               >
                 <Download /> PDF
               </Button>
@@ -10542,16 +10626,7 @@ function BundleToolDialog({
                 variant="outline"
                 size="sm"
                 className="min-h-10 sm:min-h-8"
-                onClick={async () => {
-                  try {
-                    const m = await loadExporter(() => import('@/lib/docx'))
-                    if (kind === 'interview')
-                      await m.downloadTextDocx(title, result, docFileName('docx'))
-                    else await m.downloadLetterDocx(resume, result, docFileName('docx'))
-                  } catch (e) {
-                    setError((e as Error).message)
-                  }
-                }}
+                onClick={() => requestLetterDownload('docx')}
               >
                 <Download /> DOCX
               </Button>
@@ -10559,12 +10634,7 @@ function BundleToolDialog({
                 variant="outline"
                 size="sm"
                 className="min-h-10 sm:min-h-8"
-                onClick={() =>
-                  downloadText(
-                    kind === 'interview' ? `${title}\n\n${result}` : result,
-                    docFileName('txt')
-                  )
-                }
+                onClick={() => requestLetterDownload('txt')}
               >
                 <Download /> TXT
               </Button>
