@@ -1167,3 +1167,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（CDP @1600）：全站无 skip link，键盘/读屏用户到达 <main> 前每页需 Tab 过 9–15 个头部控件（/builder 15、/dashboard 9、/jobs 9）——WCAG 2.4.1 Bypass Blocks 缺口。方案：docs/plan-r421-skip-to-content.md。
 - 修复仅 Layout.tsx SiteHeader：<header> 首子元素加 <a href="#main">，sr-only 聚焦时显形（focus:not-sr-only 左上角卡片样式）；onClick preventDefault 后 querySelector('main') 设 tabindex=-1 并 focus+scrollIntoView——免逐页加 id，覆盖现有及未来所有 SPA 页。静态预渲染页（9 个独立头部模板）银行为后续候选。
 - tsc/eslint/build 绿。生产 QA 全绿（index-CMVHCAgE.js）：三页 Tab 一次即显形聚焦、聚焦前零视觉存在零布局偏移（头高 57px 不变）、Enter 后 activeElement=MAIN 且 URL/存储零变化、后续 Tab 落 main 内首控件、1280 光暗+375 移动可见可用、R420 汉堡与 Resources 下拉回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R422 — 静态预渲染页全量 Skip to content（2026-09-05）
+- R421 只覆盖 SPA，静态页银行为本轮。生产实证（CDP @1280 五个静态页）：每页 <main> 前 15 个可聚焦控件、零 skip link。方案：docs/plan-r422-static-skip-links.md。
+- 修复仅 scripts/build-seo.mjs：全部 11 个头部模板前加 <a class="skip" href="#main">、全部 <main> 加 id="main" tabindex="-1"（纯原生 fragment 导航零 JS），CSS a.skip 离屏 -9999px 聚焦回 .5rem；覆盖全部 120 个静态页。
+- tsc/eslint/build 绿（120/120 页含 skip+id）。生产 QA 全绿：五页首 Tab 显形（8,8）、Enter 后 activeElement=MAIN 且 URL 得 #main（原生导航预期行为，与 SPA preventDefault 不同）、后续 Tab 落 main 内、零布局偏移（头 57px 粘性不变）、prefers-color-scheme 暗色可见、头部导航与 /examples/ hub-filter 回归、SPA R421 回归（bundle 不变）、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。

@@ -1427,6 +1427,9 @@ html.dark .ai-art{background:var(--card)}
 body{margin:0;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.7}
 a{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
 a.btn,a.brand{text-decoration:none}
+a.skip{position:absolute;left:-9999px;top:.5rem;z-index:30;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:.375rem;padding:.5rem .75rem;font-size:.875rem;font-weight:500;text-decoration:none;box-shadow:0 10px 15px -3px rgb(0 0 0/.1)}
+a.skip:focus{left:.5rem}
+main{outline:none}
 header.site{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--border);background:color-mix(in oklch,var(--bg) 85%,transparent);backdrop-filter:blur(8px)}
 header.site .in{max-width:72rem;margin:0 auto;height:3.5rem;display:flex;align-items:center;justify-content:space-between;padding:0 1rem}
 header.site .brand{display:flex;align-items:center;gap:.5rem;font-weight:600;color:var(--fg)}
@@ -1588,12 +1591,13 @@ function page(p) {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.h1)}</h1>
 <p class="lede">${esc(p.intro)}</p>
 <ul class="features">
@@ -1665,12 +1669,13 @@ function legalPage(p) {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.h1)}</h1>
 ${p.sections.map(([h, t]) => `<h2 style="margin-top:1.5rem;font-size:1.125rem">${esc(h)}</h2>\n<p class="lede" style="font-size:1rem">${esc(t)}</p>`).join('\n')}
 </main>
@@ -1728,12 +1733,13 @@ function aboutPage() {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>About RezUp</h1>
 <p class="lede">The resume-builder category monetizes desperation: a ~$2 “trial” that quietly converts into a ~$25/month subscription, free tiers that watermark exports or lock the useful report behind a paywall, and AI writers that invent metrics a candidate never achieved. “Zety charged me” is one of the most-searched complaints in the category. RezUp is built as the counter-example.</p>
 <h2 style="margin-top:1.5rem;font-size:1.125rem">What we promise</h2>
@@ -1813,12 +1819,13 @@ function guidePage(p) {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.h1)}</h1>
 <nav class="toc" aria-label="On this page">
 <strong>On this page</strong>
@@ -1872,12 +1879,13 @@ function templatePage(p) {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder?template=${p.path.split('/').pop()}">Use this template free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.name)} — ATS-friendly resume template</h1>
 <div style="margin:1rem 0">${templateThumbSvg(p.path.split('/').pop(), 300)}</div>
 <p class="lede">${esc(p.blurb)}</p>
@@ -1975,12 +1983,13 @@ ${FP_BEACON}
 ${filterPlaceholder ? '<script defer src="/hub-filter.js"></script>' : ''}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main${mainStyle ? ` style="${mainStyle}"` : ''}>
+<main id="main" tabindex="-1"${mainStyle ? ` style="${mainStyle}"` : ''}>
 <h1>${esc(h1)}</h1>
 <p class="lede">${esc(intro)}</p>
 ${filterPlaceholder ? `<input id="hub-filter" type="search" hidden placeholder="${esc(filterPlaceholder)}" aria-label="Filter the list below" autocomplete="off" style="width:100%;max-width:26rem;min-height:2.75rem;margin-top:1rem;padding:0 .875rem;border:1px solid var(--border);border-radius:.5rem;font:inherit" />\n<p id="hub-filter-empty" hidden style="margin-top:1.5rem;color:#667085">${esc(filterEmpty ?? 'No examples match that search \u2014 try a broader word like \u201cengineer\u201d or \u201cmanager\u201d.')}</p>` : ''}
@@ -3308,12 +3317,13 @@ ${per.experience
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.role)} resume example</h1>
 <p class="lede">${esc(p.description)}</p>
 ${doc}
@@ -3702,12 +3712,13 @@ table.cmp.plans td:nth-child(4){color:#047857;font-weight:500}
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>Simple pricing: pay once, or pay nothing</h1>
 <p class="lede">${FREE_MODE ? 'Every plan is free during beta — no card, no auto-renewal, nothing that renews. When billing opens, prices below are one-time.' : 'Everything is free to try. Pay exactly once to download — never a subscription.'}</p>
 <div class="price-grid">
@@ -3833,12 +3844,13 @@ function aiPage() {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main style="max-width:56rem">
+<main id="main" tabindex="-1" style="max-width:56rem">
 <h1>AI that gets you the interview — honestly</h1>
 <p class="lede">Four AI abilities built into the RezUp builder. All of them work on your real experience: the AI sharpens what you did, and refuses to invent what you didn't.</p>
 ${AI_SECTIONS.map(
@@ -3972,12 +3984,13 @@ function toolPage(p) {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.h1)}</h1>
 <p class="lede">${esc(p.lede)}</p>
 <p style="margin-top:1.25rem"><a class="btn" href="${p.cta}">${esc(p.ctaLabel)}</a></p>
@@ -4072,12 +4085,13 @@ h2[id]{margin-top:2.5rem}
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.h1)}</h1>
 <p class="lede">${esc(p.lede)}</p>
 <nav class="toc" aria-label="Examples on this page"><strong>On this page</strong><ol>
