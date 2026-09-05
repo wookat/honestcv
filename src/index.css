@@ -258,6 +258,22 @@
   animation-delay: var(--rise-delay, 0s);
 }
 
+/* Transform-only rise for LCP-candidate hero elements: never hides the
+   element behind opacity 0, so first paint (and LCP) isn't delayed. */
+@keyframes rise-slide {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.animate-rise-slide {
+  animation: rise-slide 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--rise-delay, 0s);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

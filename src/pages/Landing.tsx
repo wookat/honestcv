@@ -452,13 +452,13 @@ export default function Landing() {
             }}
           />
           <div className="mx-auto max-w-3xl">
-          <Badge variant="secondary" className="animate-rise mb-4 gap-1">
+          <Badge variant="secondary" className="animate-rise-slide mb-4 gap-1">
             <Sparkles className="size-3" /> AI-powered. ATS-friendly. Free during beta.
           </Badge>
-          <h1 className="animate-rise text-4xl font-semibold tracking-tight [--rise-delay:60ms] sm:text-[3.4rem] sm:leading-[1.1]">
+          <h1 className="animate-rise-slide text-4xl font-semibold tracking-tight [--rise-delay:60ms] sm:text-[3.4rem] sm:leading-[1.1]">
             The AI resume builder that gets you <span className="underline decoration-emerald-500 decoration-4 underline-offset-4">interviews</span>
           </h1>
-          <p className="text-muted-foreground animate-rise mx-auto mt-5 max-w-2xl text-lg [--rise-delay:120ms]">
+          <p className="text-muted-foreground animate-rise-slide mx-auto mt-5 max-w-2xl text-lg [--rise-delay:120ms]">
             {freeMode ? (
               <>
                 Build an ATS-friendly resume in minutes with AI tailoring and a free
@@ -473,7 +473,7 @@ export default function Landing() {
               </>
             )}
           </p>
-          <div className="animate-rise mt-7 flex flex-col items-center justify-center gap-3 [--rise-delay:180ms] sm:flex-row">
+          <div className="animate-rise-slide mt-7 flex flex-col items-center justify-center gap-3 [--rise-delay:180ms] sm:flex-row">
             <Button asChild size="lg">
               <Link to="/builder">
                 Start free — no sign-up <ArrowRight />
