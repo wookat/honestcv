@@ -1061,3 +1061,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环源码实证缺口：Builder 备份 Restore 选中合法文件即无确认地替换当前简历并解绑副本，且不做强制前置检查点——recordResumeSnapshot 非 force 在 10 分钟窗口内早退，最近编辑可被不可恢复地丢弃（历史 Restore R397 早有此护栏）。方案 docs/plan-r401-backup-restore-guardrails.md。
 - 实现（仅 Builder.tsx）：文件解析后先 sanitizeResume（QA 发现的 P3：宽松校验放行错误字段类型文件会白屏崩溃，当轮修复）再入 pendingBackupRestore 确认框（Cancel 零写入）；确认时 recordResumeSnapshot(resume, true) 失败即出存储满 alert、对话框保持打开、草稿不动；成功才 linkVersion(null)+替换。
 - 本地 tsc/eslint/build 绿。生产 QA 两轮（Builder-C3EHbdNY.js → Builder-B2taxAOu.js）全绿零 P0–P3：确认框/Cancel 字节级零写入、绑定副本+新鲜编辑确认后强制检查点落盘且副本字节一致、零余量确认被拒且对话框留存、释放后同框重试成功、崩溃复现文件在新 bundle 下正常恢复（skills 强转字符串）、真实导出往返键级一致、无效文件拒绝、R400 工作区恢复回归、375 光暗、零 console 错误。
+
+## R402 — careerDocs 读侧净化（2026-08-31）
+- 闭环源码实证缺陷：listCareerDocs 的 `parsed.filter((d) => d.id && d.text)` 遇单个 null/非对象元素即在 filter 内抛异常被外层吞掉→返回 []（全部求职文档从 UI 消失），且任何 mutator（保存/改名/复制/删除）基于 [] 回写即永久销毁全部文档；错误字段类型也原样放行（非字符串 title 会打崩 UI/文件名代码）。resume/pipeline/libraries 早有读侧 coerce（R374 模式），careerDocs 是最后一个未净化的用户内容存储。方案 docs/plan-r402-careerdocs-sanitize.md。
+- 实现（仅 documents.ts）：sanitizeCareerDoc 逐元素 coerce（id/text 必须非空字符串否则丢弃；kind 限三值默认 cover；title 强转字符串；updatedAt 非有限数→0；signature 仅留非空字符串），listCareerDocs flatMap；读取零写入，修复随下次自然保存落盘。
+- oracle 10/10、tsc/lint/build 绿。生产 QA（index-xQfsXRHE.js / Dashboard-5qQr2lXy.js，零逃逸、基线还原）全绿零 P0–P3：损坏种子下 2 个幸存文档正常渲染（旧行为零文档，delta 已证）、纯读字节零写入、首次改名修复存储且好文档全文保留、R392 存储满/R388 文件名/查看器回归、375 光暗、零 console 错误。P4 观察：updatedAt=0 渲染 "Edited 20701 days ago"（可加 fallback 文案，银行）。
