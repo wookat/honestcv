@@ -1096,3 +1096,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环 R406 银行候选（生产实证）：R312 让 /jobs 搜索上下文可分享（含 ?job=<id>），R384 又铸 &job= 深链，但 mobileDetail 恒以 false 初始化——375×812 实测详情面板 display:none，手机上收到分享链接/刷新只见列表。bogus id 无需修（fetchJobs 已自动换选 list[0]）。方案 docs/plan-r407-mobile-job-deeplink.md。
 - 实现（一行，Jobs.tsx）：`mobileDetail` 以 `seedParams.get('job') !== null` 播种——深链等价于点击该行，既有 "Back to list" 返回列表；无参 /jobs 与桌面端零变化。
 - 本地 tsc/eslint(Jobs.tsx)/build 绿。生产 QA（Jobs-EGR7DlP0.js / index-BNZr2RzR.js，零 AI/lead/分享/支付逃逸、基线字节还原）全绿零 P0–P3：375 深链详情 block/列表 none+Back to list 还原、无参默认列表、bogus 自动修复选首个、桌面 1440 双面板、R384 cover 行/R394 管道写入/R406 ATS 示例回归、375 光暗零溢出、零 console 错误、零原生对话框。
+
+## R408 — SOP-10 四维审计 + 0% 匹配 next-step 文案（2026-08-31）
+- SOP-10 四维生产审计（R407 bundle）零 P0–P2：操作台（文件夹/批量+Undo/备份恢复/分享 scoping）、功能深度（历史恢复/R403 对话框/提醒/follow-up/targeted copy）、5 静态页 ×3 视口 ×2 主题+24 内链、健壮性（畸形存储/bogus 深链/配额满/失败 AI mock）全通过；全程零原生对话框（R403/R405 成果保持）。方案+triage：docs/plan-r408-sop10-audit.md。
+- 初报 P3「tailor 对话框显示原始错误体」按 R398 先例驳回：worker callLlm 把一切上游失败映射为友好 {error} 文案，真实生产产不出 "internal" 这类体（mock 伪影）。
+- 修复确证 P4（Jobs.tsx nextStep 一处）：targeted copy 关键词匹配为 0 时 next-step 由「Improve your targeted copy — 0% keyword match.」改为可行动文案「Your targeted copy doesn't use any of this job's keywords yet — open it and add a few.」；徽章与详情行的诚实数字不动。
+- 本地 tsc/eslint(Jobs.tsx)/build 绿。生产 QA（Jobs-DxpBX8V4.js，零逃逸、基线字节还原）全绿：0% 场景新句+Open targeted resume 直开副本、注入关键词后 13% 走旧句、R407 移动深链回归、375 光暗零溢出、零 console 错误。

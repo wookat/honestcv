@@ -543,7 +543,10 @@ export default function Jobs() {
     const match = tailoredMatchOf.get(job.id)
     if (match !== undefined && match < 80)
       return {
-        text: `Improve your targeted copy — ${match}% keyword match.`,
+        text:
+          match === 0
+            ? "Your targeted copy doesn't use any of this job's keywords yet — open it and add a few."
+            : `Improve your targeted copy — ${match}% keyword match.`,
         label: 'Open targeted resume',
         onClick: () => targetResume(job, 'target'),
       }
