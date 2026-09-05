@@ -1594,6 +1594,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R500 — /jobs 搜索词本地强制生效：不匹配即诚实零结果（2026-08-31）
+- 一手证据：直连 Remotive API 实测 `search`/`category`/`limit` 参数全部被忽略（search=kubernetes/qqqqqq/胡乱短语、limit=3、无参均返回同一 15 条列表）；生产 `/api/jobs/search?q=zzzunfindablequery` 因此返回 15 条不相关职位——搜索框静默失效，无诚实空态。category 已有本地 matchesCategory() 兜底，搜索词无对应本地强制。
+- 修复仅 worker/index.ts：新增 matchesQuery(tokens, haystack)——查询按空白分词、全小写、AND 语义、子串匹配，作用于 title/company/category/location/tags/完整描述；空查询保持原行为；缓存键 jobs:v5→v6 防旧未过滤 payload。上游参数保留（若恢复支持自动受益）。客户端零改动（Jobs.tsx 已有 "No jobs found — try another search term." 空态）。方案：docs/plan-r500-enforce-search-query.md。
+- 非目标：不加付费/替代 jobs API、不抓取外站、不做分页绕 15 条上限、不改 8000 字符截断、不改匹配/裁剪算法。
+- tsc/单查 eslint/build/verify-dist 绿（全仓 lint 红仅历史 .tmp-smoke 草稿）。部署照旧：worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：?q=zzzunfindablequery API 返回 0 条、UI 显示 "No jobs found" 空态；?q=engineer 返回 9 条且逐条验证 searchable text 含 engineer；多词 "senior react" AND 语义（5 条，react 命中于描述全文）；空查询照常 15 条；category=software-dev 回归正常（6 条全 Software Development）；R499 截断披露回归不受影响；零 console 错误。
+
 ## R499 — 保存/跟踪职位后诚实截断提示不再丢失（2026-08-31）
 - 一手证据（生产 CDP，job 2091068）：API 返回 descriptionTruncated:true、详情面板显示 R498 截断提示；点 Save 后 localStorage['honestcv.jobPipeline'] 条目里该键 MISSING（保存流程 upsertPipeline→prepareTargetedCopy→setPipelineVersion 立即经 listPipeline() 重写全表）；刷新后从 tracked 打开详情提示消失。Rezi 2026-08 changelog 恰有 "Improved Job Description Visibility … for tracked roles"。
 - 根因：src/lib/jobs.ts sanitizeEntry() 重建 JobListing 时复制 logo/tags 但不复制可选 descriptionTruncated，任何 pipeline 写路径都会剥掉该标志。

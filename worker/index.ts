@@ -384,6 +384,13 @@ const JOBS_KNOWN_LABELS = new Set(
   Object.values(JOBS_CATEGORIES).flat()
 )
 
+// Like the category label match above, the query is enforced here because the
+// upstream `search` parameter is not always honored: every whitespace token of
+// the query must appear somewhere in the job's searchable text.
+function matchesQuery(tokens: string[], haystack: string): boolean {
+  return tokens.every((t) => haystack.includes(t))
+}
+
 function matchesCategory(slug: string, label: string): boolean {
   const l = label.trim().toLowerCase()
   if (slug === 'all-others') return !JOBS_KNOWN_LABELS.has(l)
@@ -424,7 +431,7 @@ app.get('/api/jobs/search', async (c) => {
   const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
   const rawCategory = (c.req.query('category') ?? '').trim()
   const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
-  const cacheKey = `jobs:v5:${q.toLowerCase()}|${category}`
+  const cacheKey = `jobs:v6:${q.toLowerCase()}|${category}`
   const cached = await c.env.KV.get(cacheKey)
   if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
   const upstreamUrl = new URL('https://remotive.com/api/remote-jobs')
@@ -443,6 +450,7 @@ app.get('/api/jobs/search', async (c) => {
   const data = await upstream
     .json<{ jobs?: RemotiveJob[] }>()
     .catch(() => ({ jobs: [] as RemotiveJob[] }))
+  const qTokens = q.toLowerCase().split(/\s+/).filter(Boolean)
   const jobs = (data.jobs ?? [])
     .filter((j) => j.id && j.title && j.url)
     .filter((j) => !category || matchesCategory(category, j.category ?? ''))
@@ -460,6 +468,16 @@ app.get('/api/jobs/search', async (c) => {
       tags: normalizeTags(j.tags),
       ...truncateDescription(htmlToText(j.description ?? '')),
     }))
+    .filter(
+      (j) =>
+        qTokens.length === 0 ||
+        matchesQuery(
+          qTokens,
+          [j.title, j.company, j.category, j.location, ...j.tags, j.description]
+            .join('\n')
+            .toLowerCase()
+        )
+    )
   const payload = { jobs, source: 'remotive' }
   c.executionCtx.waitUntil(
     c.env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: JOBS_CACHE_TTL })
