@@ -961,6 +961,14 @@ export default function Jobs() {
                 })}
               </div>
             )}
+            {tab === 'all' && !loading && !error && (
+              <p
+                role="status"
+                className="text-muted-foreground border-b px-4 py-1.5 text-xs font-medium"
+              >
+                {shown.length} {shown.length === 1 ? 'job' : 'jobs'} found
+              </p>
+            )}
             {loading ? (
               <div aria-busy="true" className="animate-pulse">
                 <p className="sr-only">Loading jobs…</p>
