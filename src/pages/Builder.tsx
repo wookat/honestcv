@@ -898,6 +898,19 @@ export default function Builder() {
     }
     return r
   })
+  /** ?template=<id> pointed at no known template — dead deep link from an old page. */
+  const [templateNotFound, setTemplateNotFound] = useState(() => {
+    const wanted = new URLSearchParams(window.location.search).get('template')
+    return Boolean(wanted && !TEMPLATES.some((t) => t.id === wanted))
+  })
+  useEffect(() => {
+    if (!templateNotFound) return
+    const params = new URLSearchParams(window.location.search)
+    params.delete('template')
+    const rest = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   /** Every update passes through applyAutoSort so toggled-on sections stay filed;
    * a section is held in place while focus is inside one of its entry cards and
    * re-filed when the card blurs (commit-at-boundary, like Rezi's save). */
@@ -7940,6 +7953,28 @@ export default function Builder() {
             aria-label="Dismiss"
             className="text-muted-foreground hover:text-foreground"
             onClick={() => setExampleLoadFailed(false)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {templateNotFound && (
+        <div
+          role="alert"
+          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
+        >
+          <span className="min-w-0">
+            That template wasn't found — it may have been renamed or removed.
+          </span>
+          <Button type="button" size="sm" variant="outline" asChild>
+            <a href="/templates/">Browse templates</a>
+          </Button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setTemplateNotFound(false)}
           >
             <X className="size-4" />
           </button>
