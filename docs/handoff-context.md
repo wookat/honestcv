@@ -1051,3 +1051,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现（最小）：Dashboard.tsx 将 toggle 按钮包进 `<h2 className="contents">`（标准 disclosure 模式：heading 包 control，aria-expanded 留在按钮上）；`contents` 使按钮仍是行 flex 直接子项，布局字节不变；折叠/改名/删除逻辑零改动。
 - 本地：tsc、eslint(Dashboard.tsx)、build 全绿（仓库全量 lint 的 .tmp-smoke 历史错误依旧、与本轮无关）。
 - 生产 QA（Dashboard-DRg07npx.js / index-C_8_v3CI.js）：AX 树暴露 heading level=2 "Applications (2)"、heading 顺序正常、布局零偏移（h2 computed display:contents、rename/remove 同行 Δy=0）、grid+list、375 光暗、折叠持久/改名/删文件夹回归、零 console 错误、基线还原。QA 种子教训（数值时间戳等）已入测试 skill。
+
+## R400 — 一键全工作区备份/恢复（2026-08-31）
+- 闭环源码实证缺口：产品是纯浏览器本地存储，但编辑器 Backup 只序列化当前加载的 resume 对象——副本、求职文档、job 管道、11 个内容库、分享链接记录（撤销 token）等清浏览器即永久丢失，宣传的安全网只覆盖一小部分数据。方案 docs/plan-r400-workspace-backup.md。
+- 实现：新 src/lib/workspace.ts（exportWorkspace 快照全部 honestcv.* 原始字符串值为 rezup-workspace v1 JSON；parseWorkspaceBackup 严格校验；restoreWorkspace 先快照后替换、配额抛出即字节级回滚返回 false——诚实存储不变量）。设备域键双向排除：clientId（AI 配额身份）/license/subscribed/shared/firstSeen/qa/ev.*。Dashboard 头部 "Back up everything"+"Restore"（确认框 Replace and restore→reload；失败走既有 storage-full alert；无效文件行内 alert）。Builder 单简历备份不动。
+- 本地 tsc/eslint/build 绿。生产 QA 两轮（Dashboard-D5zeDivb.js / index-CvY8w-76.js）全绿零 P0–P3：导出字节级一致且零排除键、恢复字节级还原+清除多余工作区键+设备键不动、Cancel 零写入、无效文件拒绝、零余量恢复回滚字节一致+释放后成功、伪造 clientId 的备份导入侧被剥离、R399 h2/375 光暗回归、零 console 错误。QA 发现 clientId 初版随备份迁移（会转移配额身份），当轮加入 EXCLUDED 并复验。

@@ -27,7 +27,7 @@ New `src/lib/workspace.ts`:
   write the backup's keys; on any quota throw, roll the snapshot back and return
   `false` (honest-storage invariant: never claim success for a failed write).
 - Device-scoped/entitlement keys are excluded from both export and restore:
-  `license`, `subscribed`, `shared`, `firstSeen`, `qa`, `ev.*` — a backup must not
+  `clientId`, `license`, `subscribed`, `shared`, `firstSeen`, `qa`, `ev.*` — a backup must not
   move entitlements between browsers or clobber this device's flags.
 
 Dashboard header: replace the "use Backup in the editor" sentence with two inline

@@ -10,6 +10,7 @@ export const WORKSPACE_FORMAT = 'rezup-workspace'
 
 /** Device-scoped flags and entitlements never travel in a backup. */
 const EXCLUDED = new Set([
+  'honestcv.clientId',
   'honestcv.license',
   'honestcv.subscribed',
   'honestcv.shared',
