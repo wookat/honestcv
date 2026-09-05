@@ -212,9 +212,6 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   )
   const navigate = useNavigate()
   const { hash } = useLocation()
-  useEffect(() => {
-    if (hash) document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
-  }, [hash])
   const [versionsUnreadable, setVersionsUnreadable] = useState(() => stashUnreadableVersions())
   const [docsUnreadable, setDocsUnreadable] = useState(() => stashUnreadableDocs())
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
@@ -295,6 +292,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [linkedInOpen, setLinkedInOpen] = useState(false)
   const [examples, setExamples] = useState<ExampleEntry[]>([])
   const [examplesState, setExamplesState] = useState<'loading' | 'ready' | 'failed'>('loading')
+  // The samples heading only mounts once examples load, so the hash target can
+  // appear after the first run of this effect on a cold deep-linked load.
+  useEffect(() => {
+    if (hash) document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
+  }, [hash, examplesState])
   // On /samples the filters live in the query string so refresh/share keeps your place.
   const [seedParams] = useState(() =>
     section === 'samples' ? new URLSearchParams(window.location.search) : null
