@@ -1192,3 +1192,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证：/builder?template=<unknown-id>（落地页画廊+25 个静态 /templates/ 页深链落点）时 TEMPLATES.some 落空即静默保留当前模板——零反馈、死参数留在 URL；R425 的 ?example 姊妹缺口。方案：docs/plan-r426-template-notfound.md。
 - 修复仅 Builder.tsx：新增 templateNotFound 态（同参数在 state initializer 判定），底部 role=alert 条（"That template wasn't found — it may have been renamed or removed." + Browse templates 链 /templates/ + Dismiss），挂载时只剥死 template 参数（其余参数如有效 ?example 保留）；有效 template 路径与 R425 两条字节不变。
 - tsc/eslint/build 绿。生产 QA 全绿（Builder-B6aYg7pL.js）：bogus id 精确文案条+仅剥 template 参数+存储零写入、bogus template+有效 example 组合双正确（条显示且示例照常应用）、有效 metro 照常应用无条（参数留 URL 为既有行为）、纯 /builder 零条、R425 example 条回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R427 — Builder 底部状态条堆叠不再互相遮盖（2026-08-31）
+- 生产实证：/builder?template=bogus&example=bogus 时 R426 模板条与 R425 示例条渲染在完全相同的 fixed 位置（rect top=687 bottom=745 双双相同）——后渲染的条盖住前者的文案与按钮；Builder 六个底部状态条（存储满、示例拉取失败、模板 not-found、示例 not-found、跨标签更新、下载分享推广）共用同一 `fixed inset-x-4 bottom-16 z-50` 槽位，任意并发即互相遮盖。方案：docs/plan-r427-status-bar-stack.md。
+- 修复仅 Builder.tsx：一个 `pointer-events-none` 的 fixed flex-col 堆叠容器（inset-x-4 bottom-16 z-50 items-center gap-2 lg:bottom-4）承载全部六条；各条去掉自身 fixed/inset/bottom/z/mx-auto，加 `pointer-events-auto`（内容/role/文案/handler 字节不变）；shareOpen 推广块 JSX 移入容器。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-DceEvUzY.js）：双 bogus 参数两条垂直堆叠 8px 间距零重叠、独立 Dismiss、双参数剥离；单条位置与旧行为等价（lg:bottom-4）；容器空白带点击穿透到底层控件；metro/software-engineer/纯 /builder/R416 fetch 失败条+Try again 全回归；375 光暗双条堆叠零溢出；零 console 错误、零原生对话框、零逃逸、基线字节还原。未逐一实渲染存储满/跨标签/分享推广三条（需配额满/多标签/真实下载流），其堆叠由共用容器推定。部署照旧：上传成功、route auth code 10000。
