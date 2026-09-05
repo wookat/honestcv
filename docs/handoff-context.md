@@ -1233,6 +1233,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：useCountUp 重写为 rAF cubic ease-out 补间（API/reduced-motion 语义不变，调用方零改动），package.json 删除 motion 依赖。入口块 391→329.9KB（gzip 123.5→101.9KB，省 21.6KB 传输）。银行：fflate 88KB 经 extractFile 静态引入仍在入口（候选后续轮改上传时动态 import）。
 - tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：线上入口恰为新 chunk 且字节零 motion 代码（'framer' 命中仅 React 内部符号）、40ms 采样器实证主页 86 分环 0→…→86 约 900ms ease-out 补间、/builder 11 分环同、prefers-reduced-motion 仿真首帧即终值零中间值、四页零 console 错误零 CSP violation、R451（零 theme.js 请求、内联脚本、CSP 哈希、dark pre-paint）全回归、375 光暗零溢出、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R454 — 生产静态页全 404 事故恢复 + verify-dist 部署门禁（2026-09-05）
+- 生产实证：追查 R453 银行项 examples.json 404 发现事故——R453 部署后全部 ~120 个静态预渲染页（/pricing/、/templates/、/examples/*、/guides/* 等）与 examples.json 均 404，仅 SPA shell + assets 在线。根因（推断）：部署时 dist/client 只含 vite 产物（vite build 清空 dist、prerender/build-seo 未生效），wrangler 按 dist 现状整体替换 asset manifest。方案：docs/plan-r454-verify-dist-deploy-gate.md。
+- 恢复：09-05 12:30 完整 `npm run build && wrangler deploy`（299 files），全部路由复验 200/404 正确。
+- 门禁：新增 scripts/verify-dist.mjs（sitemap 驱动：核心文件存在、≥100 URL、每个非 SPA sitemap 页有 index.html），接入 `npm run deploy`（build → verify → wrangler deploy）。已实测负例（vite-only dist 退出码 1）与正例（123 URL OK）。wrangler.jsonc `build.command` 钩子不可行：Cloudflare vite 插件 redirected config 剥掉 `build` 键（负例 dry-run 实证不执行）。铁律：部署只走 `npm run deploy`；部署后 curl 抽查至少一个静态页。
+- tsc/eslint/build 绿；`npm run deploy` 全链成功（route auth code 10000 照旧）。
+
 ## R453 — fflate 改为 .docx 上传时懒加载（2026-08-31）
 - 生产实证：R452 后 Lighthouse 主页 perf 88 / TBT 130ms，首要余项仍是 unused-javascript（入口 104.5KB 传输、~47.5KB 未用）。fflate（unzipSync/strFromU8）全仓唯一静态引用在 src/lib/extractFile.ts，只被 extractDocx() 用到——即仅当用户真的上传 .docx 才需要，但因四个页面静态引 extractFile 而被打进每个访客首绘前的入口块。方案：docs/plan-r453-lazy-fflate.md。
 - 修复一行：extractDocx() 内 `await import('fflate')`（与既有 pdfjs 懒加载同款），调用方/API/依赖零改动。入口 329.9→324.4KB（gzip 101.9→99.1KB）；fflate 成独立 browser-*.js 懒块（5.5KB，88KB sourcemap 数字是含注释源码、压缩 tree-shake 后仅此）。

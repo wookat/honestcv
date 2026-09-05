@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build && node scripts/prerender.mjs && node scripts/build-seo.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler deploy"
+    "verify-dist": "node scripts/verify-dist.mjs",
+    "deploy": "npm run build && node scripts/verify-dist.mjs && wrangler deploy"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.9.1",
