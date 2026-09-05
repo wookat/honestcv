@@ -2586,15 +2586,15 @@ export default function Builder() {
             <div className="grid gap-3 sm:grid-cols-2">
               {(
                 [
-                  ['fullName', 'Full name', 'Jordan Reyes'],
-                  ['title', 'Professional title', 'Software Engineer'],
-                  ['email', 'Email', 'you@email.com'],
-                  ['phone', 'Phone', '(555) 210-4432'],
-                  ['location', 'Location', 'Austin, TX'],
-                  ['website', 'Website (optional)', 'yoursite.com'],
-                  ['linkedin', 'LinkedIn (optional)', 'linkedin.com/in/you'],
+                  ['fullName', 'Full name', 'Jordan Reyes', 'name', undefined],
+                  ['title', 'Professional title', 'Software Engineer', 'organization-title', undefined],
+                  ['email', 'Email', 'you@email.com', 'email', 'email'],
+                  ['phone', 'Phone', '(555) 210-4432', 'tel', 'tel'],
+                  ['location', 'Location', 'Austin, TX', undefined, undefined],
+                  ['website', 'Website (optional)', 'yoursite.com', 'url', 'url'],
+                  ['linkedin', 'LinkedIn (optional)', 'linkedin.com/in/you', undefined, 'url'],
                 ] as const
-              ).map(([key, label, ph]) => {
+              ).map(([key, label, ph, autoComplete, inputMode]) => {
                 const hideable = (HIDEABLE_CONTACT_FIELDS as string[]).includes(key)
                 const fieldHidden =
                   hideable && (resume.hiddenContact ?? []).includes(key as HideableContactField)
@@ -2646,6 +2646,8 @@ export default function Builder() {
                     <Input
                       id={`c-${key}`}
                       placeholder={ph}
+                      autoComplete={autoComplete}
+                      inputMode={inputMode}
                       value={resume.contact[key]}
                       onChange={(e) => setContact(key, e.target.value)}
                       onKeyDown={key === 'fullName' ? markShortcutKeyDown : undefined}

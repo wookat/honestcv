@@ -1177,3 +1177,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - SOP-10 四维生产扫描（六页标题/alt/按钮命名/重复 id/lang）唯一缺口：/builder 大量可见表单字段唯一"名称"是 placeholder（WCAG 1.3.1/4.1.2——输入后 placeholder 消失、读屏无名）。方案：docs/plan-r423-builder-field-labels.md。
 - 三轮收敛：①默认态 7 字段+日期对（MonthYearField 新增 ariaLabel prop 透传内层 Input）；②QA 挂载可选 section 后揪出 12 个残留，静态扫描扩到全部——Projects/Involvement/Military/Coursework/Awards/Publications/References/Agents/Certifications/自定义 section 的全部文本域与 textarea、导入粘贴框、生成信结果框（共 ~44 处 aria-label，纯属性零视觉变更）；③Import 对话框 Share link or share ID 输入框。
 - tsc/eslint/build 绿。生产 QA 全绿（Builder-Cc_mvfKF.js）：UI 逐个挂载全部可选 section + 打开 Import 对话框后 unlabeled 探针归零、AX 计算名逐项确认（Course name/Certificate name/Reference email/Share link or share ID 等）、placeholder 与视觉零变化、日期 picker 行为不变、R421 skip link 回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R424 — Builder 联系方式卡补 input purpose（2026-08-31）
+- 生产实证：联系方式卡七个输入框全无 autocomplete/inputMode（WCAG 1.3.5 AA，浏览器无法自动填充本人姓名/邮箱/电话，移动端弹通用键盘）；References/Paywall 邮箱早已 type=email，唯独最高频的联系卡漏掉。方案：docs/plan-r424-contact-input-purpose.md。
+- 修复仅 Builder.tsx 联系卡：元组扩展 per-field autocomplete/inputMode（name / organization-title / email+email / tel+tel / url+url / linkedin 仅 inputmode=url / location 不动），type 保持 text，纯属性零视觉变更。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-CVVuDPG6.js）：七字段属性逐一精确、输入持久化往返不变、视觉零差异、R423 unlabeled 探针仍归零、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
