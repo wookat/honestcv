@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { KeyRound, Loader2, Lock, Mail, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,8 @@ import {
   openCheckout,
   submitLead,
 } from '@/lib/checkout'
+
+export { useFreeMode } from '@/lib/freeMode'
 
 /** Overlay checkout button: claims the license after payment */
 export function CheckoutButton({
@@ -188,24 +190,6 @@ export function LeadDialog({
       </DialogContent>
     </Dialog>
   )
-}
-
-/** Launch/traffic mode: server flag making downloads free */
-export function useFreeMode() {
-  const [freeMode, setFreeMode] = useState(false)
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/billing/status')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { freeMode?: boolean } | null) => {
-        if (!cancelled && d?.freeMode === true) setFreeMode(true)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [])
-  return freeMode
 }
 
 const SUBSCRIBED_KEY = 'honestcv.subscribed'
