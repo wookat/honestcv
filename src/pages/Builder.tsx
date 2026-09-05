@@ -7912,12 +7912,14 @@ export default function Builder() {
         ))}
       </div>
 
-      {storageAlert && (
-        <div
-          role="alert"
-          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
-        >
-          <span className="min-w-0">{storageAlert}</span>
+      {/* Bottom status bars stack so concurrent notices stay readable */}
+      <div className="pointer-events-none fixed inset-x-4 bottom-16 z-50 flex flex-col items-center gap-2 lg:bottom-4">
+        {storageAlert && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">{storageAlert}</span>
           <button
             type="button"
             aria-label="Dismiss"
@@ -7926,112 +7928,163 @@ export default function Builder() {
           >
             <X className="size-4" />
           </button>
-        </div>
-      )}
+          </div>
+        )}
 
-      {exampleLoadFailed && (
-        <div
-          role="alert"
-          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
-        >
-          <span className="min-w-0">
-            Loading the example resume failed — check your connection and try again.
-          </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setExampleLoadFailed(false)
-              setExampleLoadAttempt((n) => n + 1)
-            }}
+        {exampleLoadFailed && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
           >
-            Try again
-          </Button>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => setExampleLoadFailed(false)}
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+            <span className="min-w-0">
+              Loading the example resume failed — check your connection and try again.
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setExampleLoadFailed(false)
+                setExampleLoadAttempt((n) => n + 1)
+              }}
+            >
+              Try again
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setExampleLoadFailed(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
 
-      {templateNotFound && (
-        <div
-          role="alert"
-          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
-        >
-          <span className="min-w-0">
-            That template wasn't found — it may have been renamed or removed.
-          </span>
-          <Button type="button" size="sm" variant="outline" asChild>
-            <a href="/templates/">Browse templates</a>
-          </Button>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => setTemplateNotFound(false)}
+        {templateNotFound && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
           >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+            <span className="min-w-0">
+              That template wasn't found — it may have been renamed or removed.
+            </span>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <a href="/templates/">Browse templates</a>
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setTemplateNotFound(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
 
-      {exampleNotFound && (
-        <div
-          role="alert"
-          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
-        >
-          <span className="min-w-0">
-            This example resume wasn't found — it may have been renamed or removed.
-          </span>
-          <Button type="button" size="sm" variant="outline" asChild>
-            <a href="/examples/">Browse examples</a>
-          </Button>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => setExampleNotFound(false)}
+        {exampleNotFound && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
           >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+            <span className="min-w-0">
+              This example resume wasn't found — it may have been renamed or removed.
+            </span>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <a href="/examples/">Browse examples</a>
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setExampleNotFound(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
 
-      {externalUpdate && (
-        <div
-          role="status"
-          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
-        >
-          <span className="min-w-0">This resume was changed in another tab.</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              const latest = loadResume()
-              if (latest) setResume(latest)
-              setExternalUpdate(false)
-            }}
+        {externalUpdate && (
+          <div
+            role="status"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
           >
-            <RefreshCw className="size-4" />
-            Load latest
-          </Button>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => setExternalUpdate(false)}
+            <span className="min-w-0">This resume was changed in another tab.</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const latest = loadResume()
+                if (latest) setResume(latest)
+                setExternalUpdate(false)
+              }}
+            >
+              <RefreshCw className="size-4" />
+              Load latest
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setExternalUpdate(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {shareOpen && (
+          <div
+            role="status"
+            className="bg-background pointer-events-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-lg border p-3 text-sm shadow-lg"
           >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+            <span className="min-w-0">
+              Resume downloaded — if RezUp helped, pass the free ATS checker to a
+              friend.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void navigator.clipboard
+                  .writeText('https://cv.zalize.com/ats-checker')
+                  .then(() => setShareCopied(true))
+              }}
+            >
+              {shareCopied ? 'Copied!' : 'Copy checker link'}
+            </Button>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Free ATS resume checker — no signup, runs in your browser: https://cv.zalize.com/ats-checker')}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Share on X
+              </a>
+            </Button>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <a
+                href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcv.zalize.com%2Fats-checker"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Share on LinkedIn
+              </a>
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setShareOpen(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+      </div>
 
       <SiteFooter />
 
@@ -8841,55 +8894,6 @@ export default function Builder() {
           )}
         </DialogContent>
       </Dialog>
-      {shareOpen && (
-        <div
-          role="status"
-          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
-        >
-          <span className="min-w-0">
-            Resume downloaded — if RezUp helped, pass the free ATS checker to a
-            friend.
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void navigator.clipboard
-                .writeText('https://cv.zalize.com/ats-checker')
-                .then(() => setShareCopied(true))
-            }}
-          >
-            {shareCopied ? 'Copied!' : 'Copy checker link'}
-          </Button>
-          <Button type="button" variant="outline" size="sm" asChild>
-            <a
-              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Free ATS resume checker — no signup, runs in your browser: https://cv.zalize.com/ats-checker')}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Share on X
-            </a>
-          </Button>
-          <Button type="button" variant="outline" size="sm" asChild>
-            <a
-              href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcv.zalize.com%2Fats-checker"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Share on LinkedIn
-            </a>
-          </Button>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => setShareOpen(false)}
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
       <Dialog open={shareLinkOpen} onOpenChange={setShareLinkOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
