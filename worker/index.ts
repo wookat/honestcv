@@ -1834,10 +1834,22 @@ function applyRoutePreload(html: string, path: string): string {
   const preload = new RegExp(
     `[^\\S\\n]*<link rel="modulepreload" href="/assets/${fallback.replace(/[.[\]$()*+?^{|}\\]/g, '\\$&')}" \\/>\\n?`
   )
-  return typeof chunk === 'string'
-    ? html.replace(preload, (tag) => tag.replace(/href="[^"]+"/, `href="/assets/${chunk}"`))
-    : html.replace(preload, '')
+  const out =
+    typeof chunk === 'string'
+      ? html.replace(preload, (tag) => tag.replace(/href="[^"]+"/, `href="/assets/${chunk}"`))
+      : html.replace(preload, '')
+  // These routes fetch the example library on mount; preloading it from the HTML
+  // takes the 16KB JSON off the JS-execution critical chain. crossorigin matches
+  // window.fetch() (mode cors, same-origin credentials) so the preload is reused.
+  return EXAMPLES_PRELOAD_ROUTES.has(path)
+    ? out.replace(
+        '</head>',
+        '    <link rel="preload" href="/examples/examples.json" as="fetch" crossorigin="anonymous" />\n  </head>'
+      )
+    : out
 }
+
+const EXAMPLES_PRELOAD_ROUTES = new Set(['/builder', '/dashboard', '/documents', '/samples'])
 
 app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {
