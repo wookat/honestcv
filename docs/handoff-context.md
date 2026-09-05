@@ -1555,3 +1555,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 一手证据（生产 CDP）：首页滚到 8000px 点 footer /jobs → 落地 scrollY=544；/jobs 底部点 "My resumes" → /dashboard 停在 544；/samples → /builder 停在 819。React Router library 模式不重置 push/replace 滚动，App.tsx 无任何处理；history.back() 的浏览器原生恢复（POP）今天是正确的。方案：docs/plan-r489-scroll-reset.md。
 - 修复仅 App.tsx：新增 ScrollReset（useLocation+useNavigationType），pathname 变化且非 POP 且无 hash 时 scrollTo(0,0)；POP 不动（保浏览器原生恢复）、hash 不动（Dashboard 自己 scrollIntoView）、同路由 query 变化不滚顶（deps 仅 pathname，带 eslint disable 注释）。
 - tsc/eslint/build/verify-dist 绿。
+
+## R490 — 冷加载 /dashboard#samples 深链滚动到目标区（2026-09-05）
+- 一手证据（生产 CDP，全新 tab 冷加载）：/dashboard#samples 落地后 scrollY 恒为 0（250ms 采样 7s），#samples 目标在 901px 且存在；~300ms 注入的 scrollIntoView 拦截器记录到零调用——滚动从未发生而非被撤销。同文档 hash 切换一直正常（R489 QA 已证）。
+- 根因：Dashboard.tsx 的 hash 滚动 effect deps 仅 [hash]，而 `<h2 id="samples">` 只在异步 examples.json 加载完成（examples.length > 0）后才挂载；冷载时 effect 先跑、querySelector 得 null、hash 不再变化故永不重试；浏览器原生 hash 滚动也因锚点当时不存在而失效。方案：docs/plan-r490-dashboard-hash-coldload.md。
+- 修复仅 Dashboard.tsx：hash effect 移到 examplesState 声明之后，deps 改为 [hash, examplesState]——'loading'→'ready' 转换重跑 effect 补上滚动；目标已存在的路径（同文档切换、#documents）行为不变；无 hash 不滚动。
+- tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（全新 tab）：冷载 #samples 落 821（901−80 scroll-mt-20）、冷载 #documents 落 445、无 hash 停 0；同文档 #documents/#samples 切换 445/821；R489 回归——滚 600 后 push 到 /jobs 落 0、POP back 恢复 /dashboard#samples 821；375 光暗零溢出；零 console 错误/警告/未捕获 rejection。
