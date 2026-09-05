@@ -165,11 +165,20 @@ export function revokeShareLinksFor(scopes: readonly ShareScope[]): void {
   }
 }
 
-/** Fetch a shared resume snapshot; null when the link is gone. */
+/** Fetch a shared resume snapshot; null when the link is gone. Network
+ *  failures and server errors throw — they are not evidence of revocation. */
 export async function fetchSharedResume(
   id: string
 ): Promise<{ resume: Resume; createdAt: number } | null> {
-  const res = await fetch(`/api/share/${encodeURIComponent(id)}`)
+  let res: Response
+  try {
+    res = await fetch(`/api/share/${encodeURIComponent(id)}`)
+  } catch {
+    throw new Error('Loading the resume failed — check your connection and try again.')
+  }
+  if (res.status >= 500) {
+    throw new Error(`Loading the resume failed (${res.status}). Try again.`)
+  }
   if (!res.ok) return null
   const data = (await res.json().catch(() => null)) as {
     resume?: unknown
