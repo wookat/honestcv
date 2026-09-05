@@ -27,6 +27,7 @@ import {
   GripVertical,
   HeartPulse,
   History,
+  Keyboard,
   LayoutGrid,
   LayoutTemplate,
   RefreshCw,
@@ -1320,6 +1321,17 @@ export default function Builder() {
     })
   const { undo, canUndo, redo, canRedo } = useUndo(resume, setResume)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return
+      if (e.key !== '/') return
+      e.preventDefault()
+      setShortcutsOpen((o) => !o)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const [expLibrary, setExpLibrary] = useState<SavedExperience[]>(() => listExperienceLibrary())
   const [expLibraryOpen, setExpLibraryOpen] = useState(false)
   const [expLibrarySavedId, setExpLibrarySavedId] = useState<string | null>(null)
@@ -2133,6 +2145,15 @@ export default function Builder() {
               className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8"
             >
               <History className="size-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShortcutsOpen(true)}
+              title="Keyboard shortcuts (Ctrl+/)"
+              className="hidden min-h-10 min-w-10 lg:inline-flex lg:min-h-8 lg:min-w-8"
+            >
+              <Keyboard className="size-3.5" />
             </Button>
             <Button
               ref={assistantButtonRef}
@@ -8314,6 +8335,7 @@ export default function Builder() {
         onJump={jumpToSection}
         onJumpEntry={jumpToEntry}
       />
+      <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       {historyOpen && (
         <HistoryDialog
           resume={resume}
@@ -11547,6 +11569,41 @@ function snapshotChanges(snap: Resume, current: Resume): string[] {
     }
   }
   return changes
+}
+
+function ShortcutsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const mod = /Mac|iP/.test(navigator.platform) ? '⌘' : 'Ctrl'
+  const rows: [string, string][] = [
+    ['Save now', `${mod}+S`],
+    ['Undo', `${mod}+Z`],
+    ['Redo', `${mod}+Shift+Z or ${mod}+Y`],
+    ['Bold (in a text field)', `${mod}+B`],
+    ['Italic (in a text field)', `${mod}+I`],
+    ['Underline (in a text field)', `${mod}+U`],
+    ['Link (in a text field)', `${mod}+K`],
+    ['Close panel or menu', 'Esc'],
+    ['Show these shortcuts', `${mod}+/`],
+  ]
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Keyboard shortcuts</DialogTitle>
+          <DialogDescription>Shortcuts available while editing in the builder.</DialogDescription>
+        </DialogHeader>
+        <ul className="space-y-1">
+          {rows.map(([label, keys]) => (
+            <li key={label} className="flex items-center justify-between gap-3 py-1 text-sm">
+              <span>{label}</span>
+              <kbd className="bg-muted text-muted-foreground shrink-0 rounded border px-1.5 py-0.5 font-mono text-xs">
+                {keys}
+              </kbd>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 /** Automatic checkpoints of the draft — restore rolls the builder back;
