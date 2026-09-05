@@ -1218,3 +1218,7 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（CDP）：R430 后原始 HTML 已每路由正确，但客户端导航后 head 自相矛盾——canonical/title/description 跟随当前路由，og:url/og:title/og:description 仍停在入口路由（/builder 进入→导航 /jobs，og:url 仍 /builder）。R429 QA 银行项确证。方案：docs/plan-r431-clientnav-og-meta.md。
 - 修复仅客户端两处：CanonicalSync（App.tsx）同步 og:url；usePageMeta（Layout.tsx）同步 og:title/og:description。worker 原始 shell 重写不动。
 - tsc/eslint/build 绿。生产 QA 全绿：/builder→/jobs→/dashboard→/documents 每步六标签全一致且与 R430 shell 文案字节相同、/ats-checker 直载水合零闪变、主页往返还原、curl 原始 HTML R429/R430 回归、/nope-xyz 仍 404、375 光暗零溢出、零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+## R432 — 分享链接 /s/<id> 原始 HTML 以候选人身份 unfurl（2026-09-05）
+- 生产实证：notFound 里 live 分享页 body 用未改写的 shell——粘到 Slack/微信/LinkedIn 的分享链接 unfurl 成主页营销文案（"RezUp — AI Resume Builder…"、og:url=主页），而快照本来就在 shareLive 检查那次 KV 读里。方案：docs/plan-r432-share-unfurl-meta.md。
+- 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
+- tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
