@@ -1423,8 +1423,32 @@ export interface ResumeSnapshot {
 }
 
 const HISTORY_KEY = 'honestcv.resumeHistory'
+const HISTORY_BACKUP_KEY = 'honestcv.resumeHistory.unreadable'
 const HISTORY_MAX = 15
 const HISTORY_MIN_GAP_MS = 10 * 60 * 1000
+
+/**
+ * When the stored edit history exists but cannot be read at all (corrupted
+ * JSON or not an array), preserve the raw value under a backup key before any
+ * write can overwrite it. Returns true when the stored history is unreadable.
+ */
+export function stashUnreadableHistory(): boolean {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    if (raw === null) return false
+    try {
+      if (Array.isArray(JSON.parse(raw))) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    if (localStorage.getItem(HISTORY_BACKUP_KEY) === null) {
+      localStorage.setItem(HISTORY_BACKUP_KEY, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
 
 export function listResumeHistory(): ResumeSnapshot[] {
   try {
@@ -1445,6 +1469,7 @@ export function listResumeHistory(): ResumeSnapshot[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistHistory(snapshots: ResumeSnapshot[]): boolean {
   try {
+    stashUnreadableHistory()
     localStorage.setItem(HISTORY_KEY, JSON.stringify(snapshots.slice(0, HISTORY_MAX)))
     return true
   } catch {
