@@ -2732,6 +2732,7 @@ export default function Builder() {
           <Section title="Summary" icon={<FileText className="size-4" />} anchor="summary">
             <Textarea
               rows={3}
+              aria-label="Professional summary"
               placeholder="2-3 sentences: who you are, years of experience, biggest strengths and wins."
               value={resume.summary}
               onChange={(e) => set('summary', e.target.value)}
@@ -3099,6 +3100,7 @@ export default function Builder() {
                       />
                       <MonthYearField
                         allowPresent
+                        ariaLabel="End date"
                         placeholder="End (Present)"
                         value={e.endDate}
                         onChange={(v) => setExp(e.id, { endDate: v })}
@@ -3506,6 +3508,7 @@ export default function Builder() {
                     />
                     <MonthYearField
                       allowPresent
+                      ariaLabel="End date"
                       placeholder="End (2021)"
                       value={e.endDate}
                       onChange={(v) =>
@@ -3522,6 +3525,7 @@ export default function Builder() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
+                    aria-label="GPA (optional)"
                     placeholder="GPA (3.8/4.0 — optional)"
                     value={e.gpa ?? ''}
                     onChange={(ev) =>
@@ -3534,6 +3538,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="Minor (optional)"
                     placeholder="Minor (Mathematics — optional)"
                     value={e.minor ?? ''}
                     onChange={(ev) =>
@@ -3548,6 +3553,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <Input
+                    aria-label="Education details (optional)"
                     placeholder="Details (honors, thesis — optional)"
                     onKeyDown={markShortcutKeyDown}
                     value={e.details}
@@ -3876,6 +3882,7 @@ export default function Builder() {
                   <>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Project name"
                     placeholder="Project name"
                     onKeyDown={markShortcutKeyDown}
                     value={p.name}
@@ -3889,6 +3896,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="Project link (optional)"
                     placeholder="Link (optional)"
                     value={p.link}
                     onChange={(ev) =>
@@ -3903,6 +3911,7 @@ export default function Builder() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
+                    aria-label="Organization (optional)"
                     placeholder="Organization (optional)"
                     onKeyDown={markShortcutKeyDown}
                     value={p.org ?? ''}
@@ -3917,6 +3926,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      ariaLabel="Start date"
                       placeholder="Start (2024)"
                       value={p.startDate ?? ''}
                       onChange={(v) =>
@@ -3930,6 +3940,7 @@ export default function Builder() {
                     />
                     <MonthYearField
                       allowPresent
+                      ariaLabel="End date"
                       placeholder="End"
                       value={p.endDate ?? ''}
                       onChange={(v) =>
@@ -3945,6 +3956,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <LintedTextarea
+                    aria-label="Project description"
                     rows={2}
                     placeholder="What it does and your impact"
                     value={p.description}
@@ -4209,6 +4221,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Role"
                     placeholder="Role (e.g. Selected Member)"
                     onKeyDown={markShortcutKeyDown}
                     value={inv.role}
@@ -4222,6 +4235,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="Organization"
                     placeholder="Organization"
                     onKeyDown={markShortcutKeyDown}
                     value={inv.organization}
@@ -4237,6 +4251,7 @@ export default function Builder() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
+                    aria-label="College or city (optional)"
                     placeholder="College or city (optional)"
                     value={inv.location}
                     onChange={(ev) =>
@@ -4250,6 +4265,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      ariaLabel="Start date"
                       placeholder="Start (2024)"
                       value={inv.startDate}
                       onChange={(v) =>
@@ -4263,6 +4279,7 @@ export default function Builder() {
                     />
                     <MonthYearField
                       allowPresent
+                      ariaLabel="End date"
                       placeholder="End"
                       value={inv.endDate}
                       onChange={(v) =>
@@ -4278,6 +4295,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <LintedTextarea
+                    aria-label="Involvement description"
                     rows={2}
                     placeholder="What you did there — one bullet per line"
                     value={inv.description}
@@ -4629,6 +4647,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Course name"
                     placeholder="Course name (e.g. Intro to Computer Systems)"
                     onKeyDown={markShortcutKeyDown}
                     value={cw.name}
@@ -4643,6 +4662,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-[1fr_5rem] gap-2">
                     <Input
+                      aria-label="Where (school or platform)"
                       placeholder="Where (school or platform)"
                       onKeyDown={markShortcutKeyDown}
                       value={cw.institution}
@@ -4656,6 +4676,7 @@ export default function Builder() {
                       }
                     />
                     <Input
+                      aria-label="When"
                       placeholder="When"
                       value={cw.date}
                       onChange={(ev) =>
@@ -4670,6 +4691,7 @@ export default function Builder() {
                   </div>
                 </div>
                 <Input
+                  aria-label="Skills used (optional)"
                   placeholder="Skills used (optional, up to 3 — e.g. Teamwork, SQL)"
                   onKeyDown={markShortcutKeyDown}
                   value={cw.skill}
@@ -4689,6 +4711,7 @@ export default function Builder() {
                 )}
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
+                    aria-label="How you applied it"
                     rows={2}
                     placeholder="How you applied it — one bullet per line"
                     onKeyDown={markShortcutKeyDown}
@@ -4907,6 +4930,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Award name"
                     placeholder="Award name (e.g. Dean's List)"
                     onKeyDown={markShortcutKeyDown}
                     value={a.name}
@@ -4921,6 +4945,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-[1fr_5rem] gap-2">
                     <Input
+                      aria-label="Awarded by"
                       placeholder="Awarded by (organization)"
                       onKeyDown={markShortcutKeyDown}
                       value={a.organization}
@@ -4934,6 +4959,7 @@ export default function Builder() {
                       }
                     />
                     <Input
+                      aria-label="When"
                       placeholder="When"
                       value={a.date}
                       onChange={(ev) =>
@@ -4949,6 +4975,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
+                    aria-label="Why it's relevant"
                     rows={2}
                     placeholder="Why it's relevant — one bullet per line"
                     onKeyDown={markShortcutKeyDown}
@@ -5178,6 +5205,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Publication title"
                     placeholder="Publication title"
                     onKeyDown={markShortcutKeyDown}
                     value={pub.title}
@@ -5192,6 +5220,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-[1fr_5rem] gap-2">
                     <Input
+                      aria-label="Journal or conference"
                       placeholder="Journal / conference"
                       onKeyDown={markShortcutKeyDown}
                       value={pub.venue}
@@ -5205,6 +5234,7 @@ export default function Builder() {
                       }
                     />
                     <Input
+                      aria-label="When"
                       placeholder="When"
                       value={pub.date}
                       onChange={(ev) =>
@@ -5218,6 +5248,7 @@ export default function Builder() {
                     />
                   </div>
                   <Input
+                    aria-label="Publication type"
                     placeholder="Type — e.g. Journal Article"
                     onKeyDown={markShortcutKeyDown}
                     list="publication-kinds"
@@ -5234,6 +5265,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
+                    aria-label="Additional information"
                     rows={2}
                     placeholder="Additional information — one bullet per line"
                     onKeyDown={markShortcutKeyDown}
@@ -5458,6 +5490,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Reference full name"
                     placeholder="Full name"
                     onKeyDown={markShortcutKeyDown}
                     value={ref.name}
@@ -5472,6 +5505,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <Input
+                      aria-label="Reference job title"
                       placeholder="Job title"
                       onKeyDown={markShortcutKeyDown}
                       value={ref.title}
@@ -5485,6 +5519,7 @@ export default function Builder() {
                       }
                     />
                     <Input
+                      aria-label="Reference employer"
                       placeholder="Employer"
                       onKeyDown={markShortcutKeyDown}
                       value={ref.employer}
@@ -5501,6 +5536,7 @@ export default function Builder() {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Reference email"
                     type="email"
                     placeholder="Email"
                     value={ref.email}
@@ -5514,6 +5550,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="Reference phone"
                     placeholder="Phone"
                     value={ref.phone}
                     onChange={(ev) =>
@@ -5751,6 +5788,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Rank or position"
                     placeholder="Rank or position (e.g. Sergeant)"
                     onKeyDown={markShortcutKeyDown}
                     value={m.rank}
@@ -5764,6 +5802,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="Branch"
                     placeholder="Branch (e.g. Army)"
                     onKeyDown={markShortcutKeyDown}
                     value={m.branch}
@@ -5779,6 +5818,7 @@ export default function Builder() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
+                    aria-label="Stationed at"
                     placeholder="Stationed at (e.g. Fort Bragg, NC)"
                     onKeyDown={markShortcutKeyDown}
                     value={m.location}
@@ -5793,6 +5833,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      ariaLabel="Start date"
                       placeholder="Start (2020)"
                       value={m.startDate}
                       onChange={(v) =>
@@ -5806,6 +5847,7 @@ export default function Builder() {
                     />
                     <MonthYearField
                       allowPresent
+                      ariaLabel="End date"
                       placeholder="End"
                       value={m.endDate}
                       onChange={(v) =>
@@ -5821,6 +5863,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
+                    aria-label="Responsibilities and accomplishments"
                     rows={2}
                     placeholder="Responsibilities and accomplishments — one bullet per line"
                     onKeyDown={markShortcutKeyDown}
@@ -5943,6 +5986,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Agent name"
                     placeholder="Agent name, e.g. Support Triage Agent"
                     onKeyDown={markShortcutKeyDown}
                     value={a.name}
@@ -5956,6 +6000,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="When built"
                     placeholder="When built, e.g. 2026"
                     value={a.date}
                     onChange={(ev) =>
@@ -5969,6 +6014,7 @@ export default function Builder() {
                   />
                 </div>
                 <Input
+                  aria-label="Skills used"
                   placeholder="Skills used, e.g. Task Automation, Workflow Management"
                   onKeyDown={markShortcutKeyDown}
                   value={a.skills}
@@ -5983,6 +6029,7 @@ export default function Builder() {
                 />
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
+                    aria-label="How building the agent was relevant"
                     rows={2}
                     placeholder="How building the agent was relevant — one bullet per line"
                     onKeyDown={markShortcutKeyDown}
@@ -6325,6 +6372,7 @@ export default function Builder() {
                   )}
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Input
+                      aria-label="Certificate name"
                       placeholder="Certificate name (AWS Solutions Architect)"
                       onKeyDown={markShortcutKeyDown}
                       value={c.name}
@@ -6339,6 +6387,7 @@ export default function Builder() {
                     />
                     <div className="grid grid-cols-[1fr_auto] gap-2">
                       <Input
+                        aria-label="Issuer"
                         placeholder="Issuer (Amazon Web Services)"
                         onKeyDown={markShortcutKeyDown}
                         value={c.issuer}
@@ -6352,6 +6401,7 @@ export default function Builder() {
                         }
                       />
                       <Input
+                        aria-label="When"
                         className="w-24"
                         placeholder="2024"
                         value={c.date}
@@ -6368,6 +6418,7 @@ export default function Builder() {
                   </div>
                   <div className="flex items-start justify-between gap-2">
                     <Textarea
+                      aria-label="How it's relevant (optional)"
                       rows={2}
                       placeholder="How it's relevant (optional)"
                       onKeyDown={markShortcutKeyDown}
@@ -6589,6 +6640,7 @@ export default function Builder() {
               <div key={s.id} className="space-y-2 rounded-lg border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <Input
+                    aria-label="Section title"
                     placeholder="Section title (e.g. Volunteering)"
                     onKeyDown={markShortcutKeyDown}
                     value={s.title}
@@ -6619,6 +6671,7 @@ export default function Builder() {
                   </Button>
                 </div>
                 <Textarea
+                  aria-label="Section entries, one per line"
                   rows={3}
                   placeholder={'One entry per line, e.g.\nVolunteer mentor, Code for Austin (2023 – Present)\nSpeaker, ReactATX meetup'}
                   onKeyDown={markShortcutKeyDown}
@@ -9168,6 +9221,7 @@ export default function Builder() {
             <span className="text-muted-foreground text-xs">or pull from Resume Center:</span>
             <input
               className="border-input bg-background h-8 min-w-0 flex-1 rounded-md border px-2 text-xs"
+              aria-label="Share link or share ID"
               placeholder="Share link or share ID"
               value={rcInput}
               onChange={(e) => setRcInput(e.target.value)}
@@ -9203,6 +9257,7 @@ export default function Builder() {
           </div>
           {importError && <p className="text-destructive text-sm">{importError}</p>}
           <Textarea
+            aria-label="Paste your resume text"
             rows={12}
             placeholder={'Jordan Reyes\nSoftware Engineer\njordan@email.com | (555) 210-4432\n\nEXPERIENCE\nSoftware Engineer at Brightlane (Jun 2023 – Present)\n- Led migration of the checkout flow…'}
             value={importText}
@@ -10104,6 +10159,7 @@ function BundleToolDialog({
         {result && (
           <>
             <Textarea
+              aria-label="Generated letter"
               rows={14}
               value={result}
               onChange={(e) => setResult(e.target.value)}
