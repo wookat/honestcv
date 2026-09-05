@@ -1537,3 +1537,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复最小（零新依赖，弃 vite-plugin-pwa 因 Vite8/rolldown 兼容风险且运行时策略无需构建期清单）：public/sw.js——导航（同源、非 /api/*、非 /s/*）network-first→本页缓存→任一 shell 兜底；/assets/* 哈希资产 cache-first；字体/图标/manifest stale-while-revalidate；/api/* 与 /s/*（no-store 撤销即 404）完全不拦截；activate 清理旧版本缓存、双缓存条目数封顶。main.tsx 仅生产注册（load 后）；verify-dist 增查 sw.js。HTML/CSP 零改动（worker-src 'self' 已允许）。
 - tsc/eslint/build/verify-dist 绿。部署照旧：30 资产上传成功、Workers Routes auth code 10000。
 - 生产 QA（CDP 全新 context）：SW activated 且 scope=/、二次导航被控制、三缓存就位；离线 /builder（已访）完整渲染、离线 /jobs（未访）经 shell 兜底 MAIN OK、离线 /s/* 如实浏览器错误页（不拦截，符合设计）；恢复在线 /s/* 走网络出"link no longer available"、/dashboard 正常；SW 控制下 4 路由零 console/exception 错误；localStorage 零改动。
+
+## R487 — SPA 头部诚实离线指示条（2026-09-05）
+- 一手证据：R487 审计——4 条 SPA 路由 375px axe 全净零溢出；SW 已激活受控（R486 回归）；Rezi changelog 无一轮内可落地缺口；生产 CDP 实证：SW 受控页面离线后 `navigator.onLine=false`，但 /builder、/jobs 全 DOM 零任何"offline"提示——/jobs 照常呈现可搜索 UI，失败只在用户尝试后暴露（R348/R413 的错误是被动的）。R486 让应用刻意可离线使用，但用户对"什么还能用（本地编辑）/什么不能（AI、搜索、分享）"零感知。方案：docs/plan-r487-offline-indicator.md。
+- 修复仅 src/components/Layout.tsx：OfflineBar 组件（useSyncExternalStore 订阅 window online/offline，server snapshot true 保水合一致），SiteHeader 底部渲染 role="status" 琥珀色细条（WifiOff 图标 + 诚实文案：编辑仍可用并保存在本设备，AI/搜索/分享需要网络），恢复在线自动消失。零依赖、静态 SEO 页不动。
+- tsc/eslint/build/verify-dist 绿（Layout.tsx 仅既有 react-refresh warning）。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（测试代理独立复验，全新 context，entry index-vBMh4rZF.js）全绿零 P0–P2：SW 受控 /builder 离线→恰一条 role=status 精确文案+WifiOff、紧贴 header 下方；SPA 导航 /jobs、/dashboard 条保持；重连 1s 内消失；离线编辑照常保存（R351 "Saved"）条与工具栏零重叠；375 光暗零溢出、带条 axe /builder 0 违规；在线冷载 raw HTML 与水合后均无该文案、零 console 错误零 #418；R486 SW 离线整页加载、R468 Ctrl+S、R469 Ctrl+/、R481 主题回归全过；零逃逸、存储字节级还原、QA 后 SW/缓存清理。
+- 备案：既有 P3——Jobs.tsx:581 用普通 `<a href="/dashboard">` 触发整页刷新（非本轮引入，入银行）；CDP offline 仿真跨文档导航后 navigator.onLine 复位为 true 系仿真局限非产品缺陷。

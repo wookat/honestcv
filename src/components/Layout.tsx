@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, Menu, Monitor, Moon, Sun, X } from 'lucide-react'
+import { ChevronDown, Menu, Monitor, Moon, Sun, WifiOff, X } from 'lucide-react'
 import { LogoMark } from '@/components/Logo'
 import { attentionCount } from '@/lib/jobs'
 import { type ThemePref, loadThemePref, saveThemePref, subscribeThemePref } from '@/lib/theme'
@@ -116,6 +116,35 @@ function ThemeToggle() {
     >
       <Icon className="size-4.5" />
     </button>
+  )
+}
+
+const subscribeOnline = (onChange: () => void) => {
+  window.addEventListener('online', onChange)
+  window.addEventListener('offline', onChange)
+  return () => {
+    window.removeEventListener('online', onChange)
+    window.removeEventListener('offline', onChange)
+  }
+}
+
+/** Slim status bar shown while the browser is offline. The app keeps working
+ * (everything saves to this device); only network features are unavailable. */
+function OfflineBar() {
+  // Prerendered HTML must assume online so hydration matches.
+  const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true)
+  if (online) return null
+  return (
+    <div
+      role="status"
+      className="flex items-center justify-center gap-2 border-t border-amber-300/60 bg-amber-50 px-4 py-1.5 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-950 dark:text-amber-200"
+    >
+      <WifiOff aria-hidden className="size-3.5 shrink-0" />
+      <span>
+        You&rsquo;re offline — editing still works and saves to this device. AI features, job
+        search and share links need a connection.
+      </span>
+    </div>
   )
 }
 
@@ -237,6 +266,7 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
           ))}
         </nav>
       )}
+      <OfflineBar />
     </header>
   )
 }
