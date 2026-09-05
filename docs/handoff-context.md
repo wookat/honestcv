@@ -1445,3 +1445,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实事求是备案：部署后 Lighthouse /builder 模拟指标统计上无变化（perf 0.51 vs 0.53、TBT 噪声内）——主导成本是入口块脚本执行（~3.2s total / ~2.5s scripting），且 rIC 调度不被 Lighthouse 模拟捕捉；本轮收益是真实设备上的调度行为（PDF 引擎不再与启动竞争）。/builder 入口/Builder 块脚本执行成本（React 渲染整棵 Builder 树）入银行为后续轮候选。
 - tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3（限速 1.5Mbps/150ms 下才可判别）：冷加载 pdf 块请求在 load 事件后 1.32s（旧码 800ms 定时器会在 load 前抢跑）、长度表照常出现数值正确（0.27 page）、空闲后编辑重测零额外 pdf 请求（模块已缓存）、工具栏 PDF 下载真实 %PDF- 文件落盘、R468 Ctrl+S 与 R469 Ctrl+/ 回归、375 光暗零溢出零 console 错误、零逃逸、基线字节还原。
 - PR 基于 #692。部署照旧：上传成功、route auth code 10000。
+
+## R473 — 付费墙栈移出入口块：全路由启动关键 JS -50KB raw / -17KB gzip（2026-08-31）
+- 审计（SOP-10 节点）：~/audit-r1/r473_audit.py——7 条 SPA 路由 × 375/1440 双视口零 console 错误零溢出，操作台健康全净。本地 sourcemap 复查入口块（325,767B）：react-dom 179KB 不可动、Landing 36KB（静态引入是预渲染水合设计，lazy 会闪骨架，驳回）之外，Paywall 9.3KB+checkout 2.3KB+license 1.1KB+整个 Dialog/radix/remove-scroll 栈 ~20KB 进入口的唯一原因是 Landing 只用了 `useFreeMode`（20 行、仅依赖 react 的 fetch 标志 hook）。
+- 修复：新建 src/lib/freeMode.ts 原样搬 useFreeMode；Landing 改从 lib 导入；Paywall.tsx 改为 re-export（Builder/Dashboard 导入零改动）。方案：docs/plan-r473-freemode-out-of-entry.md。
+- 效果（本地构建对比）：付费墙全栈（Paywall/checkout/license/radix-dialog/remove-scroll 等 ~30KB）离开入口；rolldown 顺势把原 Layout 共享块（97.6KB raw，每路由都要）并进入口——启动关键 JS 由 index 325.7KB+Layout 97.6KB（gzip 131.5KB、两个请求）变为单个 index 372.7KB（gzip 114.7KB），省 ~50KB raw / 17KB gzip / 一个请求；Paywall 成为 Builder/Dashboard 路由块的并行依赖。
+- 本地 tsc/eslint/build/verify-dist 全绿。
