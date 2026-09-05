@@ -1570,6 +1570,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新 tab，新 bundle Builder-KVTTlf2O.js）：reduce 下章节 chip 跳转即时（0→3669 单步）、Score "Fix →" 条目跳转即时（0→1535 单步）且 ring-2 闪烁环照常出现、冷载 /dashboard#samples 即时落 857；非 reduce 下滚动保持 smooth 动画（0→16→103→…采样确认）；R490 冷载 hash 回归正常；375 光暗零溢出；四次探测全程零 console 错误零未捕获 rejection。
 
+## R495 — 去重每个工作台路由的重复 /api/ai/quota 请求（2026-08-31）
+- 一手证据（生产 Lighthouse 网络日志 + 源码）：/samples 冷加载发出两个 /api/ai/quota 请求（~699ms 与 ~717ms）；/dashboard、/documents、/jobs 同样。根因：PlanCard 在每个工作台路由挂载两次——桌面侧栏 WorkspaceNav 内一次（hidden md:block）+ 移动版 `<PlanCard className="mt-8 md:hidden" />`（Dashboard.tsx/Jobs.tsx）一次；可见性纯 CSS，两实例都挂载并各自跑 fetchAiQuota() effect。方案：docs/plan-r495-quota-dedupe.md。
+- 修复仅 src/lib/api.ts：fetchAiQuota() 共享 in-flight promise（settle 后立刻清空缓存）——并发调用共用一个网络请求，后续重取（如消耗 AI 配额后）仍走网络，不引入陈旧值；不做 TTL/响应缓存、不动组件结构。
+- tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
+
 ## R494 — 按路由 modulepreload：非 Builder 路由不再白拉 72KB Builder 块（2026-09-05）
 - 一手证据（生产 Lighthouse 网络日志）：/samples 冷加载在 ~247ms 抢先下载 Builder 块（72KB 传输、全站最大路由块，从不执行），本路由 Dashboard 块反而 ~435ms 才到——根因是 prerender.mjs 往 spa.html 注入固定 Builder modulepreload，Worker 对所有 SPA 路由/分享页/404 都发同一 shell。
 - 修复两处：prerender.mjs 在 spa.html 注入 route→chunk map（meta name=route-chunks，Builder/Dashboard×3/Jobs/AtsChecker/SharedResume，缺块即 build 失败）；worker applyRoutePreload() 按路径把 preload 改写成本路由真实水合的块（/builder 字节不变、未知路由删除 preload），三个 shell 文本分支全部套用。
