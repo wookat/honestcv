@@ -1360,3 +1360,9 @@ CRITICAL: Fetch interception is per-CDP-session — if a script exits while a se
 - Builder share dialog opens via the button whose `title` starts with "Get a read-only link"; access is a `select[aria-label='Link access']` (values off/view) — set via the HTMLSelectElement prototype value setter + change event; the share URL is `input[aria-label='Share link']`; re-publish is the exact-text "Publish latest version" button; errors render in `[role=dialog] p[role=alert]`.
 - Share scope is `activeVersionId ?? 'draft'` and records live in `honestcv.shareLinks` as `{scope:{id,token,url,sharedAt}}`. Mock POST /api/share with `{id,token,url}`; the storage-full compensating call is `DELETE /api/share/<id>` with header `x-share-token`.
 - Clipboard asserts need `Browser.grantPermissions` with clipboardReadWrite for the origin, then read via `navigator.clipboard.readText()` stashed on window.
+
+## R396 lessons
+
+- Builder library-save buttons use `aria-label` ('Save summary to library', 'Save role N to library', 'Save skills to library'); success = `svg.lucide-check.text-green-600` inside the button for ~1.6s, failure = fixed-bottom `[role=alert]` "Not saved to your library…" with `button[aria-label=Dismiss]`. Library keys: honestcv.{summary,experience,education,project,involvement,coursework,award,reference,cert,publication,skills}Library.
+- Caution on 375px checks: /builder currently overflows to a 532px layout viewport even pristine (fixed bottom section-nav `w-max` ~490px) — assert element containment within `document.documentElement.scrollWidth` rather than expecting 375 on /builder, or take a pristine-state control measurement to attribute overflow.
+- The `make(t)` `key()` helper requires (key, code, vk) — one-arg calls crash; always keep pump/drain in a try/finally so paused requests never escape.
