@@ -1498,6 +1498,51 @@ export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapsho
   return persistHistory(next) ? next.slice(0, HISTORY_MAX) : null
 }
 
+/**
+ * When a stored list exists but cannot be read at all (corrupted JSON or not
+ * an array), preserve the raw value under `<key>.unreadable` before any write
+ * can overwrite it. Never overwrites an existing backup. Returns true when
+ * the stored value is unreadable.
+ */
+function stashUnreadableList(key: string): boolean {
+  try {
+    const raw = localStorage.getItem(key)
+    if (raw === null) return false
+    try {
+      if (Array.isArray(JSON.parse(raw))) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    const backupKey = `${key}.unreadable`
+    if (localStorage.getItem(backupKey) === null) {
+      localStorage.setItem(backupKey, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Backs up every unreadable content-library list. Returns true when at least
+ * one library is unreadable.
+ */
+export function stashUnreadableLibraries(): boolean {
+  return [
+    EXPERIENCE_LIBRARY_KEY,
+    EDUCATION_LIBRARY_KEY,
+    PROJECT_LIBRARY_KEY,
+    INVOLVEMENT_LIBRARY_KEY,
+    COURSEWORK_LIBRARY_KEY,
+    AWARD_LIBRARY_KEY,
+    REFERENCE_LIBRARY_KEY,
+    CERT_LIBRARY_KEY,
+    PUBLICATION_LIBRARY_KEY,
+    SKILLS_LIBRARY_KEY,
+    SUMMARY_LIBRARY_KEY,
+  ].reduce((any, key) => stashUnreadableList(key) || any, false)
+}
+
 /** A single polished role saved for reuse across resume copies. */
 export interface SavedExperience {
   id: string
@@ -1546,6 +1591,7 @@ export function listExperienceLibrary(): SavedExperience[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistExperienceLibrary(items: SavedExperience[]): boolean {
   try {
+    stashUnreadableList(EXPERIENCE_LIBRARY_KEY)
     localStorage.setItem(
       EXPERIENCE_LIBRARY_KEY,
       JSON.stringify(items.slice(0, EXPERIENCE_LIBRARY_MAX))
@@ -1620,6 +1666,7 @@ export function listEducationLibrary(): SavedEducation[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistEducationLibrary(items: SavedEducation[]): boolean {
   try {
+    stashUnreadableList(EDUCATION_LIBRARY_KEY)
     localStorage.setItem(EDUCATION_LIBRARY_KEY, JSON.stringify(items.slice(0, EDUCATION_LIBRARY_MAX)))
     return true
   } catch {
@@ -1690,6 +1737,7 @@ export function listProjectLibrary(): SavedProject[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistProjectLibrary(items: SavedProject[]): boolean {
   try {
+    stashUnreadableList(PROJECT_LIBRARY_KEY)
     localStorage.setItem(PROJECT_LIBRARY_KEY, JSON.stringify(items.slice(0, PROJECT_LIBRARY_MAX)))
     return true
   } catch {
@@ -1757,6 +1805,7 @@ export function listInvolvementLibrary(): SavedInvolvement[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistInvolvementLibrary(items: SavedInvolvement[]): boolean {
   try {
+    stashUnreadableList(INVOLVEMENT_LIBRARY_KEY)
     localStorage.setItem(
       INVOLVEMENT_LIBRARY_KEY,
       JSON.stringify(items.slice(0, INVOLVEMENT_LIBRARY_MAX))
@@ -1826,6 +1875,7 @@ export function listCourseworkLibrary(): SavedCoursework[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistCourseworkLibrary(items: SavedCoursework[]): boolean {
   try {
+    stashUnreadableList(COURSEWORK_LIBRARY_KEY)
     localStorage.setItem(
       COURSEWORK_LIBRARY_KEY,
       JSON.stringify(items.slice(0, COURSEWORK_LIBRARY_MAX))
@@ -1894,6 +1944,7 @@ export function listAwardLibrary(): SavedAward[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistAwardLibrary(items: SavedAward[]): boolean {
   try {
+    stashUnreadableList(AWARD_LIBRARY_KEY)
     localStorage.setItem(AWARD_LIBRARY_KEY, JSON.stringify(items.slice(0, AWARD_LIBRARY_MAX)))
     return true
   } catch {
@@ -1961,6 +2012,7 @@ export function listReferenceLibrary(): SavedReference[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistReferenceLibrary(items: SavedReference[]): boolean {
   try {
+    stashUnreadableList(REFERENCE_LIBRARY_KEY)
     localStorage.setItem(
       REFERENCE_LIBRARY_KEY,
       JSON.stringify(items.slice(0, REFERENCE_LIBRARY_MAX))
@@ -2029,6 +2081,7 @@ export function listCertLibrary(): SavedCertification[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistCertLibrary(items: SavedCertification[]): boolean {
   try {
+    stashUnreadableList(CERT_LIBRARY_KEY)
     localStorage.setItem(CERT_LIBRARY_KEY, JSON.stringify(items.slice(0, CERT_LIBRARY_MAX)))
     return true
   } catch {
@@ -2097,6 +2150,7 @@ export function listPublicationLibrary(): SavedPublication[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistPublicationLibrary(items: SavedPublication[]): boolean {
   try {
+    stashUnreadableList(PUBLICATION_LIBRARY_KEY)
     localStorage.setItem(
       PUBLICATION_LIBRARY_KEY,
       JSON.stringify(items.slice(0, PUBLICATION_LIBRARY_MAX))
@@ -2152,6 +2206,7 @@ export function listSkillsLibrary(): SavedSkills[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistSkillsLibrary(items: SavedSkills[]): boolean {
   try {
+    stashUnreadableList(SKILLS_LIBRARY_KEY)
     localStorage.setItem(SKILLS_LIBRARY_KEY, JSON.stringify(items.slice(0, SKILLS_LIBRARY_MAX)))
     return true
   } catch {
@@ -2203,6 +2258,7 @@ export function listSummaryLibrary(): SavedSummary[] {
 /** Returns false when nothing was written (storage full / private mode). */
 function persistSummaryLibrary(items: SavedSummary[]): boolean {
   try {
+    stashUnreadableList(SUMMARY_LIBRARY_KEY)
     localStorage.setItem(SUMMARY_LIBRARY_KEY, JSON.stringify(items.slice(0, SUMMARY_LIBRARY_MAX)))
     return true
   } catch {
