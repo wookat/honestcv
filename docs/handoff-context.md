@@ -1514,6 +1514,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿；dist 含 manifest+3 PNG、抽查页 link 各恰一次。部署照旧：126 资产上传成功、Workers Routes auth code 10000。
 - 生产 QA（测试代理独立复验，全新 context）全绿零 P0–P3：4 页 raw 双 link 恰一次；manifest 200 application/manifest+json 字段严格相等；3 图标 200 image/png 尺寸 PIL 实测正确；CDP Page.getAppManifest errors=[]、getInstallabilityErrors=[]（如实备案：本版 headless Chrome 无 SW 也返回空，正向可安装结论限于此 Chrome，非 Play/Android 保证）；icon-512 白底合成 1522 色非空白；零 console 错误零 CSP issue；R481 theme-color + ThemeToggle 回归、375 光暗零溢出；零逃逸、存储字节级还原。
 
+## R484 — manifest id/scope + app shortcuts（2026-09-05）
+- 一手证据：R484 审计——6 条公共路由（/、/ats-checker、/samples、/pricing/、example、guide）双视口 axe 全净；首页 JSON-LD（WebApplication+FAQPage）生产 raw 实证存在（"缺失"假设诚实驳回）；生产 manifest 无 id/scope/shortcuts（W3C 规范：id 是安装身份标识，缺失时 Chrome 回退 start_url；shortcuts 驱动 Android 长按菜单/桌面 PWA jump list）。rezi app manifest 仅一枚 48px ico、无这些成员——本轮属超越项打磨。方案：docs/plan-r484-manifest-id-shortcuts.md。
+- 修复最小：manifest 加 id:"/"、scope:"/"、shortcuts 两条（Resume builder→/builder、ATS checker→/ats-checker，复用已入库 icon-192，≥96px 规范下限）。HTML/CSP/图标零改动。非目标：无 SW/离线、无 screenshots 成员（需策划截图集，入银行）。
+- tsc/eslint/build/verify-dist 绿。部署照旧：1 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA（本机直验，纯静态资产）：manifest 200 含 id/scope/2 shortcuts/4 icons（边缘缓存 must-revalidate ~45s 收敛后稳定）；/builder、/ats-checker、/icon-192.png 全 200；CDP Page.getAppManifest errors=[] 且解析出两条 shortcuts。
+
 ## R483 — maskable 图标变体（Android 自适应遮罩）（2026-09-05）
 - 一手证据（SOP-10 节点）：7 SPA 路由 375/1440 双视口复扫零错误零溢出；像素实测 R482 的 icon-512 有 47.0%（116,668/248,456）不透明像素落在 maskable 安全区（40% 半径圆，W3C manifest 规范）之外、42,564 像素在内切圆之外——Android 自适应遮罩会裁掉圆角卡片四角；且 manifest 零 purpose:maskable 条目，遮罩型启动器按 legacy 模式白圈缩小显示。方案：docs/plan-r483-maskable-icon.md。
 - 修复最小：sharp 生成 icon-maskable-192/512（白底满幅方形画布 + favicon.svg 图稿 64% 居中，实测全部非白像素落在 40% 安全圆内）入库 public/，manifest icons 追加两条 purpose:maskable。HTML/CSP 零改动。非目标：无 SW/离线、无 monochrome、不动 any 图标与 apple-touch-icon。
