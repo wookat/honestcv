@@ -36,7 +36,8 @@ function RouteFallback() {
 function CanonicalSync() {
   const { pathname } = useLocation()
   useEffect(() => {
-    const url = `https://cv.zalize.com${pathname}`
+    const canonicalPath = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+    const url = `https://cv.zalize.com${canonicalPath}`
     document.querySelector('link[rel="canonical"]')?.setAttribute('href', url)
     document.querySelector('meta[property="og:url"]')?.setAttribute('content', url)
   }, [pathname])
