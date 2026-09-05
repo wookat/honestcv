@@ -1828,7 +1828,8 @@ app.notFound(async (c) => {
   const isShare = path.startsWith('/s/') && validShareId(path.slice(3))
   // Revoked/expired/unknown share links get an honest 404 status; the SPA
   // shell still renders the branded "no longer available" card either way.
-  const shareLive = isShare && (await c.env.KV.get(`share:${path.slice(3)}`)) !== null
+  const shareRaw = isShare ? await c.env.KV.get(`share:${path.slice(3)}`) : null
+  const shareLive = shareRaw !== null
   const headers: Record<string, string> = { 'content-type': 'text/html; charset=utf-8' }
   if (path.startsWith('/s/')) {
     headers['X-Robots-Tag'] = 'noindex'
@@ -1838,7 +1839,33 @@ app.notFound(async (c) => {
   // point them at the route being served so the raw HTML doesn't declare
   // every SPA route a duplicate of the homepage.
   let body: BodyInit | null = shell.body
-  if (SPA_ROUTES.has(path) && path !== '/') {
+  if (shareRaw !== null) {
+    // Live share links get unfurled in chat apps; show the candidate, not
+    // the homepage marketing copy. The snapshot was already fetched above.
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    const rec = parseShareRecord(shareRaw)
+    const contact =
+      rec && typeof rec.resume === 'object' && rec.resume !== null
+        ? ((rec.resume as { contact?: { fullName?: unknown; title?: unknown } }).contact ?? {})
+        : {}
+    const fullName = typeof contact.fullName === 'string' ? contact.fullName.trim().slice(0, 120) : ''
+    const role = typeof contact.title === 'string' ? contact.title.trim().slice(0, 120) : ''
+    const heading = fullName ? (role ? `${fullName} — ${role}` : fullName) : 'Shared resume'
+    const title = esc(`${heading} | RezUp`)
+    const description = esc(
+      fullName
+        ? `${fullName}'s resume, shared with you via RezUp.`
+        : 'A resume shared with you via RezUp.'
+    )
+    const url = `https://cv.zalize.com${path}`
+    body = (await shell.text())
+      .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+      .replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${description}"`)
+      .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${title}"`)
+      .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${description}"`)
+      .replace(/<meta property="og:url" content="[^"]*"/, `<meta property="og:url" content="${url}"`)
+  } else if (SPA_ROUTES.has(path) && path !== '/') {
     const url = `https://cv.zalize.com${path}`
     let html = (await shell.text())
       .replace(/<link rel="canonical" href="[^"]*"/, `<link rel="canonical" href="${url}"`)
