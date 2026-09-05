@@ -1397,20 +1397,22 @@ export function listResumeHistory(): ResumeSnapshot[] {
   }
 }
 
-function persistHistory(snapshots: ResumeSnapshot[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistHistory(snapshots: ResumeSnapshot[]): boolean {
   try {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(snapshots.slice(0, HISTORY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
 /**
  * Records a checkpoint of the draft. Skipped when the newest checkpoint is
  * identical, or (unless `force`) younger than the 10-minute gap.
- * Returns the updated list.
+ * Returns the updated list, or null when the write failed.
  */
-export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapshot[] {
+export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapshot[] | null {
   const history = listResumeHistory()
   const versionId = getActiveVersionId()
   const newest = history.find((s) => (s.versionId ?? null) === versionId)
@@ -1423,8 +1425,7 @@ export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapsho
     { id: newId(), at: Date.now(), versionId, data: JSON.parse(json) as Resume },
     ...history,
   ]
-  persistHistory(next)
-  return next.slice(0, HISTORY_MAX)
+  return persistHistory(next) ? next.slice(0, HISTORY_MAX) : null
 }
 
 /** A single polished role saved for reuse across resume copies. */
