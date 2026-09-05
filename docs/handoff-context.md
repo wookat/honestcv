@@ -1102,3 +1102,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 初报 P3「tailor 对话框显示原始错误体」按 R398 先例驳回：worker callLlm 把一切上游失败映射为友好 {error} 文案，真实生产产不出 "internal" 这类体（mock 伪影）。
 - 修复确证 P4（Jobs.tsx nextStep 一处）：targeted copy 关键词匹配为 0 时 next-step 由「Improve your targeted copy — 0% keyword match.」改为可行动文案「Your targeted copy doesn't use any of this job's keywords yet — open it and add a few.」；徽章与详情行的诚实数字不动。
 - 本地 tsc/eslint(Jobs.tsx)/build 绿。生产 QA（Jobs-DxpBX8V4.js，零逃逸、基线字节还原）全绿：0% 场景新句+Open targeted resume 直开副本、注入关键词后 13% 走旧句、R407 移动深链回归、375 光暗零溢出、零 console 错误。
+
+## R409 — 工作区恢复清除悬空 activeVersionId（2026-08-31）
+- 审计（信件生成/面试练习/导入链/跨标签+主题+a11y）零 P0–P2。确证 P3：恢复的备份里 activeVersionId 指向备份中不存在的副本时，恢复成功但悬空键持续存在，/builder 无 "Editing" 归属地静默编辑草稿，无任何修复路径（/jobs 早有 R407 修复先例）。方案：docs/plan-r409-restore-orphan-active-version.md。
+- 修复仅 workspace.ts：restoreWorkspace 成功后若备份的 activeVersionId 在备份 resumeVersions 中无匹配（或 versions 不可解析）即移除该键；有效链接原样、无键备份不动、回滚路径不动。
+- 本地 tsc/eslint/build 绿。生产 QA（Dashboard-DdRJLnef.js / index-BfQzxz0v.js）全绿：悬空/无键/坏 JSON 三种备份键 ABSENT、有效备份键保留+Builder 归属正常、配额满恢复回滚字节一致+R394 alert、Cancel 零写入、R408 回归、零逃逸零 console 错误、基线还原。
+- 银行 P4：损坏 PDF 导入显示原始 pdf.js 文案 "Invalid PDF structure."（行为安全，仅文案）。
