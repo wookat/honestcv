@@ -1352,3 +1352,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/App.tsx：错误分支渲染 flex min-h-screen 列容器 <SiteHeader /> + 原错误卡 main（加 w-full flex-1）+ <SiteFooter />。Layout 是入口静态依赖（modulepreload），路由块失败不影响其可用。文案/role=alert/Reload/key={pathname} 全不变。
 - tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：阻断 Builder 块→卡带完整 header/footer（body 692 字符 vs R456 的 88）、错误态点 Logo 同文档客户端导航脱离错误、直载阻断同卡+壳、解封 Reload 恢复、back/正常导航/纯加载零 console 错误回归、375 光暗零溢出且汉堡菜单在错误态可开可导航、零逃逸、存储字节级还原。
 - PR #678（基于 #677）。部署照旧：上传成功、route auth code 10000。
+
+## R458 — 导出懒块加载失败友好文案（2026-08-31）
+- SOP-10 四维审计（7 条 SPA 路由 CDP 健康采样零错误零溢出、静态/SPA HTTP 头与 CSP 全净）后确证功能深度缺口：导出侧懒块 import('@/lib/pdf'|'@/lib/docx') 失败时，Builder 工具栏与 Dashboard 泄漏原始 "Failed to fetch dynamically imported module…"，Builder 文档对话框（cover/interview/resignation 结果）PDF/DOCX 按钮更是 void .then() 无 catch——完全静默 + unhandled rejection（R455 上传侧同族的导出侧收尾）。方案：docs/plan-r458-export-chunk-load-error.md。
+- 修复：src/lib/download.ts 新增 loadExporter()（extractFile loadEngine 同款），失败抛 "Could not load the download component — check your connection, then reload and try again."；五个调用面包上：Builder 工具栏 pdf/docx、Builder 文档对话框 pdf/docx（改 async try/catch → setError，复用对话框既有 error 展示位）、Dashboard docDownload 与 runDownload。TXT/MD、SharedResume（R434）、usePdfLength 后台测量不动。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P3（chunk 运行时实测 pdf-BX8eQrNH/docx-nRMiABN1）：六个阻断面全部精确友好文案零未捕获 rejection（对话框面从静默变可见）、解封后真实 PDF(%PDF-)/DOCX(PK) 落盘恢复、TXT 零 chunk 请求、375 光暗带 alert 零溢出、纯加载零 console 错误、零逃逸、存储字节级还原。备案：/builder 挂载时 usePdfLength 的 idle import 失败被静默吞掉（无用户动作、非缺陷）。
+- PR 基于 #678。部署照旧：上传成功、route auth code 10000。
