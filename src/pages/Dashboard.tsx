@@ -284,6 +284,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [importedLinkedIn, setImportedLinkedIn] = useState(false)
   const [linkedInOpen, setLinkedInOpen] = useState(false)
   const [examples, setExamples] = useState<ExampleEntry[]>([])
+  const [examplesState, setExamplesState] = useState<'loading' | 'ready' | 'failed'>('loading')
   // On /samples the filters live in the query string so refresh/share keeps your place.
   const [seedParams] = useState(() =>
     section === 'samples' ? new URLSearchParams(window.location.search) : null
@@ -550,18 +551,23 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     </Button>
   )
 
+  const [examplesAttempt, setExamplesAttempt] = useState(0)
   useEffect(() => {
     let cancelled = false
     void fetch('/examples/examples.json')
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((list: ExampleEntry[]) => {
-        if (!cancelled) setExamples(list)
+        if (cancelled) return
+        setExamples(list)
+        setExamplesState('ready')
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setExamplesState('failed')
+      })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [examplesAttempt])
 
   const sectors = useMemo(
     () => ['All', ...Array.from(new Set(examples.map((e) => e.sector)))],
@@ -1476,6 +1482,29 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           </ul>
         )}
         </>
+        )}
+        {section === 'samples' && examplesState === 'failed' && (
+          <>
+            <h1 className="text-2xl font-bold">Sample library</h1>
+            <div
+              role="alert"
+              className="border-destructive/50 bg-destructive/10 mt-4 rounded-md border p-4 text-sm"
+            >
+              <p>Loading the sample library failed — check your connection and try again.</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => {
+                  setExamplesState('loading')
+                  setExamplesAttempt((n) => n + 1)
+                }}
+              >
+                Try again
+              </Button>
+            </div>
+          </>
         )}
         {section !== 'documents' && examples.length > 0 && (
           <>

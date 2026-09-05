@@ -1132,3 +1132,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（CDP 点击 /documents 查看器 Copy text）：按钮点击后无任何反馈，成功失败一律沉默（`void navigator.clipboard.writeText(docText)` 丢弃 promise）；全应用其余复制按钮（R372 follow-up、分享链接、checker 链接）均有 Copied/失败态。方案：docs/plan-r414-copy-text-feedback.md。
 - 修复仅 Dashboard.tsx：docCopied 'idle'|'copied'|'failed' 状态，按 R372 模式 then(copied, failed) 渲染 "Copied"/"Copy failed"，三处打开查看器时重置 idle。
 - tsc/eslint/build 绿。生产 QA 全绿（Dashboard-CCUlK0Kh.js）：真实剪贴板回读字节一致、reject 覆写→"Copy failed" 零 console 错误、重开重置（含失败态后）、Save/下载行与 R413 jobs 横幅回归、375 光暗零溢出、零逃逸、基线字节还原。
+
+## R415 — /samples 加载失败不再白屏（2026-08-31）
+- 生产实证（CDP 强制 /examples/examples.json 网络失败）：/samples 主区完全空白——无标题、无错误、无重试（整块 gated 于 examples.length>0，fetch 错误被吞）。方案：docs/plan-r415-samples-load-failure.md。
+- 修复仅 Dashboard.tsx：examplesState 'loading'|'ready'|'failed'（非 ok HTTP 也算失败）；/samples 专页失败时渲染 h1 + role=alert "Loading the sample library failed — check your connection and try again." + Try again 重取（examplesAttempt）；dashboard 内嵌样本条保持空则隐藏；成功路径字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（Dashboard-CkU4KodD.js）：失败态精确文案+重试恢复全网格、mock 500 同卡不泄漏响应体、happy path/?q=/?sector=/收藏星回归、dashboard 无错误卡、375 光暗零溢出、R414 回归、零逃逸、基线字节还原。
