@@ -5,11 +5,13 @@ import { LogoMark } from '@/components/Logo'
 import { attentionCount } from '@/lib/jobs'
 import { type ThemePref, loadThemePref, saveThemePref, subscribeThemePref } from '@/lib/theme'
 
-/** Sets the document title and meta description for the current route. */
+/** Sets the document title, meta description and og:title/og:description for the current route. */
 export function usePageMeta(title: string, description: string) {
   useEffect(() => {
     document.title = title
     document.querySelector('meta[name="description"]')?.setAttribute('content', description)
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', title)
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', description)
   }, [title, description])
 }
 
