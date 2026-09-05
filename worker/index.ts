@@ -1801,7 +1801,17 @@ app.notFound(async (c) => {
     headers['X-Robots-Tag'] = 'noindex'
     headers['Cache-Control'] = 'no-store'
   }
-  return new Response(shell.body, {
+  // The shell inherits the homepage canonical/og:url; point them at the
+  // route being served so the raw HTML doesn't declare every SPA route a
+  // duplicate of the homepage.
+  let body: BodyInit | null = shell.body
+  if (SPA_ROUTES.has(path) && path !== '/') {
+    const url = `https://cv.zalize.com${path}`
+    body = (await shell.text())
+      .replace(/<link rel="canonical" href="[^"]*"/, `<link rel="canonical" href="${url}"`)
+      .replace(/<meta property="og:url" content="[^"]*"/, `<meta property="og:url" content="${url}"`)
+  }
+  return new Response(body, {
     status: SPA_ROUTES.has(path) || shareLive ? 200 : 404,
     headers,
   })
