@@ -33,6 +33,8 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 - Design-toolbar swatches (`button[aria-label^="Text color"]`, accent swatches) are compact 32px circles on desktop; Text color swatches grow to 40px below the `sm` breakpoint.
 - At emulated mobile widths, judge horizontal overflow by `document.documentElement.scrollWidth` vs `visualViewport.width` — `innerWidth` reports the (expanded) layout viewport (e.g. 414 at a 375 device width) and masks overflow. Design-toolbar group spans (Font/Text/Spacing) are individual flex spans: any pill added there needs the span to have `flex-wrap` or it overflows 375px.
 - Chrome may speculatively preload fonts used in a previous session on the same origin (initiator "link", crossorigin-mismatch console warning) — exclude such entries when asserting lazy loading; assert on the specific new-family files instead.
+- Builder toolbar buttons are icon-only — target them by `title` attribute (`button[title^="Resume assistant"]`, `button[title="Download your resume"]`, `aside button[title="Close assistant"]`), not text content; the header "Resources" nav dropdown also has `aria-expanded` and is an easy false match.
+- CDP `Input.dispatchKeyEvent` Enter on a focused React button does NOT fire its onClick — activate buttons with `.click()` or a real mouse event; reserve synthetic key events for shortcuts like Escape that document-level listeners handle.
 - Don't combine `pkill -f <script>` with follow-up commands in one shell invocation — pkill matches its own wrapper and kills the whole command; kill and verify in separate calls.
 - Text-size scaling in the preview is applied via CSS `zoom` on the ResumePreview root (not font-size), so computed `font-size` stays constant across scales — assert on the root's computed `zoom` or on `getBoundingClientRect()` of preview text. For exports, `pdftotext -bbox` word heights give exact glyph-size ratios, and DOCX `w:sz` values are `Math.round(base × fontScaleOf)` with base half-points 40/24/22/21/19.
 - PDF line-spacing ratios via `pdftotext -bbox`: consecutive-line y-deltas contain a constant non-scaled leading (~2pt) on top of the fontSize·lineHeight component — solve `delta = a·ls + c` across two spacing settings instead of expecting the raw delta ratio to equal the multiplier ratio. In the preview, the resume root carries an inline `line-height = lineSpacingOf + 0.1`; rect-height ratios of the same wrapped paragraph give exact `(ls₁+0.1)/(ls₂+0.1)`. DOCX line spacing lives in `w:spacing w:line = round(240·ls/1.35)`.
@@ -1443,3 +1445,56 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Builder shareOpen promo bar ("Copy checker link" → Copied!/Copy failed) only mounts after a real download when `honestcv.shared` is absent; set `honestcv.subscribed=1` and remove `honestcv.shared` to skip the free-email gate while keeping the bar. Quality/final-check dialog's "Download anyway" button can sit below a 900px viewport — click it via JS `.click()`, not coordinates.
 - Share dialog Copy ("Copy" → Copied!/Copy failed) requires publishing: set the dialog's `select[aria-label="Link access"]` off→view via native value setter + change event; mock POST /api/share with `{id,token,url}` (all three required). The readonly URL input is `input[aria-label="Share link"]`. Remember the revoke DELETE if you toggle back off; simplest is restoring localStorage baseline afterwards.
 - Dashboard docs: cards expose a plain "Open" button (title text lives in a sibling <p>, not the button); scope by the card element containing the title.
+
+## R432–R435 — /s/<id> share-page QA (CDP Fetch pitfalls)
+- `attach403` in `/home/ubuntu/qa/r403lib.py` auto-arms `Fetch.enable` on `*/api/share*` (plus ai/za/billing/leads). Any /s/<id> test using it MUST either continuously drain paused events or immediately re-arm `Fetch.enable` with safety-only patterns — otherwise the share GET sits paused forever and the page looks stuck in loading with fallback meta ("Shared resume | RezUp"), a false product failure (bit R432 and R435).
+- Never arm `Fetch.enable` with `urlPattern:'*'` at Request stage around `Page.navigate` — the paused document request deadlocks the navigate response on a single-socket CDP client. Use narrow per-URL patterns.
+- Lazy-chunk failure paths (e.g. blocking `assets/pdf-*.js` for the Download PDF failure alert) must be exercised on a COLD page load: Chrome caches a rejected dynamic `import()`, so same-session retries never re-fetch the chunk and always fail until a reload (this is why R434 added the "Reload page" button to the failure alert).
+- Sanctioned temporary shares: POST `/api/share` with `x-client-id` (≥8 chars) + synthetic resume returns `{id,token,url}`; re-publishing with the same id+token overwrites in place; cleanup is DELETE `/api/share/:id` with `x-share-token`, then verify both the API GET and `/s/<id>` return 404. PDF downloads land per `Browser.setDownloadBehavior` and follow `professionalFileName([fullName, targetRole, 'resume'],'pdf')` (kebab-case); verify content via pypdf text extraction.
+
+## R452 — proving animations/tweens on production
+- To capture a short tween (e.g. the ~900ms ScoreRing count-up), inject a `setInterval` sampler via `Page.addScriptToEvaluateOnNewDocument` that records `[elapsedMs, value]` pairs into `window.__samples`, then read it after load — polling via repeated Runtime.evaluate is too slow/jittery to catch intermediate frames.
+- Grepping bundles for "framer" false-positives on React internals (`unstable_forceFrameRate`, `DetermineComponentFrameRoot`); grep for `motion-dom` instead when asserting the motion library is absent.
+- Lazy-chunk failure testing: `Fetch.failRequest` alone is not enough — enable `Network.setCacheDisabled` first, or the chunk serves from disk cache and never hits the interceptor. ATS checker file-checks card only renders after clicking "Check my ATS score" (exact button text); scoring is a pure local useMemo (no network). Inject upload fixtures with `DOM.setFileInputFiles` on the hidden file input.
+
+## R454 — post-deploy static-prerender sanity check
+- A vite-only `dist` deploy silently 404s all ~120 prerendered static pages AND `/examples/examples.json` while the SPA keeps working (this took production down after R453's deploy). After ANY deploy, sanity-check static integrity first: `curl -s -o /dev/null -w '%{http_code}' https://cv.zalize.com/pricing/` must be 200 with a page-specific `<title>` (e.g. "RezUp Pricing — $9.99 Once…"), and `/examples/examples.json` must be 200 valid JSON (~30 entries). `npm run deploy` runs `scripts/verify-dist.mjs` as a build-time gate, but verify the live outcome anyway.
+- examples.json 404 symptoms in the app: "Failed to load resource: 404" console entries on /builder and /dashboard, an empty/failed `/samples` grid, and `/builder?example=<slug>` showing the "Loading the example resume failed — check your connection and try again." role=alert instead of applying the example (name field stays empty).
+- Assert user-facing error states by matching the EXACT production copy (e.g. `Loading the example resume failed`), never loose substring pairs like `includes('load') && includes('example')` — those false-positive on unrelated page text (bit R454's deep-link probe).
+
+## R455 — discover live lazy-chunk names at runtime
+- Never trust chunk hashes quoted in a PR/task description: discover the real lazy chunk at runtime (fresh load with `Network.setCacheDisabled`, trigger the action, list the `/assets/` requests). Local-build hashes can differ from the live deploy, and stale chunks still return 200 from the CDN — a block pattern that matches nothing makes failure tests silently pass as happy paths (bit R455's first run, which blocked `assets/docx-*` while the real upload-path fflate chunk was `browser-*`).
+- Chunk-name gotcha in this repo: the upload/parse chunks are `browser-*` (fflate) and `pdf-<hash>.js` + `pdf.worker.min-*` (pdfjs legacy), while the similarly named `docx-*` and the larger `pdf-*` chunk are the separate EXPORT libraries.
+
+## R456/R457 — route-chunk failure testing
+- For route-chunk failure tests: discover live chunk names on a fresh load first, `Network.setCacheDisabled(true)` before blocking, trigger via a real `.click()` on the visible Link (not location assignment), and prove "no full reload" with a `window.__marker` set pre-navigation.
+- As of R457 the route error card renders inside the site shell (`SiteHeader` above, `SiteFooter` below) — assert header/footer presence and that header nav links client-navigate out of the error state.
+- Visiting `/builder` creates `honestcv.ev.builder-start` + an empty-scaffold `honestcv.resumeHistory`; theme tests add `honestcv.theme` — remove all three in restore sweeps.
+
+## R458 — export-chunk failure & download testing
+- Builder's compact download control is the icon-only `button[title="Download your resume"]` opening `#download-menu` (`[role=menuitem]` PDF/DOCX/TXT/MD) — there is no text "Download" button.
+- `/builder` idle-imports the pdf chunk via `usePdfLength` at load time, so a blocked pdf chunk fires one swallowed load-time failure before any download click — don't mistake it for the download-time request.
+- To test Dashboard downloads without UI churn, seed `honestcv.careerDocs` and `honestcv.resumeVersions` (shape: `{id,name,updatedAt,data:<Resume>}`) and set `honestcv.shared='1'` to skip the free-download email dialog (avoids lead traffic).
+- Happy-path downloads create `honestcv.ev.export` — include it (plus ev.builder-start/resumeHistory/theme/shared/resume) in the restore sweep.
+- Verify real downloads via `Browser.setDownloadBehavior` to a temp dir and check `%PDF-`/`PK` magic bytes.
+
+## R459 — pre-hydration skeleton testing
+- To hold the static spa.html skeleton visible, block only `*assets/index-*.js` — a bare `*assets/index-*` also kills `index-*.css`, silently switching the test to the CSS-failure literal-fallback path (empty `--muted`) instead of the real render-blocking-CSS path.
+- Seed theme via `Page.addScriptToEvaluateOnNewDocument` (localStorage honestcv.theme) so the pre-paint script sees it before first paint.
+- Verify skeleton colors with computed style AND a pixel histogram of the screenshot (dark blocks ≈ rgb(22,29,37) on rgb(9,13,20)); the skeleton is spa.html-generic across all non-root routes incl. 404s.
+
+## R460 — blocked-storage testing
+- Simulate blocked browser storage by injecting Page.addScriptToEvaluateOnNewDocument that overrides Storage.prototype getItem/setItem/removeItem/clear/key to throw `new DOMException("Access is denied for this document.","SecurityError")` — matches real Chrome cookie-blocking.
+- With storage blocked the localStorage theme seed cannot work; test dark via Emulation.setEmulatedMedia prefers-color-scheme: dark (the pre-paint script falls back to it).
+- The route boundary distinguishes SecurityError (storage card) from chunk-fetch failures (connection card) — always run both branches to prove discrimination. Homepage `/` renders fine under blocked storage while SPA routes hit the boundary.
+
+## Builder form probing (R461)
+- Builder contact fields use ids `#c-<key>` (e.g. `input#c-fullName`); placeholders are example values ("Jordan Reyes"), not labels — never select by placeholder text.
+- A fresh or unreadable draft opens the setup wizard dialog ("What job are you targeting?") which blocks typing; close it with Escape. Escape writes `honestcv.setupDone` — add it to the storage restore sweep.
+- Status bars stack in the shared bottom container as `role=alert`/`role=status`; probe only after full hydration (wait ≥5s, retry before declaring missing).
+- Autosave debounce is ~2–3s after a keystroke; wait before asserting on `honestcv.resume`.
+
+## Alert copy + copies-flow probing (R462)
+- Assert status-bar/alert copy by strict-comparing the inner `<span>` text; the alert element's `textContent` concatenates the Dismiss button label.
+- The Builder Copies flow ("Copies" toolbar button → "Save current as copy") writes `honestcv.activeVersionId` — add it to the storage restore sweep alongside setupDone/ev.builder-start/resumeHistory/ev.export.
+- Unreadable-data backup keys `honestcv.resume.unreadable` and `honestcv.resumeVersions.unreadable` are written once and never overwritten — test both the read site (page load) and the write site (a persist call in a document that never visited the reading page).

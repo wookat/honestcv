@@ -41,10 +41,35 @@ export function splitAtSignature(text: string): { before: string; after: string 
 }
 
 const DOCS_KEY = 'honestcv.careerDocs'
+const DOCS_BACKUP_KEY = 'honestcv.careerDocs.unreadable'
+
+/**
+ * When the stored documents list exists but cannot be read at all (corrupted
+ * JSON or not an array), preserve the raw value under a backup key before any
+ * write can overwrite it. Returns true when the stored list is unreadable.
+ */
+export function stashUnreadableDocs(): boolean {
+  try {
+    const raw = localStorage.getItem(DOCS_KEY)
+    if (raw === null) return false
+    try {
+      if (Array.isArray(JSON.parse(raw))) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    if (localStorage.getItem(DOCS_BACKUP_KEY) === null) {
+      localStorage.setItem(DOCS_BACKUP_KEY, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** Returns false when nothing was written (storage full / private mode). */
 function persistDocs(docs: CareerDoc[]): boolean {
   try {
+    stashUnreadableDocs()
     localStorage.setItem(DOCS_KEY, JSON.stringify(docs))
     return true
   } catch {

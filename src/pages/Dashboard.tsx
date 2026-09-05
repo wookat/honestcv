@@ -64,6 +64,7 @@ import {
   restoreCareerDoc,
   saveCareerDoc,
   splitAtSignature,
+  stashUnreadableDocs,
   updateCareerDoc,
 } from '@/lib/documents'
 import { LETTER_EXAMPLES, type LetterExample } from '@/lib/letterExamples'
@@ -215,6 +216,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     if (hash) document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
   }, [hash])
   const [versionsUnreadable, setVersionsUnreadable] = useState(() => stashUnreadableVersions())
+  const [docsUnreadable, setDocsUnreadable] = useState(() => stashUnreadableDocs())
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [draft] = useState<Resume | null>(() => loadResume())
   const [activeId] = useState<string | null>(() => getActiveVersionId())
@@ -1319,6 +1321,25 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         <p className="text-muted-foreground mt-1 text-sm">
           Documents you saved from the AI tools in the editor.
         </p>
+        {docsUnreadable && (
+          <div
+            role="alert"
+            className="border-destructive/50 bg-destructive/10 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span>
+              Your saved documents couldn&apos;t be read, so the list started fresh. The
+              unreadable copy was kept in your browser storage as a backup.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDocsUnreadable(false)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
         {docLinkNotFound && (
           <div
             role="alert"
