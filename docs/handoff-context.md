@@ -1108,3 +1108,7 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 workspace.ts：restoreWorkspace 成功后若备份的 activeVersionId 在备份 resumeVersions 中无匹配（或 versions 不可解析）即移除该键；有效链接原样、无键备份不动、回滚路径不动。
 - 本地 tsc/eslint/build 绿。生产 QA（Dashboard-DdRJLnef.js / index-BfQzxz0v.js）全绿：悬空/无键/坏 JSON 三种备份键 ABSENT、有效备份键保留+Builder 归属正常、配额满恢复回滚字节一致+R394 alert、Cancel 零写入、R408 回归、零逃逸零 console 错误、基线还原。
 - 银行 P4：损坏 PDF 导入显示原始 pdf.js 文案 "Invalid PDF structure."（行为安全，仅文案）。
+
+## R410 — 损坏导入文件的友好文案（2026-08-31）
+- 闭环 R409 银行 P4：损坏 PDF 导入显示原始 pdf.js "Invalid PDF structure."；姊妹 DOCX 路径同样漏出 fflate 原始错误。五个导入面（Builder/ATS checker/Dashboard 简历+文档导入/Landing 拖放）都直接渲染 err.message，故在源头 extractFile.ts 修复：getDocument promise catch 后抛 "Could not read this PDF — the file may be damaged. Re-export it or paste the text instead."；unzipSync 包 try/catch 抛对应 DOCX 文案。有效文件/扫描件空文本/不支持类型路径全不动。方案：docs/plan-r410-friendly-import-parse-errors.md。
+- 本地 tsc/eslint/build 绿。生产 QA 全绿：Builder 损坏 PDF/DOCX 精确新文案+对话框留存+草稿字节一致、/ats-checker 同文案、reportlab 真 PDF/真 zip DOCX/TXT 正常提取、不支持类型与扫描件文案不变、解析失败也零 console 错误、零逃逸、基线还原。未单测 Dashboard/Landing 两面（同 err.message 渲染链）。
