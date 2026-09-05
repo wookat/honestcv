@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R448 — 两个 aria-haspopup 菜单补齐 WAI-ARIA menu-button 语义与方向键导航（2026-08-31）
+- 生产实证（CDP）：Resources 下拉与 Builder 紧凑下载菜单的 toggle 都带 aria-haspopup="true"（读屏播报"菜单"）但 aria-controls=null、面板与项全无 role=menu/menuitem；菜单打开后在 toggle 上按 ArrowDown 焦点不进菜单、页面反而滚动（scrollY 0→40）——违反 APG menu button 模式。移动汉堡是 nav disclosure 非菜单，正确地不在范围内。方案：docs/plan-r448-menu-button-semantics.md。
+- 修复 Layout.tsx（ResourcesDropdown）与 Builder.tsx（下载菜单）：toggle aria-haspopup="menu"+aria-controls，面板 role=menu+aria-label+id，项 role=menuitem；打开态 keydown handler 扩展 ArrowDown/ArrowUp/Home/End——仅当焦点在容器内才 preventDefault 并在 menuitem 间移动焦点（环绕）。Esc/外点/R447 焦点归还、Tab 可达性、项激活全不动。
+- tsc/eslint/build 绿。部署照旧：上传成功、route auth code 10000。
+
 ## R447 — 三个 disclosure 面板内 Esc 后焦点回到 toggle（2026-09-05）
 - 生产实证（CDP 键盘流）：焦点在面板内时按 Esc，R419 下载菜单（Tab 到 PDF 项）、Resources 下拉（Tab 到 Resume guides）、R420 移动汉堡（Tab 到导航链接）三者关闭后 document.activeElement 全掉 BODY（焦点在 toggle 上时 Esc 正常留在 toggle）——R446 助手面板同族 WCAG 2.4.3 缺口的收尾。方案：docs/plan-r447-disclosure-focus-return.md。
 - 修复 Layout.tsx（ResourcesDropdown btnRef、SiteHeader menuButtonRef+mobileNavRef）与 Builder.tsx（downloadMenuButtonRef）：各 Escape handler 关闭后若 activeElement 在容器/面板内则 focus toggle；焦点在别处（如主题切换钮）不抢焦点，外点关闭路径不动。汉堡的判定范围限定移动 nav 面板而非整个 header。
