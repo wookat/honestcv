@@ -1339,3 +1339,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 ## R455 — 上传解析引擎懒块加载失败友好文案（2026-09-05）
 - 闭环 R453 银行 P4：断网/弱网时 fflate/pdfjs 懒块 import 失败，四个上传入口（/ats-checker、Builder 导入、Dashboard×2、Landing）原样展示浏览器技术串 "Failed to fetch dynamically imported module…"。
 - 修复仅 src/lib/extractFile.ts：loadEngine() 包装三个动态 import，失败抛 "Could not load the file reader — check your connection and try again, or paste the text instead."；坏文件/扫描件分支文案不变，调用方零改动。方案：docs/plan-r455-friendly-lazy-chunk-import-error.md。
+
+## R456 — 路由懒块加载失败白屏 → 友好错误卡（2026-08-31）
+- 生产实证（CDP 阻断 assets/Builder-*）：五个路由页全 lazy()，App.tsx 只有 Suspense 无 error boundary；客户端导航中路由块 fetch 失败 → 未捕获 "Failed to fetch dynamically imported module…"，React 卸载整棵树（#root 剩 17 字节）——整页白屏零提示。触发场景：弱网导航、旧标签页跨部署导航。方案：docs/plan-r456-route-chunk-error-boundary.md。
+- 修复仅 src/App.tsx：RouteErrorBoundary（class，getDerivedStateFromError）包 <Routes>，key={pathname} 使 Back/前进可脱离错误态。错误卡：main#main + role=alert "This page failed to load" / "Check your connection, then reload and try again." + Reload page 按钮（location.reload()；Chrome 文档级缓存失败 import，R434 同理据）。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：Builder/Jobs 双路由阻断→精确文案卡零未捕获 rejection、直载 /builder 阻断同样出卡（非卡死骨架）、history.back() 同文档脱离错误态、解封后 Reload 恢复、正常导航/水合/375 光暗零溢出、唯一 #main、零逃逸、存储字节级还原。
+- QA 银行（既有非缺陷倾向，待定夺）：SiteHeader/SiteFooter 在各页面组件内部，boundary 错误卡全屏无站点导航（两条恢复路径均可用）；如要卡上方保留 shell 需把 header 提到 <Routes> 外（候选后续轮）。
+- PR #677（基于 #676）。部署照旧：上传成功、route auth code 10000。
