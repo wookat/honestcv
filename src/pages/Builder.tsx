@@ -1319,6 +1319,7 @@ export default function Builder() {
   )
   const [pendingExample, setPendingExample] = useState<ExamplePerson | null>(null)
   const [exampleLoadFailed, setExampleLoadFailed] = useState(false)
+  const [exampleNotFound, setExampleNotFound] = useState(false)
   const [exampleLoadAttempt, setExampleLoadAttempt] = useState(0)
   const replaceWithExample = (person: ExamplePerson) => {
     linkVersion(null)
@@ -1350,7 +1351,13 @@ export default function Builder() {
         const slug = new URLSearchParams(window.location.search).get('example')
         const entry = slug ? list.find((e) => e.slug === slug) : undefined
         setExampleLoadFailed(false)
-        if (!entry) return
+        if (!entry) {
+          if (slug) {
+            setExampleNotFound(true)
+            window.history.replaceState(null, '', window.location.pathname)
+          }
+          return
+        }
         window.history.replaceState(null, '', window.location.pathname)
         applyExampleRef.current(entry.person)
       })
@@ -7933,6 +7940,28 @@ export default function Builder() {
             aria-label="Dismiss"
             className="text-muted-foreground hover:text-foreground"
             onClick={() => setExampleLoadFailed(false)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {exampleNotFound && (
+        <div
+          role="alert"
+          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
+        >
+          <span className="min-w-0">
+            This example resume wasn't found — it may have been renamed or removed.
+          </span>
+          <Button type="button" size="sm" variant="outline" asChild>
+            <a href="/examples/">Browse examples</a>
+          </Button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setExampleNotFound(false)}
           >
             <X className="size-4" />
           </button>

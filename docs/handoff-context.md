@@ -1182,3 +1182,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证：联系方式卡七个输入框全无 autocomplete/inputMode（WCAG 1.3.5 AA，浏览器无法自动填充本人姓名/邮箱/电话，移动端弹通用键盘）；References/Paywall 邮箱早已 type=email，唯独最高频的联系卡漏掉。方案：docs/plan-r424-contact-input-purpose.md。
 - 修复仅 Builder.tsx 联系卡：元组扩展 per-field autocomplete/inputMode（name / organization-title / email+email / tel+tel / url+url / linkedin 仅 inputmode=url / location 不动），type 保持 text，纯属性零视觉变更。
 - tsc/eslint/build 绿。生产 QA 全绿（Builder-CVVuDPG6.js）：七字段属性逐一精确、输入持久化往返不变、视觉零差异、R423 unlabeled 探针仍归零、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R425 — 死 ?example 深链诚实 not-found 提示（2026-08-31）
+- 生产实证：/builder?example=<bogus-slug> 时 examples.json 拉取成功但 find 落空即静默 return——空草稿零反馈、死参数留在 URL（R416 只把 fetch 失败做诚实，not-found 分支仍哑）。方案：docs/plan-r425-example-notfound.md。
+- 修复仅 Builder.tsx：新增 exampleNotFound 态，slug 无匹配时底部 role=alert 条（"This example resume wasn't found — it may have been renamed or removed." + Browse examples 链 /examples/ + Dismiss），并同 found 路径 replaceState 清死参数；fetch 失败条与有效 slug 路径字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-DTHSDncy.js）：bogus slug 精确文案条+参数剥离+零存储写入、有效 slug 照常应用、无参零条且 examples.json 每挂载恰 1 次（R416 回归）、强制 fetch 失败旧条+Try again 恢复、R424 属性回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
