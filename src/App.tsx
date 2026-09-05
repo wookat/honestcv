@@ -2,6 +2,7 @@ import { Component, Suspense, lazy, useEffect, type ReactNode } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
+import { SiteFooter, SiteHeader } from "@/components/Layout";
 
 const Builder = lazy(() => import("@/pages/Builder"));
 const AtsChecker = lazy(() => import("@/pages/AtsChecker"));
@@ -50,21 +51,28 @@ class RouteErrorBoundary extends Component<
   render() {
     if (!this.state.failed) return this.props.children;
     return (
-      <main id="main" className="mx-auto max-w-md px-4 py-16 text-center">
-        <div role="alert">
-          <h1 className="text-lg font-semibold">This page failed to load</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Check your connection, then reload and try again.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 mt-6 inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
+      <div className="flex min-h-screen flex-col">
+        <SiteHeader />
+        <main
+          id="main"
+          className="mx-auto w-full max-w-md flex-1 px-4 py-16 text-center"
         >
-          Reload page
-        </button>
-      </main>
+          <div role="alert">
+            <h1 className="text-lg font-semibold">This page failed to load</h1>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Check your connection, then reload and try again.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 mt-6 inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
+          >
+            Reload page
+          </button>
+        </main>
+        <SiteFooter />
+      </div>
     );
   }
 }
