@@ -198,6 +198,7 @@ import {
   SECTION_SPACING,
   loadResume,
   stashUnreadableDraft,
+  stashUnreadableHistory,
   newId,
   orderedSectionKeys,
   listResumeVersions,
@@ -897,6 +898,9 @@ export default function Builder() {
   const [shareLinksUnreadable, setShareLinksUnreadable] = useState(() =>
     stashUnreadableShareLinks()
   )
+  // An unreadable edit-history list gets backed up before the mount-time
+  // baseline checkpoint can overwrite it.
+  const [historyUnreadable, setHistoryUnreadable] = useState(() => stashUnreadableHistory())
   const [resume, setResumeRaw] = useState<Resume>(() => {
     const r = applyAutoSort(loadResume() ?? emptyResume())
     // ?template=<id> deep link from the landing gallery / static template pages
@@ -8092,6 +8096,26 @@ export default function Builder() {
               aria-label="Dismiss"
               className="text-muted-foreground hover:text-foreground"
               onClick={() => setDraftUnreadable(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {historyUnreadable && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">
+              Your edit history couldn't be read, so it's not shown here. The
+              unreadable copy was kept in your browser storage as a backup.
+            </span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setHistoryUnreadable(false)}
             >
               <X className="size-4" />
             </button>
