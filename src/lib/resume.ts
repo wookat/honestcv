@@ -3,7 +3,7 @@
  * the browser — nothing is stored on our servers.
  */
 
-import { marksToMarkdown, stripInlineMarks } from '@/lib/marks'
+import { marksToMarkdown, stripInlineMarks, stripInlineMarksKeepLinks } from '@/lib/marks'
 
 /** Contact fields that can be hidden without deleting the data */
 export type HideableContactField = 'email' | 'phone' | 'location' | 'website' | 'linkedin'
@@ -2493,7 +2493,7 @@ export const agentBullets = (a: AgentItem): string[] => [
 ]
 
 /** Flatten to plain text (for AI context + ATS scoring) */
-export function resumeToPlainText(r: Resume): string {
+export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }): string {
   const lines: string[] = []
   const c = r.contact
   lines.push([c.fullName, c.title].filter(Boolean).join(' — '))
@@ -2605,7 +2605,8 @@ export function resumeToPlainText(r: Resume): string {
       for (const b of s.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
     }
   }
-  return lines.map((l) => stripInlineMarks(l)).join('\n')
+  const strip = opts?.keepLinkUrls ? stripInlineMarksKeepLinks : stripInlineMarks
+  return lines.map((l) => strip(l)).join('\n')
 }
 
 /** Flatten to Markdown (for AI tools, GitHub profiles and quick edits) */

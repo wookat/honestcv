@@ -1112,3 +1112,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 ## R410 — 损坏导入文件的友好文案（2026-08-31）
 - 闭环 R409 银行 P4：损坏 PDF 导入显示原始 pdf.js "Invalid PDF structure."；姊妹 DOCX 路径同样漏出 fflate 原始错误。五个导入面（Builder/ATS checker/Dashboard 简历+文档导入/Landing 拖放）都直接渲染 err.message，故在源头 extractFile.ts 修复：getDocument promise catch 后抛 "Could not read this PDF — the file may be damaged. Re-export it or paste the text instead."；unzipSync 包 try/catch 抛对应 DOCX 文案。有效文件/扫描件空文本/不支持类型路径全不动。方案：docs/plan-r410-friendly-import-parse-errors.md。
 - 本地 tsc/eslint/build 绿。生产 QA 全绿：Builder 损坏 PDF/DOCX 精确新文案+对话框留存+草稿字节一致、/ats-checker 同文案、reportlab 真 PDF/真 zip DOCX/TXT 正常提取、不支持类型与扫描件文案不变、解析失败也零 console 错误、零逃逸、基线还原。未单测 Dashboard/Landing 两面（同 err.message 渲染链）。
+
+## R411 — TXT 导出保留链接 URL（2026-08-31）
+- 探索性审计（Builder 深编辑/设计工具/分享/四格式导出）零 P0–P3，唯一确证 P4：`[portfolio](https://example.com/qa)` 在 MD/DOCX/PDF 都保留链接，但 TXT 导出把 URL 整个丢掉只剩 label。源头：Builder TXT 下载走 resumeToPlainText，末尾 stripInlineMarks 只保留 run 文本。方案：docs/plan-r411-txt-export-keeps-link-urls.md。
+- 修复：marks.ts 新增 stripInlineMarksKeepLinks（链接渲染为 `label (url)`，label 已是该 URL 时不重复；未完成链接保持字面量）；resumeToPlainText 增可选 {keepLinkUrls}，仅 Builder TXT 下载传 true——ATS 评分/AI 载荷/匹配报告仍走默认（无 URL），字节不变。
+- 本地 oracle 12/12、tsc/eslint/build 绿。生产 QA 全绿：TXT 摘要+经历 bullet 双处 `portfolio (https://example.com/qa)`、无链接简历零杂括号、MD/DOCX/PDF 链接回归（pypdf 注解实证）、mock cover-letter 请求 resumeText 仅 label 无 URL（Tailor 对话框发原始字段含 markdown 源为既定设计非泄漏）、文件名/免费下载门不变、零逃逸零原生对话框、基线字节还原。

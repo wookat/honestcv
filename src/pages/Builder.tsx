@@ -1879,7 +1879,7 @@ export default function Builder() {
       else if (fmt === 'docx')
         await (await import('@/lib/docx')).downloadResumeDocx(shown, fname('docx'))
       else if (fmt === 'md') downloadText(resumeToMarkdown(shown), fname('md'), 'text/markdown')
-      else downloadText(resumeToPlainText(shown), fname('txt'))
+      else downloadText(resumeToPlainText(shown, { keepLinkUrls: true }), fname('txt'))
       setDlDone(true)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
