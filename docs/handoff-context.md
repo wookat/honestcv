@@ -1335,3 +1335,7 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证：分享页 ready 态只有 Print（window.print，浏览器另存 PDF）和 Build-your-own——接收链接的招聘官/内推人拿不到真实导出 PDF（真实字体嵌入/链接注解/分页，与打印渲染不同），移动端 print-to-PDF 更繁琐。方案：docs/plan-r433-share-pdf-download.md。
 - 修复仅 SharedResume.tsx：头部新增 Download PDF（primary，Print 左侧），懒加载 @/lib/pdf downloadResumePdf + professionalFileName([fullName, targetRole, 'resume'], 'pdf')；busy 态禁用显 "Preparing…"，失败在 main 顶部 role=alert "Preparing the PDF failed — try again."。不加下载门（接收者非门对象）。gone/error/loading/Print 全不动。
 - tsc/eslint/build 绿。生产 QA 全绿（特批一条真实分享，验毕删净 404）：真实 PDF 下载且文件名精确、pypdf 校验内容、busy 态、冷加载阻断 pdf chunk→精确 alert 零未捕获错误、Print/R412/R432 unfurl//s/bogus 404/375 光暗三按钮零溢出回归、基线字节还原。QA 银行 P3：同一文档内 Chrome 缓存失败的动态 import，"try again" 需刷新后才真正恢复（如需同会话恢复可 cache-bust 或提示刷新）。部署照旧：上传成功、route auth code 10000。
+
+## R455 — 上传解析引擎懒块加载失败友好文案（2026-09-05）
+- 闭环 R453 银行 P4：断网/弱网时 fflate/pdfjs 懒块 import 失败，四个上传入口（/ats-checker、Builder 导入、Dashboard×2、Landing）原样展示浏览器技术串 "Failed to fetch dynamically imported module…"。
+- 修复仅 src/lib/extractFile.ts：loadEngine() 包装三个动态 import，失败抛 "Could not load the file reader — check your connection and try again, or paste the text instead."；坏文件/扫描件分支文案不变，调用方零改动。方案：docs/plan-r455-friendly-lazy-chunk-import-error.md。
