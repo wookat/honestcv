@@ -113,6 +113,31 @@ export function stripInlineMarks(text: string): string {
     .join('')
 }
 
+/** Plain text with link targets preserved as `label (url)` — for TXT export,
+ *  where a stripped link would otherwise lose the address entirely. */
+export function stripInlineMarksKeepLinks(text: string): string {
+  if (!hasInlineMarks(text)) return text
+  const runs = parseInlineMarks(text)
+  let out = ''
+  let i = 0
+  while (i < runs.length) {
+    const href = runs[i].href
+    if (!href) {
+      out += runs[i].text
+      i++
+      continue
+    }
+    let label = ''
+    while (i < runs.length && runs[i].href === href) {
+      label += runs[i].text
+      i++
+    }
+    out += label
+    if (label !== href && `https://${label}` !== href) out += ` (${href})`
+  }
+  return out
+}
+
 /** `[label](target)` tokens whose target is not an acceptable URL — the shape
  *  Ctrl/Cmd+K leaves behind when the `url` placeholder is never replaced. */
 export function unfinishedLinks(text: string): { token: string; label: string; target: string }[] {
