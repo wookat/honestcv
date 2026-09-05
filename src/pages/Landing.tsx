@@ -440,7 +440,7 @@ export default function Landing() {
         }
       />
 
-      <main className="flex-1">
+      <main id="main" tabIndex={-1} className="flex-1">
         {/* Hero */}
         <section className="relative mx-auto max-w-6xl px-4 pt-16 pb-4 text-center sm:pt-20">
           <div

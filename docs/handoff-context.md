@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R449 — SPA skip link 补上真实 #main 目标（2026-08-31）
+- 生产实证：axe-core 4.10.2 扫 8 条生产路由，所有渲染共享 header 的 SPA 路由（/、/dashboard、/documents、/jobs、/ats-checker、/samples）全报 skip-link（moderate）；CDP 确认 document.querySelector('#main')===null——R421 的 "Skip to content" 链接 href="#main" 全靠 JS onClick，SPA 页面的 <main> 从未有过 id（120 个静态页 R422 早已是 <main id="main" tabindex="-1">）。本轮另驳回两条线索：Builder 对话框缺 aria-modal 是 Radix 1.1.23 有意为之（hideOthers 对外部 65 节点加 aria-hidden，非缺陷）；/builder 页 Cache-Control 缺失是 curl -I（HEAD）探测伪影，GET 正常带 s-maxage=60。方案：docs/plan-r449-skip-link-target.md。
+- 修复：7 个 SPA 页面（Builder/Dashboard/Jobs/AtsChecker/Landing/SharedResume/NotFound）的 <main> 补 id="main" tabIndex={-1}，与静态页同款；Layout 的 onClick 行为不动，href 从此诚实、无 JS 也有原生 fragment 回退。
+- tsc/eslint/build 绿。生产 QA 全绿：6 路由 axe 零违规、golden path（Tab→Enter→activeElement=MAIN#main→下一 Tab 落 main 内）双路由通过、location.hash='#main' :target 命中、无可见焦点外框（与 /pricing/ 像素级一致）、R421/R422/R448 回归、375 暗色零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R448 — 两个 aria-haspopup 菜单补齐 WAI-ARIA menu-button 语义与方向键导航（2026-08-31）
 - 生产实证（CDP）：Resources 下拉与 Builder 紧凑下载菜单的 toggle 都带 aria-haspopup="true"（读屏播报"菜单"）但 aria-controls=null、面板与项全无 role=menu/menuitem；菜单打开后在 toggle 上按 ArrowDown 焦点不进菜单、页面反而滚动（scrollY 0→40）——违反 APG menu button 模式。移动汉堡是 nav disclosure 非菜单，正确地不在范围内。方案：docs/plan-r448-menu-button-semantics.md。
 - 修复 Layout.tsx（ResourcesDropdown）与 Builder.tsx（下载菜单）：toggle aria-haspopup="menu"+aria-controls，面板 role=menu+aria-label+id，项 role=menuitem；打开态 keydown handler 扩展 ArrowDown/ArrowUp/Home/End——仅当焦点在容器内才 preventDefault 并在 menuitem 间移动焦点（环绕）。Esc/外点/R447 焦点归还、Tab 可达性、项激活全不动。
