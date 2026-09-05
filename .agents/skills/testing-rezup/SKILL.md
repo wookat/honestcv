@@ -1354,3 +1354,9 @@ CRITICAL: Fetch interception is per-CDP-session — if a script exits while a se
 - On /jobs, per-job status selects use `aria-label='Status of <title> at <company>'` and the bulk move select uses `aria-label='Move selected jobs to a status'`; the track button is the exact-text "Save" button (a loose /Save|Track/ regex hits the "Tracked (n)" tab first).
 - Notes save on textarea `#job-notes` blur; reminder is date input `#job-remind` (dispatch 'change'). Untracking a job with notes/timeline opens a "Stop tracking …?" confirm dialog.
 - Pipeline removals shrink `honestcv.jobPipeline`, so their storage-full failure branches cannot be quota-forced — test happy paths and note the branch as code-verified.
+
+## R395 lessons
+
+- Builder share dialog opens via the button whose `title` starts with "Get a read-only link"; access is a `select[aria-label='Link access']` (values off/view) — set via the HTMLSelectElement prototype value setter + change event; the share URL is `input[aria-label='Share link']`; re-publish is the exact-text "Publish latest version" button; errors render in `[role=dialog] p[role=alert]`.
+- Share scope is `activeVersionId ?? 'draft'` and records live in `honestcv.shareLinks` as `{scope:{id,token,url,sharedAt}}`. Mock POST /api/share with `{id,token,url}`; the storage-full compensating call is `DELETE /api/share/<id>` with header `x-share-token`.
+- Clipboard asserts need `Browser.grantPermissions` with clipboardReadWrite for the origin, then read via `navigator.clipboard.readText()` stashed on window.
