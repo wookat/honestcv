@@ -1162,3 +1162,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（CDP @375×812 /ats-checker）：打开汉堡菜单（近全屏面板，高 673px）后外点与 Escape 均不关闭（aria-expanded 保持 true）——R419 后头部唯一无 dismiss 的 disclosure（Resources 下拉与紧凑下载菜单均已支持）；静态预渲染页（/about/ 等）用独立头部不受影响。方案：docs/plan-r420-mobile-menu-dismiss.md。
 - 修复仅 Layout.tsx SiteHeader：headerRef 挂 <header>（toggle+面板+ThemeToggle 都算"内部"），menuOpen 期间 document 级 pointerdown（header 外即关）与 Escape keydown；Link 项 onClick 关闭、静态 <a> 整页跳转等行为不变。
 - tsc/eslint/build 绿。生产 QA 全绿（index-yIR63SNL.js / Builder-CNj6w3ia.js）：外点关闭零副作用（URL/storage 字节不变）、Esc 关闭且关闭态无操作、面板内 padding 点击不关、Link 点击照常跳转并关闭、菜单开着点 ThemeToggle 循环主题菜单不关、Resources/R419 下载菜单/R418 1536 回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R421 — SPA 头部加 Skip to content 跳转链接（2026-09-05）
+- 生产实证（CDP @1600）：全站无 skip link，键盘/读屏用户到达 <main> 前每页需 Tab 过 9–15 个头部控件（/builder 15、/dashboard 9、/jobs 9）——WCAG 2.4.1 Bypass Blocks 缺口。方案：docs/plan-r421-skip-to-content.md。
+- 修复仅 Layout.tsx SiteHeader：<header> 首子元素加 <a href="#main">，sr-only 聚焦时显形（focus:not-sr-only 左上角卡片样式）；onClick preventDefault 后 querySelector('main') 设 tabindex=-1 并 focus+scrollIntoView——免逐页加 id，覆盖现有及未来所有 SPA 页。静态预渲染页（9 个独立头部模板）银行为后续候选。
+- tsc/eslint/build 绿。生产 QA 全绿（index-CMVHCAgE.js）：三页 Tab 一次即显形聚焦、聚焦前零视觉存在零布局偏移（头高 57px 不变）、Enter 后 activeElement=MAIN 且 URL/存储零变化、后续 Tab 落 main 内首控件、1280 光暗+375 移动可见可用、R420 汉堡与 Resources 下拉回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
