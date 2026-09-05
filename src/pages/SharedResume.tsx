@@ -86,12 +86,15 @@ export default function SharedResume() {
       </header>
       <main className="mx-auto max-w-4xl px-2 py-6 sm:px-4">
         {dl === 'failed' && (
-          <p
+          <div
             role="alert"
-            className="border-destructive/50 bg-destructive/10 text-destructive mx-auto mb-4 max-w-3xl rounded-md border px-3 py-2 text-sm"
+            className="border-destructive/50 bg-destructive/10 text-destructive mx-auto mb-4 flex max-w-3xl flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
           >
-            Preparing the PDF failed — try again.
-          </p>
+            <span>Preparing the PDF failed — check your connection, then reload and try again.</span>
+            <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+              Reload page
+            </Button>
+          </div>
         )}
         {state.status === 'loading' && (
           <div aria-busy="true" className="bg-background mx-auto aspect-[17/22] max-w-3xl animate-pulse rounded-md border" />
