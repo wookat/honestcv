@@ -1594,6 +1594,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R506 — 信件模板自动填充当前职位（2026-08-31）
+- 一手证据（生产 CDP）：/builder?doc=cover 自述 "Tailored to your resume"，简历含进行中职位（endDate 空）时模板仍输出 `In my current role at [current company]`；resignation 两输入留空时输出 `[Company]`/`[your role]`——这些值就在简历里（targetRole/fullName 已被正确使用，属遗漏非设计）。
+- 修复仅 Builder.tsx insertTemplate：取第一个未 hidden、company 非空、endDate 空或匹配 ONGOING_RE 的 experience 条目；cover 的 `[current company]` 与 resignation 空输入回退该条目的 company/role，无当前职位保留原占位符；显式输入仍优先；interview/AI 路径零改动。
+- 本地：tsc/eslint（Builder 单查）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-DC_9b4n0.js）：种进行中职位后 cover 出 "In my current role at ACME Corp"、resignation 空输入出 "Software Engineer at ACME Corp"、显式填 Globex/Staff Engineer 时优先、全部职位有 endDate 时保留占位符、375px 零溢出零 console 错误、QA 后 honestcv.resume 移除（原值即空）。
+
 ## R505 — 文档编辑器占位符定位器（2026-08-31）
 - 一手证据（生产 CDP）：R504「Fill them in」落地的编辑器是裸 textarea（内容 288px>视口 240px 需滚动），15 个占位符零计数零定位辅助，用户须肉眼逐个找。
 - 修复仅 Dashboard.tsx edit 视图：占位符>0 时 textarea 上方琥珀状态条（role=status 报 "N placeholders left…"）+「Next placeholder」按钮——从光标处找下一个括号槽位（到底回绕），focus+setSelectionRange 选中并按行高滚动进视口；清零即消失。方案：docs/plan-r505-placeholder-locator.md。
