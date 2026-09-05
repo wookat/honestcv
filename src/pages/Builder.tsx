@@ -338,11 +338,27 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' | 'error' {
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') flush()
     }
+    // Ctrl/Cmd+S: editors are expected to own this shortcut — swallow the
+    // browser's "Save page as…" dialog and commit any pending save now.
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return
+      if (e.key.toLowerCase() !== 's') return
+      e.preventDefault()
+      if (!pending.current) return
+      window.clearTimeout(t.current)
+      const ok = saveResume(pending.current)
+      const synced = syncActiveVersion(pending.current)
+      recordResumeSnapshot(pending.current)
+      pending.current = null
+      setState(ok && synced ? 'saved' : 'error')
+    }
     window.addEventListener('pagehide', flush)
     document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('pagehide', flush)
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('keydown', onKey)
     }
   }, [])
   return state
