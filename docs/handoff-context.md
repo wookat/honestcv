@@ -1494,3 +1494,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 银行项①关闭：生产 /builder?example=software-engineer 1600×761 逐块测量（~/audit-r1/r479_measure.py）——编辑列 819 节点/15 可见子块/37 控件，最大块 Experience 345 节点，全部子块 offsetParent!==null（无 display:none 大子树），折叠卡展开内容本就条件渲染。与 R477（883 节点隐藏 Preview 完整渲染）不同，不存在"不可见但完整渲染"内容，按需渲染/虚拟化无证据支撑，不做。
 - 新观察项排除：本机老 profile 下生产 sora-latin.woff2 双下载（首个请求 no-cors、无 Origin、initiator 0:0）。归因实验：生产 HTML 原样本地服务→各一次；生产站全新 browser context→各一次且均 cors 匹配 preload；无 Link 头/无 Early Hints。判定为浏览器基于访问历史的推测式字体预取（浏览器侧行为），非站点缺陷，站点侧无合理改动，不改。
 - 无源码改动，无部署。
+
+## R480 — 移动端 Edit/Preview 切换条纳入 landmark（axe region 违规修复）（2026-09-05）
+- 一手证据（~/audit-r1/r480_axe.py，全新 browser context）：生产 4 路由 × 2 视口 axe-core 扫描，唯一违规 = /builder 375px `region`（moderate）——移动端固定底部 Edit / Preview & score 切换条在 `</main>` 之后且 `role="group"` 非 landmark，按 landmark 导航的读屏用户不可达。其余 7 组合 CLEAN。
+- 修复（仅 src/pages/Builder.tsx 一行）：切换条外层 `role="group"` → `role="navigation"`（命名 landmark，保留 aria-label="Switch between editing and preview"），按钮行为/aria 零改动。方案：docs/plan-r480-mobile-switcher-landmark.md。
+- tsc/eslint/build/verify-dist 绿。部署照旧：上传成功、Workers Routes auth code 10000。
+- 生产 QA（~/audit-r1/r480_qa.py，全新 context）：375 /builder axe 违规清零、1280 保持 CLEAN；切换条功能回归——Edit 态 #preview 0 子元素（R477 门控不回归）、点 Preview & score 完整挂载（1005 节点）、切回 Edit 正常、375 零横向溢出。

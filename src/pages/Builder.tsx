@@ -8013,7 +8013,7 @@ export default function Builder() {
 
       {/* Persistent mobile pane switcher — both panes show side-by-side on lg+ */}
       <div
-        role="group"
+        role="navigation"
         aria-label="Switch between editing and preview"
         className="bg-background/95 fixed inset-x-0 bottom-0 z-30 flex justify-center gap-1 border-t p-2 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] backdrop-blur lg:hidden"
       >
