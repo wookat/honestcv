@@ -52,12 +52,39 @@ function persistDocs(docs: CareerDoc[]): boolean {
   }
 }
 
+const DOC_KINDS: CareerDocKind[] = ['cover', 'interview', 'resignation']
+
+/**
+ * Coerce an untrusted stored entry into a valid CareerDoc so one corrupted
+ * element degrades to being dropped instead of hiding every document.
+ * Returns null when the entry is not salvageable.
+ */
+function sanitizeCareerDoc(input: unknown): CareerDoc | null {
+  if (typeof input !== 'object' || input === null) return null
+  const raw = input as Record<string, unknown>
+  if (typeof raw.id !== 'string' || !raw.id) return null
+  if (typeof raw.text !== 'string' || !raw.text) return null
+  const doc: CareerDoc = {
+    id: raw.id,
+    kind: DOC_KINDS.includes(raw.kind as CareerDocKind) ? (raw.kind as CareerDocKind) : 'cover',
+    title: typeof raw.title === 'string' ? raw.title : '',
+    text: raw.text,
+    updatedAt: typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : 0,
+  }
+  if (typeof raw.signature === 'string' && raw.signature) doc.signature = raw.signature
+  return doc
+}
+
 export function listCareerDocs(): CareerDoc[] {
   try {
     const raw = localStorage.getItem(DOCS_KEY)
     if (!raw) return []
-    const parsed = JSON.parse(raw) as CareerDoc[]
-    return Array.isArray(parsed) ? parsed.filter((d) => d.id && d.text) : []
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((d) => {
+      const doc = sanitizeCareerDoc(d)
+      return doc ? [doc] : []
+    })
   } catch {
     return []
   }
