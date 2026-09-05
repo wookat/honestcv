@@ -1375,3 +1375,7 @@ CRITICAL: Fetch interception is per-CDP-session — if a script exits while a se
 ## R398 lessons
 
 - Builder tool dialogs (Interview prep / Cover letter / Resignation letter) open via buttons containing that text; the no-AI path is the exact-text 'Start from a template' button, and save is the button whose `title` starts with 'Keep this document' (label 'Save to My resumes'). Cover/resignation company comes from the dialog's `#company` input. Doc titles: interview `${targetRole || contact.fullName || 'Untitled'} — Interview prep`, cover `${company || targetRole || 'Untitled'} — Cover letter`, resignation `${company || 'Untitled'} — Resignation letter`. On /documents, don't assert list titles with length-filtered div selectors (group rows concatenate) — use body.innerText.includes(title).
+
+## R399 lessons
+
+- When seeding `honestcv.resumeVersions`, `updatedAt`/`createdAt` MUST be numeric epoch ms (`Date.now()`), not ISO strings — string timestamps render 'Edited NaN days ago' on the dashboard (seed artifact, not a bug). Dashboard folder headings are `h2.contents > button[aria-expanded]` with text `<name> (<count>)`; rename/remove via `button[title='Rename folder <name>']` / `Remove folder <name>`; rename dialog input needs the native-setter + input-event trick. Don't read `aria-expanded` in the same eval tick as the click (React hasn't re-rendered — stale value); re-read after ~0.5s. Assert card visibility with `document.body.innerText.includes(name)`, not exact-textContent element matches.
