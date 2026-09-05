@@ -1325,6 +1325,7 @@ export default function Builder() {
   const [assistantOpen, setAssistantOpen] = useState(
     () => new URLSearchParams(window.location.search).get('assistant') === '1'
   )
+  const assistantButtonRef = useRef<HTMLButtonElement>(null)
   const { pathname, search } = useLocation()
   const navigate = useNavigate()
   useEffect(() => {
@@ -2082,6 +2083,7 @@ export default function Builder() {
               <History className="size-3.5" />
             </Button>
             <Button
+              ref={assistantButtonRef}
               size="sm"
               variant="ghost"
               onClick={() => setAssistantOpen(true)}
@@ -8191,7 +8193,10 @@ export default function Builder() {
       )}
       <AssistantPanel
         open={assistantOpen}
-        onClose={() => setAssistantOpen(false)}
+        onClose={() => {
+          setAssistantOpen(false)
+          assistantButtonRef.current?.focus()
+        }}
         resume={shown}
         jobDescription={resume.jobDescription}
         scoreSummary={atsScoreSummary(ats)}
