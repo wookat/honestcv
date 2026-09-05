@@ -1,9 +1,12 @@
 import { Component, Suspense, lazy, useEffect, type ReactNode } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
-import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
 import { SiteFooter, SiteHeader } from "@/components/Layout";
 
+// The prerendered homepage HTML stays visible while this chunk loads
+// (hydration keeps server HTML for a suspended boundary), so the landing
+// page can load lazily like every other route.
+const Landing = lazy(() => import("@/pages/Landing"));
 const Builder = lazy(() => import("@/pages/Builder"));
 const AtsChecker = lazy(() => import("@/pages/AtsChecker"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
