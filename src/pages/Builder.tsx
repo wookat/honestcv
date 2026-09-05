@@ -972,14 +972,14 @@ export default function Builder() {
   }, [downloadMenuOpen])
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
-  const [shareCopied, setShareCopied] = useState(false)
+  const [shareCopied, setShareCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [shareLinkOpen, setShareLinkOpen] = useState(false)
   const [shareLink, setShareLink] = useState<ShareLink | null>(() =>
     loadShareLink(getActiveVersionId() ?? 'draft')
   )
   const [shareBusy, setShareBusy] = useState(false)
   const [shareError, setShareError] = useState('')
-  const [shareLinkCopied, setShareLinkCopied] = useState(false)
+  const [shareLinkCopied, setShareLinkCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [shareSlug, setShareSlug] = useState('')
   // ?doc=cover&company=<name> deep link from the /jobs board's "Cover letter" action
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(() => {
@@ -1085,7 +1085,7 @@ export default function Builder() {
     setShareLink(loadShareLink(id ?? 'draft'))
     setShareSlug('')
     setShareError('')
-    setShareLinkCopied(false)
+    setShareLinkCopied('idle')
   }
   const shareScope = activeVersionId ?? 'draft'
   const activeVersion = activeVersionId
@@ -1930,7 +1930,7 @@ export default function Builder() {
       setDlDone(true)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
-        setShareCopied(false)
+        setShareCopied('idle')
         setShareOpen(true)
       }
       setDownloaded(fmt)
@@ -2380,7 +2380,7 @@ export default function Builder() {
               title="Get a read-only link anyone can open — no signup needed"
               onClick={() => {
                 setShareError('')
-                setShareLinkCopied(false)
+                setShareLinkCopied('idle')
                 setShareLinkOpen(true)
               }}
             >
@@ -8051,10 +8051,17 @@ export default function Builder() {
               onClick={() => {
                 void navigator.clipboard
                   .writeText('https://cv.zalize.com/ats-checker')
-                  .then(() => setShareCopied(true))
+                  .then(
+                    () => setShareCopied('copied'),
+                    () => setShareCopied('failed')
+                  )
               }}
             >
-              {shareCopied ? 'Copied!' : 'Copy checker link'}
+              {shareCopied === 'copied'
+                ? 'Copied!'
+                : shareCopied === 'failed'
+                  ? 'Copy failed'
+                  : 'Copy checker link'}
             </Button>
             <Button type="button" variant="outline" size="sm" asChild>
               <a
@@ -8920,7 +8927,7 @@ export default function Builder() {
               disabled={shareBusy}
               onChange={(e) => {
                 setShareError('')
-                setShareLinkCopied(false)
+                setShareLinkCopied('idle')
                 if (e.target.value === 'view') {
                   const slug = shareSlug.trim()
                   if (slug && !SHARE_SLUG_RE.test(slug)) {
@@ -9011,10 +9018,17 @@ export default function Builder() {
                   onClick={() => {
                     void navigator.clipboard
                       .writeText(shareLink.url)
-                      .then(() => setShareLinkCopied(true))
+                      .then(
+                        () => setShareLinkCopied('copied'),
+                        () => setShareLinkCopied('failed')
+                      )
                   }}
                 >
-                  {shareLinkCopied ? 'Copied!' : 'Copy'}
+                  {shareLinkCopied === 'copied'
+                    ? 'Copied!'
+                    : shareLinkCopied === 'failed'
+                      ? 'Copy failed'
+                      : 'Copy'}
                 </Button>
               </div>
               <p className="text-muted-foreground text-xs">
@@ -9030,7 +9044,7 @@ export default function Builder() {
                 disabled={shareBusy}
                 onClick={() => {
                   setShareError('')
-                  setShareLinkCopied(false)
+                  setShareLinkCopied('idle')
                   setShareBusy(true)
                   createShareLink(shown, shareScope)
                     .then((link) => setShareLink(link))
