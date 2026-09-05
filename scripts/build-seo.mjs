@@ -16,9 +16,27 @@ const FREE_MODE = process.env.VITE_FREE_MODE !== 'false'
 // First-party pageview beacon (the sole pageview source; path only, no PII).
 // External file so the strict CSP (script-src 'self') needs no inline scripts.
 // Apply the app's device theme preference (honestcv.theme) before first paint
-// so static pages match the SPA's light/dark scheme (external file per CSP).
-const THEME_SCRIPT = '<script src="/theme.js"></script>'
+// so static pages match the SPA's light/dark scheme. Inlined (render-blocking
+// external request avoided) and allowed by an exact CSP sha256 hash.
+const THEME_INLINE =
+  ";(function(){try{var v=localStorage.getItem('honestcv.theme');if(v==='dark'||(v!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}})()"
+const THEME_SCRIPT = `<script>${THEME_INLINE}</script>`
 const FP_BEACON = THEME_SCRIPT + '<script defer src="/t.js"></script>'
+
+// Drift guard: the snippet is duplicated in index.html and its hash lives in
+// the worker CSP. Fail the build if any of the three copies diverges.
+{
+  const { createHash } = await import('node:crypto')
+  const hash = createHash('sha256').update(THEME_INLINE).digest('base64')
+  const shell = readFileSync(path.resolve(import.meta.dirname, '../index.html'), 'utf8')
+  if (!shell.includes(THEME_SCRIPT)) {
+    throw new Error('index.html inline theme script differs from THEME_INLINE in build-seo.mjs')
+  }
+  const worker = readFileSync(path.resolve(import.meta.dirname, '../worker/index.ts'), 'utf8')
+  if (!worker.includes(`'sha256-${hash}'`)) {
+    throw new Error(`worker CSP is missing 'sha256-${hash}' for the inline theme script`)
+  }
+}
 
 const PAGES = [
   {

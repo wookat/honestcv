@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R451 — 内联 pre-paint 主题脚本，消掉最后一个可省 render-blocking 请求（2026-08-31）
+- 生产实证：Lighthouse 12（模拟移动端）主页 perf 88 / BP 100 / SEO 100，render-blocking 仅两项：应用 CSS（165ms，必要）与 /theme.js（1.2KB，465ms 最大浪费项，且未哈希只有 60s 缓存）。该脚本唯一职责是首绘前套暗色 class，当年做成外部文件只因 CSP script-src 'self' 禁内联。方案：docs/plan-r451-inline-theme-script.md。
+- 修复：压缩单行 snippet 内联进 index.html（SPA shell）与 build-seo THEME_SCRIPT（121 静态页），worker CSP 加精确哈希 'sha256-MZ8XjS6YdLL4vJ5M2sqLscENvOD3KriLIkIWJIMgS+Y='（哈希白名单与纯 'self' 同等严格，其他内联仍全禁）；删除 public/theme.js；build-seo 加漂移断言（三处副本任何一处不一致即构建失败，已 tamper 验证会炸）。t.js/hub-filter.js（defer 非阻塞）不动。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：四页零 theme.js 请求（直接 GET 404）、CSP 头含精确哈希且线上内联字节哈希吻合、dark pre-paint 无闪（250ms 探针即已 dark、像素级验证）、五页零 CSP violation 零 console 错误、hub filter/t.js 正常、主题三态循环+持久化回归、R449/R450/375 光暗全回归、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R450 — 六个 /examples/ 页修复跳级标题（2026-08-31）
 - 生产实证：axe-core 4.10.2 扫 10 条静态预渲染路由 + SPA 全路由（桌面/375/菜单展开态），唯一违规是六个 /examples/<slug>/ 页的 heading-order（moderate）：H1 "<Role> resume example" 后直接跟示例简历的 H3 Summary/Experience/Skills/Education（跳过 H2），页面真正的 H2 提示区在其后。源头：scripts/build-seo.mjs exdoc 块硬编码 <h3>。方案：docs/plan-r450-example-heading-order.md。
 - 修复仅 build-seo.mjs：exdoc 四个 <h3>→<h2>，CSS 选择器 .exdoc h3→.exdoc h2（声明不变，视觉像素级等价）；pricing FAQ/promo 页 h3（正确跟在 h2 后）与模板卡 h3 不动。
