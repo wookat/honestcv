@@ -1364,3 +1364,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：仅 scripts/prerender.mjs——骨架块背景改为 class="hcv-sk"，内联 <style> 增加 `.hcv-sk{background:var(--muted,#e2e8f0)}html.dark .hcv-sk{background:var(--muted,oklch(0.26 0.02 260))}`（样式表 render-blocking，首绘时 var(--muted) 必已解析；字面量仅作 CSS 失败兜底）。index.html（预渲染落地页）与 React 侧不动。
 - tsc/eslint/build/verify-dist 绿；部署仅 /spa.html 一个资产变更。生产 QA 全绿零 P0–P3：阻断 index-*.js 持住预水合态，暗色下 9 个 .hcv-sk 块 computed oklch(0.26 0.02 260)（像素直方图 rgb(22,29,37) on rgb(9,13,20)），/builder、/dashboard、404 路由一致；浅色不变（oklch(0.96 0.01 260)）；解封水合零 console 错误；375 暗色零溢出且 hcv-sk-side 正确隐藏；意外加测证实 CSS 失败字面量兜底也生效；零逃逸、存储字节级还原。QA 教训：阻断 pattern 用 `*assets/index-*.js`，裸 `*assets/index-*` 会连样式表一起杀掉、悄悄切到兜底路径。
 - PR 基于 #679。部署照旧：上传成功、route auth code 10000。
+
+## R460 — 浏览器封锁站点数据时的诚实错误卡（2026-08-31）
+- 审计：r458_audit.py 复扫 7 条 SPA 路由全净（此前一次 /jobs "mains:0" 未复现，为加载态采样伪影非缺陷）。确证缺陷（CDP 一手实证 r460_blockedstorage.py）：模拟 Chrome「阻止所有 Cookie」/企业策略/Safari 封锁——Storage.prototype 五方法抛 SecurityError DOMException 后，/builder 与 /dashboard 首次渲染即崩（Builder/Dashboard useState 初始化器内数十处未包裹的 localStorage.getItem），被 R456 boundary 接住但显示误导文案 "Check your connection, then reload and try again."——网络无恙、刷新永远无效，真正解法是放行站点数据。主页仍正常渲染。r460_stack.py 证实 window 级零错误，boundary 是唯一汇聚点。
+- 驳回替代方案：内存 Storage polyfill（R351 保存指示会谎报 "Saved"，不诚实）；逐处包裹（几十个调用点，大 diff 同终态）。
+- 修复仅 src/App.tsx：getDerivedStateFromError(error) 记录 storageBlocked = error instanceof DOMException && name==='SecurityError'（chunk 失败是 TypeError，零重叠）；命中时错误卡改为 "Your browser is blocking site data" / "RezUp stores your resumes in your browser. Allow cookies and site data for cv.zalize.com in your browser settings, then reload."；其余错误保持 R456/R457 文案与壳。方案：docs/plan-r460-storage-blocked.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3：阻断存储载 /builder //dashboard→新文案严格相等、壳/role=alert/Reload 齐全零未捕获错误；判别回归——存储正常仅阻断 Builder chunk→旧连接文案（无误报）；正常加载三路由零 console 错误；375 光暗零溢出（暗色经 prefers-color-scheme 模拟，存储被封时 localStorage 主题种子不可用——QA 方法论教训）；主页封锁下仍正常；零逃逸、存储字节级还原。
+- PR 基于 #680。部署照旧：上传成功、route auth code 10000。

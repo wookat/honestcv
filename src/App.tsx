@@ -42,11 +42,17 @@ function RouteFallback() {
 // the reliable recovery.
 class RouteErrorBoundary extends Component<
   { children: ReactNode },
-  { failed: boolean }
+  { failed: boolean; storageBlocked: boolean }
 > {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
+  state = { failed: false, storageBlocked: false };
+  static getDerivedStateFromError(error: unknown) {
+    // Browsers throw a SecurityError DOMException from localStorage when the
+    // user blocks cookies/site data; chunk-load failures are TypeErrors.
+    return {
+      failed: true,
+      storageBlocked:
+        error instanceof DOMException && error.name === "SecurityError",
+    };
   }
   render() {
     if (!this.state.failed) return this.props.children;
@@ -58,9 +64,15 @@ class RouteErrorBoundary extends Component<
           className="mx-auto w-full max-w-md flex-1 px-4 py-16 text-center"
         >
           <div role="alert">
-            <h1 className="text-lg font-semibold">This page failed to load</h1>
+            <h1 className="text-lg font-semibold">
+              {this.state.storageBlocked
+                ? "Your browser is blocking site data"
+                : "This page failed to load"}
+            </h1>
             <p className="text-muted-foreground mt-2 text-sm">
-              Check your connection, then reload and try again.
+              {this.state.storageBlocked
+                ? "RezUp stores your resumes in your browser. Allow cookies and site data for cv.zalize.com in your browser settings, then reload."
+                : "Check your connection, then reload and try again."}
             </p>
           </div>
           <button
