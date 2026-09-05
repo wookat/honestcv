@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -80,6 +80,9 @@ function segmentJd(jd: string, matched: string[], missing: string[]): JdSegment[
   if (last < jd.length) out.push({ text: jd.slice(last), kind: 'plain' })
   return out
 }
+
+/** Longest JD prefix rendered in the inline highlight view — the score always uses the full text. */
+const HIGHLIGHT_LIMIT = 20_000
 
 const DRAFT_KEY = 'honestcv.atsCheckerDraft'
 
@@ -181,9 +184,12 @@ export default function AtsChecker() {
     }
   }, [resumeText, jd, checked])
 
+  // Deferred so rescoring a very large pasted text can't block each keystroke.
+  const scoredResumeText = useDeferredValue(resumeText)
+  const scoredJd = useDeferredValue(jd)
   const result = useMemo(
-    () => (checked ? scoreResumeText(resumeText, jd) : null),
-    [checked, resumeText, jd]
+    () => (checked ? scoreResumeText(scoredResumeText, scoredJd) : null),
+    [checked, scoredResumeText, scoredJd]
   )
   const isExample = resumeText === EXAMPLE_RESUME && jd === EXAMPLE_JD
 
@@ -204,13 +210,19 @@ export default function AtsChecker() {
     )
   }, [result])
 
+  const jdSegments = useMemo(
+    () =>
+      result ? segmentJd(scoredJd.slice(0, HIGHLIGHT_LIMIT), result.matched, result.missing) : [],
+    [scoredJd, result]
+  )
+
   const analysis = useMemo(() => {
     if (!result) return null
-    const parsed = parseResumeText(resumeText)
-    parsed.jobDescription = jd
+    const parsed = parseResumeText(scoredResumeText)
+    parsed.jobDescription = scoredJd
     const health = resumeHealth(parsed)
     return { health, fixes: priorityFixes(result, health) }
-  }, [result, resumeText, jd])
+  }, [result, scoredResumeText, scoredJd])
 
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">
@@ -589,7 +601,7 @@ export default function AtsChecker() {
                     missing.
                   </p>
                   <div className="bg-muted/40 mt-2 max-h-56 overflow-y-auto rounded-md border p-3 text-sm whitespace-pre-wrap">
-                    {segmentJd(jd, result.matched, result.missing).map((s, i) =>
+                    {jdSegments.map((s, i) =>
                       s.kind === 'plain' ? (
                         <span key={i}>{s.text}</span>
                       ) : (
@@ -606,6 +618,12 @@ export default function AtsChecker() {
                       )
                     )}
                   </div>
+                  {jd.length > HIGHLIGHT_LIMIT && (
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Highlighting the first {HIGHLIGHT_LIMIT.toLocaleString()} characters of
+                      this long job description — the score uses the full text.
+                    </p>
+                  )}
                 </div>
               )}
 
