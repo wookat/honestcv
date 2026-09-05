@@ -955,13 +955,16 @@ export default function Builder() {
   const [dlError, setDlError] = useState<string | null>(null)
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false)
   const downloadMenuRef = useRef<HTMLDivElement>(null)
+  const downloadMenuButtonRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!downloadMenuOpen) return
     const onDown = (e: PointerEvent) => {
       if (!downloadMenuRef.current?.contains(e.target as Node)) setDownloadMenuOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDownloadMenuOpen(false)
+      if (e.key !== 'Escape') return
+      setDownloadMenuOpen(false)
+      if (downloadMenuRef.current?.contains(document.activeElement)) downloadMenuButtonRef.current?.focus()
     }
     document.addEventListener('pointerdown', onDown)
     document.addEventListener('keydown', onKey)
@@ -2109,6 +2112,7 @@ export default function Builder() {
             </Button>
             <div ref={downloadMenuRef} className="relative 2xl:hidden">
               <Button
+                ref={downloadMenuButtonRef}
                 size="sm"
                 variant="outline"
                 aria-haspopup="true"

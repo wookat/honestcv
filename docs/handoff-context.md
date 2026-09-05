@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R447 — 三个 disclosure 面板内 Esc 后焦点回到 toggle（2026-09-05）
+- 生产实证（CDP 键盘流）：焦点在面板内时按 Esc，R419 下载菜单（Tab 到 PDF 项）、Resources 下拉（Tab 到 Resume guides）、R420 移动汉堡（Tab 到导航链接）三者关闭后 document.activeElement 全掉 BODY（焦点在 toggle 上时 Esc 正常留在 toggle）——R446 助手面板同族 WCAG 2.4.3 缺口的收尾。方案：docs/plan-r447-disclosure-focus-return.md。
+- 修复 Layout.tsx（ResourcesDropdown btnRef、SiteHeader menuButtonRef+mobileNavRef）与 Builder.tsx（downloadMenuButtonRef）：各 Escape handler 关闭后若 activeElement 在容器/面板内则 focus toggle；焦点在别处（如主题切换钮）不抢焦点，外点关闭路径不动。汉堡的判定范围限定移动 nav 面板而非整个 header。
+- tsc/eslint/build 绿。部署照旧：上传成功、route auth code 10000。
+
 ## R446 — 关闭助手面板后焦点回到工具栏按钮（2026-09-05）
 - 生产实证（CDP 键盘流）：Esc（R445）或 X 关闭 Resume assistant 面板后 document.activeElement 掉到 BODY——键盘/读屏用户被丢回文档顶部（WCAG 2.4.3）。基线对照：Copies 对话框（Radix/R340）Esc 后焦点回 opener、R419 下载菜单 Esc 后焦点留在 toggle，助手面板是最后一个丢焦点的浮层。方案：docs/plan-r446-assistant-focus-return.md。
 - 修复仅 src/pages/Builder.tsx：assistantButtonRef 挂工具栏助手按钮，onClose（Esc 与 X 共用的唯一关闭路径）里 setAssistantOpen(false) 后 focus 该按钮；AssistantPanel 组件不动。
