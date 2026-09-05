@@ -37,9 +37,15 @@ const builderChunk = readdirSync(path.join(root, 'dist/client/assets')).find((f)
 )
 if (!builderChunk) throw new Error('prerender: Builder chunk not found in dist/client/assets')
 
+// The homepage FAQ is only rendered on '/', so FAQPage markup must not ship
+// on the shell that serves every other route (visible-content requirement).
 const spaShell = shell
+  .replace(/[^\S\n]*<script type="application\/ld\+json">[^]*?<\/script>\n?/g, (block) =>
+    block.includes('"FAQPage"') ? '' : block
+  )
   .replace('</head>', `    <link rel="modulepreload" href="/assets/${builderChunk}" />\n  </head>`)
   .replace(marker, `<div id="root">${skeleton}</div>`)
+if (spaShell.includes('FAQPage')) throw new Error('prerender: FAQPage markup leaked into spa.html')
 writeFileSync(path.join(root, 'dist/client/spa.html'), spaShell)
 writeFileSync(shellPath, shell.replace(marker, `<div id="root">${html}</div>`))
 console.log('prerendered / into dist/client/index.html (shell kept as spa.html)')

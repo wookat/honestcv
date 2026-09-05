@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R440 — spa.html 剥离主页 FAQPage 结构化数据（2026-09-05）
+- 生产实证（curl）：/builder 等六个可索引 SPA 路由的 raw HTML 带主页 FAQPage JSON-LD，但 FAQ 内容只在 Landing（'/'）可见——违反 Google FAQPage 可见内容要求（R429/R430 shell 诚实化的同族残留）。方案：docs/plan-r440-spa-shell-faq-ldjson.md。
+- 修复仅 scripts/prerender.mjs：生成 spaShell 时按块剥掉含 "FAQPage" 的 ld+json（WebApplication 站点级实体保留），并加构建期防回归断言；index.html（'/'）字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：四路由零 FAQPage 且恰一个 WebApplication、R429/R430 回归、主页双块保留且 FAQ 可见、两条 404 分支零 FAQPage 且 noindex 回归、水合 /builder(/) 零 console 错误且 R439 回归、375 光暗零溢出、基线字节还原、零逃逸。部署照旧：上传成功、route auth code 10000。
+
 ## R439 — CanonicalSync 归一化尾斜杠，水合后 canonical 不再指向 /builder/ 变体（2026-09-05）
 - 生产实证：curl /builder/ 200 且 raw shell 自指 /builder（worker 已归一化），但 CDP 直载 /builder/ 水合后 CanonicalSync 用 pathname 原文把 canonical/og:url 改写成带斜杠变体——raw-vs-hydrated 自相矛盾（R429/R431/R436 同族）。方案：docs/plan-r439-trailing-slash-canonical.md。
 - 修复仅 src/App.tsx CanonicalSync 一行：与 worker 相同的 `pathname.replace(/\/+$/, '')`（根路径除外）后再拼 URL；客户端导航从不产生尾斜杠，行为字节不变。
