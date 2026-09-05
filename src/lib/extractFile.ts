@@ -1,5 +1,3 @@
-import { unzipSync, strFromU8 } from 'fflate'
-
 export const IMPORT_ACCEPT = '.pdf,.docx,.txt'
 
 /** File-level ATS compatibility check on an uploaded resume file. */
@@ -221,6 +219,7 @@ function detectColumnSplit(segments: { x: number; text: string }[]): number | nu
 }
 
 async function extractDocx(file: File): Promise<ExtractedResumeFile> {
+  const { unzipSync, strFromU8 } = await import('fflate')
   let files: ReturnType<typeof unzipSync>
   try {
     files = unzipSync(new Uint8Array(await file.arrayBuffer()))
