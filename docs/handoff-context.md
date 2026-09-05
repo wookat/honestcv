@@ -1228,6 +1228,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：压缩单行 snippet 内联进 index.html（SPA shell）与 build-seo THEME_SCRIPT（121 静态页），worker CSP 加精确哈希 'sha256-MZ8XjS6YdLL4vJ5M2sqLscENvOD3KriLIkIWJIMgS+Y='（哈希白名单与纯 'self' 同等严格，其他内联仍全禁）；删除 public/theme.js；build-seo 加漂移断言（三处副本任何一处不一致即构建失败，已 tamper 验证会炸）。t.js/hub-filter.js（defer 非阻塞）不动。
 - tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：四页零 theme.js 请求（直接 GET 404）、CSP 头含精确哈希且线上内联字节哈希吻合、dark pre-paint 无闪（250ms 探针即已 dark、像素级验证）、五页零 CSP violation 零 console 错误、hub filter/t.js 正常、主题三态循环+持久化回归、R449/R450/375 光暗全回归、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R452 — 移除 motion 依赖，入口包瘦身 21.6KB gzip（2026-08-31）
+- 生产实证：R451 后 Lighthouse 首要余项为 unused-javascript（入口 index-*.js 126.7KB 传输、~61.7KB 未用）。sourcemap 分解入口块：motion-dom 204KB + framer-motion 24KB + motion-utils 10KB + tslib 17KB 源码全部只为 src/lib/motion.ts 里 ScoreRing 计数动画的一个 animate() 调用（全仓唯一引用点）。方案：docs/plan-r452-drop-motion-dep.md。
+- 修复：useCountUp 重写为 rAF cubic ease-out 补间（API/reduced-motion 语义不变，调用方零改动），package.json 删除 motion 依赖。入口块 391→329.9KB（gzip 123.5→101.9KB，省 21.6KB 传输）。银行：fflate 88KB 经 extractFile 静态引入仍在入口（候选后续轮改上传时动态 import）。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：线上入口恰为新 chunk 且字节零 motion 代码（'framer' 命中仅 React 内部符号）、40ms 采样器实证主页 86 分环 0→…→86 约 900ms ease-out 补间、/builder 11 分环同、prefers-reduced-motion 仿真首帧即终值零中间值、四页零 console 错误零 CSP violation、R451（零 theme.js 请求、内联脚本、CSP 哈希、dark pre-paint）全回归、375 光暗零溢出、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R450 — 六个 /examples/ 页修复跳级标题（2026-08-31）
 - 生产实证：axe-core 4.10.2 扫 10 条静态预渲染路由 + SPA 全路由（桌面/375/菜单展开态），唯一违规是六个 /examples/<slug>/ 页的 heading-order（moderate）：H1 "<Role> resume example" 后直接跟示例简历的 H3 Summary/Experience/Skills/Education（跳过 H2），页面真正的 H2 提示区在其后。源头：scripts/build-seo.mjs exdoc 块硬编码 <h3>。方案：docs/plan-r450-example-heading-order.md。
 - 修复仅 build-seo.mjs：exdoc 四个 <h3>→<h2>，CSS 选择器 .exdoc h3→.exdoc h2（声明不变，视觉像素级等价）；pricing FAQ/promo 页 h3（正确跟在 h2 后）与模板卡 h3 不动。
