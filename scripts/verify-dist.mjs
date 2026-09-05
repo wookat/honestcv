@@ -35,7 +35,7 @@ function fail(msg) {
   process.exit(1)
 }
 
-for (const f of ['index.html', 'spa.html', 'sitemap.xml', 'examples/examples.json']) {
+for (const f of ['index.html', 'spa.html', 'sitemap.xml', 'examples/examples.json', 'sw.js']) {
   if (!fs.existsSync(path.join(CLIENT, f))) fail(`missing ${f}`)
 }
 

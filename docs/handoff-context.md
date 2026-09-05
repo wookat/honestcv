@@ -1531,3 +1531,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复最小：CDP 从生产捕获两张策划截图入库 public/——screenshot-wide.png（1280×800 桌面首页 hero+产品 mock；Builder 捕获因首屏右列为模板选择器而非实时预览被弃用）、screenshot-narrow.png（750×1334，375×667@2x 移动首页 hero）；manifest 追加 screenshots 两条（form_factor wide/narrow、label 如实描述内容）。HTML/CSP/icons/shortcuts 零改动。非目标：无 SW/离线、不加更多截图。
 - tsc/eslint/build/verify-dist 绿；dist manifest 2 screenshots 且 PNG 尺寸 PIL 实测与声明一致、id/scope/4 icons/2 shortcuts 保持。部署照旧：3 资产上传成功、Workers Routes auth code 10000。
 - 生产 QA（本机直验，纯静态资产）：manifest 200 含 2 screenshots（连续 6 次采样稳定）且 id/icons/shortcuts 回归；两 PNG 200 image/png 尺寸正确；CDP Page.getAppManifest errors=[] 且解析出 wide+narrow 两条。
+
+## R486 — 离线 app shell：最小 Service Worker（PWA 收口）（2026-09-05）
+- 一手证据：R486 审计——5 条公开静态页×1280/375 axe+溢出全净；og:image 200 1200×630；4 条 SPA 路由零 console 错误；Lighthouse 移动 / 0.95、/ats-checker 0.84、/jobs 0.78、/dashboard 0.75（a11y/SEO 全 1.0，失分为入口脚本执行成本+第三方 remotive logo，均不可控或已入过账）。生产 `navigator.serviceWorker.getRegistrations()`=0——本地优先应用（17 个 localStorage 键全在端上）冷离线打开是浏览器错误页（探测中离线可开仅因 HTTP 磁盘缓存尚存，SPA shell max-age=60 极易失效）。R478–R482 SOP-04 银行项"PWA 完整体验（SW/离线）"就此闭合。方案：docs/plan-r486-offline-service-worker.md。
+- 修复最小（零新依赖，弃 vite-plugin-pwa 因 Vite8/rolldown 兼容风险且运行时策略无需构建期清单）：public/sw.js——导航（同源、非 /api/*、非 /s/*）network-first→本页缓存→任一 shell 兜底；/assets/* 哈希资产 cache-first；字体/图标/manifest stale-while-revalidate；/api/* 与 /s/*（no-store 撤销即 404）完全不拦截；activate 清理旧版本缓存、双缓存条目数封顶。main.tsx 仅生产注册（load 后）；verify-dist 增查 sw.js。HTML/CSP 零改动（worker-src 'self' 已允许）。
+- tsc/eslint/build/verify-dist 绿。部署照旧：30 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA（CDP 全新 context）：SW activated 且 scope=/、二次导航被控制、三缓存就位；离线 /builder（已访）完整渲染、离线 /jobs（未访）经 shell 兜底 MAIN OK、离线 /s/* 如实浏览器错误页（不拦截，符合设计）；恢复在线 /s/* 走网络出"link no longer available"、/dashboard 正常；SW 控制下 4 路由零 console/exception 错误；localStorage 零改动。
