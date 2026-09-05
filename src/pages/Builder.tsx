@@ -191,6 +191,7 @@ import {
   emptyProject,
   emptyResume,
   exampleToResume,
+  sanitizeResume,
   FONT_SCALE,
   LINE_SPACING,
   SECTION_SPACING,
@@ -2363,8 +2364,9 @@ export default function Builder() {
                 if (!file) return
                 void file.text().then((raw) => {
                   try {
-                    const parsed = JSON.parse(raw) as Resume
-                    if (!parsed.contact || !Array.isArray(parsed.experience)) {
+                    const data = JSON.parse(raw) as Resume
+                    const parsed = Array.isArray(data.experience) ? sanitizeResume(data) : null
+                    if (!parsed) {
                       setRestoreError('That file is not a RezUp backup.')
                       return
                     }
