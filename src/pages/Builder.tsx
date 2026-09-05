@@ -63,6 +63,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -153,6 +154,7 @@ import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText, professionalFileName } from '@/lib/download'
 import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
+import { setPipelineCoverDoc } from '@/lib/jobs'
 import { trackEvent } from '@/lib/track'
 import {
   type ShareLink,
@@ -189,6 +191,7 @@ import {
   emptyProject,
   emptyResume,
   exampleToResume,
+  sanitizeResume,
   FONT_SCALE,
   LINE_SPACING,
   SECTION_SPACING,
@@ -288,6 +291,11 @@ import {
   toggleTemplateFavorite,
 } from '@/lib/templatePrefs'
 
+const LIBRARY_STORAGE_FULL_MSG =
+  'Not saved to your library — your browser storage is full. Free up space and try again.'
+const HISTORY_STORAGE_FULL_MSG =
+  'Not restored — your browser storage is full, so a checkpoint of the current draft could not be saved first. Free up space and try again.'
+
 function useDebouncedSave(resume: Resume): 'saving' | 'saved' | 'error' {
   const t = useRef<number | undefined>(undefined)
   const [state, setState] = useState<'saving' | 'saved' | 'error'>('saved')
@@ -306,10 +314,10 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' | 'error' {
     window.clearTimeout(t.current)
     t.current = window.setTimeout(() => {
       const ok = saveResume(resume)
-      syncActiveVersion(resume)
+      const synced = syncActiveVersion(resume)
       recordResumeSnapshot(resume)
       pending.current = null
-      setState(ok ? 'saved' : 'error')
+      setState(ok && synced ? 'saved' : 'error')
     }, 400)
     return () => window.clearTimeout(t.current)
   }, [resume])
@@ -890,6 +898,19 @@ export default function Builder() {
     }
     return r
   })
+  /** ?template=<id> pointed at no known template — dead deep link from an old page. */
+  const [templateNotFound, setTemplateNotFound] = useState(() => {
+    const wanted = new URLSearchParams(window.location.search).get('template')
+    return Boolean(wanted && !TEMPLATES.some((t) => t.id === wanted))
+  })
+  useEffect(() => {
+    if (!templateNotFound) return
+    const params = new URLSearchParams(window.location.search)
+    params.delete('template')
+    const rest = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   /** Every update passes through applyAutoSort so toggled-on sections stay filed;
    * a section is held in place while focus is inside one of its entry cards and
    * re-filed when the card blurs (commit-at-boundary, like Rezi's save). */
@@ -933,16 +954,32 @@ export default function Builder() {
   const [downloading, setDownloading] = useState<string | null>(null)
   const [dlError, setDlError] = useState<string | null>(null)
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false)
+  const downloadMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!downloadMenuOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (!downloadMenuRef.current?.contains(e.target as Node)) setDownloadMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDownloadMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [downloadMenuOpen])
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
-  const [shareCopied, setShareCopied] = useState(false)
+  const [shareCopied, setShareCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [shareLinkOpen, setShareLinkOpen] = useState(false)
   const [shareLink, setShareLink] = useState<ShareLink | null>(() =>
     loadShareLink(getActiveVersionId() ?? 'draft')
   )
   const [shareBusy, setShareBusy] = useState(false)
   const [shareError, setShareError] = useState('')
-  const [shareLinkCopied, setShareLinkCopied] = useState(false)
+  const [shareLinkCopied, setShareLinkCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [shareSlug, setShareSlug] = useState('')
   // ?doc=cover&company=<name> deep link from the /jobs board's "Cover letter" action
   const [toolOpen, setToolOpen] = useState<'cover' | 'interview' | 'resignation' | null>(() => {
@@ -951,6 +988,9 @@ export default function Builder() {
   })
   const [toolCompany] = useState(
     () => new URLSearchParams(window.location.search).get('company') ?? ''
+  )
+  const [toolJobId] = useState(
+    () => new URLSearchParams(window.location.search).get('job') ?? ''
   )
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('doc')) {
@@ -1020,9 +1060,22 @@ export default function Builder() {
   const importFileRef = useRef<HTMLInputElement>(null)
   const backupFileRef = useRef<HTMLInputElement>(null)
   const [restoreError, setRestoreError] = useState('')
+  const [pendingBackupRestore, setPendingBackupRestore] = useState<Resume | null>(null)
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [versionName, setVersionName] = useState('')
+  const [copyStorageError, setCopyStorageError] = useState(false)
+  /** Message for the fixed-bottom storage-full alert; empty = hidden. */
+  const [storageAlert, setStorageAlert] = useState('')
+  /** Applies a copy mutation; surfaces the storage-full alert when nothing was written. */
+  const applyVersions = (next: ResumeVersion[] | null): boolean => {
+    if (next === null) {
+      setCopyStorageError(true)
+      return false
+    }
+    setVersions(next)
+    return true
+  }
   const [activeVersionId, setActiveVersionIdState] = useState<string | null>(() =>
     getActiveVersionId()
   )
@@ -1032,7 +1085,7 @@ export default function Builder() {
     setShareLink(loadShareLink(id ?? 'draft'))
     setShareSlug('')
     setShareError('')
-    setShareLinkCopied(false)
+    setShareLinkCopied('idle')
   }
   const shareScope = activeVersionId ?? 'draft'
   const activeVersion = activeVersionId
@@ -1049,8 +1102,8 @@ export default function Builder() {
   const commitRename = (v: ResumeVersion) => {
     const name = renameText.trim() || v.name
     const folder = renameFolder.trim() || undefined
-    if (name !== v.name || folder !== v.folder)
-      setVersions(updateResumeVersion(v.id, { name, folder }))
+    if ((name !== v.name || folder !== v.folder) && !applyVersions(updateResumeVersion(v.id, { name, folder })))
+      return
     setRenamingId(null)
   }
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
@@ -1277,44 +1330,59 @@ export default function Builder() {
   >(
     []
   )
-  const applyExample = useCallback((person: ExamplePerson) => {
-    setResume((cur) => {
-      const hasContent = Boolean(cur.contact.fullName || cur.summary)
-      if (
-        hasContent &&
-        !window.confirm(
-          'Replace your current resume content with this example? Your saved copies are unaffected.'
-        )
-      )
-        return cur
-      linkVersion(null)
-      return {
-        ...exampleToResume(person),
-        // Keep a template the user deliberately picked
-        ...(cur.templateId !== emptyResume().templateId ? { templateId: cur.templateId } : {}),
-      }
-    })
-  }, [setResume])
+  const [pendingExample, setPendingExample] = useState<ExamplePerson | null>(null)
+  const [exampleLoadFailed, setExampleLoadFailed] = useState(false)
+  const [exampleNotFound, setExampleNotFound] = useState(false)
+  const [exampleLoadAttempt, setExampleLoadAttempt] = useState(0)
+  const replaceWithExample = (person: ExamplePerson) => {
+    linkVersion(null)
+    setResume((cur) => ({
+      ...exampleToResume(person),
+      // Keep a template the user deliberately picked
+      ...(cur.templateId !== emptyResume().templateId ? { templateId: cur.templateId } : {}),
+    }))
+    setPendingExample(null)
+  }
+  /** A non-empty draft gets a confirm dialog before being replaced. */
+  const applyExample = (person: ExamplePerson) => {
+    if (resume.contact.fullName || resume.summary) setPendingExample(person)
+    else replaceWithExample(person)
+  }
+  const applyExampleRef = useRef(applyExample)
+  useEffect(() => {
+    applyExampleRef.current = applyExample
+  })
 
   useEffect(() => {
     let cancelled = false
     void fetch('/examples/examples.json')
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((list: { slug: string; role: string; sector: string; person: ExamplePerson }[]) => {
         if (cancelled) return
         setExamples(list)
         // ?example=<slug> deep link from the /examples/ pages
         const slug = new URLSearchParams(window.location.search).get('example')
         const entry = slug ? list.find((e) => e.slug === slug) : undefined
-        if (!entry) return
+        setExampleLoadFailed(false)
+        if (!entry) {
+          if (slug) {
+            setExampleNotFound(true)
+            window.history.replaceState(null, '', window.location.pathname)
+          }
+          return
+        }
         window.history.replaceState(null, '', window.location.pathname)
-        applyExample(entry.person)
+        applyExampleRef.current(entry.person)
       })
-      .catch(() => {})
+      .catch(() => {
+        if (cancelled) return
+        if (new URLSearchParams(window.location.search).get('example'))
+          setExampleLoadFailed(true)
+      })
     return () => {
       cancelled = true
     }
-  }, [applyExample])
+  }, [exampleLoadAttempt])
 
   const unlocked = Boolean(license)
   const hasBundlePlan = license?.plan === 'bundle'
@@ -1858,11 +1926,11 @@ export default function Builder() {
       else if (fmt === 'docx')
         await (await import('@/lib/docx')).downloadResumeDocx(shown, fname('docx'))
       else if (fmt === 'md') downloadText(resumeToMarkdown(shown), fname('md'), 'text/markdown')
-      else downloadText(resumeToPlainText(shown), fname('txt'))
+      else downloadText(resumeToPlainText(shown, { keepLinkUrls: true }), fname('txt'))
       setDlDone(true)
       if (!localStorage.getItem('honestcv.shared')) {
         localStorage.setItem('honestcv.shared', '1')
-        setShareCopied(false)
+        setShareCopied('idle')
         setShareOpen(true)
       }
       setDownloaded(fmt)
@@ -2017,7 +2085,7 @@ export default function Builder() {
               )}
               PDF
             </Button>
-            <div className="relative 2xl:hidden">
+            <div ref={downloadMenuRef} className="relative 2xl:hidden">
               <Button
                 size="sm"
                 variant="outline"
@@ -2312,7 +2380,7 @@ export default function Builder() {
               title="Get a read-only link anyone can open — no signup needed"
               onClick={() => {
                 setShareError('')
-                setShareLinkCopied(false)
+                setShareLinkCopied('idle')
                 setShareLinkOpen(true)
               }}
             >
@@ -2340,14 +2408,14 @@ export default function Builder() {
                 if (!file) return
                 void file.text().then((raw) => {
                   try {
-                    const parsed = JSON.parse(raw) as Resume
-                    if (!parsed.contact || !Array.isArray(parsed.experience)) {
+                    const data = JSON.parse(raw) as Resume
+                    const parsed = Array.isArray(data.experience) ? sanitizeResume(data) : null
+                    if (!parsed) {
                       setRestoreError('That file is not a RezUp backup.')
                       return
                     }
                     setRestoreError('')
-                    linkVersion(null)
-                    setResume({ ...emptyResume(), ...parsed })
+                    setPendingBackupRestore(parsed)
                   } catch {
                     setRestoreError('That file is not a RezUp backup.')
                   }
@@ -2360,6 +2428,46 @@ export default function Builder() {
               {restoreError}
             </p>
           )}
+          <Dialog
+            open={pendingBackupRestore !== null}
+            onOpenChange={(o) => !o && setPendingBackupRestore(null)}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Restore this backup?</DialogTitle>
+                <DialogDescription>
+                  The resume loaded in the editor is replaced with the backup. A checkpoint of the
+                  current resume is saved to History first, and any linked copy keeps its last saved
+                  state but stops receiving edits.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPendingBackupRestore(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => {
+                    if (!pendingBackupRestore) return
+                    if (recordResumeSnapshot(resume, true) === null) {
+                      setStorageAlert(HISTORY_STORAGE_FULL_MSG)
+                      return
+                    }
+                    linkVersion(null)
+                    setResume({ ...emptyResume(), ...pendingBackupRestore })
+                    setPendingBackupRestore(null)
+                  }}
+                >
+                  Replace and restore
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <div className="bg-card rounded-lg border p-3">
             <div className="flex items-center justify-between gap-2 text-sm">
@@ -2498,15 +2606,15 @@ export default function Builder() {
             <div className="grid gap-3 sm:grid-cols-2">
               {(
                 [
-                  ['fullName', 'Full name', 'Jordan Reyes'],
-                  ['title', 'Professional title', 'Software Engineer'],
-                  ['email', 'Email', 'you@email.com'],
-                  ['phone', 'Phone', '(555) 210-4432'],
-                  ['location', 'Location', 'Austin, TX'],
-                  ['website', 'Website (optional)', 'yoursite.com'],
-                  ['linkedin', 'LinkedIn (optional)', 'linkedin.com/in/you'],
+                  ['fullName', 'Full name', 'Jordan Reyes', 'name', undefined],
+                  ['title', 'Professional title', 'Software Engineer', 'organization-title', undefined],
+                  ['email', 'Email', 'you@email.com', 'email', 'email'],
+                  ['phone', 'Phone', '(555) 210-4432', 'tel', 'tel'],
+                  ['location', 'Location', 'Austin, TX', undefined, undefined],
+                  ['website', 'Website (optional)', 'yoursite.com', 'url', 'url'],
+                  ['linkedin', 'LinkedIn (optional)', 'linkedin.com/in/you', undefined, 'url'],
                 ] as const
-              ).map(([key, label, ph]) => {
+              ).map(([key, label, ph, autoComplete, inputMode]) => {
                 const hideable = (HIDEABLE_CONTACT_FIELDS as string[]).includes(key)
                 const fieldHidden =
                   hideable && (resume.hiddenContact ?? []).includes(key as HideableContactField)
@@ -2558,6 +2666,8 @@ export default function Builder() {
                     <Input
                       id={`c-${key}`}
                       placeholder={ph}
+                      autoComplete={autoComplete}
+                      inputMode={inputMode}
                       value={resume.contact[key]}
                       onChange={(e) => setContact(key, e.target.value)}
                       onKeyDown={key === 'fullName' ? markShortcutKeyDown : undefined}
@@ -2644,6 +2754,7 @@ export default function Builder() {
           <Section title="Summary" icon={<FileText className="size-4" />} anchor="summary">
             <Textarea
               rows={3}
+              aria-label="Professional summary"
               placeholder="2-3 sentences: who you are, years of experience, biggest strengths and wins."
               value={resume.summary}
               onChange={(e) => set('summary', e.target.value)}
@@ -2677,7 +2788,12 @@ export default function Builder() {
                 aria-label="Save summary to library"
                 disabled={!resume.summary.trim()}
                 onClick={() => {
-                  setSummaryLibrary(saveSummaryToLibrary(resume.summary))
+                  const next = saveSummaryToLibrary(resume.summary)
+                  if (next === null) {
+                    setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                    return
+                  }
+                  setSummaryLibrary(next)
                   setSummaryLibrarySaved(true)
                   window.setTimeout(() => setSummaryLibrarySaved(false), 1600)
                 }}
@@ -2884,7 +3000,12 @@ export default function Builder() {
                       aria-label={`Save role ${idx + 1} to library`}
                       disabled={!e.role.trim() && !e.company.trim() && !e.bullets.some((b) => b.trim())}
                       onClick={() => {
-                        setExpLibrary(saveExperienceToLibrary(e))
+                        const next = saveExperienceToLibrary(e)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setExpLibrary(next)
                         setExpLibrarySavedId(e.id)
                         window.setTimeout(() => setExpLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
                       }}
@@ -3001,6 +3122,7 @@ export default function Builder() {
                       />
                       <MonthYearField
                         allowPresent
+                        ariaLabel="End date"
                         placeholder="End (Present)"
                         value={e.endDate}
                         onChange={(v) => setExp(e.id, { endDate: v })}
@@ -3408,6 +3530,7 @@ export default function Builder() {
                     />
                     <MonthYearField
                       allowPresent
+                      ariaLabel="End date"
                       placeholder="End (2021)"
                       value={e.endDate}
                       onChange={(v) =>
@@ -3424,6 +3547,7 @@ export default function Builder() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
+                    aria-label="GPA (optional)"
                     placeholder="GPA (3.8/4.0 — optional)"
                     value={e.gpa ?? ''}
                     onChange={(ev) =>
@@ -3436,6 +3560,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="Minor (optional)"
                     placeholder="Minor (Mathematics — optional)"
                     value={e.minor ?? ''}
                     onChange={(ev) =>
@@ -3450,6 +3575,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <Input
+                    aria-label="Education details (optional)"
                     placeholder="Details (honors, thesis — optional)"
                     onKeyDown={markShortcutKeyDown}
                     value={e.details}
@@ -3516,7 +3642,12 @@ export default function Builder() {
                     aria-label={`Save education ${idx + 1} to library`}
                     disabled={!e.school.trim() && !e.degree.trim() && !e.details.trim()}
                     onClick={() => {
-                      setEduLibrary(saveEducationToLibrary(e))
+                      const next = saveEducationToLibrary(e)
+                      if (next === null) {
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                        return
+                      }
+                      setEduLibrary(next)
                       setEduLibrarySavedId(e.id)
                       window.setTimeout(() => setEduLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
                     }}
@@ -3713,7 +3844,12 @@ export default function Builder() {
                       aria-label={`Save project ${pIdx + 1} to library`}
                       disabled={!p.name.trim() && !p.link.trim() && !p.description.trim()}
                       onClick={() => {
-                        setProjLibrary(saveProjectToLibrary(p))
+                        const next = saveProjectToLibrary(p)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setProjLibrary(next)
                         setProjLibrarySavedId(p.id)
                         window.setTimeout(
                           () => setProjLibrarySavedId((v) => (v === p.id ? null : v)),
@@ -3768,6 +3904,7 @@ export default function Builder() {
                   <>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Project name"
                     placeholder="Project name"
                     onKeyDown={markShortcutKeyDown}
                     value={p.name}
@@ -3781,6 +3918,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="Project link (optional)"
                     placeholder="Link (optional)"
                     value={p.link}
                     onChange={(ev) =>
@@ -3795,6 +3933,7 @@ export default function Builder() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
+                    aria-label="Organization (optional)"
                     placeholder="Organization (optional)"
                     onKeyDown={markShortcutKeyDown}
                     value={p.org ?? ''}
@@ -3809,6 +3948,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      ariaLabel="Start date"
                       placeholder="Start (2024)"
                       value={p.startDate ?? ''}
                       onChange={(v) =>
@@ -3822,6 +3962,7 @@ export default function Builder() {
                     />
                     <MonthYearField
                       allowPresent
+                      ariaLabel="End date"
                       placeholder="End"
                       value={p.endDate ?? ''}
                       onChange={(v) =>
@@ -3837,6 +3978,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <LintedTextarea
+                    aria-label="Project description"
                     rows={2}
                     placeholder="What it does and your impact"
                     value={p.description}
@@ -4101,6 +4243,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Role"
                     placeholder="Role (e.g. Selected Member)"
                     onKeyDown={markShortcutKeyDown}
                     value={inv.role}
@@ -4114,6 +4257,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="Organization"
                     placeholder="Organization"
                     onKeyDown={markShortcutKeyDown}
                     value={inv.organization}
@@ -4129,6 +4273,7 @@ export default function Builder() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
+                    aria-label="College or city (optional)"
                     placeholder="College or city (optional)"
                     value={inv.location}
                     onChange={(ev) =>
@@ -4142,6 +4287,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      ariaLabel="Start date"
                       placeholder="Start (2024)"
                       value={inv.startDate}
                       onChange={(v) =>
@@ -4155,6 +4301,7 @@ export default function Builder() {
                     />
                     <MonthYearField
                       allowPresent
+                      ariaLabel="End date"
                       placeholder="End"
                       value={inv.endDate}
                       onChange={(v) =>
@@ -4170,6 +4317,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <LintedTextarea
+                    aria-label="Involvement description"
                     rows={2}
                     placeholder="What you did there — one bullet per line"
                     value={inv.description}
@@ -4183,6 +4331,40 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={invIdx === 0}
+                    title="Move up"
+                    aria-label={`Move involvement ${invIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: moveItem(r.involvement ?? [], invIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={invIdx === (resume.involvement ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move involvement ${invIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        involvement: moveItem(r.involvement ?? [], invIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -4213,7 +4395,12 @@ export default function Builder() {
                       !inv.role.trim() && !inv.organization.trim() && !inv.description.trim()
                     }
                     onClick={() => {
-                      setInvLibrary(saveInvolvementToLibrary(inv))
+                      const next = saveInvolvementToLibrary(inv)
+                      if (next === null) {
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                        return
+                      }
+                      setInvLibrary(next)
                       setInvLibrarySavedId(inv.id)
                       window.setTimeout(
                         () => setInvLibrarySavedId((v) => (v === inv.id ? null : v)),
@@ -4482,6 +4669,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Course name"
                     placeholder="Course name (e.g. Intro to Computer Systems)"
                     onKeyDown={markShortcutKeyDown}
                     value={cw.name}
@@ -4496,6 +4684,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-[1fr_5rem] gap-2">
                     <Input
+                      aria-label="Where (school or platform)"
                       placeholder="Where (school or platform)"
                       onKeyDown={markShortcutKeyDown}
                       value={cw.institution}
@@ -4509,6 +4698,7 @@ export default function Builder() {
                       }
                     />
                     <Input
+                      aria-label="When"
                       placeholder="When"
                       value={cw.date}
                       onChange={(ev) =>
@@ -4523,6 +4713,7 @@ export default function Builder() {
                   </div>
                 </div>
                 <Input
+                  aria-label="Skills used (optional)"
                   placeholder="Skills used (optional, up to 3 — e.g. Teamwork, SQL)"
                   onKeyDown={markShortcutKeyDown}
                   value={cw.skill}
@@ -4542,6 +4733,7 @@ export default function Builder() {
                 )}
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
+                    aria-label="How you applied it"
                     rows={2}
                     placeholder="How you applied it — one bullet per line"
                     onKeyDown={markShortcutKeyDown}
@@ -4555,6 +4747,40 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={cwIdx === 0}
+                    title="Move up"
+                    aria-label={`Move coursework ${cwIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: moveItem(r.coursework ?? [], cwIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={cwIdx === (resume.coursework ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move coursework ${cwIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: moveItem(r.coursework ?? [], cwIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -4585,7 +4811,12 @@ export default function Builder() {
                       !cw.name.trim() && !cw.institution.trim() && !cw.description.trim()
                     }
                     onClick={() => {
-                      setCwLibrary(saveCourseworkToLibrary(cw))
+                      const next = saveCourseworkToLibrary(cw)
+                      if (next === null) {
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                        return
+                      }
+                      setCwLibrary(next)
                       setCwLibrarySavedId(cw.id)
                       window.setTimeout(
                         () => setCwLibrarySavedId((v) => (v === cw.id ? null : v)),
@@ -4721,6 +4952,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Award name"
                     placeholder="Award name (e.g. Dean's List)"
                     onKeyDown={markShortcutKeyDown}
                     value={a.name}
@@ -4735,6 +4967,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-[1fr_5rem] gap-2">
                     <Input
+                      aria-label="Awarded by"
                       placeholder="Awarded by (organization)"
                       onKeyDown={markShortcutKeyDown}
                       value={a.organization}
@@ -4748,6 +4981,7 @@ export default function Builder() {
                       }
                     />
                     <Input
+                      aria-label="When"
                       placeholder="When"
                       value={a.date}
                       onChange={(ev) =>
@@ -4763,6 +4997,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
+                    aria-label="Why it's relevant"
                     rows={2}
                     placeholder="Why it's relevant — one bullet per line"
                     onKeyDown={markShortcutKeyDown}
@@ -4776,6 +5011,40 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={aIdx === 0}
+                    title="Move up"
+                    aria-label={`Move award ${aIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: moveItem(r.awards ?? [], aIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={aIdx === (resume.awards ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move award ${aIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: moveItem(r.awards ?? [], aIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -4806,7 +5075,12 @@ export default function Builder() {
                       !a.name.trim() && !a.organization.trim() && !a.description.trim()
                     }
                     onClick={() => {
-                      setAwardLibrary(saveAwardToLibrary(a))
+                      const next = saveAwardToLibrary(a)
+                      if (next === null) {
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                        return
+                      }
+                      setAwardLibrary(next)
                       setAwardLibrarySavedId(a.id)
                       window.setTimeout(
                         () => setAwardLibrarySavedId((v) => (v === a.id ? null : v)),
@@ -4953,6 +5227,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Publication title"
                     placeholder="Publication title"
                     onKeyDown={markShortcutKeyDown}
                     value={pub.title}
@@ -4967,6 +5242,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-[1fr_5rem] gap-2">
                     <Input
+                      aria-label="Journal or conference"
                       placeholder="Journal / conference"
                       onKeyDown={markShortcutKeyDown}
                       value={pub.venue}
@@ -4980,6 +5256,7 @@ export default function Builder() {
                       }
                     />
                     <Input
+                      aria-label="When"
                       placeholder="When"
                       value={pub.date}
                       onChange={(ev) =>
@@ -4993,6 +5270,7 @@ export default function Builder() {
                     />
                   </div>
                   <Input
+                    aria-label="Publication type"
                     placeholder="Type — e.g. Journal Article"
                     onKeyDown={markShortcutKeyDown}
                     list="publication-kinds"
@@ -5009,6 +5287,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
+                    aria-label="Additional information"
                     rows={2}
                     placeholder="Additional information — one bullet per line"
                     onKeyDown={markShortcutKeyDown}
@@ -5022,6 +5301,40 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={pubIdx === 0}
+                    title="Move up"
+                    aria-label={`Move publication ${pubIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: moveItem(r.publications ?? [], pubIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={pubIdx === (resume.publications ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move publication ${pubIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: moveItem(r.publications ?? [], pubIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -5055,7 +5368,12 @@ export default function Builder() {
                       !pub.description.trim()
                     }
                     onClick={() => {
-                      setPubLibrary(savePublicationToLibrary(pub))
+                      const next = savePublicationToLibrary(pub)
+                      if (next === null) {
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                        return
+                      }
+                      setPubLibrary(next)
                       setPubLibrarySavedId(pub.id)
                       window.setTimeout(
                         () => setPubLibrarySavedId((v) => (v === pub.id ? null : v)),
@@ -5194,6 +5512,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Reference full name"
                     placeholder="Full name"
                     onKeyDown={markShortcutKeyDown}
                     value={ref.name}
@@ -5208,6 +5527,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <Input
+                      aria-label="Reference job title"
                       placeholder="Job title"
                       onKeyDown={markShortcutKeyDown}
                       value={ref.title}
@@ -5221,6 +5541,7 @@ export default function Builder() {
                       }
                     />
                     <Input
+                      aria-label="Reference employer"
                       placeholder="Employer"
                       onKeyDown={markShortcutKeyDown}
                       value={ref.employer}
@@ -5237,6 +5558,7 @@ export default function Builder() {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Reference email"
                     type="email"
                     placeholder="Email"
                     value={ref.email}
@@ -5250,6 +5572,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="Reference phone"
                     placeholder="Phone"
                     value={ref.phone}
                     onChange={(ev) =>
@@ -5287,6 +5610,40 @@ export default function Builder() {
                     variant="ghost"
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={refIdx === 0}
+                    title="Move up"
+                    aria-label={`Move reference ${refIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        references: moveItem(r.references ?? [], refIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={refIdx === (resume.references ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move reference ${refIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        references: moveItem(r.references ?? [], refIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
                     title={ref.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={ref.hidden === true}
                     aria-label={`${ref.hidden ? 'Show' : 'Hide'} reference ${refIdx + 1} ${ref.hidden ? 'on' : 'from'} resume`}
@@ -5312,7 +5669,12 @@ export default function Builder() {
                       !ref.name.trim() && !ref.employer.trim() && !ref.email.trim()
                     }
                     onClick={() => {
-                      setRefLibrary(saveReferenceToLibrary(ref))
+                      const next = saveReferenceToLibrary(ref)
+                      if (next === null) {
+                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                        return
+                      }
+                      setRefLibrary(next)
                       setRefLibrarySavedId(ref.id)
                       window.setTimeout(
                         () => setRefLibrarySavedId((v) => (v === ref.id ? null : v)),
@@ -5436,7 +5798,7 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               Your service record — rank, branch, where you were stationed and what you did.
             </p>
-            {(resume.military ?? []).map((m) => (
+            {(resume.military ?? []).map((m, mIdx) => (
               <div
                 key={m.id}
                 className={`space-y-2 rounded-lg border p-3 ${m.hidden ? 'opacity-60' : ''}`}
@@ -5448,6 +5810,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Rank or position"
                     placeholder="Rank or position (e.g. Sergeant)"
                     onKeyDown={markShortcutKeyDown}
                     value={m.rank}
@@ -5461,6 +5824,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="Branch"
                     placeholder="Branch (e.g. Army)"
                     onKeyDown={markShortcutKeyDown}
                     value={m.branch}
@@ -5476,6 +5840,7 @@ export default function Builder() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
+                    aria-label="Stationed at"
                     placeholder="Stationed at (e.g. Fort Bragg, NC)"
                     onKeyDown={markShortcutKeyDown}
                     value={m.location}
@@ -5490,6 +5855,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      ariaLabel="Start date"
                       placeholder="Start (2020)"
                       value={m.startDate}
                       onChange={(v) =>
@@ -5503,6 +5869,7 @@ export default function Builder() {
                     />
                     <MonthYearField
                       allowPresent
+                      ariaLabel="End date"
                       placeholder="End"
                       value={m.endDate}
                       onChange={(v) =>
@@ -5518,6 +5885,7 @@ export default function Builder() {
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
+                    aria-label="Responsibilities and accomplishments"
                     rows={2}
                     placeholder="Responsibilities and accomplishments — one bullet per line"
                     onKeyDown={markShortcutKeyDown}
@@ -5531,6 +5899,40 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={mIdx === 0}
+                    title="Move up"
+                    aria-label={`Move military service ${mIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        military: moveItem(r.military ?? [], mIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={mIdx === (resume.military ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move military service ${mIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        military: moveItem(r.military ?? [], mIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -5594,7 +5996,7 @@ export default function Builder() {
             <p className="text-muted-foreground text-xs">
               AI agents you built — what they were called, when, and why they mattered.
             </p>
-            {(resume.agents ?? []).map((a) => (
+            {(resume.agents ?? []).map((a, agIdx) => (
               <div
                 key={a.id}
                 className={`space-y-2 rounded-lg border p-3 ${a.hidden ? 'opacity-60' : ''}`}
@@ -5606,6 +6008,7 @@ export default function Builder() {
                 )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input
+                    aria-label="Agent name"
                     placeholder="Agent name, e.g. Support Triage Agent"
                     onKeyDown={markShortcutKeyDown}
                     value={a.name}
@@ -5619,6 +6022,7 @@ export default function Builder() {
                     }
                   />
                   <Input
+                    aria-label="When built"
                     placeholder="When built, e.g. 2026"
                     value={a.date}
                     onChange={(ev) =>
@@ -5632,6 +6036,7 @@ export default function Builder() {
                   />
                 </div>
                 <Input
+                  aria-label="Skills used"
                   placeholder="Skills used, e.g. Task Automation, Workflow Management"
                   onKeyDown={markShortcutKeyDown}
                   value={a.skills}
@@ -5646,6 +6051,7 @@ export default function Builder() {
                 />
                 <div className="flex items-start justify-between gap-2">
                   <Textarea
+                    aria-label="How building the agent was relevant"
                     rows={2}
                     placeholder="How building the agent was relevant — one bullet per line"
                     onKeyDown={markShortcutKeyDown}
@@ -5659,6 +6065,40 @@ export default function Builder() {
                       }))
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={agIdx === 0}
+                    title="Move up"
+                    aria-label={`Move agent ${agIdx + 1} up`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        agents: moveItem(r.agents ?? [], agIdx, -1),
+                      }))
+                    }
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 shrink-0 sm:min-h-9"
+                    disabled={agIdx === (resume.agents ?? []).length - 1}
+                    title="Move down"
+                    aria-label={`Move agent ${agIdx + 1} down`}
+                    onClick={() =>
+                      setResume((r) => ({
+                        ...r,
+                        agents: moveItem(r.agents ?? [], agIdx, 1),
+                      }))
+                    }
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -5799,7 +6239,12 @@ export default function Builder() {
                   aria-label="Save skills to library"
                   disabled={!resume.skills.trim()}
                   onClick={() => {
-                    setSkillsLibrary(saveSkillsToLibrary(resume.skills))
+                    const next = saveSkillsToLibrary(resume.skills)
+                    if (next === null) {
+                      setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                      return
+                    }
+                    setSkillsLibrary(next)
                     setSkillsLibrarySaved(true)
                     window.setTimeout(() => setSkillsLibrarySaved(false), 1600)
                   }}
@@ -5949,6 +6394,7 @@ export default function Builder() {
                   )}
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Input
+                      aria-label="Certificate name"
                       placeholder="Certificate name (AWS Solutions Architect)"
                       onKeyDown={markShortcutKeyDown}
                       value={c.name}
@@ -5963,6 +6409,7 @@ export default function Builder() {
                     />
                     <div className="grid grid-cols-[1fr_auto] gap-2">
                       <Input
+                        aria-label="Issuer"
                         placeholder="Issuer (Amazon Web Services)"
                         onKeyDown={markShortcutKeyDown}
                         value={c.issuer}
@@ -5976,6 +6423,7 @@ export default function Builder() {
                         }
                       />
                       <Input
+                        aria-label="When"
                         className="w-24"
                         placeholder="2024"
                         value={c.date}
@@ -5992,6 +6440,7 @@ export default function Builder() {
                   </div>
                   <div className="flex items-start justify-between gap-2">
                     <Textarea
+                      aria-label="How it's relevant (optional)"
                       rows={2}
                       placeholder="How it's relevant (optional)"
                       onKeyDown={markShortcutKeyDown}
@@ -6005,6 +6454,40 @@ export default function Builder() {
                         }))
                       }
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      disabled={cIdx === 0}
+                      title="Move up"
+                      aria-label={`Move certification ${cIdx + 1} up`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: moveItem(r.certItems ?? [], cIdx, -1),
+                        }))
+                      }
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      disabled={cIdx === (resume.certItems ?? []).length - 1}
+                      title="Move down"
+                      aria-label={`Move certification ${cIdx + 1} down`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: moveItem(r.certItems ?? [], cIdx, 1),
+                        }))
+                      }
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
@@ -6033,7 +6516,12 @@ export default function Builder() {
                       aria-label={`Save certification ${cIdx + 1} to library`}
                       disabled={!c.name.trim() && !c.issuer.trim() && !c.description.trim()}
                       onClick={() => {
-                        setCertLibrary(saveCertToLibrary(c))
+                        const next = saveCertToLibrary(c)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setCertLibrary(next)
                         setCertLibrarySavedId(c.id)
                         window.setTimeout(
                           () => setCertLibrarySavedId((v) => (v === c.id ? null : v)),
@@ -6174,6 +6662,7 @@ export default function Builder() {
               <div key={s.id} className="space-y-2 rounded-lg border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <Input
+                    aria-label="Section title"
                     placeholder="Section title (e.g. Volunteering)"
                     onKeyDown={markShortcutKeyDown}
                     value={s.title}
@@ -6204,6 +6693,7 @@ export default function Builder() {
                   </Button>
                 </div>
                 <Textarea
+                  aria-label="Section entries, one per line"
                   rows={3}
                   placeholder={'One entry per line, e.g.\nVolunteer mentor, Code for Austin (2023 – Present)\nSpeaker, ReactATX meetup'}
                   onKeyDown={markShortcutKeyDown}
@@ -7422,35 +7912,186 @@ export default function Builder() {
         ))}
       </div>
 
-      {externalUpdate && (
-        <div
-          role="status"
-          className="bg-background fixed inset-x-4 bottom-16 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg lg:bottom-4"
-        >
-          <span className="min-w-0">This resume was changed in another tab.</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              const latest = loadResume()
-              if (latest) setResume(latest)
-              setExternalUpdate(false)
-            }}
+      {/* Bottom status bars stack so concurrent notices stay readable */}
+      <div className="pointer-events-none fixed inset-x-4 bottom-16 z-50 flex flex-col items-center gap-2 lg:bottom-4">
+        {storageAlert && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
           >
-            <RefreshCw className="size-4" />
-            Load latest
-          </Button>
+            <span className="min-w-0">{storageAlert}</span>
           <button
             type="button"
             aria-label="Dismiss"
             className="text-muted-foreground hover:text-foreground"
-            onClick={() => setExternalUpdate(false)}
+            onClick={() => setStorageAlert('')}
           >
             <X className="size-4" />
           </button>
-        </div>
-      )}
+          </div>
+        )}
+
+        {exampleLoadFailed && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">
+              Loading the example resume failed — check your connection and try again.
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setExampleLoadFailed(false)
+                setExampleLoadAttempt((n) => n + 1)
+              }}
+            >
+              Try again
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setExampleLoadFailed(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {templateNotFound && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">
+              That template wasn't found — it may have been renamed or removed.
+            </span>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <a href="/templates/">Browse templates</a>
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setTemplateNotFound(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {exampleNotFound && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">
+              This example resume wasn't found — it may have been renamed or removed.
+            </span>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <a href="/examples/">Browse examples</a>
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setExampleNotFound(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {externalUpdate && (
+          <div
+            role="status"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">This resume was changed in another tab.</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const latest = loadResume()
+                if (latest) setResume(latest)
+                setExternalUpdate(false)
+              }}
+            >
+              <RefreshCw className="size-4" />
+              Load latest
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setExternalUpdate(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {shareOpen && (
+          <div
+            role="status"
+            className="bg-background pointer-events-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">
+              Resume downloaded — if RezUp helped, pass the free ATS checker to a
+              friend.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void navigator.clipboard
+                  .writeText('https://cv.zalize.com/ats-checker')
+                  .then(
+                    () => setShareCopied('copied'),
+                    () => setShareCopied('failed')
+                  )
+              }}
+            >
+              {shareCopied === 'copied'
+                ? 'Copied!'
+                : shareCopied === 'failed'
+                  ? 'Copy failed'
+                  : 'Copy checker link'}
+            </Button>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Free ATS resume checker — no signup, runs in your browser: https://cv.zalize.com/ats-checker')}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Share on X
+              </a>
+            </Button>
+            <Button type="button" variant="outline" size="sm" asChild>
+              <a
+                href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcv.zalize.com%2Fats-checker"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Share on LinkedIn
+              </a>
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setShareOpen(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+      </div>
 
       <SiteFooter />
 
@@ -7468,6 +8109,7 @@ export default function Builder() {
         initialCompany={
           toolOpen === 'cover' ? toolCompany || (resume.targetCompany ?? '') : toolCompany
         }
+        jobId={toolOpen === 'cover' ? toolJobId : ''}
         onClose={() => setToolOpen(null)}
         resume={shown}
         onQuota={setFreeLeft}
@@ -7499,7 +8141,10 @@ export default function Builder() {
           resume={resume}
           onClose={() => setHistoryOpen(false)}
           onRestore={(snap) => {
-            recordResumeSnapshot(resume, true)
+            if (recordResumeSnapshot(resume, true) === null) {
+              setStorageAlert(HISTORY_STORAGE_FULL_MSG)
+              return
+            }
             setResume({ ...emptyResume(), ...snap.data })
             setHistoryOpen(false)
           }}
@@ -8060,7 +8705,13 @@ export default function Builder() {
           if (fmt) void download(fmt)
         }}
       />
-      <Dialog open={versionsOpen} onOpenChange={setVersionsOpen}>
+      <Dialog
+        open={versionsOpen}
+        onOpenChange={(open) => {
+          setVersionsOpen(open)
+          if (!open) setCopyStorageError(false)
+        }}
+      >
         <DialogContent
           className="sm:max-w-lg"
           onEscapeKeyDown={(e) => {
@@ -8091,10 +8742,13 @@ export default function Builder() {
               className="shrink-0"
               onClick={() => {
                 const next = saveResumeVersion(
-                  versionName.trim() || 'Untitled copy',
+                  versionName.trim() ||
+                    resume.targetRole.trim() ||
+                    resume.contact.fullName.trim() ||
+                    'Untitled copy',
                   resume
                 )
-                setVersions(next)
+                if (!applyVersions(next) || next === null) return
                 linkVersion(next[0]?.id ?? null)
                 setVersionName('')
               }}
@@ -8102,6 +8756,11 @@ export default function Builder() {
               Save current as copy
             </Button>
           </div>
+          {copyStorageError && (
+            <p role="alert" className="text-destructive text-xs">
+              Not saved — your browser storage is full. Free up space and try again.
+            </p>
+          )}
           {versions.length === 0 ? (
             <p className="text-muted-foreground text-sm">No saved copies yet.</p>
           ) : (
@@ -8181,7 +8840,7 @@ export default function Builder() {
                       size="sm"
                       className="h-10 w-10 p-0 text-xs sm:h-7 sm:w-7"
                       aria-label={`Duplicate copy ${v.name}`}
-                      onClick={() => setVersions(duplicateResumeVersion(v.id))}
+                      onClick={() => applyVersions(duplicateResumeVersion(v.id))}
                     >
                       <Copy className="size-3.5" />
                     </Button>
@@ -8205,8 +8864,8 @@ export default function Builder() {
                       size="sm"
                       className="text-destructive h-10 text-xs sm:h-7"
                       onClick={() => {
+                        if (!applyVersions(deleteResumeVersion(v.id))) return
                         revokeShareLinksFor([v.id])
-                        setVersions(deleteResumeVersion(v.id))
                         if (v.id === activeVersionId) linkVersion(null)
                       }}
                     >
@@ -8217,54 +8876,29 @@ export default function Builder() {
               ))}
             </ul>
           )}
-          <p className="text-muted-foreground text-xs">
-            {activeVersion
-              ? `Edits save to "${activeVersion.name}" automatically — open another copy to switch without losing work.`
-              : "Opening a copy replaces what's in the editor — save the current resume as a copy first if you want to keep it."}
-          </p>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Resume downloaded — good luck out there</DialogTitle>
-            <DialogDescription>
-              If RezUp helped, pass the free ATS checker to a friend who's job
-              hunting. No signup, no subscription trap — just a match score.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                void navigator.clipboard
-                  .writeText('https://cv.zalize.com/ats-checker')
-                  .then(() => setShareCopied(true))
-              }}
-            >
-              {shareCopied ? 'Copied!' : 'Copy checker link'}
-            </Button>
-            <Button type="button" variant="outline" size="sm" asChild>
-              <a
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Free ATS resume checker — no signup, runs in your browser: https://cv.zalize.com/ats-checker')}`}
-                target="_blank"
-                rel="noreferrer"
+          {activeVersion ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-muted-foreground min-w-0 flex-1 text-xs">
+                Edits save to "{activeVersion.name}" automatically — open another
+                copy to switch without losing work.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 shrink-0 text-xs sm:h-7"
+                title="Keep editing this content as a plain draft — the copy keeps its last saved state"
+                onClick={() => linkVersion(null)}
               >
-                Share on X
-              </a>
-            </Button>
-            <Button type="button" variant="outline" size="sm" asChild>
-              <a
-                href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcv.zalize.com%2Fats-checker"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Share on LinkedIn
-              </a>
-            </Button>
-          </div>
+                Stop editing this copy
+              </Button>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              Opening a copy replaces what's in the editor — save the current
+              resume as a copy first if you want to keep it.
+            </p>
+          )}
         </DialogContent>
       </Dialog>
       <Dialog open={shareLinkOpen} onOpenChange={setShareLinkOpen}>
@@ -8293,7 +8927,7 @@ export default function Builder() {
               disabled={shareBusy}
               onChange={(e) => {
                 setShareError('')
-                setShareLinkCopied(false)
+                setShareLinkCopied('idle')
                 if (e.target.value === 'view') {
                   const slug = shareSlug.trim()
                   if (slug && !SHARE_SLUG_RE.test(slug)) {
@@ -8384,10 +9018,17 @@ export default function Builder() {
                   onClick={() => {
                     void navigator.clipboard
                       .writeText(shareLink.url)
-                      .then(() => setShareLinkCopied(true))
+                      .then(
+                        () => setShareLinkCopied('copied'),
+                        () => setShareLinkCopied('failed')
+                      )
                   }}
                 >
-                  {shareLinkCopied ? 'Copied!' : 'Copy'}
+                  {shareLinkCopied === 'copied'
+                    ? 'Copied!'
+                    : shareLinkCopied === 'failed'
+                      ? 'Copy failed'
+                      : 'Copy'}
                 </Button>
               </div>
               <p className="text-muted-foreground text-xs">
@@ -8403,7 +9044,7 @@ export default function Builder() {
                 disabled={shareBusy}
                 onClick={() => {
                   setShareError('')
-                  setShareLinkCopied(false)
+                  setShareLinkCopied('idle')
                   setShareBusy(true)
                   createShareLink(shown, shareScope)
                     .then((link) => setShareLink(link))
@@ -8664,6 +9305,7 @@ export default function Builder() {
             <span className="text-muted-foreground text-xs">or pull from Resume Center:</span>
             <input
               className="border-input bg-background h-8 min-w-0 flex-1 rounded-md border px-2 text-xs"
+              aria-label="Share link or share ID"
               placeholder="Share link or share ID"
               value={rcInput}
               onChange={(e) => setRcInput(e.target.value)}
@@ -8699,6 +9341,7 @@ export default function Builder() {
           </div>
           {importError && <p className="text-destructive text-sm">{importError}</p>}
           <Textarea
+            aria-label="Paste your resume text"
             rows={12}
             placeholder={'Jordan Reyes\nSoftware Engineer\njordan@email.com | (555) 210-4432\n\nEXPERIENCE\nSoftware Engineer at Brightlane (Jun 2023 – Present)\n- Led migration of the checkout flow…'}
             value={importText}
@@ -8717,6 +9360,29 @@ export default function Builder() {
           >
             <ClipboardPaste /> Import — replaces current content (Ctrl+Z to undo)
           </Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={pendingExample !== null} onOpenChange={(o) => !o && setPendingExample(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Load this example?</DialogTitle>
+            <DialogDescription>
+              The resume content currently in the editor is replaced with the example. Your saved
+              copies are unaffected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setPendingExample(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => pendingExample && replaceWithExample(pendingExample)}
+            >
+              Replace with example
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={finalCheckOpen} onOpenChange={setFinalCheckOpen}>
@@ -9080,6 +9746,7 @@ function BulletGuidance({
 function BundleToolDialog({
   kind,
   initialCompany = '',
+  jobId = '',
   onClose,
   resume,
   onQuota,
@@ -9087,6 +9754,8 @@ function BundleToolDialog({
 }: {
   kind: 'cover' | 'interview' | 'resignation' | null
   initialCompany?: string
+  /** Tracked job to link a saved cover letter to (from the /jobs deep link) */
+  jobId?: string
   onClose: () => void
   resume: Resume
   onQuota: (remaining: number) => void
@@ -9103,6 +9772,7 @@ function BundleToolDialog({
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
   const [savedId, setSavedId] = useState<string | null>(null)
+  const [saveDocFailed, setSaveDocFailed] = useState(false)
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -9116,6 +9786,7 @@ function BundleToolDialog({
     entries: { q: string; a: string; fb: string }[]
   } | null>(null)
   const [lastKind, setLastKind] = useState(kind)
+  const [confirmingClose, setConfirmingClose] = useState<false | 'close' | 'jump'>(false)
   const [timerStart, setTimerStart] = useState<number | null>(null)
   const [timerNow, setTimerNow] = useState(0)
   const [elapsedSec, setElapsedSec] = useState<number | null>(null)
@@ -9187,6 +9858,7 @@ function BundleToolDialog({
     setResult('')
     setError('')
     setSavedId(null)
+    setSaveDocFailed(false)
     setFeedback('')
     setFeedbackError('')
     setFeedbackBusy(false)
@@ -9229,6 +9901,7 @@ function BundleToolDialog({
       `Practice session — ${role}\n${entries.length} of ${s.questions.length} questions answered\n\n${report ? `${report}\n\n` : ''}${transcript}`
     )
     setSavedId(null)
+    setSaveDocFailed(false)
     setSession(null)
     setQuestion('')
     setAnswer('')
@@ -9322,6 +9995,7 @@ function BundleToolDialog({
         })
         setResult(text)
         setSavedId(null)
+    setSaveDocFailed(false)
         if (freeRemaining !== null) onQuota(freeRemaining)
         return
       }
@@ -9350,6 +10024,7 @@ function BundleToolDialog({
             })
       setResult(text)
       setSavedId(null)
+    setSaveDocFailed(false)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
       setError((e as Error).message)
@@ -9401,17 +10076,42 @@ function BundleToolDialog({
     kind === 'interview'
       ? session !== null || answer.trim() !== ''
       : kind !== null && result !== '' && savedId === null
-  const confirmDiscard = () =>
-    !unsavedWork ||
-    window.confirm(
-      kind === 'interview'
-        ? 'Close interview practice? Your current session and typed answer will be lost.'
-        : 'Close without saving? The generated letter will be lost.'
-    )
   const requestClose = () => {
-    if (confirmDiscard()) onClose()
+    if (unsavedWork) setConfirmingClose('close')
+    else onClose()
   }
   return (
+    <>
+      <Dialog open={confirmingClose !== false} onOpenChange={(o) => !o && setConfirmingClose(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {kind === 'interview' ? 'Close interview practice?' : 'Close without saving?'}
+            </DialogTitle>
+            <DialogDescription>
+              {kind === 'interview'
+                ? 'Your current session and typed answer will be lost.'
+                : 'The generated letter will be lost.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmingClose(false)}>
+              Keep working
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                const action = confirmingClose
+                setConfirmingClose(false)
+                if (action === 'jump') onJumpToTarget()
+                else onClose()
+              }}
+            >
+              Discard and close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     <Dialog open={kind !== null} onOpenChange={(o) => !o && requestClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
@@ -9543,6 +10243,7 @@ function BundleToolDialog({
         {result && (
           <>
             <Textarea
+              aria-label="Generated letter"
               rows={14}
               value={result}
               onChange={(e) => setResult(e.target.value)}
@@ -9601,21 +10302,23 @@ function BundleToolDialog({
                       ? `${company || resume.targetRole || 'Untitled'} — Cover letter`
                       : kind === 'resignation'
                         ? `${company || 'Untitled'} — Resignation letter`
-                        : `${resume.targetRole || 'Untitled'} — Interview prep`
+                        : `${resume.targetRole || resume.contact.fullName || 'Untitled'} — Interview prep`
                   if (savedId) {
-                    updateCareerDoc(savedId, { title: docTitle, text: result })
+                    setSaveDocFailed(updateCareerDoc(savedId, { title: docTitle, text: result }) === null)
                   } else {
-                    setSavedId(
-                      saveCareerDoc(
-                        kind === 'cover'
-                          ? 'cover'
-                          : kind === 'resignation'
-                            ? 'resignation'
-                            : 'interview',
-                        docTitle,
-                        result
-                      ).id
+                    const doc = saveCareerDoc(
+                      kind === 'cover'
+                        ? 'cover'
+                        : kind === 'resignation'
+                          ? 'resignation'
+                          : 'interview',
+                      docTitle,
+                      result
                     )
+                    setSaveDocFailed(doc === null)
+                    if (!doc) return
+                    if (kind === 'cover' && jobId) setPipelineCoverDoc(jobId, doc.id)
+                    setSavedId(doc.id)
                   }
                 }}
               >
@@ -9630,6 +10333,11 @@ function BundleToolDialog({
                 )}
               </Button>
             </div>
+            {saveDocFailed && (
+              <p role="alert" className="text-destructive text-xs">
+                Not saved — your browser storage is full. Free up space and try again.
+              </p>
+            )}
           </>
         )}
         {kind === 'interview' && (
@@ -9826,7 +10534,8 @@ function BundleToolDialog({
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirmDiscard()) onJumpToTarget()
+                        if (unsavedWork) setConfirmingClose('jump')
+                        else onJumpToTarget()
                       }}
                       className="font-medium underline underline-offset-2"
                     >
@@ -9999,6 +10708,7 @@ function BundleToolDialog({
         )}
       </DialogContent>
     </Dialog>
+    </>
   )
 }
 
@@ -10057,6 +10767,7 @@ function TailorDialog({
   const [error, setError] = useState('')
   const [rows, setRows] = useState<TailorSuggestion[] | null>(null)
   const [snapshot, setSnapshot] = useState<Resume>(resume)
+  const [confirmingClose, setConfirmingClose] = useState<'busy' | 'pending' | null>(null)
 
   const run = async () => {
     setSnapshot(resume)
@@ -10124,16 +10835,14 @@ function TailorDialog({
       open
       onOpenChange={(o) => {
         if (o) return
-        if (busy && !window.confirm('A tailoring request is still running — close and discard its results?'))
+        if (busy) {
+          setConfirmingClose('busy')
           return
-        if (
-          !busy &&
-          pending.length > 0 &&
-          !window.confirm(
-            `Discard ${pending.length} tailoring suggestion${pending.length === 1 ? '' : 's'} you haven't reviewed yet? Getting them again will use another AI request.`
-          )
-        )
+        }
+        if (pending.length > 0) {
+          setConfirmingClose('pending')
           return
+        }
         onClose()
       }}
     >
@@ -10290,6 +10999,34 @@ function TailorDialog({
           </>
         )}
       </DialogContent>
+      <Dialog open={confirmingClose !== null} onOpenChange={(o) => !o && setConfirmingClose(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {confirmingClose === 'busy' ? 'Tailoring request still running' : 'Discard tailoring suggestions?'}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmingClose === 'busy'
+                ? 'A tailoring request is still running — close and discard its results?'
+                : `Discard ${pending.length} tailoring suggestion${pending.length === 1 ? '' : 's'} you haven't reviewed yet? Getting them again will use another AI request.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmingClose(null)}>
+              Keep reviewing
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmingClose(null)
+                onClose()
+              }}
+            >
+              Discard and close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }

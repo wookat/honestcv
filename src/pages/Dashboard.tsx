@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
+  Download,
   FileDown,
   FilePlus2,
   FileText,
@@ -51,6 +52,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { scoreResume } from '@/lib/ats'
 import { downloadText, professionalFileName } from '@/lib/download'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
+import { exportWorkspace, parseWorkspaceBackup, restoreWorkspace } from '@/lib/workspace'
 import { looksLikeLinkedInExport, parseResumeText } from '@/lib/importText'
 import {
   type CareerDoc,
@@ -78,6 +80,7 @@ import {
   duplicateResumeVersion,
   emptyResume,
   exampleToResume,
+  getActiveVersionId,
   listResumeVersions,
   loadResume,
   restoreResumeVersion,
@@ -98,6 +101,7 @@ interface ExampleEntry {
 }
 
 const editedAgo = (ms: number) => {
+  if (!ms) return 'Edited a while ago'
   const days = Math.floor((Date.now() - ms) / 86400000)
   if (days <= 0) return 'Edited today'
   return days === 1 ? 'Edited 1 day ago' : `Edited ${days} days ago`
@@ -211,6 +215,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   }, [hash])
   const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
   const [draft] = useState<Resume | null>(() => loadResume())
+  const [activeId] = useState<string | null>(() => getActiveVersionId())
+  // The copy the Builder is currently editing (if any) — its card is the
+  // live content, so the separate draft card would be a duplicate.
+  const activeCopy = activeId ? (versions.find((v) => v.id === activeId) ?? null) : null
   const [confirmOpen, setConfirmOpen] = useState<ResumeVersion | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<ResumeVersion | null>(null)
   const [editing, setEditing] = useState<{
@@ -223,6 +231,25 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     jobDescription: string
   } | null>(null)
   const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
+  const [storageError, setStorageError] = useState(false)
+  /** Applies a document mutation; surfaces the storage-full alert when nothing was written. */
+  const applyDocs = (next: CareerDoc[] | null): boolean => {
+    if (next === null) {
+      setStorageError(true)
+      return false
+    }
+    setDocs(next)
+    return true
+  }
+  /** Applies a resume-copy mutation; surfaces the storage-full alert when nothing was written. */
+  const applyVersions = (next: ResumeVersion[] | null): boolean => {
+    if (next === null) {
+      setStorageError(true)
+      return false
+    }
+    setVersions(next)
+    return true
+  }
   // On /documents the type filter lives in the query string so refresh/share keeps your place.
   const [docSeedParams] = useState(() =>
     section === 'documents' ? new URLSearchParams(window.location.search) : null
@@ -231,14 +258,21 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     const kind = docSeedParams?.get('kind')
     return kind === 'cover' || kind === 'interview' || kind === 'resignation' ? kind : 'all'
   })
-  const [openDoc, setOpenDoc] = useState<CareerDoc | null>(null)
-  const [docText, setDocText] = useState('')
+  // ?doc=<id> deep link (e.g. the /jobs "Cover letter: … Open" row) opens the viewer;
+  // the kind-filter URL sync effect drops the one-shot param after mount.
+  const [openDoc, setOpenDoc] = useState<CareerDoc | null>(() => {
+    const id = docSeedParams?.get('doc')
+    return id ? (listCareerDocs().find((d) => d.id === id) ?? null) : null
+  })
+  const [docText, setDocText] = useState(() => openDoc?.text ?? '')
+  const [docCopied, setDocCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [docView, setDocView] = useState<'edit' | 'preview'>('edit')
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<CareerDoc | null>(null)
   const [renamingDoc, setRenamingDoc] = useState<{ doc: CareerDoc; title: string } | null>(null)
   const [previewLetter, setPreviewLetter] = useState<LetterExample | null>(null)
   const signatureInputRef = useRef<HTMLInputElement>(null)
   const [signatureError, setSignatureError] = useState('')
+  const [confirmingDocClose, setConfirmingDocClose] = useState(false)
   const docImportInputRef = useRef<HTMLInputElement>(null)
   const [docImportBusy, setDocImportBusy] = useState(false)
   const [docImportError, setDocImportError] = useState('')
@@ -250,6 +284,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [importedLinkedIn, setImportedLinkedIn] = useState(false)
   const [linkedInOpen, setLinkedInOpen] = useState(false)
   const [examples, setExamples] = useState<ExampleEntry[]>([])
+  const [examplesState, setExamplesState] = useState<'loading' | 'ready' | 'failed'>('loading')
   // On /samples the filters live in the query string so refresh/share keeps your place.
   const [seedParams] = useState(() =>
     section === 'samples' ? new URLSearchParams(window.location.search) : null
@@ -304,6 +339,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   const [renamingFolder, setRenamingFolder] = useState<{ from: string; to: string } | null>(null)
   const [confirmRemoveFolder, setConfirmRemoveFolder] = useState<string | null>(null)
+  const workspaceFileRef = useRef<HTMLInputElement>(null)
+  const [pendingRestore, setPendingRestore] = useState<Record<string, string> | null>(null)
+  const [workspaceError, setWorkspaceError] = useState('')
   const [undoDelete, setUndoDelete] = useState<
     | { kind: 'copy'; version: ResumeVersion; index: number }
     | { kind: 'copies'; entries: { version: ResumeVersion; index: number }[] }
@@ -335,12 +373,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const moveVersionTo = (folder: string | undefined) => {
     if (!moving) return
     if (moving === 'bulk') {
-      let next: ResumeVersion[] = versions
-      for (const id of bulkSelected) next = updateResumeVersion(id, { folder })
-      setVersions(next)
+      let next: ResumeVersion[] | null = versions
+      for (const id of bulkSelected) {
+        next = updateResumeVersion(id, { folder })
+        if (next === null) break
+      }
+      if (!applyVersions(next)) return
       setBulkIds(new Set())
-    } else {
-      setVersions(updateResumeVersion(moving.id, { folder }))
+    } else if (!applyVersions(updateResumeVersion(moving.id, { folder }))) {
+      return
     }
     setMoving(null)
     setMoveNewName('')
@@ -355,10 +396,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   /** Selection pruned to copies that still exist. */
   const bulkSelected = versions.filter((v) => bulkIds.has(v.id)).map((v) => v.id)
   const renameFolder = (from: string, to: string) => {
-    let next: ResumeVersion[] = versions
-    for (const v of versions)
-      if (v.folder === from) next = updateResumeVersion(v.id, { folder: to })
-    setVersions(next)
+    let next: ResumeVersion[] | null = versions
+    for (const v of versions) {
+      if (v.folder !== from) continue
+      next = updateResumeVersion(v.id, { folder: to })
+      if (next === null) break
+    }
+    if (!applyVersions(next)) return
     setCollapsedFolders((c) => {
       const updated = c.map((x) => (x === from ? to : x))
       localStorage.setItem('honestcv.dashboardFoldersCollapsed', JSON.stringify(updated))
@@ -366,10 +410,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     })
   }
   const removeFolder = (name: string) => {
-    let next: ResumeVersion[] = versions
-    for (const v of versions)
-      if (v.folder === name) next = updateResumeVersion(v.id, { folder: undefined })
-    setVersions(next)
+    let next: ResumeVersion[] | null = versions
+    for (const v of versions) {
+      if (v.folder !== name) continue
+      next = updateResumeVersion(v.id, { folder: undefined })
+      if (next === null) break
+    }
+    applyVersions(next)
   }
   const folders = useMemo(() => {
     const names = new Set<string>()
@@ -421,13 +468,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         setDlError(null)
         try {
           const letterhead = draft ?? emptyResume()
-          const base =
-            d.kind === 'cover'
-              ? 'cover-letter'
-              : d.kind === 'resignation'
-                ? 'resignation-letter'
-                : 'interview-prep'
-          const name = professionalFileName([letterhead.contact.fullName, base], fmt)
+          const name = professionalFileName([letterhead.contact.fullName, d.title], fmt)
           if (fmt === 'txt') {
             downloadText(d.kind === 'interview' ? `${d.title}\n\n${text}` : text, name)
           } else if (fmt === 'pdf') {
@@ -510,18 +551,23 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     </Button>
   )
 
+  const [examplesAttempt, setExamplesAttempt] = useState(0)
   useEffect(() => {
     let cancelled = false
     void fetch('/examples/examples.json')
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((list: ExampleEntry[]) => {
-        if (!cancelled) setExamples(list)
+        if (cancelled) return
+        setExamples(list)
+        setExamplesState('ready')
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setExamplesState('failed')
+      })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [examplesAttempt])
 
   const sectors = useMemo(
     () => ['All', ...Array.from(new Set(examples.map((e) => e.sector)))],
@@ -568,10 +614,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   }
 
   const startNewResume = () => {
-    if (draft && newKeepCopy) {
-      setVersions(
-        saveResumeVersion(draft.targetRole || draft.contact.fullName || 'Untitled resume', draft)
+    if (draft && newKeepCopy && !activeCopy) {
+      if (
+        !applyVersions(
+          saveResumeVersion(draft.targetRole || draft.contact.fullName || 'Untitled resume', draft)
+        )
       )
+        return
     }
     setActiveVersionId(null)
     saveResume({
@@ -603,7 +652,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         type="button"
         size="sm"
         className="min-h-10 flex-1 sm:min-h-8 sm:flex-none"
-        onClick={() => (draft ? setConfirmOpen(v) : openCopy(v))}
+        onClick={() => (draft && !activeCopy ? setConfirmOpen(v) : openCopy(v))}
       >
         Open
       </Button>
@@ -613,7 +662,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         size="sm"
         className="min-h-10 sm:min-h-8"
         title="Duplicate this copy"
-        onClick={() => setVersions(duplicateResumeVersion(v.id))}
+        onClick={() => applyVersions(duplicateResumeVersion(v.id))}
       >
         <Copy className="size-3.5" />
         <span className="sr-only">Duplicate {v.name}</span>
@@ -691,6 +740,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               {editedAgo(v.updatedAt)} · ATS{' '}
               {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
               {v.folder ? ` · ${v.folder}` : ''}
+              {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
             </p>
           </div>
         </div>
@@ -712,6 +762,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             {editedAgo(v.updatedAt)} · ATS{' '}
             {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
             {v.folder ? ` · ${v.folder}` : ''}
+            {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
           </p>
         </div>
       </div>
@@ -736,9 +787,14 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             .replace(/\s+/g, ' ')
             .trim() || 'Imported cover letter'
         const doc = saveCareerDoc('cover', title, text)
+        if (!doc) {
+          setDocImportError('Not saved — your browser storage is full. Free up space and try again.')
+          return
+        }
         setDocs(listCareerDocs())
         setOpenDoc(doc)
         setDocText(doc.text)
+        setDocCopied('idle')
         setDocView('edit')
       })
       .catch((err: unknown) => {
@@ -828,9 +884,58 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         </div>
         <h1 className="text-2xl font-bold">My resumes</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          One copy per job you're applying to. Everything is stored in this browser
-          only — use Backup in the editor to keep a file copy.
+          One copy per job you're applying to. Everything is stored in this browser only.
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10 gap-1 text-xs sm:h-7"
+            title="Save everything — copies, documents, job pipeline, libraries — to one .json file"
+            onClick={() => {
+              downloadText(exportWorkspace(), 'rezup-workspace-backup.json', 'application/json')
+            }}
+          >
+            <Download className="size-3" /> Back up everything
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10 gap-1 text-xs sm:h-7"
+            title="Restore a workspace backup file into this browser"
+            onClick={() => workspaceFileRef.current?.click()}
+          >
+            <FileUp className="size-3" /> Restore
+          </Button>
+          <input
+            ref={workspaceFileRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            aria-label="Restore a workspace backup file"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (!file) return
+              void file.text().then((raw) => {
+                const data = parseWorkspaceBackup(raw)
+                if (!data) {
+                  setWorkspaceError('That file is not a RezUp workspace backup.')
+                  return
+                }
+                setWorkspaceError('')
+                setPendingRestore(data)
+              })
+            }}
+          />
+          {workspaceError && (
+            <p role="alert" className="text-destructive text-xs">
+              {workspaceError}
+            </p>
+          )}
+        </div>
 
         {versions.length > 0 && (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
@@ -992,7 +1097,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         )}
 
         <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 ${versions.length > 0 ? 'mt-3' : 'mt-6'}`}>
-          {draft ? (
+          {draft && !activeCopy ? (
             <div className="bg-card flex flex-col rounded-md border shadow-sm">
               <Thumb resume={draft} />
               <div className="flex flex-1 flex-col gap-2 p-3">
@@ -1014,7 +1119,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     size="sm"
                     className="min-h-10 gap-1 sm:min-h-8"
                     onClick={() =>
-                      setVersions(
+                      applyVersions(
                         saveResumeVersion(
                           draft.targetRole || draft.contact.fullName || 'Untitled copy',
                           draft
@@ -1121,20 +1226,22 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           return (
             <section key={f} className="mt-6">
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-expanded={!isCollapsed}
-                  onClick={() => toggleFolder(f)}
-                  className="hover:bg-accent flex min-h-10 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold sm:min-h-8"
-                >
-                  {isCollapsed ? (
-                    <ChevronRight className="size-4" aria-hidden />
-                  ) : (
-                    <ChevronDown className="size-4" aria-hidden />
-                  )}
-                  {f}
-                  <span className="text-muted-foreground font-normal">({list.length})</span>
-                </button>
+                <h2 className="contents">
+                  <button
+                    type="button"
+                    aria-expanded={!isCollapsed}
+                    onClick={() => toggleFolder(f)}
+                    className="hover:bg-accent flex min-h-10 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold sm:min-h-8"
+                  >
+                    {isCollapsed ? (
+                      <ChevronRight className="size-4" aria-hidden />
+                    ) : (
+                      <ChevronDown className="size-4" aria-hidden />
+                    )}
+                    {f}
+                    <span className="text-muted-foreground font-normal">({list.length})</span>
+                  </button>
+                </h2>
                 <Button
                   type="button"
                   variant="ghost"
@@ -1327,6 +1434,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     onClick={() => {
                       setOpenDoc(d)
                       setDocText(d.text)
+                      setDocCopied('idle')
                       setDocView('edit')
                     }}
                   >
@@ -1349,7 +1457,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     size="sm"
                     className="min-h-10 sm:min-h-8"
                     title="Duplicate this document"
-                    onClick={() => setDocs(duplicateCareerDoc(d.id))}
+                    onClick={() => applyDocs(duplicateCareerDoc(d.id))}
                   >
                     <Copy className="size-3.5" />
                     <span className="sr-only">Duplicate {d.title}</span>
@@ -1374,6 +1482,29 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           </ul>
         )}
         </>
+        )}
+        {section === 'samples' && examplesState === 'failed' && (
+          <>
+            <h1 className="text-2xl font-bold">Sample library</h1>
+            <div
+              role="alert"
+              className="border-destructive/50 bg-destructive/10 mt-4 rounded-md border p-4 text-sm"
+            >
+              <p>Loading the sample library failed — check your connection and try again.</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => {
+                  setExamplesState('loading')
+                  setExamplesAttempt((n) => n + 1)
+                }}
+              >
+                Try again
+              </Button>
+            </div>
+          </>
         )}
         {section !== 'documents' && examples.length > 0 && (
           <>
@@ -1650,7 +1781,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 className="text-xs"
               />
             </div>
-            {draft && (
+            {draft && !activeCopy && (
               <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -1803,8 +1934,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               onClick={() => {
                 if (!editing) return
                 const current = versions.find((v) => v.id === editing.id)
-                if (current) {
-                  setVersions(
+                if (
+                  current &&
+                  !applyVersions(
                     updateResumeVersion(editing.id, {
                       name: editing.name.trim() || current.name,
                       folder: editing.folder.trim() || undefined,
@@ -1817,7 +1949,8 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                       },
                     })
                   )
-                }
+                )
+                  return
                 setEditing(null)
               }}
             >
@@ -1842,12 +1975,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setVersions(
-                    saveResumeVersion(
-                      draft.targetRole || draft.contact.fullName || 'Untitled copy',
-                      draft
+                  if (
+                    !applyVersions(
+                      saveResumeVersion(
+                        draft.targetRole || draft.contact.fullName || 'Untitled copy',
+                        draft
+                      )
                     )
                   )
+                    return
                   if (confirmOpen) openCopy(confirmOpen)
                 }}
               >
@@ -1869,22 +2005,26 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               {importedLinkedIn
                 ? 'This file was recognized as a LinkedIn profile export and mapped section-by-section — review the result before sending it anywhere. '
                 : ''}
-              This replaces what's currently in the editor. Save the current draft as
-              a copy first if you want to keep it.
+              {activeCopy
+                ? `This replaces what's currently in the editor. Your current work is already saved to "${activeCopy.name}" — that copy keeps its content.`
+                : "This replaces what's currently in the editor. Save the current draft as a copy first if you want to keep it."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            {draft && (
+            {draft && !activeCopy && (
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setVersions(
-                    saveResumeVersion(
-                      draft.targetRole || draft.contact.fullName || 'Untitled copy',
-                      draft
+                  if (
+                    !applyVersions(
+                      saveResumeVersion(
+                        draft.targetRole || draft.contact.fullName || 'Untitled copy',
+                        draft
+                      )
                     )
                   )
+                    return
                   if (confirmImport) openImported(confirmImport)
                 }}
               >
@@ -1977,10 +2117,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                         ? `${e.role} cover letter`
                         : `Resignation letter — ${e.role}`
                     const doc = saveCareerDoc(e.kind, title, e.text)
+                    if (!doc) {
+                      setStorageError(true)
+                      return
+                    }
                     setDocs(listCareerDocs())
                     setPreviewLetter(null)
                     setOpenDoc(doc)
                     setDocText(doc.text)
+                    setDocCopied('idle')
                     setDocView('edit')
                   }}
                 >
@@ -1996,12 +2141,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         open={openDoc !== null}
         onOpenChange={(o) => {
           if (!o) {
-            if (
-              openDoc &&
-              docText !== openDoc.text &&
-              !window.confirm(`Discard unsaved changes to "${openDoc.title}"?`)
-            )
+            if (openDoc && docText !== openDoc.text) {
+              setConfirmingDocClose(true)
               return
+            }
             setOpenDoc(null)
             setSignatureError('')
           }
@@ -2070,8 +2213,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
                     canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
                     const dataUrl = canvas.toDataURL('image/png')
-                    setDocs(updateCareerDoc(openDoc.id, { signature: dataUrl }))
-                    setOpenDoc({ ...openDoc, signature: dataUrl })
+                    if (applyDocs(updateCareerDoc(openDoc.id, { signature: dataUrl }))) {
+                      setOpenDoc({ ...openDoc, signature: dataUrl })
+                    }
                   }
                   img.onerror = () => {
                     URL.revokeObjectURL(url)
@@ -2100,10 +2244,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setDocs(updateCareerDoc(openDoc.id, { signature: '' }))
-                      const next = { ...openDoc }
-                      delete next.signature
-                      setOpenDoc(next)
+                      if (applyDocs(updateCareerDoc(openDoc.id, { signature: '' }))) {
+                        const next = { ...openDoc }
+                        delete next.signature
+                        setOpenDoc(next)
+                      }
                     }}
                   >
                     Remove
@@ -2146,18 +2291,53 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             <Button
               type="button"
               variant="outline"
-              onClick={() => void navigator.clipboard.writeText(docText)}
+              onClick={() => {
+                void navigator.clipboard.writeText(docText).then(
+                  () => setDocCopied('copied'),
+                  () => setDocCopied('failed')
+                )
+              }}
             >
-              Copy text
+              {docCopied === 'copied'
+                ? 'Copied'
+                : docCopied === 'failed'
+                  ? 'Copy failed'
+                  : 'Copy text'}
             </Button>
             <Button
               type="button"
               onClick={() => {
-                if (openDoc) setDocs(updateCareerDoc(openDoc.id, { text: docText }))
+                if (openDoc && !applyDocs(updateCareerDoc(openDoc.id, { text: docText }))) return
                 setOpenDoc(null)
               }}
             >
               Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmingDocClose} onOpenChange={(o) => !o && setConfirmingDocClose(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Discard unsaved changes?</DialogTitle>
+            <DialogDescription>
+              {`Discard unsaved changes to "${openDoc?.title ?? ''}"?`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmingDocClose(false)}>
+              Keep editing
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmingDocClose(false)
+                setOpenDoc(null)
+                setSignatureError('')
+              }}
+            >
+              Discard changes
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2185,9 +2365,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 if (confirmDeleteDoc) {
                   const index = docs.findIndex((d) => d.id === confirmDeleteDoc.id)
                   const next = deleteCareerDoc(confirmDeleteDoc.id)
-                  setDocs(next)
-                  if (docKind !== 'all' && !next.some((d) => d.kind === docKind)) setDocKind('all')
-                  setUndoDelete({ kind: 'doc', doc: confirmDeleteDoc, index: Math.max(index, 0) })
+                  if (applyDocs(next) && next) {
+                    if (docKind !== 'all' && !next.some((d) => d.kind === docKind)) setDocKind('all')
+                    setUndoDelete({ kind: 'doc', doc: confirmDeleteDoc, index: Math.max(index, 0) })
+                  }
                 }
                 setConfirmDeleteDoc(null)
               }}
@@ -2219,8 +2400,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               onClick={() => {
                 if (confirmDelete) {
                   const index = versions.findIndex((v) => v.id === confirmDelete.id)
+                  if (!applyVersions(deleteResumeVersion(confirmDelete.id))) {
+                    setConfirmDelete(null)
+                    return
+                  }
                   revokeShareLinksFor([confirmDelete.id])
-                  setVersions(deleteResumeVersion(confirmDelete.id))
                   setUndoDelete({
                     kind: 'copy',
                     version: confirmDelete,
@@ -2265,8 +2449,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   .map((version, index) => ({ version, index }))
                   .filter((e) => bulkIds.has(e.version.id))
                 if (entries.length > 0) {
+                  if (!applyVersions(deleteResumeVersions(entries.map((e) => e.version.id)))) {
+                    setConfirmBulkDelete(false)
+                    return
+                  }
                   revokeShareLinksFor(entries.map((e) => e.version.id))
-                  setVersions(deleteResumeVersions(entries.map((e) => e.version.id)))
                   setUndoDelete({ kind: 'copies', entries })
                 }
                 setBulkIds(new Set())
@@ -2355,8 +2542,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             onSubmit={(e) => {
               e.preventDefault()
               if (renamingDoc && renamingDoc.title.trim()) {
-                setDocs(renameCareerDoc(renamingDoc.doc.id, renamingDoc.title.trim()))
-                setRenamingDoc(null)
+                if (applyDocs(renameCareerDoc(renamingDoc.doc.id, renamingDoc.title.trim()))) {
+                  setRenamingDoc(null)
+                }
               }
             }}
           >
@@ -2441,6 +2629,38 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         </DialogContent>
       </Dialog>
 
+      <Dialog open={pendingRestore !== null} onOpenChange={(o) => !o && setPendingRestore(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Restore this workspace backup?</DialogTitle>
+            <DialogDescription>
+              Everything currently in this browser — resumes, copies, documents, job pipeline and
+              libraries — is replaced with the backup. This can't be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setPendingRestore(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (!pendingRestore) return
+                if (restoreWorkspace(pendingRestore)) {
+                  window.location.reload()
+                  return
+                }
+                setPendingRestore(null)
+                setStorageError(true)
+              }}
+            >
+              Replace and restore
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <FreeDownloadDialog
         open={freeDlOpen}
         onOpenChange={setFreeDlOpen}
@@ -2455,6 +2675,25 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         onOpenChange={setUpgradeOpen}
         reason="Downloading your resume as PDF or DOCX is the one thing we charge for — once, not monthly."
       />
+
+      {storageError && (
+        <div
+          role="alert"
+          className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+        >
+          <span className="min-w-0">
+            Not saved — your browser storage is full. Free up space and try again.
+          </span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setStorageError(false)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
 
       {undoDelete && (
         <div
@@ -2472,13 +2711,17 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             variant="outline"
             onClick={() => {
               if (undoDelete.kind === 'copy') {
-                setVersions(restoreResumeVersion(undoDelete.version, undoDelete.index))
+                if (!applyVersions(restoreResumeVersion(undoDelete.version, undoDelete.index)))
+                  return
               } else if (undoDelete.kind === 'copies') {
-                let next: ResumeVersion[] = versions
-                for (const e of undoDelete.entries) next = restoreResumeVersion(e.version, e.index)
-                setVersions(next)
-              } else {
-                setDocs(restoreCareerDoc(undoDelete.doc, undoDelete.index))
+                let next: ResumeVersion[] | null = versions
+                for (const e of undoDelete.entries) {
+                  next = restoreResumeVersion(e.version, e.index)
+                  if (next === null) break
+                }
+                if (!applyVersions(next)) return
+              } else if (!applyDocs(restoreCareerDoc(undoDelete.doc, undoDelete.index))) {
+                return
               }
               setUndoDelete(null)
             }}

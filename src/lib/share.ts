@@ -61,14 +61,16 @@ export function loadShareLink(scope: ShareScope): ShareLink | null {
   return links[scope] ?? null
 }
 
-function persistShareLink(scope: ShareScope, link: ShareLink | null) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistShareLink(scope: ShareScope, link: ShareLink | null): boolean {
   const links = loadShareLinks()
   if (link) links[scope] = link
   else delete links[scope]
   try {
     localStorage.setItem(SHARE_LINKS_KEY, JSON.stringify(links))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
@@ -109,7 +111,13 @@ export async function createShareLink(
     throw new Error(clientMessage || `Creating the link failed (${res.status}). Try again.`)
   }
   const link: ShareLink = { id: data.id, token: data.token, url: data.url, sharedAt: Date.now() }
-  persistShareLink(scope, link)
+  if (!persistShareLink(scope, link) && !prev) {
+    // Without a local record the link could never be revoked — take it back down.
+    void revokeRemote(link.id, link.token).catch(() => {})
+    throw new Error(
+      'Saving the link in this browser failed — your storage is full. The link was turned off; free up space and try again.'
+    )
+  }
   return link
 }
 
@@ -157,11 +165,20 @@ export function revokeShareLinksFor(scopes: readonly ShareScope[]): void {
   }
 }
 
-/** Fetch a shared resume snapshot; null when the link is gone. */
+/** Fetch a shared resume snapshot; null when the link is gone. Network
+ *  failures and server errors throw — they are not evidence of revocation. */
 export async function fetchSharedResume(
   id: string
 ): Promise<{ resume: Resume; createdAt: number } | null> {
-  const res = await fetch(`/api/share/${encodeURIComponent(id)}`)
+  let res: Response
+  try {
+    res = await fetch(`/api/share/${encodeURIComponent(id)}`)
+  } catch {
+    throw new Error('Loading the resume failed — check your connection and try again.')
+  }
+  if (res.status >= 500) {
+    throw new Error(`Loading the resume failed (${res.status}). Try again.`)
+  }
   if (!res.ok) return null
   const data = (await res.json().catch(() => null)) as {
     resume?: unknown

@@ -31,14 +31,14 @@ function RouteFallback() {
   )
 }
 
-// Keeps the shell's <link rel="canonical"> pointing at the current route
-// (the static index.html can only carry the homepage URL).
+// Keeps the shell's <link rel="canonical"> and og:url pointing at the current
+// route (the static index.html can only carry the homepage URL).
 function CanonicalSync() {
   const { pathname } = useLocation()
   useEffect(() => {
-    document
-      .querySelector('link[rel="canonical"]')
-      ?.setAttribute('href', `https://cv.zalize.com${pathname}`)
+    const url = `https://cv.zalize.com${pathname}`
+    document.querySelector('link[rel="canonical"]')?.setAttribute('href', url)
+    document.querySelector('meta[property="og:url"]')?.setAttribute('content', url)
   }, [pathname])
   return null
 }

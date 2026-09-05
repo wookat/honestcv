@@ -1781,6 +1781,39 @@ const SPA_ROUTES = new Set([
   '/jobs',
 ])
 
+// Per-route snippet metadata for the raw shell HTML; copy is identical to
+// each page's client-side usePageMeta call.
+const SPA_META: Record<string, { title: string; description: string }> = {
+  '/builder': {
+    title: 'Resume Builder — RezUp',
+    description:
+      'Build an ATS-friendly resume in your browser: 25 templates, drag-and-drop sections, live ATS match score, free PDF &amp; DOCX download. No account, no subscription.',
+  },
+  '/ats-checker': {
+    title: 'Free ATS Resume Checker — Instant Match Score | RezUp',
+    description:
+      'Paste your resume and a job description to get an instant ATS match score, missing keywords and format checks. 100% free, no sign-up — runs entirely in your browser.',
+  },
+  '/dashboard': {
+    title: 'My resumes — RezUp',
+    description: 'Manage your resume drafts and job-tailored copies. Everything stays in your browser.',
+  },
+  '/documents': {
+    title: 'Career documents — RezUp',
+    description:
+      'Cover letters, interview prep and resignation letters you saved. Everything stays in your browser.',
+  },
+  '/samples': {
+    title: 'Sample library — RezUp',
+    description: 'Start from a proven resume example for your role. Everything stays in your browser.',
+  },
+  '/jobs': {
+    title: 'Job search — RezUp',
+    description:
+      'Browse remote jobs, track your applications, and target your resume to a posting in one click.',
+  },
+}
+
 app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {
     return c.json({ error: 'Not Found' }, 404)
@@ -1795,13 +1828,59 @@ app.notFound(async (c) => {
   const isShare = path.startsWith('/s/') && validShareId(path.slice(3))
   // Revoked/expired/unknown share links get an honest 404 status; the SPA
   // shell still renders the branded "no longer available" card either way.
-  const shareLive = isShare && (await c.env.KV.get(`share:${path.slice(3)}`)) !== null
+  const shareRaw = isShare ? await c.env.KV.get(`share:${path.slice(3)}`) : null
+  const shareLive = shareRaw !== null
   const headers: Record<string, string> = { 'content-type': 'text/html; charset=utf-8' }
   if (path.startsWith('/s/')) {
     headers['X-Robots-Tag'] = 'noindex'
     headers['Cache-Control'] = 'no-store'
   }
-  return new Response(shell.body, {
+  // The shell inherits the homepage canonical/og:url and title/description;
+  // point them at the route being served so the raw HTML doesn't declare
+  // every SPA route a duplicate of the homepage.
+  let body: BodyInit | null = shell.body
+  if (shareRaw !== null) {
+    // Live share links get unfurled in chat apps; show the candidate, not
+    // the homepage marketing copy. The snapshot was already fetched above.
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    const rec = parseShareRecord(shareRaw)
+    const contact =
+      rec && typeof rec.resume === 'object' && rec.resume !== null
+        ? ((rec.resume as { contact?: { fullName?: unknown; title?: unknown } }).contact ?? {})
+        : {}
+    const fullName = typeof contact.fullName === 'string' ? contact.fullName.trim().slice(0, 120) : ''
+    const role = typeof contact.title === 'string' ? contact.title.trim().slice(0, 120) : ''
+    const heading = fullName ? (role ? `${fullName} — ${role}` : fullName) : 'Shared resume'
+    const title = esc(`${heading} | RezUp`)
+    const description = esc(
+      fullName
+        ? `${fullName}'s resume, shared with you via RezUp.`
+        : 'A resume shared with you via RezUp.'
+    )
+    const url = `https://cv.zalize.com${path}`
+    body = (await shell.text())
+      .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+      .replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${description}"`)
+      .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${title}"`)
+      .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${description}"`)
+      .replace(/<meta property="og:url" content="[^"]*"/, `<meta property="og:url" content="${url}"`)
+  } else if (SPA_ROUTES.has(path) && path !== '/') {
+    const url = `https://cv.zalize.com${path}`
+    let html = (await shell.text())
+      .replace(/<link rel="canonical" href="[^"]*"/, `<link rel="canonical" href="${url}"`)
+      .replace(/<meta property="og:url" content="[^"]*"/, `<meta property="og:url" content="${url}"`)
+    const meta = SPA_META[path]
+    if (meta) {
+      html = html
+        .replace(/<title>[^<]*<\/title>/, `<title>${meta.title}</title>`)
+        .replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${meta.description}"`)
+        .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${meta.title}"`)
+        .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${meta.description}"`)
+    }
+    body = html
+  }
+  return new Response(body, {
     status: SPA_ROUTES.has(path) || shareLive ? 200 : 404,
     headers,
   })

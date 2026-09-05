@@ -5,11 +5,13 @@ import { LogoMark } from '@/components/Logo'
 import { attentionCount } from '@/lib/jobs'
 import { type ThemePref, loadThemePref, saveThemePref, subscribeThemePref } from '@/lib/theme'
 
-/** Sets the document title and meta description for the current route. */
+/** Sets the document title, meta description and og:title/og:description for the current route. */
 export function usePageMeta(title: string, description: string) {
   useEffect(() => {
     document.title = title
     document.querySelector('meta[name="description"]')?.setAttribute('content', description)
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', title)
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', description)
   }, [title, description])
 }
 
@@ -119,13 +121,45 @@ function JobsAttentionBadge({ count }: { count: number }) {
 
 export function SiteHeader({ action, wideAction = false }: { action?: React.ReactNode; wideAction?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const headerRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (!headerRef.current?.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
   const attention = useSyncExternalStore(subscribeNever, attentionCount, () => 0)
   // Pages with a wide action cluster (Builder) keep the hamburger up to lg so
   // the inline nav and the actions never fight for the same header width.
   const navAt = wideAction ? 'lg' : 'md'
   return (
-    <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+    <header ref={headerRef} className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:bg-background focus:absolute focus:left-2 focus:top-2 focus:z-30 focus:rounded-md focus:border focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg"
+        onClick={(e) => {
+          e.preventDefault()
+          const main = document.querySelector('main')
+          if (!main) return
+          main.setAttribute('tabindex', '-1')
+          main.focus({ preventScroll: true })
+          main.scrollIntoView()
+        }}
+      >
+        Skip to content
+      </a>
+      <div
+        className={`mx-auto flex h-14 items-center justify-between px-4 ${wideAction ? 'max-w-[1600px]' : 'max-w-6xl'}`}
+      >
         <Link to="/" className="flex items-center gap-2 font-semibold">
           <LogoMark className="size-6" />
           RezUp

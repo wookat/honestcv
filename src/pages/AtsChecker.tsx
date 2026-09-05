@@ -1,9 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { ScanIllustration } from '@/components/Illustrations'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -73,6 +81,9 @@ function segmentJd(jd: string, matched: string[], missing: string[]): JdSegment[
   return out
 }
 
+/** Longest JD prefix rendered in the inline highlight view — the score always uses the full text. */
+const HIGHLIGHT_LIMIT = 20_000
+
 const DRAFT_KEY = 'honestcv.atsCheckerDraft'
 
 interface CheckerDraft {
@@ -106,7 +117,7 @@ export default function AtsChecker() {
   const [resumeText, setResumeText] = useState(state?.resumeText ?? draft?.resumeText ?? '')
   const [jd, setJd] = useState(draft?.jd ?? '')
   const [checked, setChecked] = useState(Boolean(state?.resumeText) || (draft?.checked ?? false))
-  const [linkCopied, setLinkCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
   const [fileChecks, setFileChecks] = useState<{ name: string; checks: FileCheck[] } | null>(
@@ -136,26 +147,32 @@ export default function AtsChecker() {
       .finally(() => setFileBusy(false))
   }
 
+  const [pendingBuilderJump, setPendingBuilderJump] = useState<{ anchor?: string } | null>(null)
+  const goToBuilder = (anchor?: string) => {
+    void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
+  }
+  const replaceAndOpen = (anchor?: string) => {
+    const parsed = parseResumeText(resumeText)
+    parsed.jobDescription = jd
+    setActiveVersionId(null)
+    saveResume(parsed)
+    goToBuilder(anchor)
+  }
+  const keepSavedAndOpen = (anchor?: string) => {
+    const existing = loadResume()
+    if (existing && jd.trim()) {
+      existing.jobDescription = jd
+      saveResume(existing)
+    }
+    goToBuilder(anchor)
+  }
   const openInBuilder = (anchor?: string) => {
     const existing = loadResume()
     const hasContent = Boolean(
       existing && (existing.contact.fullName || existing.experience.length)
     )
-    if (
-      !hasContent ||
-      window.confirm(
-        'Replace the resume currently saved in the builder with this pasted one? (Cancel keeps your saved resume; the job description still carries over.)'
-      )
-    ) {
-      const parsed = parseResumeText(resumeText)
-      parsed.jobDescription = jd
-      setActiveVersionId(null)
-      saveResume(parsed)
-    } else if (existing) {
-      existing.jobDescription = jd
-      saveResume(existing)
-    }
-    void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
+    if (!hasContent) replaceAndOpen(anchor)
+    else setPendingBuilderJump({ anchor })
   }
 
   useEffect(() => {
@@ -167,9 +184,12 @@ export default function AtsChecker() {
     }
   }, [resumeText, jd, checked])
 
+  // Deferred so rescoring a very large pasted text can't block each keystroke.
+  const scoredResumeText = useDeferredValue(resumeText)
+  const scoredJd = useDeferredValue(jd)
   const result = useMemo(
-    () => (checked ? scoreResumeText(resumeText, jd) : null),
-    [checked, resumeText, jd]
+    () => (checked ? scoreResumeText(scoredResumeText, scoredJd) : null),
+    [checked, scoredResumeText, scoredJd]
   )
   const isExample = resumeText === EXAMPLE_RESUME && jd === EXAMPLE_JD
 
@@ -190,13 +210,19 @@ export default function AtsChecker() {
     )
   }, [result])
 
+  const jdSegments = useMemo(
+    () =>
+      result ? segmentJd(scoredJd.slice(0, HIGHLIGHT_LIMIT), result.matched, result.missing) : [],
+    [scoredJd, result]
+  )
+
   const analysis = useMemo(() => {
     if (!result) return null
-    const parsed = parseResumeText(resumeText)
-    parsed.jobDescription = jd
+    const parsed = parseResumeText(scoredResumeText)
+    parsed.jobDescription = scoredJd
     const health = resumeHealth(parsed)
     return { health, fixes: priorityFixes(result, health) }
-  }, [result, resumeText, jd])
+  }, [result, scoredResumeText, scoredJd])
 
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">
@@ -416,6 +442,13 @@ export default function AtsChecker() {
                     decision.
                   </li>
                   <li>
+                    <strong className="text-foreground">In the builder</strong> — this
+                    page can only check the pasted text. After you carry your resume
+                    over, the builder re-checks the imported version with deeper
+                    structured checks (contact fields, grouped skills, locations on
+                    each entry), so its score can differ from this one.
+                  </li>
+                  <li>
                     <strong className="text-foreground">What to do</strong> — add the
                     missing keywords below <em>only where they&apos;re true of you</em>, keep
                     the layout simple, then re-check. Aim for 70+.
@@ -568,7 +601,7 @@ export default function AtsChecker() {
                     missing.
                   </p>
                   <div className="bg-muted/40 mt-2 max-h-56 overflow-y-auto rounded-md border p-3 text-sm whitespace-pre-wrap">
-                    {segmentJd(jd, result.matched, result.missing).map((s, i) =>
+                    {jdSegments.map((s, i) =>
                       s.kind === 'plain' ? (
                         <span key={i}>{s.text}</span>
                       ) : (
@@ -585,6 +618,12 @@ export default function AtsChecker() {
                       )
                     )}
                   </div>
+                  {jd.length > HIGHLIGHT_LIMIT && (
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Highlighting the first {HIGHLIGHT_LIMIT.toLocaleString()} characters of
+                      this long job description — the score uses the full text.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -732,6 +771,10 @@ export default function AtsChecker() {
                 <Button className="mt-3 h-auto max-w-full whitespace-normal" onClick={() => openInBuilder()}>
                   Fix it in the builder — resume &amp; job carried over <ArrowRight />
                 </Button>
+                <p className="text-muted-foreground mt-2 text-xs">
+                  The builder re-checks the imported resume with deeper structured
+                  checks, so its score can differ from the one above.
+                </p>
               </div>
 
               <p className="text-muted-foreground mt-4 text-center text-xs">
@@ -742,10 +785,17 @@ export default function AtsChecker() {
                   onClick={() => {
                     void navigator.clipboard
                       .writeText('https://cv.zalize.com/ats-checker')
-                      .then(() => setLinkCopied(true))
+                      .then(
+                        () => setLinkCopied('copied'),
+                        () => setLinkCopied('failed')
+                      )
                   }}
                 >
-                  {linkCopied ? 'Link copied!' : 'Copy the checker link'}
+                  {linkCopied === 'copied'
+                    ? 'Link copied!'
+                    : linkCopied === 'failed'
+                      ? 'Copy failed'
+                      : 'Copy the checker link'}
                 </button>{' '}
                 — free, no sign-up, nothing leaves the browser.
               </p>
@@ -813,6 +863,37 @@ export default function AtsChecker() {
           </div>
         </section>
       </main>
+
+      <Dialog
+        open={pendingBuilderJump !== null}
+        onOpenChange={(o) => !o && setPendingBuilderJump(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Replace the saved resume?</DialogTitle>
+            <DialogDescription>
+              The builder already has a saved resume. Replace it with this pasted one, or keep it —
+              a pasted job description carries over either way.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => keepSavedAndOpen(pendingBuilderJump?.anchor)}
+            >
+              Keep saved resume
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => replaceAndOpen(pendingBuilderJump?.anchor)}
+            >
+              Replace resume
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <SiteFooter />
     </div>

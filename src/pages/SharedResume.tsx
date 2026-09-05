@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Printer } from 'lucide-react'
+import { Download, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ResumePreview } from '@/components/ResumePreview'
+import { usePageMeta } from '@/components/Layout'
+import { professionalFileName } from '@/lib/download'
 import { fetchSharedResume } from '@/lib/share'
 import type { Resume } from '@/lib/resume'
 
@@ -11,20 +13,60 @@ export default function SharedResume() {
   const [state, setState] = useState<
     | { status: 'loading' }
     | { status: 'gone' }
+    | { status: 'error'; message: string }
     | { status: 'ready'; resume: Resume; createdAt: number }
   >(id ? { status: 'loading' } : { status: 'gone' })
+  const [attempt, setAttempt] = useState(0)
+  const [dl, setDl] = useState<'idle' | 'busy' | 'failed'>('idle')
+
+  // Mirrors the worker's raw-HTML rewrite so the tab keeps the candidate's
+  // name after client-side navigation (e.g. Back from /builder).
+  const fullName =
+    state.status === 'ready' ? state.resume.contact.fullName.trim().slice(0, 120) : ''
+  const role = state.status === 'ready' ? state.resume.contact.title.trim().slice(0, 120) : ''
+  usePageMeta(
+    `${fullName ? (role ? `${fullName} — ${role}` : fullName) : 'Shared resume'} | RezUp`,
+    fullName
+      ? `${fullName}'s resume, shared with you via RezUp.`
+      : 'A resume shared with you via RezUp.'
+  )
+
+  const downloadPdf = async () => {
+    if (state.status !== 'ready' || dl === 'busy') return
+    setDl('busy')
+    try {
+      const { contact, targetRole } = state.resume
+      await (await import('@/lib/pdf')).downloadResumePdf(
+        state.resume,
+        professionalFileName([contact.fullName, targetRole, 'resume'], 'pdf')
+      )
+      setDl('idle')
+    } catch {
+      setDl('failed')
+    }
+  }
 
   useEffect(() => {
     if (!id) return
     let cancelled = false
-    void fetchSharedResume(id).then((data) => {
-      if (cancelled) return
-      setState(data ? { status: 'ready', ...data } : { status: 'gone' })
-    })
+    fetchSharedResume(id).then(
+      (data) => {
+        if (cancelled) return
+        setState(data ? { status: 'ready', ...data } : { status: 'gone' })
+      },
+      (err: unknown) => {
+        if (cancelled) return
+        const message =
+          err instanceof Error && err.message
+            ? err.message
+            : 'Loading the resume failed — try again.'
+        setState({ status: 'error', message })
+      }
+    )
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, attempt])
 
   return (
     <div className="bg-muted/40 min-h-screen">
@@ -34,6 +76,11 @@ export default function SharedResume() {
             Shared resume — read-only snapshot
           </p>
           <div className="flex items-center gap-2">
+            {state.status === 'ready' && (
+              <Button size="sm" onClick={() => void downloadPdf()} disabled={dl === 'busy'}>
+                <Download /> {dl === 'busy' ? 'Preparing…' : 'Download PDF'}
+              </Button>
+            )}
             {state.status === 'ready' && (
               <Button
                 size="sm"
@@ -51,8 +98,31 @@ export default function SharedResume() {
         </div>
       </header>
       <main className="mx-auto max-w-4xl px-2 py-6 sm:px-4">
+        {dl === 'failed' && (
+          <div
+            role="alert"
+            className="border-destructive/50 bg-destructive/10 text-destructive mx-auto mb-4 flex max-w-3xl flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span>Preparing the PDF failed — check your connection, then reload and try again.</span>
+            <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+              Reload page
+            </Button>
+          </div>
+        )}
         {state.status === 'loading' && (
           <div aria-busy="true" className="bg-background mx-auto aspect-[17/22] max-w-3xl animate-pulse rounded-md border" />
+        )}
+        {state.status === 'error' && (
+          <div className="bg-background mx-auto max-w-lg rounded-lg border p-8 text-center" role="alert">
+            <h1 className="text-lg font-semibold">Couldn't load this resume</h1>
+            <p className="text-muted-foreground mt-2 text-sm">{state.message}</p>
+            <Button className="mt-4" size="sm" variant="outline" onClick={() => {
+                setState({ status: 'loading' })
+                setAttempt((n) => n + 1)
+              }}>
+              Try again
+            </Button>
+          </div>
         )}
         {state.status === 'gone' && (
           <div className="bg-background mx-auto max-w-lg rounded-lg border p-8 text-center">

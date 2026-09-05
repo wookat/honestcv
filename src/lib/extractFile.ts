@@ -84,7 +84,11 @@ async function extractPdf(file: File): Promise<ExtractedResumeFile> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
   const worker = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default
-  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise
+  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise.catch(() => {
+    throw new Error(
+      'Could not read this PDF — the file may be damaged. Re-export it or paste the text instead.'
+    )
+  })
   const pages: string[] = []
   let hasImages = false
   let multiColumn = false
@@ -217,7 +221,14 @@ function detectColumnSplit(segments: { x: number; text: string }[]): number | nu
 }
 
 async function extractDocx(file: File): Promise<ExtractedResumeFile> {
-  const files = unzipSync(new Uint8Array(await file.arrayBuffer()))
+  let files: ReturnType<typeof unzipSync>
+  try {
+    files = unzipSync(new Uint8Array(await file.arrayBuffer()))
+  } catch {
+    throw new Error(
+      'Could not read this DOCX file — it may be damaged. Re-export it or paste the text instead.'
+    )
+  }
   const doc = files['word/document.xml']
   if (!doc) throw new Error('Could not read this DOCX file.')
   const xml = strFromU8(doc)

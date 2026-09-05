@@ -15,6 +15,7 @@ import {
   Lightbulb,
   Search,
   StickyNote,
+  X,
 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
@@ -54,6 +55,7 @@ import {
   updateStatuses,
   upsertPipeline,
 } from '@/lib/jobs'
+import { listCareerDocs } from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
 import {
   createResumeVersion,
@@ -97,17 +99,10 @@ const postedAgo = (iso: string) => {
 const shortDate = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 
-/** ms epoch → yyyy-mm-dd in the user's local calendar (for <input type="date">). */
-const toDateInput = (ms: number) => {
-  const d = new Date(ms)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
-
-/** yyyy-mm-dd → ms epoch at local midnight of that day. */
-const fromDateInput = (value: string) => {
-  const [y, m, d] = value.split('-').map(Number)
-  return new Date(y, m - 1, d).getTime()
+/** yyyy-mm-dd → "Mon D" using the day's components (no timezone shifting). */
+const shortDay = (day: string) => {
+  const [y, m, d] = day.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 const agoFromMs = (ms: number) => {
@@ -152,7 +147,8 @@ export default function Jobs() {
   const [error, setError] = useState('')
   const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => listPipeline())
   const [selectedId, setSelectedId] = useState<string | null>(() => seedParams.get('job'))
-  const [mobileDetail, setMobileDetail] = useState(false)
+  // A ?job= deep link should read like tapping that row: open the detail pane on mobile.
+  const [mobileDetail, setMobileDetail] = useState(() => seedParams.get('job') !== null)
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(new Set())
   const [confirmBulkUntrack, setConfirmBulkUntrack] = useState(false)
@@ -163,6 +159,7 @@ export default function Jobs() {
   const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
   const [reportOpenId, setReportOpenId] = useState<string | null>(null)
   const [confirmUntrack, setConfirmUntrack] = useState<JobListing | null>(null)
+  const [storageError, setStorageError] = useState(false)
   const [followUpDraft, setFollowUpDraft] = useState<{ subject: string; body: string } | null>(
     null
   )
@@ -402,6 +399,16 @@ export default function Jobs() {
     return c
   }, [pipeline])
 
+  /** Applies a pipeline mutation; surfaces the storage-full alert when nothing was written. */
+  const applyPipeline = (next: PipelineEntry[] | null): boolean => {
+    if (next === null) {
+      setStorageError(true)
+      return false
+    }
+    setPipeline(next)
+    return true
+  }
+
   /** The job's targeted copy if the pipeline links one that still exists. */
   const linkedVersion = (jobId: string) => {
     const id = pipeline.find((e) => e.job.id === jobId)?.resumeVersionId
@@ -421,8 +428,16 @@ export default function Jobs() {
       },
       'Job applications'
     )
-    if (!listPipeline().some((e) => e.job.id === job.id)) upsertPipeline(job, 'saved')
-    setPipeline(setPipelineVersion(job.id, version.id))
+    if (!version) {
+      setStorageError(true)
+      return null
+    }
+    if (
+      !listPipeline().some((e) => e.job.id === job.id) &&
+      !applyPipeline(upsertPipeline(job, 'saved'))
+    )
+      return null
+    if (!applyPipeline(setPipelineVersion(job.id, version.id))) return null
     return version
   }
 
@@ -433,44 +448,59 @@ export default function Jobs() {
         setConfirmUntrack(job)
         return
       }
-      setPipeline(removeFromPipeline(job.id))
+      applyPipeline(removeFromPipeline(job.id))
       return
     }
-    setPipeline(upsertPipeline(job, status))
+    if (!applyPipeline(upsertPipeline(job, status))) return
     if (status === 'saved' && !linkedVersion(job.id)) prepareTargetedCopy(job)
   }
 
   const targetResume = (job: JobListing, intent: 'target' | 'cover') => {
     if (intent === 'target') {
       const version = linkedVersion(job.id) ?? prepareTargetedCopy(job)
+      if (!version) return
       saveResume(version.data)
       setActiveVersionId(version.id)
       void navigate('/builder')
       return
     }
-    const draft = loadResume() ?? emptyResume()
-    const next = {
-      ...draft,
-      targetRole: job.title,
-      targetCompany: job.company,
-      jobDescription: job.description,
+    const version = linkedVersion(job.id)
+    if (version) {
+      saveResume(version.data)
+      setActiveVersionId(version.id)
+    } else {
+      const draft = loadResume() ?? emptyResume()
+      const next = {
+        ...draft,
+        targetRole: job.title,
+        targetCompany: job.company,
+        jobDescription: job.description,
+      }
+      saveResume(next)
+      syncActiveVersion(next)
     }
-    saveResume(next)
-    syncActiveVersion(next)
-    void navigate(`/builder?doc=cover&company=${encodeURIComponent(job.company)}`)
+    void navigate(
+      `/builder?doc=cover&company=${encodeURIComponent(job.company)}&job=${encodeURIComponent(job.id)}`
+    )
   }
 
-  /** Set the draft's target job and open the interview prep tools in the editor. */
+  /** Open the job's targeted copy (or aim the draft at the job) and open interview prep. */
   const openInterviewPrep = (job: JobListing) => {
-    const draft = loadResume() ?? emptyResume()
-    const next = {
-      ...draft,
-      targetRole: job.title,
-      targetCompany: job.company,
-      jobDescription: job.description,
+    const version = linkedVersion(job.id)
+    if (version) {
+      saveResume(version.data)
+      setActiveVersionId(version.id)
+    } else {
+      const draft = loadResume() ?? emptyResume()
+      const next = {
+        ...draft,
+        targetRole: job.title,
+        targetCompany: job.company,
+        jobDescription: job.description,
+      }
+      saveResume(next)
+      syncActiveVersion(next)
     }
-    saveResume(next)
-    syncActiveVersion(next)
     void navigate('/builder?doc=interview')
   }
 
@@ -513,7 +543,10 @@ export default function Jobs() {
     const match = tailoredMatchOf.get(job.id)
     if (match !== undefined && match < 80)
       return {
-        text: `Improve your targeted copy — ${match}% keyword match.`,
+        text:
+          match === 0
+            ? "Your targeted copy doesn't use any of this job's keywords yet — open it and add a few."
+            : `Improve your targeted copy — ${match}% keyword match.`,
         label: 'Open targeted resume',
         onClick: () => targetResume(job, 'target'),
       }
@@ -789,7 +822,7 @@ export default function Jobs() {
                   onChange={(e) => {
                     const status = e.target.value as JobStatus
                     if (!status) return
-                    setPipeline(updateStatuses([...bulkIds], status))
+                    if (!applyPipeline(updateStatuses([...bulkIds], status))) return
                     setBulkIds(new Set())
                   }}
                   aria-label="Move selected jobs to a status"
@@ -888,8 +921,22 @@ export default function Jobs() {
                   </div>
                 ))}
               </div>
-            ) : error ? (
-              <p className="text-destructive p-4 text-sm">{error}</p>
+            ) : error && tab === 'all' ? (
+              <div
+                role="alert"
+                className="border-destructive/50 bg-destructive/10 m-4 rounded-md border p-4 text-sm"
+              >
+                <p>{error}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => runSearch(query)}
+                >
+                  Try again
+                </Button>
+              </div>
             ) : shown.length === 0 ? (
               <p className="text-muted-foreground p-4 text-sm">
                 {tab === 'all'
@@ -1312,6 +1359,25 @@ export default function Jobs() {
                           </Button>
                         )}
                       </div>
+                      {(() => {
+                        const coverDoc = entry.coverDocId
+                          ? listCareerDocs().find((d) => d.id === entry.coverDocId)
+                          : undefined
+                        if (!coverDoc) return null
+                        return (
+                          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                            <span className="text-muted-foreground">Cover letter:</span>
+                            <span className="font-medium">{coverDoc.title}</span>
+                            <button
+                              type="button"
+                              className="text-primary underline-offset-2 hover:underline"
+                              onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
+                            >
+                              Open
+                            </button>
+                          </p>
+                        )
+                      })()}
                       <p className="text-sm font-medium">Application timeline</p>
                       <ol className="mt-1.5 flex flex-wrap items-center gap-y-1 text-xs">
                         {steps.map((step, i) => (
@@ -1372,29 +1438,26 @@ export default function Jobs() {
                         <input
                           id="job-remind"
                           type="date"
-                          value={entry.remindAt !== undefined ? toDateInput(entry.remindAt) : ''}
+                          value={entry.remindOn ?? ''}
                           onChange={(e) =>
-                            setPipeline(
-                              setPipelineReminder(
-                                selected.id,
-                                e.target.value ? fromDateInput(e.target.value) : null
-                              )
+                            applyPipeline(
+                              setPipelineReminder(selected.id, e.target.value || null)
                             )
                           }
                           className="border-input bg-background min-h-8 rounded-md border px-2.5 py-1 text-sm"
                         />
-                        {entry.remindAt !== undefined && (
+                        {entry.remindOn !== undefined && (
                           <button
                             type="button"
                             className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
-                            onClick={() => setPipeline(setPipelineReminder(selected.id, null))}
+                            onClick={() => applyPipeline(setPipelineReminder(selected.id, null))}
                           >
                             Clear reminder
                           </button>
                         )}
-                        {entry.remindAt !== undefined && reminderDue(entry) && (
+                        {entry.remindOn !== undefined && reminderDue(entry) && (
                           <p className="text-xs font-medium text-amber-700">
-                            Reminder due {shortDate(entry.remindAt)} — consider following up.
+                            Reminder due {shortDay(entry.remindOn)} — consider following up.
                           </p>
                         )}
                       </div>
@@ -1412,7 +1475,8 @@ export default function Jobs() {
                         }
                         onBlur={() => {
                           if (notesDraft?.jobId !== selected.id) return
-                          setPipeline(setPipelineNotes(selected.id, notesDraft.text))
+                          if (!applyPipeline(setPipelineNotes(selected.id, notesDraft.text)))
+                            return
                           setNotesDraft(null)
                         }}
                         rows={3}
@@ -1461,7 +1525,9 @@ export default function Jobs() {
             </DialogTitle>
             <DialogDescription>
               {confirmTarget?.intent === 'cover'
-                ? "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any."
+                ? confirmTarget && linkedVersion(confirmTarget.job.id)
+                  ? 'This opens the resume copy targeted at this job in the editor, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
+                  : "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any."
                 : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'This job already has a targeted copy of your resume — the editor opens that copy. Your other resumes keep their own target jobs.'
                   : 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard) and opens it in the editor. Your current draft keeps its own target job.'}
@@ -1517,7 +1583,8 @@ export default function Jobs() {
               variant="destructive"
               className="min-h-10"
               onClick={() => {
-                if (confirmUntrack) setPipeline(removeFromPipeline(confirmUntrack.id))
+                if (confirmUntrack && !applyPipeline(removeFromPipeline(confirmUntrack.id)))
+                  return
                 setConfirmUntrack(null)
               }}
             >
@@ -1627,7 +1694,7 @@ export default function Jobs() {
               variant="destructive"
               className="min-h-10"
               onClick={() => {
-                setPipeline(removeManyFromPipeline([...bulkIds]))
+                if (!applyPipeline(removeManyFromPipeline([...bulkIds]))) return
                 setBulkIds(new Set())
                 setConfirmBulkUntrack(false)
               }}
@@ -1637,6 +1704,25 @@ export default function Jobs() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {storageError && (
+        <div
+          role="alert"
+          className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+        >
+          <span className="text-destructive min-w-0">
+            Not saved — your browser storage is full. Free up space and try again.
+          </span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setStorageError(false)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

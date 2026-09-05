@@ -1032,3 +1032,208 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：ats.ts 增 roleTokensOf/withoutRoleTokens（与 R356 同分词，多词短语从不排除）；scoreResume 按 resume.targetRole 过滤 extractKeywords 结果（在 ignoredKeywords 拆分前）；matchReport 增可选第三参 targetRole，Builder resumeGaps 与 AssistantPanel 状态行传 resume.targetRole。关键词 % 按过滤后集合重算（分子分母同降，诚实）。
 - 有意不动：Jobs.tsx matchScore/matchReport（对任意职位板 JD 比对，用户自身 targetRole 不是该职位头衔）、/ats-checker scoreResumeText（无 role 概念）、手动 ignoredKeywords 机制。空/空白 role 字节不变。
 - 本地：oracle 19/19（.tmp-smoke/r376_oracle.ts）+ r375 20/20 + r373 11/11 回归、tsc/eslint/build 绿。
+
+## R397 — 编辑历史检查点存储满时不再假成功 (2026-08-31)
+- （R377–R396 各轮详情见对应 PR #598–#617 描述与 docs/plan-r3xx-*.md。）
+- 闭环诚实存储系列收官后残留缺口：persistHistory 吞配额异常、recordResumeSnapshot 恒返回新列表——历史 Restore 承诺"先存当前草稿检查点"，存储满时检查点静默失败仍覆盖草稿（数据丢失级）。
+- 实现：resume.ts persistHistory 返回 boolean；recordResumeSnapshot 返回 ResumeSnapshot[] | null（仅当尝试新写入且失败时为 null，去重/10 分钟间隔早退路径不受影响）；Builder onRestore 检查点为 null 时显示底部 alert、对话框保持打开、不替换草稿；R396 库告警与本告警合并为通用 storageAlert 状态。autosave 路径保持 fire-and-forget。
+- 生产 QA（Builder-DWxMMwN9.js）：零余量 Restore 被拒且 resumeHistory 字节一致、释放后 Restore 写入 pre-restore 检查点并还原、R396 回归、375 光暗无用户可见溢出（scrollWidth 532 为 overflow-hidden 容器内 SVG 所致的量测噪声，以 visualViewport/scrollX 断言为准）、零 console 错误。PR #618。
+
+## R398 — SOP-10 四维审计 + 面试准备文档命名兜底 (2026-08-31)
+- SOP-10 四维生产审计（操作台文件夹/批量/undo/分享 scoping、导入→ATS→Fix→四格式导出→面试准备全链、5 个静态页 375/768/1440 光暗+40 内链、畸形存储/深链/XSS/配额/慢与失败 AI 探针）：零 P0–P2。
+- 撤销一项初报 P2：「AI 失败显示原始服务端错误体」为 mock 伪影非产品缺陷——postJson 优先显示 data.error 属有意设计，worker 所有 {error} 体均为用户措辞（callLlm 已把上游错误映射为友好文案），非 JSON 5xx 体走友好 500 兜底；真实 worker 不可能产出 "mocked failure" 这类体。压掉 5xx 的 data.error 反而会隐藏真实的友好上游不可用文案。
+- 本轮修复确证 P3：面试准备文档 targetRole 为空时命名 "Untitled — Interview prep"。docTitle 面试分支兜底链改为 targetRole → contact.fullName → Untitled（与 R378 副本命名兜底一致），cover/resignation 不动。
+- 银行（待源码/a11y 验证）：dashboard 文件夹分组标题疑似非语义 heading 元素（假设级，无用户可见缺陷）。
+- 本地：tsc/eslint(产品文件)/build 绿（.tmp-smoke 旧 oracle 的 lint error 为历史遗留非本轮）。方案：docs/plan-r398-sop10-audit.md。
+
+## R399 — dashboard 文件夹分组标题成为语义 h2（2026-08-31）
+- 闭环 R398 银行假设（已实证）：/dashboard 文件夹分组的可见标题只是一个样式化的 `<button aria-expanded>`，无任何 heading 元素——读屏用户按标题导航无法发现/跳转文件夹分组；同页 h1 My resumes、h2 Career documents/Sample library 均为语义标题。方案 docs/plan-r399-folder-group-headings.md。
+- 实现（最小）：Dashboard.tsx 将 toggle 按钮包进 `<h2 className="contents">`（标准 disclosure 模式：heading 包 control，aria-expanded 留在按钮上）；`contents` 使按钮仍是行 flex 直接子项，布局字节不变；折叠/改名/删除逻辑零改动。
+- 本地：tsc、eslint(Dashboard.tsx)、build 全绿（仓库全量 lint 的 .tmp-smoke 历史错误依旧、与本轮无关）。
+- 生产 QA（Dashboard-DRg07npx.js / index-C_8_v3CI.js）：AX 树暴露 heading level=2 "Applications (2)"、heading 顺序正常、布局零偏移（h2 computed display:contents、rename/remove 同行 Δy=0）、grid+list、375 光暗、折叠持久/改名/删文件夹回归、零 console 错误、基线还原。QA 种子教训（数值时间戳等）已入测试 skill。
+
+## R400 — 一键全工作区备份/恢复（2026-08-31）
+- 闭环源码实证缺口：产品是纯浏览器本地存储，但编辑器 Backup 只序列化当前加载的 resume 对象——副本、求职文档、job 管道、11 个内容库、分享链接记录（撤销 token）等清浏览器即永久丢失，宣传的安全网只覆盖一小部分数据。方案 docs/plan-r400-workspace-backup.md。
+- 实现：新 src/lib/workspace.ts（exportWorkspace 快照全部 honestcv.* 原始字符串值为 rezup-workspace v1 JSON；parseWorkspaceBackup 严格校验；restoreWorkspace 先快照后替换、配额抛出即字节级回滚返回 false——诚实存储不变量）。设备域键双向排除：clientId（AI 配额身份）/license/subscribed/shared/firstSeen/qa/ev.*。Dashboard 头部 "Back up everything"+"Restore"（确认框 Replace and restore→reload；失败走既有 storage-full alert；无效文件行内 alert）。Builder 单简历备份不动。
+- 本地 tsc/eslint/build 绿。生产 QA 两轮（Dashboard-D5zeDivb.js / index-CvY8w-76.js）全绿零 P0–P3：导出字节级一致且零排除键、恢复字节级还原+清除多余工作区键+设备键不动、Cancel 零写入、无效文件拒绝、零余量恢复回滚字节一致+释放后成功、伪造 clientId 的备份导入侧被剥离、R399 h2/375 光暗回归、零 console 错误。QA 发现 clientId 初版随备份迁移（会转移配额身份），当轮加入 EXCLUDED 并复验。
+
+## R401 — 编辑器备份 Restore 加装护栏（2026-08-31）
+- 闭环源码实证缺口：Builder 备份 Restore 选中合法文件即无确认地替换当前简历并解绑副本，且不做强制前置检查点——recordResumeSnapshot 非 force 在 10 分钟窗口内早退，最近编辑可被不可恢复地丢弃（历史 Restore R397 早有此护栏）。方案 docs/plan-r401-backup-restore-guardrails.md。
+- 实现（仅 Builder.tsx）：文件解析后先 sanitizeResume（QA 发现的 P3：宽松校验放行错误字段类型文件会白屏崩溃，当轮修复）再入 pendingBackupRestore 确认框（Cancel 零写入）；确认时 recordResumeSnapshot(resume, true) 失败即出存储满 alert、对话框保持打开、草稿不动；成功才 linkVersion(null)+替换。
+- 本地 tsc/eslint/build 绿。生产 QA 两轮（Builder-C3EHbdNY.js → Builder-B2taxAOu.js）全绿零 P0–P3：确认框/Cancel 字节级零写入、绑定副本+新鲜编辑确认后强制检查点落盘且副本字节一致、零余量确认被拒且对话框留存、释放后同框重试成功、崩溃复现文件在新 bundle 下正常恢复（skills 强转字符串）、真实导出往返键级一致、无效文件拒绝、R400 工作区恢复回归、375 光暗、零 console 错误。
+
+## R402 — careerDocs 读侧净化（2026-08-31）
+- 闭环源码实证缺陷：listCareerDocs 的 `parsed.filter((d) => d.id && d.text)` 遇单个 null/非对象元素即在 filter 内抛异常被外层吞掉→返回 []（全部求职文档从 UI 消失），且任何 mutator（保存/改名/复制/删除）基于 [] 回写即永久销毁全部文档；错误字段类型也原样放行（非字符串 title 会打崩 UI/文件名代码）。resume/pipeline/libraries 早有读侧 coerce（R374 模式），careerDocs 是最后一个未净化的用户内容存储。方案 docs/plan-r402-careerdocs-sanitize.md。
+- 实现（仅 documents.ts）：sanitizeCareerDoc 逐元素 coerce（id/text 必须非空字符串否则丢弃；kind 限三值默认 cover；title 强转字符串；updatedAt 非有限数→0；signature 仅留非空字符串），listCareerDocs flatMap；读取零写入，修复随下次自然保存落盘。
+- oracle 10/10、tsc/lint/build 绿。生产 QA（index-xQfsXRHE.js / Dashboard-5qQr2lXy.js，零逃逸、基线还原）全绿零 P0–P3：损坏种子下 2 个幸存文档正常渲染（旧行为零文档，delta 已证）、纯读字节零写入、首次改名修复存储且好文档全文保留、R392 存储满/R388 文件名/查看器回归、375 光暗、零 console 错误。P4 观察：updatedAt=0 渲染 "Edited 20701 days ago"（可加 fallback 文案，银行）。
+
+## R403 — SOP-10 四维审计 + 两处原生 confirm 替换守卫改为样式化对话框（2026-08-31）
+- SOP-10 四维生产审计（操作台搜索/文件夹/批量/备份/焦点陷阱、示例→跟踪→targeted copy→ATS→四格式导出→cover/interview 全链、5 静态页 375/768/1440 光暗+内链、畸形深链/ATS 草稿损坏/1MB 草稿/多标签/近配额探针）：零 P0–P2。方案 docs/plan-r403-styled-replace-confirms.md。
+- 本轮修复确证 P3：示例替换的 `window.confirm` 跑在 setResume updater 内部（副作用入 updater，StrictMode 双调用会弹两次；原生框与全站样式化守卫不一致；无对话框处理的嵌入/自动化环境直接硬阻塞渲染进程——QA 实测 100% CPU 钉死）。ATS checker openInBuilder 同款原生 confirm。
+- 实现：Builder applyExample 决策移出 updater——非空草稿（fullName||summary）置 pendingExample 弹样式化 Dialog（Cancel / Replace with example），确认才 linkVersion(null)+setResume（模板保留规则不变）；空草稿即时应用如旧；deep-link 效果照旧先剥离 ?example。AtsChecker openInBuilder 拆为 replaceAndOpen / keepSavedAndOpen（R387 空 JD 不写回语义保留），有存档时弹 Dialog（Keep saved resume / Replace resume 两个显式按钮，Esc/外点=留在原页，严格更安全的超集）。
+- 银行 P4：/jobs?job=<bogus> 静默回退第一条、~1MB ATS 草稿同步加载 ~10s 冻结、updatedAt=0 渲染 "Edited 20701 days ago"。
+- 本地 tsc/eslint(0 errors)/build 绿；生产 QA 见 PR。
+
+## R404 — updatedAt=0 的求职文档不再显示 "Edited 20701 days ago"（2026-08-31）
+- 闭环 R403 银行 P4：R402 净化器把缺失/非法 updatedAt 强转为 0，dashboard editedAgo(0) 渲染 "Edited 20701 days ago"（把 epoch 距离当事实展示）。方案 docs/plan-r404-unknown-edit-date.md。
+- 实现（一行，Dashboard.tsx）：editedAgo 对 falsy ms 返回 "Edited a while ago"；排序不动（0 仍排最旧，未知时间排最后合理）；真实时间戳随下次内容编辑自然落盘（updateCareerDoc）。注意 renameCareerDoc 按 R197 设计不触碰时间戳（组织性操作），rename 不会"治愈"该值——QA 确证此为既定语义。
+- 另实证：~1MB ATS 草稿的计算链（scoreResumeText+parseResumeText+resumeHealth+priorityFixes）Node 实测 <260ms，冻结在渲染侧（1MB 受控 textarea），该 P4 继续银行待浏览器 profile。
+- 本地 tsc/eslint/build 绿。生产 QA（Dashboard-CR_XnwaE.js / index-9L7DV6ZE.js，零逃逸、基线还原）全绿零 P0–P3：updatedAt 为 0/缺失/'nope' 三种种子全部渲染 "Edited a while ago"、真实时间戳文档 "Edited today"、页面零 "20701"、查看器内容编辑后自愈为 "Edited today"、副本卡与排序回归、375 光暗无溢出、零 console 错误。
+## R405 — 剩余四处原生 window.confirm 关闭守卫改为样式化对话框（2026-08-31）
+- 闭环 R403 同族问题：源码扫描（window.confirm|alert|prompt）显示 R403 后仍余四处原生 confirm，全部是既有样式化 Dialog 内的未保存工作关闭守卫：BundleToolDialog（面试会话/未保存生成信两种文案，另有 R355 的 keyword-targeting 跳转桥也走同一守卫）、TailorDialog（请求进行中 / 未审阅建议两分支）、Dashboard 求职文档查看器（未保存编辑）。原生框与全站样式化守卫不一致，且无对话框处理的嵌入/自动化环境会硬阻塞渲染进程（R403 已实测）。方案 docs/plan-r405-styled-close-confirms.md。
+- 实现（同 R403 模式，嵌套 Radix Dialog，决策入本地 state）：BundleToolDialog 增 confirmingClose: false|'close'|'jump'——无未保存工作即时关闭；有则弹样式化确认（interview/letter 两种文案原样保留），Keep working 取消，Discard and close 走原 onClose()（'jump' 分支走 onJumpToTarget()，R355 桥语义保留）。TailorDialog 增 confirmingClose: 'busy'|'pending'|null，busy 优先，pending 文案含"再取建议将消耗一次 AI 请求"原话，Keep reviewing 取消，Discard and close 走原 onClose()。Dashboard 查看器 docText 未变即时关闭，变了弹确认，Discard changes 走原 setOpenDoc(null)+setSignatureError('')。Cancel/Esc/外点均保留父对话框与内容，零写入。
+- 本地 tsc/eslint(0 errors)/build 绿。生产 QA 见 PR。
+
+## R406 — ATS checker 巨型 JD 不再冻结页面（2026-08-31）
+- 闭环 R403/R404 银行 P4（已生产实证）：种子 ~1.03MB JD + checked:true 后 /ats-checker 渲染 220,537 个 DOM 节点（main 内 110,110 个 span）——"Job description with keywords highlighted" 框对整个 JD 跑 segmentJd 并逐段渲染 span/mark，且每次按键重算重挂；单个 3145ms long task + 按键延迟高达 957ms。R404 已证计算链 <260ms（Node），冻结在渲染侧。方案 docs/plan-r406-ats-highlight-cap.md。
+- 测量更正（实事求是）：早前报告的 "load-to-report 133s/120s/240s" 均为测量皮层伪影——轮询字符串 'Match score' 与页面实际文案（"Your ATS match score"）大小写不匹配，循环跑满超时；修正后实测修复版 time-to-report 1.0s。
+- 实现（仅 AtsChecker.tsx）：①高亮框只渲染 JD 前 20,000 字符（HIGHLIGHT_LIMIT，超限显示 muted 说明"评分仍用全文"），segmentJd 结果 useMemo；②评分/analysis 改用 useDeferredValue(resumeText/jd)，1MB 全文重评分（Node 实测 139ms）作为 deferred render 不再阻塞按键紧急更新。评分、关键词、草稿持久化、正常尺寸 JD 行为零改动。
+- 本地 tsc/eslint(AtsChecker.tsx)/build 绿。生产修复后实测：4,812 节点/2,246 span、time-to-report 1.0s、按键 285/327/307ms（残余为 1MB 受控 textarea 布局+草稿持久化，非评分）。
+- 生产 QA（index-DmlNuwxC.js / AtsChecker-CDkHIXI7.js）全绿零 P0–P3：100KB JD（关键词只在 20k 之后）出报告+截断说明+高亮框恰 20,000 字符、关键词出现在 chips 但不在高亮框（全文评分铁证）、20k 后追加 docker 重查即入 chips、1MB 草稿 1.0s 可交互+输入 50ms 往返、示例报告无截断说明、R403 styled dialog/R387 keep-saved 字节一致/R389 文案回归、375 光暗、零 console 错误、零 AI/lead/分享/支付流量、基线还原。
+- 银行：/jobs bogus ?job=<id> 深链回退（源码已读、生产未验，R407 候选）。
+
+## R407 — /jobs?job=<id> 深链在移动端直接打开详情面板（2026-08-31）
+- 闭环 R406 银行候选（生产实证）：R312 让 /jobs 搜索上下文可分享（含 ?job=<id>），R384 又铸 &job= 深链，但 mobileDetail 恒以 false 初始化——375×812 实测详情面板 display:none，手机上收到分享链接/刷新只见列表。bogus id 无需修（fetchJobs 已自动换选 list[0]）。方案 docs/plan-r407-mobile-job-deeplink.md。
+- 实现（一行，Jobs.tsx）：`mobileDetail` 以 `seedParams.get('job') !== null` 播种——深链等价于点击该行，既有 "Back to list" 返回列表；无参 /jobs 与桌面端零变化。
+- 本地 tsc/eslint(Jobs.tsx)/build 绿。生产 QA（Jobs-EGR7DlP0.js / index-BNZr2RzR.js，零 AI/lead/分享/支付逃逸、基线字节还原）全绿零 P0–P3：375 深链详情 block/列表 none+Back to list 还原、无参默认列表、bogus 自动修复选首个、桌面 1440 双面板、R384 cover 行/R394 管道写入/R406 ATS 示例回归、375 光暗零溢出、零 console 错误、零原生对话框。
+
+## R408 — SOP-10 四维审计 + 0% 匹配 next-step 文案（2026-08-31）
+- SOP-10 四维生产审计（R407 bundle）零 P0–P2：操作台（文件夹/批量+Undo/备份恢复/分享 scoping）、功能深度（历史恢复/R403 对话框/提醒/follow-up/targeted copy）、5 静态页 ×3 视口 ×2 主题+24 内链、健壮性（畸形存储/bogus 深链/配额满/失败 AI mock）全通过；全程零原生对话框（R403/R405 成果保持）。方案+triage：docs/plan-r408-sop10-audit.md。
+- 初报 P3「tailor 对话框显示原始错误体」按 R398 先例驳回：worker callLlm 把一切上游失败映射为友好 {error} 文案，真实生产产不出 "internal" 这类体（mock 伪影）。
+- 修复确证 P4（Jobs.tsx nextStep 一处）：targeted copy 关键词匹配为 0 时 next-step 由「Improve your targeted copy — 0% keyword match.」改为可行动文案「Your targeted copy doesn't use any of this job's keywords yet — open it and add a few.」；徽章与详情行的诚实数字不动。
+- 本地 tsc/eslint(Jobs.tsx)/build 绿。生产 QA（Jobs-DxpBX8V4.js，零逃逸、基线字节还原）全绿：0% 场景新句+Open targeted resume 直开副本、注入关键词后 13% 走旧句、R407 移动深链回归、375 光暗零溢出、零 console 错误。
+
+## R409 — 工作区恢复清除悬空 activeVersionId（2026-08-31）
+- 审计（信件生成/面试练习/导入链/跨标签+主题+a11y）零 P0–P2。确证 P3：恢复的备份里 activeVersionId 指向备份中不存在的副本时，恢复成功但悬空键持续存在，/builder 无 "Editing" 归属地静默编辑草稿，无任何修复路径（/jobs 早有 R407 修复先例）。方案：docs/plan-r409-restore-orphan-active-version.md。
+- 修复仅 workspace.ts：restoreWorkspace 成功后若备份的 activeVersionId 在备份 resumeVersions 中无匹配（或 versions 不可解析）即移除该键；有效链接原样、无键备份不动、回滚路径不动。
+- 本地 tsc/eslint/build 绿。生产 QA（Dashboard-DdRJLnef.js / index-BfQzxz0v.js）全绿：悬空/无键/坏 JSON 三种备份键 ABSENT、有效备份键保留+Builder 归属正常、配额满恢复回滚字节一致+R394 alert、Cancel 零写入、R408 回归、零逃逸零 console 错误、基线还原。
+- 银行 P4：损坏 PDF 导入显示原始 pdf.js 文案 "Invalid PDF structure."（行为安全，仅文案）。
+
+## R410 — 损坏导入文件的友好文案（2026-08-31）
+- 闭环 R409 银行 P4：损坏 PDF 导入显示原始 pdf.js "Invalid PDF structure."；姊妹 DOCX 路径同样漏出 fflate 原始错误。五个导入面（Builder/ATS checker/Dashboard 简历+文档导入/Landing 拖放）都直接渲染 err.message，故在源头 extractFile.ts 修复：getDocument promise catch 后抛 "Could not read this PDF — the file may be damaged. Re-export it or paste the text instead."；unzipSync 包 try/catch 抛对应 DOCX 文案。有效文件/扫描件空文本/不支持类型路径全不动。方案：docs/plan-r410-friendly-import-parse-errors.md。
+- 本地 tsc/eslint/build 绿。生产 QA 全绿：Builder 损坏 PDF/DOCX 精确新文案+对话框留存+草稿字节一致、/ats-checker 同文案、reportlab 真 PDF/真 zip DOCX/TXT 正常提取、不支持类型与扫描件文案不变、解析失败也零 console 错误、零逃逸、基线还原。未单测 Dashboard/Landing 两面（同 err.message 渲染链）。
+
+## R411 — TXT 导出保留链接 URL（2026-08-31）
+- 探索性审计（Builder 深编辑/设计工具/分享/四格式导出）零 P0–P3，唯一确证 P4：`[portfolio](https://example.com/qa)` 在 MD/DOCX/PDF 都保留链接，但 TXT 导出把 URL 整个丢掉只剩 label。源头：Builder TXT 下载走 resumeToPlainText，末尾 stripInlineMarks 只保留 run 文本。方案：docs/plan-r411-txt-export-keeps-link-urls.md。
+- 修复：marks.ts 新增 stripInlineMarksKeepLinks（链接渲染为 `label (url)`，label 已是该 URL 时不重复；未完成链接保持字面量）；resumeToPlainText 增可选 {keepLinkUrls}，仅 Builder TXT 下载传 true——ATS 评分/AI 载荷/匹配报告仍走默认（无 URL），字节不变。
+- 本地 oracle 12/12、tsc/eslint/build 绿。生产 QA 全绿：TXT 摘要+经历 bullet 双处 `portfolio (https://example.com/qa)`、无链接简历零杂括号、MD/DOCX/PDF 链接回归（pypdf 注解实证）、mock cover-letter 请求 resumeText 仅 label 无 URL（Tailor 对话框发原始字段含 markdown 源为既定设计非泄漏）、文件名/免费下载门不变、零逃逸零原生对话框、基线字节还原。
+
+## R412 — 分享页失败不再假装"链接已撤销"（2026-08-31）
+- 生产实证（CDP Fetch.failRequest）：/s/<id> 的 /api/share 请求网络失败时，页面永远停在加载骨架且 console 出 Uncaught (in promise)；代码层面 5xx 也被映射为 null → 误显 "This link is no longer available"（把瞬时故障当永久撤销）。方案：docs/plan-r412-shared-resume-error-state.md。
+- 修复：share.ts fetchSharedResume 网络失败/≥500 抛友好 Error（4xx 仍返 null 走原 gone 卡）；SharedResume.tsx 新增 error 状态——role=alert 卡 "Couldn't load this resume" + "Try again" 按钮（重置骨架后重取）。
+- 本地 tsc/eslint/build 绿（eslint 曾报 set-state-in-effect，已把 loading 重置移入重试点击处）。生产 QA 全绿：网络失败→精确文案+零未处理拒绝、Try again→骨架→mock 快照正常渲染（日期+Print）、mock 500→状态码文案且响应体不泄漏、真实 bogus id→gone 卡回归、375 光暗零溢出、/s/ 页零 localStorage 写入、零逃逸、基线字节还原。
+
+## R413 — 其余 API 面离线不再漏出原始 "Failed to fetch"（2026-08-31）
+- 生产实证（CDP Fetch.failRequest /api/jobs/search）：/jobs 错误横幅直接渲染浏览器原始 TypeError "Failed to fetch"。源码扫描确证同族缺口：searchJobs、submitLead、claimTransaction（另有未守卫 res.json() 可抛原始 SyntaxError）、openLemonCheckout、activateLicense（同 json 缺口）、fetchZalizePrimary/fetchResumeProfile 全部无网络失败 catch。方案：docs/plan-r413-friendly-offline-errors.md。
+- 修复：各调用点 try/catch 抛面向用户的 "… — check your connection and try again." 分面文案（对齐 R348/R412 模式）；两处 res.json() 加 .catch(()=>({})) 让非 JSON 体落回既有友好状态码文案。HTTP 错误路径文案字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：jobs/lead 门/激活/Resume Center 四面精确新文案、非 JSON 200 激活落友好文案零 SyntaxError、RC 真实 404 文案回归、R412 分享页回归、375 光暗零溢出、零逃逸（全部 /api/leads 与 activate 均拦截）、基线字节还原。未运行时验证：claimTransaction/openLemonCheckout 文案（无真实 Lemon Squeezy 流程不可达，代码同型）。
+
+## R414 — 文档查看器 Copy text 有了诚实反馈（2026-08-31）
+- 生产实证（CDP 点击 /documents 查看器 Copy text）：按钮点击后无任何反馈，成功失败一律沉默（`void navigator.clipboard.writeText(docText)` 丢弃 promise）；全应用其余复制按钮（R372 follow-up、分享链接、checker 链接）均有 Copied/失败态。方案：docs/plan-r414-copy-text-feedback.md。
+- 修复仅 Dashboard.tsx：docCopied 'idle'|'copied'|'failed' 状态，按 R372 模式 then(copied, failed) 渲染 "Copied"/"Copy failed"，三处打开查看器时重置 idle。
+- tsc/eslint/build 绿。生产 QA 全绿（Dashboard-CCUlK0Kh.js）：真实剪贴板回读字节一致、reject 覆写→"Copy failed" 零 console 错误、重开重置（含失败态后）、Save/下载行与 R413 jobs 横幅回归、375 光暗零溢出、零逃逸、基线字节还原。
+
+## R415 — /samples 加载失败不再白屏（2026-08-31）
+- 生产实证（CDP 强制 /examples/examples.json 网络失败）：/samples 主区完全空白——无标题、无错误、无重试（整块 gated 于 examples.length>0，fetch 错误被吞）。方案：docs/plan-r415-samples-load-failure.md。
+- 修复仅 Dashboard.tsx：examplesState 'loading'|'ready'|'failed'（非 ok HTTP 也算失败）；/samples 专页失败时渲染 h1 + role=alert "Loading the sample library failed — check your connection and try again." + Try again 重取（examplesAttempt）；dashboard 内嵌样本条保持空则隐藏；成功路径字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（Dashboard-CkU4KodD.js）：失败态精确文案+重试恢复全网格、mock 500 同卡不泄漏响应体、happy path/?q=/?sector=/收藏星回归、dashboard 无错误卡、375 光暗零溢出、R414 回归、零逃逸、基线字节还原。
+
+## R416 — /builder?example= 深链失败不再沉默 + 修掉 examples.json 无限重取循环（2026-08-31）
+- 生产实证（CDP 强制 /examples/examples.json 失败）：/builder?example=software-engineer 打开后就是普通空草稿，零提示，?example 参数原地无效（probe_r416.py，截图 r416_builder_example_offline.png）。QA 另实测出既有 P1：fetch effect 依赖未 memoize 的 applyExample，成功路径 setExamples→重渲染→effect 重跑→重取，自持循环实测 ~240 req/s（45s 内 10,192 次请求）。
+- 修复仅 Builder.tsx：examples fetch 非 ok HTTP 也 reject；URL 带 ?example= 时失败置 exampleLoadFailed，渲染固定底部 role=alert 条 "Loading the example resume failed — check your connection and try again." + Try again（bump exampleLoadAttempt 重取）+ X Dismiss；applyExample 入 ref（被动 effect 更新），fetch effect 依赖只剩 [exampleLoadAttempt] —— 每次挂载恰好 1 次请求，循环与"Dismiss 不生效"一并消灭。无 ?example 失败不出条，空态角色选择器保持空则隐藏。
+- tsc/eslint(0 errors)/build 绿。两轮生产 QA（Builder-BeGf0iQu.js → Builder-BVfSkPhs.js）全绿：失败态精确文案/参数保留/草稿不动、Try again 恢复并应用示例（replaceState 去参）、mock 500 不泄漏、Dismiss 持久、/builder 20s 恰 1 次请求、无参无条、happy path、R415 /samples 回归、375 光暗零溢出、零逃逸、基线字节还原。
+
+## R417 — /jobs 加载失败可重试且不再遮蔽本地管道（2026-08-31）
+- 生产实证（probe_r417.py，CDP 强制 /api/jobs/search 失败）：/jobs 显示 R413 友好文案，但只是裸 `<p class="text-destructive">`——无 role=alert（读屏不播报）、无 Try again 按钮（文案让用户"try again"却没有明显重试入口）；R412 以来其余失败面（分享页/samples/?example）均为 alert 卡 + 重试。方案：docs/plan-r417-jobs-error-retry.md。
+- 修复仅 Jobs.tsx：错误分支改为 role=alert 卡（R415 同款 destructive 样式）+ outline "Try again" 按钮（runSearch(query) 重取当前搜索）。QA 首轮揪出既有遮蔽（继承自旧裸 <p>）：错误分支占据所有 tab 的列表槽，离线用户在 ?tab=tracked 看不到本地管道——当轮跟进：error && tab === 'all' 才渲染卡，tracked/status tab 始终从 honestcv.jobPipeline 渲染。
+- tsc/eslint/build 绿。两轮生产 QA（Jobs-ChxwPjcy.js → Jobs-QvadXlzM.js）全绿零 P0–P3：失败→alert 卡精确文案+Try again、重试→清卡渲染列表无整页刷新、mock 500 "Job search failed (500)" 不泄漏原始体、tracked tab 失败下渲染本地管道无卡、All tab 保留卡、happy path 不变、375 光暗零溢出、R407/R416 回归、零逃逸、基线字节还原。
+
+## R418 — SOP-10 节点：Builder 头部在 2xl（1536–1640px）不再横向溢出（2026-09-05）
+- SOP-10 四维生产扫描（11 个页面标题/h1/溢出/无 alt 图/断图）确证唯一 P2：/builder 在 1536–1640px 视口整页横向滚动（scrollWidth 1587@1536 / 1619@1600 / 1629@1620），Print 按钮被裁——2xl 起工具栏把下载下拉换成展开的 PDF/DOCX/TXT/MD/Print 五按钮，头部内容 ~1419px 塞进 max-w-6xl(1152px) 容器右溢；1536 恰是 Windows 125% 缩放下 1920 屏的有效宽度。/resources/ 404 无内链指向（非缺陷）；/jobs 19 个公司 logo 无 alt 银行为 P4 候选。方案：docs/plan-r418-builder-header-overflow.md。
+- 修复仅 Layout.tsx SiteHeader：wideAction（Builder 传入）时头部容器 max-w-6xl → max-w-[1600px]（1536 内容盒 1504 ≥ 1419），其余页面字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-CqEuuk_W.js / Builder-K7xMr_2O.js）：1520–1920 六宽度零横向溢出、≥1536 五按钮全可见（Print 右缘 1505@1536）、1520 紧凑下拉回归可开、非 Builder 页 1536 仍 max-w-6xl、375 光暗、R417 jobs 回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000（既有 token 权限缺口，不影响上线）。
+
+## R419 — Builder 紧凑下载菜单支持外点/Esc 关闭（2026-09-05）
+- 生产实证（probe_r419.py @1280）：打开工具栏紧凑 "Download your resume" 菜单后，外点与 Escape 均不关闭（aria-expanded 保持 true）——全应用唯一不可 dismiss 的浮层（同页 Resources 下拉外点即关，Radix 对话框均支持 Esc/外点）；键盘用户无退出路径（WAI-ARIA menu-button 模式期望 Esc 关闭）。方案：docs/plan-r419-download-menu-dismiss.md。
+- 修复仅 Builder.tsx：镜像 ResourcesDropdown 模式——downloadMenuRef + 打开期间 document 级 pointerdown（ref 外即关）与 Escape keydown 监听；项点击/toggle 行为字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-C3Y5TGU3.js / Builder-qolcHyMH.js）：外点关闭零副作用、Esc 关闭且关闭态 Esc 无操作、popover 内 padding 点击不关、TXT 项点击走既有质检对话框→真实下载、toggle 回归、Resources 下拉回归、R418 1536 回归、375 光暗触摸开关、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R420 — 移动端汉堡导航支持外点/Esc 关闭（2026-09-05）
+- 生产实证（CDP @375×812 /ats-checker）：打开汉堡菜单（近全屏面板，高 673px）后外点与 Escape 均不关闭（aria-expanded 保持 true）——R419 后头部唯一无 dismiss 的 disclosure（Resources 下拉与紧凑下载菜单均已支持）；静态预渲染页（/about/ 等）用独立头部不受影响。方案：docs/plan-r420-mobile-menu-dismiss.md。
+- 修复仅 Layout.tsx SiteHeader：headerRef 挂 <header>（toggle+面板+ThemeToggle 都算"内部"），menuOpen 期间 document 级 pointerdown（header 外即关）与 Escape keydown；Link 项 onClick 关闭、静态 <a> 整页跳转等行为不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-yIR63SNL.js / Builder-CNj6w3ia.js）：外点关闭零副作用（URL/storage 字节不变）、Esc 关闭且关闭态无操作、面板内 padding 点击不关、Link 点击照常跳转并关闭、菜单开着点 ThemeToggle 循环主题菜单不关、Resources/R419 下载菜单/R418 1536 回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R421 — SPA 头部加 Skip to content 跳转链接（2026-09-05）
+- 生产实证（CDP @1600）：全站无 skip link，键盘/读屏用户到达 <main> 前每页需 Tab 过 9–15 个头部控件（/builder 15、/dashboard 9、/jobs 9）——WCAG 2.4.1 Bypass Blocks 缺口。方案：docs/plan-r421-skip-to-content.md。
+- 修复仅 Layout.tsx SiteHeader：<header> 首子元素加 <a href="#main">，sr-only 聚焦时显形（focus:not-sr-only 左上角卡片样式）；onClick preventDefault 后 querySelector('main') 设 tabindex=-1 并 focus+scrollIntoView——免逐页加 id，覆盖现有及未来所有 SPA 页。静态预渲染页（9 个独立头部模板）银行为后续候选。
+- tsc/eslint/build 绿。生产 QA 全绿（index-CMVHCAgE.js）：三页 Tab 一次即显形聚焦、聚焦前零视觉存在零布局偏移（头高 57px 不变）、Enter 后 activeElement=MAIN 且 URL/存储零变化、后续 Tab 落 main 内首控件、1280 光暗+375 移动可见可用、R420 汉堡与 Resources 下拉回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R422 — 静态预渲染页全量 Skip to content（2026-09-05）
+- R421 只覆盖 SPA，静态页银行为本轮。生产实证（CDP @1280 五个静态页）：每页 <main> 前 15 个可聚焦控件、零 skip link。方案：docs/plan-r422-static-skip-links.md。
+- 修复仅 scripts/build-seo.mjs：全部 11 个头部模板前加 <a class="skip" href="#main">、全部 <main> 加 id="main" tabindex="-1"（纯原生 fragment 导航零 JS），CSS a.skip 离屏 -9999px 聚焦回 .5rem；覆盖全部 120 个静态页。
+- tsc/eslint/build 绿（120/120 页含 skip+id）。生产 QA 全绿：五页首 Tab 显形（8,8）、Enter 后 activeElement=MAIN 且 URL 得 #main（原生导航预期行为，与 SPA preventDefault 不同）、后续 Tab 落 main 内、零布局偏移（头 57px 粘性不变）、prefers-color-scheme 暗色可见、头部导航与 /examples/ hub-filter 回归、SPA R421 回归（bundle 不变）、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R423 — SOP-10 审计 + Builder 全部 placeholder-only 字段补可及名称（2026-08-31）
+- SOP-10 四维生产扫描（六页标题/alt/按钮命名/重复 id/lang）唯一缺口：/builder 大量可见表单字段唯一"名称"是 placeholder（WCAG 1.3.1/4.1.2——输入后 placeholder 消失、读屏无名）。方案：docs/plan-r423-builder-field-labels.md。
+- 三轮收敛：①默认态 7 字段+日期对（MonthYearField 新增 ariaLabel prop 透传内层 Input）；②QA 挂载可选 section 后揪出 12 个残留，静态扫描扩到全部——Projects/Involvement/Military/Coursework/Awards/Publications/References/Agents/Certifications/自定义 section 的全部文本域与 textarea、导入粘贴框、生成信结果框（共 ~44 处 aria-label，纯属性零视觉变更）；③Import 对话框 Share link or share ID 输入框。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-Cc_mvfKF.js）：UI 逐个挂载全部可选 section + 打开 Import 对话框后 unlabeled 探针归零、AX 计算名逐项确认（Course name/Certificate name/Reference email/Share link or share ID 等）、placeholder 与视觉零变化、日期 picker 行为不变、R421 skip link 回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R424 — Builder 联系方式卡补 input purpose（2026-08-31）
+- 生产实证：联系方式卡七个输入框全无 autocomplete/inputMode（WCAG 1.3.5 AA，浏览器无法自动填充本人姓名/邮箱/电话，移动端弹通用键盘）；References/Paywall 邮箱早已 type=email，唯独最高频的联系卡漏掉。方案：docs/plan-r424-contact-input-purpose.md。
+- 修复仅 Builder.tsx 联系卡：元组扩展 per-field autocomplete/inputMode（name / organization-title / email+email / tel+tel / url+url / linkedin 仅 inputmode=url / location 不动），type 保持 text，纯属性零视觉变更。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-CVVuDPG6.js）：七字段属性逐一精确、输入持久化往返不变、视觉零差异、R423 unlabeled 探针仍归零、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R425 — 死 ?example 深链诚实 not-found 提示（2026-08-31）
+- 生产实证：/builder?example=<bogus-slug> 时 examples.json 拉取成功但 find 落空即静默 return——空草稿零反馈、死参数留在 URL（R416 只把 fetch 失败做诚实，not-found 分支仍哑）。方案：docs/plan-r425-example-notfound.md。
+- 修复仅 Builder.tsx：新增 exampleNotFound 态，slug 无匹配时底部 role=alert 条（"This example resume wasn't found — it may have been renamed or removed." + Browse examples 链 /examples/ + Dismiss），并同 found 路径 replaceState 清死参数；fetch 失败条与有效 slug 路径字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-DTHSDncy.js）：bogus slug 精确文案条+参数剥离+零存储写入、有效 slug 照常应用、无参零条且 examples.json 每挂载恰 1 次（R416 回归）、强制 fetch 失败旧条+Try again 恢复、R424 属性回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R426 — 死 ?template 深链诚实 not-found 提示（2026-08-31）
+- 生产实证：/builder?template=<unknown-id>（落地页画廊+25 个静态 /templates/ 页深链落点）时 TEMPLATES.some 落空即静默保留当前模板——零反馈、死参数留在 URL；R425 的 ?example 姊妹缺口。方案：docs/plan-r426-template-notfound.md。
+- 修复仅 Builder.tsx：新增 templateNotFound 态（同参数在 state initializer 判定），底部 role=alert 条（"That template wasn't found — it may have been renamed or removed." + Browse templates 链 /templates/ + Dismiss），挂载时只剥死 template 参数（其余参数如有效 ?example 保留）；有效 template 路径与 R425 两条字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-B6aYg7pL.js）：bogus id 精确文案条+仅剥 template 参数+存储零写入、bogus template+有效 example 组合双正确（条显示且示例照常应用）、有效 metro 照常应用无条（参数留 URL 为既有行为）、纯 /builder 零条、R425 example 条回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R427 — Builder 底部状态条堆叠不再互相遮盖（2026-08-31）
+- 生产实证：/builder?template=bogus&example=bogus 时 R426 模板条与 R425 示例条渲染在完全相同的 fixed 位置（rect top=687 bottom=745 双双相同）——后渲染的条盖住前者的文案与按钮；Builder 六个底部状态条（存储满、示例拉取失败、模板 not-found、示例 not-found、跨标签更新、下载分享推广）共用同一 `fixed inset-x-4 bottom-16 z-50` 槽位，任意并发即互相遮盖。方案：docs/plan-r427-status-bar-stack.md。
+- 修复仅 Builder.tsx：一个 `pointer-events-none` 的 fixed flex-col 堆叠容器（inset-x-4 bottom-16 z-50 items-center gap-2 lg:bottom-4）承载全部六条；各条去掉自身 fixed/inset/bottom/z/mx-auto，加 `pointer-events-auto`（内容/role/文案/handler 字节不变）；shareOpen 推广块 JSX 移入容器。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-DceEvUzY.js）：双 bogus 参数两条垂直堆叠 8px 间距零重叠、独立 Dismiss、双参数剥离；单条位置与旧行为等价（lg:bottom-4）；容器空白带点击穿透到底层控件；metro/software-engineer/纯 /builder/R416 fetch 失败条+Try again 全回归；375 光暗双条堆叠零溢出；零 console 错误、零原生对话框、零逃逸、基线字节还原。未逐一实渲染存储满/跨标签/分享推广三条（需配额满/多标签/真实下载流），其堆叠由共用容器推定。部署照旧：上传成功、route auth code 10000。
+
+## R428 — SOP-10 审计 + 三个复制按钮失败不再沉默（2026-08-31）
+- SOP-10 四维审计：11 页 1600/375 双视口零横向溢出、零 console 错误；sitemap 123 URL、/templates/ 25 深链全部映射真实模板 id；"sora-latin.woff2 preloaded but not used" 告警经全新浏览器 context 实证为 Chrome 本地启发式伪影（新 context 每字体恰 1 次带 Origin 请求），非站点缺陷，不修。方案：docs/plan-r428-copy-failed-feedback.md。
+- 确证缺陷（生产实证 clipboard 强制 reject）：三个复制按钮只在成功时置 copied 态，失败零反馈+未处理 rejection——/ats-checker "Copy the checker link"、Builder 下载分享推广条 "Copy checker link"、Builder 分享对话框 "Copy"（最重：用户以为分享 URL 已复制实际粘贴为空）。R372/R414 已有 Copied/Copy failed 双 handler 先例。
+- 修复仅 Builder.tsx / AtsChecker.tsx：三个布尔 copied 态改 'idle'|'copied'|'failed'，writeText 双 handler，失败显 "Copy failed"；成功路径与布局字节不变；既有 reset 改 'idle'。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-BqvGrmLc.js / AtsChecker-Yh81A1H9.js）：三面 reject→"Copy failed" 零 console 错误零未处理 rejection、真实剪贴板成功标签+回读精确（/api/share 全 mock 零真实链接）、R414/R372 回归、推广条居 R427 堆叠容器、375 光暗零溢出、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R429 — SPA 路由原始 HTML 自指 canonical/og:url（2026-08-31）
+- 生产实证：全量爬取 123 个 sitemap 页 + 193 个内链全 200、静态页 canonical/title/desc/main-id 全对；唯 SPA 路由（/builder、/ats-checker 在 sitemap 内）原始 HTML canonical 与 og:url 均硬编码指向主页——等于向爬虫声明"本页是主页副本"，可致 sitemap 页被去重出索引；CanonicalSync（R309）只在 JS 水合后修正。方案：docs/plan-r429-spa-canonical.md。
+- 修复仅 worker/index.ts notFound：SPA_ROUTES 且非 '/' 时把 shell 的 canonical href 与 og:url 重写为 https://cv.zalize.com<path>；/s/（noindex）与未知路由 404 分支不动。
+- tsc/eslint/build 绿。生产 QA 全绿：六 SPA 路由 curl 无 JS 自指 canonical+og:url、主页/静态页不变、/s/bogus 与 /nope-xyz 仍 404+noindex/no-store 且 shell 不重写、真实浏览器 /builder//jobs 零损坏零 console 错误、客户端导航 CanonicalSync 回归、R428 复制回归、375 光暗零溢出、基线字节还原。既有小观察（非本轮回归）：客户端导航后 CanonicalSync 只更新 canonical 不更新 og:url（爬虫读原始 HTML，无实害），银行为候选。部署照旧：上传成功、route auth code 10000。
+
+## R430 — SPA 路由原始 HTML 每路由 title/description（2026-08-31）
+- 生产实证：R429 修好 canonical/og:url 后，六个 SPA 路由原始 HTML 的 <title>/meta description/og:title/og:description 仍全是主页文案（curl 无 JS 实测），/builder、/ats-checker 在 sitemap 内——搜索摘要与链接卡片展示主页标题；usePageMeta 只在水合后修正；120 个静态页早已各有唯一元数据，SPA 路由是唯一缺口。方案：docs/plan-r430-spa-title-description.md。
+- 修复仅 worker/index.ts：SPA_META 映射（文案与各页 usePageMeta 逐字一致），R429 重写块内一并替换 title/description/og:title/og:description；'/'、/s/、未知 404 分支不动。
+- tsc/eslint/build 绿。生产 QA 全绿：/builder、/ats-checker 原始 HTML 每路由元数据+自指 canonical、水合后 document.title 与原始 shell 字节一致零闪变、客户端导航 usePageMeta+CanonicalSync 回归、/nope-xyz 与 /s/bogus 仍 404 主页 shell 不重写、/pricing/ 不变、375 光暗零溢出、零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R431 — 客户端导航后 og:url/og:title/og:description 跟随路由（2026-09-05）
+- 生产实证（CDP）：R430 后原始 HTML 已每路由正确，但客户端导航后 head 自相矛盾——canonical/title/description 跟随当前路由，og:url/og:title/og:description 仍停在入口路由（/builder 进入→导航 /jobs，og:url 仍 /builder）。R429 QA 银行项确证。方案：docs/plan-r431-clientnav-og-meta.md。
+- 修复仅客户端两处：CanonicalSync（App.tsx）同步 og:url；usePageMeta（Layout.tsx）同步 og:title/og:description。worker 原始 shell 重写不动。
+- tsc/eslint/build 绿。生产 QA 全绿：/builder→/jobs→/dashboard→/documents 每步六标签全一致且与 R430 shell 文案字节相同、/ats-checker 直载水合零闪变、主页往返还原、curl 原始 HTML R429/R430 回归、/nope-xyz 仍 404、375 光暗零溢出、零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+## R432 — 分享链接 /s/<id> 原始 HTML 以候选人身份 unfurl（2026-09-05）
+- 生产实证：notFound 里 live 分享页 body 用未改写的 shell——粘到 Slack/微信/LinkedIn 的分享链接 unfurl 成主页营销文案（"RezUp — AI Resume Builder…"、og:url=主页），而快照本来就在 shareLive 检查那次 KV 读里。方案：docs/plan-r432-share-unfurl-meta.md。
+- 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
+- tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R435 — 分享页客户端导航后 head 不再自相矛盾（2026-09-05）
+- 生产实证（特批临时分享，验毕删净 404）：/s/<id> → /builder → Back 后 title/description/og:title/og:description 停在 "Resume Builder — RezUp"，而 canonical/og:url 已被 CanonicalSync 更新为分享 URL——head 自相矛盾、标签页丢候选人姓名（R431 同族：SharedResume 是唯一不调 usePageMeta 的路由页）。方案：docs/plan-r435-share-client-meta.md。
+- 修复仅 SharedResume.tsx：顶部调用 usePageMeta，文案与 R432 worker shell 重写逐字一致（ready 态 "<fullName> — <contact.title> | RezUp" + "<fullName>'s resume, shared with you via RezUp."，无名/loading/error/gone 回退通用句）。其余分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（SharedResume-yJKVsQg-.js）：冷加载水合后四标签与 shell 字节一致零闪回、Back 后四标签复原且与 canonical/og:url 一致、/s/bogus 回退文案+gone 卡+404/noindex/no-store、R433/R434 happy path 回归、375 光暗零溢出零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R434 — 分享页 PDF 失败提示给出真正可行的恢复路径（2026-09-05）
+- 闭环 R433 银行 P3：Chrome 对失败的动态 import() 做文档级缓存，同文档内 "try again" 永远失败，需刷新才恢复——原文案不诚实。方案：docs/plan-r434-share-pdf-retry.md。
+- 修复仅 SharedResume.tsx：失败 alert 改 flex div，文案 "Preparing the PDF failed — check your connection, then reload and try again." + "Reload page" 按钮（window.location.reload()；分享页无未保存状态，刷新零代价）。其余分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（特批一条分享，验毕删净 404）：冷加载阻断 pdf chunk→新文案+按钮零未捕获错误、解除阻断→Reload→下载成功（恢复路径流内闭环）、happy path 文件名/busy/pypdf、375 光暗 alert 换行零溢出、Print//s/bogus 404 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R433 — 分享页 /s/<id> 一键下载真实 PDF（2026-09-05）
+- 生产实证：分享页 ready 态只有 Print（window.print，浏览器另存 PDF）和 Build-your-own——接收链接的招聘官/内推人拿不到真实导出 PDF（真实字体嵌入/链接注解/分页，与打印渲染不同），移动端 print-to-PDF 更繁琐。方案：docs/plan-r433-share-pdf-download.md。
+- 修复仅 SharedResume.tsx：头部新增 Download PDF（primary，Print 左侧），懒加载 @/lib/pdf downloadResumePdf + professionalFileName([fullName, targetRole, 'resume'], 'pdf')；busy 态禁用显 "Preparing…"，失败在 main 顶部 role=alert "Preparing the PDF failed — try again."。不加下载门（接收者非门对象）。gone/error/loading/Print 全不动。
+- tsc/eslint/build 绿。生产 QA 全绿（特批一条真实分享，验毕删净 404）：真实 PDF 下载且文件名精确、pypdf 校验内容、busy 态、冷加载阻断 pdf chunk→精确 alert 零未捕获错误、Print/R412/R432 unfurl//s/bogus 404/375 光暗三按钮零溢出回归、基线字节还原。QA 银行 P3：同一文档内 Chrome 缓存失败的动态 import，"try again" 需刷新后才真正恢复（如需同会话恢复可 cache-bust 或提示刷新）。部署照旧：上传成功、route auth code 10000。

@@ -45,12 +45,23 @@ export interface PipelineEntry {
   updatedAt: number
   /** Saved resume copy targeted at this job, prepared when the job is saved */
   resumeVersionId?: string
+  /** Saved cover letter written for this job (career document id) */
+  coverDocId?: string
   /** Status changes in chronological order (entries saved before R190 have none) */
   history?: StatusChange[]
   /** Free-form notes: recruiter names, interview dates, follow-ups */
   notes?: string
-  /** User-set follow-up reminder (ms epoch, local midnight of the chosen day) */
-  remindAt?: number
+  /** User-set follow-up reminder as a calendar day (yyyy-mm-dd, no timezone) */
+  remindOn?: string
+}
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** ms epoch → yyyy-mm-dd in the user's local calendar. */
+export function localDayOf(ms: number): string {
+  const d = new Date(ms)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
 /** The entry's status timeline, synthesizing one step for pre-history entries. */
@@ -68,9 +79,9 @@ export function staleDays(entry: PipelineEntry): number | null {
   return days >= 7 ? days : null
 }
 
-/** True when the entry's user-set follow-up reminder date has arrived. */
+/** True when the entry's user-set follow-up reminder day has arrived (local calendar). */
 export function reminderDue(entry: PipelineEntry): boolean {
-  return entry.remindAt !== undefined && Date.now() >= entry.remindAt
+  return entry.remindOn !== undefined && localDayOf(Date.now()) >= entry.remindOn
 }
 
 /** Tracked applications gone quiet for 7+ days or with a due follow-up reminder. */
@@ -194,7 +205,12 @@ export const JOB_CATEGORIES: [slug: string, label: string][] = [
 export async function searchJobs(q: string, category = ''): Promise<JobListing[]> {
   const params = new URLSearchParams({ q })
   if (category) params.set('category', category)
-  const res = await fetch(`/api/jobs/search?${params}`)
+  let res: Response
+  try {
+    res = await fetch(`/api/jobs/search?${params}`)
+  } catch {
+    throw new Error('Loading jobs failed — check your connection and try again.')
+  }
   const data = (await res.json().catch(() => ({}))) as {
     jobs?: JobListing[]
     error?: string
@@ -296,8 +312,12 @@ function sanitizeEntry(raw: unknown): PipelineEntry | null {
     if (steps.length > 0) entry.history = steps
   }
   if (typeof e.resumeVersionId === 'string') entry.resumeVersionId = e.resumeVersionId
+  if (typeof e.coverDocId === 'string') entry.coverDocId = e.coverDocId
   if (typeof e.notes === 'string') entry.notes = e.notes
-  if (typeof e.remindAt === 'number' && Number.isFinite(e.remindAt)) entry.remindAt = e.remindAt
+  if (typeof e.remindOn === 'string' && DAY_RE.test(e.remindOn)) entry.remindOn = e.remindOn
+  // Entries saved before reminders became calendar days stored a local-midnight epoch
+  else if (typeof e.remindAt === 'number' && Number.isFinite(e.remindAt))
+    entry.remindOn = localDayOf(e.remindAt)
   return entry
 }
 
@@ -315,12 +335,17 @@ export function listPipeline(): PipelineEntry[] {
   }
 }
 
-function savePipeline(entries: PipelineEntry[]): PipelineEntry[] {
-  localStorage.setItem(PIPELINE_KEY, JSON.stringify(entries))
-  return entries
+/** Returns null when nothing was written (storage full / private mode). */
+function savePipeline(entries: PipelineEntry[]): PipelineEntry[] | null {
+  try {
+    localStorage.setItem(PIPELINE_KEY, JSON.stringify(entries))
+    return entries
+  } catch {
+    return null
+  }
 }
 
-export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntry[] {
+export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntry[] | null {
   const all = listPipeline()
   const prev = all.find((e) => e.job.id === job.id)
   const rest = all.filter((e) => e.job.id !== job.id)
@@ -337,15 +362,19 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
       updatedAt: now,
       history,
       ...(prev?.resumeVersionId ? { resumeVersionId: prev.resumeVersionId } : {}),
+      ...(prev?.coverDocId ? { coverDocId: prev.coverDocId } : {}),
       ...(prev?.notes ? { notes: prev.notes } : {}),
-      ...(prev?.remindAt !== undefined ? { remindAt: prev.remindAt } : {}),
+      ...(prev?.remindOn !== undefined ? { remindOn: prev.remindOn } : {}),
     },
     ...rest,
   ])
 }
 
 /** Move several tracked jobs to a status in one write, appending to each timeline. */
-export function updateStatuses(ids: readonly string[], status: JobStatus): PipelineEntry[] {
+export function updateStatuses(
+  ids: readonly string[],
+  status: JobStatus
+): PipelineEntry[] | null {
   const set = new Set(ids)
   const now = Date.now()
   return savePipeline(
@@ -357,13 +386,13 @@ export function updateStatuses(ids: readonly string[], status: JobStatus): Pipel
 }
 
 /** Untrack several jobs in one write. */
-export function removeManyFromPipeline(ids: readonly string[]): PipelineEntry[] {
+export function removeManyFromPipeline(ids: readonly string[]): PipelineEntry[] | null {
   const set = new Set(ids)
   return savePipeline(listPipeline().filter((e) => !set.has(e.job.id)))
 }
 
 /** Save free-form notes on the pipeline entry for a job. */
-export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] {
+export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] | null {
   return savePipeline(
     listPipeline().map((e) =>
       e.job.id === jobId ? { ...e, notes: notes.trim() ? notes : undefined } : e
@@ -371,22 +400,34 @@ export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] 
   )
 }
 
-/** Set or clear (null) the follow-up reminder on the pipeline entry for a job. */
-export function setPipelineReminder(jobId: string, remindAt: number | null): PipelineEntry[] {
+/** Set or clear (null) the follow-up reminder day (yyyy-mm-dd) on the entry for a job. */
+export function setPipelineReminder(
+  jobId: string,
+  remindOn: string | null
+): PipelineEntry[] | null {
+  const day = remindOn !== null && DAY_RE.test(remindOn) ? remindOn : undefined
   return savePipeline(
-    listPipeline().map((e) =>
-      e.job.id === jobId ? { ...e, remindAt: remindAt ?? undefined } : e
-    )
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, remindOn: day } : e))
+  )
+}
+
+/** Link the pipeline entry for a job to the cover letter written for it. */
+export function setPipelineCoverDoc(jobId: string, coverDocId: string): PipelineEntry[] | null {
+  return savePipeline(
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, coverDocId } : e))
   )
 }
 
 /** Link the pipeline entry for a job to its targeted resume copy. */
-export function setPipelineVersion(jobId: string, resumeVersionId: string): PipelineEntry[] {
+export function setPipelineVersion(
+  jobId: string,
+  resumeVersionId: string
+): PipelineEntry[] | null {
   return savePipeline(
     listPipeline().map((e) => (e.job.id === jobId ? { ...e, resumeVersionId } : e))
   )
 }
 
-export function removeFromPipeline(id: string): PipelineEntry[] {
+export function removeFromPipeline(id: string): PipelineEntry[] | null {
   return savePipeline(listPipeline().filter((e) => e.job.id !== id))
 }
