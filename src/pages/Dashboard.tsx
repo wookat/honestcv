@@ -271,6 +271,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [previewLetter, setPreviewLetter] = useState<LetterExample | null>(null)
   const signatureInputRef = useRef<HTMLInputElement>(null)
   const [signatureError, setSignatureError] = useState('')
+  const [confirmingDocClose, setConfirmingDocClose] = useState(false)
   const docImportInputRef = useRef<HTMLInputElement>(null)
   const [docImportBusy, setDocImportBusy] = useState(false)
   const [docImportError, setDocImportError] = useState('')
@@ -2107,12 +2108,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         open={openDoc !== null}
         onOpenChange={(o) => {
           if (!o) {
-            if (
-              openDoc &&
-              docText !== openDoc.text &&
-              !window.confirm(`Discard unsaved changes to "${openDoc.title}"?`)
-            )
+            if (openDoc && docText !== openDoc.text) {
+              setConfirmingDocClose(true)
               return
+            }
             setOpenDoc(null)
             setSignatureError('')
           }
@@ -2271,6 +2270,32 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               }}
             >
               Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmingDocClose} onOpenChange={(o) => !o && setConfirmingDocClose(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Discard unsaved changes?</DialogTitle>
+            <DialogDescription>
+              {`Discard unsaved changes to "${openDoc?.title ?? ''}"?`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmingDocClose(false)}>
+              Keep editing
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmingDocClose(false)
+                setOpenDoc(null)
+                setSignatureError('')
+              }}
+            >
+              Discard changes
             </Button>
           </DialogFooter>
         </DialogContent>

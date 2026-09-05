@@ -9590,6 +9590,7 @@ function BundleToolDialog({
     entries: { q: string; a: string; fb: string }[]
   } | null>(null)
   const [lastKind, setLastKind] = useState(kind)
+  const [confirmingClose, setConfirmingClose] = useState<false | 'close' | 'jump'>(false)
   const [timerStart, setTimerStart] = useState<number | null>(null)
   const [timerNow, setTimerNow] = useState(0)
   const [elapsedSec, setElapsedSec] = useState<number | null>(null)
@@ -9879,17 +9880,42 @@ function BundleToolDialog({
     kind === 'interview'
       ? session !== null || answer.trim() !== ''
       : kind !== null && result !== '' && savedId === null
-  const confirmDiscard = () =>
-    !unsavedWork ||
-    window.confirm(
-      kind === 'interview'
-        ? 'Close interview practice? Your current session and typed answer will be lost.'
-        : 'Close without saving? The generated letter will be lost.'
-    )
   const requestClose = () => {
-    if (confirmDiscard()) onClose()
+    if (unsavedWork) setConfirmingClose('close')
+    else onClose()
   }
   return (
+    <>
+      <Dialog open={confirmingClose !== false} onOpenChange={(o) => !o && setConfirmingClose(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {kind === 'interview' ? 'Close interview practice?' : 'Close without saving?'}
+            </DialogTitle>
+            <DialogDescription>
+              {kind === 'interview'
+                ? 'Your current session and typed answer will be lost.'
+                : 'The generated letter will be lost.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmingClose(false)}>
+              Keep working
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                const action = confirmingClose
+                setConfirmingClose(false)
+                if (action === 'jump') onJumpToTarget()
+                else onClose()
+              }}
+            >
+              Discard and close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     <Dialog open={kind !== null} onOpenChange={(o) => !o && requestClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
@@ -10311,7 +10337,8 @@ function BundleToolDialog({
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirmDiscard()) onJumpToTarget()
+                        if (unsavedWork) setConfirmingClose('jump')
+                        else onJumpToTarget()
                       }}
                       className="font-medium underline underline-offset-2"
                     >
@@ -10484,6 +10511,7 @@ function BundleToolDialog({
         )}
       </DialogContent>
     </Dialog>
+    </>
   )
 }
 
@@ -10542,6 +10570,7 @@ function TailorDialog({
   const [error, setError] = useState('')
   const [rows, setRows] = useState<TailorSuggestion[] | null>(null)
   const [snapshot, setSnapshot] = useState<Resume>(resume)
+  const [confirmingClose, setConfirmingClose] = useState<'busy' | 'pending' | null>(null)
 
   const run = async () => {
     setSnapshot(resume)
@@ -10609,16 +10638,14 @@ function TailorDialog({
       open
       onOpenChange={(o) => {
         if (o) return
-        if (busy && !window.confirm('A tailoring request is still running — close and discard its results?'))
+        if (busy) {
+          setConfirmingClose('busy')
           return
-        if (
-          !busy &&
-          pending.length > 0 &&
-          !window.confirm(
-            `Discard ${pending.length} tailoring suggestion${pending.length === 1 ? '' : 's'} you haven't reviewed yet? Getting them again will use another AI request.`
-          )
-        )
+        }
+        if (pending.length > 0) {
+          setConfirmingClose('pending')
           return
+        }
         onClose()
       }}
     >
@@ -10775,6 +10802,34 @@ function TailorDialog({
           </>
         )}
       </DialogContent>
+      <Dialog open={confirmingClose !== null} onOpenChange={(o) => !o && setConfirmingClose(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {confirmingClose === 'busy' ? 'Tailoring request still running' : 'Discard tailoring suggestions?'}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmingClose === 'busy'
+                ? 'A tailoring request is still running — close and discard its results?'
+                : `Discard ${pending.length} tailoring suggestion${pending.length === 1 ? '' : 's'} you haven't reviewed yet? Getting them again will use another AI request.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmingClose(null)}>
+              Keep reviewing
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmingClose(null)
+                onClose()
+              }}
+            >
+              Discard and close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }
