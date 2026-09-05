@@ -1834,6 +1834,8 @@ app.notFound(async (c) => {
   if (path.startsWith('/s/')) {
     headers['X-Robots-Tag'] = 'noindex'
     headers['Cache-Control'] = 'no-store'
+  } else if (!SPA_ROUTES.has(path)) {
+    headers['X-Robots-Tag'] = 'noindex'
   }
   // The shell inherits the homepage canonical/og:url and title/description;
   // point them at the route being served so the raw HTML doesn't declare

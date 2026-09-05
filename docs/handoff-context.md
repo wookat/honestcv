@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R438 — 普通未知路由 404 补 X-Robots-Tag: noindex（2026-09-05）
+- 生产实证（curl）：/nope-xyz 404 无 x-robots-tag（/s/ 分支才有），R437 QA 银行项经直接复证后立项。方案：docs/plan-r438-404-noindex.md。
+- 修复仅 worker/index.ts notFound 头块加 else-if：非 SPA、非 /s/ 的 404 补 noindex（不加 no-store，安全头中间件只给 200 设缓存头，维持现状）；body 重写与其余分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：/nope-xyz 404+noindex+R437 body 回归、/s/bogus 404+noindex/no-store 不变、/builder 与 / 200 无 x-robots-tag 且 R429/R430 回归、live share R432/R436 回归（特批分享删净 404）、水合 404 零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R437 — 未知路由 404 的原始 HTML 不再自称主页（2026-08-31）
 - 生产实证（curl）：/nope-xyz 返回 404 但原始 HTML 四标签是主页营销文案、canonical/og:url 指向主页（R429–R436 同族）；/s/bogus 同理。水合后 usePageMeta 才修正。方案：docs/plan-r437-notfound-shell-meta.md。
 - 修复仅 worker/index.ts 新增 404 分支：删除 canonical/og:url 标签，四标签重写为水合后逐字文案（普通未知路由 "Page not found — RezUp"+NotFound 描述；/s/* 用 "Shared resume | RezUp" 回退句）；live share、SPA、'/' 分支字节不变。
