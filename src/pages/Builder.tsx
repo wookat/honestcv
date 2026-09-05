@@ -1195,6 +1195,12 @@ export default function Builder() {
       window.dispatchEvent(new CustomEvent(JUMP_EVENT, { detail: anchor }))
     )
   }
+  // A dead ?jump= link (anchor renamed or removed) gets an honest notice
+  // instead of silently rendering the plain Builder.
+  const [jumpNotFound, setJumpNotFound] = useState(() => {
+    const anchor = new URLSearchParams(window.location.search).get('jump')
+    return anchor !== null && !JUMP_ANCHORS.includes(anchor)
+  })
   // ?jump=<anchor> deep link from the ATS checker's per-fix "Fix →" buttons
   useEffect(() => {
     const anchor = new URLSearchParams(window.location.search).get('jump')
@@ -7999,6 +8005,25 @@ export default function Builder() {
               aria-label="Dismiss"
               className="text-muted-foreground hover:text-foreground"
               onClick={() => setExampleNotFound(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {jumpNotFound && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="min-w-0">
+              That fix link points to a section that doesn't exist — it may be out of date.
+            </span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setJumpNotFound(false)}
             >
               <X className="size-4" />
             </button>

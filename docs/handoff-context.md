@@ -1223,6 +1223,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
 - tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
 
+## R443 — SOP-10 审计 + 死 ?jump= 深链诚实反馈（2026-09-05）
+- SOP-10 四维扫描全净（11 页标题/h1/alt/alert、15 页 375 零溢出、安全响应头 CSP/HSTS/nosniff/XFO 齐备）。唯一确证缺陷（CDP）：/builder?jump=<未知anchor>（/ats-checker 每条 priority fix "Fix →" 深链，anchor 更名/过期后）静默剥参数零提示——R425/R426/R441/R442 死深链同族最后一个静默面。方案：docs/plan-r443-dead-jump-deeplink.md。
+- 修复仅 src/pages/Builder.tsx：jumpNotFound 挂载初始化器一次性校验 ?jump= 是否在 JUMP_ANCHORS（纯本地零 fetch）；不在 ⇒ R427 底部堆叠容器内 role=alert 条 "That fix link points to a section that doesn't exist — it may be out of date." + Dismiss。有效 ?jump= 跳转 effect/参数剥离/其余状态条字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：bogus 精确文案条+Dismiss 只清条+参数照旧剥离、?jump=skills/summary 照常跳转无条、无参无条、?template=bogus/?example=bogus 回归且 jump+template 双条 R427 堆叠零重叠、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
 ## R442 — 死 ?doc= 深链诚实反馈（2026-09-05）
 - 生产实证（CDP）：/documents?doc=<失效id>（/jobs 行 "Cover letter: … Open" 深链，文档删除后）静默渲染普通列表并剥掉死参数，零提示——R425/R426/R441 死深链同族最后一个面。方案：docs/plan-r442-dead-doc-deeplink.md。
 - 修复仅 src/pages/Dashboard.tsx：docLinkNotFound 在挂载初始化器一次性校验 ?doc= 是否在 listCareerDocs()（纯本地零 fetch 零 effect）；不在 ⇒ 文档 section 副标题下 role=alert 卡（R441 同款样式）"The document in that link wasn't found — it may have been deleted." + Dismiss。有效 ?doc=/无参/?kind= 过滤/参数清理 effect 不变。
