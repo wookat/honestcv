@@ -57,6 +57,22 @@ const sizeCheck = (file: File): FileCheck => ({
 })
 
 /**
+ * The PDF/DOCX parsing engines live in lazy chunks fetched on first upload.
+ * If that fetch fails (offline, flaky network), the raw import error is a
+ * technical "Failed to fetch dynamically imported module…" string — surface
+ * a friendly, actionable message instead.
+ */
+async function loadEngine<T>(load: () => Promise<T>): Promise<T> {
+  try {
+    return await load()
+  } catch {
+    throw new Error(
+      'Could not load the file reader — check your connection and try again, or paste the text instead.'
+    )
+  }
+}
+
+/**
  * Extracts plain text from an uploaded resume file (.pdf, .docx or .txt),
  * entirely in the browser. The result feeds parseResumeText / the ATS checker.
  */
@@ -79,8 +95,8 @@ export async function extractResumeFile(file: File): Promise<ExtractedResumeFile
 
 async function extractPdf(file: File): Promise<ExtractedResumeFile> {
   // legacy build ships polyfills, so it works on browsers without the newest APIs
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
-  const worker = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')
+  const pdfjs = await loadEngine(() => import('pdfjs-dist/legacy/build/pdf.mjs'))
+  const worker = await loadEngine(() => import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'))
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default
   const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise.catch(() => {
     throw new Error(
@@ -219,7 +235,7 @@ function detectColumnSplit(segments: { x: number; text: string }[]): number | nu
 }
 
 async function extractDocx(file: File): Promise<ExtractedResumeFile> {
-  const { unzipSync, strFromU8 } = await import('fflate')
+  const { unzipSync, strFromU8 } = await loadEngine(() => import('fflate'))
   let files: ReturnType<typeof unzipSync>
   try {
     files = unzipSync(new Uint8Array(await file.arrayBuffer()))
