@@ -1,5 +1,10 @@
 import { Component, Suspense, lazy, useEffect, type ReactNode } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import {
+  Route,
+  Routes,
+  useLocation,
+  useNavigationType,
+} from "react-router-dom";
 import NotFound from "@/pages/NotFound";
 import { SiteFooter, SiteHeader } from "@/components/Layout";
 
@@ -108,11 +113,25 @@ function CanonicalSync() {
   return null;
 }
 
+// React Router (library mode) leaves window scroll where the previous page
+// left it on push/replace navigations; POP is left to the browser's native
+// back/forward scroll restoration, and hash targets scroll themselves.
+function ScrollReset() {
+  const { pathname, hash } = useLocation();
+  const navigationType = useNavigationType();
+  useEffect(() => {
+    if (navigationType !== "POP" && !hash) window.scrollTo(0, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the route changes, not on same-route query/hash updates
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   const { pathname } = useLocation();
   return (
     <Suspense fallback={<RouteFallback />}>
       <CanonicalSync />
+      <ScrollReset />
       <RouteErrorBoundary key={pathname}>
         <Routes>
           <Route path="/" element={<Landing />} />

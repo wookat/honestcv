@@ -1550,3 +1550,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx 两行：导入 `Link`（文件已用 react-router-dom），`<a href="/dashboard">` → `<Link to="/dashboard">`，Button asChild 样式不变（与 Dashboard.tsx:848 同款）。
 - tsc/eslint/build/verify-dist 绿（Jobs.tsx 仅既有 exhaustive-deps warning）。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 银行项（未选，证据在 R478/R487）：/builder 启动 JS 执行成本（perf 0.53、TBT 1.3s，入口 61% 为 react-dom 已到地板，树级拆分需新证据支撑）。
+
+## R489 — SPA push 导航重置滚动位置（2026-09-05）
+- 一手证据（生产 CDP）：首页滚到 8000px 点 footer /jobs → 落地 scrollY=544；/jobs 底部点 "My resumes" → /dashboard 停在 544；/samples → /builder 停在 819。React Router library 模式不重置 push/replace 滚动，App.tsx 无任何处理；history.back() 的浏览器原生恢复（POP）今天是正确的。方案：docs/plan-r489-scroll-reset.md。
+- 修复仅 App.tsx：新增 ScrollReset（useLocation+useNavigationType），pathname 变化且非 POP 且无 hash 时 scrollTo(0,0)；POP 不动（保浏览器原生恢复）、hash 不动（Dashboard 自己 scrollIntoView）、同路由 query 变化不滚顶（deps 仅 pathname，带 eslint disable 注释）。
+- tsc/eslint/build/verify-dist 绿。
