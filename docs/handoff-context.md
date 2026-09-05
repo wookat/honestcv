@@ -1500,3 +1500,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复（仅 src/pages/Builder.tsx 一行）：切换条外层 `role="group"` → `role="navigation"`（命名 landmark，保留 aria-label="Switch between editing and preview"），按钮行为/aria 零改动。方案：docs/plan-r480-mobile-switcher-landmark.md。
 - tsc/eslint/build/verify-dist 绿。部署照旧：上传成功、Workers Routes auth code 10000。
 - 生产 QA（~/audit-r1/r480_qa.py，全新 context）：375 /builder axe 违规清零、1280 保持 CLEAN；切换条功能回归——Edit 态 #preview 0 子元素（R477 门控不回归）、点 Preview & score 完整挂载（1005 节点）、切回 Edit 正常、375 零横向溢出。
+
+## R481 — theme-color 元数据随站点主题（浏览器铬件配色）（2026-09-05）
+- 一手证据：`curl https://cv.zalize.com/` 无任何 `theme-color` meta、无 manifest——移动端浏览器铬件（Android Chrome 地址栏、iOS Safari 顶栏）一律回退白色，暗色主题下（R187/R451）是可见断层。其余审计线索（/jobs Lighthouse 0.75 的入口执行成本、Lighthouse 报的 CSP issue 经 CDP Audits 实测为误报、remotive 第三方 logo 不可控）均驳回。方案：docs/plan-r481-theme-color-meta.md。
+- 修复：① index.html + build-seo.mjs 11 处静态页模板加一对带 media 的 theme-color meta（light #fbfcfd / dark #090d14 = --background oklch 精确换算）；② theme.ts applyThemePref() 切主题时改写两个 meta content；③ pre-paint 内联脚本扩展——显式 honestcv.theme 时首绘前改写 meta（静态页无 theme.ts 也正确），CSP sha256 同步为 N/UQmAIyFzhi3Hmx8pQOPRHy6bKhEKOZ7DC6QVyuIpc=（build-seo drift guard 构建期校验三处一致）。
+- tsc/eslint/build/verify-dist 绿；dist 抽查 4 页各含 3 个 theme-color，dist 内联脚本 hash 与 worker CSP 严格相等。部署照旧：上传成功（149 资产+worker）、Workers Routes auth code 10000。
+- 生产 QA（测试代理独立复验，全新 context）全绿零 P0–P3：4 页 raw HTML 双 meta；system light/dark 两态 meta/html.dark 正确；显式 dark+light OS 在 /builder readyState=loading（预水合）即 html.dark+双 meta #090d14（document_start 采样器），/about/ 上内联脚本为唯一脚本且生效 = CSP hash 实证放行；反向显式 light+dark OS 正确；真实 ThemeToggle 循环 system→light→dark→system meta 实时跟随、system 时正确删键；全程零 ContentSecurityPolicyIssue、零 console 错误；375 光暗零溢出；R480 axe landmark 回归 0 违规；零逃逸、存储字节级还原。
+- 备案：静态页在 system（非显式）偏好下 meta 保持构建值、由 media 属性让浏览器自选——设计如此。/builder Audits 报 8 条既有 GenericIssue（表单 autofill 提示），非本轮引入。
