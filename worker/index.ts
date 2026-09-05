@@ -1816,6 +1816,29 @@ const SPA_META: Record<string, { title: string; description: string }> = {
   },
 }
 
+// spa.html carries a Builder modulepreload plus a route→chunk map (injected by
+// scripts/prerender.mjs); point the preload at the chunk this route actually
+// hydrates, and drop it for routes that hydrate none of the mapped chunks.
+function applyRoutePreload(html: string, path: string): string {
+  const meta = html.match(/<meta name="route-chunks" content='([^']+)' \/>/)
+  if (!meta) return html
+  let chunks: Record<string, string>
+  try {
+    chunks = JSON.parse(meta[1]) as Record<string, string>
+  } catch {
+    return html
+  }
+  const fallback = chunks['/builder']
+  if (typeof fallback !== 'string') return html
+  const chunk = chunks[path.startsWith('/s/') ? '/s/' : path]
+  const preload = new RegExp(
+    `[^\\S\\n]*<link rel="modulepreload" href="/assets/${fallback.replace(/[.[\]$()*+?^{|}\\]/g, '\\$&')}" \\/>\\n?`
+  )
+  return typeof chunk === 'string'
+    ? html.replace(preload, (tag) => tag.replace(/href="[^"]+"/, `href="/assets/${chunk}"`))
+    : html.replace(preload, '')
+}
+
 app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {
     return c.json({ error: 'Not Found' }, 404)
@@ -1863,7 +1886,7 @@ app.notFound(async (c) => {
         : 'A resume shared with you via RezUp.'
     )
     const url = `https://cv.zalize.com${path}`
-    body = (await shell.text())
+    body = applyRoutePreload(await shell.text(), path)
       .replace(/<link rel="canonical" href="[^"]*"/, `<link rel="canonical" href="${url}"`)
       .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
       .replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${description}"`)
@@ -1872,7 +1895,7 @@ app.notFound(async (c) => {
       .replace(/<meta property="og:url" content="[^"]*"/, `<meta property="og:url" content="${url}"`)
   } else if (SPA_ROUTES.has(path) && path !== '/') {
     const url = `https://cv.zalize.com${path}`
-    let html = (await shell.text())
+    let html = applyRoutePreload(await shell.text(), path)
       .replace(/<link rel="canonical" href="[^"]*"/, `<link rel="canonical" href="${url}"`)
       .replace(/<meta property="og:url" content="[^"]*"/, `<meta property="og:url" content="${url}"`)
     const meta = SPA_META[path]
@@ -1895,7 +1918,7 @@ app.notFound(async (c) => {
           description:
             'That page does not exist. Build an ATS-friendly resume or check your ATS match score for free.',
         }
-    body = (await shell.text())
+    body = applyRoutePreload(await shell.text(), path)
       .replace(/[^\S\n]*<link rel="canonical" href="[^"]*" \/>\n?/, '')
       .replace(/[^\S\n]*<meta property="og:url" content="[^"]*" \/>\n?/, '')
       .replace(/<title>[^<]*<\/title>/, `<title>${meta.title}</title>`)

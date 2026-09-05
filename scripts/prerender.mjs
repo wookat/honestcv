@@ -52,10 +52,26 @@ const skeleton =
     .join('') +
   '</div><div class="hcv-sk-side hcv-sk" style="flex:1;aspect-ratio:17/22;border-radius:.375rem"></div></div></div>'
 
-const builderChunk = readdirSync(path.join(root, 'dist/client/assets')).find((f) =>
-  /^Builder-.+\.js$/.test(f)
-)
-if (!builderChunk) throw new Error('prerender: Builder chunk not found in dist/client/assets')
+const assetFiles = readdirSync(path.join(root, 'dist/client/assets'))
+const chunkFor = (name) => {
+  const file = assetFiles.find((f) => new RegExp(`^${name}-.+\\.js$`).test(f))
+  if (!file) throw new Error(`prerender: ${name} chunk not found in dist/client/assets`)
+  return file
+}
+const builderChunk = chunkFor('Builder')
+// Route→chunk map for the Worker: it rewrites the modulepreload below to the
+// chunk the requested route actually hydrates (Builder stays the default).
+const routeChunks = {
+  '/builder': builderChunk,
+  '/dashboard': chunkFor('Dashboard'),
+  '/documents': chunkFor('Dashboard'),
+  '/samples': chunkFor('Dashboard'),
+  '/jobs': chunkFor('Jobs'),
+  '/ats-checker': chunkFor('AtsChecker'),
+  '/s/': chunkFor('SharedResume'),
+}
+const routeChunksJson = JSON.stringify(routeChunks)
+if (routeChunksJson.includes("'")) throw new Error('prerender: route-chunks map not attribute-safe')
 
 // The homepage FAQ is only rendered on '/', so FAQPage markup must not ship
 // on the shell that serves every other route (visible-content requirement).
@@ -63,7 +79,11 @@ const spaShell = shell
   .replace(/[^\S\n]*<script type="application\/ld\+json">[^]*?<\/script>\n?/g, (block) =>
     block.includes('"FAQPage"') ? '' : block
   )
-  .replace('</head>', `    <link rel="modulepreload" href="/assets/${builderChunk}" />\n  </head>`)
+  .replace(
+    '</head>',
+    `    <meta name="route-chunks" content='${routeChunksJson}' />\n` +
+      `    <link rel="modulepreload" href="/assets/${builderChunk}" />\n  </head>`
+  )
   .replace(marker, `<div id="root">${skeleton}</div>`)
 if (spaShell.includes('FAQPage')) throw new Error('prerender: FAQPage markup leaked into spa.html')
 writeFileSync(path.join(root, 'dist/client/spa.html'), spaShell)

@@ -1570,6 +1570,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新 tab，新 bundle Builder-KVTTlf2O.js）：reduce 下章节 chip 跳转即时（0→3669 单步）、Score "Fix →" 条目跳转即时（0→1535 单步）且 ring-2 闪烁环照常出现、冷载 /dashboard#samples 即时落 857；非 reduce 下滚动保持 smooth 动画（0→16→103→…采样确认）；R490 冷载 hash 回归正常；375 光暗零溢出；四次探测全程零 console 错误零未捕获 rejection。
 
+## R494 — 按路由 modulepreload：非 Builder 路由不再白拉 72KB Builder 块（2026-09-05）
+- 一手证据（生产 Lighthouse 网络日志）：/samples 冷加载在 ~247ms 抢先下载 Builder 块（72KB 传输、全站最大路由块，从不执行），本路由 Dashboard 块反而 ~435ms 才到——根因是 prerender.mjs 往 spa.html 注入固定 Builder modulepreload，Worker 对所有 SPA 路由/分享页/404 都发同一 shell。
+- 修复两处：prerender.mjs 在 spa.html 注入 route→chunk map（meta name=route-chunks，Builder/Dashboard×3/Jobs/AtsChecker/SharedResume，缺块即 build 失败）；worker applyRoutePreload() 按路径把 preload 改写成本路由真实水合的块（/builder 字节不变、未知路由删除 preload），三个 shell 文本分支全部套用。
+- tsc/eslint/build/verify-dist 绿。部署照旧：1 资产（spa.html）+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：8 路由 raw HTML preload 逐一正确（/samples|/dashboard|/documents→Dashboard、/jobs→Jobs、/ats-checker→AtsChecker、/builder→Builder、404→无、/s/*→SharedResume）；CDP 冷载 /samples 零 Builder 请求、9 卡、375 零溢出零 console 错误；/builder 照常拉 Builder；Lighthouse /samples perf 0.68→0.76、LCP 4.9→4.1s、CLS 保持 0。
+
 ## R493 — /samples 加载骨架消灭 0.777 CLS（2026-09-05）
 - 一手证据（生产 Lighthouse 移动端）：/samples perf 0.47、CLS 0.777 为全站最差（/dashboard 0.73、/documents 0.79、/ats-checker 0.83 且 CLS 均 0）；layout-shifts 审计把全部 0.777 归因 footer——examplesState==='loading' 时 samples 路由标题与 footer 之间零内容，examples.json 到达后 9 卡网格一次性把 footer 推下 ~3000px。先例：R309 用骨架修复 /jobs 同款问题。
 - 修复最小（仅 Dashboard.tsx）：section==='samples' && loading 时渲染 h1 + sr-only role=status + aria-hidden animate-pulse 9 卡骨架（h-44 缩略图 + 标题/行业/CTA 占位，镜像真卡结构）；fetch/状态机/failed 卡/R490 hash deps/jobs 骨架零改动。方案：docs/plan-r493-samples-cls.md。
