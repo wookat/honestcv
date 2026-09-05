@@ -1458,3 +1458,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：两个 deps 改 [baseW, windowH]（pageSize/margins 变化仍覆盖）；内容/框架尺寸变化由既有双 ResizeObserver 异步接管（无强制回流）。
 - 生产 QA（index-Cy07OTKI.js / Builder-DlsU4Wbk.js）：键入越页 1→2 页、删回 1 页（RO 路径正确）、Letter↔A4/边距/桌面 resize 重测、Flow 分页标记 = 页数−1 并实时更新、打字无 layout storm（~2 layout/键）、R468/R469 回归、375 光暗零溢出、零错误零逃逸、基线字节还原。诚实边界：无旧版数值基线，回流"减少量"由删除的代码路径断言。
 - tsc/eslint/build/verify-dist 绿；部署照旧（上传成功、route auth code 10000）。
+
+## R475 — 生产包停止携带 react-router 的 development 构建（2026-08-31）
+- 证据：R474 部署后 Lighthouse /builder（perf 0.60、TBT 740ms）unused-javascript 第二名仍是入口块（118,571B/46,940B 未用）；本地同 commit sourcemap 复查入口第二大模块 = node_modules/react-router/dist/development/chunk-62JRHF6Z.mjs（36,557B）。diff 证实 development 与 production 构建唯一差异是 ENABLE_DEV_WARNINGS = true/false——生产一直在跑带 dev 警告路径的 router。
+- 根因（上游 bug）：react-router ≥7.13 package.json exports 把所有条件都指向 dist/development/*（7.18.2 与最新 7.18.3 均实查如此）；remix-run/react-router#14753 确认，修复 PR #15059 关闭未合并。任何 Vite 消费方生产包默认都是 development 构建。
+- 修复：仅 vite.config.ts——command==='build' 时把 /^react-router$/ 与 /^react-router\/dom$/ 精确别名到 dist/production 对应 mjs（绝对路径，绕过 exports）；dev server 不别名（保留 dev 警告，符合上游本意）。react-router-dom 是薄 re-export，别名对其内部裸导入同样生效。方案：docs/plan-r475-react-router-production-build.md。
+- 效果（本地构建对比）：入口 sourcemap 归因变为 dist/production/chunk-YBLPXYCV.mjs（35,297B），入口 372.7→371.4KB。实事求是：体积收益小（~1.3KB raw），本质收益是生产不再执行 dev-warning 代码路径、与上游生产语义一致。
+- tsc/eslint/build/verify-dist 绿。
