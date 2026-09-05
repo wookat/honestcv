@@ -1346,3 +1346,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：Builder/Jobs 双路由阻断→精确文案卡零未捕获 rejection、直载 /builder 阻断同样出卡（非卡死骨架）、history.back() 同文档脱离错误态、解封后 Reload 恢复、正常导航/水合/375 光暗零溢出、唯一 #main、零逃逸、存储字节级还原。
 - QA 银行（既有非缺陷倾向，待定夺）：SiteHeader/SiteFooter 在各页面组件内部，boundary 错误卡全屏无站点导航（两条恢复路径均可用）；如要卡上方保留 shell 需把 header 提到 <Routes> 外（候选后续轮）。
 - PR #677（基于 #676）。部署照旧：上传成功、route auth code 10000。
+
+## R457 — 路由错误卡带上站点导航壳（2026-08-31）
+- 闭环 R456 银行项：boundary 错误卡替换整个路由元素后无 SiteHeader/SiteFooter（各页内部渲染壳），用户仅剩 Reload/Back 两条出路。方案：docs/plan-r457-error-card-site-shell.md。
+- 修复仅 src/App.tsx：错误分支渲染 flex min-h-screen 列容器 <SiteHeader /> + 原错误卡 main（加 w-full flex-1）+ <SiteFooter />。Layout 是入口静态依赖（modulepreload），路由块失败不影响其可用。文案/role=alert/Reload/key={pathname} 全不变。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：阻断 Builder 块→卡带完整 header/footer（body 692 字符 vs R456 的 88）、错误态点 Logo 同文档客户端导航脱离错误、直载阻断同卡+壳、解封 Reload 恢复、back/正常导航/纯加载零 console 错误回归、375 光暗零溢出且汉堡菜单在错误态可开可导航、零逃逸、存储字节级还原。
+- PR #678（基于 #677）。部署照旧：上传成功、route auth code 10000。
