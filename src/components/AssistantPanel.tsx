@@ -180,6 +180,20 @@ export function AssistantPanel({
     if (open) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [open, turns, busy])
 
+  // Escape closes the panel like every other overlay. Outside clicks are left
+  // alone on purpose — this is a modeless panel users work alongside. Escape
+  // belongs to any dialog stacked above the panel.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      if (document.querySelector('[role="dialog"]')) return
+      onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
   if (!open) return null
 
   const send = async (content: string) => {
