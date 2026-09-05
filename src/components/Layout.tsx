@@ -141,6 +141,20 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
   const navAt = wideAction ? 'lg' : 'md'
   return (
     <header ref={headerRef} className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:bg-background focus:absolute focus:left-2 focus:top-2 focus:z-30 focus:rounded-md focus:border focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg"
+        onClick={(e) => {
+          e.preventDefault()
+          const main = document.querySelector('main')
+          if (!main) return
+          main.setAttribute('tabindex', '-1')
+          main.focus({ preventScroll: true })
+          main.scrollIntoView()
+        }}
+      >
+        Skip to content
+      </a>
       <div
         className={`mx-auto flex h-14 items-center justify-between px-4 ${wideAction ? 'max-w-[1600px]' : 'max-w-6xl'}`}
       >
