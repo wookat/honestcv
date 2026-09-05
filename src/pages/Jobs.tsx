@@ -50,6 +50,7 @@ import {
   setPipelineReminder,
   setPipelineVersion,
   staleDays,
+  stashUnreadablePipeline,
   structureJobDescription,
   timelineOf,
   updateStatuses,
@@ -145,6 +146,7 @@ export default function Jobs() {
   const [jobs, setJobs] = useState<JobListing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [pipelineUnreadable, setPipelineUnreadable] = useState(() => stashUnreadablePipeline())
   const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => listPipeline())
   const [selectedId, setSelectedId] = useState<string | null>(() => seedParams.get('job'))
   // A ?job= deep link should read like tapping that row: open the detail pane on mobile.
@@ -591,6 +593,26 @@ export default function Jobs() {
           </a>
           . Your application pipeline is stored in this browser only.
         </p>
+
+        {pipelineUnreadable && (
+          <div
+            role="alert"
+            className="border-destructive/50 bg-destructive/10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span>
+              Your application pipeline couldn&apos;t be read, so tracking started fresh.
+              The unreadable copy was kept in your browser storage as a backup.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPipelineUnreadable(false)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
 
         {jobLinkNotFound && (
           <div
