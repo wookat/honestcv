@@ -1208,3 +1208,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证：全量爬取 123 个 sitemap 页 + 193 个内链全 200、静态页 canonical/title/desc/main-id 全对；唯 SPA 路由（/builder、/ats-checker 在 sitemap 内）原始 HTML canonical 与 og:url 均硬编码指向主页——等于向爬虫声明"本页是主页副本"，可致 sitemap 页被去重出索引；CanonicalSync（R309）只在 JS 水合后修正。方案：docs/plan-r429-spa-canonical.md。
 - 修复仅 worker/index.ts notFound：SPA_ROUTES 且非 '/' 时把 shell 的 canonical href 与 og:url 重写为 https://cv.zalize.com<path>；/s/（noindex）与未知路由 404 分支不动。
 - tsc/eslint/build 绿。生产 QA 全绿：六 SPA 路由 curl 无 JS 自指 canonical+og:url、主页/静态页不变、/s/bogus 与 /nope-xyz 仍 404+noindex/no-store 且 shell 不重写、真实浏览器 /builder//jobs 零损坏零 console 错误、客户端导航 CanonicalSync 回归、R428 复制回归、375 光暗零溢出、基线字节还原。既有小观察（非本轮回归）：客户端导航后 CanonicalSync 只更新 canonical 不更新 og:url（爬虫读原始 HTML，无实害），银行为候选。部署照旧：上传成功、route auth code 10000。
+
+## R430 — SPA 路由原始 HTML 每路由 title/description（2026-08-31）
+- 生产实证：R429 修好 canonical/og:url 后，六个 SPA 路由原始 HTML 的 <title>/meta description/og:title/og:description 仍全是主页文案（curl 无 JS 实测），/builder、/ats-checker 在 sitemap 内——搜索摘要与链接卡片展示主页标题；usePageMeta 只在水合后修正；120 个静态页早已各有唯一元数据，SPA 路由是唯一缺口。方案：docs/plan-r430-spa-title-description.md。
+- 修复仅 worker/index.ts：SPA_META 映射（文案与各页 usePageMeta 逐字一致），R429 重写块内一并替换 title/description/og:title/og:description；'/'、/s/、未知 404 分支不动。
+- tsc/eslint/build 绿。生产 QA 全绿：/builder、/ats-checker 原始 HTML 每路由元数据+自指 canonical、水合后 document.title 与原始 shell 字节一致零闪变、客户端导航 usePageMeta+CanonicalSync 回归、/nope-xyz 与 /s/bogus 仍 404 主页 shell 不重写、/pricing/ 不变、375 光暗零溢出、零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
