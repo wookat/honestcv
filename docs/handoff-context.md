@@ -1056,3 +1056,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 闭环源码实证缺口：产品是纯浏览器本地存储，但编辑器 Backup 只序列化当前加载的 resume 对象——副本、求职文档、job 管道、11 个内容库、分享链接记录（撤销 token）等清浏览器即永久丢失，宣传的安全网只覆盖一小部分数据。方案 docs/plan-r400-workspace-backup.md。
 - 实现：新 src/lib/workspace.ts（exportWorkspace 快照全部 honestcv.* 原始字符串值为 rezup-workspace v1 JSON；parseWorkspaceBackup 严格校验；restoreWorkspace 先快照后替换、配额抛出即字节级回滚返回 false——诚实存储不变量）。设备域键双向排除：clientId（AI 配额身份）/license/subscribed/shared/firstSeen/qa/ev.*。Dashboard 头部 "Back up everything"+"Restore"（确认框 Replace and restore→reload；失败走既有 storage-full alert；无效文件行内 alert）。Builder 单简历备份不动。
 - 本地 tsc/eslint/build 绿。生产 QA 两轮（Dashboard-D5zeDivb.js / index-CvY8w-76.js）全绿零 P0–P3：导出字节级一致且零排除键、恢复字节级还原+清除多余工作区键+设备键不动、Cancel 零写入、无效文件拒绝、零余量恢复回滚字节一致+释放后成功、伪造 clientId 的备份导入侧被剥离、R399 h2/375 光暗回归、零 console 错误。QA 发现 clientId 初版随备份迁移（会转移配额身份），当轮加入 EXCLUDED 并复验。
+
+## R401 — 编辑器备份 Restore 加装护栏（2026-08-31）
+- 闭环源码实证缺口：Builder 备份 Restore 选中合法文件即无确认地替换当前简历并解绑副本，且不做强制前置检查点——recordResumeSnapshot 非 force 在 10 分钟窗口内早退，最近编辑可被不可恢复地丢弃（历史 Restore R397 早有此护栏）。方案 docs/plan-r401-backup-restore-guardrails.md。
+- 实现（仅 Builder.tsx）：文件解析后先 sanitizeResume（QA 发现的 P3：宽松校验放行错误字段类型文件会白屏崩溃，当轮修复）再入 pendingBackupRestore 确认框（Cancel 零写入）；确认时 recordResumeSnapshot(resume, true) 失败即出存储满 alert、对话框保持打开、草稿不动；成功才 linkVersion(null)+替换。
+- 本地 tsc/eslint/build 绿。生产 QA 两轮（Builder-C3EHbdNY.js → Builder-B2taxAOu.js）全绿零 P0–P3：确认框/Cancel 字节级零写入、绑定副本+新鲜编辑确认后强制检查点落盘且副本字节一致、零余量确认被拒且对话框留存、释放后同框重试成功、崩溃复现文件在新 bundle 下正常恢复（skills 强转字符串）、真实导出往返键级一致、无效文件拒绝、R400 工作区恢复回归、375 光暗、零 console 错误。
