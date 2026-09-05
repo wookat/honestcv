@@ -14,9 +14,26 @@ const { render } = await import(path.join(root, 'dist/prerender/entry-server.js'
 const html = render('/')
 
 const shellPath = path.join(root, 'dist/client/index.html')
-const shell = readFileSync(shellPath, 'utf8')
+const rawShell = readFileSync(shellPath, 'utf8')
 const marker = '<div id="root"></div>'
-if (!shell.includes(marker)) throw new Error('prerender: root marker not found in index.html')
+if (!rawShell.includes(marker)) throw new Error('prerender: root marker not found in index.html')
+
+// Inline the stylesheet so no render-blocking request sits between the HTML
+// and first paint (the static SEO pages already inline theirs). The hashed
+// CSS asset stays on disk but nothing references it after this.
+const cssFiles = readdirSync(path.join(root, 'dist/client/assets')).filter((f) =>
+  /^style-.+\.css$/.test(f)
+)
+if (cssFiles.length !== 1)
+  throw new Error(`prerender: expected exactly one style-*.css asset, found ${cssFiles.length}`)
+const css = readFileSync(path.join(root, 'dist/client/assets', cssFiles[0]), 'utf8')
+if (css.includes('</style')) throw new Error('prerender: CSS is not <style>-safe')
+const linkTag = new RegExp(
+  `<link rel="stylesheet"[^>]*href="/assets/${cssFiles[0].replace(/[.[\]]/g, '\\$&')}"[^>]*>`
+)
+if (!linkTag.test(rawShell)) throw new Error('prerender: stylesheet link not found in index.html')
+const shell = rawShell.replace(linkTag, () => `<style>${css}</style>`)
+if (linkTag.test(shell)) throw new Error('prerender: stylesheet link not fully inlined')
 
 // The SPA shell gets a static form skeleton (visible before any JS arrives on
 // slow connections; React replaces it on mount — RouteFallback mirrors it) and
