@@ -1570,6 +1570,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新 tab，新 bundle Builder-KVTTlf2O.js）：reduce 下章节 chip 跳转即时（0→3669 单步）、Score "Fix →" 条目跳转即时（0→1535 单步）且 ring-2 闪烁环照常出现、冷载 /dashboard#samples 即时落 857；非 reduce 下滚动保持 smooth 动画（0→16→103→…采样确认）；R490 冷载 hash 回归正常；375 光暗零溢出；四次探测全程零 console 错误零未捕获 rejection。
 
+## R493 — /samples 加载骨架消灭 0.777 CLS（2026-09-05）
+- 一手证据（生产 Lighthouse 移动端）：/samples perf 0.47、CLS 0.777 为全站最差（/dashboard 0.73、/documents 0.79、/ats-checker 0.83 且 CLS 均 0）；layout-shifts 审计把全部 0.777 归因 footer——examplesState==='loading' 时 samples 路由标题与 footer 之间零内容，examples.json 到达后 9 卡网格一次性把 footer 推下 ~3000px。先例：R309 用骨架修复 /jobs 同款问题。
+- 修复最小（仅 Dashboard.tsx）：section==='samples' && loading 时渲染 h1 + sr-only role=status + aria-hidden animate-pulse 9 卡骨架（h-44 缩略图 + 标题/行业/CTA 占位，镜像真卡结构）；fetch/状态机/failed 卡/R490 hash deps/jobs 骨架零改动。方案：docs/plan-r493-samples-cls.md。
+- tsc/eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：Lighthouse /samples CLS 0.777→0、perf 0.47→0.68（LCP 4.9s 为剩余主项）；限速下骨架可见→9 真卡替换（footer 残移仅 ~152px，来自骨架未含的过滤行+计数行，Lighthouse CLS 仍 0）；阻断 examples.json→retry 卡照常（骨架消失）、Try again 恢复 9 卡；/dashboard#samples 冷载滚动回归正常；375 光暗零溢出零 console 错误。
+
 ## R492 — Builder 程序化跳转把键盘焦点移到目标（2026-09-05）
 - 一手证据（生产 CDP，Builder-KVTTlf2O.js）：/builder?example=software-engineer 点 Score 面板 "Fix →"，视口跳到 scrollY 1535 + ring 闪烁，但 document.activeElement 仍是原 "Fix →" 按钮（activeIsFix:true）；章节导航 chip 同样（activeIsChip:true，y 3669）——下一次 Tab 从数千像素外的出发点继续，键盘/读屏用户完全得不到位置迁移（WCAG 2.4.3 焦点顺序；成熟编辑器 jump-to-error 均移焦点）。目标卡片无 tabindex 不可编程聚焦。
 - 修复最小（仅 Builder.tsx 两处跳转路径，滚动/闪烁/R489–R491 语义零改动）：scrollIntoView 后 `el.tabIndex = -1; el.focus({ preventScroll: true })`——tabindex=-1 不进自然 Tab 序，preventScroll 防与既有滚动打架。方案：docs/plan-r492-jump-focus.md。

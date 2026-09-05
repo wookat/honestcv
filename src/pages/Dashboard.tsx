@@ -1556,6 +1556,29 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         )}
         </>
         )}
+        {section === 'samples' && examplesState === 'loading' && (
+          <>
+            <h1 className="text-2xl font-bold">Sample library</h1>
+            <p role="status" className="sr-only">
+              Loading the sample library…
+            </p>
+            <div
+              aria-hidden
+              className="mt-4 grid animate-pulse grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {Array.from({ length: 9 }).map((_, i) => (
+                <div key={i} className="bg-card rounded-md border shadow-sm">
+                  <div className="bg-muted h-44 rounded-t-md border-b" />
+                  <div className="space-y-2 p-3">
+                    <div className="bg-muted h-4 w-2/3 rounded" />
+                    <div className="bg-muted h-3 w-1/3 rounded" />
+                    <div className="bg-muted mt-2 h-10 rounded sm:h-8" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
         {section === 'samples' && examplesState === 'failed' && (
           <>
             <h1 className="text-2xl font-bold">Sample library</h1>
