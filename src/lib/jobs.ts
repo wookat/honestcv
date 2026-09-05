@@ -205,7 +205,12 @@ export const JOB_CATEGORIES: [slug: string, label: string][] = [
 export async function searchJobs(q: string, category = ''): Promise<JobListing[]> {
   const params = new URLSearchParams({ q })
   if (category) params.set('category', category)
-  const res = await fetch(`/api/jobs/search?${params}`)
+  let res: Response
+  try {
+    res = await fetch(`/api/jobs/search?${params}`)
+  } catch {
+    throw new Error('Loading jobs failed — check your connection and try again.')
+  }
   const data = (await res.json().catch(() => ({}))) as {
     jobs?: JobListing[]
     error?: string

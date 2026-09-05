@@ -67,12 +67,17 @@ export function licenseHeaders(): Record<string, string> {
 }
 
 export async function activateLicense(licenseKey: string): Promise<LicenseState> {
-  const res = await fetch('/api/license/activate', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ licenseKey }),
-  })
-  const data = (await res.json()) as {
+  let res: Response
+  try {
+    res = await fetch('/api/license/activate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ licenseKey }),
+    })
+  } catch {
+    throw new Error('Activation failed — check your connection and try again.')
+  }
+  const data = (await res.json().catch(() => ({}))) as {
     token?: string
     plan?: Plan
     expiresAt?: number

@@ -1122,3 +1122,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（CDP Fetch.failRequest）：/s/<id> 的 /api/share 请求网络失败时，页面永远停在加载骨架且 console 出 Uncaught (in promise)；代码层面 5xx 也被映射为 null → 误显 "This link is no longer available"（把瞬时故障当永久撤销）。方案：docs/plan-r412-shared-resume-error-state.md。
 - 修复：share.ts fetchSharedResume 网络失败/≥500 抛友好 Error（4xx 仍返 null 走原 gone 卡）；SharedResume.tsx 新增 error 状态——role=alert 卡 "Couldn't load this resume" + "Try again" 按钮（重置骨架后重取）。
 - 本地 tsc/eslint/build 绿（eslint 曾报 set-state-in-effect，已把 loading 重置移入重试点击处）。生产 QA 全绿：网络失败→精确文案+零未处理拒绝、Try again→骨架→mock 快照正常渲染（日期+Print）、mock 500→状态码文案且响应体不泄漏、真实 bogus id→gone 卡回归、375 光暗零溢出、/s/ 页零 localStorage 写入、零逃逸、基线字节还原。
+
+## R413 — 其余 API 面离线不再漏出原始 "Failed to fetch"（2026-08-31）
+- 生产实证（CDP Fetch.failRequest /api/jobs/search）：/jobs 错误横幅直接渲染浏览器原始 TypeError "Failed to fetch"。源码扫描确证同族缺口：searchJobs、submitLead、claimTransaction（另有未守卫 res.json() 可抛原始 SyntaxError）、openLemonCheckout、activateLicense（同 json 缺口）、fetchZalizePrimary/fetchResumeProfile 全部无网络失败 catch。方案：docs/plan-r413-friendly-offline-errors.md。
+- 修复：各调用点 try/catch 抛面向用户的 "… — check your connection and try again." 分面文案（对齐 R348/R412 模式）；两处 res.json() 加 .catch(()=>({})) 让非 JSON 体落回既有友好状态码文案。HTTP 错误路径文案字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：jobs/lead 门/激活/Resume Center 四面精确新文案、非 JSON 200 激活落友好文案零 SyntaxError、RC 真实 404 文案回归、R412 分享页回归、375 光暗零溢出、零逃逸（全部 /api/leads 与 activate 均拦截）、基线字节还原。未运行时验证：claimTransaction/openLemonCheckout 文案（无真实 Lemon Squeezy 流程不可达，代码同型）。
