@@ -941,6 +941,22 @@ export default function Builder() {
   const [downloading, setDownloading] = useState<string | null>(null)
   const [dlError, setDlError] = useState<string | null>(null)
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false)
+  const downloadMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!downloadMenuOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (!downloadMenuRef.current?.contains(e.target as Node)) setDownloadMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDownloadMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [downloadMenuOpen])
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
@@ -2049,7 +2065,7 @@ export default function Builder() {
               )}
               PDF
             </Button>
-            <div className="relative 2xl:hidden">
+            <div ref={downloadMenuRef} className="relative 2xl:hidden">
               <Button
                 size="sm"
                 variant="outline"

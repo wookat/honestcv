@@ -1152,3 +1152,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - SOP-10 四维生产扫描（11 个页面标题/h1/溢出/无 alt 图/断图）确证唯一 P2：/builder 在 1536–1640px 视口整页横向滚动（scrollWidth 1587@1536 / 1619@1600 / 1629@1620），Print 按钮被裁——2xl 起工具栏把下载下拉换成展开的 PDF/DOCX/TXT/MD/Print 五按钮，头部内容 ~1419px 塞进 max-w-6xl(1152px) 容器右溢；1536 恰是 Windows 125% 缩放下 1920 屏的有效宽度。/resources/ 404 无内链指向（非缺陷）；/jobs 19 个公司 logo 无 alt 银行为 P4 候选。方案：docs/plan-r418-builder-header-overflow.md。
 - 修复仅 Layout.tsx SiteHeader：wideAction（Builder 传入）时头部容器 max-w-6xl → max-w-[1600px]（1536 内容盒 1504 ≥ 1419），其余页面字节不变。
 - tsc/eslint/build 绿。生产 QA 全绿（index-CqEuuk_W.js / Builder-K7xMr_2O.js）：1520–1920 六宽度零横向溢出、≥1536 五按钮全可见（Print 右缘 1505@1536）、1520 紧凑下拉回归可开、非 Builder 页 1536 仍 max-w-6xl、375 光暗、R417 jobs 回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000（既有 token 权限缺口，不影响上线）。
+
+## R419 — Builder 紧凑下载菜单支持外点/Esc 关闭（2026-09-05）
+- 生产实证（probe_r419.py @1280）：打开工具栏紧凑 "Download your resume" 菜单后，外点与 Escape 均不关闭（aria-expanded 保持 true）——全应用唯一不可 dismiss 的浮层（同页 Resources 下拉外点即关，Radix 对话框均支持 Esc/外点）；键盘用户无退出路径（WAI-ARIA menu-button 模式期望 Esc 关闭）。方案：docs/plan-r419-download-menu-dismiss.md。
+- 修复仅 Builder.tsx：镜像 ResourcesDropdown 模式——downloadMenuRef + 打开期间 document 级 pointerdown（ref 外即关）与 Escape keydown 监听；项点击/toggle 行为字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-C3Y5TGU3.js / Builder-qolcHyMH.js）：外点关闭零副作用、Esc 关闭且关闭态 Esc 无操作、popover 内 padding 点击不关、TXT 项点击走既有质检对话框→真实下载、toggle 回归、Resources 下拉回归、R418 1536 回归、375 光暗触摸开关、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
