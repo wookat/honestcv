@@ -11,20 +11,32 @@ export default function SharedResume() {
   const [state, setState] = useState<
     | { status: 'loading' }
     | { status: 'gone' }
+    | { status: 'error'; message: string }
     | { status: 'ready'; resume: Resume; createdAt: number }
   >(id ? { status: 'loading' } : { status: 'gone' })
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     if (!id) return
     let cancelled = false
-    void fetchSharedResume(id).then((data) => {
-      if (cancelled) return
-      setState(data ? { status: 'ready', ...data } : { status: 'gone' })
-    })
+    fetchSharedResume(id).then(
+      (data) => {
+        if (cancelled) return
+        setState(data ? { status: 'ready', ...data } : { status: 'gone' })
+      },
+      (err: unknown) => {
+        if (cancelled) return
+        const message =
+          err instanceof Error && err.message
+            ? err.message
+            : 'Loading the resume failed — try again.'
+        setState({ status: 'error', message })
+      }
+    )
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, attempt])
 
   return (
     <div className="bg-muted/40 min-h-screen">
@@ -53,6 +65,18 @@ export default function SharedResume() {
       <main className="mx-auto max-w-4xl px-2 py-6 sm:px-4">
         {state.status === 'loading' && (
           <div aria-busy="true" className="bg-background mx-auto aspect-[17/22] max-w-3xl animate-pulse rounded-md border" />
+        )}
+        {state.status === 'error' && (
+          <div className="bg-background mx-auto max-w-lg rounded-lg border p-8 text-center" role="alert">
+            <h1 className="text-lg font-semibold">Couldn't load this resume</h1>
+            <p className="text-muted-foreground mt-2 text-sm">{state.message}</p>
+            <Button className="mt-4" size="sm" variant="outline" onClick={() => {
+                setState({ status: 'loading' })
+                setAttempt((n) => n + 1)
+              }}>
+              Try again
+            </Button>
+          </div>
         )}
         {state.status === 'gone' && (
           <div className="bg-background mx-auto max-w-lg rounded-lg border p-8 text-center">

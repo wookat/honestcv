@@ -1117,3 +1117,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 探索性审计（Builder 深编辑/设计工具/分享/四格式导出）零 P0–P3，唯一确证 P4：`[portfolio](https://example.com/qa)` 在 MD/DOCX/PDF 都保留链接，但 TXT 导出把 URL 整个丢掉只剩 label。源头：Builder TXT 下载走 resumeToPlainText，末尾 stripInlineMarks 只保留 run 文本。方案：docs/plan-r411-txt-export-keeps-link-urls.md。
 - 修复：marks.ts 新增 stripInlineMarksKeepLinks（链接渲染为 `label (url)`，label 已是该 URL 时不重复；未完成链接保持字面量）；resumeToPlainText 增可选 {keepLinkUrls}，仅 Builder TXT 下载传 true——ATS 评分/AI 载荷/匹配报告仍走默认（无 URL），字节不变。
 - 本地 oracle 12/12、tsc/eslint/build 绿。生产 QA 全绿：TXT 摘要+经历 bullet 双处 `portfolio (https://example.com/qa)`、无链接简历零杂括号、MD/DOCX/PDF 链接回归（pypdf 注解实证）、mock cover-letter 请求 resumeText 仅 label 无 URL（Tailor 对话框发原始字段含 markdown 源为既定设计非泄漏）、文件名/免费下载门不变、零逃逸零原生对话框、基线字节还原。
+
+## R412 — 分享页失败不再假装"链接已撤销"（2026-08-31）
+- 生产实证（CDP Fetch.failRequest）：/s/<id> 的 /api/share 请求网络失败时，页面永远停在加载骨架且 console 出 Uncaught (in promise)；代码层面 5xx 也被映射为 null → 误显 "This link is no longer available"（把瞬时故障当永久撤销）。方案：docs/plan-r412-shared-resume-error-state.md。
+- 修复：share.ts fetchSharedResume 网络失败/≥500 抛友好 Error（4xx 仍返 null 走原 gone 卡）；SharedResume.tsx 新增 error 状态——role=alert 卡 "Couldn't load this resume" + "Try again" 按钮（重置骨架后重取）。
+- 本地 tsc/eslint/build 绿（eslint 曾报 set-state-in-effect，已把 loading 重置移入重试点击处）。生产 QA 全绿：网络失败→精确文案+零未处理拒绝、Try again→骨架→mock 快照正常渲染（日期+Print）、mock 500→状态码文案且响应体不泄漏、真实 bogus id→gone 卡回归、375 光暗零溢出、/s/ 页零 localStorage 写入、零逃逸、基线字节还原。
