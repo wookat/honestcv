@@ -35,9 +35,21 @@ function ResourcesDropdown() {
       if (!ref.current?.contains(e.target as Node)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setOpen(false)
-      if (ref.current?.contains(document.activeElement)) btnRef.current?.focus()
+      if (e.key === 'Escape') {
+        setOpen(false)
+        if (ref.current?.contains(document.activeElement)) btnRef.current?.focus()
+        return
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
+      if (!ref.current?.contains(document.activeElement)) return
+      const items = [...(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
+      if (items.length === 0) return
+      e.preventDefault()
+      const idx = items.indexOf(document.activeElement as HTMLElement)
+      if (e.key === 'Home') items[0].focus()
+      else if (e.key === 'End') items[items.length - 1].focus()
+      else if (e.key === 'ArrowDown') items[idx < 0 ? 0 : (idx + 1) % items.length].focus()
+      else items[idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length].focus()
     }
     document.addEventListener('pointerdown', onDown)
     document.addEventListener('keydown', onKey)
@@ -51,7 +63,8 @@ function ResourcesDropdown() {
       <button
         ref={btnRef}
         type="button"
-        aria-haspopup="true"
+        aria-haspopup="menu"
+        aria-controls="resources-menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="hover:text-foreground inline-flex items-center gap-1"
@@ -59,9 +72,9 @@ function ResourcesDropdown() {
         Resources <ChevronDown className={`size-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="bg-background absolute left-0 top-full z-30 mt-2 min-w-56 rounded-md border p-1 shadow-lg">
+        <div id="resources-menu" role="menu" aria-label="Resources" className="bg-background absolute left-0 top-full z-30 mt-2 min-w-56 rounded-md border p-1 shadow-lg">
           {RESOURCE_LINKS.map(([label, href]) => (
-            <a key={href} className="text-foreground hover:bg-accent flex min-h-10 items-center rounded-sm px-3 text-sm" href={href}>
+            <a key={href} role="menuitem" className="text-foreground hover:bg-accent flex min-h-10 items-center rounded-sm px-3 text-sm" href={href}>
               {label}
             </a>
           ))}

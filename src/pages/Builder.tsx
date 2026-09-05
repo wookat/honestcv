@@ -962,9 +962,21 @@ export default function Builder() {
       if (!downloadMenuRef.current?.contains(e.target as Node)) setDownloadMenuOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setDownloadMenuOpen(false)
-      if (downloadMenuRef.current?.contains(document.activeElement)) downloadMenuButtonRef.current?.focus()
+      if (e.key === 'Escape') {
+        setDownloadMenuOpen(false)
+        if (downloadMenuRef.current?.contains(document.activeElement)) downloadMenuButtonRef.current?.focus()
+        return
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
+      if (!downloadMenuRef.current?.contains(document.activeElement)) return
+      const items = [...(downloadMenuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
+      if (items.length === 0) return
+      e.preventDefault()
+      const idx = items.indexOf(document.activeElement as HTMLElement)
+      if (e.key === 'Home') items[0].focus()
+      else if (e.key === 'End') items[items.length - 1].focus()
+      else if (e.key === 'ArrowDown') items[idx < 0 ? 0 : (idx + 1) % items.length].focus()
+      else items[idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length].focus()
     }
     document.addEventListener('pointerdown', onDown)
     document.addEventListener('keydown', onKey)
@@ -2115,7 +2127,8 @@ export default function Builder() {
                 ref={downloadMenuButtonRef}
                 size="sm"
                 variant="outline"
-                aria-haspopup="true"
+                aria-haspopup="menu"
+                aria-controls="download-menu"
                 aria-expanded={downloadMenuOpen}
                 title="Download your resume"
                 disabled={Boolean(downloading)}
@@ -2126,11 +2139,12 @@ export default function Builder() {
                 <ChevronDown className={`size-3.5 transition-transform ${downloadMenuOpen ? 'rotate-180' : ''}`} />
               </Button>
               {downloadMenuOpen && (
-                <div className="bg-background absolute right-0 top-full z-30 mt-2 min-w-40 rounded-md border p-1 shadow-lg">
+                <div id="download-menu" role="menu" aria-label="Download formats" className="bg-background absolute right-0 top-full z-30 mt-2 min-w-40 rounded-md border p-1 shadow-lg">
                   {(['pdf', 'docx', 'txt', 'md'] as const).map((fmt) => (
                     <button
                       key={fmt}
                       type="button"
+                      role="menuitem"
                       className="text-foreground hover:bg-accent flex min-h-10 w-full items-center gap-2 rounded-sm px-3 text-sm"
                       onClick={() => {
                         setDownloadMenuOpen(false)
@@ -2142,6 +2156,7 @@ export default function Builder() {
                   ))}
                   <button
                     type="button"
+                    role="menuitem"
                     className="text-foreground hover:bg-accent flex min-h-10 w-full items-center gap-2 rounded-sm px-3 text-sm"
                     onClick={() => {
                       setDownloadMenuOpen(false)
