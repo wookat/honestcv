@@ -10016,7 +10016,7 @@ function BundleToolDialog({
                       ? `${company || resume.targetRole || 'Untitled'} — Cover letter`
                       : kind === 'resignation'
                         ? `${company || 'Untitled'} — Resignation letter`
-                        : `${resume.targetRole || 'Untitled'} — Interview prep`
+                        : `${resume.targetRole || resume.contact.fullName || 'Untitled'} — Interview prep`
                   if (savedId) {
                     setSaveDocFailed(updateCareerDoc(savedId, { title: docTitle, text: result }) === null)
                   } else {
