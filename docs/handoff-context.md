@@ -1594,6 +1594,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R501 — /jobs 零结果空态一键恢复（2026-08-31）
+- 一手证据：/jobs 默认用简历 targetRole 播种搜索框；R500 生效后多数常见职位在当前 15 条上游列表下诚实归零（生产实测 Registered Nurse/Data Analyst/Accountant→0、Marketing Manager/Product Manager→1），空态只有一句文案，用户须手动清空搜索框与四个筛选器才能看到任何职位。
+- 修复仅 Jobs.tsx：all 标签空态在 query/category/loc/type/skills 任一激活时渲染 "Clear search & filters" 按钮——重置五个状态并 runSearch('','')，落回完整列表；无激活条件（上游真空）保持原文案；tracked/status 标签空态零改动。方案：docs/plan-r501-empty-results-recovery.md。
+- 非目标：不改 worker/R500 匹配语义、不自动放宽查询（静默显示不匹配职位会反噬 R500 的诚实性）、不加分页/替代源。
+- tsc/单查 eslint（仅既有 exhaustive-deps 警告）/build/verify-dist 绿。部署照旧：29 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA：?q=zzzunfindablequery&loc=Berlin&type=full time 出按钮，点击后 15 条全列表、搜索框清空、URL 仅剩 ?job=；375px 有按钮零横向溢出；tracked 空态无按钮文案不变；零 console 错误零未捕获 rejection。
+
 ## R500 — /jobs 搜索词本地强制生效：不匹配即诚实零结果（2026-08-31）
 - 一手证据：直连 Remotive API 实测 `search`/`category`/`limit` 参数全部被忽略（search=kubernetes/qqqqqq/胡乱短语、limit=3、无参均返回同一 15 条列表）；生产 `/api/jobs/search?q=zzzunfindablequery` 因此返回 15 条不相关职位——搜索框静默失效，无诚实空态。category 已有本地 matchesCategory() 兜底，搜索词无对应本地强制。
 - 修复仅 worker/index.ts：新增 matchesQuery(tokens, haystack)——查询按空白分词、全小写、AND 语义、子串匹配，作用于 title/company/category/location/tags/完整描述；空查询保持原行为；缓存键 jobs:v5→v6 防旧未过滤 payload。上游参数保留（若恢复支持自动受益）。客户端零改动（Jobs.tsx 已有 "No jobs found — try another search term." 空态）。方案：docs/plan-r500-enforce-search-query.md。

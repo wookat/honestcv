@@ -991,6 +991,30 @@ export default function Jobs() {
                 </Button>
               </div>
             ) : shown.length === 0 ? (
+              tab === 'all' &&
+              (query.trim() || category || locationFilter || typeFilter || skillsFilter) ? (
+                <div className="p-4 text-sm">
+                  <p className="text-muted-foreground">
+                    No jobs found — try another search term.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => {
+                      setQuery('')
+                      setCategory('')
+                      setLocationFilter('')
+                      setTypeFilter('')
+                      setSkillsFilter('')
+                      runSearch('', '')
+                    }}
+                  >
+                    Clear search & filters
+                  </Button>
+                </div>
+              ) : (
               <p className="text-muted-foreground p-4 text-sm">
                 {tab === 'all'
                   ? 'No jobs found — try another search term.'
@@ -1000,6 +1024,7 @@ export default function Jobs() {
                       : 'Nothing tracked yet — use the status buttons on a job to track it.'
                     : `Nothing ${JOB_STATUS_LABELS[tab].toLowerCase()} yet — use the status buttons on a job to track it.`}
               </p>
+              )
             ) : (
               <ul>
                 {shown.map((j, i) => {
