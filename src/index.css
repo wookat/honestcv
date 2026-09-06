@@ -138,7 +138,7 @@
   --ring: oklch(0.68 0.16 265);
 
   /* Advisory tint palettes: utilities compile to var(--color-*), so remapping
-     the steps here converts every light-only amber/emerald/red/blue panel
+     the steps here converts every light-only amber/emerald/green/red/blue panel
      (bg-*-50/100 surfaces, *-200/300 borders, *-600..900 text) app-wide.
      The resume sheet and template thumbs use neutral/template colors and are
      unaffected — the paper stays paper. */
@@ -158,6 +158,14 @@
   --color-emerald-700: oklch(0.82 0.12 162);
   --color-emerald-800: oklch(0.86 0.1 161);
   --color-emerald-900: oklch(0.9 0.08 160);
+  --color-green-50: oklch(0.27 0.04 150);
+  --color-green-100: oklch(0.32 0.06 150);
+  --color-green-200: oklch(0.39 0.08 150);
+  --color-green-300: oklch(0.47 0.09 150);
+  --color-green-600: oklch(0.78 0.13 150);
+  --color-green-700: oklch(0.82 0.12 150);
+  --color-green-800: oklch(0.86 0.1 150);
+  --color-green-900: oklch(0.9 0.08 150);
   --color-red-50: oklch(0.28 0.05 25);
   --color-red-100: oklch(0.33 0.07 25);
   --color-red-200: oklch(0.4 0.09 25);

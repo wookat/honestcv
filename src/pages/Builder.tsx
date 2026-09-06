@@ -8100,7 +8100,7 @@ export default function Builder() {
                 <div className="mt-3 space-y-2 text-xs">
                   {ats.matched.length > 0 && (
                     <div>
-                      <span className="font-medium text-green-700 dark:text-green-400">
+                      <span className="font-medium text-green-700">
                         Matched ({ats.matched.length})
                       </span>
                       {supportsKeywordHighlight() && (

@@ -222,7 +222,7 @@ function ShowcaseAtsScore() {
         <ScoreRing score={72} size={56} />
       </div>
       <div className="mt-3 text-xs">
-        <p className="font-medium text-green-700 dark:text-green-400">Matched (4)</p>
+        <p className="font-medium text-green-700">Matched (4)</p>
         <div className="mt-1 flex flex-wrap gap-1">
           {['react', 'typescript', 'testing', 'agile'].map((kw) => (
             <span
@@ -850,7 +850,7 @@ export default function Landing() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Career Bundle</h3>
-                  <Badge className="bg-emerald-700 text-white">Best value</Badge>
+                  <Badge className="bg-emerald-700 text-white dark:text-emerald-950">Best value</Badge>
                 </div>
                 <p className="mt-3 text-[2.75rem] leading-none font-bold tracking-tight">
                   $19.99 <span className="text-sm font-normal text-neutral-400">once, forever</span>
