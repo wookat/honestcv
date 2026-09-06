@@ -1262,16 +1262,19 @@ export default function Builder() {
     [activeVersionId, linkedJob, activeCopyJob, targetRole, targetCompany, jobDescription]
   )
   const targetedTrackedJob = targetedTrackedEntry?.job ?? null
+  const focusAfterRender = useFocusAfterRender()
   /** Make a saved copy the tracked job's linked one (the job's current copy stays saved). */
   const linkCopyToJob = (versionId: string, jobId: string) => {
     if (setPipelineVersion(jobId, versionId) === null) {
       setStorageAlert(COPY_STORAGE_FULL_MSG)
       return
     }
+    focusAfterRender(
+      `builder-copy-${versionId}-${versionId === activeVersionId ? 'rename' : 'open'}`
+    )
     setVersions(listResumeVersions())
     setPipelineTick((t) => t + 1)
   }
-  const focusAfterRender = useFocusAfterRender()
   /** Link the edited copy to the tracked job it targets (the job has no copy linked). */
   const linkCopyToTargetedJob = () => {
     if (!activeVersionId || !targetedTrackedJob) return

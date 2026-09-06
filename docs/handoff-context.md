@@ -2494,3 +2494,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产纯键盘实证（qa/r648-evidence.cjs）：Target job 区「Link this copy to it」「Use this copy instead」「Save as new copy for it」Enter 后 pipeline 写入正确但 activeElement 全部=BODY（段落条件卸载，与 R645 同构）。方案 docs/plan-r648-audit-node-and-builder-target-job-focus.md。
 - 修复：linkedJob 段「View it on the jobs board →」加 id `builder-target-linked-job`；`linkCopyToTargetedJob`/`saveDraftAsCopyFor` 写成功后 `focusAfterRender` 到它，失败路径不登记。审计补遗：验收对照组暴露 ATS 卡「×70% / ×30%」`text-muted-foreground/70` 对白底 2.97:1（axe color-contrast，之前 fixture JD 抽不出关键词未渲染），去掉 `/70`。部署 index-C9Is68an.js。
 - 生产 QA 1280+375（qa/r648-verify.cjs）：A/B/C 焦点均落该 Link、`:focus-visible` 真、href 指目标职位 id、在视口内；pipeline/activeVersionId 与修复前一致；对照组无行内按钮、Link 唯一；axe 0、无溢出、零 console 错误、仅 billing/quota 读取、存储回基线。未做：真实读屏实听；行内按钮 target-size 列候选轮。PR 链：R647（#868）→ R648。
+
+## R649 — 键盘走查：builder「Resume copies」弹窗内备注换链接后焦点落到弹窗容器（2026-09-06）
+- 生产实证（index-C9Is68an.js，qa/r649-evidence.cjs，纯键盘）：弹窗内副本行备注「reconnect it」/「use this one instead」Enter 后 pipeline 正确，但 activeElement=弹窗容器 div[role=dialog]（Radix 兜底，R645 曾接受），下一次 Tab 从弹窗头部重来。同脚本实证 dashboard/jobs Undo toast「Dismiss ×」后焦点掉 BODY → R650。方案 docs/plan-r649-builder-copies-note-relink-focus.md。
+- 修复：`linkCopyToJob` 写成功后 `focusAfterRender('builder-copy-<id>-open')`，正在编辑副本（Open disabled）落 `-rename`（与 R647 Undo 同规则）；失败路径不登记。不改数据/文案/布局。部署 index-HMHLZ_ql.js。
+- 生产 QA 1280+375（qa/r649-verify.cjs）：三场景焦点均落该行 Open/Rename（弹窗内、`:focus-visible` 真）、备注变「for Platform Engineer at Initech」Link、pipeline 精确；弹窗打开态 axe 0、无溢出、零 console 错误、仅 billing/quota 读取、存储回基线。未做：真实读屏实听。PR 链：R648（#869）→ R649。
