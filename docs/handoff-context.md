@@ -2535,3 +2535,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（qa/r655-sweep.cjs 逐屏 axe；qa/r656-verify.cjs before）：`/ats-checker` FAQ 四个 summary 294×20 axe target-size 真 fail；同类「What do these scores mean?」与 builder「How this score is calculated」(16px) 同型修。静态页 mnav/rnav summary 不在范围。
 - 修复：AtsChecker.tsx 2 处 `-my-2.5 py-2.5 sm:my-0 sm:py-0`，Builder.tsx 1 处 `-my-3 py-3 sm:my-0 sm:py-0`。生产 QA（375 FAQ 40px 命中、文字/details/展开答案位置不变、axe 0；1280 不变）。部署 index-CH8uqO1t.js；Workers Routes code 10000 依旧。
 - 如实：另两个 summary 在 375 未实测（需分数/默认不渲染），仅同型推断。
+
+### R657 — builder 关键词芯片 20–22px → 小屏 32px（PR 待填，链 #877 → 本 PR）
+- 生产实证（qa/r657-evidence.cjs before）：Missing keywords 胶囊 `+ kw` 65×20 / `×` 21×20 零间距并排、行距 4，axe 仅靠间距豁免通过；同款 Skills 建议芯片、分类面板三键胶囊、Restore 芯片。
+- 修复：Builder.tsx 13 处 `min-h-8 sm:min-h-0` / `px-2 sm:px-1.5` / `gap-1.5 sm:gap-1`（有意采用 32px 密集芯片标准，非 40px）。生产 QA：375 32px 命中、+/× 行为不变、axe 0、无溢出；1280 逐项不变。部署 index-H5mVtm7t.js；Workers Routes code 10000 依旧。
+- 至此 R651–R657 触控热区专题：关系图行内动作、弹窗 Close、Target job 动作、示例卡标题、summary、芯片全部 ≥32px（多为 40px）。下一步 R658 四维差距审计——SOP-10 节点应升级为逐屏滚动累计 axe（R655 证明页顶单次 axe 漏报）。

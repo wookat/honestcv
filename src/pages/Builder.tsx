@@ -3057,7 +3057,7 @@ export default function Builder() {
                 </span>
                 <RovingChipGroup
                   label="Missing job keywords"
-                  className="mt-1 flex flex-wrap gap-1"
+                  className="mt-1 flex flex-wrap gap-1.5 sm:gap-1"
                 >
                   {[
                     ...ats.missing.filter((kw) => highKw.has(kw)),
@@ -3069,7 +3069,7 @@ export default function Builder() {
                     >
                       <button
                         type="button"
-                        className="hover:bg-primary/10 px-2 py-0.5"
+                        className="hover:bg-primary/10 min-h-8 px-2 py-0.5 sm:min-h-0"
                         title={`Add "${kw}" to Skills`}
                         onClick={() => set('skills', mergeSkills(resume.skills, [kw]))}
                       >
@@ -3077,7 +3077,7 @@ export default function Builder() {
                       </button>
                       <button
                         type="button"
-                        className="hover:bg-primary/10 text-muted-foreground border-l px-1.5 py-0.5"
+                        className="hover:bg-primary/10 text-muted-foreground min-h-8 border-l px-2 py-0.5 sm:min-h-0 sm:px-1.5"
                         title={`Not relevant to me — exclude "${kw}" from the score`}
                         aria-label={`Mark ${kw} as not relevant`}
                         onClick={() =>
@@ -6873,12 +6873,12 @@ export default function Builder() {
                     Mentioned in your experience but not listed in Skills — recruiters scan
                     this section first:
                   </span>
-                  <span className="mt-1 flex flex-wrap gap-1">
+                  <span className="mt-1 flex flex-wrap gap-1.5 sm:gap-1">
                     {proven.map((kw) => (
                       <button
                         key={kw}
                         type="button"
-                        className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 rounded-full border px-2 py-0.5"
+                        className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 min-h-8 rounded-full border px-2 py-0.5 sm:min-h-0"
                         title="Add to Skills"
                         onClick={() => set('skills', mergeSkills(resume.skills, [kw]))}
                       >
@@ -6909,12 +6909,12 @@ export default function Builder() {
                         ? 'Related to your skills and role — tap only skills you actually have:'
                         : 'Common for your target role — tap only skills you actually have:'}
                     </span>
-                    <span className="mt-1 flex flex-wrap gap-1">
+                    <span className="mt-1 flex flex-wrap gap-1.5 sm:gap-1">
                       {chips.map((kw) => (
                         <button
                           key={kw}
                           type="button"
-                          className="bg-muted hover:bg-primary/10 rounded-full border px-2 py-0.5"
+                          className="bg-muted hover:bg-primary/10 min-h-8 rounded-full border px-2 py-0.5 sm:min-h-0"
                           onClick={() => set('skills', mergeSkills(resume.skills, [kw]))}
                         >
                           + {kw}
@@ -8196,7 +8196,7 @@ export default function Builder() {
                       </span>
                       <RovingChipGroup
                         label={`${label} missing keywords`}
-                        className="mt-1 flex flex-wrap gap-1"
+                        className="mt-1 flex flex-wrap gap-1.5 sm:gap-1"
                       >
                         {kws.map((kw) => (
                           <span
@@ -8205,7 +8205,7 @@ export default function Builder() {
                           >
                             <button
                               type="button"
-                              className="hover:bg-primary/10 px-2 py-0.5"
+                              className="hover:bg-primary/10 min-h-8 px-2 py-0.5 sm:min-h-0"
                               title="Add to Skills"
                               onClick={() => set('skills', mergeSkills(resume.skills, [kw]))}
                             >
@@ -8213,7 +8213,7 @@ export default function Builder() {
                             </button>
                             <button
                               type="button"
-                              className="hover:bg-primary/10 border-l px-1.5 py-0.5"
+                              className="hover:bg-primary/10 min-h-8 border-l px-2 py-0.5 sm:min-h-0 sm:px-1.5"
                               title={`Draft an experience bullet using "${kw}"`}
                               aria-label={`Draft a bullet using ${kw}`}
                               onClick={() => setKwBulletFor(kw)}
@@ -8222,7 +8222,7 @@ export default function Builder() {
                             </button>
                             <button
                               type="button"
-                              className="hover:bg-primary/10 text-muted-foreground border-l px-1.5 py-0.5"
+                              className="hover:bg-primary/10 text-muted-foreground min-h-8 border-l px-2 py-0.5 sm:min-h-0 sm:px-1.5"
                               title={`Not relevant to me — exclude "${kw}" from the score`}
                               aria-label={`Mark ${kw} as not relevant`}
                               onClick={() =>
@@ -8247,13 +8247,13 @@ export default function Builder() {
                       </span>
                       <RovingChipGroup
                         label="Excluded keywords"
-                        className="mt-1 flex flex-wrap gap-1"
+                        className="mt-1 flex flex-wrap gap-1.5 sm:gap-1"
                       >
                         {ats.ignored.map((kw) => (
                           <button
                             key={kw}
                             type="button"
-                            className="text-muted-foreground hover:bg-primary/10 inline-flex items-center rounded-full border border-dashed px-2 py-0.5 line-through"
+                            className="text-muted-foreground hover:bg-primary/10 inline-flex min-h-8 items-center rounded-full border border-dashed px-2 py-0.5 line-through sm:min-h-0"
                             title={`Restore "${kw}" to the keyword pool`}
                             aria-label={`Restore ${kw} to the keyword pool`}
                             onClick={() =>
