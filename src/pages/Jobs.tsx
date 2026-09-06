@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
-import { useFocusAfterRender } from '@/lib/useFocusAfterRender'
+import { focusOnClose, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { PlanCard, WorkspaceNav } from '@/components/WorkspaceNav'
 import { Button } from '@/components/ui/button'
 import {
@@ -575,11 +575,12 @@ export default function Jobs() {
   const linkedRowOpenId = (jobId: string, kind: CareerDocKind | 'copy') => `job-${jobId}-${kind}-open`
 
   const [undoUntrack, setUndoUntrack] = useState<RemovedPipelineEntry[] | null>(null)
+  const [undoUntrackFocused, setUndoUntrackFocused] = useState(false)
   useEffect(() => {
-    if (!undoUntrack) return
+    if (!undoUntrack || undoUntrackFocused) return
     const t = setTimeout(() => setUndoUntrack(null), 10000)
     return () => clearTimeout(t)
-  }, [undoUntrack])
+  }, [undoUntrack, undoUntrackFocused])
   /** Untracks jobs and offers to put their entries back (status, timeline, notes, links) for 10s. */
   const untrack = (ids: readonly string[]): boolean => {
     const set = new Set(ids)
@@ -587,6 +588,8 @@ export default function Jobs() {
       set.has(entry.job.id) ? [{ entry, index }] : []
     )
     if (!applyPipeline(removeManyFromPipeline(ids))) return false
+    if (removed.length > 0) focusAfterRender('undo-untrack')
+    setUndoUntrackFocused(false)
     setUndoUntrack(removed.length > 0 ? removed : null)
     return true
   }
@@ -2047,6 +2050,7 @@ export default function Jobs() {
                   {JOB_STATUSES.map((s) => (
                     <button
                       key={s}
+                      id={`track-chip-${s}`}
                       type="button"
                       aria-pressed={statusOf.get(selected.id) === s}
                       onClick={() =>
@@ -2590,7 +2594,7 @@ export default function Jobs() {
       </Dialog>
 
       <Dialog open={confirmUntrack !== null} onOpenChange={(o) => !o && setConfirmUntrack(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-untrack')}>
           <DialogHeader>
             <DialogTitle>{`Stop tracking "${confirmUntrack?.title ?? ''}"?`}</DialogTitle>
             <DialogDescription>
@@ -2735,7 +2739,7 @@ export default function Jobs() {
       </Dialog>
 
       <Dialog open={confirmBulkUntrack} onOpenChange={(o) => !o && setConfirmBulkUntrack(false)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-untrack')}>
           <DialogHeader>
             <DialogTitle>{`Stop tracking ${visibleBulkIds.size} job${visibleBulkIds.size === 1 ? '' : 's'}?`}</DialogTitle>
             <DialogDescription>
@@ -2798,6 +2802,10 @@ export default function Jobs() {
           <div
             role="status"
             className="bg-background pointer-events-auto flex w-fit min-w-0 max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+            onFocus={() => setUndoUntrackFocused(true)}
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget)) setUndoUntrackFocused(false)
+            }}
           >
             <span className="min-w-0 flex-1 truncate">
               {undoUntrack.length === 1
@@ -2805,11 +2813,14 @@ export default function Jobs() {
                 : `Stopped tracking ${undoUntrack.length} jobs`}
             </span>
             <Button
+              id="undo-untrack"
               type="button"
               size="sm"
               variant="outline"
               onClick={() => {
                 if (!applyPipeline(restorePipelineEntries(undoUntrack))) return
+                const restored = undoUntrack.find((r) => r.entry.job.id === selected?.id)
+                if (restored) focusAfterRender(`track-chip-${restored.entry.status}`)
                 setUndoUntrack(null)
               }}
             >

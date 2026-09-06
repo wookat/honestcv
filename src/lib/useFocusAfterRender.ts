@@ -18,3 +18,16 @@ export function useFocusAfterRender(): (id: string) => void {
     pending.current = id
   }
 }
+
+/**
+ * `onCloseAutoFocus` for a confirm dialog whose action removes its opener:
+ * once the dialog closes, focus the element with `id` (e.g. the Undo toast
+ * the action produced) instead of letting focus fall to `<body>`. Leaves the
+ * default restore alone when the element is absent (Cancel path).
+ */
+export const focusOnClose = (id: string) => (event: Event) => {
+  const el = document.getElementById(id)
+  if (!(el instanceof HTMLElement)) return
+  event.preventDefault()
+  el.focus()
+}

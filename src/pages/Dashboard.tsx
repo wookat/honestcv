@@ -30,7 +30,7 @@ import {
 
 import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
-import { useFocusAfterRender } from '@/lib/useFocusAfterRender'
+import { focusOnClose, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import {
   FreeDownloadDialog,
   UpgradeDialog,
@@ -650,11 +650,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     | null
   >(null)
 
+  const [undoDeleteFocused, setUndoDeleteFocused] = useState(false)
   useEffect(() => {
-    if (!undoDelete) return
+    if (!undoDelete || undoDeleteFocused) return
     const t = setTimeout(() => setUndoDelete(null), 10000)
     return () => clearTimeout(t)
-  }, [undoDelete])
+  }, [undoDelete, undoDeleteFocused])
   const [collapsedFolders, setCollapsedFolders] = useState<string[]>(() => {
     try {
       const parsed: unknown = JSON.parse(
@@ -2912,7 +2913,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         open={confirmDeleteDoc !== null}
         onOpenChange={(o) => !o && setConfirmDeleteDoc(null)}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-delete')}>
           <DialogHeader>
             <DialogTitle>Delete "{confirmDeleteDoc?.title}"?</DialogTitle>
             <DialogDescription>
@@ -2934,6 +2935,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   const next = deleteCareerDoc(confirmDeleteDoc.id)
                   if (applyDocs(next) && next) {
                     if (docKind !== 'all' && !next.some((d) => d.kind === docKind)) setDocKind('all')
+                    setUndoDeleteFocused(false)
                     setUndoDelete({ kind: 'doc', doc: confirmDeleteDoc, index: Math.max(index, 0) })
                   }
                 }
@@ -2947,7 +2949,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       </Dialog>
 
       <Dialog open={confirmDelete !== null} onOpenChange={(o) => !o && setConfirmDelete(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-delete')}>
           <DialogHeader>
             <DialogTitle>Delete "{confirmDelete?.name}"?</DialogTitle>
             <DialogDescription>
@@ -2975,6 +2977,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     return
                   }
                   revokeShareLinksFor([confirmDelete.id])
+                  setUndoDeleteFocused(false)
                   setUndoDelete({
                     kind: 'copy',
                     version: confirmDelete,
@@ -2991,7 +2994,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       </Dialog>
 
       <Dialog open={confirmBulkDelete} onOpenChange={(o) => !o && setConfirmBulkDelete(false)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-delete')}>
           <DialogHeader>
             <DialogTitle>
               Delete {bulkSelected.length} {bulkSelected.length === 1 ? 'copy' : 'copies'}?
@@ -3031,6 +3034,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     return
                   }
                   revokeShareLinksFor(entries.map((e) => e.version.id))
+                  setUndoDeleteFocused(false)
                   setUndoDelete({ kind: 'copies', entries })
                 }
                 setBulkIds(new Set())
@@ -3276,6 +3280,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         <div
           role="status"
           className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          onFocus={() => setUndoDeleteFocused(true)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) setUndoDeleteFocused(false)
+          }}
         >
           <span className="min-w-0 truncate">
             {undoDelete.kind === 'copies'
@@ -3283,6 +3291,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               : `Deleted "${undoDelete.kind === 'copy' ? undoDelete.version.name : undoDelete.doc.title}"`}
           </span>
           <Button
+            id="undo-delete"
             type="button"
             size="sm"
             variant="outline"
@@ -3290,6 +3299,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               if (undoDelete.kind === 'copy') {
                 if (!applyVersions(restoreResumeVersion(undoDelete.version, undoDelete.index)))
                   return
+                focusAfterRender(`copy-${undoDelete.version.id}-open`)
               } else if (undoDelete.kind === 'copies') {
                 let next: ResumeVersion[] | null = versions
                 for (const e of undoDelete.entries) {
@@ -3297,8 +3307,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   if (next === null) break
                 }
                 if (!applyVersions(next)) return
-              } else if (!applyDocs(restoreCareerDoc(undoDelete.doc, undoDelete.index))) {
-                return
+                const first = undoDelete.entries[0]
+                if (first) focusAfterRender(`copy-${first.version.id}-open`)
+              } else {
+                if (!applyDocs(restoreCareerDoc(undoDelete.doc, undoDelete.index))) return
+                focusAfterRender(`doc-${undoDelete.doc.id}-open`)
               }
               setUndoDelete(null)
             }}
