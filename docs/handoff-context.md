@@ -1829,3 +1829,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：selected 派生加渲染期回退 `selectedId === null ? shown[0] ?? null : null`——不写状态、不入 URL（explicitSelection 语义不变），fetch/URL/R528/R529 逻辑零改动。
 - tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：Tracked→All 往返后详情栏显示 list[0]（原空置）；空 Tracked 列表仍诚实显示「Select a job」占位；?job= 深链信息条+详情正确（R528/R529 回归）、新搜索后信息条消失、死链警示回归；375px 详情按设计隐藏、零溢出零 console 错误、存储仅基线键。
+
+## R531 — 移动端浏览器 Back 先关闭职位详情浮层再离开 /jobs（2026-08-31）
+- 一手证据（生产 CDP，375px 真实坐标点击）：/dashboard→SPA 进 /jobs→点职位行开详情浮层→浏览器 Back：直接回 /dashboard，浮层未先关闭——mobileDetail 只是 React 状态，不产生历史条目，Back 语义与移动端浮层预期（先关浮层再离开）不符。方案：docs/plan-r531-mobile-detail-back-closes-overlay.md。
+- 修复仅 src/pages/Jobs.tsx：新增 effect——mobileDetail 为真且视口 <768px 时 push `hcv-mobile-detail` 哨兵历史条目，popstate 时 setMobileDetail(false)（留在 /jobs）；浮层经应用内「Back to list」等路径关闭时清理哨兵（history.back() 消掉哨兵条目）。桌面端不建哨兵；URL 查询语义、深链、R528/R529/R530 逻辑零改动。架构先例：src/lib/useHistoryGuard.ts 哨兵模式的无确认简化版。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375px 点行开详情→Back 回列表且 URL 仍 /jobs→再 Back 回 /dashboard；?job= 深链开详情→Back 回列表；「Back to list」关闭后 Back 直接离开 /jobs（哨兵已清）；1280px 点行→Back 直接回 /dashboard（桌面无哨兵）；R528 过滤外深链信息条、R529 换选后信息条消失、R530 Tracked→All 往返详情在位全部回归；全场景零溢出零 console 错误、QA 后存储回基线键。

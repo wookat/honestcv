@@ -248,6 +248,22 @@ export default function Jobs() {
     window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
   }, [query, tab, followUpOnly, category, locationFilter, typeFilter, skillsFilter, sort, selectedId])
 
+  // On the mobile layout the detail pane covers the list, so browser Back
+  // should close it and return to the list instead of leaving /jobs: push a
+  // sentinel history entry while the pane is open and pop it on close.
+  useEffect(() => {
+    if (!mobileDetail) return
+    if (!window.matchMedia('(max-width: 767px)').matches) return
+    window.history.pushState({ 'hcv-mobile-detail': true }, '')
+    const onPop = () => setMobileDetail(false)
+    window.addEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      const state = window.history.state as Record<string, unknown> | null
+      if (state && state['hcv-mobile-detail']) window.history.back()
+    }
+  }, [mobileDetail])
+
   const statusOf = useMemo(() => {
     const map = new Map<string, JobStatus>()
     for (const e of pipeline) map.set(e.job.id, e.status)
