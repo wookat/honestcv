@@ -1964,3 +1964,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 Dashboard.tsx「Fill them in」onClick：rAF 重试（≤20 帧）等 docTextRef 挂载后调用既有 jumpToNextPlaceholder（列表路径 viewer 弹窗需先挂载）；locator/计数/警示/导出/R504/R505/R507/R550/R551 零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000（Dashboard-DVqZynAx.js 已上线 200）。
 - 生产 QA：1280/375 列表路径「Fill them in」→ 选中 [Hiring manager's name]（start 5–28）；1280 viewer 路径（先 Open 再 PDF）同样选中；零溢出零 console 错误、QA 存储清理回六键基线。
+
+## R553 — 信件占位符计数覆盖长模板占位符（2026-08-31，SOP-10 节点）
+- 四维复扫：7 路由×1280/375 零溢出零 console 错误。一手证据（生产 CDP）：/builder?doc=cover「Start from a template」生成文本含 5 个 [占位符]，弹窗却报「3 placeholders left」；resignation 模板同病（报 1 实 2）。「Next placeholder」永远跳过两个长槽（[One sentence on why this company…] 内 96 字、[your strongest…] 内 80 字），短槽填完计数归 0、R504/R507 导出警示失效，用户可导出仍带明显 [方括号] 的信。根因：信件占位符正则 /\[[^\][\n]{1,60}\]/ 内长上限 60，而自家模板槽最长 96。方案：docs/plan-r553-long-placeholder-count.md。
+- 修复仅六处信件正则上限 60→120（Dashboard.tsx countLetterPlaceholders/firstLetterPlaceholder/jumpToNextPlaceholder + Builder.tsx BundleToolDialog 同名三处）；简历侧扫描（Builder 下载检查、guidance.ts 一致性扫描）保持 60 不动；模板文本/导出/计数 UI 零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 cover 模板报「5 placeholders left」且 Next placeholder 依次选中全部 5 个（含两个长槽）；resignation（未填 last day）报 3 与实际一致；零溢出；QA 存储清理回六键基线。

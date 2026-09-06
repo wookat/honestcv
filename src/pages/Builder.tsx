@@ -10129,9 +10129,10 @@ function BulletGuidance({
   )
 }
 
-const countLetterPlaceholders = (text: string) => text.match(/\[[^\][\n]{1,60}\]/g)?.length ?? 0
+const countLetterPlaceholders = (text: string) => text.match(/\[[^\][\n]{1,120}\]/g)?.length ?? 0
 
-const firstLetterPlaceholder = (text: string) => text.match(/\[[^\][\n]{1,60}\]/)?.[0] ?? '[Company]'
+const firstLetterPlaceholder = (text: string) =>
+  text.match(/\[[^\][\n]{1,120}\]/)?.[0] ?? '[Company]'
 
 function BundleToolDialog({
   kind,
@@ -10177,7 +10178,7 @@ function BundleToolDialog({
   const jumpToNextPlaceholder = () => {
     const ta = resultRef.current
     if (!ta) return
-    const re = /\[[^\][\n]{1,60}\]/g
+    const re = /\[[^\][\n]{1,120}\]/g
     re.lastIndex = ta.selectionEnd
     const m = re.exec(ta.value) ?? ((re.lastIndex = 0), re.exec(ta.value))
     if (!m) return
