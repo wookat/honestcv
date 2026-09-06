@@ -810,12 +810,20 @@ export default function Jobs() {
             ? setConfirmTarget({ job, intent: 'interview' })
             : openInterviewPrep(job),
       }
-    if (!linkedVersion(job.id))
+    if (!linkedVersion(job.id)) {
+      const orphan = orphanTargetedCopy(job)
+      if (orphan)
+        return {
+          text: `Reconnect the copy you already targeted at this job — “${orphan.name}”.`,
+          label: 'Reconnect targeted copy',
+          onClick: () => setConfirmTarget({ job, intent: 'target' }),
+        }
       return {
         text: 'Create a resume targeted at this job.',
         label: 'Target my resume',
         onClick: () => setConfirmTarget({ job, intent: 'target' }),
       }
+    }
     const match = tailoredMatchOf.get(job.id)
     if (match !== undefined && match < 80)
       return {
@@ -1723,7 +1731,11 @@ export default function Jobs() {
                     onClick={() => setConfirmTarget({ job: selected, intent: 'target' })}
                   >
                     <BriefcaseBusiness className="size-4" />{' '}
-                    {linkedVersion(selected.id) ? 'Open targeted resume' : 'Target my resume'}
+                    {linkedVersion(selected.id)
+                      ? 'Open targeted resume'
+                      : orphanTargetedCopy(selected)
+                        ? 'Reconnect targeted copy'
+                        : 'Target my resume'}
                   </Button>
                   <Button
                     type="button"
