@@ -10528,8 +10528,22 @@ function BundleToolDialog({
   }
   const resultAtRisk =
     kind !== null && result !== '' && (savedId === null || result !== savedText)
+  const inputsDirty =
+    result !== '' || savedId !== null
+      ? false
+      : kind === 'cover'
+      ? company.trim() !== initialCompany.trim() ||
+        addressee.trim() !== '' ||
+        highlights.trim() !== ''
+      : kind === 'resignation'
+        ? currentRole.trim() !== '' || lastDay.trim() !== '' || reason.trim() !== ''
+        : kind === 'interview'
+          ? question.trim() !== ''
+          : false
   const unsavedWork =
-    kind === 'interview' ? session !== null || answer.trim() !== '' || resultAtRisk : resultAtRisk
+    kind === 'interview'
+      ? session !== null || answer.trim() !== '' || inputsDirty || resultAtRisk
+      : inputsDirty || resultAtRisk
   useEffect(() => {
     if (!unsavedWork) return
     const warn = (e: BeforeUnloadEvent) => {
@@ -10558,10 +10572,14 @@ function BundleToolDialog({
               {kind === 'interview'
                 ? resultAtRisk
                   ? 'Your current session, typed answer and unsaved prep brief will be lost.'
-                  : 'Your current session and typed answer will be lost.'
+                  : session !== null || answer.trim() !== ''
+                    ? 'Your current session and typed answer will be lost.'
+                    : 'Your typed question will be lost.'
                 : savedId
                   ? 'Your edits since the last save will be lost.'
-                  : 'The generated letter will be lost.'}
+                  : resultAtRisk
+                    ? 'The generated letter will be lost.'
+                    : 'Your typed details will be lost.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

@@ -1940,3 +1940,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/App.tsx：新增 ReloadScrollRestore——pagehide 时按 `honestcv.scroll:<pathname>` 写 sessionStorage；仅 navigation type=reload 且无 hash 时 rAF 重试（≤3s）等页面高度足够后 scrollTo 恢复，用户先滚动（wheel/touchstart/keydown）即放弃；用后删键。ScrollReset/R531/R532/R533 滚动语义零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：375+1280 /builder 滚 1200 → reload → 恢复 1200；/jobs 恢复（1280 恢复到夹紧后的 464 属预期）；#samples hash 深链照常自滚（857）；SPA push 导航照常回顶；零溢出、无页面错误；sessionStorage 键随会话生命周期自清。
+
+## R549 — 工具弹窗未生成前的输入获得关闭护栏（2026-08-31）
+- 一手证据（生产 CDP，375×812）：/builder?doc=cover 打开 Cover Letter 弹窗，三个输入框全部键入后按 Escape → 弹窗静默关闭、输入全丢、无任何确认；刷新同样无 beforeunload 提示。根因：BundleToolDialog 的 unsavedWork 只统计已生成 result（interview 另含 session/answer），生成前的 setup 输入完全无护栏。方案：docs/plan-r549-tool-dialog-input-guard.md。
+- 修复仅 src/pages/Builder.tsx：新增 inputsDirty（cover: company≠initialCompany/addressee/highlights；resignation: currentRole/lastDay/reason；interview: 手输 question；已生成或已保存后不计）并入 unsavedWork——既有关闭确认、useHistoryGuard、beforeunload 全部自动覆盖；确认文案在无生成结果时如实改为「Your typed details will be lost.」/「Your typed question will be lost.」。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 空白弹窗 Escape 照常直接关闭；键入后 Escape → 确认弹窗文案「Your typed details will be lost.」，Keep working 保留输入、Discard and close 正常关闭；零溢出零 console 错误。
