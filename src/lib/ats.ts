@@ -56,6 +56,8 @@ export type SectionAnchor =
   | 'skills'
   | 'education'
   | 'involvement'
+  | 'projects'
+  | 'custom'
 
 export interface KeywordDetail {
   keyword: string
@@ -362,26 +364,36 @@ export function findPassive(text: string): string | null {
   return m ? m[0].replace(/\s+/g, ' ') : null
 }
 
+/** A bullet line with the editor section (and entry, when structured) it came from */
+interface BulletSource {
+  text: string
+  anchor: SectionAnchor
+  id?: string
+}
+
 /** Active voice in bullet points: passive voice hides who did the work */
-function activeVoiceCheck(lines: string[]): AtsResult['checks'][number] {
+function activeVoiceCheck(lines: BulletSource[]): AtsResult['checks'][number] {
   let phrase = ''
   let line = ''
+  let offender: BulletSource | undefined
   for (const l of lines) {
-    const p = findPassive(l)
+    const p = findPassive(l.text)
     if (p) {
       phrase = p
-      line = l.trim()
+      line = l.text.trim()
+      offender = l
       break
     }
   }
   return {
+    entryId: offender?.id,
     label: 'Active voice in bullet points',
     pass: !phrase,
-    na: lines.every((l) => !l.trim()) || undefined,
+    na: lines.every((l) => !l.text.trim()) || undefined,
     hint: phrase
       ? `"${phrase}" is passive voice ("${line.length > 60 ? `${line.slice(0, 60)}…` : line}") — lead with an active verb so employers see your specific contribution.`
       : 'Bullets use active voice — employers see your specific contributions.',
-    anchor: 'experience',
+    anchor: offender?.anchor ?? 'experience',
     category: 'content',
   }
 }
@@ -400,27 +412,30 @@ export const WEAK_OPENERS = [
 ]
 
 /** Strong bullet openers: weak openers hide the action and the impact */
-function weakOpenerCheck(lines: string[]): AtsResult['checks'][number] {
+function weakOpenerCheck(lines: BulletSource[]): AtsResult['checks'][number] {
   let opener = ''
   let line = ''
+  let offender: BulletSource | undefined
   for (const l of lines) {
-    const t = l.trim()
+    const t = l.text.trim()
     const lower = t.toLowerCase()
     const hit = WEAK_OPENERS.find((w) => lower.startsWith(w))
     if (hit) {
       opener = hit
       line = t
+      offender = l
       break
     }
   }
   return {
+    entryId: offender?.id,
     label: 'Strong bullet openers',
     pass: !opener,
-    na: lines.every((l) => !l.trim()) || undefined,
+    na: lines.every((l) => !l.text.trim()) || undefined,
     hint: opener
       ? `"${line.length > 60 ? `${line.slice(0, 60)}…` : line}" opens with "${opener}" — lead with a strong action verb (Led, Built, Cut…) so employers see your impact first.`
       : 'Bullets open with strong action verbs — employers see your impact first.',
-    anchor: 'experience',
+    anchor: offender?.anchor ?? 'experience',
     category: 'content',
   }
 }
@@ -511,15 +526,15 @@ function fillerWordCheck(
 }
 
 /** Quantified bullet points: at least a third of bullets should carry a real number */
-function quantifiedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
+function quantifiedBulletsCheck(lines: BulletSource[]): AtsResult['checks'][number] {
   const total = lines.length
-  const quantified = lines.filter((l) => /\d/.test(l)).length
+  const quantified = lines.filter((l) => /\d/.test(l.text)).length
   const needed = Math.max(1, Math.ceil(total / 3))
   const pass = total === 0 || quantified >= needed
   return {
     label: 'Quantified bullet points',
     pass,
-    na: lines.every((l) => !l.trim()) || undefined,
+    na: lines.every((l) => !l.text.trim()) || undefined,
     hint: pass
       ? 'Enough bullets carry real numbers — your achievements are concrete and comparable.'
       : `Only ${quantified} of ${total} bullets ${quantified === 1 ? 'carries' : 'carry'} a number — quantify at least a third (scope, scale, %, time or money) so achievements are concrete.`,
@@ -529,36 +544,40 @@ function quantifiedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
 }
 
 /** Punctuated bullet points: capitalized start and terminal punctuation */
-function punctuatedBulletsCheck(lines: string[]): AtsResult['checks'][number] {
+function punctuatedBulletsCheck(lines: BulletSource[]): AtsResult['checks'][number] {
   const offender = lines
-    .map((l) => stripInlineMarks(l).trim())
-    .find((l) => l.length > 0 && (!/^[A-Z0-9]/.test(l) || !/[.!?]$/.test(l)))
+    .map((l) => ({ ...l, text: stripInlineMarks(l.text).trim() }))
+    .find((l) => l.text.length > 0 && (!/^[A-Z0-9]/.test(l.text) || !/[.!?]$/.test(l.text)))
   return {
+    entryId: offender?.id,
     label: 'Punctuated bullet points',
     pass: !offender,
-    na: lines.every((l) => !l.trim()) || undefined,
+    na: lines.every((l) => !l.text.trim()) || undefined,
     hint: offender
-      ? `"${offender.length > 60 ? `${offender.slice(0, 60)}…` : offender}" — start each bullet with a capital letter and end it with a period so your resume reads professionally.`
+      ? `"${offender.text.length > 60 ? `${offender.text.slice(0, 60)}…` : offender.text}" — start each bullet with a capital letter and end it with a period so your resume reads professionally.`
       : 'Bullets are properly punctuated — capitalized starts and terminal periods read professionally.',
-    anchor: 'experience',
+    anchor: offender?.anchor ?? 'experience',
     category: 'content',
   }
 }
 
 /** Bullet length: enough detail to communicate, short enough to scan */
-function bulletLengthCheck(lines: string[]): AtsResult['checks'][number] {
-  const trimmed = lines.map((l) => stripInlineMarks(l).trim()).filter((l) => l.length > 0)
+function bulletLengthCheck(lines: BulletSource[]): AtsResult['checks'][number] {
+  const trimmed = lines
+    .map((l) => ({ ...l, text: stripInlineMarks(l.text).trim() }))
+    .filter((l) => l.text.length > 0)
   const offender = trimmed.find((l) => {
-    const words = l.split(/\s+/).length
+    const words = l.text.split(/\s+/).length
     return words < 4 || words > 30
   })
-  const words = offender ? offender.split(/\s+/).length : 0
+  const words = offender ? offender.text.split(/\s+/).length : 0
   const quoted = offender
-    ? offender.length > 60
-      ? `${offender.slice(0, 60)}…`
-      : offender
+    ? offender.text.length > 60
+      ? `${offender.text.slice(0, 60)}…`
+      : offender.text
     : ''
   return {
+    entryId: offender?.id,
     label: 'Bullet points the right length',
     pass: !offender,
     na: trimmed.length === 0 || undefined,
@@ -567,7 +586,7 @@ function bulletLengthCheck(lines: string[]): AtsResult['checks'][number] {
         ? `"${quoted}" is only ${words} word${words === 1 ? '' : 's'} — describe what you did and the result (aim for 8–25 words).`
         : `"${quoted}" runs ${words} words — tighten it to under 25 words so it scans in a single glance.`
       : 'Bullets are the right length — detailed enough to communicate, short enough to scan.',
-    anchor: 'experience',
+    anchor: offender?.anchor ?? 'experience',
     category: 'content',
   }
 }
@@ -606,6 +625,11 @@ function textBulletLines(raw: string): string[] {
     .split(/\n/)
     .filter((l) => BULLET_LINE_RE.test(l))
     .map((l) => l.replace(/^\s*[-\u2013\u2014\u2022*\u25aa\u25e6\u00b7]\s*/, ''))
+}
+
+/** Text-path bullets have no structured entries — section-level experience anchor */
+function textBulletSources(raw: string): BulletSource[] {
+  return textBulletLines(raw).map((text) => ({ text, anchor: 'experience' as const }))
 }
 
 /** LinkedIn URL: recruiters use it to verify and expand on the resume */
@@ -913,11 +937,11 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     dateFormatCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
     namedMonthDatesCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
     pronounCheck(textPronounSegments(resumeTextRaw)),
-    activeVoiceCheck(textBulletLines(resumeTextRaw)),
-    weakOpenerCheck(textBulletLines(resumeTextRaw)),
-    quantifiedBulletsCheck(textBulletLines(resumeTextRaw)),
-    punctuatedBulletsCheck(textBulletLines(resumeTextRaw)),
-    bulletLengthCheck(textBulletLines(resumeTextRaw)),
+    activeVoiceCheck(textBulletSources(resumeTextRaw)),
+    weakOpenerCheck(textBulletSources(resumeTextRaw)),
+    quantifiedBulletsCheck(textBulletSources(resumeTextRaw)),
+    punctuatedBulletsCheck(textBulletSources(resumeTextRaw)),
+    bulletLengthCheck(textBulletSources(resumeTextRaw)),
     buzzwordCheck(textPronounSegments(resumeTextRaw)),
     fillerWordCheck(textPronounSegments(resumeTextRaw)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
@@ -1014,6 +1038,22 @@ export function scoreResume(
   const quantified = resume.experience.some((e) =>
     e.bullets.some((b) => /\d/.test(b))
   )
+  const bulletSources: BulletSource[] = [
+    ...resume.experience
+      .filter((e) => !e.hidden)
+      .flatMap((e) =>
+        e.bullets.map((text) => ({ text, anchor: 'experience' as const, id: e.id }))
+      ),
+    ...resume.projects
+      .filter((p) => !p.hidden)
+      .map((p) => ({ text: p.description, anchor: 'projects' as const, id: p.id })),
+    ...(resume.involvement ?? [])
+      .filter((i) => !i.hidden)
+      .map((i) => ({ text: i.description, anchor: 'involvement' as const, id: i.id })),
+    ...resume.customSections.flatMap((s) =>
+      s.bullets.map((text) => ({ text, anchor: 'custom' as const, id: s.id }))
+    ),
+  ]
   const checks: AtsResult['checks'] = [
     {
       label: 'Contact info complete',
@@ -1119,36 +1159,11 @@ export function scoreResume(
         anchor: 'experience',
       },
     ]),
-    activeVoiceCheck([
-      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
-      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
-      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
-      ...resume.customSections.flatMap((s) => s.bullets),
-    ]),
-    weakOpenerCheck([
-      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
-      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
-      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
-      ...resume.customSections.flatMap((s) => s.bullets),
-    ]),
-    quantifiedBulletsCheck([
-      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
-      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
-      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
-      ...resume.customSections.flatMap((s) => s.bullets),
-    ]),
-    punctuatedBulletsCheck([
-      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
-      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
-      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
-      ...resume.customSections.flatMap((s) => s.bullets),
-    ]),
-    bulletLengthCheck([
-      ...resume.experience.filter((e) => !e.hidden).flatMap((e) => e.bullets),
-      ...resume.projects.filter((p) => !p.hidden).map((p) => p.description),
-      ...(resume.involvement ?? []).filter((i) => !i.hidden).map((i) => i.description),
-      ...resume.customSections.flatMap((s) => s.bullets),
-    ]),
+    activeVoiceCheck(bulletSources),
+    weakOpenerCheck(bulletSources),
+    quantifiedBulletsCheck(bulletSources),
+    punctuatedBulletsCheck(bulletSources),
+    bulletLengthCheck(bulletSources),
     buzzwordCheck([
       { text: resume.summary, anchor: 'summary' },
       {

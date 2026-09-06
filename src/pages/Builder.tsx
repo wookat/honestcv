@@ -592,6 +592,8 @@ function useDragReorder(onReorder: (from: number, to: number) => void) {
 
 /** Event dispatched by ATS-check "Fix" links to scroll the matching editor section into view */
 const JUMP_EVENT = 'honestcv:jump-section'
+/** Expands a collapsed section without scrolling or flashing it (entry-level jumps) */
+const JUMP_OPEN_EVENT = 'honestcv:open-section'
 
 /** Optional editor sections that stay out of the way until they have content or are added */
 const OPTIONAL_SECTION_META: { key: string; label: string; icon: React.ReactNode }[] = [
@@ -682,8 +684,16 @@ function Section({
       setFlash(true)
       window.setTimeout(() => setFlash(false), 1600)
     }
+    const onOpen = (ev: Event) => {
+      if ((ev as CustomEvent<string>).detail !== anchor) return
+      setOpen(true)
+    }
     window.addEventListener(JUMP_EVENT, onJump)
-    return () => window.removeEventListener(JUMP_EVENT, onJump)
+    window.addEventListener(JUMP_OPEN_EVENT, onOpen)
+    return () => {
+      window.removeEventListener(JUMP_EVENT, onJump)
+      window.removeEventListener(JUMP_OPEN_EVENT, onOpen)
+    }
   }, [anchor])
   if (hidden) return null
   return (
@@ -1337,10 +1347,11 @@ export default function Builder() {
   }, [])
   /** Entry card currently ring-flashed after a score-finding jump */
   const [flashEntryId, setFlashEntryId] = useState<string | null>(null)
-  /** Scroll a specific experience card into view, expanding it if collapsed */
-  const jumpToEntry = (id: string) => {
+  /** Scroll a specific entry card into view, expanding its section and card if collapsed */
+  const jumpToEntry = (id: string, anchor?: string) => {
     if (mobilePane !== 'edit') paneScrollRef.current[mobilePane] = window.scrollY
     setMobilePane('edit')
+    if (anchor) window.dispatchEvent(new CustomEvent(JUMP_OPEN_EVENT, { detail: anchor }))
     setCollapsedEntries((s) => {
       if (!s.has(id)) return s
       const next = new Set(s)
@@ -3943,7 +3954,10 @@ export default function Builder() {
             {resume.projects.map((p, pIdx) => (
               <div
                 key={p.id}
-                className={`space-y-2 rounded-lg border p-3 ${p.hidden ? 'opacity-60' : ''}`}
+                data-entry-id={p.id}
+                className={`space-y-2 rounded-lg border p-3 ${p.hidden ? 'opacity-60' : ''} ${
+                  flashEntryId === p.id ? 'ring-primary/60 ring-2' : ''
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs font-medium">
@@ -6842,7 +6856,13 @@ export default function Builder() {
               per line, shown as bullets.
             </p>
             {resume.customSections.map((s) => (
-              <div key={s.id} className="space-y-2 rounded-lg border p-3">
+              <div
+                key={s.id}
+                data-entry-id={s.id}
+                className={`space-y-2 rounded-lg border p-3 ${
+                  flashEntryId === s.id ? 'ring-primary/60 ring-2' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between gap-2">
                   <Input
                     aria-label="Section title"
@@ -7989,7 +8009,7 @@ export default function Builder() {
                                   className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
                                   onClick={() =>
                                     c.entryId
-                                      ? jumpToEntry(c.entryId)
+                                      ? jumpToEntry(c.entryId, c.anchor)
                                       : c.anchor && jumpToSection(c.anchor)
                                   }
                                 >

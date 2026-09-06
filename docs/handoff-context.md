@@ -1854,6 +1854,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Builder-YfHVehQD.js）：375px 点 bullet-count Fix → 聚焦 Role 2 Cardinal Apps 卡且 Edit pane 激活；区级检查（Punctuated bullet points）Fix → 照常跳 Experience 区；?jump=skills 深链回归；1280px 同样直达 Cardinal Apps 卡；全场景零溢出零 console 错误、存储仅基线键。
 
+## R538 — 五个 bullet 内容检查的 Fix 直达违规来源条目（2026-08-31）
+- SOP-10 审计：7 路由×1280/375 复扫零溢出零 console 错误；Rezi changelog（Content Analysis/Entry Experience 等）无新可落地项。一手证据（生产 CDP）：Projects 条目含被动语态 bullet 时，「Active voice in bullet points」如实引用 Projects 文本，点 Fix → 却落在 Experience 区顶（Projects 在视口下方 2.5k px，activeEntryId=null）。根因：五个 bullet 级检查（active voice/strong openers/quantified/punctuated/length）收到的是 experience+projects+involvement+custom 扁平化 `string[]`，来源区与条目 id 全部丢弃、anchor 写死 'experience'。方案：docs/plan-r538-bullet-check-source-anchor.md。
+- 修复两文件：src/lib/ats.ts 新增 `BulletSource {text, anchor, id?}`、builder 路径共享 `bulletSources` 映射（experience bullets/projects description/involvement description/custom bullets 各带源 anchor+id），五检查改收 BulletSource[]，违规项返回 `entryId`+真实 anchor（quantified 保持聚合区级）；SectionAnchor 加 'projects'/'custom'；文本路径 textBulletSources 无结构 id 照旧 experience 区级。src/pages/Builder.tsx：Projects/custom 卡补 `data-entry-id`+flash-ring；新增 JUMP_OPEN_EVENT（Section 只展开不滚动），jumpToEntry(id, anchor?) 先派发展开事件——修复 Projects 区 defaultOpen=false 时条目卡未挂载、jumpToEntry 查不到的问题。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 四类检查 Fix → 均直达并聚焦精确违规卡（Projects 被动语态→Projects 卡[折叠区自动展开]、Involvement 弱开头→Code Club 卡、custom 标点→Volunteering 卡、Experience 2词短句→Brightpath 卡）；R537 locations 回归精确直达；/ats-checker 文本路径照常出报告；两视口零溢出、QA 后存储回五键基线。
+
 ## R537 — Locations 检查的 Fix 直达违规条目卡（2026-08-31）
 - 审计：Rezi changelog（Week4 2026）无新可落地项。一手证据（生产 CDP，375×812）：「Locations on each entry」如实点名第二条 Experience（"Software Engineer II at Cardinal Apps"）缺 location，点 Fix → 只跳 Experience 区顶、聚焦首条，违规条目仍需人肉找；Involvement/Education 同理只到区级。根因：R534 已让 Fix 优先 `c.entryId`，但 entryLocationsCheck 的中间对象把源条目 id 丢弃、检查从不返回 entryId；且 Education/Involvement 卡片缺 `data-entry-id`（jumpToEntry 查不到）。方案：docs/plan-r537-locations-check-entry-id.md。
 - 修复两文件：src/lib/ats.ts entryLocationsCheck 条目对象带可选 `id`、返回 `entryId: offender?.id`，builder 路径 experience/involvement/education 映射各带源 id（文本路径 /ats-checker 无结构 id，照旧区级锚点）；src/pages/Builder.tsx Education/Involvement 卡补 `data-entry-id` + flash-ring（与 Experience 同款）。jumpToEntry/Fix 优先级零改动。
