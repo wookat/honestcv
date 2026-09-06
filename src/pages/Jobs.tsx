@@ -5,7 +5,7 @@
  * scoring flow picks it up in the editor.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -64,6 +64,7 @@ import {
   upsertPipeline,
 } from '@/lib/jobs'
 import {
+  latestDocsFor,
   listCareerDocs,
   rememberLinkedDocJobs,
   type CareerDoc,
@@ -137,6 +138,9 @@ const linkedDocCount = (entry: PipelineEntry): number => {
     (id): id is string => id !== undefined && ids.has(id)
   ).length
 }
+
+const docNoun = (kind: CareerDocKind) =>
+  kind === 'cover' ? 'Cover letter' : kind === 'interview' ? 'Interview prep' : 'Resignation letter'
 
 const agoFromMs = (ms: number) => {
   const days = Math.floor((Date.now() - ms) / 86_400_000)
@@ -584,6 +588,38 @@ export default function Jobs() {
     return id ? listCareerDocs().find((d) => d.id === id) : undefined
   }
 
+  /** For a job that is not tracked: the newest document of that kind written for it (it relinks when the job is saved again). */
+  const writtenDoc = (jobId: string, kind: 'cover' | 'interview') =>
+    pipeline.some((e) => e.job.id === jobId) ? undefined : latestDocsFor(jobId)[kind]
+
+  /** Note under an untracked job's status chips listing the documents already written for it. */
+  const writtenDocsNote = (job: JobListing) => {
+    const written = latestDocsFor(job.id)
+    const items = (['cover', 'interview', 'resignation'] as const).flatMap((k) => {
+      const doc = written[k]
+      return doc ? [{ doc, noun: docNoun(k) }] : []
+    })
+    if (items.length === 0) return null
+    return (
+      <p className="text-muted-foreground mt-3 text-xs">
+        Written for this job earlier:{' '}
+        {items.map(({ doc, noun }, i) => (
+          <Fragment key={doc.id}>
+            {i > 0 ? ', ' : ''}
+            {noun} <span className="text-foreground font-medium">{doc.title}</span>{' '}
+            <Link
+              to={`/documents?doc=${encodeURIComponent(doc.id)}`}
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              Open
+            </Link>
+          </Fragment>
+        ))}{' '}
+        — saving this job links {items.length > 1 ? 'them' : 'it'} again.
+      </p>
+    )
+  }
+
   /** Documents written for this job (they remember it) other than the one the pipeline links. */
   const earlierDocsFor = (entry: PipelineEntry, kind: CareerDocKind): CareerDoc[] => {
     const linkedId =
@@ -599,12 +635,7 @@ export default function Jobs() {
 
   /** Rows for a job's earlier documents of one kind; offers to link one when the job has no live linked document. */
   const earlierDocRows = (entry: PipelineEntry, kind: CareerDocKind, hasLinked: boolean) => {
-    const noun =
-      kind === 'cover'
-        ? 'Cover letter'
-        : kind === 'interview'
-          ? 'Interview prep'
-          : 'Resignation letter'
+    const noun = docNoun(kind)
     const relink =
       kind === 'cover'
         ? setPipelineCoverDoc
@@ -1805,7 +1836,7 @@ export default function Jobs() {
                 </div>
                 {(() => {
                   const entry = pipeline.find((e) => e.job.id === selected.id)
-                  if (!entry) return null
+                  if (!entry) return writtenDocsNote(selected)
                   const steps = timelineOf(entry)
                   const notes =
                     notesDraft?.jobId === selected.id ? notesDraft.text : (entry.notes ?? '')
@@ -2101,10 +2132,15 @@ export default function Jobs() {
               {confirmTarget &&
                 (confirmTarget.intent === 'cover' || confirmTarget.intent === 'interview') &&
                 (() => {
-                  const doc = linkedDoc(confirmTarget.job.id, confirmTarget.intent)
-                  if (!doc) return null
                   const noun = confirmTarget.intent === 'cover' ? 'cover letter' : 'interview brief'
-                  return `This job already has the saved ${noun} “${doc.title}” — a ${confirmTarget.intent === 'cover' ? 'letter' : 'brief'} you save from the tool becomes its ${noun} instead; the current one stays in your documents. `
+                  const doc = linkedDoc(confirmTarget.job.id, confirmTarget.intent)
+                  if (doc)
+                    return `This job already has the saved ${noun} “${doc.title}” — a ${confirmTarget.intent === 'cover' ? 'letter' : 'brief'} you save from the tool becomes its ${noun} instead; the current one stays in your documents. `
+                  const earlier = writtenDoc(confirmTarget.job.id, confirmTarget.intent)
+                  if (!earlier) return null
+                  return confirmTarget.intent === 'cover'
+                    ? `You already wrote the cover letter “${earlier.title}” for this job — saving the job links it again, and a letter you save from the tool becomes its cover letter instead; the earlier one stays in your documents. `
+                    : `You already wrote the interview brief “${earlier.title}” for this job. `
                 })()}
               {confirmTarget?.intent === 'interview'
                 ? linkedVersion(confirmTarget.job.id)
@@ -2137,7 +2173,9 @@ export default function Jobs() {
             {confirmTarget &&
               (confirmTarget.intent === 'cover' || confirmTarget.intent === 'interview') &&
               (() => {
-                const doc = linkedDoc(confirmTarget.job.id, confirmTarget.intent)
+                const doc =
+                  linkedDoc(confirmTarget.job.id, confirmTarget.intent) ??
+                  writtenDoc(confirmTarget.job.id, confirmTarget.intent)
                 if (!doc) return null
                 return (
                   <Button
