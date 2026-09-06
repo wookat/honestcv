@@ -2100,3 +2100,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Dashboard.tsx：Job search 快捷卡 to 在 trackedAttention>0 时改为 /jobs?attention=1，否则保持 /jobs；文案/存储/管线零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Dashboard-DdVIcGz-.js）：1280/375 有到期跟进时卡 href=/jobs?attention=1、点击落 /jobs?tab=tracked&attention=1 且只显示需关注行（Globex 在、Initech 被滤）、零溢出；无到期时 href 回 /jobs；QA 存储清理回六键基线；零 AI 配额。
+
+## R575 — /jobs?attention=1 直接选中需跟进的申请（2026-08-31）
+- 一手证据（生产 CDP）：播种 j1（Globex，applied，remindOn=2020-01-01 到期），开 /jobs?attention=1（R574 dashboard 深链落点）：队列过滤正确，但桌面详情面板自动选中 feed 第一个无关职位（Coalition Technologies），跟进操作面（Draft follow-up、提醒控件）显示的是用户从未跟踪的职位。根因：fetchJobs 选中兜底恒为 list[0]。方案：docs/plan-r575-attention-deeplink-selects-followup-job.md。
+- 修复仅 src/pages/Jobs.tsx：一次性 ref seedAttentionSelect（seedAttention 且无 ?job= 时为真），fetchJobs 兜底命中时选中首个 staleDays!==null||reminderDue 的 pipeline entry（与队列过滤同谓词），消费后恢复原行为；?job= 深链与后续搜索不受影响。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Jobs-DVrkVPQm.js）：1280/375 attention 深链详情面板显示 Globex（Follow up due 在位）、无 Copywriter；裸 /jobs 仍选中 feed 首个职位；零溢出；QA 存储清理回六键基线；零 AI 配额。

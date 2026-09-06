@@ -164,6 +164,9 @@ export default function Jobs() {
   const explicitSelection = useRef(seedParams.get('job') !== null)
   // A ?job= deep link should read like tapping that row: open the detail pane on mobile.
   const [mobileDetail, setMobileDetail] = useState(() => seedParams.get('job') !== null)
+  // The ?attention=1 deep link focuses the first application needing a follow-up
+  // instead of the first feed job; consumed on the first fetch only.
+  const seedAttentionSelect = useRef(seedAttention && seedParams.get('job') === null)
   // Pending ?job= deep link, checked once against the first fetched list so a
   // dead link says so instead of silently showing an unrelated job.
   const [pendingSeedJob, setPendingSeedJob] = useState(() => seedParams.get('job'))
@@ -226,6 +229,11 @@ export default function Jobs() {
             return cur
           }
           explicitSelection.current = false
+          if (seedAttentionSelect.current) {
+            seedAttentionSelect.current = false
+            const first = listPipeline().find((e) => staleDays(e) !== null || reminderDue(e))
+            if (first) return first.job.id
+          }
           return list[0]?.id ?? null
         })
       })
