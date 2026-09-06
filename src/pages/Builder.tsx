@@ -9514,6 +9514,7 @@ export default function Builder() {
                       size="sm"
                       className="h-10 text-xs sm:h-7"
                       disabled={v.id === activeVersionId}
+                      aria-label={`Open copy ${v.name}`}
                       onClick={() =>
                         activeVersionId === null && draftHasContent(resume)
                           ? setConfirmOpenCopy(v)
@@ -9527,6 +9528,7 @@ export default function Builder() {
                       variant="ghost"
                       size="sm"
                       className="text-destructive h-10 text-xs sm:h-7"
+                      aria-label={`Delete copy ${v.name}`}
                       onClick={() => setConfirmDeleteCopy(v)}
                     >
                       Delete

@@ -673,6 +673,7 @@ export default function Jobs() {
         <button
           type="button"
           className="text-primary underline-offset-2 hover:underline"
+          aria-label={`Open ${noun.toLowerCase()} ${doc.title}`}
           onClick={() => void navigate(`/documents?doc=${doc.id}`)}
         >
           Open
@@ -680,6 +681,7 @@ export default function Jobs() {
         <button
           type="button"
           className="text-primary underline-offset-2 hover:underline"
+          aria-label={`${hasLinked ? 'Use this one instead' : 'Use for this job'}: ${noun.toLowerCase()} ${doc.title}`}
           onClick={() => applyPipeline(relink(entry.job.id, doc.id))}
         >
           {hasLinked ? 'Use this one instead' : 'Use for this job'}
@@ -2107,6 +2109,7 @@ export default function Jobs() {
                                 <button
                                   type="button"
                                   className="text-primary underline-offset-2 hover:underline"
+                                  aria-label={`Open targeted resume ${copy.name}`}
                                   onClick={() =>
                                     setConfirmTarget({ job: entry.job, intent: 'target' })
                                   }
@@ -2127,6 +2130,7 @@ export default function Jobs() {
                                 <button
                                   type="button"
                                   className="text-primary underline-offset-2 hover:underline"
+                                  aria-label={`${copy ? 'Use this one instead' : 'Use for this job'}: targeted resume ${v.name}`}
                                   onClick={() => applyPipeline(setPipelineVersion(entry.job.id, v.id))}
                                 >
                                   {copy ? 'Use this one instead' : 'Use for this job'}
@@ -2154,6 +2158,7 @@ export default function Jobs() {
                               <button
                                 type="button"
                                 className="text-primary underline-offset-2 hover:underline"
+                                aria-label={`Open cover letter ${coverDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
                               >
                                 Open
@@ -2181,6 +2186,7 @@ export default function Jobs() {
                               <button
                                 type="button"
                                 className="text-primary underline-offset-2 hover:underline"
+                                aria-label={`Open resignation letter ${resignationDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${resignationDoc.id}`)}
                               >
                                 Open
@@ -2203,6 +2209,7 @@ export default function Jobs() {
                               <button
                                 type="button"
                                 className="text-primary underline-offset-2 hover:underline"
+                                aria-label={`Open interview prep ${prepDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${prepDoc.id}`)}
                               >
                                 Open

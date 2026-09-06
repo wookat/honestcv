@@ -964,6 +964,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         type="button"
         size="sm"
         className="min-h-10 flex-1 sm:min-h-8 sm:flex-none"
+        aria-label={`Open ${v.name}`}
         onClick={() => (draft && !activeCopy ? setConfirmOpen(v) : openCopy(v))}
       >
         Open
@@ -1847,6 +1848,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     variant="outline"
                     size="sm"
                     className="min-h-10 sm:min-h-8"
+                    aria-label={`Open ${d.title}`}
                     onClick={() => {
                       setOpenDoc(d)
                       setDocText(d.text)

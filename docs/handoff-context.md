@@ -2467,3 +2467,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复（Jobs.tsx `writtenDocsNote`）：句首加「targeted resume “<name>”」（无 Open，避开替换草稿），them/it 计数含副本；仅有副本无文档也显示。部署 index-C-RldWYT.js。
 - 生产 QA 1280+375：copy / copyonly / docs / control 四态如预期，无溢出、零 console 错误、零 AI 调用、存储回基线。
 - QA 基建：生产有 service worker，QA 浏览器曾在 curl 已返回新 bundle 时仍拿到旧 shell（疑与 R607「需二次部署」同因，推断；加 bypass 后即拿到新 bundle）；qa/lib.cjs 加 `Network.setBypassServiceWorker`。PR 链：R642（#863）→ R643。
+
+## R644 — 无障碍审计节点（axe-core）+ 关系图各行 Open/Delete/Use 按钮补可访问名称（2026-09-06）
+- 生产实证（index-C-RldWYT.js，qa/r644-axe.cjs、r644-axe2.cjs；axe-core 4.13.0，wcag2a/aa/2.1 + best-practice，经 CDP `Page.setBypassCSP` 注入）：/jobs 跟踪面板、/dashboard、/documents、/builder 及三个弹窗（Open targeted copy 确认、Stop tracking、Resume settings）1280/375 均 0 violations。按钮清单暴露一致性缺口：/jobs 卡片四行文档/副本按钮全叫「Open」，dashboard 副本/文档行兄弟按钮有 sr-only 主语唯独 Open 没有，builder Copies 行「Duplicate copy X」有 aria-label 而 Open/Delete 没有。方案 docs/plan-r644-a11y-audit-labelled-open-buttons.md。
+- 修复（Jobs/Dashboard/Builder.tsx，只加 aria-label，可见文字不变，满足 Label in Name）：`Open targeted resume X` / `Open cover letter X` / `Open resignation letter X` / `Open interview prep X`、`Use this one instead: <kind> X`、dashboard `Open X`、builder `Open copy X` / `Delete copy X`。不改逻辑/样式/CSP。部署 index-Dpid_6jw.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（qa/r644-verify.cjs）：按钮名如预期成对出现，axe 三页面仍 0 violations，无溢出、零 console 错误、零 AI 调用、存储回基线。未做：键盘走查/读屏实听。QA 基建：qa/lib.cjs 把 `cdp` 暴露给脚本。PR 链：R643（#864）→ R644。
