@@ -126,12 +126,76 @@ function ScrollReset() {
   return null;
 }
 
+// Browsers give up on native scroll restoration for reloads because the
+// prerendered shell is short and the route chunk replaces the DOM after the
+// restore window. Save the offset on pagehide and put the user back after a
+// reload once the page is tall enough — unless they scroll first.
+function ReloadScrollRestore() {
+  useEffect(() => {
+    const key = () => `honestcv.scroll:${window.location.pathname}`;
+    const save = () => {
+      try {
+        sessionStorage.setItem(key(), String(Math.round(window.scrollY)));
+      } catch {
+        /* storage unavailable — skip */
+      }
+    };
+    window.addEventListener("pagehide", save);
+    const nav = performance.getEntriesByType(
+      "navigation",
+    )[0] as PerformanceNavigationTiming | undefined;
+    let raf = 0;
+    let stop = () => {};
+    if (nav?.type === "reload" && !window.location.hash) {
+      let y = 0;
+      try {
+        y = Number(sessionStorage.getItem(key()) ?? 0);
+        sessionStorage.removeItem(key());
+      } catch {
+        /* storage unavailable — skip */
+      }
+      if (y > 0) {
+        const deadline = performance.now() + 3000;
+        const cancel = () => cancelAnimationFrame(raf);
+        window.addEventListener("wheel", cancel, { once: true, passive: true });
+        window.addEventListener("touchstart", cancel, {
+          once: true,
+          passive: true,
+        });
+        window.addEventListener("keydown", cancel, { once: true });
+        stop = () => {
+          cancel();
+          window.removeEventListener("wheel", cancel);
+          window.removeEventListener("touchstart", cancel);
+          window.removeEventListener("keydown", cancel);
+        };
+        const tick = () => {
+          const fits =
+            document.documentElement.scrollHeight >= y + window.innerHeight;
+          if (fits) {
+            window.scrollTo(0, y);
+            return;
+          }
+          if (performance.now() < deadline) raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      }
+    }
+    return () => {
+      window.removeEventListener("pagehide", save);
+      stop();
+    };
+  }, []);
+  return null;
+}
+
 export default function App() {
   const { pathname } = useLocation();
   return (
     <Suspense fallback={<RouteFallback />}>
       <CanonicalSync />
       <ScrollReset />
+      <ReloadScrollRestore />
       <RouteErrorBoundary key={pathname}>
         <Routes>
           <Route path="/" element={<Landing />} />

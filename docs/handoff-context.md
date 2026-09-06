@@ -1934,3 +1934,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复两文件：src/lib/resume.ts 新增 `fileTailSkills()`（仅对混合块生效：已识别尾项并入标签匹配的既有分类行——大小写不敏感、双向子串匹配，否则按 SKILL_CATEGORIES 顺序新建分类行；未识别项如 scalable 保留在明文尾行；不可归档时返回 null）；src/pages/Builder.tsx Skills 编辑器混合块条件下渲染「File uncategorized skills」按钮（用户主动触发，chip 自动追加行为零改动）。categorizeSkills/mergeSkills/ats.ts 零改动。
 - tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：31 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：375/1280 混合种子按钮在位 → 点击后 `Cloud & DevOps: kubernetes` 新行、scalable 留尾行、按钮消失；`Cloud: aws\nkubernetes…` 种子 → kubernetes 并入既有 Cloud 行（标签匹配）；纯平铺列表仍显示「Group into categories」且不显示新按钮；零溢出零 console 错误、QA 后存储回基线键。
+
+## R548 — 刷新页面恢复滚动位置（2026-08-31，SOP-10 节点）
+- 四维复扫：7 路由×1280/375 零溢出零 console 错误；对照 Rezi 8 月 changelog「refresh the page without losing your place」。一手证据（生产 CDP）：/builder、/jobs、/documents、/dashboard、/ats-checker 任何视口刷新后 scrollY 全部归 0（history.scrollRestoration=auto 但 SPA 懒加载 chunk 替换 DOM 后浏览器原生恢复失败）。方案：docs/plan-r548-reload-scroll-restore.md。
+- 修复仅 src/App.tsx：新增 ReloadScrollRestore——pagehide 时按 `honestcv.scroll:<pathname>` 写 sessionStorage；仅 navigation type=reload 且无 hash 时 rAF 重试（≤3s）等页面高度足够后 scrollTo 恢复，用户先滚动（wheel/touchstart/keydown）即放弃；用后删键。ScrollReset/R531/R532/R533 滚动语义零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375+1280 /builder 滚 1200 → reload → 恢复 1200；/jobs 恢复（1280 恢复到夹紧后的 464 属预期）；#samples hash 深链照常自滚（857）；SPA push 导航照常回顶；零溢出、无页面错误；sessionStorage 键随会话生命周期自清。
