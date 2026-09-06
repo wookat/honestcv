@@ -685,6 +685,17 @@ export default function Jobs() {
   /** The job's linked copy, or an orphan copy already targeted at it. */
   const targetedCopyOf = (job: JobListing) => linkedVersion(job.id) ?? orphanTargetedCopy(job)
 
+  /** Another tracked job's linked copy whose target fields now point at this job. */
+  const copyAimedFromOtherJob = (job: JobListing) => {
+    const versions = listResumeVersions()
+    for (const e of pipeline) {
+      if (e.job.id === job.id || !e.resumeVersionId) continue
+      const copy = versions.find((v) => v.id === e.resumeVersionId)
+      if (copy && copyTargetsJob(copy.data, job)) return { copy, job: e.job }
+    }
+    return undefined
+  }
+
   /** The editor holds a standalone draft (synced to no copy) with content, and this job already has a
    * copy that would open over it — the one case where work is lost rather than cloned or re-aimed. */
   const draftAtRisk = (job: JobListing) =>
@@ -878,7 +889,8 @@ export default function Jobs() {
             ? setConfirmTarget({ job, intent: 'interview' })
             : openInterviewPrep(job),
       }
-    if (!linkedVersion(job.id)) {
+    const linked = linkedVersion(job.id)
+    if (!linked) {
       const orphan = orphanTargetedCopy(job)
       if (orphan)
         return {
@@ -886,12 +898,33 @@ export default function Jobs() {
           label: 'Reconnect targeted copy',
           onClick: () => setConfirmTarget({ job, intent: 'target' }),
         }
+      const aimed = copyAimedFromOtherJob(job)
+      if (aimed)
+        return {
+          text: `“${aimed.copy.name}” is aimed at this job but is linked to “${aimed.job.title}” at ${aimed.job.company}.`,
+          label: 'Open it to save a copy for this job',
+          onClick: () =>
+            draftAtRisk(aimed.job)
+              ? setConfirmTarget({ job: aimed.job, intent: 'keywords' })
+              : targetResume(aimed.job, 'keywords'),
+        }
       return {
         text: 'Create a resume targeted at this job.',
         label: 'Target my resume',
         onClick: () => setConfirmTarget({ job, intent: 'target' }),
       }
     }
+    if (linked.data.targetRole.trim() !== '' && !copyTargetsJob(linked.data, job))
+      return {
+        text: `Your targeted copy “${linked.name}” now points at ${linked.data.targetRole.trim()}${
+          linked.data.targetCompany?.trim() ? ` at ${linked.data.targetCompany.trim()}` : ''
+        }.`,
+        label: 'Open targeted resume',
+        onClick: () =>
+          draftAtRisk(job)
+            ? setConfirmTarget({ job, intent: 'keywords' })
+            : targetResume(job, 'keywords'),
+      }
     const match = tailoredMatchOf.get(job.id)
     if (match !== undefined && match < 80)
       return {
