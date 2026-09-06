@@ -1976,3 +1976,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 Dashboard.tsx LetterPreview：新增 highlightPlaceholders(text)（按 R553 同款 /(\[[^\][\n]{1,120}\])/ 分割，命中段包 <mark> 琥珀高亮，信纸恒白底故固定 amber-100/amber-900），签名前后两处段落 map 均套用；示例预览（同组件）自动受益。导出/计数/Edit 页/Builder 弹窗零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280/375 viewer Preview 各渲染 10 个 <mark> 占位符高亮（含长槽）、零溢出零 console 错误；QA 存储清理回六键基线。
+
+## R555 — 文档卡片显示未填占位符数（2026-08-31）
+- 一手证据（生产 CDP）：/documents 保存含 15 个 [占位符] 的 cover 示例后，列表卡片仅显示「Cover letter · Edited today」——列表面无任何未完成信号，用户只有进 Edit 页或点导出才知道信没填完；Rezi dashboard 文档卡带完成状态。方案：docs/plan-r555-doc-card-placeholder-badge.md。
+- 修复仅 Dashboard.tsx 文档卡 meta 行：cover/resignation 且 countLetterPlaceholders(d.text)>0 时追加琥珀「· N to fill」（dark 模式 amber-400）；interview 不适用；复用 R553 同款计数函数，与 Edit 页计数条恒一致。导出/警示/Preview 高亮/评分零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 含占位符 cover 卡显示「15 to fill」、改动文本后徽标随计数变化、interview 文档不显示徽标、零溢出；QA 存储清理回六键基线。

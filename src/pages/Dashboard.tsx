@@ -1562,6 +1562,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                           ? 'Resignation letter'
                           : 'Interview prep'}{' '}
                       · {editedAgo(d.updatedAt)}
+                      {d.kind !== 'interview' && countLetterPlaceholders(d.text) > 0 && (
+                        <span className="text-amber-700 dark:text-amber-400">
+                          {' '}
+                          · {countLetterPlaceholders(d.text)} to fill
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
