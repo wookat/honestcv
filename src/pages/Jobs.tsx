@@ -120,8 +120,13 @@ const shortDay = (day: string) => {
   return shortDateOf(new Date(y, m - 1, d))
 }
 
-const linkedDocCount = (entry: PipelineEntry): number =>
-  [entry.coverDocId, entry.interviewDocId, entry.resignationDocId].filter(Boolean).length
+/** How many of the entry's linked documents still exist (a deleted document leaves its id behind so Undo can relink it). */
+const linkedDocCount = (entry: PipelineEntry): number => {
+  const ids = new Set(listCareerDocs().map((d) => d.id))
+  return [entry.coverDocId, entry.interviewDocId, entry.resignationDocId].filter(
+    (id): id is string => id !== undefined && ids.has(id)
+  ).length
+}
 
 const agoFromMs = (ms: number) => {
   const days = Math.floor((Date.now() - ms) / 86_400_000)
