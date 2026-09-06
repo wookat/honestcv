@@ -10491,6 +10491,9 @@ function BulletGuidance({
 
 const countLetterPlaceholders = (text: string) => text.match(/\[[^\][\n]{1,120}\]/g)?.length ?? 0
 
+const docKindNoun = (kind: 'cover' | 'interview' | 'resignation' | null) =>
+  kind === 'cover' ? 'cover letter' : kind === 'interview' ? 'interview brief' : 'resignation letter'
+
 const firstLetterPlaceholder = (text: string) =>
   text.match(/\[[^\][\n]{1,120}\]/)?.[0] ?? '[Company]'
 
@@ -11176,6 +11179,19 @@ function BundleToolDialog({
             </div>
           </div>
         )}
+        {!savedId && existingDoc && (
+          <p className="text-muted-foreground text-xs">
+            This job already has &ldquo;{existingDoc.title}&rdquo; saved.{' '}
+            <Link
+              to={`/documents?doc=${encodeURIComponent(existingDoc.id)}`}
+              className="text-primary font-medium underline-offset-2 hover:underline"
+            >
+              Open the saved {docKindNoun(kind)}
+            </Link>{' '}
+            &mdash; or write a new one: Save makes it the {docKindNoun(kind)} linked to the job; the
+            earlier one stays in My resumes.
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button className="min-h-10 sm:min-h-9" onClick={() => requestOverwrite('generate')} disabled={busy}>
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
@@ -11305,26 +11321,10 @@ function BundleToolDialog({
                 Not saved — your browser storage is full. Free up space and try again.
               </p>
             )}
-            {!savedId && existingDoc && (
-              <p className="text-muted-foreground text-xs">
-                This job already has “{existingDoc.title}” saved — Save makes this one the{' '}
-                {kind === 'cover'
-                  ? 'cover letter'
-                  : kind === 'interview'
-                    ? 'interview brief'
-                    : 'resignation letter'}{' '}
-                linked to the job; the earlier one stays in My resumes.
-              </p>
-            )}
             {!savedId && !existingDoc && linkJob && (
               <p className="text-muted-foreground text-xs">
-                Saving links this{' '}
-                {kind === 'cover'
-                  ? 'cover letter'
-                  : kind === 'interview'
-                    ? 'interview brief'
-                    : 'resignation letter'}{' '}
-                to &ldquo;{linkJob.title}&rdquo; at {linkJob.company} on your jobs board.
+                Saving links this {docKindNoun(kind)} to &ldquo;{linkJob.title}&rdquo; at{' '}
+                {linkJob.company} on your jobs board.
               </p>
             )}
           </>
