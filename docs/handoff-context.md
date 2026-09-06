@@ -2006,3 +2006,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复二（QA 发现的第二根因）：Dashboard/Builder/Jobs 八处 URL 同步 `replaceState(null,…)` 抹掉 React Router entry state，key 塌缩回 "default" 导致 forward 恢复错位——全部改为 `replaceState(window.history.state,…)`；/jobs 哨兵与 useHistoryGuard 的 pushState 零改动。
 - tsc/单查 eslint（仅两条既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280 两次完整往返 back→1432/fwd→0/back→1432；375 back→1500/fwd→0/back→1500；R548 reload 恢复 1200；#samples hash 深链 821；/jobs 移动端哨兵回归（点行→state hcv-mobile-detail、Back 关详情留 /jobs、列表滚动 600 恢复）；?jump=skills 深链 4283；Builder pane 切换恢复 1200（R533 回归）；12 路由×1280/375 零溢出、零 console 错误；QA 存储清理回六键基线。
+
+## R559 — 职位 Tailoring report「+N more」可展开（2026-08-31）
+- 一手证据（生产 CDP）：/jobs?q=react 选 Lemon.io Senior React 职位开 Tailoring report——「covered 4 of 30 job keywords」，High priority missing 只列 10 个后跟死文本「+14 more」（span 不可点），24 个高优先缺失关键词中 14 个永远不可见；「Also missing」同病。同一详情面板下方 Skills 标签的「+14 more」却是可展开按钮（R244 模式 tagsExpandedId）。对照 Rezi 关键词 targeting 全量列出缺失关键词。方案：docs/plan-r559-report-keyword-overflow.md。
+- 修复仅 src/pages/Jobs.tsx：新增 reportKwExpandedId（按 job id 键控，换职位自动折叠回 10 个），报告内两处「+N more」span 改为展开按钮（Skills 展开器同款样式），点击展示该职位全部缺失关键词；评分/worker/存储零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。

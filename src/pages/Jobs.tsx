@@ -172,6 +172,7 @@ export default function Jobs() {
   } | null>(null)
   const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
   const [reportOpenId, setReportOpenId] = useState<string | null>(null)
+  const [reportKwExpandedId, setReportKwExpandedId] = useState<string | null>(null)
   const [confirmUntrack, setConfirmUntrack] = useState<JobListing | null>(null)
   const [storageError, setStorageError] = useState(false)
   const [followUpDraft, setFollowUpDraft] = useState<{ subject: string; body: string } | null>(
@@ -1415,7 +1416,10 @@ export default function Jobs() {
                                 <span className="font-medium text-amber-700 dark:text-amber-400">
                                   High priority missing:
                                 </span>
-                                {selectedReport.highPriorityMissing.slice(0, 10).map((kw) => (
+                                {(reportKwExpandedId === selected.id
+                                  ? selectedReport.highPriorityMissing
+                                  : selectedReport.highPriorityMissing.slice(0, 10)
+                                ).map((kw) => (
                                   <span
                                     key={kw}
                                     className="rounded-full bg-amber-100 px-1.5 py-0.5 text-amber-800 dark:bg-amber-950"
@@ -1423,11 +1427,16 @@ export default function Jobs() {
                                     {kw}
                                   </span>
                                 ))}
-                                {selectedReport.highPriorityMissing.length > 10 && (
-                                  <span className="text-muted-foreground">
-                                    +{selectedReport.highPriorityMissing.length - 10} more
-                                  </span>
-                                )}
+                                {selectedReport.highPriorityMissing.length > 10 &&
+                                  reportKwExpandedId !== selected.id && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setReportKwExpandedId(selected.id)}
+                                      className="text-primary underline-offset-2 hover:underline"
+                                    >
+                                      +{selectedReport.highPriorityMissing.length - 10} more
+                                    </button>
+                                  )}
                               </div>
                             )}
                             {selectedReport.missing.length >
@@ -1436,10 +1445,16 @@ export default function Jobs() {
                                 <span className="text-muted-foreground font-medium">
                                   Also missing:
                                 </span>
-                                {selectedReport.missing
-                                  .filter((kw) => !selectedReport.highPriorityMissing.includes(kw))
-                                  .slice(0, 10)
-                                  .map((kw) => (
+                                {(reportKwExpandedId === selected.id
+                                  ? selectedReport.missing.filter(
+                                      (kw) => !selectedReport.highPriorityMissing.includes(kw)
+                                    )
+                                  : selectedReport.missing
+                                      .filter(
+                                        (kw) => !selectedReport.highPriorityMissing.includes(kw)
+                                      )
+                                      .slice(0, 10)
+                                ).map((kw) => (
                                     <span
                                       key={kw}
                                       className="bg-muted text-muted-foreground rounded-full px-1.5 py-0.5"
@@ -1449,15 +1464,20 @@ export default function Jobs() {
                                   ))}
                                 {selectedReport.missing.length -
                                   selectedReport.highPriorityMissing.length >
-                                  10 && (
-                                  <span className="text-muted-foreground">
-                                    +
-                                    {selectedReport.missing.length -
-                                      selectedReport.highPriorityMissing.length -
-                                      10}{' '}
-                                    more
-                                  </span>
-                                )}
+                                  10 &&
+                                  reportKwExpandedId !== selected.id && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setReportKwExpandedId(selected.id)}
+                                      className="text-primary underline-offset-2 hover:underline"
+                                    >
+                                      +
+                                      {selectedReport.missing.length -
+                                        selectedReport.highPriorityMissing.length -
+                                        10}{' '}
+                                      more
+                                    </button>
+                                  )}
                               </div>
                             )}
                           </>
