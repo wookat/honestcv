@@ -2124,3 +2124,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/lib/jobs.ts followUpEmail：followedUpAt 晚于最后状态变更时，applied/interviewing 开场白改为点名跟进日期的 check-in（「…and followed up on Sep 4; I wanted to check in again…」）；offer 感谢流与无跟进条目措辞零改动。
 - tsc/eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280/375 跟进后草稿点名「followed up on Sep 4」、无 followedUpAt 条目保持原措辞、interviewing 变体同样在位、零溢出、存储回六键基线、零 AI 配额。
+
+## R579 — Tracked 队列行显示已完成的跟进（2026-08-31）
+- 一手证据（生产 CDP）：标记跟进后（R576/R577），详情面板时间线有「Followed up」，但 Tracked 队列行零信号——行 chip 只覆盖 stale/到期/未到期提醒三态，已完成跟进不可见，扫队列无法区分「3 天前跟进过」与「从未动过」。方案：docs/plan-r579-followed-up-row-chip.md。
+- 修复仅 src/pages/Jobs.tsx 行 chip 块：followedUpAt 晚于最后状态事件且行未显示 stale/due 琥珀 chip 时，渲染 muted 边框 chip「Followed up <shortDate>」（R572 年份感知格式）；存储/attention/面板零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 跟进行 chip 在位、无跟进行零渲染、再度 stale 行只显琥珀「No update」、零溢出、存储回六键基线、零 AI 配额。

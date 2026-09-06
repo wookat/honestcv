@@ -1315,6 +1315,15 @@ export default function Jobs() {
                                       Follow-up {shortDay(entry.remindOn)}
                                     </span>
                                   )}
+                                  {entry?.followedUpAt !== undefined &&
+                                    stale === null &&
+                                    !due &&
+                                    entry.followedUpAt >
+                                      timelineOf(entry)[timelineOf(entry).length - 1].at && (
+                                      <span className="text-muted-foreground ml-2 rounded-full border px-1.5 py-0.5 text-[11px] font-medium">
+                                        Followed up {shortDate(entry.followedUpAt)}
+                                      </span>
+                                    )}
                                 </>
                               )
                             })()}
