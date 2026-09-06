@@ -74,7 +74,7 @@ import {
   type CareerDocKind,
 } from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
-import { INLINE_ACTION } from '@/lib/utils'
+import { INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
 import {
   type Resume,
   type ResumeVersion,
@@ -1881,7 +1881,7 @@ export default function Jobs() {
                   <p className="text-muted-foreground mt-2 text-xs">
                     <Link
                       to="/builder"
-                      className="text-primary font-medium underline-offset-2 hover:underline"
+                      className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                     >
                       Add your resume
                     </Link>{' '}
@@ -1896,7 +1896,7 @@ export default function Jobs() {
                       onClick={() =>
                         setReportOpenId((cur) => (cur === selected.id ? null : selected.id))
                       }
-                      className="text-primary text-xs font-medium underline-offset-2 hover:underline"
+                      className={`${INLINE_ACTION} text-primary text-xs font-medium underline-offset-2 hover:underline`}
                     >
                       {reportOpenId === selected.id ? 'Hide tailoring report' : 'Tailoring report'}
                     </button>

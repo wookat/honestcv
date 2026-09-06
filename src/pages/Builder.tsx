@@ -77,7 +77,7 @@ import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
 import { prefersReducedMotion } from '@/lib/motion'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
-import { cn } from '@/lib/utils'
+import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
 import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
@@ -2921,7 +2921,7 @@ export default function Builder() {
                 <Link
                   id="builder-target-linked-job"
                   to={`/jobs?job=${encodeURIComponent(linkedJob.id)}`}
-                  className="text-primary font-medium underline-offset-2 hover:underline"
+                  className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
                   View it on the jobs board &rarr;
                 </Link>
@@ -2934,7 +2934,7 @@ export default function Builder() {
                 {retargetedTrackedJob.hasCopy ? 'already uses another copy' : 'has no copy yet'}.{' '}
                 <button
                   type="button"
-                  className="text-primary font-medium underline-offset-2 hover:underline"
+                  className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
                   onClick={() => saveDraftAsCopyFor(retargetedTrackedJob.job)}
                 >
                   {retargetedTrackedJob.hasCopy
@@ -2944,7 +2944,7 @@ export default function Builder() {
                 {' · '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(retargetedTrackedJob.job.id)}`}
-                  className="text-primary font-medium underline-offset-2 hover:underline"
+                  className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
                   View it on the jobs board &rarr;
                 </Link>
@@ -2960,7 +2960,7 @@ export default function Builder() {
                 .{' '}
                 <button
                   type="button"
-                  className="text-primary font-medium underline-offset-2 hover:underline"
+                  className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
                   onClick={linkCopyToTargetedJob}
                 >
                   {jobLinksLiveCopy(targetedTrackedEntry, versions)
@@ -2970,7 +2970,7 @@ export default function Builder() {
                 {' · '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(targetedTrackedJob.id)}`}
-                  className="text-primary font-medium underline-offset-2 hover:underline"
+                  className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
                   View it on the jobs board &rarr;
                 </Link>
@@ -2984,14 +2984,14 @@ export default function Builder() {
                 {copyOrigin ? (
                   <Link
                     to={`/jobs?q=${encodeURIComponent(copyOrigin.title)}&job=${encodeURIComponent(copyOrigin.id)}`}
-                    className="text-primary font-medium underline-offset-2 hover:underline"
+                    className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                   >
                     Open it to save it again &rarr;
                   </Link>
                 ) : (
                   <Link
                     to={`/jobs?q=${encodeURIComponent(resume.targetRole.trim())}`}
-                    className="text-primary font-medium underline-offset-2 hover:underline"
+                    className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                   >
                     Find it again &rarr;
                   </Link>
@@ -11118,7 +11118,7 @@ function BundleToolDialog({
               : "doesn't link it to a tracked job."}{' '}
             <button
               type="button"
-              className="text-primary font-medium underline-offset-2 hover:underline"
+              className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
               onClick={onJumpToTarget}
             >
               Change the copy&apos;s target &rarr;
@@ -11228,7 +11228,7 @@ function BundleToolDialog({
             This job already has &ldquo;{existingDoc.title}&rdquo; saved.{' '}
             <Link
               to={`/documents?doc=${encodeURIComponent(existingDoc.id)}`}
-              className="text-primary font-medium underline-offset-2 hover:underline"
+              className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
             >
               Open the saved {docKindNoun(kind)}
             </Link>{' '}

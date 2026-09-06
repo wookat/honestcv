@@ -1559,7 +1559,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             <button
               type="button"
               onClick={() => setLinkedInOpen(true)}
-              className="text-primary mt-2 self-center text-xs underline-offset-4 hover:underline"
+              className="text-primary -mt-1 -mb-3 self-center py-3 text-xs underline-offset-4 hover:underline sm:mt-2 sm:mb-0 sm:py-0"
             >
               No resume yet? Import your LinkedIn profile →
             </button>

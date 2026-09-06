@@ -2514,3 +2514,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（index-Bn1MCp03.js，qa/r652-evidence.cjs，375）：`ui/dialog.tsx` 的 `DialogContent` 给每个弹窗渲染的 `DialogPrimitive.Close`（shadcn 上游默认 `absolute top-4 right-4` + `size-4` 图标，无 padding）实测 16×16——builder Copies、/jobs Stop tracking 确认、/dashboard Delete 确认三处相同；60px 内无其他控件，故 axe target-size 靠间距豁免通过。
 - 修复：仅 dialog.tsx 一处 className 加 `-m-3 p-3 sm:m-0 sm:p-0`——<640px 盒子 40×40、负外边距让图标停在原位；≥640px 等于现状。不改 Radix/焦点归还/任何弹窗内容。
 - 生产 QA 1280+375（qa/r652-verify.cjs，ALL PASS）：375 三弹窗 Close 40×40、图标 16×16 @17/17 不变、四角 elementFromPoint 命中、背景透明；点 Close 关闭且焦点回打开按钮；1280 仍 16×16。弹窗打开态 axe 0、无溢出、零 console 错误、存储回基线。部署 index-rBI4qE4w.js；Workers Routes code 10000 依旧。未做：真实读屏实听、真机触控。
+
+### R653 — builder Target job 动作、/jobs Tailoring report、dashboard LinkedIn 导入热区 16px → 小屏 40px（PR 待填，链 #873 → 本 PR）
+- 生产实证（index-rBI4qE4w.js，qa/r653-sweep.cjs / r653-verify.cjs before，375）：R651 未覆盖的关系图行内动作——builder Target job 区 `Link this copy to it`/`Use this copy instead`/`Save as new copy…`/`View it on the jobs board →`（换行时 31px 且中心不命中）、/jobs `Tailoring report`、dashboard 空态 `Import your LinkedIn profile →`——全部 15–16px；axe target-size 因 2.5.8 行内豁免仍绿。
+- 修复：按钮套 `INLINE_ACTION`、换行链接套 `INLINE_LINK`（Builder.tsx 9 处、Jobs.tsx 2 处）；dashboard LinkedIn 按钮是 flex 子项非句内文本，用专用 `-mt-1 -mb-3 py-3 sm:mt-2 sm:mb-0 sm:py-0` 以免与 `mt-2` 冲突推低 12px。不改文案/数据/焦点策略。
+- 生产 QA 1280+375（qa/r653-verify.cjs before/after，ALL PASS）：375 十个控件 40px 或 +24px、中心命中，行高与 main 高度逐一等于修复前；1280 全等于修复前；Enter 触发 `Use this copy instead` 仍改指 + 焦点落 jobs 板链接；axe 0、无溢出、零 console 错误、存储回基线。部署 index-DoQxTL4K.js；Workers Routes code 10000 依旧。
+- 顺带发现（候选）：1280 页面滚到 dashboard 空态渐变区时粘性页头 `by Zalize` 对比度 4.3 < 4.5（axe color-contrast），页顶通过。未做：真实读屏实听、真机触控。
