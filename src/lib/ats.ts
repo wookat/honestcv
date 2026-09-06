@@ -31,7 +31,12 @@ used uses worked works helps helping helped offered require requires
 requirement skill year jobs roles positions companies experiences seeks
 sought know knows knowing understand understands understood familiar
 prefer prefers preferably communicate communicates demonstrate demonstrates
-demonstrated demonstrable sense`.split(/\s+/)
+demonstrated demonstrable sense
+build builds building built create creates creating created
+deliver delivers delivering delivered ensure ensures ensuring ensured
+improve improves improving improved provide provides providing provided
+maintain maintains maintaining maintained develop develops developing developed
+manage manages managing managed`.split(/\s+/)
 )
 
 /** Multi-word tech/business phrases worth matching as units */

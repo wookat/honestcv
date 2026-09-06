@@ -1854,6 +1854,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Builder-YfHVehQD.js）：375px 点 bullet-count Fix → 聚焦 Role 2 Cardinal Apps 卡且 Edit pane 激活；区级检查（Punctuated bullet points）Fix → 照常跳 Experience 区；?jump=skills 深链回归；1280px 同样直达 Cardinal Apps 卡；全场景零溢出零 console 错误、存储仅基线键。
 
+## R543 — 泛用动作动词不再被提取为 JD 关键词（2026-08-31）
+- SOP-10 审计：7 路由×1280/375 复扫零溢出零 console 错误；Rezi /changelog 404、经 sitemap 改用 /rezi-changelog（有效一手源）；两条探针纠偏后驳回（首个 Builder seed 用错 Resume 结构触发的「draft couldn't be read」为探针错误非缺陷；移动端 Tailor 弹窗流程完好）。一手证据（生产 CDP，全新存储）：/ats-checker 粘贴简历+JD「…to build scalable distributed systems…」→ High 项「Add missing job keywords — 2 of 10 posting keywords are absent ("build", "scalable")」；Fix in builder → 后 R542 Target 面板渲染「+ build」chip，一键把裸动词 build 追加进 Skills——JD 套话动词被当技能关键词，Rezi keyword scanner 只对技能词。R181/R331/R357 先例未覆盖常见动作动词。方案：docs/plan-r543-generic-verb-keywords.md。
+- 修复仅 src/lib/ats.ts STOPWORDS：加入九个泛用动作动词全变位（build/create/deliver/ensure/improve/provide/maintain/develop/manage 及 -s/-ing/-ed/不规则形）；名词技能形（development/management/delivery/maintenance…）与 KNOWN_PHRASES 照旧可提取。评分公式/匹配逻辑/UI 零改动，matched/absent 计数随提取诚实重算。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375px /ats-checker 同输入 finding 变「1 of 9 … ("scalable")」（build 消失）；Builder Target 面板 Missing keywords (1) 仅「+ scalable」；1280px 同款；双视口零溢出、QA 后存储清理。
+
 ## R542 — Target job 面板就地点名缺失关键词并一键加入 Skills（2026-08-31）
 - 一手证据（生产 CDP，375×812，R541 上线后）：R541/ats-checker 的 keyword Fix → 深链落 Target job 面板，但面板只有 role/company/level 输入、JD textarea 和 Tailor 按钮——**缺失关键词在目的地从未被点名**，用户必须记住 finding 里的词并去预览 pane（移动端需切 pane）找分诊卡。Rezi 的 keyword targeting 面把缺失关键词直接列在 JD 旁。方案：docs/plan-r542-target-panel-missing-keywords.md。
 - 修复仅 src/pages/Builder.tsx：Target 面板 JD 行下方，当 `resume.jobDescription.trim()` 且 `ats.missing.length>0` 时渲染紧凑块——「Missing keywords (N) — …tap to add to Skills:」+ RovingChipGroup chips（highKw 高优先在前），每个 chip 是按钮，点按追加进 resume.skills（与 Score 卡 Add to Skills 同款 append）；加入后 ats 重算、chip 立即消失（诚实反馈）；全部匹配时不渲染任何新空态。评分/Score 卡分诊/anchor 零改动。
