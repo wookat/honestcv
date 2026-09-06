@@ -2511,6 +2511,60 @@ export function categorizeSkills(skills: string): string | null {
 }
 
 /**
+ * File the plain (unlabeled) tail items of a mixed skills block into category
+ * lines using SKILL_CATEGORIES. Recognized items join an existing line whose
+ * label matches their category (case-insensitive, substring either way) or
+ * start a new labeled line; unrecognized items stay on the tail line. Returns
+ * null when the block isn't mixed or no item can be filed.
+ */
+export function fileTailSkills(skills: string): string | null {
+  const lines = skills.split('\n').map((l) => l.trim()).filter(Boolean)
+  const isLabeled = (l: string) => /^[^:]{1,40}:\s*.+$/.test(l)
+  const labeled = lines.filter(isLabeled)
+  const tail = lines.filter((l) => !isLabeled(l))
+  if (labeled.length === 0 || tail.length === 0) return null
+  const have = new Set(
+    labeled.flatMap((l) =>
+      l.slice(l.indexOf(':') + 1).split(',').map((s) => s.trim().toLowerCase())
+    )
+  )
+  const tailItems = tail
+    .flatMap((l) => l.split(',').map((s) => s.trim()).filter(Boolean))
+    .filter((s) => !have.has(s.toLowerCase()))
+  const additions = new Map<string, string[]>()
+  const leftover: string[] = []
+  for (const item of tailItems) {
+    const cat = SKILL_CATEGORIES.find((c) => c.terms.includes(item.toLowerCase()))
+    if (!cat) {
+      leftover.push(item)
+      continue
+    }
+    const list = additions.get(cat.label) ?? []
+    if (!list.some((t) => t.toLowerCase() === item.toLowerCase())) list.push(item)
+    additions.set(cat.label, list)
+  }
+  if (additions.size === 0) return null
+  const matchesLabel = (lineLabel: string, catLabel: string) => {
+    const a = lineLabel.toLowerCase()
+    const b = catLabel.toLowerCase()
+    return a === b || a.includes(b) || b.includes(a)
+  }
+  const out = labeled.map((line) => {
+    const label = line.slice(0, line.indexOf(':')).trim()
+    const filed = [...additions.entries()].filter(([cat]) => matchesLabel(label, cat))
+    if (filed.length === 0) return line
+    for (const [cat] of filed) additions.delete(cat)
+    return `${line}, ${filed.flatMap(([, items]) => items).join(', ')}`
+  })
+  for (const cat of SKILL_CATEGORIES.map((c) => c.label)) {
+    const items = additions.get(cat)
+    if (items) out.push(`${cat}: ${items.join(', ')}`)
+  }
+  if (leftover.length > 0) out.push(leftover.join(', '))
+  return out.join('\n')
+}
+
+/**
  * Merge new skills into a skills text block without destroying its line/category
  * structure. Dedupes case-insensitively against every existing item (category
  * labels excluded). Multi-line or labeled blocks keep their lines; additions grow

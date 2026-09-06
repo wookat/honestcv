@@ -1928,3 +1928,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/lib/resume.ts mergeSkills：多行块末行为无标注明文时就地追加（`last, fresh…`），末行带标注仍新起一行（永不污染分类）；五个 chip 路径与 assistant @@APPLY 零改动受益。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：31 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：375/1280 连点两 chip → `…\nkubernetes, scalable` 单行共享；末行带标注（`Languages: python`）添加 → 新起 `kubernetes` 行；单行明文照旧就地生长；零溢出、QA 后存储回基线键。
+
+## R547 — 「File uncategorized skills」把已分类块的明文尾行归档入类（2026-08-31）
+- 一手证据（生产 CDP，1280×900，全新存储）：R545/R546 后分类技能块可长成 `Languages: python, golang\nTools: docker\nkubernetes, scalable`——kubernetes 在 SKILL_CATEGORIES（Cloud & DevOps）里可识别，但 UI 无任何归档路径：「Group into categories」对含标注行的块隐藏、categorizeSkills 对混合块按设计返回 null。方案：docs/plan-r547-file-tail-skills.md。
+- 修复两文件：src/lib/resume.ts 新增 `fileTailSkills()`（仅对混合块生效：已识别尾项并入标签匹配的既有分类行——大小写不敏感、双向子串匹配，否则按 SKILL_CATEGORIES 顺序新建分类行；未识别项如 scalable 保留在明文尾行；不可归档时返回 null）；src/pages/Builder.tsx Skills 编辑器混合块条件下渲染「File uncategorized skills」按钮（用户主动触发，chip 自动追加行为零改动）。categorizeSkills/mergeSkills/ats.ts 零改动。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：31 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 混合种子按钮在位 → 点击后 `Cloud & DevOps: kubernetes` 新行、scalable 留尾行、按钮消失；`Cloud: aws\nkubernetes…` 种子 → kubernetes 并入既有 Cloud 行（标签匹配）；纯平铺列表仍显示「Group into categories」且不显示新按钮；零溢出零 console 错误、QA 后存储回基线键。

@@ -270,6 +270,7 @@ import {
   type AutoSortSection,
   skillLines,
   categorizeSkills,
+  fileTailSkills,
   mergeSkills,
   sortEntriesByDate,
   TEXT_INKS,
@@ -6468,6 +6469,25 @@ export default function Builder() {
                     )}
                   </div>
                 )}
+              {fileTailSkills(resume.skills) !== null && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-muted-foreground text-xs">
+                    Some skills below your categories aren't filed under one yet.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    onClick={() => {
+                      const filed = fileTailSkills(resume.skills)
+                      if (filed !== null) set('skills', filed)
+                    }}
+                  >
+                    <Sparkles className="size-3.5" /> File uncategorized skills
+                  </Button>
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 {aiButton(
                   'skills',
