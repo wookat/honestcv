@@ -2429,3 +2429,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据（生产 index-CSKiwVKd.js，qa/r634-evidence.cjs twocopies，真实职位 2091088 Applied，A 链接、B 同为该职位所建且未链接）：卡片只有「Targeted resume: A · Open」，B 不出现；dashboard（R594）/builder（R605）仅说「uses another copy」无动作；唯一换回路径是删 A。与 R635 修前的文档侧完全同构。方案 docs/plan-r636-job-card-lists-earlier-targeted-copies-and-swaps-them-in.md。
 - 修复（Jobs.tsx）：新增 `orphanTargetedCopies(job)`（forJob=job 且保留来源、或目标字段匹配，未被任何职位链接，新→旧）；R634 行下逐条渲染「Earlier targeted copy: B · Use this one instead」（无链接副本时「Targeted copy (not linked): B · Use for this job」，多孤儿时可选）；动作为既有 `setPipelineVersion`（R619 盖 forJob），不删不开，原链接副本随即变为 Earlier 行可换回。行上不放 Open（打开副本会替换草稿，走主按钮的确认弹窗）。部署 index-Cj5uxiAF.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375：点击后 copy=qa-copyB、两副本俱在 forJob=2091088、行互换；单副本对照无多余行；无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R635（#856）→ R636。
+
+## R637 — builder Target job 区对「目标职位用另一副本」只有链接、无动作（2026-09-06）
+- 证据（生产 index-Cj5uxiAF.js，qa/r637-evidence.cjs，真实职位 2091088 Applied，职位链接 A，编辑器打开同职位副本 B）：文案「…but that tracked job uses another copy. View it on the jobs board →」，按钮仅有链接；R621 的「Link this copy to it」只在职位无副本时出现。dashboard（R620）与 jobs 板（R636）均可原地链接，builder 是最后一个「有事实无动作」的面。方案 docs/plan-r637-builder-target-job-use-this-copy-instead.md。
+- 修复（Builder.tsx）：按钮常驻，文案随状态「Use this copy instead」/「Link this copy to it」，同一 `linkCopyToTargetedJob`（setPipelineVersion，R619 盖 forJob）；不删原副本，原副本在职位卡变为 Earlier 行（R636）可换回。部署 index-Ck2L9KYw.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：点击后 copy=qa-copyB、两副本俱在 forJob=2091088、active 不变、文案变为「This copy is tailored to …」；无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R636（#857）→ R637。

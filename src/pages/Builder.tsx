@@ -2931,18 +2931,16 @@ export default function Builder() {
                   ? 'uses another copy'
                   : 'has no copy linked'}
                 .{' '}
-                {!jobLinksLiveCopy(targetedTrackedEntry, versions) && (
-                  <>
-                    <button
-                      type="button"
-                      className="text-primary font-medium underline-offset-2 hover:underline"
-                      onClick={linkCopyToTargetedJob}
-                    >
-                      Link this copy to it
-                    </button>
-                    {' · '}
-                  </>
-                )}
+                <button
+                  type="button"
+                  className="text-primary font-medium underline-offset-2 hover:underline"
+                  onClick={linkCopyToTargetedJob}
+                >
+                  {jobLinksLiveCopy(targetedTrackedEntry, versions)
+                    ? 'Use this copy instead'
+                    : 'Link this copy to it'}
+                </button>
+                {' · '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(targetedTrackedJob.id)}`}
                   className="text-primary font-medium underline-offset-2 hover:underline"
