@@ -381,6 +381,44 @@ export const HEALTH_WEIGHTS: Record<string, number> = {
   consistency: 0.1,
 }
 
+/**
+ * Imperative titles for the priority-fix list. Check labels describe the
+ * passing state (for the pass/fail checklist); a "what to fix" list needs
+ * action phrasing instead.
+ */
+const FIX_TITLES: Record<string, string> = {
+  'Experience in reverse-chronological order': 'Put experience in reverse-chronological order',
+  'Consistent date formatting': 'Use one date format throughout',
+  'Dates use a written month': 'Write dates with a month name',
+  'No first-person pronouns': 'Remove first-person pronouns',
+  'Active voice in bullet points': 'Rewrite passive bullet points in active voice',
+  'Strong bullet openers': 'Open bullet points with strong action verbs',
+  'No empty buzzwords': 'Remove empty buzzwords',
+  'No filler words': 'Cut filler words',
+  'Quantified bullet points': 'Add numbers to your bullet points',
+  'Punctuated bullet points': 'Punctuate your bullet points consistently',
+  'Bullet points the right length': 'Rework bullet points to the right length',
+  'Fits the recommended page count': 'Fit the recommended page count',
+  'LinkedIn URL': 'Add your LinkedIn URL',
+  'Locations on each entry': 'Add a location to each entry',
+  '3–6 bullet points per role': 'Give each role 3–6 bullet points',
+  'Word count in recommended range': 'Bring the word count into the recommended range',
+  'Email address found': 'Add an email address',
+  'Phone number found': 'Add a phone number',
+  'Standard section headings': 'Use standard section headings',
+  'Skills section present': 'Add a skills section',
+  'Quantified achievements': 'Quantify your achievements',
+  'Employment dates found': 'Add employment dates',
+  'Enough content to parse': 'Add more resume content',
+  'Contact info complete': 'Complete your contact info',
+  'Professional summary present': 'Add a professional summary',
+  'Work experience with bullets': 'Add bullet points to your work experience',
+  'Employment dates listed': 'List dates on each role',
+  'Skills section filled': 'Fill in your skills section',
+  'Skills grouped into categories': 'Group skills into categories',
+  'Education listed': 'List your education',
+}
+
 export interface PriorityFix {
   text: string
   impact: 'high' | 'medium'
@@ -403,7 +441,7 @@ export function priorityFixes(ats: AtsResult, health: HealthReport, limit = 5): 
   for (const check of ats.checks) {
     if (check.pass) continue
     fixes.push({
-      text: `${check.label} — ${check.hint}`,
+      text: `${FIX_TITLES[check.label] ?? check.label} — ${check.hint}`,
       impact: perCheck >= 10 ? 'high' : 'medium',
       points: Math.round(perCheck * 10) / 10,
       anchor: check.anchor,

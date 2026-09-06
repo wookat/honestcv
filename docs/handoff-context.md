@@ -1594,6 +1594,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R519 — Priority fixes 标题从「通过态」改为祈使句（2026-08-31）
+- 一手证据（生产 CDP，全新存储）：短简历+JD 检查后 Priority fixes 出现「Word count in recommended range — Your resume is 54 words…」「Enough content to parse — Very short resumes…」——标题宣称通过态、正文却指出问题，自相矛盾；「Phone number found」类同。根因：priorityFixes 直接拼 `${check.label} — ${check.hint}`，check.label 全是给 pass/fail 清单用的通过态措辞。
+- 修复仅 src/lib/guidance.ts：FIX_TITLES 映射 30 个检查 label → 祈使句修复标题，priorityFixes 用 `FIX_TITLES[label] ?? label`；检查清单/fixedChecks 徽章键/health 维度/评分零改动；Builder 侧 Priority fixes 与 improveScoreReply 同函数自动受益。方案：docs/plan-r519-priority-fix-imperative-titles.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：同短简历重查，三条 MED 全部祈使句（Add more resume content / Bring the word count into the recommended range / Give each role 3–6 bullet points），关键词与 Completeness 项照常，「Fix in builder →」深链在位，375px 零溢出，QA 后存储清理。
+
 ## R518 — /ats-checker 首次检查假「Fixed since last check」徽章（2026-08-31，SOP-10 节点）
 - 四维复扫：7 路由双视口零溢出；Rezi changelog（rezi.ai/rezi-changelog）无新可落地缺口；生产 /ats-checker 真实报告链实测中发现缺口。
 - 一手证据（生产 CDP，全新存储）：粘贴简历+JD 后首次点 Check，「Punctuated bullet points」旁即出现「Fixed since last check」——用户从未做过上一次检查。根因：评分输入走 useDeferredValue（R406 防卡键），点击后第一帧用过期 deferred 文本算出瞬态报告，effect 无条件把它写入 prevScanRef 基线；deferred 追平后真实报告与假基线对比，「部分文本 fail→完整文本 pass」的检查项全被误标已修复。
