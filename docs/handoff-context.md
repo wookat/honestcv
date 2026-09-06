@@ -1922,3 +1922,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Builder.tsx：五处裸追加（Target 面板 chips、Score 卡分诊「Add to Skills」、两个分层 chips、proven chips、角色建议 chips）全部改 mergeSkills(resume.skills,[kw])；角色建议 dedupe 改为按行剥离 `label:` 前缀后再按逗号拆分。resume.ts/ats.ts 零改动。
 - tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：375/1280 分类种子点「+ kubernetes」→ skills 新增独立行（不再污染 Tools 行）；单行明文技能仍就地生长（`python, golang, kubernetes`）；「+ Python」「+ Docker」不再出现在建议 chips；零溢出、QA 后存储回基线键。
+
+## R546 — mergeSkills 在未标注尾行就地生长，不再一键一行（2026-08-31）
+- 一手证据（生产 CDP，1280×900，全新存储）：R545 上线后分类技能种子连点「+ kubernetes」「+ scalable」→ skills 变四行 `Languages…\nTools…\nkubernetes\nscalable`——mergeSkills 对多行块永远新起一行，N 次点按产生 N 条孤行；「Skills grouped into categories」检查仍 ✓（有标注行即通过），非误报但块面凌乱。方案：docs/plan-r546-merge-skills-tail-line.md。
+- 修复仅 src/lib/resume.ts mergeSkills：多行块末行为无标注明文时就地追加（`last, fresh…`），末行带标注仍新起一行（永不污染分类）；五个 chip 路径与 assistant @@APPLY 零改动受益。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：31 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 连点两 chip → `…\nkubernetes, scalable` 单行共享；末行带标注（`Languages: python`）添加 → 新起 `kubernetes` 行；单行明文照旧就地生长；零溢出、QA 后存储回基线键。

@@ -2513,8 +2513,9 @@ export function categorizeSkills(skills: string): string | null {
 /**
  * Merge new skills into a skills text block without destroying its line/category
  * structure. Dedupes case-insensitively against every existing item (category
- * labels excluded). Multi-line or labeled blocks keep their lines and get the
- * additions on a new line; a single plain line grows in place.
+ * labels excluded). Multi-line or labeled blocks keep their lines; additions grow
+ * an existing plain (unlabeled) tail line, or start one when the last line is
+ * labeled. A single plain line grows in place.
  */
 export function mergeSkills(existing: string, added: string[]): string {
   const lines = existing.split('\n').map((l) => l.trim()).filter(Boolean)
@@ -2534,6 +2535,9 @@ export function mergeSkills(existing: string, added: string[]): string {
   if (lines.length === 0) return fresh.join(', ')
   if (lines.length === 1 && !/^[^:]{1,40}:\s*.+$/.test(lines[0]))
     return `${lines[0]}, ${fresh.join(', ')}`
+  const last = lines[lines.length - 1]
+  if (!/^[^:]{1,40}:\s*.+$/.test(last))
+    return [...lines.slice(0, -1), `${last}, ${fresh.join(', ')}`].join('\n')
   return [...lines, fresh.join(', ')].join('\n')
 }
 
