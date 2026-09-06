@@ -1594,6 +1594,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R510 — 面试弹窗：关闭保护覆盖 Prep Brief（2026-08-31）
+- 一手证据（生产 CDP）：/builder?doc=interview「Start from a template」生成 906 字符 brief→再编辑→Close：零确认直接关闭，brief（无论未保存还是保存后再编辑）被静默销毁。根因：unsavedWork 的 interview 分支只查 `session !== null || answer.trim() !== ''`，result（brief）只在信件分支受保护——R333/R509 的护栏从未覆盖面试 brief，而面试弹窗有同样的 Generate/模板/Save to My resumes 流程。
+- 修复仅 Builder.tsx ToolDialog：抽出 `resultAtRisk = result !== '' && (savedId === null || result !== savedText)`；interview 分支 unsavedWork 加入 resultAtRisk；确认弹窗 interview 文案在 brief 有风险时改为「Your current session, typed answer and unsaved prep brief will be lost.」（否则维持原文案）。信件分支/R507/R508 零改动。方案：docs/plan-r510-interview-brief-close-guard.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA 六场景全对：模板 brief→Close 弹确认（新文案）+Keep working 保留；保存后干净关闭零弹窗；保存→编辑→Close 弹确认；仅键入答案 Close 弹确认（原文案，回归）；cover 未保存关闭仍弹（R509/R333 回归）；375px 弹确认零溢出；QA 后存储清理。
+
 ## R509 — Builder 信件弹窗：关闭保护覆盖保存后的再编辑（2026-08-31）
 - 审计先如实驳回一条伪缺口：早前探针读 `d.content` 报"保存文档内容为空"，实为字段名错误（文档模型字段是 `text`），纠正后复测保存内容完整（619 字符）且 Dashboard/Documents 双面均显示。
 - 一手证据（生产 CDP）：/builder?doc=cover 模板→「Save to My resumes」→再编辑 textarea→Close：零确认直接关闭，已存文档仍是保存前旧文本，保存后的编辑被静默销毁。根因：unsavedWork 判定 `savedId === null`，一旦保存过就永远视为"已保存"。

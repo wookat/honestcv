@@ -10403,10 +10403,10 @@ function BundleToolDialog({
     if (resultEdited) setOverwriteWarn(action)
     else runOverwriteAction(action)
   }
+  const resultAtRisk =
+    kind !== null && result !== '' && (savedId === null || result !== savedText)
   const unsavedWork =
-    kind === 'interview'
-      ? session !== null || answer.trim() !== ''
-      : kind !== null && result !== '' && (savedId === null || result !== savedText)
+    kind === 'interview' ? session !== null || answer.trim() !== '' || resultAtRisk : resultAtRisk
   const requestClose = () => {
     if (unsavedWork) setConfirmingClose('close')
     else onClose()
@@ -10421,7 +10421,9 @@ function BundleToolDialog({
             </DialogTitle>
             <DialogDescription>
               {kind === 'interview'
-                ? 'Your current session and typed answer will be lost.'
+                ? resultAtRisk
+                  ? 'Your current session, typed answer and unsaved prep brief will be lost.'
+                  : 'Your current session and typed answer will be lost.'
                 : savedId
                   ? 'Your edits since the last save will be lost.'
                   : 'The generated letter will be lost.'}
