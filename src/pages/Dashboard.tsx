@@ -2393,6 +2393,20 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   ? 'Resignation letter'
                   : 'Interview prep brief'}{' '}
               — edits are saved to this browser.
+              {openDoc !== null && jobByDoc.has(openDoc.id) && (
+                <>
+                  {' '}
+                  Written for{' '}
+                  <Link
+                    to={`/jobs?job=${encodeURIComponent(jobByDoc.get(openDoc.id)!.job.id)}`}
+                    className="underline underline-offset-2"
+                  >
+                    {jobByDoc.get(openDoc.id)!.job.title} at{' '}
+                    {jobByDoc.get(openDoc.id)!.job.company}
+                  </Link>
+                  .
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div
