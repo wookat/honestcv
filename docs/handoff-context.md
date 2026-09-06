@@ -1854,6 +1854,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Builder-YfHVehQD.js）：375px 点 bullet-count Fix → 聚焦 Role 2 Cardinal Apps 卡且 Edit pane 激活；区级检查（Punctuated bullet points）Fix → 照常跳 Experience 区；?jump=skills 深链回归；1280px 同样直达 Cardinal Apps 卡；全场景零溢出零 console 错误、存储仅基线键。
 
+## R540 — 程序化条目跳转不再被 pane 滚动恢复取消（2026-08-31）
+- 一手证据（生产 CDP，375×812，R539 上线后）：Preview pane 开 score breakdown，点 experience 条目定位钮——正确卡聚焦但页面不滚动（+2/4/7s 均 top 2977、scrollY 3，3/3 复现；同跑 Projects 案例正常，说明是竞态非 R539 anchor 问题）。
+- 根因：jumpToEntry/jumpToSection setMobilePane('edit') 后，R533 pane 恢复 effect 的即时 scrollTo(edit 旧 offset≈0) 若落在跳转 rAF 的 smooth scrollIntoView 之后，就取消平滑滚动、停在过期 offset；effect 与 rAF 先后依时序而定，故 Projects（多一次 JUMP_OPEN_EVENT 渲染）常胜、Experience 常败。
+- 修复仅 Builder.tsx：新增 skipPaneRestoreRef，两个 jump helper 切 pane 时置 true，恢复 effect 见标志即清除并跳过 scrollTo；switcher 按钮路径的 R533/R535 恢复行为零改动。方案：docs/plan-r540-jump-skips-pane-scroll-restore.md。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375 experience 定位 3/3 直达 inView（原 3/3 失败）、Projects 回归 inView、switcher 往返恢复 1200/600（R533/R535 回归）、1280 照常、双视口零溢出、存储回五键基线。
+
 ## R539 — Score breakdown 弹窗的条目级 Fix 透传来源 anchor（2026-08-31）
 - 一手证据（生产 CDP，1280）：Projects 条目被动语态时，「See full score breakdown」弹窗内 ATS structure 的「Active voice…」Fix → 点击后 activeEntryId=null、scrollY=0——R538 只修了 Score 卡路径，弹窗的 `jumpEntry(id)` 包装（及 `onJumpEntry:(id)=>void` prop）从不透传 finding 的 anchor，折叠 Projects 区条目卡未挂载即查询、静默 no-op。
 - 修复仅 Builder.tsx 弹窗组件：`onJumpEntry`/`jumpEntry` 签名加 `anchor?: SectionAnchor`（父级 jumpToEntry 已支持），弹窗内四处条目级调用（priority fixes Fix →/→ entryLabel、维度 richFindings Fix →/→ entryLabel）均透传 f.anchor。方案：docs/plan-r539-score-dialog-entry-anchor.md。
@@ -1884,3 +1891,4 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Builder.tsx：两个 jump helper 切 pane 前补一行 `if (mobilePane !== 'edit') paneScrollRef.current[mobilePane] = window.scrollY`。switcher、R533 恢复 effect、?jump= 深链、R534 entryId 优先级、桌面端零改动。
 - tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Builder-CkoTRN0P.js）：375px 预览@600 → entry 级 Fix →（聚焦 Cardinal Apps 卡）→ 回预览恢复 600；预览@900 → 区级 Fix →（Punctuated bullet points）→ 回预览恢复 900；?jump=skills 回归 inView；1280px Fix → 照常直达；全场景零溢出零 console 错误、存储仅基线键。
+

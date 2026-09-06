@@ -1312,9 +1312,15 @@ export default function Builder() {
    *  so switching back returns the user to where they were. */
   const paneScrollRef = useRef<Record<'edit' | 'preview', number>>({ edit: 0, preview: 0 })
   const prevPaneRef = useRef(mobilePane)
+  /** Programmatic jumps scroll to their own target — the pane restore must not cancel them */
+  const skipPaneRestoreRef = useRef(false)
   useEffect(() => {
     if (mobilePane === prevPaneRef.current) return
     prevPaneRef.current = mobilePane
+    if (skipPaneRestoreRef.current) {
+      skipPaneRestoreRef.current = false
+      return
+    }
     window.scrollTo({ top: paneScrollRef.current[mobilePane] })
   }, [mobilePane])
   const renderPreviewPane = isLgViewport || printArmed || previewSeen || mobilePane === 'preview'
@@ -1322,7 +1328,10 @@ export default function Builder() {
   const [addedSections, setAddedSections] = useState<string[]>([])
   /** Scroll the editor section that fixes a failing ATS check into view */
   const jumpToSection = (anchor: string) => {
-    if (mobilePane !== 'edit') paneScrollRef.current[mobilePane] = window.scrollY
+    if (mobilePane !== 'edit') {
+      paneScrollRef.current[mobilePane] = window.scrollY
+      skipPaneRestoreRef.current = true
+    }
     setMobilePane('edit')
     if (OPTIONAL_SECTION_KEYS.includes(anchor))
       setAddedSections((s) => (s.includes(anchor) ? s : [...s, anchor]))
@@ -1349,7 +1358,10 @@ export default function Builder() {
   const [flashEntryId, setFlashEntryId] = useState<string | null>(null)
   /** Scroll a specific entry card into view, expanding its section and card if collapsed */
   const jumpToEntry = (id: string, anchor?: string) => {
-    if (mobilePane !== 'edit') paneScrollRef.current[mobilePane] = window.scrollY
+    if (mobilePane !== 'edit') {
+      paneScrollRef.current[mobilePane] = window.scrollY
+      skipPaneRestoreRef.current = true
+    }
     setMobilePane('edit')
     if (anchor) window.dispatchEvent(new CustomEvent(JUMP_OPEN_EVENT, { detail: anchor }))
     setCollapsedEntries((s) => {
