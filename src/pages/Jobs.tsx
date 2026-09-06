@@ -747,6 +747,30 @@ export default function Jobs() {
     )
   }
 
+  /** Another job's linked copy aimed at this job, when this job has no copy of its own (for the confirm dialog). */
+  const aimedCopyFor = (job: JobListing, intent: 'target' | 'cover' | 'keywords' | 'interview') =>
+    (intent === 'target' || intent === 'cover') && !targetedCopyOf(job)
+      ? copyAimedFromOtherJob(job)
+      : undefined
+
+  /** A standalone draft with content would be replaced by opening a copy. */
+  const standaloneDraftAtRisk = () =>
+    getActiveVersionId() === null && resumeHasContent(loadResume() ?? emptyResume())
+
+  /** Open another job's linked copy that is aimed at this job (its Target job section offers "Save as new copy";
+   * the cover letter tool resolves to this job because the copy targets it). Links are not moved. */
+  const openAimedCopy = (job: JobListing, copy: ResumeVersion, intent: 'target' | 'cover') => {
+    if (standaloneDraftAtRisk() && !keepDraftAsCopy()) return
+    saveResume(copy.data)
+    setActiveVersionId(copy.id)
+    setConfirmTarget(null)
+    void navigate(
+      intent === 'cover'
+        ? `/builder?doc=cover&company=${encodeURIComponent(job.company)}&job=${encodeURIComponent(job.id)}`
+        : '/builder?jump=target'
+    )
+  }
+
   /** The editor holds a standalone draft (synced to no copy) with content, and this job already has a
    * copy that would open over it — the one case where work is lost rather than cloned or re-aimed. */
   const draftAtRisk = (job: JobListing) =>
@@ -2221,6 +2245,14 @@ export default function Jobs() {
             </DialogTitle>
             <DialogDescription>
               {confirmTarget &&
+                (() => {
+                  const aimed = aimedCopyFor(confirmTarget.job, confirmTarget.intent)
+                  if (!aimed) return null
+                  return `“${aimed.copy.name}” is aimed at this job but is linked to “${aimed.job.title}” at ${aimed.job.company} — “Open that copy” opens it so you can save a copy for this job from its Target job section${
+                    standaloneDraftAtRisk() ? ', saving your draft as a copy first' : ''
+                  }. Otherwise: `
+                })()}
+              {confirmTarget &&
                 (confirmTarget.intent === 'cover' || confirmTarget.intent === 'interview') &&
                 (() => {
                   const noun = confirmTarget.intent === 'cover' ? 'cover letter' : 'interview brief'
@@ -2303,6 +2335,22 @@ export default function Jobs() {
                 Save draft as copy, then open
               </Button>
             )}
+            {confirmTarget &&
+              (confirmTarget.intent === 'target' || confirmTarget.intent === 'cover') &&
+              (() => {
+                const aimed = aimedCopyFor(confirmTarget.job, confirmTarget.intent)
+                if (!aimed) return null
+                const intent = confirmTarget.intent === 'cover' ? 'cover' : 'target'
+                return (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => openAimedCopy(confirmTarget.job, aimed.copy, intent)}
+                  >
+                    Open that copy
+                  </Button>
+                )
+              })()}
             {confirmTarget &&
               (confirmTarget.intent === 'target' || confirmTarget.intent === 'cover') &&
               (() => {
