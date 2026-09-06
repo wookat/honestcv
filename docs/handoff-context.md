@@ -1982,3 +1982,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 Dashboard.tsx 文档卡 meta 行：cover/resignation 且 countLetterPlaceholders(d.text)>0 时追加琥珀「· N to fill」（dark 模式 amber-400）；interview 不适用；复用 R553 同款计数函数，与 Edit 页计数条恒一致。导出/警示/Preview 高亮/评分零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280/375 含占位符 cover 卡显示「15 to fill」、改动文本后徽标随计数变化、interview 文档不显示徽标、零溢出；QA 存储清理回六键基线。
+
+## R556 — 保存文档重名时自动编号（2026-08-31）
+- 一手证据（生产 CDP）：/documents 对同一份「Software Engineer」信件示例点两次「Use this example」，出现两张标题、meta、徽标完全相同的「Software Engineer cover letter」卡片，无法区分；代码实证 saveCareerDoc 从不查重，示例/Builder「Save to My resumes」/「Import a cover letter」三条保存路径全撞。简历副本（R358/R369）与文档 Duplicate 早已编号，唯独新保存路径缺失。方案：docs/plan-r556-numbered-doc-save-titles.md。
+- 修复仅 src/lib/documents.ts：提取 numberedDocTitle(title, docs)（被占用时剥 " (copy|N)" 尾缀从 (2) 起找空位），saveCareerDoc 落库前套用；duplicateCareerDoc 改用同一 helper（行为不变）。Rename 不查重（尊重用户命名）；调用方零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280 连用三次示例 → 「…」「… (2)」「… (3)」，Duplicate 回归 → 「… (4)」；375 再保存 → 「… (5)」；零溢出；QA 存储清理回六键基线。

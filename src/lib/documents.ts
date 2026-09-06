@@ -115,10 +115,28 @@ export function listCareerDocs(): CareerDoc[] {
   }
 }
 
+/** Number a title that is already taken ("base (2)", "base (3)", …). */
+function numberedDocTitle(title: string, docs: CareerDoc[]): string {
+  const taken = new Set(docs.map((d) => d.title))
+  if (!taken.has(title)) return title
+  const base = title.replace(/ \((?:copy|\d+)\)$/, '')
+  for (let n = 2; ; n++) {
+    const candidate = `${base} (${n})`
+    if (!taken.has(candidate)) return candidate
+  }
+}
+
 /** Returns null when the document could not be persisted (storage full). */
 export function saveCareerDoc(kind: CareerDocKind, title: string, text: string): CareerDoc | null {
-  const doc: CareerDoc = { id: newId(), kind, title, text, updatedAt: Date.now() }
-  return persistDocs([doc, ...listCareerDocs()]) ? doc : null
+  const docs = listCareerDocs()
+  const doc: CareerDoc = {
+    id: newId(),
+    kind,
+    title: numberedDocTitle(title, docs),
+    text,
+    updatedAt: Date.now(),
+  }
+  return persistDocs([doc, ...docs]) ? doc : null
 }
 
 export function updateCareerDoc(
@@ -145,14 +163,12 @@ export function duplicateCareerDoc(id: string): CareerDoc[] | null {
   const docs = listCareerDocs()
   const source = docs.find((d) => d.id === id)
   if (!source) return docs
-  const taken = new Set(docs.map((d) => d.title))
-  const base = source.title.replace(/ \((?:copy|\d+)\)$/, '')
-  let title = ''
-  for (let n = 2; !title; n++) {
-    const candidate = `${base} (${n})`
-    if (!taken.has(candidate)) title = candidate
+  const copy: CareerDoc = {
+    ...source,
+    id: newId(),
+    title: numberedDocTitle(source.title, docs),
+    updatedAt: Date.now(),
   }
-  const copy: CareerDoc = { ...source, id: newId(), title, updatedAt: Date.now() }
   const next = [copy, ...docs]
   return persistDocs(next) ? next : null
 }
