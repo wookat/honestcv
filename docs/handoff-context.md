@@ -1594,6 +1594,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R514 — 首页 hydration 布局位移：freeMode 英雄文案在构建期定型（2026-08-31）
+- 一手证据（生产 Lighthouse + 限速 CDP 412px）：/ 是主要路由中唯一非零 CLS（0.041）；英雄段落水合时 140px→112px（少一行）、CTA 上移 42px、layout-shift 0.056。诊断探针实证段落文本本身在变：付费文案 172 字符（"Pay $9.99 one time…"）→ 免费文案 161 字符（"Every plan is free during beta…"）——useFreeMode() 初始 false，/api/billing/status 返回后才翻 true。
+- 如实驳回首个假设：曾归因 font-display:optional 字体度量差并加 next/font 式 metric fallback，但字体已 resolve 时位移照旧，纯文案交换所致；CSS 改动已回退。方案：docs/plan-r514-freemode-hero-cls.md。
+- 修复：FREE_MODE 是 wrangler.jsonc 里的部署期变量——vite.config.ts 与 vite.ssr.config.ts 构建期读取并 define __FREE_MODE__（声明在 src/vite-env.d.ts）；freeMode.ts 用它作 useState 初值，使 prerender shell 与首次水合同为免费文案；/api/billing/status 响应仍权威（双向 set，运行期改 flag 不重建也能在加载后纠正）。
+- tsc/单查 eslint/build/verify-dist 绿；prerender 的 index.html 含免费文案、零 "$9.99 one time"。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：限速 412px 段落 8 秒采样恒 112px/161 字符/免费文案、buffered layout-shift 观测 0、副标题免费文案同步、412/1280 零溢出、/builder 回归正常、存储仅基线键；Lighthouse / CLS 0.041→0（perf 本次 0.81，headless 环境与前次 0.93 非同条件，CLS 为本轮目标指标）。
+
 ## R513 — 消灭 /jobs 加载期布局位移（2026-08-31）
 - 证据（一手生产）：Lighthouse 移动端 /jobs perf 0.77、CLS 0.012——主要路由中唯一非零 CLS；layout-shifts 审计归因 jobs 网格容器。限速 CDP 探针（412px）：loading 态 Locations 骨架行高 178px、真 chips 行 132px，数据到达后 gridTop 681→635 上移 46px；另 R502「{n} jobs found」计数行（29px）仅 !loading 渲染，加载完成后在容器内插入。
 - 根因：facet 骨架仍按 R512 之前的复合地点标签尺寸（7 枚 112–168px），R512 后真 chips 是 8 枚窄单一地区标签（实测 70–100px），骨架多折一行；计数行 post-load 插入。
