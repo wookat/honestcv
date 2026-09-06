@@ -627,10 +627,11 @@ const ENTRY_LOCATIONS_PASS_HINT =
 
 /** Locations on each entry: work, involvement and education entries should carry one */
 function entryLocationsCheck(
-  entries: { name: string; located: boolean; anchor: SectionAnchor }[]
+  entries: { name: string; located: boolean; anchor: SectionAnchor; id?: string }[]
 ): AtsResult['checks'][number] {
   const offender = entries.find((e) => !e.located)
   return {
+    entryId: offender?.id,
     label: ENTRY_LOCATIONS_LABEL,
     pass: !offender,
     na: entries.length === 0 || undefined,
@@ -1184,6 +1185,7 @@ export function scoreResume(
           name: [stripInlineMarks(e.role).trim(), stripInlineMarks(e.company).trim()].filter(Boolean).join(' at '),
           located: Boolean(e.location.trim()),
           anchor: 'experience' as const,
+          id: e.id,
         })),
       ...(resume.involvement ?? [])
         .filter((i) => !i.hidden && (i.role.trim() || i.organization.trim()))
@@ -1191,6 +1193,7 @@ export function scoreResume(
           name: [stripInlineMarks(i.role).trim(), stripInlineMarks(i.organization).trim()].filter(Boolean).join(' at '),
           located: Boolean(i.location.trim()),
           anchor: 'involvement' as const,
+          id: i.id,
         })),
       ...resume.education
         .filter((e) => !e.hidden && e.school.trim())
@@ -1198,6 +1201,7 @@ export function scoreResume(
           name: e.school.trim(),
           located: Boolean(e.location.trim()),
           anchor: 'education' as const,
+          id: e.id,
         })),
     ]),
   ]

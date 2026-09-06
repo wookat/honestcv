@@ -3557,10 +3557,13 @@ export default function Builder() {
                 key={e.id}
                 {...eduDrag.dropProps(idx)}
                 data-autosort-scope="education"
+                data-entry-id={e.id}
                 onBlurCapture={releaseAutoSort('education')}
                 className={`space-y-2 rounded-lg border p-3 transition ${
                   eduDrag.overIndex === idx ? 'border-primary bg-primary/5' : ''
-                } ${e.hidden ? 'opacity-60' : ''}`}
+                } ${e.hidden ? 'opacity-60' : ''} ${
+                  flashEntryId === e.id ? 'ring-primary/60 ring-2' : ''
+                }`}
               >
                 <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
                   <span
@@ -4411,7 +4414,10 @@ export default function Builder() {
             {(resume.involvement ?? []).map((inv, invIdx) => (
               <div
                 key={inv.id}
-                className={`space-y-2 rounded-lg border p-3 ${inv.hidden ? 'opacity-60' : ''}`}
+                data-entry-id={inv.id}
+                className={`space-y-2 rounded-lg border p-3 ${inv.hidden ? 'opacity-60' : ''} ${
+                  flashEntryId === inv.id ? 'ring-primary/60 ring-2' : ''
+                }`}
               >
                 {inv.hidden && (
                   <p className="text-muted-foreground text-[10px] font-semibold uppercase">

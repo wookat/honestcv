@@ -1854,6 +1854,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Builder-YfHVehQD.js）：375px 点 bullet-count Fix → 聚焦 Role 2 Cardinal Apps 卡且 Edit pane 激活；区级检查（Punctuated bullet points）Fix → 照常跳 Experience 区；?jump=skills 深链回归；1280px 同样直达 Cardinal Apps 卡；全场景零溢出零 console 错误、存储仅基线键。
 
+## R537 — Locations 检查的 Fix 直达违规条目卡（2026-08-31）
+- 审计：Rezi changelog（Week4 2026）无新可落地项。一手证据（生产 CDP，375×812）：「Locations on each entry」如实点名第二条 Experience（"Software Engineer II at Cardinal Apps"）缺 location，点 Fix → 只跳 Experience 区顶、聚焦首条，违规条目仍需人肉找；Involvement/Education 同理只到区级。根因：R534 已让 Fix 优先 `c.entryId`，但 entryLocationsCheck 的中间对象把源条目 id 丢弃、检查从不返回 entryId；且 Education/Involvement 卡片缺 `data-entry-id`（jumpToEntry 查不到）。方案：docs/plan-r537-locations-check-entry-id.md。
+- 修复两文件：src/lib/ats.ts entryLocationsCheck 条目对象带可选 `id`、返回 `entryId: offender?.id`，builder 路径 experience/involvement/education 映射各带源 id（文本路径 /ats-checker 无结构 id，照旧区级锚点）；src/pages/Builder.tsx Education/Involvement 卡补 `data-entry-id` + flash-ring（与 Experience 同款）。jumpToEntry/Fix 优先级零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-C5WeTOJw.js）：375px Experience 违规 Fix → 聚焦 Cardinal Apps 卡（卡高 1096px>视口，block:center 顶出 -142px 属预期，卡片充满视口）；Involvement 违规 Fix → 聚焦 Code Club 卡 inView；Education 违规 Fix → 聚焦 Rice University 卡 inView；1280px Experience 同款直达 inView；R535 回归（Fix 后回预览恢复 scrollY 600）；/ats-checker 文本路径照旧区级「Fix in builder →」；两视口零溢出零 console 错误、QA 后存储回基线键。QA 备注：seed 需含 contact（loadResume 无 contact 返回 null）。
+
 ## R536 — Locations 检查的 Fix 对 involvement 条目跳错区（2026-08-31）
 - 审计：Rezi changelog 无新项。一手证据（生产 CDP，375×812）：仅 involvement 条目缺 location 时，「Locations on each entry」如实点名 "Volunteer Mentor at Code Club"，点 Fix → 却聚焦 **Experience 区首条 role**，Involvement 区不在视口。根因：ats.ts builder 路径 involvement 条目写死 `anchor: 'experience'`（SectionAnchor 联合类型无 'involvement'），而 Builder 的 JUMP_ANCHORS/OPTIONAL_SECTION_KEYS 早已支持 involvement。方案：docs/plan-r536-involvement-location-fix-anchor.md。
 - 修复仅 src/lib/ats.ts 两处：SectionAnchor 加 `'involvement'`；involvement 条目 anchor 改 `'involvement' as const`。文本路径（/ats-checker 粘贴）只解析 experience 块，零改动；education/experience 条目零改动。
