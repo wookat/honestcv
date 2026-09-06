@@ -165,6 +165,7 @@ import {
   updateCareerDoc,
 } from '@/lib/documents'
 import {
+  copyKeepsProvenance,
   copyTargetsJob,
   jobLinksLiveCopy,
   listPipeline,
@@ -172,6 +173,7 @@ import {
   setPipelineCoverDoc,
   setPipelineInterviewDoc,
   setPipelineResignationDoc,
+  trackedJobOfCopy,
 } from '@/lib/jobs'
 import { trackEvent } from '@/lib/track'
 import {
@@ -1235,21 +1237,20 @@ export default function Builder() {
   )
   /** Job the active copy was saved for from the jobs board (copies saved before forJob existed have none). */
   const activeCopyJob = versions.find((v) => v.id === activeVersionId)?.forJob
-  /** Tracked job this copy targets without being its linked copy (the job uses another copy, or none). */
+  /** Tracked job this copy targets without being its linked copy (the job uses another copy, or none),
+   * and whether forJob still describes where the copy is aimed (false once re-aimed elsewhere). */
   const { targetRole, targetCompany, jobDescription } = resume
-  const targetedTrackedEntry = useMemo(
+  const { targetedTrackedEntry, copyOrigin } = useMemo(
     () => {
-      if (!activeVersionId || linkedJob) return null
+      if (!activeVersionId || linkedJob) return { targetedTrackedEntry: null, copyOrigin: null }
       const pipeline = listPipeline()
-      return (
-        pipeline.find((e) => e.job.id === activeCopyJob?.id) ??
-        pipeline.find((e) =>
-          copyTargetsJob({ targetRole, targetCompany, jobDescription }, e.job)
-        ) ??
-        null
-      )
+      const copy = { data: { targetRole, targetCompany, jobDescription }, forJob: activeCopyJob }
+      return {
+        targetedTrackedEntry: trackedJobOfCopy(copy, pipeline) ?? null,
+        copyOrigin: activeCopyJob && copyKeepsProvenance(copy, pipeline) ? activeCopyJob : null,
+      }
     },
-    [activeVersionId, linkedJob, activeCopyJob?.id, targetRole, targetCompany, jobDescription]
+    [activeVersionId, linkedJob, activeCopyJob, targetRole, targetCompany, jobDescription]
   )
   const targetedTrackedJob = targetedTrackedEntry?.job ?? null
   /** Editing a copy aimed at a posting that no tracked job matches (untracked, or the target was edited). */
@@ -2865,10 +2866,10 @@ export default function Builder() {
               <p className="text-muted-foreground text-xs">
                 This copy is targeted at &quot;{resume.targetRole.trim()}&quot;
                 {resume.targetCompany?.trim() ? ` at ${resume.targetCompany.trim()}` : ''} &mdash;{' '}
-                {activeCopyJob ? 'that job is no longer tracked' : 'no tracked job matches it'}.{' '}
-                {activeCopyJob ? (
+                {copyOrigin ? 'that job is no longer tracked' : 'no tracked job matches it'}.{' '}
+                {copyOrigin ? (
                   <Link
-                    to={`/jobs?q=${encodeURIComponent(activeCopyJob.title)}&job=${encodeURIComponent(activeCopyJob.id)}`}
+                    to={`/jobs?q=${encodeURIComponent(copyOrigin.title)}&job=${encodeURIComponent(copyOrigin.id)}`}
                     className="text-primary font-medium underline-offset-2 hover:underline"
                   >
                     Open it to save it again &rarr;

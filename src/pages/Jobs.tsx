@@ -40,6 +40,7 @@ import {
   type PipelineEntry,
   type RemovedPipelineEntry,
   attentionCount,
+  copyKeepsProvenance,
   copyTargetsJob,
   followUpEmail,
   isLocationAgnostic,
@@ -672,10 +673,11 @@ export default function Jobs() {
 
   /** A saved copy already targeted at this job that no tracked job links to (e.g. left behind by untracking). */
   const orphanTargetedCopy = (job: JobListing) => {
-    const linked = new Set(listPipeline().map((e) => e.resumeVersionId))
+    const pipeline = listPipeline()
+    const linked = new Set(pipeline.map((e) => e.resumeVersionId))
     const orphans = listResumeVersions().filter((v) => !linked.has(v.id))
     return (
-      orphans.find((v) => v.forJob?.id === job.id) ??
+      orphans.find((v) => v.forJob?.id === job.id && copyKeepsProvenance(v, pipeline)) ??
       orphans.find((v) => copyTargetsJob(v.data, job))
     )
   }

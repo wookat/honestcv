@@ -1,5 +1,11 @@
 import { Link } from 'react-router-dom'
-import { copyTargetsJob, jobLinksLiveCopy, type PipelineEntry } from '@/lib/jobs'
+import {
+  copyKeepsProvenance,
+  copyTargetsJob,
+  jobLinksLiveCopy,
+  trackedJobOfCopy,
+  type PipelineEntry,
+} from '@/lib/jobs'
 import type { ResumeVersion } from '@/lib/resume'
 
 /**
@@ -40,9 +46,8 @@ export function CopyTargetNote({
       </>
     )
   if (!role) return null
-  const tracked =
-    pipeline.find((e) => e.job.id === v.forJob?.id) ??
-    pipeline.find((e) => copyTargetsJob(v.data, e.job))
+  const tracked = trackedJobOfCopy(v, pipeline)
+  const origin = v.forJob && copyKeepsProvenance(v, pipeline) ? v.forJob : null
   return (
     <>
       {' '}
@@ -65,11 +70,11 @@ export function CopyTargetNote({
         v.data.jobDescription.trim() !== '' && (
           <>
             {' '}
-            {v.forJob ? (
+            {origin ? (
               <>
                 · job no longer tracked —{' '}
                 <Link
-                  to={`/jobs?q=${encodeURIComponent(v.forJob.title)}&job=${encodeURIComponent(v.forJob.id)}`}
+                  to={`/jobs?q=${encodeURIComponent(origin.title)}&job=${encodeURIComponent(origin.id)}`}
                   className="underline underline-offset-2"
                 >
                   open it to save it again

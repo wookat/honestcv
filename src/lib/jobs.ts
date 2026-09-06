@@ -532,6 +532,38 @@ export function copyTargetsJob(
   )
 }
 
+interface CopyAim {
+  data: { targetRole: string; targetCompany?: string; jobDescription: string }
+  forJob?: VersionJobRef
+}
+
+/** Whether the job a copy was created for (forJob) still describes where it is aimed: yes while its
+ * target matches that job, or when only the role/description changed within the same company and no
+ * other tracked job matches; no once it was re-aimed at another company or another tracked job. */
+export function copyKeepsProvenance(copy: CopyAim, pipeline: readonly PipelineEntry[]): boolean {
+  const ref = copy.forJob
+  if (!ref) return false
+  const own = pipeline.find((e) => e.job.id === ref.id)
+  if (own && copyTargetsJob(copy.data, own.job)) return true
+  const company = (copy.data.targetCompany ?? '').trim()
+  if (company !== '' && company !== ref.company.trim()) return false
+  return !pipeline.some((e) => e.job.id !== ref.id && copyTargetsJob(copy.data, e.job))
+}
+
+/** The tracked job a copy is aimed at: the job it was created for while it still targets it, else the
+ * job its target fields match. */
+export function trackedJobOfCopy(
+  copy: CopyAim,
+  pipeline: readonly PipelineEntry[]
+): PipelineEntry | undefined {
+  const ref = copy.forJob
+  return (
+    (ref && copyKeepsProvenance(copy, pipeline)
+      ? pipeline.find((e) => e.job.id === ref.id)
+      : undefined) ?? pipeline.find((e) => copyTargetsJob(copy.data, e.job))
+  )
+}
+
 /** Stamp forJob on copies a tracked job links but that never recorded their job (saved before forJob existed). */
 export function rememberLinkedCopyJobs(pipeline: readonly PipelineEntry[]): ResumeVersion[] {
   const jobByVersion = new Map<string, VersionJobRef>()
