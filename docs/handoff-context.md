@@ -2058,3 +2058,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Dashboard.tsx：import listPipeline，useMemo（依赖 docs）建 docId → PipelineEntry 映射（扫 coverDocId/interviewDocId/resignationDocId 三字段），文档卡 meta 行追加「· for <Link to=/jobs?job=id>Senior Engineer at Globex</Link>」（SPA Link，无关联零渲染）。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
 - 生产 QA（index-CHNPPW6-.js）：1280 cover/resignation 卡各显示「· for Senior Engineer at Globex」，点击落 /jobs?job=j1 详情面板（offer 状态、Resignation letter 行在位）；无关联文档零渲染；375 同款且零溢出；QA 存储清理回六键基线；零 AI 配额消耗。
+
+## R568 — 文档查看器回链被跟踪职位（2026-09-06）
+- SOP-10 节点。先证伪一个候选：删除已链接文档后 pipeline 留 dangling coverDocId，但 /jobs 面板查不到文档即隐藏该行——无用户可见症状，不立案。一手证据（生产 CDP）：/documents?doc=d1 查看器弹窗描述只有「Cover letter — edits are saved to this browser.」，零职位链接；而 /jobs Open（R384/R564/R565）落点正是该弹窗。方案：docs/plan-r568-viewer-links-back-to-job.md。
+- 修复仅 src/pages/Dashboard.tsx 查看器 DialogDescription：openDoc 命中 jobByDoc（R567 同款映射）时追加「Written for <Link to=/jobs?job=id>Senior Engineer at Globex</Link>.」；无关联零渲染；useHistoryGuard 链接拦截天然覆盖未保存编辑。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-7_UaM6dz.js）：1280/375 查看器链接在位、点击落 /jobs?job=j1 详情面板（Cover letter 行在位）、无关联文档零渲染、脏编辑点链接 → 确认弹窗且留在 /documents、零溢出；QA 存储清理回六键基线；零 AI 配额。
