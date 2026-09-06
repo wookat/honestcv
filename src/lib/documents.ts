@@ -164,6 +164,17 @@ export function saveCareerDoc(
   return persistDocs([doc, ...docs]) ? doc : null
 }
 
+/** Newest document of each kind written for the job. */
+export function latestDocsFor(jobId: string): Partial<Record<CareerDocKind, CareerDoc>> {
+  const latest: Partial<Record<CareerDocKind, CareerDoc>> = {}
+  for (const d of listCareerDocs()) {
+    if (d.forJob?.id !== jobId) continue
+    const cur = latest[d.kind]
+    if (!cur || d.updatedAt > cur.updatedAt) latest[d.kind] = d
+  }
+  return latest
+}
+
 /** Stamp forJob on documents a tracked job links but that never recorded their job (saved before forJob existed). */
 export function rememberLinkedDocJobs(pipeline: readonly PipelineEntry[]): CareerDoc[] {
   const jobByDoc = new Map<string, DocJobRef>()

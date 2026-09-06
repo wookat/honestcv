@@ -2205,9 +2205,11 @@ export default function Jobs() {
                 ].filter(Boolean)
                 const tail = copy
                   ? docs > 0
-                    ? 'The copy and saved documents stay, but lose their link to this job; saving it again reconnects the copy.'
+                    ? 'The copy and saved documents stay on your dashboard and reconnect if you save this job again.'
                     : 'The copy stays on your dashboard and reconnects if you save this job again.'
-                  : 'Targeted resume copies and saved documents stay, but documents lose their link to this job.'
+                  : docs > 0
+                    ? 'Targeted resume copies and saved documents stay; the documents reconnect if you save this job again.'
+                    : 'Targeted resume copies and saved documents stay, but documents lose their link to this job.'
                 return `This removes the job from your pipeline and deletes ${parts.join(', ')}. ${tail}`
               })()}
             </DialogDescription>
@@ -2345,15 +2347,15 @@ export default function Jobs() {
                 ].filter(Boolean)
                 const tail =
                   copies > 0
-                    ? `${
-                        docs > 0
-                          ? 'Copies and saved documents stay on your dashboard, but lose their link'
-                          : copies > 1
+                    ? docs > 0
+                      ? 'Copies and saved documents stay on your dashboard and reconnect when you save a job again.'
+                      : `${
+                          copies > 1
                             ? 'The copies stay on your dashboard, but lose their link'
                             : 'The copy stays on your dashboard, but loses its link'
-                      } to these jobs; saving a job again reconnects its copy.`
+                        } to these jobs; saving a job again reconnects its copy.`
                     : docs > 0
-                      ? 'Targeted resume copies and saved documents stay, but documents lose their link to these jobs.'
+                      ? 'Targeted resume copies and saved documents stay; documents reconnect when you save a job again.'
                       : 'Targeted resume copies stay on your dashboard.'
                 return `This removes the selected jobs from your pipeline and deletes their application timelines and notes${links.length > 0 ? `, plus ${links.join(' and ')}` : ''}. ${tail}`
               })()}

@@ -4,6 +4,8 @@
  * lives in localStorage only, like resumes and career documents.
  */
 
+import { latestDocsFor } from '@/lib/documents'
+
 export interface JobListing {
   id: string
   title: string
@@ -406,6 +408,8 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
     base.length > 0 && base[base.length - 1].status === status
       ? base
       : [...base, { status, at: now }]
+  // A job tracked again picks its documents back up, like its targeted copy.
+  const written = prev ? {} : latestDocsFor(job.id)
   return savePipeline([
     {
       job,
@@ -413,9 +417,21 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
       updatedAt: now,
       history,
       ...(prev?.resumeVersionId ? { resumeVersionId: prev.resumeVersionId } : {}),
-      ...(prev?.coverDocId ? { coverDocId: prev.coverDocId } : {}),
-      ...(prev?.interviewDocId ? { interviewDocId: prev.interviewDocId } : {}),
-    ...(prev?.resignationDocId ? { resignationDocId: prev.resignationDocId } : {}),
+      ...(prev?.coverDocId
+        ? { coverDocId: prev.coverDocId }
+        : written.cover
+          ? { coverDocId: written.cover.id }
+          : {}),
+      ...(prev?.interviewDocId
+        ? { interviewDocId: prev.interviewDocId }
+        : written.interview
+          ? { interviewDocId: written.interview.id }
+          : {}),
+      ...(prev?.resignationDocId
+        ? { resignationDocId: prev.resignationDocId }
+        : written.resignation
+          ? { resignationDocId: written.resignation.id }
+          : {}),
       ...(prev?.notes ? { notes: prev.notes } : {}),
       ...(prev?.remindOn !== undefined ? { remindOn: prev.remindOn } : {}),
       ...(prev?.followedUpAt !== undefined ? { followedUpAt: prev.followedUpAt } : {}),
