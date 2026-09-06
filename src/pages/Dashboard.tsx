@@ -2298,23 +2298,33 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               onClick={() => {
                 if (!editing) return
                 const current = versions.find((v) => v.id === editing.id)
+                const target = {
+                  targetRole: editing.targetRole.trim(),
+                  targetCompany: editing.targetCompany.trim() || undefined,
+                  experienceLevel: editing.experienceLevel,
+                  jobDescription: editing.jobDescription,
+                }
                 if (
                   current &&
                   !applyVersions(
                     updateResumeVersion(editing.id, {
                       name: editing.name.trim() || current.name,
                       folder: editing.folder.trim() || undefined,
-                      data: {
-                        ...current.data,
-                        targetRole: editing.targetRole.trim(),
-                        targetCompany: editing.targetCompany.trim() || undefined,
-                        experienceLevel: editing.experienceLevel,
-                        jobDescription: editing.jobDescription,
-                      },
+                      data: { ...current.data, ...target },
                     })
                   )
                 )
                   return
+                // The editor mirrors its draft into the active copy on every keystroke, so the
+                // draft must carry the same target or it would overwrite this edit.
+                if (
+                  current &&
+                  editing.id === activeId &&
+                  !saveResume({ ...(loadResume() ?? current.data), ...target })
+                ) {
+                  setStorageError(true)
+                  return
+                }
                 setEditing(null)
               }}
             >
