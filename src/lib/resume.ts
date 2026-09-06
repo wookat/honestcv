@@ -1344,6 +1344,16 @@ export function rememberVersionJobs(
   return persistVersions(next) ? next : versions
 }
 
+/** Record the job a copy has just been linked to, replacing the job it was copied for (a duplicate
+ * inherits its source's forJob until it is linked elsewhere). Writes only when the job changes. */
+export function setVersionJob(id: string, forJob: VersionJobRef): ResumeVersion[] {
+  const versions = listResumeVersions()
+  const current = versions.find((v) => v.id === id)
+  if (!current || current.forJob?.id === forJob.id) return versions
+  const next = versions.map((v) => (v.id === id ? { ...v, forJob } : v))
+  return persistVersions(next) ? next : versions
+}
+
 export function renameResumeVersion(id: string, name: string): ResumeVersion[] | null {
   const versions = listResumeVersions().map((v) => (v.id === id ? { ...v, name } : v))
   return persistVersions(versions) ? versions : null

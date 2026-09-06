@@ -5,7 +5,12 @@
  */
 
 import { latestDocsFor } from '@/lib/documents'
-import { rememberVersionJobs, type ResumeVersion, type VersionJobRef } from '@/lib/resume'
+import {
+  rememberVersionJobs,
+  setVersionJob,
+  type ResumeVersion,
+  type VersionJobRef,
+} from '@/lib/resume'
 
 export interface JobListing {
   id: string
@@ -587,7 +592,7 @@ export function jobLinksLiveCopy(
   )
 }
 
-/** Link the pipeline entry for a job to its targeted resume copy. */
+/** Link the pipeline entry for a job to its targeted resume copy; the copy records that job as its own. */
 export function setPipelineVersion(
   jobId: string,
   resumeVersionId: string
@@ -597,10 +602,7 @@ export function setPipelineVersion(
     all.map((e) => (e.job.id === jobId ? { ...e, resumeVersionId } : e))
   )
   const job = saved ? all.find((e) => e.job.id === jobId)?.job : undefined
-  if (job)
-    rememberVersionJobs(
-      new Map([[resumeVersionId, { id: job.id, title: job.title, company: job.company }]])
-    )
+  if (job) setVersionJob(resumeVersionId, { id: job.id, title: job.title, company: job.company })
   return saved
 }
 
