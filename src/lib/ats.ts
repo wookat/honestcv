@@ -55,6 +55,7 @@ export type SectionAnchor =
   | 'experience'
   | 'skills'
   | 'education'
+  | 'involvement'
 
 export interface KeywordDetail {
   keyword: string
@@ -1189,7 +1190,7 @@ export function scoreResume(
         .map((i) => ({
           name: [stripInlineMarks(i.role).trim(), stripInlineMarks(i.organization).trim()].filter(Boolean).join(' at '),
           located: Boolean(i.location.trim()),
-          anchor: 'experience' as const,
+          anchor: 'involvement' as const,
         })),
       ...resume.education
         .filter((e) => !e.hidden && e.school.trim())

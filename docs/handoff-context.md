@@ -1854,6 +1854,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Builder-YfHVehQD.js）：375px 点 bullet-count Fix → 聚焦 Role 2 Cardinal Apps 卡且 Edit pane 激活；区级检查（Punctuated bullet points）Fix → 照常跳 Experience 区；?jump=skills 深链回归；1280px 同样直达 Cardinal Apps 卡；全场景零溢出零 console 错误、存储仅基线键。
 
+## R536 — Locations 检查的 Fix 对 involvement 条目跳错区（2026-08-31）
+- 审计：Rezi changelog 无新项。一手证据（生产 CDP，375×812）：仅 involvement 条目缺 location 时，「Locations on each entry」如实点名 "Volunteer Mentor at Code Club"，点 Fix → 却聚焦 **Experience 区首条 role**，Involvement 区不在视口。根因：ats.ts builder 路径 involvement 条目写死 `anchor: 'experience'`（SectionAnchor 联合类型无 'involvement'），而 Builder 的 JUMP_ANCHORS/OPTIONAL_SECTION_KEYS 早已支持 involvement。方案：docs/plan-r536-involvement-location-fix-anchor.md。
+- 修复仅 src/lib/ats.ts 两处：SectionAnchor 加 `'involvement'`；involvement 条目 anchor 改 `'involvement' as const`。文本路径（/ats-checker 粘贴）只解析 experience 块，零改动；education/experience 条目零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-D3b4DDoC.js）：375px involvement 违规 Fix → 聚焦 Involvement 区；experience 违规 Fix → 照常 Experience；education 违规 Fix → 照常 Education；?jump=involvement 深链 inView（scrollY 4825）；1280px involvement Fix → 同款直达；两视口零溢出零 console 错误、QA 后存储回基线键。
+
 ## R535 — Score 卡跳转保留预览 pane 滚动位置（2026-08-31）
 - 审计：Rezi changelog 无新项。一手证据（生产 CDP，375×812）：预览 pane 滚到 600 看 checks 列表 → 点 Fix →（R534 正确直达条目）→ 点回「Preview & score」→ scrollY=0，用户在 checks 列表中的位置每次修复往返必丢。根因：jumpToSection/jumpToEntry 直接 setMobilePane('edit')，R533 的 paneScrollRef 只在 switcher onClick 里写入，程序化切 pane 从不保存预览 pane 当前 offset，恢复 effect 回到过期的 0。方案：docs/plan-r535-jump-preserves-preview-scroll.md。
 - 修复仅 src/pages/Builder.tsx：两个 jump helper 切 pane 前补一行 `if (mobilePane !== 'edit') paneScrollRef.current[mobilePane] = window.scrollY`。switcher、R533 恢复 effect、?jump= 深链、R534 entryId 优先级、桌面端零改动。
