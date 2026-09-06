@@ -161,6 +161,7 @@ import { downloadText, loadExporter, professionalFileName } from '@/lib/download
 import { listCareerDocs, saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import {
   copyTargetsJob,
+  jobLinksLiveCopy,
   listPipeline,
   setPipelineCoverDoc,
   setPipelineInterviewDoc,
@@ -1224,17 +1225,18 @@ export default function Builder() {
         : null,
     [activeVersionId]
   )
-  /** Tracked job this copy targets without being its linked copy (the job uses another copy). */
+  /** Tracked job this copy targets without being its linked copy (the job uses another copy, or none). */
   const { targetRole, targetCompany, jobDescription } = resume
-  const targetedTrackedJob = useMemo(
+  const targetedTrackedEntry = useMemo(
     () =>
       activeVersionId && !linkedJob
         ? (listPipeline().find((e) =>
             copyTargetsJob({ targetRole, targetCompany, jobDescription }, e.job)
-          )?.job ?? null)
+          ) ?? null)
         : null,
     [activeVersionId, linkedJob, targetRole, targetCompany, jobDescription]
   )
+  const targetedTrackedJob = targetedTrackedEntry?.job ?? null
   /** Editing a copy aimed at a posting that no tracked job matches (untracked, or the target was edited). */
   const targetJobUntracked =
     activeVersionId !== null &&
@@ -2818,15 +2820,22 @@ export default function Builder() {
                 </Link>
               </p>
             )}
-            {targetedTrackedJob && (
+            {targetedTrackedEntry && targetedTrackedJob && (
               <p className="text-muted-foreground text-xs">
                 This copy is targeted at &quot;{targetedTrackedJob.title}&quot; at{' '}
-                {targetedTrackedJob.company}, but that tracked job uses another copy.{' '}
+                {targetedTrackedJob.company}, but that tracked job{' '}
+                {jobLinksLiveCopy(targetedTrackedEntry, versions)
+                  ? 'uses another copy'
+                  : 'has no copy linked'}
+                .{' '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(targetedTrackedJob.id)}`}
                   className="text-primary font-medium underline-offset-2 hover:underline"
                 >
-                  View it on the jobs board &rarr;
+                  {jobLinksLiveCopy(targetedTrackedEntry, versions)
+                    ? 'View it on the jobs board'
+                    : 'Reconnect it on the jobs board'}{' '}
+                  &rarr;
                 </Link>
               </p>
             )}
@@ -9337,7 +9346,7 @@ export default function Builder() {
                       {new Date(v.updatedAt).toLocaleString()}
                       {v.folder ? ` · ${v.folder}` : ''} · ATS{' '}
                       {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
-                      <CopyTargetNote version={v} pipeline={copiesPipeline} />
+                      <CopyTargetNote version={v} pipeline={copiesPipeline} versions={versions} />
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">

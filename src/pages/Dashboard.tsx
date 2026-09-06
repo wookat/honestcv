@@ -915,7 +915,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
               {v.folder ? ` · ${v.folder}` : ''}
               {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
-              <CopyTargetNote version={v} pipeline={pipeline} />
+              <CopyTargetNote version={v} pipeline={pipeline} versions={versions} />
             </p>
           </div>
         </div>
@@ -938,7 +938,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
             {v.folder ? ` · ${v.folder}` : ''}
             {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
-            <CopyTargetNote version={v} pipeline={pipeline} />
+            <CopyTargetNote version={v} pipeline={pipeline} versions={versions} />
           </p>
         </div>
       </div>

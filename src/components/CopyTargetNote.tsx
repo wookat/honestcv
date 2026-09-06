@@ -1,18 +1,20 @@
 import { Link } from 'react-router-dom'
-import { copyTargetsJob, type PipelineEntry } from '@/lib/jobs'
+import { copyTargetsJob, jobLinksLiveCopy, type PipelineEntry } from '@/lib/jobs'
 import type { ResumeVersion } from '@/lib/resume'
 
 /**
  * Trailing " · …" note for a saved copy's meta line: which tracked job it is the
  * targeted resume for, or — when it targets a job without being linked — whether
- * that job is tracked through another copy or no longer tracked at all.
+ * that job is tracked through another copy, has no copy linked, or is no longer tracked.
  */
 export function CopyTargetNote({
   version: v,
   pipeline,
+  versions,
 }: {
   version: ResumeVersion
   pipeline: PipelineEntry[]
+  versions: readonly ResumeVersion[]
 }) {
   const entry = pipeline.find((e) => e.resumeVersionId === v.id)
   if (entry)
@@ -45,7 +47,9 @@ export function CopyTargetNote({
             to={`/jobs?job=${encodeURIComponent(tracked.job.id)}`}
             className="underline underline-offset-2"
           >
-            tracked job uses another copy
+            {jobLinksLiveCopy(tracked, versions)
+              ? 'tracked job uses another copy'
+              : 'tracked job has no copy linked — reconnect it'}
           </Link>
         </>
       ) : (

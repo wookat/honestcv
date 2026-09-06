@@ -515,6 +515,16 @@ export function copyTargetsJob(
   )
 }
 
+/** Whether the tracked job's copy link still points at an existing copy. */
+export function jobLinksLiveCopy(
+  entry: PipelineEntry,
+  versions: readonly { id: string }[]
+): boolean {
+  return (
+    entry.resumeVersionId !== undefined && versions.some((v) => v.id === entry.resumeVersionId)
+  )
+}
+
 /** Link the pipeline entry for a job to its targeted resume copy. */
 export function setPipelineVersion(
   jobId: string,
