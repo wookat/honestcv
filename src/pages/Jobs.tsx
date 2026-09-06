@@ -245,7 +245,7 @@ export default function Jobs() {
     if (sort !== 'relevance') params.set('sort', sort)
     if (selectedId && explicitSelection.current) params.set('job', selectedId)
     const qs = params.toString()
-    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+    window.history.replaceState(window.history.state, '', window.location.pathname + (qs ? `?${qs}` : ''))
   }, [query, tab, followUpOnly, category, locationFilter, typeFilter, skillsFilter, sort, selectedId])
 
   // On the mobile layout the detail pane covers the list, so browser Back

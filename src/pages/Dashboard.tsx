@@ -667,7 +667,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     if (activeSector !== 'All') params.set('sector', activeSector)
     if (savedOnly) params.set('saved', '1')
     const qs = params.toString()
-    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+    window.history.replaceState(window.history.state, '', window.location.pathname + (qs ? `?${qs}` : ''))
   }, [section, exampleQuery, activeSector, savedOnly])
   // A seeded ?kind= with no matching saved docs falls back to All (its chip is hidden).
   const activeDocKind = docKind !== 'all' && !docs.some((d) => d.kind === docKind) ? 'all' : docKind
@@ -676,7 +676,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     const params = new URLSearchParams()
     if (activeDocKind !== 'all') params.set('kind', activeDocKind)
     const qs = params.toString()
-    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+    window.history.replaceState(window.history.state, '', window.location.pathname + (qs ? `?${qs}` : ''))
   }, [section, activeDocKind])
   const filteredExamples = useMemo(() => {
     const q = exampleQuery.trim().toLowerCase()

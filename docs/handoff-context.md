@@ -1999,3 +1999,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 结论：R553 信件占位符计数覆盖长模板槽（#774）、R554 预览高亮未填占位符（#775）、R555 文档卡「N to fill」徽标（#776）、R556 保存文档重名自动编号（#777）、R557 文档列表按标题搜索（本轮）。主题：/documents 文档面「占位符可见性 → 命名可区分 → 列表可检索」闭环。
 - 质量：每轮方案先入库 docs/plan-r55x-*.md（一手生产 CDP 实证），本地 tsc/单查 eslint/build/verify-dist 全绿，独立生产复验；5 轮零逃逸、零 AI 配额、零真实分享/支付/leads。
 - 待办：#599–#778 级联待合并；R390 测试 lead qa-r390@example.com 待从 KV 删除；Cloudflare token Routes code 10000、GitHub Actions 按规禁用维持现状。
+
+## R558 — SPA Back/Forward 恢复滚动位置（2026-08-31，SOP-10 节点）
+- 一手证据（生产 CDP）：1280×900 /dashboard 滚到 1432 → 点「Career documents」SPA 链接 → 浏览器 Back 落在 330（2/2 复现）——懒加载路由块+异步内容让 POP 时刻文档还矮，原生恢复被 clamp；R548 只修了 reload。对照 Rezi 8 月 Week4「navigate to messages or refresh the page without losing your place」。方案：docs/plan-r558-pop-scroll-restore.md。
+- 修复一：src/App.tsx——`history.scrollRestoration='manual'`；ScrollReset 用 sessionStorage（honestcv.scrollByEntry）按 location.key 存每个历史条目 scrollY，POP 且无 hash 时用共享 scrollOnceTall（R548 同款 rAF ≤3s 等高度足够、用户先滚动即放弃）恢复；PUSH/REPLACE 换 pathname 才回顶；ReloadScrollRestore 复用同一 helper。
+- 修复二（QA 发现的第二根因）：Dashboard/Builder/Jobs 八处 URL 同步 `replaceState(null,…)` 抹掉 React Router entry state，key 塌缩回 "default" 导致 forward 恢复错位——全部改为 `replaceState(window.history.state,…)`；/jobs 哨兵与 useHistoryGuard 的 pushState 零改动。
+- tsc/单查 eslint（仅两条既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280 两次完整往返 back→1432/fwd→0/back→1432；375 back→1500/fwd→0/back→1500；R548 reload 恢复 1200；#samples hash 深链 821；/jobs 移动端哨兵回归（点行→state hcv-mobile-detail、Back 关详情留 /jobs、列表滚动 600 恢复）；?jump=skills 深链 4283；Builder pane 切换恢复 1200（R533 回归）；12 路由×1280/375 零溢出、零 console 错误；QA 存储清理回六键基线。

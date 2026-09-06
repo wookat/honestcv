@@ -994,7 +994,7 @@ export default function Builder() {
     const params = new URLSearchParams(window.location.search)
     params.delete('template')
     const rest = params.toString()
-    window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''))
+    window.history.replaceState(window.history.state, '', window.location.pathname + (rest ? `?${rest}` : ''))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   /** Every update passes through applyAutoSort so toggled-on sections stay filed;
@@ -1095,7 +1095,7 @@ export default function Builder() {
   )
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('doc')) {
-      window.history.replaceState(null, '', window.location.pathname)
+      window.history.replaceState(window.history.state, '', window.location.pathname)
     }
   }, [])
   const [tailorOpen, setTailorOpen] = useState(false)
@@ -1350,7 +1350,7 @@ export default function Builder() {
   useEffect(() => {
     const anchor = new URLSearchParams(window.location.search).get('jump')
     if (anchor === null) return
-    window.history.replaceState(null, '', window.location.pathname)
+    window.history.replaceState(window.history.state, '', window.location.pathname)
     if (!JUMP_ANCHORS.includes(anchor)) return
     const t = window.setTimeout(() => jumpToSection(anchor), 150)
     return () => window.clearTimeout(t)
@@ -1547,11 +1547,11 @@ export default function Builder() {
         if (!entry) {
           if (slug) {
             setExampleNotFound(true)
-            window.history.replaceState(null, '', window.location.pathname)
+            window.history.replaceState(window.history.state, '', window.location.pathname)
           }
           return
         }
-        window.history.replaceState(null, '', window.location.pathname)
+        window.history.replaceState(window.history.state, '', window.location.pathname)
         applyExampleRef.current(entry.person)
       })
       .catch(() => {

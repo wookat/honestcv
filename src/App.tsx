@@ -1,4 +1,11 @@
-import { Component, Suspense, lazy, useEffect, type ReactNode } from "react";
+import {
+  Component,
+  Suspense,
+  lazy,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from "react";
 import {
   Route,
   Routes,
@@ -113,16 +120,98 @@ function CanonicalSync() {
   return null;
 }
 
-// React Router (library mode) leaves window scroll where the previous page
-// left it on push/replace navigations; POP is left to the browser's native
-// back/forward scroll restoration, and hash targets scroll themselves.
+// Scrolls to y once the document is tall enough for the offset (lazy route
+// chunks and async content grow the page after navigation), giving up after
+// the deadline or as soon as the user scrolls themselves. Returns a cleanup.
+function scrollOnceTall(y: number): () => void {
+  let raf = 0;
+  const deadline = performance.now() + 3000;
+  const cancel = () => cancelAnimationFrame(raf);
+  window.addEventListener("wheel", cancel, { once: true, passive: true });
+  window.addEventListener("touchstart", cancel, { once: true, passive: true });
+  window.addEventListener("keydown", cancel, { once: true });
+  const tick = () => {
+    const fits =
+      document.documentElement.scrollHeight >= y + window.innerHeight;
+    if (fits) {
+      window.scrollTo(0, y);
+      return;
+    }
+    if (performance.now() < deadline) raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+  return () => {
+    cancel();
+    window.removeEventListener("wheel", cancel);
+    window.removeEventListener("touchstart", cancel);
+    window.removeEventListener("keydown", cancel);
+  };
+}
+
+const SCROLL_MAP_KEY = "honestcv.scrollByEntry";
+
+function readScrollMap(): Record<string, number> {
+  try {
+    const parsed: unknown = JSON.parse(
+      sessionStorage.getItem(SCROLL_MAP_KEY) ?? "{}",
+    );
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const map: Record<string, number> = {};
+      for (const [k, v] of Object.entries(parsed))
+        if (typeof v === "number") map[k] = v;
+      return map;
+    }
+  } catch {
+    /* corrupt or unavailable — start fresh */
+  }
+  return {};
+}
+
+// React Router (library mode) leaves window scroll management to the app:
+// push navigations to a new route start at the top, while Back/Forward should
+// return to where the user left each history entry. The browser's native POP
+// restoration fires before lazy route chunks and async content grow the page,
+// so it clamps to a too-short document — track each entry's offset by
+// location.key instead and restore it once the page is tall enough. Hash
+// targets scroll themselves.
 function ScrollReset() {
-  const { pathname, hash } = useLocation();
+  const location = useLocation();
   const navigationType = useNavigationType();
+  const lastY = useRef(0);
+  const prev = useRef<{ key: string; pathname: string } | null>(null);
   useEffect(() => {
-    if (navigationType !== "POP" && !hash) window.scrollTo(0, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the route changes, not on same-route query/hash updates
-  }, [pathname]);
+    if ("scrollRestoration" in window.history)
+      window.history.scrollRestoration = "manual";
+    const onScroll = () => {
+      lastY.current = window.scrollY;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => {
+    const before = prev.current;
+    prev.current = { key: location.key, pathname: location.pathname };
+    if (before?.key === location.key) return;
+    const map = readScrollMap();
+    if (before) {
+      map[before.key] = Math.round(lastY.current);
+      try {
+        sessionStorage.setItem(SCROLL_MAP_KEY, JSON.stringify(map));
+      } catch {
+        /* storage unavailable — skip */
+      }
+    }
+    if (location.hash) return;
+    if (navigationType === "POP") {
+      if (!before) return; // initial load — ReloadScrollRestore owns reloads
+      const y = map[location.key] ?? 0;
+      if (y > 0) return scrollOnceTall(y);
+      window.scrollTo(0, 0);
+    } else if (!before || before.pathname !== location.pathname) {
+      window.scrollTo(0, 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per history entry
+  }, [location.key]);
   return null;
 }
 
@@ -144,7 +233,6 @@ function ReloadScrollRestore() {
     const nav = performance.getEntriesByType(
       "navigation",
     )[0] as PerformanceNavigationTiming | undefined;
-    let raf = 0;
     let stop = () => {};
     if (nav?.type === "reload" && !window.location.hash) {
       let y = 0;
@@ -154,32 +242,7 @@ function ReloadScrollRestore() {
       } catch {
         /* storage unavailable — skip */
       }
-      if (y > 0) {
-        const deadline = performance.now() + 3000;
-        const cancel = () => cancelAnimationFrame(raf);
-        window.addEventListener("wheel", cancel, { once: true, passive: true });
-        window.addEventListener("touchstart", cancel, {
-          once: true,
-          passive: true,
-        });
-        window.addEventListener("keydown", cancel, { once: true });
-        stop = () => {
-          cancel();
-          window.removeEventListener("wheel", cancel);
-          window.removeEventListener("touchstart", cancel);
-          window.removeEventListener("keydown", cancel);
-        };
-        const tick = () => {
-          const fits =
-            document.documentElement.scrollHeight >= y + window.innerHeight;
-          if (fits) {
-            window.scrollTo(0, y);
-            return;
-          }
-          if (performance.now() < deadline) raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-      }
+      if (y > 0) stop = scrollOnceTall(y);
     }
     return () => {
       window.removeEventListener("pagehide", save);
