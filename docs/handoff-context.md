@@ -2520,3 +2520,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：按钮套 `INLINE_ACTION`、换行链接套 `INLINE_LINK`（Builder.tsx 9 处、Jobs.tsx 2 处）；dashboard LinkedIn 按钮是 flex 子项非句内文本，用专用 `-mt-1 -mb-3 py-3 sm:mt-2 sm:mb-0 sm:py-0` 以免与 `mt-2` 冲突推低 12px。不改文案/数据/焦点策略。
 - 生产 QA 1280+375（qa/r653-verify.cjs before/after，ALL PASS）：375 十个控件 40px 或 +24px、中心命中，行高与 main 高度逐一等于修复前；1280 全等于修复前；Enter 触发 `Use this copy instead` 仍改指 + 焦点落 jobs 板链接；axe 0、无溢出、零 console 错误、存储回基线。部署 index-DoQxTL4K.js；Workers Routes code 10000 依旧。
 - 顺带发现（候选）：1280 页面滚到 dashboard 空态渐变区时粘性页头 `by Zalize` 对比度 4.3 < 4.5（axe color-contrast），页顶通过。未做：真实读屏实听、真机触控。
+
+### R654 — 粘性半透明页头滚过着色区块时导航文字对比度 3.87–4.3 → ≥4.84（PR 待填，链 #874 → 本 PR）
+- 生产实证（index-DoQxTL4K.js，qa/r654-evidence.cjs 全路由逐 300px 滚动跑 axe color-contrast 只查 header）：SPA `Layout.tsx` 与静态页 `build-seo.mjs header.site` 都是 85% 背景 + blur；1280 `/pricing/` y=300/600 导航 `ATS Checker`/`Pricing` 3.87:1、`/dashboard` 空态叠渐变时 `by Zalize` 4.3:1；页顶 6.0 通过，故 R648 页顶 axe 未发现。
+- 修复：两处 85% → 95%（推算任意下层含纯黑均 ≥5.0）；builder 内区段导航同 85% 但未见失败，未改。
+- 生产 QA（qa/r654-verify.cjs before/after，ALL PASS）：最低对比 3.87→4.84、4.3→5.02，375/页顶/暗色全 ≥4.5，alpha 0.95 仍半透明，无溢出、零 console 错误。部署 index-BooZ5OSm.js；Workers Routes code 10000 依旧。

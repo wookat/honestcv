@@ -1448,7 +1448,7 @@ a.btn,a.brand{text-decoration:none}
 a.skip{position:absolute;left:-9999px;top:.5rem;z-index:30;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:.375rem;padding:.5rem .75rem;font-size:.875rem;font-weight:500;text-decoration:none;box-shadow:0 10px 15px -3px rgb(0 0 0/.1)}
 a.skip:focus{left:.5rem}
 main{outline:none}
-header.site{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--border);background:color-mix(in oklch,var(--bg) 85%,transparent);backdrop-filter:blur(8px)}
+header.site{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--border);background:color-mix(in oklch,var(--bg) 95%,transparent);backdrop-filter:blur(8px)}
 header.site .in{max-width:72rem;margin:0 auto;height:3.5rem;display:flex;align-items:center;justify-content:space-between;padding:0 1rem}
 header.site .brand{display:flex;align-items:center;gap:.5rem;font-weight:600;color:var(--fg)}
 header.site .brand img{width:1.5rem;height:1.5rem}

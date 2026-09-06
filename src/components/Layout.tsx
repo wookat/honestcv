@@ -192,7 +192,7 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
   // the inline nav and the actions never fight for the same header width.
   const navAt = wideAction ? 'lg' : 'md'
   return (
-    <header ref={headerRef} className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
+    <header ref={headerRef} className="bg-background/95 sticky top-0 z-20 border-b backdrop-blur">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:bg-background focus:absolute focus:left-2 focus:top-2 focus:z-30 focus:rounded-md focus:border focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg"
