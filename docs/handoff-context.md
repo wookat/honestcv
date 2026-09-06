@@ -2142,3 +2142,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：updatedAtOf map 改为 statusChangedAtOf（取 timelineOf 末步 at），行标签「Applied N days ago」与 staleDays/时间线同源；队列排序仍按 updatedAt，存储/面板零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280/375 分歧条目显示「Applied 10 days ago」且「Applied today」消失、新状态变更仍「Interviewing today」、stale chip 一致、零溢出、存储回六键基线、零 AI 配额。
+
+## R582 — 取消跟踪前确认已链接文档（2026-09-06）
+- 一手证据（生产 CDP）：播种带 coverDocId、单状态事件、无笔记的条目，状态选「No status」→ 零确认直接删除，pipeline 变 []，R563–R567 建立的职位↔文档关联（面板行、卡片/查看器回链）静默消失。守卫只查 notes/timeline>1。方案：docs/plan-r582-untrack-linked-docs-guard.md。
+- 修复仅 src/pages/Jobs.tsx：新增 linkedDocCount（cover/interview/resignation 三 id 计数），setStatus('none') 守卫追加 linkedDocCount>0，确认弹窗文案如实列出「its link(s) to N saved documents」并说明文档保留但失去职位关联；bulk untrack/存储零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-D4i0-5V1.js）：1280 双文档条目弹窗列「2 saved documents」、Cancel 保留、确认后删除；无关联条目仍静默取消跟踪；375 单文档条目「1 saved document」单数正确、零溢出、存储回六键基线、零 AI 配额。

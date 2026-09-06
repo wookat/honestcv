@@ -117,6 +117,9 @@ const shortDay = (day: string) => {
   return shortDateOf(new Date(y, m - 1, d))
 }
 
+const linkedDocCount = (entry: PipelineEntry): number =>
+  [entry.coverDocId, entry.interviewDocId, entry.resignationDocId].filter(Boolean).length
+
 const agoFromMs = (ms: number) => {
   const days = Math.floor((Date.now() - ms) / 86_400_000)
   if (!ms || Number.isNaN(days) || days < 0) return ''
@@ -564,7 +567,10 @@ export default function Jobs() {
   const setStatus = (job: JobListing, status: JobStatus | 'none') => {
     if (status === 'none') {
       const entry = pipeline.find((e) => e.job.id === job.id)
-      if (entry && (entry.notes?.trim() || timelineOf(entry).length > 1)) {
+      if (
+        entry &&
+        (entry.notes?.trim() || timelineOf(entry).length > 1 || linkedDocCount(entry) > 0)
+      ) {
         setConfirmUntrack(job)
         return
       }
@@ -1957,11 +1963,15 @@ export default function Jobs() {
                   ? pipeline.find((e) => e.job.id === confirmUntrack.id)
                   : undefined
                 const steps = entry ? timelineOf(entry).length : 0
+                const docs = entry ? linkedDocCount(entry) : 0
                 const parts = [
                   steps > 1 ? `its application timeline (${steps} status changes)` : '',
                   entry?.notes?.trim() ? 'your notes' : '',
+                  docs > 0
+                    ? `its link${docs > 1 ? 's' : ''} to ${docs} saved document${docs > 1 ? 's' : ''}`
+                    : '',
                 ].filter(Boolean)
-                return `This removes the job from your pipeline and deletes ${parts.join(' and ')}. Targeted resume copies stay on your dashboard.`
+                return `This removes the job from your pipeline and deletes ${parts.join(', ')}. Targeted resume copies and saved documents stay, but documents lose their link to this job.`
               })()}
             </DialogDescription>
           </DialogHeader>
