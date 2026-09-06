@@ -515,14 +515,7 @@ export default function AtsChecker() {
                             <button
                               type="button"
                               className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
-                              onClick={() =>
-                                openInBuilder(
-                                  f.anchor ??
-                                    (f.text.startsWith('Add missing job keywords')
-                                      ? 'target'
-                                      : undefined)
-                                )
-                              }
+                              onClick={() => openInBuilder(f.anchor)}
                             >
                               Fix in builder →
                             </button>

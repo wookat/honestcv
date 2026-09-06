@@ -11554,10 +11554,10 @@ function HealthDialog({
   onClose: () => void
   health: HealthReport
   ats: AtsResult
-  onJump: (anchor: SectionAnchor) => void
+  onJump: (anchor: SectionAnchor | 'target') => void
   onJumpEntry: (id: string, anchor?: SectionAnchor) => void
 }) {
-  const jump = (anchor: SectionAnchor) => {
+  const jump = (anchor: SectionAnchor | 'target') => {
     onClose()
     window.setTimeout(() => onJump(anchor), 250)
   }
@@ -11636,7 +11636,9 @@ function HealthDialog({
                           type="button"
                           className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
                           onClick={() =>
-                            f.entryId ? jumpEntry(f.entryId, f.anchor) : f.anchor && jump(f.anchor)
+                            f.entryId && f.anchor !== 'target'
+                              ? jumpEntry(f.entryId, f.anchor)
+                              : f.anchor && jump(f.anchor)
                           }
                         >
                           Fix →
@@ -11647,7 +11649,7 @@ function HealthDialog({
                           type="button"
                           className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
                           aria-label={`Go to entry: ${f.entryLabel}`}
-                          onClick={() => f.entryId && jumpEntry(f.entryId, f.anchor)}
+                          onClick={() => f.entryId && jumpEntry(f.entryId)}
                         >
                           → {f.entryLabel}
                         </button>

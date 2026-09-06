@@ -1854,6 +1854,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Builder-YfHVehQD.js）：375px 点 bullet-count Fix → 聚焦 Role 2 Cardinal Apps 卡且 Edit pane 激活；区级检查（Punctuated bullet points）Fix → 照常跳 Experience 区；?jump=skills 深链回归；1280px 同样直达 Cardinal Apps 卡；全场景零溢出零 console 错误、存储仅基线键。
 
+## R541 — 最高优先级 keyword 修复项在 Builder 弹窗获得 Fix →（2026-08-31）
+- 一手证据（生产 CDP，375×812，R540 上线后）：Builder「See full score breakdown」弹窗内，High 级「Add missing job keywords — 1 of 7 posting keywords are absent ("scalable")」是唯一没有 Fix → 的优先修复项，旁边所有 Med 项都有；而 /ats-checker 早已用 `f.text.startsWith('Add missing job keywords') ? 'target' : …` 文本前缀 hack 把同一项深链到 Target 面板。方案：docs/plan-r541-keyword-fix-target-anchor.md。
+- 根因：guidance.ts priorityFixes() 的 keyword 项不带 anchor（PriorityFix.anchor 类型是 SectionAnchor，没有 Target 面板的值）；弹窗只在 f.anchor 存在时渲染 Fix →。Builder 早已支持 jumpToSection('target')（JUMP_ANCHORS 含 'target'）。
+- 修复三文件：guidance.ts `PriorityFix.anchor` 拓宽为 `SectionAnchor | 'target'` 并给 keyword 项设 `anchor:'target'`；Builder.tsx 弹窗 onJump/jump 同步拓宽（entry 级 jumpEntry 仍限 SectionAnchor，'target' 永不进 entry 路径）；AtsChecker.tsx 删除文本前缀 hack，改为 `openInBuilder(f.anchor)`——共享数据即权威。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 弹窗 keyword Fix → 直达 Target job 面板（heading inView）；entry 级定位钮（→ Software Engineer I, Brightpath）回归直达聚焦；区级 Fix → 回归；/ats-checker「Fix in builder →」经 Keep saved resume 落 /builder Target 面板 inView；零溢出零 console 错误、QA 后存储回五键基线。
+
 ## R540 — 程序化条目跳转不再被 pane 滚动恢复取消（2026-08-31）
 - 一手证据（生产 CDP，375×812，R539 上线后）：Preview pane 开 score breakdown，点 experience 条目定位钮——正确卡聚焦但页面不滚动（+2/4/7s 均 top 2977、scrollY 3，3/3 复现；同跑 Projects 案例正常，说明是竞态非 R539 anchor 问题）。
 - 根因：jumpToEntry/jumpToSection setMobilePane('edit') 后，R533 pane 恢复 effect 的即时 scrollTo(edit 旧 offset≈0) 若落在跳转 rAF 的 smooth scrollIntoView 之后，就取消平滑滚动、停在过期 offset；effect 与 rAF 先后依时序而定，故 Projects（多一次 JUMP_OPEN_EVENT 渲染）常胜、Experience 常败。

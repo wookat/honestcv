@@ -424,7 +424,7 @@ export interface PriorityFix {
   impact: 'high' | 'medium'
   /** Score points recoverable by fixing this item */
   points: number
-  anchor?: SectionAnchor
+  anchor?: SectionAnchor | 'target'
   entryId?: string
   entryLabel?: string
 }
@@ -457,6 +457,7 @@ export function priorityFixes(ats: AtsResult, health: HealthReport, limit = 5): 
       text: `Add missing job keywords — ${ats.missing.length} of ${total} posting keywords are absent (${named}${ats.missing.length > 3 ? '…' : ''})`,
       impact: points >= 10 || ats.keywordScore < 50 ? 'high' : 'medium',
       points,
+      anchor: 'target',
     })
   }
 
