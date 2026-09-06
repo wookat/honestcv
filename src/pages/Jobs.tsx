@@ -74,6 +74,7 @@ import {
 } from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
 import {
+  type ResumeVersion,
   createResumeVersion,
   emptyResume,
   getActiveVersionId,
@@ -696,6 +697,56 @@ export default function Jobs() {
     return undefined
   }
 
+  /** The job's linked copy when its target fields no longer point at this job. */
+  const retargetedLinkedCopy = (job: JobListing) => {
+    const linked = linkedVersion(job.id)
+    return linked && linked.data.targetRole.trim() !== '' && !copyTargetsJob(linked.data, job)
+      ? linked
+      : undefined
+  }
+
+  /** Where a copy's target fields now point, for prose. */
+  const copyTargetText = (v: ResumeVersion) =>
+    `${v.data.targetRole.trim()}${v.data.targetCompany?.trim() ? ` at ${v.data.targetCompany.trim()}` : ''}`
+
+  /** Confirm-dialog sentence for a job whose linked copy now targets another job, or undefined. */
+  const retargetedLinkedText = (job: JobListing) => {
+    const copy = retargetedLinkedCopy(job)
+    return copy
+      ? `The copy linked to this job, “${copy.name}”, now targets ${copyTargetText(copy)} — the editor opens that copy`
+      : undefined
+  }
+
+  /** Duplicate the job's retargeted linked copy with this job's target fields, link the job to the new
+   * copy (the old one stays as it is, unlinked) and open it. */
+  const newCopyFromRetargeted = (job: JobListing, from: ResumeVersion, intent: 'target' | 'cover') => {
+    if (draftAtRisk(job) && !keepDraftAsCopy()) return
+    const version = createResumeVersion(
+      `${job.title} — ${job.company}`,
+      {
+        ...from.data,
+        targetRole: job.title,
+        targetCompany: job.company,
+        jobDescription: job.description,
+      },
+      from.folder ?? 'Job applications',
+      { id: job.id, title: job.title, company: job.company }
+    )
+    if (!version) {
+      setStorageError(true)
+      return
+    }
+    if (!applyPipeline(setPipelineVersion(job.id, version.id))) return
+    saveResume(version.data)
+    setActiveVersionId(version.id)
+    setConfirmTarget(null)
+    void navigate(
+      intent === 'cover'
+        ? `/builder?doc=cover&company=${encodeURIComponent(job.company)}&job=${encodeURIComponent(job.id)}`
+        : '/builder'
+    )
+  }
+
   /** The editor holds a standalone draft (synced to no copy) with content, and this job already has a
    * copy that would open over it — the one case where work is lost rather than cloned or re-aimed. */
   const draftAtRisk = (job: JobListing) =>
@@ -916,9 +967,7 @@ export default function Jobs() {
     }
     if (linked.data.targetRole.trim() !== '' && !copyTargetsJob(linked.data, job))
       return {
-        text: `Your targeted copy “${linked.name}” now points at ${linked.data.targetRole.trim()}${
-          linked.data.targetCompany?.trim() ? ` at ${linked.data.targetCompany.trim()}` : ''
-        }.`,
+        text: `Your targeted copy “${linked.name}” now points at ${copyTargetText(linked)}.`,
         label: 'Open targeted resume',
         onClick: () =>
           draftAtRisk(job)
@@ -2189,13 +2238,17 @@ export default function Jobs() {
                   ? 'This opens the resume copy targeted at this job in the editor, then opens interview prep for it.'
                   : 'This opens the resume copy you already targeted at this job in the editor and links it to this job again, then opens interview prep for it.'
                 : confirmTarget?.intent === 'cover'
-                ? confirmTarget && linkedVersion(confirmTarget.job.id)
+                ? confirmTarget && retargetedLinkedText(confirmTarget.job)
+                  ? `${retargetedLinkedText(confirmTarget.job)}, and the cover letter tool then writes for that job and links the letter to it, not to this one.`
+                : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'This opens the resume copy targeted at this job in the editor, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
                   : confirmTarget && orphanTargetedCopy(confirmTarget.job)
                     ? 'This opens the resume copy you already targeted at this job in the editor and links it to this job again, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
                     : confirmTarget && resumeHasContent(loadResume() ?? emptyResume())
                       ? 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard), opens it in the editor, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
                       : "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any. The job is saved to your tracked applications so the letter stays linked to it."
+                : confirmTarget && retargetedLinkedText(confirmTarget.job)
+                  ? `${retargetedLinkedText(confirmTarget.job)}.`
                 : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'This job already has a targeted copy of your resume — the editor opens that copy. Your other resumes keep their own target jobs.'
                   : confirmTarget && orphanTargetedCopy(confirmTarget.job)
@@ -2205,6 +2258,13 @@ export default function Jobs() {
                     : 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard) and opens it in the editor. Your current draft keeps its own target job.'}
               {confirmTarget && draftAtRisk(confirmTarget.job)
                 ? " Your current draft isn't saved as a copy, so opening that copy replaces it."
+                : null}
+              {confirmTarget &&
+              (confirmTarget.intent === 'target' || confirmTarget.intent === 'cover') &&
+              retargetedLinkedCopy(confirmTarget.job)
+                ? ` “New copy for this job” duplicates that copy with this job's title and description, links this job to the new copy and opens it; the current copy keeps its content and target${
+                    draftAtRisk(confirmTarget.job) ? ', and your draft is saved as a copy first' : ''
+                  }.`
                 : null}
             </DialogDescription>
           </DialogHeader>
@@ -2243,6 +2303,22 @@ export default function Jobs() {
                 Save draft as copy, then open
               </Button>
             )}
+            {confirmTarget &&
+              (confirmTarget.intent === 'target' || confirmTarget.intent === 'cover') &&
+              (() => {
+                const from = retargetedLinkedCopy(confirmTarget.job)
+                if (!from) return null
+                const intent = confirmTarget.intent === 'cover' ? 'cover' : 'target'
+                return (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => newCopyFromRetargeted(confirmTarget.job, from, intent)}
+                  >
+                    New copy for this job
+                  </Button>
+                )
+              })()}
             <Button
               type="button"
               onClick={() => confirmTarget && targetResume(confirmTarget.job, confirmTarget.intent)}
@@ -2251,6 +2327,8 @@ export default function Jobs() {
                 ? 'Open cover letter tool'
                 : confirmTarget?.intent === 'interview'
                   ? 'Open interview prep'
+                  : confirmTarget && retargetedLinkedCopy(confirmTarget.job)
+                    ? 'Open that copy'
                   : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'Open targeted copy'
                   : confirmTarget && orphanTargetedCopy(confirmTarget.job)
