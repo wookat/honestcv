@@ -1594,6 +1594,14 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R513 — 消灭 /jobs 加载期布局位移（2026-08-31）
+- 证据（一手生产）：Lighthouse 移动端 /jobs perf 0.77、CLS 0.012——主要路由中唯一非零 CLS；layout-shifts 审计归因 jobs 网格容器。限速 CDP 探针（412px）：loading 态 Locations 骨架行高 178px、真 chips 行 132px，数据到达后 gridTop 681→635 上移 46px；另 R502「{n} jobs found」计数行（29px）仅 !loading 渲染，加载完成后在容器内插入。
+- 根因：facet 骨架仍按 R512 之前的复合地点标签尺寸（7 枚 112–168px），R512 后真 chips 是 8 枚窄单一地区标签（实测 70–100px），骨架多折一行；计数行 post-load 插入。
+- 修复仅 src/pages/Jobs.tsx：骨架改 8 枚 [86,70,89,78,86,100,77,94]；计数行条件 !loading&&!error→!error，loading 时显示「Loading jobs…」（同类名同高度），移除骨架内 sr-only 加载文案避免双播报。
+- 备案：骨架宽度为当前 feed 的 best-effort 匹配，任意未来 facet 标签下无法保证严格零 CLS；目标是生产数据实测 0。
+- 本地验证：tsc/eslint（仅既有 fetchJobs 依赖 warning）/build/verify-dist 全绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：限速探针 gridTop 恒 635、locH 恒 132（loading→loaded 零移动）、CLS 探针 0、状态行「Loading jobs…」→「15 jobs found」；Lighthouse /jobs CLS 0.012→0、perf 0.77→0.81；375/1280 零溢出零 console 错误；localStorage 仅基线键。
+
 ## R512 — /jobs 地点自动补全与 facet chips 拆成单一地区（2026-08-31）
 - 一手证据：Rezi changelog 已迁移到 rezi.ai/rezi-changelog（旧 /changelog 404），2026-08 Week4 有「Faster Job Location Entry: location autocomplete」；生产 CDP 实证 /jobs 地点输入的 datalist 选项与「Locations:」chips 都是上游原样复合串（如「LATAM, Europe, USA, Canada, APAC」）——找 Canada 的用户拿不到 Canada 建议/chip（3/15 条职位实际可招 Canada），而过滤本身是子串匹配、输入 Canada 早就正确工作，坏的只是建议层。
 - 根因 src/lib/jobs.ts locationFacets() 以整串为 facet key。修复仅此函数：按逗号拆分逐段计数（跳过空段与 location-agnostic 段），datalist/chips/过滤语义零改动。方案：docs/plan-r512-location-facet-regions.md。

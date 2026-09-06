@@ -804,7 +804,7 @@ export default function Jobs() {
         {tab === 'all' && loading && locFacets.length === 0 && (
           <div aria-hidden="true" className="mt-3 flex animate-pulse flex-wrap items-center gap-1.5">
             <span className="text-muted-foreground text-xs font-medium">Locations:</span>
-            {[112, 148, 96, 168, 128, 104, 144].map((w, i) => (
+            {[86, 70, 89, 78, 86, 100, 77, 94].map((w, i) => (
               <span
                 key={i}
                 style={{ width: w }}
@@ -969,17 +969,18 @@ export default function Jobs() {
                 })}
               </div>
             )}
-            {tab === 'all' && !loading && !error && (
+            {tab === 'all' && !error && (
               <p
                 role="status"
                 className="text-muted-foreground border-b px-4 py-1.5 text-xs font-medium"
               >
-                {shown.length} {shown.length === 1 ? 'job' : 'jobs'} found
+                {loading
+                  ? 'Loading jobs…'
+                  : `${shown.length} ${shown.length === 1 ? 'job' : 'jobs'} found`}
               </p>
             )}
             {loading ? (
               <div aria-busy="true" className="animate-pulse">
-                <p className="sr-only">Loading jobs…</p>
                 {Array.from({ length: 8 }, (_, i) => (
                   <div key={i} className="flex items-center gap-3 border-b p-4 last:border-b-0">
                     <div className="bg-muted size-10 shrink-0 rounded" />
