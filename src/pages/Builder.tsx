@@ -10038,6 +10038,7 @@ function BundleToolDialog({
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
   const [savedId, setSavedId] = useState<string | null>(null)
+  const [savedText, setSavedText] = useState('')
   const [saveDocFailed, setSaveDocFailed] = useState(false)
   const [placeholderWarn, setPlaceholderWarn] = useState<'pdf' | 'docx' | 'txt' | null>(null)
   const [autoResult, setAutoResult] = useState('')
@@ -10147,6 +10148,7 @@ function BundleToolDialog({
     setResult('')
     setError('')
     setSavedId(null)
+    setSavedText('')
     setSaveDocFailed(false)
     setPlaceholderWarn(null)
     setAutoResult('')
@@ -10404,7 +10406,7 @@ function BundleToolDialog({
   const unsavedWork =
     kind === 'interview'
       ? session !== null || answer.trim() !== ''
-      : kind !== null && result !== '' && savedId === null
+      : kind !== null && result !== '' && (savedId === null || result !== savedText)
   const requestClose = () => {
     if (unsavedWork) setConfirmingClose('close')
     else onClose()
@@ -10420,7 +10422,9 @@ function BundleToolDialog({
             <DialogDescription>
               {kind === 'interview'
                 ? 'Your current session and typed answer will be lost.'
-                : 'The generated letter will be lost.'}
+                : savedId
+                  ? 'Your edits since the last save will be lost.'
+                  : 'The generated letter will be lost.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -10699,7 +10703,9 @@ function BundleToolDialog({
                         ? `${company || 'Untitled'} — Resignation letter`
                         : `${resume.targetRole || resume.contact.fullName || 'Untitled'} — Interview prep`
                   if (savedId) {
-                    setSaveDocFailed(updateCareerDoc(savedId, { title: docTitle, text: result }) === null)
+                    const updated = updateCareerDoc(savedId, { title: docTitle, text: result })
+                    setSaveDocFailed(updated === null)
+                    if (updated) setSavedText(result)
                   } else {
                     const doc = saveCareerDoc(
                       kind === 'cover'
@@ -10714,6 +10720,7 @@ function BundleToolDialog({
                     if (!doc) return
                     if (kind === 'cover' && jobId) setPipelineCoverDoc(jobId, doc.id)
                     setSavedId(doc.id)
+                    setSavedText(result)
                   }
                 }}
               >

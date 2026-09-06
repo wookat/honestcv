@@ -1594,6 +1594,14 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R509 — Builder 信件弹窗：关闭保护覆盖保存后的再编辑（2026-08-31）
+- 审计先如实驳回一条伪缺口：早前探针读 `d.content` 报"保存文档内容为空"，实为字段名错误（文档模型字段是 `text`），纠正后复测保存内容完整（619 字符）且 Dashboard/Documents 双面均显示。
+- 一手证据（生产 CDP）：/builder?doc=cover 模板→「Save to My resumes」→再编辑 textarea→Close：零确认直接关闭，已存文档仍是保存前旧文本，保存后的编辑被静默销毁。根因：unsavedWork 判定 `savedId === null`，一旦保存过就永远视为"已保存"。
+- 修复仅 Builder.tsx ToolDialog：新增 savedText 跟踪最近成功保存/更新的文本（saveCareerDoc 与 updateCareerDoc 成功路径都设置，kind 切换清空）；unsavedWork 信件分支改为 `result !== '' && (savedId === null || result !== savedText)`；已保存场景确认弹窗文案改为「Your edits since the last save will be lost.」（未保存场景文案不变）。方案：docs/plan-r509-close-guard-post-save-edits.md。
+- 非目标：不做自动保存、不改「Saved — update」按钮行为、interview 分支/R507 占位符/R508 覆盖 guard 零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-8A4VdwQ4.js + 文案轮复验）：模板→保存→关闭零弹窗；保存→编辑→Close 弹确认（文案「Your edits since the last save will be lost.」）、Keep working 保留编辑器；「Saved — update」后关闭零弹窗且存储含编辑；从未保存关闭仍弹（R333 回归，文案「The generated letter will be lost.」）；375px 弹窗零溢出；全程零 console 错误/unhandledrejection；QA 后存储清理。
+
 ## R508 — Builder 信件弹窗：覆盖已编辑草稿前先确认（2026-08-31）
 - SOP-10 节点：7 路由×2 视口零溢出、7 路由 console/unhandledrejection 全空、Rezi changelog 无新可落地缺口。
 - 一手证据（生产 CDP）：/builder?doc=cover「Start from a template」→ 编辑 textarea →再点模板/Regenerate，编辑内容被静默覆盖零确认零撤销；dialog 关闭已有 R333 confirmingClose 保护，但弹窗内两个最具破坏性按钮绕过了它；Regenerate 还会额外消耗 AI 请求。
