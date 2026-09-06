@@ -2456,4 +2456,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（index-DlbgP9dn.js，qa/r622-evidence.cjs other）：J 链接副本 A 改指跟踪职位 K、K 已链接 B 时，文案「which already uses another copy. View it on the jobs board →」无任何动作；R622 的「Save as new copy for it」只在 K 无副本时出现。builder 侧最后一个「有事实无动作」分支。方案 docs/plan-r641-builder-retargeted-linked-copy-new-copy-replaces.md。
 - 修复（Builder.tsx）：按钮常驻，K 有副本时文案「Save as new copy and use it for that job instead」，同一 `saveDraftAsCopyFor`（createResumeVersion + setPipelineVersion，R619 盖 forJob，编辑器切到新副本）；A 仍链接 J，B 不删、保留 forJob=K，可在 K 卡片 Earlier 行 / 副本行换回。部署 index-BjgGSr5Z.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375 × other/nocopy：other 点击后 qa-j2→new、三副本俱在、active=new；nocopy 对照不变；无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R640（#861）→ R641。
-- 候选：dashboard Resume settings 同分支（J 链接副本改指有副本的 K）目前为不链接的「Save as new copy」，评估是否对齐为「…and use it for that job instead」。
+
+## R642 — dashboard Resume settings：链接副本改指已有副本的职位 K 时新副本直接链接 K（2026-09-06）
+- 生产实证（index-BjgGSr5Z.js，qa/r638-evidence.cjs linked）：文案「which already uses another copy — this one stays unlinked」，按钮「Save as new copy」不链接 K（R620 只在 K 无副本时传 linkTo），新副本落为孤儿、需再走 R640 第二步；与 builder R641 不对称。方案 docs/plan-r642-resume-settings-new-copy-uses-it-for-that-job.md。
+- 修复（Dashboard.tsx）：`saveEditingAsNewCopy(editingMatchesTrackedJob?.job.id)`，文案三态「Save as new copy」/「Save as new copy for that job」/「Save as new copy and use it for that job instead」；v1 仍链接 J、字段不动，vA 不删、保留 forJob=K 可换回。部署 index-C7F0W7hU.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：linked 点击后 qa-j2→new、new.forJob=qa-j2、vA 保留、v1 行未改写；unlinked 对照（R638）不变；375 弹窗可滚动、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R641（#862）→ R642。

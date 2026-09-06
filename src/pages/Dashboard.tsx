@@ -2383,7 +2383,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               {editingMatchesTrackedJob.job.company},{' '}
               {editingMatchesTrackedJob.hasCopy
                 ? editingRetargetsLinkedJob
-                  ? 'which already uses another copy — this one stays unlinked.'
+                  ? 'which already uses another copy — save these changes as a new copy and use it for that job instead.'
                   : 'which already uses another copy — this one stays unlinked unless you use it for that job instead.'
                 : editingRetargetsLinkedJob
                   ? 'which has no targeted copy yet — save these changes as a new copy for it.'
@@ -2404,17 +2404,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 type="button"
                 variant="outline"
                 className="min-h-10"
-                onClick={() =>
-                  saveEditingAsNewCopy(
-                    editingMatchesTrackedJob && !editingMatchesTrackedJob.hasCopy
-                      ? editingMatchesTrackedJob.job.id
-                      : undefined
-                  )
-                }
+                onClick={() => saveEditingAsNewCopy(editingMatchesTrackedJob?.job.id)}
               >
-                {editingMatchesTrackedJob && !editingMatchesTrackedJob.hasCopy
-                  ? 'Save as new copy for that job'
-                  : 'Save as new copy'}
+                {!editingMatchesTrackedJob
+                  ? 'Save as new copy'
+                  : editingMatchesTrackedJob.hasCopy
+                    ? 'Save as new copy and use it for that job instead'
+                    : 'Save as new copy for that job'}
               </Button>
             )}
             {!editingRetargetsLinkedJob && editingMatchesTrackedJob && (
