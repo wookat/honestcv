@@ -1792,3 +1792,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：src/lib/resume.ts 新增 resumeHasContent()（resumeToPlainText(r).trim() !== ''）；src/pages/Jobs.tsx——targetResume 空草稿分支只把 target 元数据写入当前草稿并开 /builder（不建副本）、弹窗文案与按钮改为诚实的「Start my resume for this job」；setStatus 的 Saved 自动建副本同样加内容判定（仍照常跟踪职位）；有内容草稿与已链接副本路径零改动；cover/interview 分支零改动。
 - tsc/单查 eslint（仅既有 fetchJobs 依赖 warning）/build/verify-dist 绿。部署照旧：31 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Jobs-BzYGDUnB.js）：空草稿 Target→弹窗诚实文案+「Start my resume for this job」→/builder、0 副本、草稿 targetRole/targetCompany 就位；空草稿 Saved→pipeline 1 条 saved、无 resumeVersionId、0 副本；种子含内容草稿 Target→原「Create copy and open editor」流程照常、版本含 QA Person 内容+target 元数据；已链接副本→「Open targeted copy」照常开 /builder；375px 弹窗正常零溢出；零 console 错误、QA 后合成存储全清。
+
+## R525 — 加载角色示例不再清空定向职位（2026-08-31）
+- 一手证据（生产 CDP，全新存储）：/jobs Target 空草稿（R524 流程）→ /builder 首跑向导选角色示例——targetCompany 与 jobDescription 被静默清空（Freelance Copywriter|Coalition Technologies|2783 → Freelance Copywriter||0），targetRole 仅因向导单独写入才幸存；ATS/tailoring 上下文不再对准用户选的职位。方案：docs/plan-r525-example-keeps-target-job.md。
+- 根因：Builder.tsx replaceWithExample() 用 exampleToResume(person)（基于 emptyResume()）整体替换，未保留 target 三元组；所有示例入口（首跑向导、空态角色选择、?example 深链、确认替换）都经此函数。
+- 修复：replaceWithExample() 在替换时保留 cur.targetRole / targetCompany / jobDescription（存在才保留，与既有 templateId 保留同款写法）；exampleToResume、导入、替换确认规则零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-D743uEua.js）：全新存储 /jobs Target 空草稿→向导选 Software Engineer 示例→target 三元组完整保留（Freelance Copywriter|Coalition Technologies|2783）+示例内容就位；无 target 时 ?example=software-engineer 深链→target 保持空；375px 种子 target + ?example=data-analyst 深链→QA Role|QA Co|12 保留、零溢出；零 console 错误、QA 后合成存储全清。

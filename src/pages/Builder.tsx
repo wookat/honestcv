@@ -1480,6 +1480,10 @@ export default function Builder() {
       ...exampleToResume(person),
       // Keep a template the user deliberately picked
       ...(cur.templateId !== emptyResume().templateId ? { templateId: cur.templateId } : {}),
+      // Keep the target job the draft is aimed at
+      ...(cur.targetRole ? { targetRole: cur.targetRole } : {}),
+      ...(cur.targetCompany ? { targetCompany: cur.targetCompany } : {}),
+      ...(cur.jobDescription ? { jobDescription: cur.jobDescription } : {}),
     }))
     setPendingExample(null)
   }
