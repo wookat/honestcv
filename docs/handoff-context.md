@@ -2166,3 +2166,16 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Dashboard.tsx：confirmDelete 弹窗 description 命中 jobByVersion 时追加「It's the targeted resume for your tracked <title> application at <company>; that application loses this resume.」，share-link 句保留在后；无关联原文案不变，删除/Undo 流程零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（index-BmZm-ZJL.js）：1280 已链副本弹披露、无关联副本原文案；375 同文案零溢出；存储回六键基线、零 AI 配额。
+
+## R586 — 批量删除副本弹窗如实披露职位关联（2026-09-06）
+- 一手证据（生产 CDP）：播种 2 份副本（1 份被 applied 条目 resumeVersionId 引用），/dashboard Select… → Select all → Delete 2，弹窗只说「removes the selected copies…permanently」（仅 share-link 特例），确认后 pipeline 留下悬空 resumeVersionId；R585 只修了单副本 confirmDelete，confirmBulkDelete 是最后一个未查 jobByVersion 的副本删除路径。方案：docs/plan-r586-bulk-delete-copies-job-links.md。
+- 修复仅 src/pages/Dashboard.tsx：bulk 弹窗统计 bulkSelected 命中 jobByVersion 数，1→「One of them is the targeted resume for a tracked application, which loses this resume.」，n→「n of them are targeted resumes…」，share-link 句保留在后；0 命中原文案不变，删除/Undo/存储零改动。
+- 备注：崩溃的前会话已把同款代码部署上线（index-DMbVIuI_.js / Dashboard-cAN39G-7.js，本地构建 chunk 与线上 sha256 逐字节一致）但未推分支/PR，本轮补齐仓库；PR #807（基于 R585 分支链）。
+- tsc/单查 eslint/build/verify-dist 绿。生产 QA：1280 单链/双链/无链三态文案正确、375 双链零溢出、零 console 错误、存储回基线、零 AI 配额。
+
+## R587 — 取消跟踪确认并披露目标简历副本（2026-09-06）
+- 一手证据（生产 CDP，index-CcGhXt2r.js）：仅带 resumeVersionId（无笔记/文档/多步时间线）的 saved 条目点掉「Saved」→ 零确认直接删除，副本留下但职位↔副本链断；代码上重新 Save 会走 `!linkedVersion → prepareTargetedCopy` 再造一份「… (2)」重复副本。R582/R583 守卫与两处弹窗只查 linkedDocCount（三 doc id），第四种链接 resumeVersionId 从未披露。方案：docs/plan-r587-untrack-discloses-targeted-copy.md。
+- 修复仅 src/pages/Jobs.tsx：setStatus('none') 守卫追加 `linkedVersion(job.id)`（副本仍存在才算）；单条弹窗新增「its link to the targeted copy "<name>"」并把尾句改为「The copy stays on your dashboard, but loses its link to this job; saving it again starts a new targeted copy.」（带文档时「The copy and saved documents stay, but lose their link…」）；bulk 弹窗统计有活副本的条目数，追加「plus their link(s) to N targeted resume cop(y|ies)」，尾句单复数自适应；无链接原文案不变，取消跟踪本身零改动（副本永不删除）。
+- tsc/单查 eslint（0 错误，L258 既有 exhaustive-deps 警告未动）/build/verify-dist 绿。部署：29 资产+worker 上传成功（index-AZ1YhpkC.js / Jobs-CYddL7y0.js）、Workers Routes auth code 10000。PR #808（基于 R586 分支链）。
+- 生产 QA（~/qa/r587-evidence.cjs）：1280/375 单条带副本弹窗含副本名、Cancel 保留链；1280/375 bulk「Untrack 2」（1 条带副本）文案「plus their link to 1 targeted resume copy. The copy stays…」；无任何关联条目仍静默取消跟踪；零溢出、零 console 错误、存储回基线、零 AI 配额。
+- QA 工具：~/qa/lib.cjs（CDP 连 Chrome、honestcv.qa=1 标记、shot/seed/keys/overflow）+ r586-evidence.cjs / r587-evidence.cjs，非仓库文件。
