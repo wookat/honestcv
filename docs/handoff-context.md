@@ -1811,3 +1811,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：trackedFilter 瞬态状态 + bulk 操作行内 type=search 输入，大小写不敏感匹配 job.title/job.company，与 followUpOnly 组合；分组保持状态排序与组内新→旧；新增 shownCounts 使组头计数如实反映可见行；无命中出诚实空态「No tracked jobs match "…"」+ Clear filter；不入 URL、不动 All 标签/bulk/详情栏/存储。
 - tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：桌面 10 条种子——全量 5 组各 (2)、filter acme→2 行仅 Saved (2)、"data analyst"→2 行 Applied (2)、zzznothing→0 行+空态+Clear filter 恢复 10 行；375px 输入可见、globex→2 行、双状态零水平溢出；零 console 错误、QA 后合成存储全清。
+
+## R528 — ?job= 深链回退全量查找，不再谎报「已过期」（2026-08-31）
+- SOP-10 四维复扫：7 路由×1280/375 零溢出零 console 错误；对照 Rezi 2026-08 Week4「Improved Job Description Visibility」。一手证据（生产 CDP）：/jobs 首次搜索被简历 targetRole（Senior React Developer）播种只剩 5 条；冷载 ?job=<过滤外在售 id> 弹「The job in that link wasn't found — it may have expired or been removed」且详情栏落在无关职位——职位明明在 /api/jobs/search 全量 15 条中在售。分享链接/换简历重开收藏必现。方案：docs/plan-r528-job-deep-link-fallback-lookup.md。
+- 修复仅 src/pages/Jobs.tsx：pendingSeedJob 未命中首抓 list/pipeline 且首抓带 q/cat 过滤时，先 searchJobs('') 全量回查；命中则存入 linkedJob 保持选中（移动端照常开详情浮层），并出 role=status 信息条「Showing <title> at <company> from your link — it doesn't match your current search.」+ Dismiss；仍未命中才走原 R441 dead-link 警示。selected 解析链与自动回落均纳入 linkedJob。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：桌面冷载 ?job=1749306（过滤外在售）→零 alert、信息条在位、详情栏 h2=Freelance Copywriter、URL 保留 job=；?job=999999999 死链仍弹原警示（R441 回归）；375px 同场景详情浮层正确、零水平溢出；三场景零 console 错误、存储仅基线键（本轮零合成写入）。

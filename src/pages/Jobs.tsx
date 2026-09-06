@@ -159,6 +159,9 @@ export default function Jobs() {
   // dead link says so instead of silently showing an unrelated job.
   const [pendingSeedJob, setPendingSeedJob] = useState(() => seedParams.get('job'))
   const [jobLinkNotFound, setJobLinkNotFound] = useState(false)
+  // Live job resolved from a ?job= deep link that the current search doesn't cover.
+  const [linkedJob, setLinkedJob] = useState<JobListing | null>(null)
+  const [linkedJobNotice, setLinkedJobNotice] = useState(false)
   const [trackedFilter, setTrackedFilter] = useState('')
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(new Set())
@@ -178,22 +181,37 @@ export default function Jobs() {
 
   const fetchJobs = (q: string, cat = '') =>
     searchJobs(q, cat)
-      .then((list) => {
+      .then(async (list) => {
         setJobs(list)
+        let seedResolved: JobListing | null = null
         if (pendingSeedJob) {
           setPendingSeedJob(null)
-          if (
-            !list.some((j) => j.id === pendingSeedJob) &&
-            !listPipeline().some((e) => e.job.id === pendingSeedJob)
-          ) {
-            setJobLinkNotFound(true)
-            setMobileDetail(false)
+          const known =
+            list.some((j) => j.id === pendingSeedJob) ||
+            listPipeline().some((e) => e.job.id === pendingSeedJob)
+          if (!known) {
+            // The first search is seeded from the resume's target role, so a
+            // shared link can point at a live job outside it. Check the
+            // unfiltered feed before declaring the link dead.
+            if (q.trim() || cat) {
+              const all = await searchJobs('').catch(() => [] as JobListing[])
+              seedResolved = all.find((j) => j.id === pendingSeedJob) ?? null
+            }
+            if (seedResolved) {
+              setLinkedJob(seedResolved)
+              setLinkedJobNotice(true)
+            } else {
+              setJobLinkNotFound(true)
+              setMobileDetail(false)
+            }
           }
         }
         setSelectedId((cur) => {
           if (
             cur &&
-            (list.some((j) => j.id === cur) || listPipeline().some((e) => e.job.id === cur))
+            (list.some((j) => j.id === cur) ||
+              listPipeline().some((e) => e.job.id === cur) ||
+              seedResolved?.id === cur)
           ) {
             return cur
           }
@@ -422,7 +440,7 @@ export default function Jobs() {
     shown.find((j) => j.id === selectedId) ??
     jobs.find((j) => j.id === selectedId) ??
     pipeline.find((e) => e.job.id === selectedId)?.job ??
-    null
+    (linkedJob?.id === selectedId ? linkedJob : null)
 
   /** Keyword breakdown for the selected job — targeted copy when linked, else the draft. */
   const selectedReport = (() => {
@@ -654,6 +672,26 @@ export default function Jobs() {
               variant="outline"
               size="sm"
               onClick={() => setPipelineUnreadable(false)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
+
+        {linkedJobNotice && linkedJob && (
+          <div
+            role="status"
+            className="border-primary/40 bg-primary/10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span>
+              Showing {linkedJob.title} at {linkedJob.company} from your link — it doesn&apos;t
+              match your current search.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setLinkedJobNotice(false)}
             >
               Dismiss
             </Button>
