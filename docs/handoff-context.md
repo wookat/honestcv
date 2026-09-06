@@ -1916,3 +1916,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Builder.tsx R542 块：chip 改 Score 卡同款分裂式 span（+ kw 加 Skills / × 写入 ignoredKeywords），文案如实描述两个动作；ats.ts、评分、Excluded 恢复零改动。
 - tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Builder-D4bqOw1I.js）：375/1280 chips 均带 ×；点 × oracle → chip 消失且 ignoredKeywords=['oracle'] 持久化；点 + kubernetes → skills 追加且 chip 消失；恢复入口（Excluded 列表）1280 在位、375 位于预览 pane（按既有设计需切 pane）；零溢出零 console 错误、QA 后存储回基线键。
+
+## R545 — 一键 Add-to-Skills 尊重分类技能结构（mergeSkills）（2026-08-31）
+- 一手证据（生产 CDP，375×812，全新存储）：分类技能 `Languages: python, golang\nTools: docker` 下点 Target 面板「+ kubernetes」，裸字符串追加把关键词写进最后一行分类（`Tools: docker, kubernetes`），任意分类结尾都会被污染；同种子下角色建议 chips 仍显示「+ Python」「+ Docker」（dedupe 用 split(/[,\n]/)，带标签首项 `tools: docker` 永不匹配）。R373 早有类目感知 mergeSkills，仅 assistant @@APPLY 在用。方案：docs/plan-r545-merge-skills-chips.md。
+- 修复仅 src/pages/Builder.tsx：五处裸追加（Target 面板 chips、Score 卡分诊「Add to Skills」、两个分层 chips、proven chips、角色建议 chips）全部改 mergeSkills(resume.skills,[kw])；角色建议 dedupe 改为按行剥离 `label:` 前缀后再按逗号拆分。resume.ts/ats.ts 零改动。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 分类种子点「+ kubernetes」→ skills 新增独立行（不再污染 Tools 行）；单行明文技能仍就地生长（`python, golang, kubernetes`）；「+ Python」「+ Docker」不再出现在建议 chips；零溢出、QA 后存储回基线键。

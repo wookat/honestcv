@@ -2789,14 +2789,7 @@ export default function Builder() {
                         type="button"
                         className="hover:bg-primary/10 px-2 py-0.5"
                         title={`Add "${kw}" to Skills`}
-                        onClick={() =>
-                          set(
-                            'skills',
-                            resume.skills.trim()
-                              ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
-                              : kw
-                          )
-                        }
+                        onClick={() => set('skills', mergeSkills(resume.skills, [kw]))}
                       >
                         + {kw}
                       </button>
@@ -6586,14 +6579,7 @@ export default function Builder() {
                         type="button"
                         className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 rounded-full border px-2 py-0.5"
                         title="Add to Skills"
-                        onClick={() =>
-                          set(
-                            'skills',
-                            resume.skills.trim()
-                              ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
-                              : kw
-                          )
-                        }
+                        onClick={() => set('skills', mergeSkills(resume.skills, [kw]))}
                       >
                         + {kw}
                       </button>
@@ -6603,7 +6589,13 @@ export default function Builder() {
               )}
               {(() => {
                 const have = new Set(
-                  resume.skills.split(/[,\n]/).map((s) => s.trim().toLowerCase())
+                  resume.skills
+                    .split('\n')
+                    .flatMap((line) => {
+                      const m = line.match(/^[^:]{1,40}:\s*(.+)$/)
+                      return (m ? m[1] : line).split(',')
+                    })
+                    .map((s) => s.trim().toLowerCase())
                 )
                 const chips = (aiSkillChips ?? skillSuggestionsFor(resume.targetRole)).filter(
                   (s) => !have.has(s.toLowerCase())
@@ -6622,14 +6614,7 @@ export default function Builder() {
                           key={kw}
                           type="button"
                           className="bg-muted hover:bg-primary/10 rounded-full border px-2 py-0.5"
-                          onClick={() =>
-                            set(
-                              'skills',
-                              resume.skills.trim()
-                                ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
-                                : kw
-                            )
-                          }
+                          onClick={() => set('skills', mergeSkills(resume.skills, [kw]))}
                         >
                           + {kw}
                         </button>
@@ -7863,12 +7848,7 @@ export default function Builder() {
                           variant="outline"
                           className="h-10 text-xs sm:h-7"
                           onClick={() =>
-                            set(
-                              'skills',
-                              resume.skills.trim()
-                                ? `${resume.skills.replace(/,\s*$/, '')}, ${ats.missing[0]}`
-                                : ats.missing[0]
-                            )
+                            set('skills', mergeSkills(resume.skills, [ats.missing[0]]))
                           }
                         >
                           Add to Skills
@@ -7926,14 +7906,7 @@ export default function Builder() {
                               type="button"
                               className="hover:bg-primary/10 px-2 py-0.5"
                               title="Add to Skills"
-                              onClick={() =>
-                                set(
-                                  'skills',
-                                  resume.skills.trim()
-                                    ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
-                                    : kw
-                                )
-                              }
+                              onClick={() => set('skills', mergeSkills(resume.skills, [kw]))}
                             >
                               + {kw}
                             </button>
