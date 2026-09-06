@@ -2714,7 +2714,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           <DialogHeader>
             <DialogTitle>Delete "{confirmDeleteDoc?.title}"?</DialogTitle>
             <DialogDescription>
-              This removes the document from this browser permanently.
+              {confirmDeleteDoc !== null && jobByDoc.has(confirmDeleteDoc.id)
+                ? `This removes the document from this browser permanently. It's linked to your tracked ${jobByDoc.get(confirmDeleteDoc.id)!.job.title} application at ${jobByDoc.get(confirmDeleteDoc.id)!.job.company}; that application loses this document.`
+                : 'This removes the document from this browser permanently.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

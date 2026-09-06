@@ -2154,3 +2154,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：bulk 确认弹窗 description 汇总 visibleBulkIds 命中条目的 linkedDocCount，>0 时追加「their link(s) to N saved documents」+ 文档保留但失去关联说明；0 时原文案不变，流程/存储零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（index-BaygWKhQ.js）：1280 混合选择弹「links to 2 saved documents」、确认后 pipeline 清空且 2 份文档保留；无关联选择保持原文案；375 同文案、零溢出；存储回六键基线、零 AI 配额。
+
+## R584 — 删除文档弹窗如实披露职位关联（2026-09-06）
+- 一手证据（生产 CDP）：已链 coverDocId 的文档在 /documents 点 Delete，弹窗只说「removes the document from this browser permanently」，零字未提这是某跟踪申请的求职信、确认后 /jobs 面板行消失；R582/R583 修了 untrack 方向，删除文档是最后一个静默销毁职位↔文档关联的路径。方案：docs/plan-r584-delete-doc-job-link.md。
+- 修复仅 src/pages/Dashboard.tsx：confirmDeleteDoc 弹窗 description 命中 jobByDoc 时追加「It's linked to your tracked <title> application at <company>; that application loses this document.」；无关联原文案不变，删除/Undo 流程零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-GapHqH9P.js）：1280 已链文档弹披露文案、确认删除后 Undo 恢复且关联回归、无关联文档保持原文案；375 同文案零溢出；存储回六键基线、零 AI 配额。
