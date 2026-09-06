@@ -263,6 +263,7 @@ import {
   type SavedSummary,
   recordResumeSnapshot,
   type ResumeSnapshot,
+  resumeHasContent as draftHasContent,
   resumeToPlainText,
   resumeToMarkdown,
   sampleResume,
@@ -1220,6 +1221,12 @@ export default function Builder() {
     [activeVersionId]
   )
   const [confirmDeleteCopy, setConfirmDeleteCopy] = useState<ResumeVersion | null>(null)
+  const [confirmOpenCopy, setConfirmOpenCopy] = useState<ResumeVersion | null>(null)
+  const openCopy = (v: ResumeVersion) => {
+    linkVersion(v.id)
+    setResume({ ...emptyResume(), ...v.data })
+    setVersionsOpen(false)
+  }
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
   const [renameFolder, setRenameFolder] = useState('')
@@ -9261,11 +9268,11 @@ export default function Builder() {
                       size="sm"
                       className="h-10 text-xs sm:h-7"
                       disabled={v.id === activeVersionId}
-                      onClick={() => {
-                        linkVersion(v.id)
-                        setResume({ ...emptyResume(), ...v.data })
-                        setVersionsOpen(false)
-                      }}
+                      onClick={() =>
+                        activeVersionId === null && draftHasContent(resume)
+                          ? setConfirmOpenCopy(v)
+                          : openCopy(v)
+                      }
                     >
                       Open
                     </Button>
@@ -9306,6 +9313,52 @@ export default function Builder() {
               resume as a copy first if you want to keep it.
             </p>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={confirmOpenCopy !== null} onOpenChange={(o) => !o && setConfirmOpenCopy(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Open "{confirmOpenCopy?.name}"?</DialogTitle>
+            <DialogDescription>
+              This replaces what's currently in the editor. Your current resume isn't saved as a
+              copy, so save it first if you want to keep it.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setConfirmOpenCopy(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const v = confirmOpenCopy
+                setConfirmOpenCopy(null)
+                if (!v) return
+                if (
+                  applyVersions(
+                    saveResumeVersion(
+                      resume.targetRole.trim() || resume.contact.fullName.trim() || 'Untitled copy',
+                      resume
+                    )
+                  )
+                )
+                  openCopy(v)
+              }}
+            >
+              Save draft as copy, then open
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const v = confirmOpenCopy
+                setConfirmOpenCopy(null)
+                if (v) openCopy(v)
+              }}
+            >
+              Open and replace draft
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog

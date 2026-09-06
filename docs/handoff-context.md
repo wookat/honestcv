@@ -2226,3 +2226,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据（生产 index-zmgvaTzh.js，真实职位 2091088，qa/r596-evidence.cjs）：/builder → Copies → Delete 已链接副本：无确认、无披露、无撤销，副本即刻消失，pipeline 仍留 resumeVersionId=qa-linked 悬空；/dashboard 同一操作（R586）有确认+披露+撤销。方案 docs/plan-r596-builder-copy-delete-confirms-and-discloses-job-link.md。
 - 修复（Builder.tsx）：`confirmDeleteCopy` 状态 + 叠加 Dialog，文案与 dashboard 同源（permanently；tracked 职位句；share link 句；正在编辑该副本句），确认后走原 deleteResumeVersion → revokeShareLinksFor → linkVersion(null)。撤销仍仅 dashboard 具备（builder 无 toast 基建）。部署 index-CFFK4vtn.js / Builder-Dwg_wVz8.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375：linked 副本弹窗含 tracked 句；Cancel 不改动；Delete 移除副本；plain 副本弹窗无职位句；375 无页面溢出；存储回基线；零 console 错误。PR 链：#816（R595）→ R596。
+
+## R597 — Builder「Resume copies」Open 保护未保存的独立草稿（2026-09-06）
+- 证据（生产 index-CFFK4vtn.js，qa/r597-evidence.cjs）：activeVersionId=null + 有内容草稿，/builder → Copies → Open 任一副本：无确认，草稿被副本内容覆盖，仅有弹窗底部被动脚注。/dashboard 卡片 Open 与 /jobs（R595）同场景均确认并提供「Save draft as copy, then open」。方案 docs/plan-r597-builder-open-copy-guards-standalone-draft.md。
+- 修复（Builder.tsx）：`confirmOpenCopy` + `openCopy(v)`；仅在 activeVersionId===null && resumeHasContent(resume)（lib 匹配器，与 R595 同源）时弹叠加确认：Cancel / Save draft as copy, then open（saveResumeVersion 经 applyVersions，存储满则告警不打开）/ Open and replace draft。已同步草稿与空草稿仍一键直开。部署 index-CUHZrqF-.js / Builder-DtY2gvIL.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：独立草稿→弹窗；直开替换；先存再开生成「Product Designer」副本（内容=原草稿）后打开目标副本；已同步草稿对照组无弹窗直开；375 无页面溢出；存储回基线；零 console 错误。PR 链：#817（R596）→ R597。
