@@ -2461,3 +2461,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（index-BjgGSr5Z.js，qa/r638-evidence.cjs linked）：文案「which already uses another copy — this one stays unlinked」，按钮「Save as new copy」不链接 K（R620 只在 K 无副本时传 linkTo），新副本落为孤儿、需再走 R640 第二步；与 builder R641 不对称。方案 docs/plan-r642-resume-settings-new-copy-uses-it-for-that-job.md。
 - 修复（Dashboard.tsx）：`saveEditingAsNewCopy(editingMatchesTrackedJob?.job.id)`，文案三态「Save as new copy」/「Save as new copy for that job」/「Save as new copy and use it for that job instead」；v1 仍链接 J、字段不动，vA 不删、保留 forJob=K 可换回。部署 index-C7F0W7hU.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375：linked 点击后 qa-j2→new、new.forJob=qa-j2、vA 保留、v1 行未改写；unlinked 对照（R638）不变；375 弹窗可滚动、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R641（#862）→ R642。
+
+## R643 — 未跟踪职位面板「Written for this job earlier」点名孤儿目标副本（2026-09-06）
+- 生产实证（qa/r612-evidence.cjs copy）：文档被点名可 Open，孤儿副本只在按钮上以「Reconnect targeted copy」出现，名字不出现；保存职位/任一状态芯片会重连它（R589/R590）却无处告知。方案 docs/plan-r643-untracked-panel-names-orphan-copy.md。
+- 修复（Jobs.tsx `writtenDocsNote`）：句首加「targeted resume “<name>”」（无 Open，避开替换草稿），them/it 计数含副本；仅有副本无文档也显示。部署 index-C-RldWYT.js。
+- 生产 QA 1280+375：copy / copyonly / docs / control 四态如预期，无溢出、零 console 错误、零 AI 调用、存储回基线。
+- QA 基建：生产有 service worker，QA 浏览器此前会拿到旧 shell（R607「需二次部署」的真因）；qa/lib.cjs 加 `Network.setBypassServiceWorker`。PR 链：R642（#863）→ R643。

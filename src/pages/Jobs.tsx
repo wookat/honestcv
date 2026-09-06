@@ -608,20 +608,26 @@ export default function Jobs() {
   const writtenDoc = (jobId: string, kind: 'cover' | 'interview') =>
     pipeline.some((e) => e.job.id === jobId) ? undefined : latestDocsFor(jobId)[kind]
 
-  /** Note under an untracked job's status chips listing the documents already written for it. */
+  /** Note under an untracked job's status chips listing the targeted copy and documents already written for it. */
   const writtenDocsNote = (job: JobListing) => {
+    const copy = orphanTargetedCopy(job)
     const written = latestDocsFor(job.id)
     const items = (['cover', 'interview', 'resignation'] as const).flatMap((k) => {
       const doc = written[k]
       return doc ? [{ doc, noun: docNoun(k) }] : []
     })
-    if (items.length === 0) return null
+    if (items.length === 0 && !copy) return null
     return (
       <p className="text-muted-foreground mt-3 text-xs">
         Written for this job earlier:{' '}
+        {copy && (
+          <>
+            targeted resume <span className="text-foreground font-medium">{copy.name}</span>
+          </>
+        )}
         {items.map(({ doc, noun }, i) => (
           <Fragment key={doc.id}>
-            {i > 0 ? ', ' : ''}
+            {i > 0 || copy ? ', ' : ''}
             {noun} <span className="text-foreground font-medium">{doc.title}</span>{' '}
             <Link
               to={`/documents?doc=${encodeURIComponent(doc.id)}`}
@@ -631,7 +637,7 @@ export default function Jobs() {
             </Link>
           </Fragment>
         ))}{' '}
-        — saving this job links {items.length > 1 ? 'them' : 'it'} again.
+        — saving this job links {items.length + (copy ? 1 : 0) > 1 ? 'them' : 'it'} again.
       </p>
     )
   }
