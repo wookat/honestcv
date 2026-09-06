@@ -112,6 +112,7 @@ import {
 import { hasShareLink, revokeShareLinksFor } from '@/lib/share'
 import { useHistoryGuard } from '@/lib/useHistoryGuard'
 import { resolveTemplate } from '@/lib/templates'
+import { INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
 
 interface ExampleEntry {
   slug: string
@@ -321,7 +322,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           {sentence ? 'Written for ' : 'for '}
           <Link
             to={`/jobs?job=${encodeURIComponent(linked.job.id)}`}
-            className="underline underline-offset-2"
+            className={`${INLINE_LINK} underline underline-offset-2`}
           >
             {linked.job.title} at {linked.job.company}
           </Link>
@@ -343,7 +344,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           <>
             <Link
               to={`/jobs?job=${encodeURIComponent(d.forJob.id)}`}
-              className="underline underline-offset-2"
+              className={`${INLINE_LINK} underline underline-offset-2`}
             >
               {jobLinksLiveDoc(tracked, d.kind)
                 ? `job uses another ${noun}`
@@ -352,7 +353,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             {' — '}
             <button
               type="button"
-              className="text-primary underline-offset-2 hover:underline"
+              className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
               onClick={() => linkDocToJob(d, tracked.job.id, !sentence)}
             >
               {jobLinksLiveDoc(tracked, d.kind) ? 'use this one instead' : 'use this one'}
@@ -363,7 +364,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             job no longer tracked —{' '}
             <Link
               to={`/jobs?q=${encodeURIComponent(d.forJob.title)}&job=${encodeURIComponent(d.forJob.id)}`}
-              className="underline underline-offset-2"
+              className={`${INLINE_LINK} underline underline-offset-2`}
             >
               open it to save it again
             </Link>

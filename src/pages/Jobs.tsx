@@ -74,6 +74,7 @@ import {
   type CareerDocKind,
 } from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
+import { INLINE_ACTION } from '@/lib/utils'
 import {
   type Resume,
   type ResumeVersion,
@@ -659,7 +660,7 @@ export default function Jobs() {
             {noun} <span className="text-foreground font-medium">{doc.title}</span>{' '}
             <Link
               to={`/documents?doc=${encodeURIComponent(doc.id)}`}
-              className="text-primary underline-offset-2 hover:underline"
+              className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
             >
               Open
             </Link>
@@ -700,7 +701,7 @@ export default function Jobs() {
         <span className="font-medium">{doc.title}</span>
         <button
           type="button"
-          className="text-primary underline-offset-2 hover:underline"
+          className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
           aria-label={`Open ${noun.toLowerCase()} ${doc.title}`}
           onClick={() => void navigate(`/documents?doc=${doc.id}`)}
         >
@@ -708,7 +709,7 @@ export default function Jobs() {
         </button>
         <button
           type="button"
-          className="text-primary underline-offset-2 hover:underline"
+          className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
           aria-label={`${hasLinked ? 'Use this one instead' : 'Use for this job'}: ${noun.toLowerCase()} ${doc.title}`}
           onClick={() => {
             focusAfterRender(linkedRowOpenId(entry.job.id, kind))
@@ -2142,7 +2143,7 @@ export default function Jobs() {
                                 <button
                                   type="button"
                                   id={linkedRowOpenId(entry.job.id, 'copy')}
-                                  className="text-primary underline-offset-2 hover:underline"
+                                  className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
                                   aria-label={`Open targeted resume ${copy.name}`}
                                   onClick={() =>
                                     setConfirmTarget({ job: entry.job, intent: 'target' })
@@ -2163,7 +2164,7 @@ export default function Jobs() {
                                 <span className="font-medium">{v.name}</span>
                                 <button
                                   type="button"
-                                  className="text-primary underline-offset-2 hover:underline"
+                                  className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
                                   aria-label={`${copy ? 'Use this one instead' : 'Use for this job'}: targeted resume ${v.name}`}
                                   onClick={() => {
                                     focusAfterRender(linkedRowOpenId(entry.job.id, 'copy'))
@@ -2195,7 +2196,7 @@ export default function Jobs() {
                               <button
                                 type="button"
                                 id={linkedRowOpenId(entry.job.id, 'cover')}
-                                className="text-primary underline-offset-2 hover:underline"
+                                className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
                                 aria-label={`Open cover letter ${coverDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
                               >
@@ -2224,7 +2225,7 @@ export default function Jobs() {
                               <button
                                 type="button"
                                 id={linkedRowOpenId(entry.job.id, 'resignation')}
-                                className="text-primary underline-offset-2 hover:underline"
+                                className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
                                 aria-label={`Open resignation letter ${resignationDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${resignationDoc.id}`)}
                               >
@@ -2248,7 +2249,7 @@ export default function Jobs() {
                               <button
                                 type="button"
                                 id={linkedRowOpenId(entry.job.id, 'interview')}
-                                className="text-primary underline-offset-2 hover:underline"
+                                className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
                                 aria-label={`Open interview prep ${prepDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${prepDoc.id}`)}
                               >

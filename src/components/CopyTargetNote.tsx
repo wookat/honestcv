@@ -7,6 +7,7 @@ import {
   type PipelineEntry,
 } from '@/lib/jobs'
 import type { ResumeVersion } from '@/lib/resume'
+import { INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
 
 /**
  * Trailing " · …" note for a saved copy's meta line: which tracked job it is the
@@ -35,7 +36,7 @@ export function CopyTargetNote({
         · for{' '}
         <Link
           to={`/jobs?job=${encodeURIComponent(entry.job.id)}`}
-          className="underline underline-offset-2"
+          className={`${INLINE_LINK} underline underline-offset-2`}
         >
           {entry.job.title} at {entry.job.company}
         </Link>
@@ -62,7 +63,7 @@ export function CopyTargetNote({
           ·{' '}
           <Link
             to={`/jobs?job=${encodeURIComponent(tracked.job.id)}`}
-            className="underline underline-offset-2"
+            className={`${INLINE_LINK} underline underline-offset-2`}
           >
             {jobLinksLiveCopy(tracked, versions)
               ? 'tracked job uses another copy'
@@ -71,7 +72,7 @@ export function CopyTargetNote({
           {' — '}
           <button
             type="button"
-            className="text-primary underline-offset-2 hover:underline"
+            className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
             onClick={() => onLinkToJob(tracked.job.id)}
           >
             {jobLinksLiveCopy(tracked, versions) ? 'use this one instead' : 'reconnect it'}
@@ -86,7 +87,7 @@ export function CopyTargetNote({
                 · job no longer tracked —{' '}
                 <Link
                   to={`/jobs?q=${encodeURIComponent(origin.title)}&job=${encodeURIComponent(origin.id)}`}
-                  className="underline underline-offset-2"
+                  className={`${INLINE_LINK} underline underline-offset-2`}
                 >
                   open it to save it again
                 </Link>
@@ -96,7 +97,7 @@ export function CopyTargetNote({
                 · no tracked job —{' '}
                 <Link
                   to={`/jobs?q=${encodeURIComponent(role)}`}
-                  className="underline underline-offset-2"
+                  className={`${INLINE_LINK} underline underline-offset-2`}
                 >
                   find it on the jobs board
                 </Link>
