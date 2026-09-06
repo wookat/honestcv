@@ -1261,6 +1261,15 @@ export default function Builder() {
     [activeVersionId, linkedJob, activeCopyJob, targetRole, targetCompany, jobDescription]
   )
   const targetedTrackedJob = targetedTrackedEntry?.job ?? null
+  /** Make a saved copy the tracked job's linked one (the job's current copy stays saved). */
+  const linkCopyToJob = (versionId: string, jobId: string) => {
+    if (setPipelineVersion(jobId, versionId) === null) {
+      setStorageAlert(COPY_STORAGE_FULL_MSG)
+      return
+    }
+    setVersions(listResumeVersions())
+    setPipelineTick((t) => t + 1)
+  }
   /** Link the edited copy to the tracked job it targets (the job has no copy linked). */
   const linkCopyToTargetedJob = () => {
     if (!activeVersionId || !targetedTrackedJob) return
@@ -9468,7 +9477,12 @@ export default function Builder() {
                       {new Date(v.updatedAt).toLocaleString()}
                       {v.folder ? ` · ${v.folder}` : ''} · ATS{' '}
                       {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
-                      <CopyTargetNote version={v} pipeline={copiesPipeline} versions={versions} />
+                      <CopyTargetNote
+                        version={v}
+                        pipeline={copiesPipeline}
+                        versions={versions}
+                        onLinkToJob={(jobId) => linkCopyToJob(v.id, jobId)}
+                      />
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">

@@ -2446,3 +2446,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复（Dashboard.tsx `docTargetNote` + `linkDocToJob`，/documents 行与打开文档弹窗共用）：状态短语保留为职位链接，后接按钮「use this one」/「use this one instead」，按 kind 调 setPipelineCover/Interview/ResignationDoc，setDocs 触发 jobByDoc/trackedEntries 重读。原链接文档不删、保留 forJob，其行翻转为「uses another — use this one instead」，可从任一行换回。方案 docs/plan-r639-documents-note-relinks-in-place.md。
 - 注意：首次命名 `useDocForJob` 触发 rules-of-hooks（eslint 把 use* 前缀当 Hook），改名 `linkDocToJob`。部署 index-Bn3Gx10U.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375 × unset/other：点击后 URL 仍 /documents、qa-j1→cover=qa-doc1、行互换、双文档保留、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R638（#859）→ R639。
+
+## R640 — dashboard / builder 副本备注「reconnect it」原地重连（2026-09-06）
+- 生产实证（index-Bn3Gx10U.js，qa/r640-evidence.cjs，dashboard + builder Copies）：「tracked job has no copy linked — reconnect it」整句是一个 Link，点击只跳 /jobs?job=…，pipeline 不变；「tracked job uses another copy」只有链接、无动作。与 R639 修前的 /documents 行同构，是副本关系图上最后一个只导航、不操作的面。方案 docs/plan-r640-copy-note-relinks-in-place.md。
+- 修复（CopyTargetNote 必填 `onLinkToJob`；Dashboard/Builder 各加 `linkCopyToJob`）：状态短语保留为职位链接，后接按钮「reconnect it」/「use this one instead」，走既有 setPipelineVersion（R619 盖 forJob），随后重读 versions/pipeline。原链接副本不删、保留 forJob，其行翻转可换回；不离开当前页。部署 index-DlbgP9dn.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375 × dashboard/builder × unset/other：点击后 URL 不变、qa-j1→qa-vB、两副本 forJob 俱在、行互换、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R639（#860）→ R640。

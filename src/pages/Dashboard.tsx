@@ -489,6 +489,14 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     setVersions(next)
     return true
   }
+  /** Make a saved copy the tracked job's linked one (the job's current copy stays saved). */
+  const linkCopyToJob = (versionId: string, jobId: string) => {
+    if (setPipelineVersion(jobId, versionId) === null) {
+      setStorageError(true)
+      return
+    }
+    applyVersions(listResumeVersions())
+  }
   // On /documents the type filter lives in the query string so refresh/share keeps your place.
   const [docSeedParams] = useState(() =>
     section === 'documents' ? new URLSearchParams(window.location.search) : null
@@ -1045,7 +1053,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
               {v.folder ? ` · ${v.folder}` : ''}
               {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
-              <CopyTargetNote version={v} pipeline={pipeline} versions={versions} />
+              <CopyTargetNote
+                version={v}
+                pipeline={pipeline}
+                versions={versions}
+                onLinkToJob={(jobId) => linkCopyToJob(v.id, jobId)}
+              />
             </p>
           </div>
         </div>
@@ -1068,7 +1081,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
             {v.folder ? ` · ${v.folder}` : ''}
             {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
-            <CopyTargetNote version={v} pipeline={pipeline} versions={versions} />
+            <CopyTargetNote
+              version={v}
+              pipeline={pipeline}
+              versions={versions}
+              onLinkToJob={(jobId) => linkCopyToJob(v.id, jobId)}
+            />
           </p>
         </div>
       </div>
