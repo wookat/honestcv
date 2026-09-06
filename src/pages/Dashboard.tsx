@@ -30,6 +30,7 @@ import {
 
 import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
+import { useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import {
   FreeDownloadDialog,
   UpgradeDialog,
@@ -295,7 +296,8 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   }
   /** Make this document the one its tracked job links for its kind (the job's current one, if any,
    * stays saved and becomes an earlier document). */
-  const linkDocToJob = (d: CareerDoc, jobId: string) => {
+  const focusAfterRender = useFocusAfterRender()
+  const linkDocToJob = (d: CareerDoc, jobId: string, focusRow: boolean) => {
     const relink =
       d.kind === 'cover'
         ? setPipelineCoverDoc
@@ -306,6 +308,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       setStorageError(true)
       return
     }
+    if (focusRow) focusAfterRender(`doc-${d.id}-open`)
     setDocs(listCareerDocs())
   }
   /** Which job a document belongs to: the job that links it, or the one it was written for
@@ -350,7 +353,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             <button
               type="button"
               className="text-primary underline-offset-2 hover:underline"
-              onClick={() => linkDocToJob(d, tracked.job.id)}
+              onClick={() => linkDocToJob(d, tracked.job.id, !sentence)}
             >
               {jobLinksLiveDoc(tracked, d.kind) ? 'use this one instead' : 'use this one'}
             </button>
@@ -495,6 +498,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       setStorageError(true)
       return
     }
+    focusAfterRender(`copy-${versionId}-open`)
     applyVersions(listResumeVersions())
   }
   // On /documents the type filter lives in the query string so refresh/share keeps your place.
@@ -963,6 +967,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       <Button
         type="button"
         size="sm"
+        id={`copy-${v.id}-open`}
         className="min-h-10 flex-1 sm:min-h-8 sm:flex-none"
         aria-label={`Open ${v.name}`}
         onClick={() => (draft && !activeCopy ? setConfirmOpen(v) : openCopy(v))}
@@ -1847,6 +1852,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     type="button"
                     variant="outline"
                     size="sm"
+                    id={`doc-${d.id}-open`}
                     className="min-h-10 sm:min-h-8"
                     aria-label={`Open ${d.title}`}
                     onClick={() => {

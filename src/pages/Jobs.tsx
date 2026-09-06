@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
+import { useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { PlanCard, WorkspaceNav } from '@/components/WorkspaceNav'
 import { Button } from '@/components/ui/button'
 import {
@@ -569,6 +570,10 @@ export default function Jobs() {
     return true
   }
 
+  const focusAfterRender = useFocusAfterRender()
+  /** id of the "Open" button on a job card's linked-copy / linked-document row. */
+  const linkedRowOpenId = (jobId: string, kind: CareerDocKind | 'copy') => `job-${jobId}-${kind}-open`
+
   const [undoUntrack, setUndoUntrack] = useState<RemovedPipelineEntry[] | null>(null)
   useEffect(() => {
     if (!undoUntrack) return
@@ -682,7 +687,10 @@ export default function Jobs() {
           type="button"
           className="text-primary underline-offset-2 hover:underline"
           aria-label={`${hasLinked ? 'Use this one instead' : 'Use for this job'}: ${noun.toLowerCase()} ${doc.title}`}
-          onClick={() => applyPipeline(relink(entry.job.id, doc.id))}
+          onClick={() => {
+            focusAfterRender(linkedRowOpenId(entry.job.id, kind))
+            applyPipeline(relink(entry.job.id, doc.id))
+          }}
         >
           {hasLinked ? 'Use this one instead' : 'Use for this job'}
         </button>
@@ -2108,6 +2116,7 @@ export default function Jobs() {
                                 )}
                                 <button
                                   type="button"
+                                  id={linkedRowOpenId(entry.job.id, 'copy')}
                                   className="text-primary underline-offset-2 hover:underline"
                                   aria-label={`Open targeted resume ${copy.name}`}
                                   onClick={() =>
@@ -2131,7 +2140,10 @@ export default function Jobs() {
                                   type="button"
                                   className="text-primary underline-offset-2 hover:underline"
                                   aria-label={`${copy ? 'Use this one instead' : 'Use for this job'}: targeted resume ${v.name}`}
-                                  onClick={() => applyPipeline(setPipelineVersion(entry.job.id, v.id))}
+                                  onClick={() => {
+                                    focusAfterRender(linkedRowOpenId(entry.job.id, 'copy'))
+                                    applyPipeline(setPipelineVersion(entry.job.id, v.id))
+                                  }}
                                 >
                                   {copy ? 'Use this one instead' : 'Use for this job'}
                                 </button>
@@ -2157,6 +2169,7 @@ export default function Jobs() {
                               )}
                               <button
                                 type="button"
+                                id={linkedRowOpenId(entry.job.id, 'cover')}
                                 className="text-primary underline-offset-2 hover:underline"
                                 aria-label={`Open cover letter ${coverDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
@@ -2185,6 +2198,7 @@ export default function Jobs() {
                               )}
                               <button
                                 type="button"
+                                id={linkedRowOpenId(entry.job.id, 'resignation')}
                                 className="text-primary underline-offset-2 hover:underline"
                                 aria-label={`Open resignation letter ${resignationDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${resignationDoc.id}`)}
@@ -2208,6 +2222,7 @@ export default function Jobs() {
                               <span className="font-medium">{prepDoc.title}</span>
                               <button
                                 type="button"
+                                id={linkedRowOpenId(entry.job.id, 'interview')}
                                 className="text-primary underline-offset-2 hover:underline"
                                 aria-label={`Open interview prep ${prepDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${prepDoc.id}`)}
