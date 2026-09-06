@@ -2826,7 +2826,14 @@ export default function Builder() {
           >
             {linkedJob && (
               <p className="text-muted-foreground text-xs">
-                This copy is tailored to &quot;{linkedJob.title}&quot; at {linkedJob.company}.{' '}
+                This copy is tailored to &quot;{linkedJob.title}&quot; at {linkedJob.company}
+                {targetRole.trim() !== '' &&
+                !copyTargetsJob({ targetRole, targetCompany, jobDescription }, linkedJob)
+                  ? `, but its target fields now point at ${targetRole.trim()}${
+                      targetCompany?.trim() ? ` at ${targetCompany.trim()}` : ''
+                    }`
+                  : ''}
+                .{' '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(linkedJob.id)}`}
                   className="text-primary font-medium underline-offset-2 hover:underline"
@@ -2857,8 +2864,8 @@ export default function Builder() {
             {targetJobUntracked && (
               <p className="text-muted-foreground text-xs">
                 This copy is targeted at &quot;{resume.targetRole.trim()}&quot;
-                {resume.targetCompany?.trim() ? ` at ${resume.targetCompany.trim()}` : ''} &mdash; that
-                job is no longer tracked.{' '}
+                {resume.targetCompany?.trim() ? ` at ${resume.targetCompany.trim()}` : ''} &mdash;{' '}
+                {activeCopyJob ? 'that job is no longer tracked' : 'no tracked job matches it'}.{' '}
                 {activeCopyJob ? (
                   <Link
                     to={`/jobs?q=${encodeURIComponent(activeCopyJob.title)}&job=${encodeURIComponent(activeCopyJob.id)}`}

@@ -71,6 +71,7 @@ import {
 } from '@/lib/documents'
 import {
   attentionCount,
+  copyTargetsJob,
   listPipeline,
   rememberLinkedCopyJobs,
   type PipelineEntry,
@@ -85,12 +86,14 @@ import {
   type ExamplePerson,
   type Resume,
   type ResumeVersion,
+  createResumeVersion,
   deleteResumeVersion,
   deleteResumeVersions,
   duplicateResumeVersion,
   emptyResume,
   exampleToResume,
   getActiveVersionId,
+  listResumeVersions,
   loadResume,
   restoreResumeVersion,
   saveResume,
@@ -345,6 +348,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     }
     return map
   }, [pipeline])
+  /** Tracked job whose linked copy the settings dialog is about to aim at a different posting. */
+  const editingRetargetsLinkedJob = useMemo(() => {
+    if (!editing) return null
+    const entry = jobByVersion.get(editing.id)
+    return entry && !copyTargetsJob(editing, entry.job) ? entry.job : null
+  }, [editing, jobByVersion])
   const [trackedJobs] = useState(() => listPipeline().length)
   const [trackedAttention] = useState(() => attentionCount())
   const [storageError, setStorageError] = useState(false)
@@ -2228,6 +2237,14 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               </div>
             </div>
           )}
+          {editingRetargetsLinkedJob && (
+            <p className="rounded border border-amber-300/60 bg-amber-500/10 px-2 py-1.5 text-xs dark:border-amber-400/30">
+              This copy is the targeted resume for tracked job &quot;
+              {editingRetargetsLinkedJob.title}&quot; at {editingRetargetsLinkedJob.company}. Saving
+              keeps that link, so the job would open a copy aimed at another posting. To leave the
+              job&apos;s copy as it is, save these changes as a new copy instead.
+            </p>
+          )}
           <DialogFooter className="gap-2">
             <Button
               type="button"
@@ -2237,6 +2254,44 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             >
               Cancel
             </Button>
+            {editingRetargetsLinkedJob && (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-10"
+                onClick={() => {
+                  if (!editing) return
+                  const current = versions.find((v) => v.id === editing.id)
+                  if (!current) return
+                  const name = editing.name.trim()
+                  const role = editing.targetRole.trim()
+                  const company = editing.targetCompany.trim()
+                  const created = createResumeVersion(
+                    name && name !== current.name
+                      ? name
+                      : role
+                        ? `${role}${company ? ` — ${company}` : ''}`
+                        : current.name,
+                    {
+                      ...current.data,
+                      targetRole: role,
+                      targetCompany: company || undefined,
+                      experienceLevel: editing.experienceLevel,
+                      jobDescription: editing.jobDescription,
+                    },
+                    editing.folder.trim() || undefined
+                  )
+                  if (!created) {
+                    setStorageError(true)
+                    return
+                  }
+                  applyVersions(listResumeVersions())
+                  setEditing(null)
+                }}
+              >
+                Save as new copy
+              </Button>
+            )}
             <Button
               type="button"
               className="min-h-10"
