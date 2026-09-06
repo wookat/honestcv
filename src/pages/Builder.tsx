@@ -7390,7 +7390,7 @@ export default function Builder() {
         {/* ---- Right: preview + ATS ---- */}
         <div
           id="preview"
-          className={`space-y-4 lg:sticky lg:top-20 lg:self-start print:block ${
+          className={`space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto lg:[scrollbar-width:thin] print:block print:max-h-none print:overflow-visible ${
             mobilePane === 'preview' ? '' : 'hidden lg:block'
           }`}
         >
