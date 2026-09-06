@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react'
 
 /**
  * Keyboard focus for actions whose button unmounts as a result of the action
@@ -7,14 +7,14 @@ import { useEffect, useRef } from "react";
  * the next render has committed.
  */
 export function useFocusAfterRender(): (id: string) => void {
-  const pending = useRef<string | null>(null);
+  const pending = useRef<string | null>(null)
   useEffect(() => {
-    if (pending.current === null) return;
-    const el = document.getElementById(pending.current);
-    pending.current = null;
-    if (el instanceof HTMLElement) el.focus();
-  });
+    if (pending.current === null) return
+    const el = document.getElementById(pending.current)
+    pending.current = null
+    if (el instanceof HTMLElement) el.focus()
+  })
   return (id: string) => {
-    pending.current = id;
-  };
+    pending.current = id
+  }
 }

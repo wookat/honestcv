@@ -35,6 +35,6 @@ export function useFocusAfterRender(): (id: string) => void
 
 ## 验收
 
-- tsc / eslint（仅既有 warning）/ prettier（新文件）/ build / verify-dist 全绿。
+- tsc / eslint（仅既有 warning）/ build / verify-dist 全绿。
 - 生产 1280 + 375（qa/r645-verify.cjs）：上表 4 个 BODY 场景 Enter 后 `activeElement` 为对应 Open 按钮且 `aria-label` 指向新链接对象；pipeline 写入不变；axe 仍 0 violations；无溢出、零 console 错误、零 AI 调用、存储回基线。
 - 未做：真实读屏（NVDA/VoiceOver）实听——如实标注。
