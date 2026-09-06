@@ -1854,6 +1854,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Builder-YfHVehQD.js）：375px 点 bullet-count Fix → 聚焦 Role 2 Cardinal Apps 卡且 Edit pane 激活；区级检查（Punctuated bullet points）Fix → 照常跳 Experience 区；?jump=skills 深链回归；1280px 同样直达 Cardinal Apps 卡；全场景零溢出零 console 错误、存储仅基线键。
 
+## R539 — Score breakdown 弹窗的条目级 Fix 透传来源 anchor（2026-08-31）
+- 一手证据（生产 CDP，1280）：Projects 条目被动语态时，「See full score breakdown」弹窗内 ATS structure 的「Active voice…」Fix → 点击后 activeEntryId=null、scrollY=0——R538 只修了 Score 卡路径，弹窗的 `jumpEntry(id)` 包装（及 `onJumpEntry:(id)=>void` prop）从不透传 finding 的 anchor，折叠 Projects 区条目卡未挂载即查询、静默 no-op。
+- 修复仅 Builder.tsx 弹窗组件：`onJumpEntry`/`jumpEntry` 签名加 `anchor?: SectionAnchor`（父级 jumpToEntry 已支持），弹窗内四处条目级调用（priority fixes Fix →/→ entryLabel、维度 richFindings Fix →/→ entryLabel）均透传 f.anchor。方案：docs/plan-r539-score-dialog-entry-anchor.md。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 弹窗 Projects 被动语态 Fix → 直达 Projects 卡（折叠区自动展开、inView）、experience entryLabel 定位钮回归聚焦正确卡；零溢出、QA 后存储回五键基线。
+- 备案入银行：375px 弹窗跳 experience 条目时正确聚焦但 scrollIntoView 未生效（top 2977 / scrollY 3，疑与 R533 pane 滚动恢复竞态，R538 前即存在，Projects 案例不复现）——R540 候选。
+
 ## R538 — 五个 bullet 内容检查的 Fix 直达违规来源条目（2026-08-31）
 - SOP-10 审计：7 路由×1280/375 复扫零溢出零 console 错误；Rezi changelog（Content Analysis/Entry Experience 等）无新可落地项。一手证据（生产 CDP）：Projects 条目含被动语态 bullet 时，「Active voice in bullet points」如实引用 Projects 文本，点 Fix → 却落在 Experience 区顶（Projects 在视口下方 2.5k px，activeEntryId=null）。根因：五个 bullet 级检查（active voice/strong openers/quantified/punctuated/length）收到的是 experience+projects+involvement+custom 扁平化 `string[]`，来源区与条目 id 全部丢弃、anchor 写死 'experience'。方案：docs/plan-r538-bullet-check-source-anchor.md。
 - 修复两文件：src/lib/ats.ts 新增 `BulletSource {text, anchor, id?}`、builder 路径共享 `bulletSources` 映射（experience bullets/projects description/involvement description/custom bullets 各带源 anchor+id），五检查改收 BulletSource[]，违规项返回 `entryId`+真实 anchor（quantified 保持聚合区级）；SectionAnchor 加 'projects'/'custom'；文本路径 textBulletSources 无结构 id 照旧 experience 区级。src/pages/Builder.tsx：Projects/custom 卡补 `data-entry-id`+flash-ring；新增 JUMP_OPEN_EVENT（Section 只展开不滚动），jumpToEntry(id, anchor?) 先派发展开事件——修复 Projects 区 defaultOpen=false 时条目卡未挂载、jumpToEntry 查不到的问题。

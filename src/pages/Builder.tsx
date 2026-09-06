@@ -11543,15 +11543,15 @@ function HealthDialog({
   health: HealthReport
   ats: AtsResult
   onJump: (anchor: SectionAnchor) => void
-  onJumpEntry: (id: string) => void
+  onJumpEntry: (id: string, anchor?: SectionAnchor) => void
 }) {
   const jump = (anchor: SectionAnchor) => {
     onClose()
     window.setTimeout(() => onJump(anchor), 250)
   }
-  const jumpEntry = (id: string) => {
+  const jumpEntry = (id: string, anchor?: SectionAnchor) => {
     onClose()
-    window.setTimeout(() => onJumpEntry(id), 250)
+    window.setTimeout(() => onJumpEntry(id, anchor), 250)
   }
   const fixes = priorityFixes(ats, health)
   const structureFindings = ats.checks
@@ -11624,7 +11624,7 @@ function HealthDialog({
                           type="button"
                           className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
                           onClick={() =>
-                            f.entryId ? jumpEntry(f.entryId) : f.anchor && jump(f.anchor)
+                            f.entryId ? jumpEntry(f.entryId, f.anchor) : f.anchor && jump(f.anchor)
                           }
                         >
                           Fix →
@@ -11635,7 +11635,7 @@ function HealthDialog({
                           type="button"
                           className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
                           aria-label={`Go to entry: ${f.entryLabel}`}
-                          onClick={() => f.entryId && jumpEntry(f.entryId)}
+                          onClick={() => f.entryId && jumpEntry(f.entryId, f.anchor)}
                         >
                           → {f.entryLabel}
                         </button>
@@ -11725,7 +11725,7 @@ function HealthDialog({
                           type="button"
                           className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
                           onClick={() =>
-                            f.entryId ? jumpEntry(f.entryId) : f.anchor && jump(f.anchor)
+                            f.entryId ? jumpEntry(f.entryId, f.anchor) : f.anchor && jump(f.anchor)
                           }
                         >
                           Fix →
@@ -11736,7 +11736,7 @@ function HealthDialog({
                           type="button"
                           className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
                           aria-label={`Go to entry: ${f.entryLabel}`}
-                          onClick={() => f.entryId && jumpEntry(f.entryId)}
+                          onClick={() => f.entryId && jumpEntry(f.entryId, f.anchor)}
                         >
                           → {f.entryLabel}
                         </button>
