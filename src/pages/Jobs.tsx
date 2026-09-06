@@ -48,8 +48,11 @@ import {
   removeManyFromPipeline,
   searchJobs,
   reminderDue,
+  setPipelineCoverDoc,
+  setPipelineInterviewDoc,
   setPipelineNotes,
   setPipelineReminder,
+  setPipelineResignationDoc,
   setPipelineVersion,
   staleDays,
   stashUnreadablePipeline,
@@ -58,7 +61,7 @@ import {
   updateStatuses,
   upsertPipeline,
 } from '@/lib/jobs'
-import { listCareerDocs } from '@/lib/documents'
+import { listCareerDocs, type CareerDoc, type CareerDocKind } from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
 import {
   createResumeVersion,
@@ -551,6 +554,59 @@ export default function Jobs() {
     const entry = pipeline.find((e) => e.job.id === jobId)
     const id = kind === 'cover' ? entry?.coverDocId : entry?.interviewDocId
     return id ? listCareerDocs().find((d) => d.id === id) : undefined
+  }
+
+  /** Documents written for this job (they remember it) other than the one the pipeline links. */
+  const earlierDocsFor = (entry: PipelineEntry, kind: CareerDocKind): CareerDoc[] => {
+    const linkedId =
+      kind === 'cover'
+        ? entry.coverDocId
+        : kind === 'interview'
+          ? entry.interviewDocId
+          : entry.resignationDocId
+    return listCareerDocs()
+      .filter((d) => d.kind === kind && d.forJob?.id === entry.job.id && d.id !== linkedId)
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+  }
+
+  /** Rows for a job's earlier documents of one kind; offers to link one when the job has no live linked document. */
+  const earlierDocRows = (entry: PipelineEntry, kind: CareerDocKind, hasLinked: boolean) => {
+    const noun =
+      kind === 'cover'
+        ? 'Cover letter'
+        : kind === 'interview'
+          ? 'Interview prep'
+          : 'Resignation letter'
+    const relink =
+      kind === 'cover'
+        ? setPipelineCoverDoc
+        : kind === 'interview'
+          ? setPipelineInterviewDoc
+          : setPipelineResignationDoc
+    return earlierDocsFor(entry, kind).map((doc) => (
+      <p key={doc.id} className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        <span className="text-muted-foreground">
+          {hasLinked ? `Earlier ${noun.toLowerCase()}:` : `${noun} (not linked):`}
+        </span>
+        <span className="font-medium">{doc.title}</span>
+        <button
+          type="button"
+          className="text-primary underline-offset-2 hover:underline"
+          onClick={() => void navigate(`/documents?doc=${doc.id}`)}
+        >
+          Open
+        </button>
+        {!hasLinked && (
+          <button
+            type="button"
+            className="text-primary underline-offset-2 hover:underline"
+            onClick={() => applyPipeline(relink(entry.job.id, doc.id))}
+          >
+            Use for this job
+          </button>
+        )}
+      </p>
+    ))
   }
 
   /** A saved copy already targeted at this job that no tracked job links to (e.g. left behind by untracking). */
@@ -1749,67 +1805,76 @@ export default function Jobs() {
                         const coverDoc = entry.coverDocId
                           ? listCareerDocs().find((d) => d.id === entry.coverDocId)
                           : undefined
-                        if (!coverDoc) return null
+                        if (!coverDoc) return earlierDocRows(entry, 'cover', false)
                         return (
-                          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                            <span className="text-muted-foreground">Cover letter:</span>
-                            <span className="font-medium">{coverDoc.title}</span>
-                            {countLetterPlaceholders(coverDoc.text) > 0 && (
-                              <span className="text-amber-700 dark:text-amber-400">
-                                {countLetterPlaceholders(coverDoc.text)} to fill
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              className="text-primary underline-offset-2 hover:underline"
-                              onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
-                            >
-                              Open
-                            </button>
-                          </p>
+                          <>
+                            <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                              <span className="text-muted-foreground">Cover letter:</span>
+                              <span className="font-medium">{coverDoc.title}</span>
+                              {countLetterPlaceholders(coverDoc.text) > 0 && (
+                                <span className="text-amber-700 dark:text-amber-400">
+                                  {countLetterPlaceholders(coverDoc.text)} to fill
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                className="text-primary underline-offset-2 hover:underline"
+                                onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
+                              >
+                                Open
+                              </button>
+                            </p>
+                            {earlierDocRows(entry, 'cover', true)}
+                          </>
                         )
                       })()}
                       {(() => {
                         const resignationDoc = entry.resignationDocId
                           ? listCareerDocs().find((d) => d.id === entry.resignationDocId)
                           : undefined
-                        if (!resignationDoc) return null
+                        if (!resignationDoc) return earlierDocRows(entry, 'resignation', false)
                         return (
-                          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                            <span className="text-muted-foreground">Resignation letter:</span>
-                            <span className="font-medium">{resignationDoc.title}</span>
-                            {countLetterPlaceholders(resignationDoc.text) > 0 && (
-                              <span className="text-amber-700 dark:text-amber-400">
-                                {countLetterPlaceholders(resignationDoc.text)} to fill
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              className="text-primary underline-offset-2 hover:underline"
-                              onClick={() => void navigate(`/documents?doc=${resignationDoc.id}`)}
-                            >
-                              Open
-                            </button>
-                          </p>
+                          <>
+                            <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                              <span className="text-muted-foreground">Resignation letter:</span>
+                              <span className="font-medium">{resignationDoc.title}</span>
+                              {countLetterPlaceholders(resignationDoc.text) > 0 && (
+                                <span className="text-amber-700 dark:text-amber-400">
+                                  {countLetterPlaceholders(resignationDoc.text)} to fill
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                className="text-primary underline-offset-2 hover:underline"
+                                onClick={() => void navigate(`/documents?doc=${resignationDoc.id}`)}
+                              >
+                                Open
+                              </button>
+                            </p>
+                            {earlierDocRows(entry, 'resignation', true)}
+                          </>
                         )
                       })()}
                       {(() => {
                         const prepDoc = entry.interviewDocId
                           ? listCareerDocs().find((d) => d.id === entry.interviewDocId)
                           : undefined
-                        if (!prepDoc) return null
+                        if (!prepDoc) return earlierDocRows(entry, 'interview', false)
                         return (
-                          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                            <span className="text-muted-foreground">Interview prep:</span>
-                            <span className="font-medium">{prepDoc.title}</span>
-                            <button
-                              type="button"
-                              className="text-primary underline-offset-2 hover:underline"
-                              onClick={() => void navigate(`/documents?doc=${prepDoc.id}`)}
-                            >
-                              Open
-                            </button>
-                          </p>
+                          <>
+                            <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                              <span className="text-muted-foreground">Interview prep:</span>
+                              <span className="font-medium">{prepDoc.title}</span>
+                              <button
+                                type="button"
+                                className="text-primary underline-offset-2 hover:underline"
+                                onClick={() => void navigate(`/documents?doc=${prepDoc.id}`)}
+                              >
+                                Open
+                              </button>
+                            </p>
+                            {earlierDocRows(entry, 'interview', true)}
+                          </>
                         )
                       })()}
                       <p className="text-sm font-medium">Application timeline</p>
