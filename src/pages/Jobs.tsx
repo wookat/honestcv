@@ -168,7 +168,7 @@ export default function Jobs() {
   const [confirmBulkUntrack, setConfirmBulkUntrack] = useState(false)
   const [confirmTarget, setConfirmTarget] = useState<{
     job: JobListing
-    intent: 'target' | 'cover'
+    intent: 'target' | 'cover' | 'keywords'
   } | null>(null)
   const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
   const [reportOpenId, setReportOpenId] = useState<string | null>(null)
@@ -557,8 +557,9 @@ export default function Jobs() {
       prepareTargetedCopy(job)
   }
 
-  const targetResume = (job: JobListing, intent: 'target' | 'cover') => {
-    if (intent === 'target') {
+  const targetResume = (job: JobListing, intent: 'target' | 'cover' | 'keywords') => {
+    if (intent !== 'cover') {
+      const dest = intent === 'keywords' ? '/builder?jump=target' : '/builder'
       if (!linkedVersion(job.id) && !resumeHasContent(loadResume() ?? emptyResume())) {
         const draft = loadResume() ?? emptyResume()
         const next = {
@@ -569,14 +570,14 @@ export default function Jobs() {
         }
         saveResume(next)
         syncActiveVersion(next)
-        void navigate('/builder')
+        void navigate(dest)
         return
       }
       const version = linkedVersion(job.id) ?? prepareTargetedCopy(job)
       if (!version) return
       saveResume(version.data)
       setActiveVersionId(version.id)
-      void navigate('/builder')
+      void navigate(dest)
       return
     }
     const version = linkedVersion(job.id)
@@ -1491,6 +1492,13 @@ export default function Jobs() {
                                   )}
                               </div>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => setConfirmTarget({ job: selected, intent: 'keywords' })}
+                              className="text-primary mt-1.5 block font-medium underline-offset-2 hover:underline"
+                            >
+                              Add these keywords in the editor →
+                            </button>
                           </>
                         )}
                       </div>
