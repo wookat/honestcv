@@ -1594,6 +1594,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R516 — /builder 简历长度计量行首帧渲染，消灭桌面 1280px 位移（2026-08-31）
+- 一手证据（生产限速 CDP 1280px）：R515 备案的 0.0272 位移复现 @~1.8s，DOM 探针确认位移根源是长度计量行（meter+文案+Auto-fit）——`pdfLength !== null` 门控整行，R472 故意把 usePdfLength 推迟到 load+idle，测量完成后整行插入把样式 chips 行与预览列推下 ~82px。方案：docs/plan-r516-builder-length-meter-cls.md。
+- 修复仅 Builder.tsx：该行首帧即渲染；pdfLength===null 时 meter 空且中性色、文案为 measuring 占位、Auto-fit disabled；测量到达仅换内容不改行几何。首版占位文案偏短（28px vs 终态 66px，行内换行数不同）导致位移反而变 0.1662，已实测加长占位文案至与 sparse 终态同折行（66px 恒定）。
+- 备案：占位文案折行匹配为当前文案/视口的 best-effort（同 R513 先例），未来文案改动需复验；不改 R472 延迟测量策略本身。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Builder-IrJZKshI.js）：限速 1280px buffered layout-shift 0（原 0.0272）、行高全程恒 66px/top 81px；412px CLS 0、零溢出（R515 回归）；Lighthouse /builder CLS 0；测量完成后 meter/文案/Auto-fit 照常；QA 后存储清理回基线键。
+
 ## R515 — /builder 空态角色选择行首帧渲染，消灭 examples.json 到达时的位移（2026-08-31）
 - 一手证据（生产限速 CDP 412px + Lighthouse）：/builder CLS 0.064（Lighthouse）/单次 0.0601 位移 @~849ms（CDP，sources 为 Getting started 卡 `div.bg-card` 与按钮区 `div.flex flex-wrap justify-end gap-2`）；对照实验 Network.setBlockedURLs 阻断 `*examples.json*` 后同条件 CLS=0——位移不是 skeleton→挂载，而是 examples.json 异步到达后 `examples.length > 0` 门控的「Or start from your role:」label+select 一整行插入，把下方内容推下。方案：docs/plan-r515-builder-role-picker-cls.md。
 - 修复仅 Builder.tsx：角色行门控 `examples.length > 0`→`!examplesFailed`（首帧即渲染）；select 加固定宽 w-48、`disabled={examples.length===0}`、首选项 "Loading roles…"→"Choose a role…"，数据到达仅换 option 内容不改几何；新增 examplesFailed（fetch 失败置 true 隐藏该行——罕见失败路径接受一次位移，与 ?example 深链失败的 exampleLoadFailed 警示条互不干扰）。不改 skeleton、不内联 16.7KB examples 数据（R496 preload 保留）。

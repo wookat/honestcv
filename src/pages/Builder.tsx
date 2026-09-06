@@ -7005,40 +7005,55 @@ export default function Builder() {
         >
           {renderPreviewPane && (
             <>
-          {pdfLength !== null && (
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
               <span
                 role="img"
-                aria-label={`Resume fills ${Math.round(Math.min(pdfLength.length, 1) * 100)}% of the first page`}
+                aria-label={
+                  pdfLength === null
+                    ? 'Resume length is being measured'
+                    : `Resume fills ${Math.round(Math.min(pdfLength.length, 1) * 100)}% of the first page`
+                }
                 className="bg-muted inline-block h-1.5 w-16 overflow-hidden rounded-full"
               >
                 <span
                   className={`block h-full rounded-full ${
-                    pdfLength.pages > 1 || pdfLength.length < 0.45 ? 'bg-amber-500' : 'bg-emerald-500'
+                    pdfLength === null
+                      ? 'bg-muted'
+                      : pdfLength.pages > 1 || pdfLength.length < 0.45
+                        ? 'bg-amber-500'
+                        : 'bg-emerald-500'
                   }`}
-                  style={{ width: `${Math.round(Math.min(pdfLength.length, 1) * 100)}%` }}
+                  style={{
+                    width: `${pdfLength === null ? 0 : Math.round(Math.min(pdfLength.length, 1) * 100)}%`,
+                  }}
                 />
               </span>
               <p
                 className={`text-xs ${
-                  pdfLength.pages > 1 || pdfLength.length < 0.45
+                  pdfLength !== null && (pdfLength.pages > 1 || pdfLength.length < 0.45)
                     ? 'text-amber-700'
                     : 'text-muted-foreground'
                 }`}
               >
-                Resume length: {pdfLength.length.toFixed(2)} page
-                {pdfLength.length > 1 ? 's' : ''}
-                {pdfLength.pages > 1
-                  ? ' — recruiters prefer one page; consider trimming older roles or long bullets'
-                  : pdfLength.length < 0.45
-                    ? ' — looks sparse; add relevant bullets or roles to fill most of the page'
-                    : ' — one page is ideal for most applications'}
+                {pdfLength === null ? (
+                  'Resume length: measuring — the meter and page guidance will update once the preview settles…'
+                ) : (
+                  <>
+                    Resume length: {pdfLength.length.toFixed(2)} page
+                    {pdfLength.length > 1 ? 's' : ''}
+                    {pdfLength.pages > 1
+                      ? ' — recruiters prefer one page; consider trimming older roles or long bullets'
+                      : pdfLength.length < 0.45
+                        ? ' — looks sparse; add relevant bullets or roles to fill most of the page'
+                        : ' — one page is ideal for most applications'}
+                  </>
+                )}
               </p>
               <Button
                 variant="outline"
                 size="sm"
                 className="h-10 gap-1 text-xs sm:h-7"
-                disabled={fitBusy}
+                disabled={fitBusy || pdfLength === null}
                 title="Pick the most readable text size and line spacing that fit the fewest pages"
                 onClick={() => void autoFit()}
               >
@@ -7050,7 +7065,6 @@ export default function Builder() {
                 </p>
               )}
             </div>
-          )}
           <div
             className="flex flex-wrap items-center gap-1.5"
             role="group"
