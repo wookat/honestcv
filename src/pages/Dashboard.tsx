@@ -3,7 +3,7 @@
  * with open / download / duplicate / rename / delete. All data lives in localStorage.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   BriefcaseBusiness,
@@ -94,6 +94,7 @@ import {
   visibleResume,
 } from '@/lib/resume'
 import { hasShareLink, revokeShareLinksFor } from '@/lib/share'
+import { useHistoryGuard } from '@/lib/useHistoryGuard'
 import { resolveTemplate } from '@/lib/templates'
 
 interface ExampleEntry {
@@ -308,6 +309,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [docDirty])
+  useHistoryGuard(
+    docDirty,
+    useCallback(() => setConfirmingDocClose(true), [])
+  )
   const [placeholderWarn, setPlaceholderWarn] = useState<{
     doc: CareerDoc
     text: string

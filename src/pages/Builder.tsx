@@ -168,6 +168,7 @@ import {
   revokeShareLinksFor,
   stashUnreadableShareLinks,
 } from '@/lib/share'
+import { useHistoryGuard } from '@/lib/useHistoryGuard'
 
 import {
   type ExperienceItem,
@@ -10436,6 +10437,10 @@ function BundleToolDialog({
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [unsavedWork])
+  useHistoryGuard(
+    unsavedWork,
+    useCallback(() => setConfirmingClose('close'), [])
+  )
   const requestClose = () => {
     if (unsavedWork) setConfirmingClose('close')
     else onClose()

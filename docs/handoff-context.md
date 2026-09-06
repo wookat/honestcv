@@ -1772,3 +1772,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿（lint 7 errors 全在未跟踪 .tmp-smoke/ 草稿，src 零）。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（新 bundle Builder-BgCRr3Eo.js）：章节 chip 跳转后 activeElement=目标 section 卡（data-section-anchor=skills，tabindex -1）；"Fix →" 跳转后 activeElement=目标卡（tabindex -1，ring 照常）；reduce 下跳转即时单步且焦点同样落卡（focus=experience）；375 光暗零溢出；全程零 console 错误。
 - 如实备案：本例简历的全部 health findings 均映射到 section 跳转（jumpToSection），jumpToEntry（条目级 finding，R157/R359 路径）代码改动与 section 路径逐行同构但本轮无真实条目级 finding 可在生产触发，未独立复验。
+
+## R522 — 浏览器返回键（SPA popstate）不再静默丢弃未保存编辑（2026-08-31）
+- 一手证据（生产 CDP，真实点击建立 SPA 历史）：/dashboard → SPA 链接进 /documents → Open → Edit → 追加文本 → history.back()：URL 直接回 /dashboard、编辑器 unmount、零确认、存储只剩原文——同文档 popstate 导航不触发 beforeunload，R521 护栏对该路径无效；Builder 信件/面试弹窗同架构同缺口。
+- 修复：新增 src/lib/useHistoryGuard.ts——脏态时 push 一条 `hcv-history-guard` 哨兵历史条目并监听 popstate，Back 弹出既有样式化确认（不换原生 confirm）、哨兵即刻补回；脏态解除时若当前仍在哨兵条目则 history.back() 清除。Dashboard 文档编辑器复用 docDirty→confirmingDocClose、Builder ToolDialog 复用 unsavedWork→confirmingClose('close')；R521 beforeunload 原样保留。方案：docs/plan-r522-history-guard-unsaved-edits.md。
+- 已知限界（方案已备案）：确认 Discard 后停留当前路由，用户需再按一次 Back 完成原意图。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000；useHistoryGuard-PieajzdZ.js 生产 200 且含哨兵键。
+- 生产 QA：文档编辑器——干净 Back 正常回 /dashboard、脏 Back 弹「Discard unsaved changes?」且 URL 停留、Keep editing 保留编辑、Discard 诚实关闭且存储无该编辑；Builder cover 模板 619 字符草稿 Back 弹「Close without saving?」、Keep working 保留、375px 弹窗零溢出、Discard and close 照常；零 console 错误、QA 后合成存储全清。
