@@ -1911,3 +1911,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Builder-CkoTRN0P.js）：375px 预览@600 → entry 级 Fix →（聚焦 Cardinal Apps 卡）→ 回预览恢复 600；预览@900 → 区级 Fix →（Punctuated bullet points）→ 回预览恢复 900；?jump=skills 回归 inView；1280px Fix → 照常直达；全场景零溢出零 console 错误、存储仅基线键。
 
+## R544 — Target 面板缺失关键词 chip 支持「不相关」排除（2026-08-31）
+- 审计：7 路由×1280/375 复扫零溢出零 console 错误。一手证据（生产 CDP，375×812，全新存储）：R541 keyword Fix → 的落点 Target 面板，chips 仅有单一动作 `Add "…" to Skills`，面板内无任何 not relevant/exclude 路径（对照 Score 卡分诊三态早已有 × → ignoredKeywords + Excluded 恢复列表）——不相关关键词（如 oracle）在落点只能被诱导写进 Skills。方案：docs/plan-r544-target-panel-keyword-dismiss.md。
+- 修复仅 src/pages/Builder.tsx R542 块：chip 改 Score 卡同款分裂式 span（+ kw 加 Skills / × 写入 ignoredKeywords），文案如实描述两个动作；ats.ts、评分、Excluded 恢复零改动。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Builder-D4bqOw1I.js）：375/1280 chips 均带 ×；点 × oracle → chip 消失且 ignoredKeywords=['oracle'] 持久化；点 + kubernetes → skills 追加且 chip 消失；恢复入口（Excluded 列表）1280 在位、375 位于预览 pane（按既有设计需切 pane）；零溢出零 console 错误、QA 后存储回基线键。

@@ -2771,7 +2771,7 @@ export default function Builder() {
                 <span className="font-medium">Missing keywords ({ats.missing.length})</span>{' '}
                 <span className="text-muted-foreground">
                   — the posting mentions these but your resume doesn&apos;t; tap to add to
-                  Skills:
+                  Skills, or × if it doesn&apos;t apply to you:
                 </span>
                 <RovingChipGroup
                   label="Missing job keywords"
@@ -2781,22 +2781,37 @@ export default function Builder() {
                     ...ats.missing.filter((kw) => highKw.has(kw)),
                     ...ats.missing.filter((kw) => !highKw.has(kw)),
                   ].map((kw) => (
-                    <button
+                    <span
                       key={kw}
-                      type="button"
-                      className="bg-muted hover:bg-primary/10 inline-flex items-center rounded-full border px-2 py-0.5"
-                      title={`Add "${kw}" to Skills`}
-                      onClick={() =>
-                        set(
-                          'skills',
-                          resume.skills.trim()
-                            ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
-                            : kw
-                        )
-                      }
+                      className="bg-muted inline-flex items-center overflow-hidden rounded-full border"
                     >
-                      + {kw}
-                    </button>
+                      <button
+                        type="button"
+                        className="hover:bg-primary/10 px-2 py-0.5"
+                        title={`Add "${kw}" to Skills`}
+                        onClick={() =>
+                          set(
+                            'skills',
+                            resume.skills.trim()
+                              ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
+                              : kw
+                          )
+                        }
+                      >
+                        + {kw}
+                      </button>
+                      <button
+                        type="button"
+                        className="hover:bg-primary/10 text-muted-foreground border-l px-1.5 py-0.5"
+                        title={`Not relevant to me — exclude "${kw}" from the score`}
+                        aria-label={`Mark ${kw} as not relevant`}
+                        onClick={() =>
+                          set('ignoredKeywords', [...(resume.ignoredKeywords ?? []), kw])
+                        }
+                      >
+                        ×
+                      </button>
+                    </span>
                   ))}
                 </RovingChipGroup>
               </div>
