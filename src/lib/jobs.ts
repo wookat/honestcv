@@ -501,6 +501,20 @@ export function setPipelineInterviewDoc(
   )
 }
 
+/** Whether a resume's target (as written by Save / Target my resume) is this job: same company,
+ * and the same title or the same posting text (the title may have been edited in the builder). */
+export function copyTargetsJob(
+  data: { targetRole: string; targetCompany?: string; jobDescription: string },
+  job: JobListing
+): boolean {
+  const description = job.description.trim()
+  return (
+    (data.targetCompany ?? '').trim() === job.company.trim() &&
+    (data.targetRole.trim() === job.title.trim() ||
+      (description !== '' && data.jobDescription.trim() === description))
+  )
+}
+
 /** Link the pipeline entry for a job to its targeted resume copy. */
 export function setPipelineVersion(
   jobId: string,

@@ -67,7 +67,7 @@ import {
   stashUnreadableDocs,
   updateCareerDoc,
 } from '@/lib/documents'
-import { attentionCount, listPipeline, type PipelineEntry } from '@/lib/jobs'
+import { attentionCount, copyTargetsJob, listPipeline, type PipelineEntry } from '@/lib/jobs'
 import { LETTER_EXAMPLES, seedLetterExample, type LetterExample } from '@/lib/letterExamples'
 import { prefersReducedMotion } from '@/lib/motion'
 import {
@@ -262,14 +262,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     return map
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when documents change
   }, [docs])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when copies change
+  const pipeline = useMemo(() => listPipeline(), [versions])
   const jobByVersion = useMemo(() => {
     const map = new Map<string, PipelineEntry>()
-    for (const entry of listPipeline()) {
+    for (const entry of pipeline) {
       if (entry.resumeVersionId) map.set(entry.resumeVersionId, entry)
     }
     return map
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when copies change
-  }, [versions])
+  }, [pipeline])
   const [trackedJobs] = useState(() => listPipeline().length)
   const [trackedAttention] = useState(() => attentionCount())
   const [storageError, setStorageError] = useState(false)
@@ -852,12 +853,24 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     const role = v.data.targetRole.trim()
     if (!role) return null
     const company = (v.data.targetCompany ?? '').trim()
+    const tracked = pipeline.find((e) => copyTargetsJob(v.data, e.job))
     return (
       <>
         {' '}
         · targeted at {role}
         {company ? ` at ${company}` : ''}
-        {v.data.jobDescription.trim() !== '' && (
+        {tracked ? (
+          <>
+            {' '}
+            ·{' '}
+            <Link
+              to={`/jobs?job=${encodeURIComponent(tracked.job.id)}`}
+              className="underline underline-offset-2"
+            >
+              tracked job uses another copy
+            </Link>
+          </>
+        ) : v.data.jobDescription.trim() !== '' && (
           <>
             {' '}
             · job no longer tracked —{' '}

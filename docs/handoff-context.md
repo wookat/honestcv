@@ -2211,3 +2211,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据（生产 index-C2sZMszZ.js，qa/r593-evidence.cjs）：孤儿目标副本在 Job applications 分组里与通用副本无任何区别（`Edited today · ATS 8/100 · Job applications`，无链接），看不出它针对哪个职位、职位已不再跟踪、也无回路；ATS 分仍按已不跟踪的 JD 计算。方案 docs/plan-r593-dashboard-discloses-orphaned-targeted-copies.md。
 - 修复仅 src/pages/Dashboard.tsx：卡片/列表共用 `targetNote(v)`：有链接 → 原「for <Title at Company>」；无链接且 targetRole 非空 → 「targeted at role[ at company]」，jobDescription 非空再加「job no longer tracked — find it again」→ `/jobs?q=role`（/jobs 已支持 ?q 种入搜索）。部署 index-3R7pVACX.js / Dashboard-B4Q3Zp0-.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375：孤儿行显示新注记与链接，点击落 /jobs?q=Sales+Jedi 且搜索框=Sales Jedi；已链接/通用副本文案不变；375 文案自然换行、无页面溢出（/jobs 360<375）；存储回基线；零 console 错误。PR 链：#813（R592）→ R593。
+
+## R594 — 复制已链接副本后不得标成「job no longer tracked」（2026-09-06）
+- 证据（生产 index-3R7pVACX.js 含 R593，真实职位 1185979，qa/r594-evidence.cjs）：Duplicate 已链接副本 → (2) 行显示「job no longer tracked — find it again」，但该职位仍在跟踪（原副本链接）；假陈述 + 错误回路。方案 docs/plan-r594-duplicate-of-linked-copy-not-labelled-untracked.md。
+- 修复：lib/jobs.ts 新增共享 `copyTargetsJob(data, job)`（同公司 &&（同职位名 || 非空同 JD）），Jobs.tsx `orphanTargetedCopy` 改为复用；Dashboard `targetNote` 无链接分支先查 pipeline 是否有匹配的已跟踪职位 → 「targeted at … · tracked job uses another copy」→ `/jobs?job=id`；无则保留 R593 注记。Dashboard 新增 `pipeline` memo（随 versions 重读）供 jobByVersion 与 targetNote 共用。部署 index-DW8pJ9nt.js / Dashboard--PH4LYFu.js / Jobs-B9eVb9CM.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：Duplicate 场景显示新注记与 /jobs?job=1185979；R593 孤儿场景与 R592 editedrole 重连均不回归；375 无页面溢出；存储回基线；零 console 错误。PR 链：#814（R593）→ R594。
