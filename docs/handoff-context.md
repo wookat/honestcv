@@ -2046,3 +2046,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复三文件（与 R564 同款模式）：src/lib/jobs.ts（PipelineEntry.resignationDocId?、sanitize/upsert 保留、setPipelineResignationDoc）；src/pages/Jobs.tsx（offer 分支导航带 &job=<id>；详情面板新增 Resignation letter: 标题 · Open 行）；src/pages/Builder.tsx（jobId 透传条件简化为 toolOpen !== null，保存钩子对 resignation 调 setPipelineResignationDoc）。
 - tsc/单查 eslint（仅既有 2 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
 - 生产 QA（index-kVkULu1c.js）：1280/375 offer 职位 → Open resignation letter → 模板路径保存 → entry 带 resignationDocId → /jobs?job= 面板显示「Resignation letter: … · Open」且 Open 落 /documents；零溢出；QA 存储清理回六键基线；零 AI 配额消耗。备案：模板路径保存的辞职信标题为「Untitled — Resignation letter」（联系人姓名未播种，R398 只兜底了 interview，候选后续轮）。
+
+## R566 — 辞职信标题点名雇主（2026-09-06）
+- 一手证据（生产 CDP，R565 备案跟进）：模板路径保存的辞职信正文已写明「my position as Software Engineer at Globex」，标题却是「Untitled — Resignation letter」——保存 docTitle 只用弹窗 company 输入，忽略 insertTemplate 早已使用的在职雇主兜底；cover/interview 标题早有兜底（R398）。方案：docs/plan-r566-resignation-title-names-employer.md。
+- 修复仅 src/pages/Builder.tsx：把 insertTemplate 内的 currentJob 查找提升为弹窗级 ongoingJob（首个非隐藏、在职的经历条目），模板播种与保存标题共用；resignation docTitle 改为 company || ongoingJob?.company || 'Untitled'。
+- tsc/单查 eslint（仅既有 1 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-CO-GGYDA.js）：1280 模板保存 →「Globex — Resignation letter」；键入 Initech →「Initech — …」（键入优先）；375 无在职经历且未键入 →「Untitled — …」兜底保留；零溢出；QA 存储清理回六键基线；零 AI 配额消耗。

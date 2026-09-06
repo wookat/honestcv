@@ -10475,17 +10475,18 @@ function BundleToolDialog({
     }
   }
 
+  const ongoingJob = resume.experience.find(
+    (e) =>
+      !e.hidden &&
+      e.company.trim() &&
+      (!e.endDate.trim() || ONGOING_RE.test(e.endDate)),
+  )
+
   const insertTemplate = () => {
-    const currentJob = resume.experience.find(
-      (e) =>
-        !e.hidden &&
-        e.company.trim() &&
-        (!e.endDate.trim() || ONGOING_RE.test(e.endDate)),
-    )
     if (kind === 'resignation') {
       const name = resume.contact.fullName || '[Your name]'
-      const co = company || currentJob?.company.trim() || '[Company]'
-      const role = currentRole || currentJob?.role.trim() || '[your role]'
+      const co = company || ongoingJob?.company.trim() || '[Company]'
+      const role = currentRole || ongoingJob?.role.trim() || '[your role]'
       const day = lastDay || '[last working day — typically two weeks from today]'
       applyResult(
         `Dear [Manager name],\n\nPlease accept this letter as formal notice of my resignation from my position as ${role} at ${co}. My last working day will be ${day}.\n\nI'm grateful for the opportunities I've had here — [one specific thing you genuinely appreciated: a project, a skill you grew, the team]. Thank you for your support during my time with the company.\n\nI'm committed to a smooth handover: I'll document my ongoing work and am happy to help train a replacement before I leave.\n\nSincerely,\n${name}`
@@ -10508,7 +10509,7 @@ function BundleToolDialog({
     const spotlight = highlights.trim()
       ? `\n\nI'd particularly like to highlight: ${highlights.trim()}.`
       : ''
-    const currentCo = currentJob?.company.trim() || '[current company]'
+    const currentCo = ongoingJob?.company.trim() || '[current company]'
     applyResult(
       `Dear ${to},\n\nI'm writing to apply for the ${role} position at ${co}. [One sentence on why this company or team specifically — a product, a mission, a recent launch.]\n\nIn my current role at ${currentCo}, I [your strongest, most relevant achievement — with a real number if you have one]. Before that, I [second relevant achievement or responsibility]. These map directly to what you're looking for: [requirement from the job description you meet best].${spotlight}\n\nI'd welcome the chance to talk about how I can help ${co} [team goal from the posting]. Thank you for your consideration.\n\nSincerely,\n${name}`
     )
@@ -10883,7 +10884,7 @@ function BundleToolDialog({
                     kind === 'cover'
                       ? `${company || resume.targetRole || 'Untitled'} — Cover letter`
                       : kind === 'resignation'
-                        ? `${company || 'Untitled'} — Resignation letter`
+                        ? `${company || ongoingJob?.company.trim() || 'Untitled'} — Resignation letter`
                         : `${resume.targetRole || resume.contact.fullName || 'Untitled'} — Interview prep`
                   if (savedId) {
                     const updated = updateCareerDoc(savedId, { title: docTitle, text: result })
