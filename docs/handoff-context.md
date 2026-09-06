@@ -2106,3 +2106,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：一次性 ref seedAttentionSelect（seedAttention 且无 ?job= 时为真），fetchJobs 兜底命中时选中首个 staleDays!==null||reminderDue 的 pipeline entry（与队列过滤同谓词），消费后恢复原行为；?job= 深链与后续搜索不受影响。
 - tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（Jobs-DVrkVPQm.js）：1280/375 attention 深链详情面板显示 Globex（Follow up due 在位）、无 Copywriter；裸 /jobs 仍选中 feed 首个职位；零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R576 — 跟进后可一键关闭关注状态（2026-08-31）
+- 一手证据（生产 CDP）：到期+stale 的 Globex 申请，打开 Draft follow-up email 复制并关闭后，「Follow up due」「No update in 10 days」「Needs follow-up (1)」全部原样保留——跟进循环无法闭合，唯一手动出口 Clear reminder 也不影响 staleness（基于最后一次状态变更）。方案：docs/plan-r576-mark-followed-up.md。
+- 修复两文件：jobs.ts 增 PipelineEntry.followedUpAt?（sanitize/upsert 保留）、staleDays 改从 max(最后状态变更, followedUpAt) 计、新增 markFollowedUp(jobId)（置 now 并清 remindOn）；Jobs.tsx followUpDraft 携带 jobId、弹窗 footer 新增「Mark as followed up」按钮（applyPipeline + 关弹窗）。过滤谓词/存储键/文案零改动。
+- tsc/eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280 到期+stale → 弹窗四按钮（Close/Open in email app/Mark as followed up/Copy email）→ 点击后琥珀信号全消、Needs follow-up (0)、followedUpAt 写入、remindOn 清除、reminder input 空；375 stale-only interviewing 同样闭环；零溢出；存储清理回六键基线；零 AI 配额。

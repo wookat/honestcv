@@ -59,6 +59,8 @@ export interface PipelineEntry {
   notes?: string
   /** User-set follow-up reminder as a calendar day (yyyy-mm-dd, no timezone) */
   remindOn?: string
+  /** When the user last marked this application as followed up (ms epoch) */
+  followedUpAt?: number
 }
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -81,7 +83,8 @@ export function timelineOf(entry: PipelineEntry): StatusChange[] {
 export function staleDays(entry: PipelineEntry): number | null {
   if (entry.status !== 'applied' && entry.status !== 'interviewing') return null
   const steps = timelineOf(entry)
-  const days = Math.floor((Date.now() - steps[steps.length - 1].at) / 86_400_000)
+  const last = Math.max(steps[steps.length - 1].at, entry.followedUpAt ?? 0)
+  const days = Math.floor((Date.now() - last) / 86_400_000)
   return days >= 7 ? days : null
 }
 
@@ -351,6 +354,8 @@ function sanitizeEntry(raw: unknown): PipelineEntry | null {
   if (typeof e.interviewDocId === 'string') entry.interviewDocId = e.interviewDocId
     if (typeof e.resignationDocId === 'string') entry.resignationDocId = e.resignationDocId
   if (typeof e.notes === 'string') entry.notes = e.notes
+  if (typeof e.followedUpAt === 'number' && Number.isFinite(e.followedUpAt))
+    entry.followedUpAt = e.followedUpAt
   if (typeof e.remindOn === 'string' && DAY_RE.test(e.remindOn)) entry.remindOn = e.remindOn
   // Entries saved before reminders became calendar days stored a local-midnight epoch
   else if (typeof e.remindAt === 'number' && Number.isFinite(e.remindAt))
@@ -405,6 +410,7 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
     ...(prev?.resignationDocId ? { resignationDocId: prev.resignationDocId } : {}),
       ...(prev?.notes ? { notes: prev.notes } : {}),
       ...(prev?.remindOn !== undefined ? { remindOn: prev.remindOn } : {}),
+      ...(prev?.followedUpAt !== undefined ? { followedUpAt: prev.followedUpAt } : {}),
     },
     ...rest,
   ])
@@ -448,6 +454,15 @@ export function setPipelineReminder(
   const day = remindOn !== null && DAY_RE.test(remindOn) ? remindOn : undefined
   return savePipeline(
     listPipeline().map((e) => (e.job.id === jobId ? { ...e, remindOn: day } : e))
+  )
+}
+
+/** Record that the user followed up on a job now: resets staleness and clears the reminder. */
+export function markFollowedUp(jobId: string): PipelineEntry[] | null {
+  return savePipeline(
+    listPipeline().map((e) =>
+      e.job.id === jobId ? { ...e, followedUpAt: Date.now(), remindOn: undefined } : e
+    )
   )
 }
 

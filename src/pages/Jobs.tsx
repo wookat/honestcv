@@ -42,6 +42,7 @@ import {
   isLocationAgnostic,
   listPipeline,
   locationFacets,
+  markFollowedUp,
   removeFromPipeline,
   removeManyFromPipeline,
   searchJobs,
@@ -187,9 +188,11 @@ export default function Jobs() {
   const [reportKwExpandedId, setReportKwExpandedId] = useState<string | null>(null)
   const [confirmUntrack, setConfirmUntrack] = useState<JobListing | null>(null)
   const [storageError, setStorageError] = useState(false)
-  const [followUpDraft, setFollowUpDraft] = useState<{ subject: string; body: string } | null>(
-    null
-  )
+  const [followUpDraft, setFollowUpDraft] = useState<{
+    jobId: string
+    subject: string
+    body: string
+  } | null>(null)
   const [followUpCopied, setFollowUpCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
 
   const fetchJobs = (q: string, cat = '') =>
@@ -1762,9 +1765,10 @@ export default function Jobs() {
                                 className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
                                 onClick={() => {
                                   setFollowUpCopied('idle')
-                                  setFollowUpDraft(
-                                    followUpEmail(entry, loadResume()?.contact.fullName)
-                                  )
+                                  setFollowUpDraft({
+                                    jobId: entry.job.id,
+                                    ...followUpEmail(entry, loadResume()?.contact.fullName),
+                                  })
                                 }}
                               >
                                 {entry.status === 'offer'
@@ -2008,6 +2012,19 @@ export default function Jobs() {
                 >
                   Open in email app
                 </a>
+              </Button>
+            )}
+            {followUpDraft && (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-10"
+                onClick={() => {
+                  applyPipeline(markFollowedUp(followUpDraft.jobId))
+                  setFollowUpDraft(null)
+                }}
+              >
+                Mark as followed up
               </Button>
             )}
             <Button
