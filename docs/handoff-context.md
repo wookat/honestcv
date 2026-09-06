@@ -2573,3 +2573,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复（docs/plan-r662-ats-checklist-glyph-contrast.md）：`text-green-600→text-green-700`（4.95）、`text-red-500→text-red-600`（4.77）、AtsChecker `text-emerald-600→text-emerald-700`（5.3）。无 `dark:`、无布局/文案变化。
 - 生产 QA（qa/r662-evidence.cjs 亮/暗 1280，index-K2E7xJLD.js）：✓ 4.95（暗 10.85）、✗ 4.77（暗 7.96），21 字形数量/rect 逐一不变、无 aria-hidden；计算式扫描亮/暗 × 1280/375 七路由零命中；逐屏 axe 真违规 0、无溢出、零 console 错误、存储回基线。Workers Routes code 10000 依旧。
 - 如实未验证：AtsChecker「No priority fixes」未渲染实测；375 下 ATS 面板隐藏未直接量（同 token）；未做真实读屏与真机。SOP-10 方法注记：符号态字形须读 axe `incomplete`；R659 滚动容器内内容只有计算式扫描覆盖。
+
+### R663 — Landing 展示用 mock 卡 12px 状态文本 3.2–3.65:1（链 #883 → 本 PR）
+- 取证（qa/r663-scan.cjs = r662-scan + `INCLUDE_HIDDEN=1`，亮色 7 路由 1280，index-K2E7xJLD.js）：aria-hidden 子树内全部命中仅在 Landing 展示 mock：ATS 演示卡「Detected」×2 /「3 positions detected」`text-emerald-600` rgb(0,153,102) 白底 3.65；Score breakdown「72」`text-amber-600` 3.2、「83」`text-emerald-600` 3.65；另 Landing/Builder 芯片 `✓ text-green-600` 3.08（aria-hidden、紧邻标签、装饰重复，维持不改）。判定：mock 虽 aria-hidden，但是给视觉用户阅读的产品插图（"Skills — Parsed as body text"、"Missing keyword: kubernetes"），不是 1.4.3 意义的纯装饰，按真缺口处理。
+- 复核非缺口：`ScoreRing` 数字 20px/700 属大文本按 3:1——emerald 3.65、#d97706 ≈3.18、#dc2626 ≈4.83（暗卡 9.55/≈5.6/≈3.7）均达标，未改。
+- 修复（docs/plan-r663-landing-showcase-mock-text-contrast.md）：Landing.tsx 287 `emerald-600→700`、`amber-600→700`；557 `emerald-600→700`；red-600 不动。无布局/文案/`dark:` 变化。
+- 生产 QA（qa/r663-verify.cjs 亮/暗 × 1280/375，index-C_rL1zCr.js）：Detected/3 positions 5.36（暗 10.87）、72 amber 5.03（暗 11.36）、83 5.36、Parsed as body text / 40 red-600 4.77（暗 7.96）；零 console 错误、存储回基线。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧。
+- 如实：装饰 vs 信息是记录在案的判断而非测量；芯片 ✓ 反向判断为装饰；未做真实读屏。

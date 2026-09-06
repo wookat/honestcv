@@ -284,7 +284,7 @@ function ShowcaseBreakdown() {
         <div key={label}>
           <div className="flex items-center justify-between text-xs">
             <span className="font-medium">{label}</span>
-            <span className={score >= 80 ? 'text-emerald-600' : score >= 50 ? 'text-amber-600' : 'text-red-600'}>
+            <span className={score >= 80 ? 'text-emerald-700' : score >= 50 ? 'text-amber-700' : 'text-red-600'}>
               {score}
             </span>
           </div>
@@ -554,7 +554,7 @@ export default function Landing() {
                 ).map(([field, status, ok]) => (
                   <div key={field} className="flex items-center justify-between rounded-md border px-3 py-2">
                     <span className="font-medium">{field}</span>
-                    <span className={ok ? 'text-emerald-600' : 'text-red-600'}>{status}</span>
+                    <span className={ok ? 'text-emerald-700' : 'text-red-600'}>{status}</span>
                   </div>
                 ))}
               </div>
