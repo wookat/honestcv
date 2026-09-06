@@ -885,7 +885,8 @@ export default function Jobs() {
       (orphanTargetedCopy(job) ||
         (status === 'saved' &&
           resumeHasContent(loadResume() ?? emptyResume()) &&
-          !editorCopyAimedElsewhere(job)))
+          !editorCopyAimedElsewhere(job) &&
+          !copyAimedFromOtherJob(job)))
     )
       prepareTargetedCopy(job)
   }
