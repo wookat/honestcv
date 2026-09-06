@@ -12152,7 +12152,7 @@ function HealthDialog({
           <div className="rounded-lg border p-3">
             <p className="text-sm font-medium">Priority fixes</p>
             {fixes.length === 0 ? (
-              <p className="mt-1.5 text-xs text-emerald-600">
+              <p className="mt-1.5 text-xs text-emerald-700">
                 No priority fixes — every check passes and all dimensions score 80+.
               </p>
             ) : (
@@ -12234,9 +12234,9 @@ function HealthDialog({
                 <span
                   className={`tnum text-xs font-semibold ${
                     d.score >= 80
-                      ? 'text-emerald-600'
+                      ? 'text-emerald-700'
                       : d.score >= 50
-                        ? 'text-amber-600'
+                        ? 'text-amber-700'
                         : 'text-red-600'
                   }`}
                 >
@@ -12263,7 +12263,7 @@ function HealthDialog({
                 />
               </div>
               <p className="text-muted-foreground mt-1.5 text-xs">{d.summary}</p>
-              <p className="text-muted-foreground/80 mt-1 text-xs italic">{d.plain}</p>
+              <p className="text-muted-foreground mt-1 text-xs italic">{d.plain}</p>
               {d.findings.length > 0 && (
                 <ul className="text-muted-foreground mt-1.5 list-disc space-y-0.5 pl-4 text-xs">
                   {(

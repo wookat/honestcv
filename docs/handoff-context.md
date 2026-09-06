@@ -2588,3 +2588,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 排除：builder Copies `ul`、jobs 两栏、示例弹窗外层 wrapper 均含可聚焦内容（axe 通过）；AssistantPanel 消息区需真实 AI 对话才溢出，零配额未测，列候选。
 - 生产 QA（index-DHP4Xevh.js）：r664-ats 亮/暗 375 + 亮 1280 axe real 0（原 375 为 1）、对比度 0、无溢出、零 console 错误、atsDraft 回基线；r664-evidence 375 两框 tabIndex 0/role region/有名，Tab 可达；r664-dialog-axe 375 弹窗 axe 0，第 4 个 Tab 到达 preview region，ArrowDown 滚 40px。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧。
 - 如实未验证：R662「No priority fixes」态示例数据不触发，仍只按 token；桌面多出 1 个 Tab 停（与定价表同取舍）；未做真实读屏。
+
+### R665 — builder Health 弹窗亮色对比度：维度分数 + 白话解释 + 全通过提示（链 #885 → 本 PR）
+- 覆盖缺口先补：此前所有 SOP-10 节点从未打开过任何弹窗。qa/r665-dialogs.cjs 打开 dashboard 5 个 + builder 4 个弹窗（亮/暗 × 375/1280，index-DHP4Xevh.js）跑 axe + 计算式对比度：8/9 弹窗 axe 真违规 0、对比度 0、不超视口、焦点在弹窗内、零 console 错误（Keyboard shortcuts 为桌面专属 `hidden lg:inline-flex`，375 不测非缺口）。
+- 缺口（Health 弹窗，仅亮色）：维度分数 12px/600 `text-amber-600` 3.11（axe serious）、`text-emerald-600` 3.56 ×7；白话解释 `text-muted-foreground/80 italic` 12px 3.57 ×8（前景带 0.8 alpha）；「No priority fixes」同 emerald-600 token（示例数据不触发，按 token 算 3.56，是 R662 AtsChecker 同句的 builder 孪生）。暗色全部通过（11.09/10.25/4.64），不改。
+- 方法学发现（入 SOP-10）：① axe 在可滚动弹窗内只报**视口内**节点——375 只报了在视口内的「75」，1280 多报了第一条解释；下折的 7 个分数/7 条解释两宽度均未报。弹窗审计必须滚弹窗本体，R655 的整页滚动累计够不到。② R661/R662 自研扫描器 `px4(cs.color).slice(0,3)` 丢了前景 alpha，把 `/80` 按 100% 算成 5.38 放过；qa/r665-health.cjs 已改为前景先合成到背景。仓内其余 alpha 前景：拖拽把手 `/60`（aria-hidden 图标）、AtsChecker `text-foreground/70`、Jobs `text-foreground/80` 标题——按 --foreground 近黑推断远超 4.5，本轮未用新扫描器复测，列 R666 候选。
+- 修复（docs/plan-r665-health-dialog-contrast.md）：Builder.tsx `HealthDialog` 内 emerald-600→700、amber-600→700、解释去 `/80`（保留 italic）。排除：`text-red-600` 4.77 通过；Final check `⚠` amber-600 为装饰（每行都是问题、文字承载语义）；下载成功 Check 图标与完成清单 aria-hidden 图标不改。
+- 生产 QA（index-BLTPcaBg.js）：r665-health 亮/暗 × 375/1280 全部节点 ≥4.5（amber-700 4.9、emerald-700 5.22、解释 5.38；暗 12.19/11.66/6.77），弹窗几何逐一不变（top 41/bottom 771、scrollHeight 2396/1736）；r665-dialogs ONLY=health 亮 375/1280 axe 真违规 0（原 1/2）、零 console 错误、存储回基线。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧（上传上线不受影响）。
+- 如实未验证：「No priority fixes」仍只按 token；解释从 80% 到 100% muted 层级略弱（italic 仍区分）；未做真实读屏。
