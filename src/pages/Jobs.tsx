@@ -595,6 +595,11 @@ export default function Jobs() {
       saveResume(next)
       syncActiveVersion(next)
     }
+    if (
+      !listPipeline().some((e) => e.job.id === job.id) &&
+      !applyPipeline(upsertPipeline(job, 'saved'))
+    )
+      return
     void navigate(
       `/builder?doc=cover&company=${encodeURIComponent(job.company)}&job=${encodeURIComponent(job.id)}`
     )
@@ -1809,7 +1814,7 @@ export default function Jobs() {
               {confirmTarget?.intent === 'cover'
                 ? confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'This opens the resume copy targeted at this job in the editor, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
-                  : "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any."
+                  : "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any. The job is saved to your tracked applications so the letter stays linked to it."
                 : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'This job already has a targeted copy of your resume — the editor opens that copy. Your other resumes keep their own target jobs.'
                   : confirmTarget && !resumeHasContent(loadResume() ?? emptyResume())
