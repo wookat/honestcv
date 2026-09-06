@@ -157,7 +157,7 @@ import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText, loadExporter, professionalFileName } from '@/lib/download'
 import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
-import { setPipelineCoverDoc } from '@/lib/jobs'
+import { listPipeline, setPipelineCoverDoc } from '@/lib/jobs'
 import { trackEvent } from '@/lib/track'
 import {
   type ShareLink,
@@ -1206,6 +1206,13 @@ export default function Builder() {
   const activeVersion = activeVersionId
     ? (versions.find((v) => v.id === activeVersionId) ?? null)
     : null
+  const linkedJob = useMemo(
+    () =>
+      activeVersionId
+        ? (listPipeline().find((e) => e.resumeVersionId === activeVersionId)?.job ?? null)
+        : null,
+    [activeVersionId]
+  )
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
   const [renameFolder, setRenameFolder] = useState('')
@@ -2717,6 +2724,17 @@ export default function Builder() {
             icon={<Target className="size-4" />}
             anchor="target"
           >
+            {linkedJob && (
+              <p className="text-muted-foreground text-xs">
+                This copy is tailored to &quot;{linkedJob.title}&quot; at {linkedJob.company}.{' '}
+                <Link
+                  to={`/jobs?job=${encodeURIComponent(linkedJob.id)}`}
+                  className="text-primary font-medium underline-offset-2 hover:underline"
+                >
+                  View it on the jobs board &rarr;
+                </Link>
+              </p>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="targetRole">Target role</Label>

@@ -2017,6 +2017,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：当选中职位且草稿为空且该职位无 targeted copy 时，在报告开关位置渲染 muted 提示「Add your resume（链接 /builder）to see how it matches this job's keywords.」；评分/报告/持久化零改动。
 - tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿；生产复验：1280/375 干净基线提示在位且链到 /builder、播种草稿后提示消失且 match%+报告恢复（R559 回归正常）、零溢出零 console 错误、存储回六键基线。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 
+## R562 — Builder Target 面板回链到被跟踪的职位（2026-09-06）
+- 一手证据（生产 CDP，1280×900，播种 1 角色草稿）：经 /jobs 目标化流程落入 /builder 打开 targeted copy 后，页面上指向 /jobs 的链接只有头部导航（Jobs / Job search）；用户在 Target 面板处理完缺失关键词后没有任何回到该职位复查 match%/Tailoring report 的路径，须手动重找。代码证实 Builder.tsx 零处 /jobs?job= 链接，而 pipeline entry 早存 resumeVersionId、/jobs 早支持 ?job= 深链（R407/R528）。对照 Rezi 8 月 Week2 tailoring 流职位上下文双向保持。方案：docs/plan-r562-target-panel-job-link.md。
+- 修复仅 src/pages/Builder.tsx：memo 计算 linkedJob（listPipeline 中 resumeVersionId===activeVersionId 的 entry.job）；Target 面板顶部有 linkedJob 时渲染 muted 行「This copy is tailored to "…" at … · View it on the jobs board →」（SPA Link 到 /jobs?job=<id>）；评分/chips/linkVersion/深链语义零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（生产实测已服务新 bundle index-s4SDlH2t.js）。
+- 生产 QA：1280/375 targeted copy 打开后回链行在位且 inView、点击落 /jobs?job=2091101 详情面板可见（match/report 在位）；普通草稿（无 activeVersionId）零渲染；零溢出；QA 存储清理回六键基线。
+
 ## R561 — Tailoring report 缺失关键词获得直达编辑器的行动路径（2026-08-31）
 - 一手证据（生产 CDP，1280×900，播种 1 角色草稿）：/jobs?q=react 选 Senior React 职位开 Tailoring report——报告点名 28 个缺失关键词（10 高优先 + 「+16 more」 + Also missing），但报告内唯一可交互元素是「Hide tailoring report」和「+16 more」；关键词没有任何行动路径，用户须自行发现别处的「Target my resume」再在 Builder 里找到 Target 面板的 R542/R544 chips。对照 Rezi 8 月 tailoring 流从 match 报告直达编辑器。方案：docs/plan-r561-report-keywords-action.md。
 - 修复仅 src/pages/Jobs.tsx：confirmTarget intent 联合加 'keywords'（对话框文案/标签按 target 同款处理）；targetResume 对 keywords intent 导航到 /builder?jump=target（普通 target 仍 /builder、cover 零改动）；报告有缺失关键词时尾部渲染「Add these keywords in the editor →」按钮，复用既有确认对话框，落地 Target 面板（R542/R544 chips 可加 Skills/可排除）。
