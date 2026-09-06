@@ -2201,3 +2201,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据（生产 index-CRU121oZ.js，真实职位 A=2091088 / B=1185979，零 AI）：草稿=副本 qa-vA 内容且 activeVersionId=qa-vA（用户正在编辑 A 的目标副本）时，在职位 B 点 Cover letter 并确认 → `saveResume(next); syncActiveVersion(next)` 把改写后的草稿回写进 qa-vA：qa-vA.targetCompany 由 Creative Force 变 IAPWE，而 pipeline 仍显示 A→qa-vA；用户无感知。对照 Target my resume 路径新建副本 B、A 完好。方案：docs/plan-r591-cover-letter-no-longer-retargets-active-copy.md。
 - 修复仅 src/pages/Jobs.tsx：cover/interview 入口 `version = targetedCopyOf(job) ?? (resumeHasContent(draft) ? prepareTargetedCopy(job) : null)`；有内容 → 与 Target 一致新建副本 B 并激活；仅空草稿才沿用就地设目标。confirmTarget cover 分支新增「有内容且无副本」文案（saves a copy … opens it in the editor, then opens the cover letter tool … Your other resumes keep their own target jobs）。tsc/eslint/build/verify-dist 绿；部署 index-D7KLdISK.js / Jobs-BdWcdwSH.js，Workers Routes code 10000 依旧。
 - 生产 QA 1280+375（qa/r591-evidence.cjs）：cover → 新文案；确认后 versions 新增「Freelance Writer — IAPWE」(targetCompany=IAPWE) 且 qa-vA.targetCompany 仍 Creative Force；pipeline B→新副本、A→qa-vA；active=新副本；空草稿对照 → 原文案/原行为（saved、无副本）；存储回基线；零 console 错误。PR 链：#811（R590）→ R591。
+
+## R592 — 孤儿副本匹配放宽：同公司 +（同职位名 或 同 JD）（2026-09-06）
+- 证据（生产 index-D7KLdISK.js，真实职位 2091088，零 AI，qa/r592-evidence.cjs editedrole）：编辑器允许改 Target role；孤儿副本 targetRole=「Sales Jedi (SaaS, EU)」同公司同 JD，再点 Saved → R589 精确匹配失败，重新造「(2)」副本并改链，定制副本继续孤儿。方案 docs/plan-r592-orphan-copy-match-by-description.md。
+- 修复仅 `orphanTargetedCopy`：公司名精确一致 &&（职位名一致 || 非空 JD 逐字一致）。部署 index-C2sZMszZ.js / Jobs-D-Beg0Mb.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：editedrole → 无「(2)」、pipeline→qa-v1；match 同；control（Other Corp）仍新建「(2)」；375 scrollWidth 360<375；存储回基线；零 console 错误。PR 链：#812（R591）→ R592。
