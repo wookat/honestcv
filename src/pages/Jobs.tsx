@@ -682,6 +682,20 @@ export default function Jobs() {
     ))
   }
 
+  /** Every saved copy targeted at this job that no tracked job links to, newest first. */
+  const orphanTargetedCopies = (job: JobListing) => {
+    const pipeline = listPipeline()
+    const linked = new Set(pipeline.map((e) => e.resumeVersionId))
+    return listResumeVersions()
+      .filter(
+        (v) =>
+          !linked.has(v.id) &&
+          ((v.forJob?.id === job.id && copyKeepsProvenance(v, pipeline)) ||
+            copyTargetsJob(v.data, job))
+      )
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+  }
+
   /** A saved copy already targeted at this job that no tracked job links to (e.g. left behind by untracking). */
   const orphanTargetedCopy = (job: JobListing) => {
     const pipeline = listPipeline()
@@ -2072,25 +2086,48 @@ export default function Jobs() {
                       </div>
                       {(() => {
                         const copy = linkedVersion(entry.job.id)
-                        if (!copy) return null
                         const retargeted = retargetedLinkedCopy(entry.job)
                         return (
-                          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                            <span className="text-muted-foreground">Targeted resume:</span>
-                            <span className="font-medium">{copy.name}</span>
-                            {retargeted && (
-                              <span className="text-amber-700 dark:text-amber-400">
-                                now targets {copyTargetText(retargeted)}
-                              </span>
+                          <>
+                            {copy && (
+                              <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                                <span className="text-muted-foreground">Targeted resume:</span>
+                                <span className="font-medium">{copy.name}</span>
+                                {retargeted && (
+                                  <span className="text-amber-700 dark:text-amber-400">
+                                    now targets {copyTargetText(retargeted)}
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  className="text-primary underline-offset-2 hover:underline"
+                                  onClick={() =>
+                                    setConfirmTarget({ job: entry.job, intent: 'target' })
+                                  }
+                                >
+                                  Open
+                                </button>
+                              </p>
                             )}
-                            <button
-                              type="button"
-                              className="text-primary underline-offset-2 hover:underline"
-                              onClick={() => setConfirmTarget({ job: entry.job, intent: 'target' })}
-                            >
-                              Open
-                            </button>
-                          </p>
+                            {orphanTargetedCopies(entry.job).map((v) => (
+                              <p
+                                key={v.id}
+                                className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+                              >
+                                <span className="text-muted-foreground">
+                                  {copy ? 'Earlier targeted copy:' : 'Targeted copy (not linked):'}
+                                </span>
+                                <span className="font-medium">{v.name}</span>
+                                <button
+                                  type="button"
+                                  className="text-primary underline-offset-2 hover:underline"
+                                  onClick={() => applyPipeline(setPipelineVersion(entry.job.id, v.id))}
+                                >
+                                  {copy ? 'Use this one instead' : 'Use for this job'}
+                                </button>
+                              </p>
+                            ))}
+                          </>
                         )
                       })()}
                       {(() => {

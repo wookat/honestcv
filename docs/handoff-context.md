@@ -2424,3 +2424,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据（生产 index-Cq_vOAZH.js，qa/r635-evidence.cjs，真实职位 2091088 Applied，两封 cover letter、新的一封链接）：卡片「Earlier cover letter: … Open」只有 Open；/documents 对旧信只说「job uses another cover letter」（链接到职位）；唯一换回路径是删掉新信（删后才出现 R603 的 Use for this job）。方案 docs/plan-r635-earlier-document-can-be-swapped-back-in.md。
 - 修复（Jobs.tsx `earlierDocRows`）：早期文档行在职位已有链接时也提供动作，文案「Use this one instead」（无链接时仍为「Use for this job」），走同一 `setPipeline{Cover,Interview,Resignation}Doc`；不删任何文档，原链接文档因已有 forJob（R610 页面加载盖章）立即变为「Earlier …」行并同样可换回——对称可逆。部署 index-CSKiwVKd.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375：点击后 cover=qa-cover1、两文档俱在、行互换；无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R634（#855）→ R635。
+
+## R636 — 职位卡对「为该职位保存的其他副本」一无所知，换回副本只能删（2026-09-06）
+- 证据（生产 index-CSKiwVKd.js，qa/r634-evidence.cjs twocopies，真实职位 2091088 Applied，A 链接、B 同为该职位所建且未链接）：卡片只有「Targeted resume: A · Open」，B 不出现；dashboard（R594）/builder（R605）仅说「uses another copy」无动作；唯一换回路径是删 A。与 R635 修前的文档侧完全同构。方案 docs/plan-r636-job-card-lists-earlier-targeted-copies-and-swaps-them-in.md。
+- 修复（Jobs.tsx）：新增 `orphanTargetedCopies(job)`（forJob=job 且保留来源、或目标字段匹配，未被任何职位链接，新→旧）；R634 行下逐条渲染「Earlier targeted copy: B · Use this one instead」（无链接副本时「Targeted copy (not linked): B · Use for this job」，多孤儿时可选）；动作为既有 `setPipelineVersion`（R619 盖 forJob），不删不开，原链接副本随即变为 Earlier 行可换回。行上不放 Open（打开副本会替换草稿，走主按钮的确认弹窗）。部署 index-Cj5uxiAF.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：点击后 copy=qa-copyB、两副本俱在 forJob=2091088、行互换；单副本对照无多余行；无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R635（#856）→ R636。
