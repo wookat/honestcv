@@ -1946,3 +1946,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Builder.tsx：新增 inputsDirty（cover: company≠initialCompany/addressee/highlights；resignation: currentRole/lastDay/reason；interview: 手输 question；已生成或已保存后不计）并入 unsavedWork——既有关闭确认、useHistoryGuard、beforeunload 全部自动覆盖；确认文案在无生成结果时如实改为「Your typed details will be lost.」/「Your typed question will be lost.」。
 - tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：375/1280 空白弹窗 Escape 照常直接关闭；键入后 Escape → 确认弹窗文案「Your typed details will be lost.」，Keep working 保留输入、Discard and close 正常关闭；零溢出零 console 错误。
+
+## R550 — 信件示例预览/载入自动填充已知事实（2026-08-31）
+- 一手证据（生产 CDP）：/documents 打开 Software Engineer 覆盖信示例，预览与「Use this example」保存的文本均保留 [Company]/[Current company]/[Your name]，而本地简历已有 targetCompany、在职经历与姓名；Builder 自身的信件生成器早已播种同类事实。方案：docs/plan-r550-letter-example-seeding.md。
+- 修复两文件：src/lib/letterExamples.ts 新增 seedLetterExample(text, kind, resume)——cover 播种 [Company]/[Facility]←targetCompany、[Current company]/[Current facility]←首个未隐藏在职经历公司、[Your name]←姓名；resignation 播种 [Company]/[Job title]←在职经历、[Your name]；无对应事实的槽位保持 [placeholder]，日期等槽位从不播种。src/pages/Dashboard.tsx 预览与保存共用同一播种文本；SEO 静态示例页与 Builder 工具模板零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 预览显示 Acme/Globex/Ava Chen 且保存文本一致；辞职示例播种 role/company/name、[date, two weeks from today] 保留；空草稿全部占位符保留；零溢出零 console 错误；QA 存储清理回基线。

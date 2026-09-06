@@ -67,7 +67,7 @@ import {
   stashUnreadableDocs,
   updateCareerDoc,
 } from '@/lib/documents'
-import { LETTER_EXAMPLES, type LetterExample } from '@/lib/letterExamples'
+import { LETTER_EXAMPLES, seedLetterExample, type LetterExample } from '@/lib/letterExamples'
 import { prefersReducedMotion } from '@/lib/motion'
 import {
   EXPERIENCE_LEVELS,
@@ -2240,10 +2240,18 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     id: 'example',
                     kind: previewLetter.kind,
                     title: previewLetter.role,
-                    text: previewLetter.text,
+                    text: seedLetterExample(
+                      previewLetter.text,
+                      previewLetter.kind,
+                      draft ?? emptyResume()
+                    ),
                     updatedAt: 0,
                   }}
-                  text={previewLetter.text}
+                  text={seedLetterExample(
+                    previewLetter.text,
+                    previewLetter.kind,
+                    draft ?? emptyResume()
+                  )}
                   letterhead={draft ?? emptyResume()}
                 />
               </div>
@@ -2265,7 +2273,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                       e.kind === 'cover'
                         ? `${e.role} cover letter`
                         : `Resignation letter — ${e.role}`
-                    const doc = saveCareerDoc(e.kind, title, e.text)
+                    const doc = saveCareerDoc(
+                      e.kind,
+                      title,
+                      seedLetterExample(e.text, e.kind, draft ?? emptyResume())
+                    )
                     if (!doc) {
                       setStorageError(true)
                       return
