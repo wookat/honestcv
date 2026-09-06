@@ -173,6 +173,7 @@ import {
   setPipelineCoverDoc,
   setPipelineInterviewDoc,
   setPipelineResignationDoc,
+  setPipelineVersion,
   trackedJobOfCopy,
 } from '@/lib/jobs'
 import { trackEvent } from '@/lib/track'
@@ -1228,12 +1229,15 @@ export default function Builder() {
   const activeVersion = activeVersionId
     ? (versions.find((v) => v.id === activeVersionId) ?? null)
     : null
+  /** Bumped when this page changes a pipeline link, so linkedJob re-reads the pipeline. */
+  const [pipelineTick, setPipelineTick] = useState(0)
   const linkedJob = useMemo(
     () =>
       activeVersionId
         ? (listPipeline().find((e) => e.resumeVersionId === activeVersionId)?.job ?? null)
         : null,
-    [activeVersionId]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pipelineTick forces a re-read
+    [activeVersionId, pipelineTick]
   )
   /** Job the active copy was saved for from the jobs board (copies saved before forJob existed have none). */
   const activeCopyJob = versions.find((v) => v.id === activeVersionId)?.forJob
@@ -1253,6 +1257,16 @@ export default function Builder() {
     [activeVersionId, linkedJob, activeCopyJob, targetRole, targetCompany, jobDescription]
   )
   const targetedTrackedJob = targetedTrackedEntry?.job ?? null
+  /** Link the edited copy to the tracked job it targets (the job has no copy linked). */
+  const linkCopyToTargetedJob = () => {
+    if (!activeVersionId || !targetedTrackedJob) return
+    if (setPipelineVersion(targetedTrackedJob.id, activeVersionId) === null) {
+      setCopyStorageError(true)
+      return
+    }
+    setVersions(listResumeVersions())
+    setPipelineTick((t) => t + 1)
+  }
   /** Editing a copy aimed at a posting that no tracked job matches (untracked, or the target was edited). */
   const targetJobUntracked =
     activeVersionId !== null &&
@@ -2851,14 +2865,23 @@ export default function Builder() {
                   ? 'uses another copy'
                   : 'has no copy linked'}
                 .{' '}
+                {!jobLinksLiveCopy(targetedTrackedEntry, versions) && (
+                  <>
+                    <button
+                      type="button"
+                      className="text-primary font-medium underline-offset-2 hover:underline"
+                      onClick={linkCopyToTargetedJob}
+                    >
+                      Link this copy to it
+                    </button>
+                    {' · '}
+                  </>
+                )}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(targetedTrackedJob.id)}`}
                   className="text-primary font-medium underline-offset-2 hover:underline"
                 >
-                  {jobLinksLiveCopy(targetedTrackedEntry, versions)
-                    ? 'View it on the jobs board'
-                    : 'Reconnect it on the jobs board'}{' '}
-                  &rarr;
+                  View it on the jobs board &rarr;
                 </Link>
               </p>
             )}
