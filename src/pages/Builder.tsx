@@ -1280,6 +1280,18 @@ export default function Builder() {
     )
     return entry ? { job: entry.job, hasCopy: jobLinksLiveCopy(entry, versions) } : null
   }, [linkedJob, targetRole, targetCompany, jobDescription, versions])
+  /** Jobs for the cover letter / interview prep tool: `linkJob` is the tracked job a saved document is linked
+   * to — the job the tool was opened for while the edited copy still targets it, otherwise the tracked job
+   * the copy's Target job now matches (or none). `openedFor` is set only in that retargeted case. */
+  const toolJobs = useMemo(() => {
+    if (toolOpen !== 'cover' && toolOpen !== 'interview')
+      return { openedFor: null as JobListing | null, linkJob: null as JobListing | null }
+    const pipeline = listPipeline()
+    const openedFor = pipeline.find((e) => e.job.id === (toolJobId || linkedJob?.id))?.job ?? null
+    const data = { targetRole, targetCompany, jobDescription }
+    if (!openedFor || copyTargetsJob(data, openedFor)) return { openedFor: null, linkJob: openedFor }
+    return { openedFor, linkJob: pipeline.find((e) => copyTargetsJob(data, e.job))?.job ?? null }
+  }, [toolOpen, toolJobId, linkedJob, targetRole, targetCompany, jobDescription])
   /** Save the draft as a new copy linked to the tracked job it now targets and edit that copy;
    * the current copy stays linked to its own job. */
   const saveDraftAsCopyFor = (job: JobListing) => {
@@ -8734,15 +8746,18 @@ export default function Builder() {
       <BundleToolDialog
         kind={toolOpen}
         initialCompany={
-          toolOpen === 'cover' ? toolCompany || (resume.targetCompany ?? '') : toolCompany
+          toolOpen === 'cover'
+            ? (toolJobs.openedFor ? '' : toolCompany) || (resume.targetCompany ?? '')
+            : toolCompany
         }
         jobId={
           toolOpen === 'cover' || toolOpen === 'interview'
-            ? toolJobId || linkedJob?.id || ''
+            ? (toolJobs.linkJob?.id ?? '')
             : toolOpen !== null
               ? toolJobId
               : ''
         }
+        openedFor={toolJobs.openedFor}
         onClose={() => setToolOpen(null)}
         resume={shown}
         onQuota={setFreeLeft}
@@ -10483,6 +10498,7 @@ function BundleToolDialog({
   kind,
   initialCompany = '',
   jobId = '',
+  openedFor = null,
   onClose,
   resume,
   onQuota,
@@ -10492,6 +10508,8 @@ function BundleToolDialog({
   initialCompany?: string
   /** Tracked job to link a saved document to (from the /jobs deep link, or the job the copy being edited is linked to) */
   jobId?: string
+  /** The tracked job the tool was opened for when the edited copy's Target job no longer matches it. */
+  openedFor?: JobListing | null
   onClose: () => void
   resume: Resume
   onQuota: (remaining: number) => void
@@ -11042,6 +11060,24 @@ function BundleToolDialog({
               : 'Tailored to your resume and the job description you pasted in "Target job".'}
           </DialogDescription>
         </DialogHeader>
+        {openedFor && kind !== 'resignation' && (
+          <p className="text-muted-foreground text-xs">
+            This copy&apos;s Target job is {resume.targetRole.trim() || 'another job'}
+            {resume.targetCompany?.trim() ? ` at ${resume.targetCompany.trim()}` : ''}, not &ldquo;
+            {openedFor.title}&rdquo; at {openedFor.company} — the{' '}
+            {kind === 'cover' ? 'cover letter' : 'interview brief'} is written for that job and Save{' '}
+            {linkJob
+              ? `links it to “${linkJob.title}” at ${linkJob.company} instead.`
+              : "doesn't link it to a tracked job."}{' '}
+            <button
+              type="button"
+              className="text-primary font-medium underline-offset-2 hover:underline"
+              onClick={onJumpToTarget}
+            >
+              Change the copy&apos;s target &rarr;
+            </button>
+          </p>
+        )}
         {kind === 'cover' && (
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
