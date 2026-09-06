@@ -274,6 +274,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [docSeedParams] = useState(() =>
     section === 'documents' ? new URLSearchParams(window.location.search) : null
   )
+  const [docQuery, setDocQuery] = useState('')
   const [docKind, setDocKind] = useState<CareerDocKind | 'all'>(() => {
     const kind = docSeedParams?.get('kind')
     return kind === 'cover' || kind === 'interview' || kind === 'resignation' ? kind : 'all'
@@ -1495,11 +1496,23 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           </div>
         </div>
         {docs.length > 0 && (
-          <div
-            className="mt-4 flex flex-wrap gap-1.5"
-            role="group"
-            aria-label="Filter documents by type"
-          >
+          <div className="mt-4 flex flex-wrap items-center gap-1.5">
+            <div className="relative">
+              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2" />
+              <input
+                type="search"
+                value={docQuery}
+                onChange={(e) => setDocQuery(e.target.value)}
+                placeholder="Search documents"
+                aria-label="Search saved documents by title"
+                className="bg-card min-h-10 w-44 rounded-md border py-1 pr-2 pl-7 text-sm sm:min-h-8"
+              />
+            </div>
+            <div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label="Filter documents by type"
+            >
             {(
               [
                 ['all', 'All'],
@@ -1527,6 +1540,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   </button>
                 )
               })}
+            </div>
           </div>
         )}
         {docs.length === 0 ? (
@@ -1541,7 +1555,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         ) : (
           <ul className="mt-4 space-y-2">
             {docs
-              .filter((d) => activeDocKind === 'all' || d.kind === activeDocKind)
+              .filter(
+                (d) =>
+                  (activeDocKind === 'all' || d.kind === activeDocKind) &&
+                  d.title.toLowerCase().includes(docQuery.trim().toLowerCase())
+              )
               .map((d) => (
               <li
                 key={d.id}
@@ -1627,6 +1645,17 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             ))}
           </ul>
         )}
+        {docQuery.trim() !== '' &&
+          docs.length > 0 &&
+          !docs.some(
+            (d) =>
+              (activeDocKind === 'all' || d.kind === activeDocKind) &&
+              d.title.toLowerCase().includes(docQuery.trim().toLowerCase())
+          ) && (
+            <p className="text-muted-foreground mt-4 rounded-md border border-dashed p-4 text-sm">
+              No documents match “{docQuery.trim()}”.
+            </p>
+          )}
         </>
         )}
         {section === 'samples' && examplesState === 'loading' && (

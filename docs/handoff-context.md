@@ -1988,3 +1988,14 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/lib/documents.ts：提取 numberedDocTitle(title, docs)（被占用时剥 " (copy|N)" 尾缀从 (2) 起找空位），saveCareerDoc 落库前套用；duplicateCareerDoc 改用同一 helper（行为不变）。Rename 不查重（尊重用户命名）；调用方零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280 连用三次示例 → 「…」「… (2)」「… (3)」，Duplicate 回归 → 「… (4)」；375 再保存 → 「… (5)」；零溢出；QA 存储清理回六键基线。
+
+## R557 — 已保存文档按标题搜索（2026-08-31）
+- 一手证据（生产 CDP，1280×900）：/documents 播种 12 份混合文档后页面无任何搜索框（input[type=search] 为空），只有 kind chips；对比 My resumes 副本早有「Search copies」（R360），文档列表是唯一不可检索的长列表面。R556 编号标题落地后同名多版本更多，按标题查找需求更真实。方案：docs/plan-r557-doc-title-search.md。
+- 修复仅 src/pages/Dashboard.tsx：docQuery state + kind chips 行左侧 R360 同款「Search documents」搜索框（docs.length>0 时渲染），列表 filter 叠加标题子串匹配（大小写不敏感、与 kind 过滤组合），零匹配时「No documents match “…”.」诚实提示；查询不入 URL（与 copies 一致）；?kind/卡片操作/导出/R555 徽标零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280 键入 acme → 只剩 3 张匹配卡、+Cover letters chip 组合 → 2 张、zzz → 零卡+诚实提示、清空恢复；375 键入 globex → 1 张；两端零溢出；QA 存储清理回六键基线。
+
+## SOP-04 阶段汇报 · R553–R557（5 轮）
+- 结论：R553 信件占位符计数覆盖长模板槽（#774）、R554 预览高亮未填占位符（#775）、R555 文档卡「N to fill」徽标（#776）、R556 保存文档重名自动编号（#777）、R557 文档列表按标题搜索（本轮）。主题：/documents 文档面「占位符可见性 → 命名可区分 → 列表可检索」闭环。
+- 质量：每轮方案先入库 docs/plan-r55x-*.md（一手生产 CDP 实证），本地 tsc/单查 eslint/build/verify-dist 全绿，独立生产复验；5 轮零逃逸、零 AI 配额、零真实分享/支付/leads。
+- 待办：#599–#778 级联待合并；R390 测试 lead qa-r390@example.com 待从 KV 删除；Cloudflare token Routes code 10000、GitHub Actions 按规禁用维持现状。
