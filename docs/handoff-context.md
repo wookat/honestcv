@@ -1958,3 +1958,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复两文件：各自 countLetterPlaceholders 旁新增 firstLetterPlaceholder(text)=text.match(/\[[^\][\n]{1,60}\]/)?.[0] ?? '[Company]'；Dashboard 弹窗用 firstLetterPlaceholder(placeholderWarn?.text ?? '')、Builder 弹窗用 firstLetterPlaceholder(result)。计数/locator/导出/R504/R505/R507/R550 零改动。
 - tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280 播种示例 PDF 警示引用 [Hiring manager's name]；Builder ?doc=cover 模板路径警示引用其文本首个占位符 [second relevant achievement or responsibility]；375 同款正确、零溢出零 console 错误；QA 存储清理回基线。
+
+## R552 — Dashboard「Fill them in」直达首个占位符（2026-08-31）
+- 一手证据（生产 CDP）：/documents 导出警示点「Fill them in」只打开编辑视图，textarea 选区 {start:0,end:0}、未聚焦，用户须自己找占位符；Builder 同名按钮早已 requestAnimationFrame(jumpToNextPlaceholder)（R507）选中首个占位符。根因：Dashboard 警示弹窗 handler 只 setOpenDoc/setDocText/setDocView('edit')，从不调用既有 R505 locator。方案：docs/plan-r552-fill-them-in-locates.md。
+- 修复仅 Dashboard.tsx「Fill them in」onClick：rAF 重试（≤20 帧）等 docTextRef 挂载后调用既有 jumpToNextPlaceholder（列表路径 viewer 弹窗需先挂载）；locator/计数/警示/导出/R504/R505/R507/R550/R551 零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000（Dashboard-DVqZynAx.js 已上线 200）。
+- 生产 QA：1280/375 列表路径「Fill them in」→ 选中 [Hiring manager's name]（start 5–28）；1280 viewer 路径（先 Open 再 PDF）同样选中；零溢出零 console 错误、QA 存储清理回六键基线。

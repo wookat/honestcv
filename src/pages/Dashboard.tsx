@@ -2560,6 +2560,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   setDocText(placeholderWarn.text)
                   setDocCopied('idle')
                   setDocView('edit')
+                  const tryJump = (left: number) => {
+                    if (docTextRef.current) jumpToNextPlaceholder()
+                    else if (left > 0) requestAnimationFrame(() => tryJump(left - 1))
+                  }
+                  requestAnimationFrame(() => tryJump(20))
                 }
                 setPlaceholderWarn(null)
               }}
