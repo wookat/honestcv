@@ -440,7 +440,8 @@ export default function Jobs() {
     shown.find((j) => j.id === selectedId) ??
     jobs.find((j) => j.id === selectedId) ??
     pipeline.find((e) => e.job.id === selectedId)?.job ??
-    (linkedJob?.id === selectedId ? linkedJob : null)
+    (linkedJob?.id === selectedId ? linkedJob : null) ??
+    (selectedId === null ? (shown[0] ?? null) : null)
 
   /** Keyword breakdown for the selected job — targeted copy when linked, else the draft. */
   const selectedReport = (() => {

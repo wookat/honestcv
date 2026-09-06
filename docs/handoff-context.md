@@ -1823,3 +1823,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx 一行：渲染条件加 `selectedId === linkedJob.id`——选中移走即消失、重选恢复、Dismiss 语义不变；不新增状态、不动 fetch/URL/R441/R528 回查逻辑。
 - tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：冷载深链信息条在（R528 回归）；新搜索后信息条消失、无矛盾文案；?job=999999999 死链警示回归；375px 冷载信息条+详情正确；全场景零溢出零 console 错误、存储仅基线键。
+
+## R530 — 从 Tracked 返回 All jobs 后详情栏不再空置（2026-08-31）
+- 一手证据（生产 CDP）：冷载 /jobs 详情栏自动选中 list[0]；点 Tracked 再点回 All jobs，列表 5 行在但详情栏只剩「Select a job to see the details.」空占位（main h2 为空）——与首载/搜索/换类目后自动选中 list[0] 的行为不一致。根因：自动选中只在 fetchJobs 内发生，标签切换清空 selectedId 而返回 All 不重新 fetch。方案：docs/plan-r530-detail-pane-empty-after-tab-roundtrip.md。
+- 修复仅 src/pages/Jobs.tsx：selected 派生加渲染期回退 `selectedId === null ? shown[0] ?? null : null`——不写状态、不入 URL（explicitSelection 语义不变），fetch/URL/R528/R529 逻辑零改动。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：Tracked→All 往返后详情栏显示 list[0]（原空置）；空 Tracked 列表仍诚实显示「Select a job」占位；?job= 深链信息条+详情正确（R528/R529 回归）、新搜索后信息条消失、死链警示回归；375px 详情按设计隐藏、零溢出零 console 错误、存储仅基线键。
