@@ -2070,3 +2070,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：新增同款 countLetterPlaceholders（1–120 字正则，与 R553 对齐），cover/resignation 行在标题后追加琥珀「N to fill」（amber-700/dark amber-400，与 R555 同色）；interview 行不适用；填完（0 占位符）零渲染。
 - tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
 - 生产 QA（index-B6_DyRtL.js）：1280/375 cover「4 to fill」+resignation「1 to fill」在位且与 /documents 卡计数一致、填完信件零徽标、interview 行不变、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R570 — /dashboard 简历副本卡回链被跟踪职位（2026-08-31）
+- 一手证据（生产 CDP）：pipeline entry 早存 resumeVersionId（targeted copy），/documents 卡片（R567）已有「· for Senior Engineer at Globex」回链，但 /dashboard 同一份 targeted copy 卡片只显示「Edited today · ATS 11/100」，副本面零跟踪信号、无路径回到职位的 match%/报告。对照 Rezi 8 月 Improved Application Tracking。方案：docs/plan-r570-resume-copy-cards-link-tracked-job.md。
+- 修复仅 src/pages/Dashboard.tsx：新增 jobByVersion memo（扫 listPipeline 的 resumeVersionId），versionCard 与 versionRow meta 行追加「· for <SPA Link>title at company</Link>」（R567 同款样式，落 /jobs?job=<id>）；无关联副本零渲染。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-5MBmJ8Ho.js）：1280/375 linked 副本卡回链在位、点击落 /jobs?job=j1 详情面板、无关联副本零渲染、零溢出；QA 存储清理回六键基线；零 AI 配额。

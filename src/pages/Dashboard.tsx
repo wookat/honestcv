@@ -262,6 +262,14 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     return map
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when documents change
   }, [docs])
+  const jobByVersion = useMemo(() => {
+    const map = new Map<string, PipelineEntry>()
+    for (const entry of listPipeline()) {
+      if (entry.resumeVersionId) map.set(entry.resumeVersionId, entry)
+    }
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when copies change
+  }, [versions])
   const [storageError, setStorageError] = useState(false)
   /** Applies a document mutation; surfaces the storage-full alert when nothing was written. */
   const applyDocs = (next: CareerDoc[] | null): boolean => {
@@ -837,6 +845,18 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
               {v.folder ? ` · ${v.folder}` : ''}
               {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
+              {jobByVersion.has(v.id) && (
+                <>
+                  {' '}
+                  · for{' '}
+                  <Link
+                    to={`/jobs?job=${encodeURIComponent(jobByVersion.get(v.id)!.job.id)}`}
+                    className="underline underline-offset-2"
+                  >
+                    {jobByVersion.get(v.id)!.job.title} at {jobByVersion.get(v.id)!.job.company}
+                  </Link>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -859,6 +879,18 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
             {v.folder ? ` · ${v.folder}` : ''}
             {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
+            {jobByVersion.has(v.id) && (
+              <>
+                {' '}
+                · for{' '}
+                <Link
+                  to={`/jobs?job=${encodeURIComponent(jobByVersion.get(v.id)!.job.id)}`}
+                  className="underline underline-offset-2"
+                >
+                  {jobByVersion.get(v.id)!.job.title} at {jobByVersion.get(v.id)!.job.company}
+                </Link>
+              </>
+            )}
           </p>
         </div>
       </div>
