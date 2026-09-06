@@ -162,9 +162,10 @@ export function isLocationAgnostic(location: string): boolean {
 }
 
 /**
- * Distinct candidate locations across listings with posting counts, most
- * common first (ties alphabetical). Location-agnostic postings are skipped —
- * they match any location filter anyway.
+ * Distinct candidate regions across listings with posting counts, most
+ * common first (ties alphabetical). Compound locations ("LATAM, Europe, USA")
+ * count once toward each listed region. Location-agnostic postings are
+ * skipped — they match any location filter anyway.
  */
 export function locationFacets(
   locations: readonly string[],
@@ -172,12 +173,15 @@ export function locationFacets(
 ): { label: string; count: number }[] {
   const byKey = new Map<string, { label: string; count: number }>()
   for (const raw of locations) {
-    const label = raw.trim()
-    if (isLocationAgnostic(label)) continue
-    const key = label.toLowerCase()
-    const entry = byKey.get(key)
-    if (entry) entry.count++
-    else byKey.set(key, { label, count: 1 })
+    if (isLocationAgnostic(raw)) continue
+    for (const part of raw.split(',')) {
+      const label = part.trim()
+      if (label === '' || isLocationAgnostic(label)) continue
+      const key = label.toLowerCase()
+      const entry = byKey.get(key)
+      if (entry) entry.count++
+      else byKey.set(key, { label, count: 1 })
+    }
   }
   return [...byKey.values()]
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))

@@ -1594,6 +1594,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R512 — /jobs 地点自动补全与 facet chips 拆成单一地区（2026-08-31）
+- 一手证据：Rezi changelog 已迁移到 rezi.ai/rezi-changelog（旧 /changelog 404），2026-08 Week4 有「Faster Job Location Entry: location autocomplete」；生产 CDP 实证 /jobs 地点输入的 datalist 选项与「Locations:」chips 都是上游原样复合串（如「LATAM, Europe, USA, Canada, APAC」）——找 Canada 的用户拿不到 Canada 建议/chip（3/15 条职位实际可招 Canada），而过滤本身是子串匹配、输入 Canada 早就正确工作，坏的只是建议层。
+- 根因 src/lib/jobs.ts locationFacets() 以整串为 facet key。修复仅此函数：按逗号拆分逐段计数（跳过空段与 location-agnostic 段），datalist/chips/过滤语义零改动。方案：docs/plan-r512-location-facet-regions.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA 全对：datalist 变 11 个单一地区（Americas/APAC/Australia/Canada/Europe/Israel/LATAM/Singapore/UK/USA/USA timezones）；chips 变按地区真实计数（Europe (7)/USA (7)/Canada (5)…）；点 Canada chip→?loc=Canada、输入框填充、「10 jobs found」（5 直接命中+5 worldwide，R195 分层语义完好）；再点清除回 15 条；375px 零溢出；QA 未写入任何合成存储。
+
 ## R511 — 面试弹窗：Finish session/End early 不再静默覆盖已编辑 brief（2026-08-31）
 - 一手证据（生产 CDP）：模板生成 906 字符 brief→编辑→Practice all 2→Finish session：零确认，textarea 被替换为练习报告，编辑被静默销毁；同状态下模板/Regenerate 均会弹 R508 确认——finishSession 是唯一绕过护栏的 result 覆盖路径（End early 同）。审计还复验并驳回多条伪缺口：未保存 brief 的 PDF 导出已受 R507 占位符护栏、模板/Regenerate 已受 R508 护栏、本地练习计分/计时正常、7 路由双视口零溢出；rezi.ai/changelog 现返回 404（研究路线失效，非产品缺口）。
 - 修复仅 Builder.tsx ToolDialog：overwriteWarn 加 'finish'；End early 与 advanceSession 最后一题分支改走 requestOverwrite('finish')（确认时以当前 session/answer/feedback 重算 entries）；finishSession 改用 applyResult 使报告成为 autoResult 基线；确认弹窗 finish 文案「Finishing the practice session will replace your edits with the session report.」。未编辑路径零弹窗直达报告。方案：docs/plan-r511-finish-session-overwrite-guard.md。
