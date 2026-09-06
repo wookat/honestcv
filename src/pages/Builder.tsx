@@ -8618,7 +8618,13 @@ export default function Builder() {
         initialCompany={
           toolOpen === 'cover' ? toolCompany || (resume.targetCompany ?? '') : toolCompany
         }
-        jobId={toolOpen !== null ? toolJobId : ''}
+        jobId={
+          toolOpen === 'cover' || toolOpen === 'interview'
+            ? toolJobId || linkedJob?.id || ''
+            : toolOpen !== null
+              ? toolJobId
+              : ''
+        }
         onClose={() => setToolOpen(null)}
         resume={shown}
         onQuota={setFreeLeft}
@@ -10366,7 +10372,7 @@ function BundleToolDialog({
 }: {
   kind: 'cover' | 'interview' | 'resignation' | null
   initialCompany?: string
-  /** Tracked job to link a saved cover letter to (from the /jobs deep link) */
+  /** Tracked job to link a saved document to (from the /jobs deep link, or the job the copy being edited is linked to) */
   jobId?: string
   onClose: () => void
   resume: Resume
@@ -10386,6 +10392,11 @@ function BundleToolDialog({
   const [savedId, setSavedId] = useState<string | null>(null)
   const [savedText, setSavedText] = useState('')
   const [saveDocFailed, setSaveDocFailed] = useState(false)
+  /** The tracked job a saved document will be linked to. */
+  const linkJob = useMemo(
+    () => (jobId ? (listPipeline().find((e) => e.job.id === jobId)?.job ?? null) : null),
+    [jobId]
+  )
   /** The document of this kind the tracked job already links to, if it still exists — Save replaces that link. */
   const existingDoc = useMemo(() => {
     if (!jobId || !kind) return undefined
@@ -11149,6 +11160,17 @@ function BundleToolDialog({
                     ? 'interview brief'
                     : 'resignation letter'}{' '}
                 linked to the job; the earlier one stays in My resumes.
+              </p>
+            )}
+            {!savedId && !existingDoc && linkJob && (
+              <p className="text-muted-foreground text-xs">
+                Saving links this{' '}
+                {kind === 'cover'
+                  ? 'cover letter'
+                  : kind === 'interview'
+                    ? 'interview brief'
+                    : 'resignation letter'}{' '}
+                to &ldquo;{linkJob.title}&rdquo; at {linkJob.company} on your jobs board.
               </p>
             )}
           </>
