@@ -67,7 +67,7 @@ import {
   stashUnreadableDocs,
   updateCareerDoc,
 } from '@/lib/documents'
-import { listPipeline, type PipelineEntry } from '@/lib/jobs'
+import { attentionCount, listPipeline, type PipelineEntry } from '@/lib/jobs'
 import { LETTER_EXAMPLES, seedLetterExample, type LetterExample } from '@/lib/letterExamples'
 import { prefersReducedMotion } from '@/lib/motion'
 import {
@@ -270,6 +270,8 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     return map
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when copies change
   }, [versions])
+  const [trackedJobs] = useState(() => listPipeline().length)
+  const [trackedAttention] = useState(() => attentionCount())
   const [storageError, setStorageError] = useState(false)
   /** Applies a document mutation; surfaces the storage-full alert when nothing was written. */
   const applyDocs = (next: CareerDoc[] | null): boolean => {
@@ -1005,7 +1007,19 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             <span className="min-w-0">
               <span className="block text-sm font-semibold">Job search</span>
               <span className="text-muted-foreground block truncate text-xs">
-                Remote jobs + your application pipeline
+                {trackedJobs === 0 ? (
+                  'Remote jobs + your application pipeline'
+                ) : (
+                  <>
+                    {trackedJobs} tracked application{trackedJobs === 1 ? '' : 's'}
+                    {trackedAttention > 0 && (
+                      <span className="font-medium text-amber-700 dark:text-amber-400">
+                        {' '}
+                        · {trackedAttention} need{trackedAttention === 1 ? 's' : ''} follow-up
+                      </span>
+                    )}
+                  </>
+                )}
               </span>
             </span>
           </Link>
