@@ -320,10 +320,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           <>
             job no longer tracked —{' '}
             <Link
-              to={`/jobs?q=${encodeURIComponent(d.forJob.title)}`}
+              to={`/jobs?q=${encodeURIComponent(d.forJob.title)}&job=${encodeURIComponent(d.forJob.id)}`}
               className="underline underline-offset-2"
             >
-              find it again
+              open it to save it again
             </Link>
           </>
         )}
