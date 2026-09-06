@@ -2011,3 +2011,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 一手证据（生产 CDP）：/jobs?q=react 选 Lemon.io Senior React 职位开 Tailoring report——「covered 4 of 30 job keywords」，High priority missing 只列 10 个后跟死文本「+14 more」（span 不可点），24 个高优先缺失关键词中 14 个永远不可见；「Also missing」同病。同一详情面板下方 Skills 标签的「+14 more」却是可展开按钮（R244 模式 tagsExpandedId）。对照 Rezi 关键词 targeting 全量列出缺失关键词。方案：docs/plan-r559-report-keyword-overflow.md。
 - 修复仅 src/pages/Jobs.tsx：新增 reportKwExpandedId（按 job id 键控，换职位自动折叠回 10 个），报告内两处「+N more」span 改为展开按钮（Skills 展开器同款样式），点击展示该职位全部缺失关键词；评分/worker/存储零改动。
 - tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。
+
+## R560 — /jobs 空草稿时诚实提示「Add your resume」（2026-08-31）
+- 一手证据（生产 CDP，六键干净基线）：/jobs?q=react 选中职位后详情面板既无「N% keyword match」也无「Tailoring report」入口，整个匹配面静默消失，新用户完全不知道功能存在；代码确认 matchOf 空草稿返回空 map、selectedReport 空文本返回 null、报告开关仅在 selectedReport 存在时渲染。对照 Rezi 8 月「Instant Job Match Scores」。方案：docs/plan-r560-empty-draft-match-hint.md。
+- 修复仅 src/pages/Jobs.tsx：当选中职位且草稿为空且该职位无 targeted copy 时，在报告开关位置渲染 muted 提示「Add your resume（链接 /builder）to see how it matches this job's keywords.」；评分/报告/持久化零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿；生产复验：1280/375 干净基线提示在位且链到 /builder、播种草稿后提示消失且 match%+报告恢复（R559 回归正常）、零溢出零 console 错误、存储回六键基线。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。

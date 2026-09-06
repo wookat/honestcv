@@ -1382,6 +1382,17 @@ export default function Jobs() {
                     )
                   )}
                 </p>
+                {!selectedReport && !resumeText.trim() && !tailoredMatchOf.has(selected.id) && (
+                  <p className="text-muted-foreground mt-2 text-xs">
+                    <Link
+                      to="/builder"
+                      className="text-primary font-medium underline-offset-2 hover:underline"
+                    >
+                      Add your resume
+                    </Link>{' '}
+                    to see how it matches this job&apos;s keywords.
+                  </p>
+                )}
                 {selectedReport && (
                   <div className="mt-2">
                     <button
