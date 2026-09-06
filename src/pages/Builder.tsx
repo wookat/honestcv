@@ -2766,6 +2766,41 @@ export default function Builder() {
                 onChange={(e) => set('jobDescription', e.target.value)}
               />
             </div>
+            {resume.jobDescription.trim() !== '' && ats.missing.length > 0 && (
+              <div className="text-xs">
+                <span className="font-medium">Missing keywords ({ats.missing.length})</span>{' '}
+                <span className="text-muted-foreground">
+                  — the posting mentions these but your resume doesn&apos;t; tap to add to
+                  Skills:
+                </span>
+                <RovingChipGroup
+                  label="Missing job keywords"
+                  className="mt-1 flex flex-wrap gap-1"
+                >
+                  {[
+                    ...ats.missing.filter((kw) => highKw.has(kw)),
+                    ...ats.missing.filter((kw) => !highKw.has(kw)),
+                  ].map((kw) => (
+                    <button
+                      key={kw}
+                      type="button"
+                      className="bg-muted hover:bg-primary/10 inline-flex items-center rounded-full border px-2 py-0.5"
+                      title={`Add "${kw}" to Skills`}
+                      onClick={() =>
+                        set(
+                          'skills',
+                          resume.skills.trim()
+                            ? `${resume.skills.replace(/,\s*$/, '')}, ${kw}`
+                            : kw
+                        )
+                      }
+                    >
+                      + {kw}
+                    </button>
+                  ))}
+                </RovingChipGroup>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
