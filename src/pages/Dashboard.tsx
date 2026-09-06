@@ -69,7 +69,12 @@ import {
   stashUnreadableDocs,
   updateCareerDoc,
 } from '@/lib/documents'
-import { attentionCount, listPipeline, type PipelineEntry } from '@/lib/jobs'
+import {
+  attentionCount,
+  listPipeline,
+  rememberLinkedCopyJobs,
+  type PipelineEntry,
+} from '@/lib/jobs'
 import { LETTER_EXAMPLES, seedLetterExample, type LetterExample } from '@/lib/letterExamples'
 import { prefersReducedMotion } from '@/lib/motion'
 import {
@@ -86,7 +91,6 @@ import {
   emptyResume,
   exampleToResume,
   getActiveVersionId,
-  listResumeVersions,
   loadResume,
   restoreResumeVersion,
   saveResume,
@@ -236,7 +240,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const { hash } = useLocation()
   const [versionsUnreadable, setVersionsUnreadable] = useState(() => stashUnreadableVersions())
   const [docsUnreadable, setDocsUnreadable] = useState(() => stashUnreadableDocs())
-  const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
+  const [versions, setVersions] = useState<ResumeVersion[]>(() =>
+    rememberLinkedCopyJobs(listPipeline())
+  )
   const [draft] = useState<Resume | null>(() => loadResume())
   const [activeId] = useState<string | null>(() => getActiveVersionId())
   // The copy the Builder is currently editing (if any) — its card is the

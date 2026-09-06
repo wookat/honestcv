@@ -1213,7 +1213,23 @@ export interface ResumeVersion {
   /** When the copy was first saved; older copies may lack it */
   createdAt?: number
   folder?: string
+  /** Job the copy was saved for from the jobs board; the data's target fields may be edited later. */
+  forJob?: VersionJobRef
   data: Resume
+}
+
+export interface VersionJobRef {
+  id: string
+  title: string
+  company: string
+}
+
+function sanitizeJobRef(ref: unknown): VersionJobRef | undefined {
+  if (!ref || typeof ref !== 'object') return undefined
+  const { id, title, company } = ref as Record<string, unknown>
+  return typeof id === 'string' && typeof title === 'string' && typeof company === 'string'
+    ? { id, title, company }
+    : undefined
 }
 
 const VERSIONS_KEY = 'honestcv.resumeVersions'
@@ -1257,7 +1273,8 @@ export function listResumeVersions(): ResumeVersion[] {
         typeof v.createdAt === 'number' && Number.isFinite(v.createdAt) && v.createdAt > 0
           ? v.createdAt
           : undefined
-      return [{ ...v, folder, createdAt, data }]
+      const forJob = sanitizeJobRef(v.forJob)
+      return [{ ...v, folder, createdAt, ...(forJob ? { forJob } : {}), data }]
     })
   } catch {
     return []
@@ -1295,7 +1312,8 @@ export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] |
 export function createResumeVersion(
   name: string,
   data: Resume,
-  folder?: string
+  folder?: string,
+  forJob?: VersionJobRef
 ): ResumeVersion | null {
   const version: ResumeVersion = {
     id: newId(),
@@ -1303,9 +1321,27 @@ export function createResumeVersion(
     updatedAt: Date.now(),
     createdAt: Date.now(),
     ...(folder?.trim() ? { folder: folder.trim() } : {}),
+    ...(forJob ? { forJob } : {}),
     data,
   }
   return persistVersions([version, ...listResumeVersions()]) ? version : null
+}
+
+/** Stamp forJob on the given copies that never recorded their job; writes only when something changed. */
+export function rememberVersionJobs(
+  jobByVersion: ReadonlyMap<string, VersionJobRef>
+): ResumeVersion[] {
+  const versions = listResumeVersions()
+  let changed = false
+  const next = versions.map((v) => {
+    if (v.forJob) return v
+    const forJob = jobByVersion.get(v.id)
+    if (!forJob) return v
+    changed = true
+    return { ...v, forJob }
+  })
+  if (!changed) return versions
+  return persistVersions(next) ? next : versions
 }
 
 export function renameResumeVersion(id: string, name: string): ResumeVersion[] | null {

@@ -33,7 +33,9 @@ export function CopyTargetNote({
   const role = v.data.targetRole.trim()
   if (!role) return null
   const company = (v.data.targetCompany ?? '').trim()
-  const tracked = pipeline.find((e) => copyTargetsJob(v.data, e.job))
+  const tracked =
+    pipeline.find((e) => e.job.id === v.forJob?.id) ??
+    pipeline.find((e) => copyTargetsJob(v.data, e.job))
   return (
     <>
       {' '}
@@ -57,9 +59,21 @@ export function CopyTargetNote({
           <>
             {' '}
             · job no longer tracked —{' '}
-            <Link to={`/jobs?q=${encodeURIComponent(role)}`} className="underline underline-offset-2">
-              find it again
-            </Link>
+            {v.forJob ? (
+              <Link
+                to={`/jobs?q=${encodeURIComponent(v.forJob.title)}&job=${encodeURIComponent(v.forJob.id)}`}
+                className="underline underline-offset-2"
+              >
+                open it to save it again
+              </Link>
+            ) : (
+              <Link
+                to={`/jobs?q=${encodeURIComponent(role)}`}
+                className="underline underline-offset-2"
+              >
+                find it again
+              </Link>
+            )}
           </>
         )
       )}

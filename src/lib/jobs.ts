@@ -5,6 +5,7 @@
  */
 
 import { latestDocsFor } from '@/lib/documents'
+import { rememberVersionJobs, type ResumeVersion, type VersionJobRef } from '@/lib/resume'
 
 export interface JobListing {
   id: string
@@ -529,6 +530,19 @@ export function copyTargetsJob(
     (data.targetRole.trim() === job.title.trim() ||
       (description !== '' && data.jobDescription.trim() === description))
   )
+}
+
+/** Stamp forJob on copies a tracked job links but that never recorded their job (saved before forJob existed). */
+export function rememberLinkedCopyJobs(pipeline: readonly PipelineEntry[]): ResumeVersion[] {
+  const jobByVersion = new Map<string, VersionJobRef>()
+  for (const e of pipeline)
+    if (e.resumeVersionId)
+      jobByVersion.set(e.resumeVersionId, {
+        id: e.job.id,
+        title: e.job.title,
+        company: e.job.company,
+      })
+  return rememberVersionJobs(jobByVersion)
 }
 
 /** Whether the tracked job's copy link still points at an existing copy. */

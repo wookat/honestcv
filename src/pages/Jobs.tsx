@@ -46,6 +46,7 @@ import {
   listPipeline,
   locationFacets,
   markFollowedUp,
+  rememberLinkedCopyJobs,
   removeManyFromPipeline,
   restorePipelineEntries,
   searchJobs,
@@ -186,6 +187,7 @@ export default function Jobs() {
   const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => {
     const entries = listPipeline()
     rememberLinkedDocJobs(entries)
+    rememberLinkedCopyJobs(entries)
     return entries
   })
   const [selectedId, setSelectedId] = useState<string | null>(() => seedParams.get('job'))
@@ -671,7 +673,11 @@ export default function Jobs() {
   /** A saved copy already targeted at this job that no tracked job links to (e.g. left behind by untracking). */
   const orphanTargetedCopy = (job: JobListing) => {
     const linked = new Set(listPipeline().map((e) => e.resumeVersionId))
-    return listResumeVersions().find((v) => !linked.has(v.id) && copyTargetsJob(v.data, job))
+    const orphans = listResumeVersions().filter((v) => !linked.has(v.id))
+    return (
+      orphans.find((v) => v.forJob?.id === job.id) ??
+      orphans.find((v) => copyTargetsJob(v.data, job))
+    )
   }
 
   /** The job's linked copy, or an orphan copy already targeted at it. */
@@ -706,7 +712,8 @@ export default function Jobs() {
           targetCompany: job.company,
           jobDescription: job.description,
         },
-        'Job applications'
+        'Job applications',
+        { id: job.id, title: job.title, company: job.company }
       )
     if (!version) {
       setStorageError(true)

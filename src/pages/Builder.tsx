@@ -168,6 +168,7 @@ import {
   copyTargetsJob,
   jobLinksLiveCopy,
   listPipeline,
+  rememberLinkedCopyJobs,
   setPipelineCoverDoc,
   setPipelineInterviewDoc,
   setPipelineResignationDoc,
@@ -1194,7 +1195,9 @@ export default function Builder() {
   const [restoreError, setRestoreError] = useState('')
   const [pendingBackupRestore, setPendingBackupRestore] = useState<Resume | null>(null)
   const [versionsOpen, setVersionsOpen] = useState(false)
-  const [versions, setVersions] = useState<ResumeVersion[]>(() => listResumeVersions())
+  const [versions, setVersions] = useState<ResumeVersion[]>(() =>
+    rememberLinkedCopyJobs(listPipeline())
+  )
   const [versionName, setVersionName] = useState('')
   const [copyStorageError, setCopyStorageError] = useState(false)
   /** Message for the fixed-bottom storage-full alert; empty = hidden. */
@@ -1230,16 +1233,23 @@ export default function Builder() {
         : null,
     [activeVersionId]
   )
+  /** Job the active copy was saved for from the jobs board (copies saved before forJob existed have none). */
+  const activeCopyJob = versions.find((v) => v.id === activeVersionId)?.forJob
   /** Tracked job this copy targets without being its linked copy (the job uses another copy, or none). */
   const { targetRole, targetCompany, jobDescription } = resume
   const targetedTrackedEntry = useMemo(
-    () =>
-      activeVersionId && !linkedJob
-        ? (listPipeline().find((e) =>
-            copyTargetsJob({ targetRole, targetCompany, jobDescription }, e.job)
-          ) ?? null)
-        : null,
-    [activeVersionId, linkedJob, targetRole, targetCompany, jobDescription]
+    () => {
+      if (!activeVersionId || linkedJob) return null
+      const pipeline = listPipeline()
+      return (
+        pipeline.find((e) => e.job.id === activeCopyJob?.id) ??
+        pipeline.find((e) =>
+          copyTargetsJob({ targetRole, targetCompany, jobDescription }, e.job)
+        ) ??
+        null
+      )
+    },
+    [activeVersionId, linkedJob, activeCopyJob?.id, targetRole, targetCompany, jobDescription]
   )
   const targetedTrackedJob = targetedTrackedEntry?.job ?? null
   /** Editing a copy aimed at a posting that no tracked job matches (untracked, or the target was edited). */
@@ -2849,12 +2859,21 @@ export default function Builder() {
                 This copy is targeted at &quot;{resume.targetRole.trim()}&quot;
                 {resume.targetCompany?.trim() ? ` at ${resume.targetCompany.trim()}` : ''} &mdash; that
                 job is no longer tracked.{' '}
-                <Link
-                  to={`/jobs?q=${encodeURIComponent(resume.targetRole.trim())}`}
-                  className="text-primary font-medium underline-offset-2 hover:underline"
-                >
-                  Find it again &rarr;
-                </Link>
+                {activeCopyJob ? (
+                  <Link
+                    to={`/jobs?q=${encodeURIComponent(activeCopyJob.title)}&job=${encodeURIComponent(activeCopyJob.id)}`}
+                    className="text-primary font-medium underline-offset-2 hover:underline"
+                  >
+                    Open it to save it again &rarr;
+                  </Link>
+                ) : (
+                  <Link
+                    to={`/jobs?q=${encodeURIComponent(resume.targetRole.trim())}`}
+                    className="text-primary font-medium underline-offset-2 hover:underline"
+                  >
+                    Find it again &rarr;
+                  </Link>
+                )}
               </p>
             )}
             <div className="grid gap-3 sm:grid-cols-2">
