@@ -1817,3 +1817,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：pendingSeedJob 未命中首抓 list/pipeline 且首抓带 q/cat 过滤时，先 searchJobs('') 全量回查；命中则存入 linkedJob 保持选中（移动端照常开详情浮层），并出 role=status 信息条「Showing <title> at <company> from your link — it doesn't match your current search.」+ Dismiss；仍未命中才走原 R441 dead-link 警示。selected 解析链与自动回落均纳入 linkedJob。
 - tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：桌面冷载 ?job=1749306（过滤外在售）→零 alert、信息条在位、详情栏 h2=Freelance Copywriter、URL 保留 job=；?job=999999999 死链仍弹原警示（R441 回归）；375px 同场景详情浮层正确、零水平溢出；三场景零 console 错误、存储仅基线键（本轮零合成写入）。
+
+## R529 — linkedJob 信息条只在该职位仍被选中时显示（2026-08-31）
+- 一手证据（生产 CDP，R528 上线后）：冷载 ?job=1749306（过滤外在售）信息条正确；随后提交新搜索 python——详情栏自动回落到 list[0]（Senior React Full-stack Developer），但信息条原样保留仍宣称「Showing Freelance Copywriter …」，状态条与详情自相矛盾（点击其他行同理）。详情栏对 linkedJob 的 Target/Cover letter/Apply/状态操作经查全部在位，非缺口。方案：docs/plan-r529-linked-job-notice-staleness.md。
+- 修复仅 src/pages/Jobs.tsx 一行：渲染条件加 `selectedId === linkedJob.id`——选中移走即消失、重选恢复、Dismiss 语义不变；不新增状态、不动 fetch/URL/R441/R528 回查逻辑。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：冷载深链信息条在（R528 回归）；新搜索后信息条消失、无矛盾文案；?job=999999999 死链警示回归；375px 冷载信息条+详情正确；全场景零溢出零 console 错误、存储仅基线键。

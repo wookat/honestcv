@@ -678,7 +678,7 @@ export default function Jobs() {
           </div>
         )}
 
-        {linkedJobNotice && linkedJob && (
+        {linkedJobNotice && linkedJob && selectedId === linkedJob.id && (
           <div
             role="status"
             className="border-primary/40 bg-primary/10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
