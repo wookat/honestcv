@@ -1000,7 +1000,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             </span>
           </Link>
           <Link
-            to="/jobs"
+            to={trackedAttention > 0 ? '/jobs?attention=1' : '/jobs'}
             className="bg-card hover:bg-accent flex items-center gap-3 rounded-md border p-4"
           >
             <BriefcaseBusiness className="text-primary size-5 shrink-0" />

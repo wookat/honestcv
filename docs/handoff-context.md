@@ -2094,3 +2094,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：行 chip 块新增未到期分支——muted 边框 chip「Follow-up {shortDay(remindOn)}」（复用 R572 年份感知格式），琥珀仍专属需关注状态；存储/提醒逻辑/评分零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（index-DqvSD9zj.js）：1280/375 Tracked 行「Follow-up Mar 15, 2027」chip 在位、到期行仍琥珀「Follow up due」、无提醒行零 chip、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R574 — Dashboard 跟进状态深链到已筛选队列（2026-08-31）
+- 一手证据（生产 CDP）：播种 j1（applied，remindOn=2020-01-01 已到期）+ j2（无提醒），/dashboard Job search 卡显示「2 tracked applications · 1 needs follow-up」（R571），但 href 是裸 /jobs——用户落在默认 feed，须自己找 Tracked tab 和 needs-follow-up 筛选；而 /jobs?attention=1（R254）在生产可用且过滤正确。方案：docs/plan-r574-dashboard-attention-deeplink.md。
+- 修复仅 src/pages/Dashboard.tsx：Job search 快捷卡 to 在 trackedAttention>0 时改为 /jobs?attention=1，否则保持 /jobs；文案/存储/管线零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Dashboard-DdVIcGz-.js）：1280/375 有到期跟进时卡 href=/jobs?attention=1、点击落 /jobs?tab=tracked&attention=1 且只显示需关注行（Globex 在、Initech 被滤）、零溢出；无到期时 href 回 /jobs；QA 存储清理回六键基线；零 AI 配额。
