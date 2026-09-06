@@ -834,6 +834,42 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     />
   )
 
+  const targetNote = (v: ResumeVersion) => {
+    const entry = jobByVersion.get(v.id)
+    if (entry)
+      return (
+        <>
+          {' '}
+          · for{' '}
+          <Link
+            to={`/jobs?job=${encodeURIComponent(entry.job.id)}`}
+            className="underline underline-offset-2"
+          >
+            {entry.job.title} at {entry.job.company}
+          </Link>
+        </>
+      )
+    const role = v.data.targetRole.trim()
+    if (!role) return null
+    const company = (v.data.targetCompany ?? '').trim()
+    return (
+      <>
+        {' '}
+        · targeted at {role}
+        {company ? ` at ${company}` : ''}
+        {v.data.jobDescription.trim() !== '' && (
+          <>
+            {' '}
+            · job no longer tracked —{' '}
+            <Link to={`/jobs?q=${encodeURIComponent(role)}`} className="underline underline-offset-2">
+              find it again
+            </Link>
+          </>
+        )}
+      </>
+    )
+  }
+
   const versionCard = (v: ResumeVersion) => (
     <div key={v.id} className="bg-card flex flex-col rounded-md border shadow-sm">
       <Thumb resume={{ ...emptyResume(), ...v.data }} />
@@ -847,18 +883,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
               {v.folder ? ` · ${v.folder}` : ''}
               {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
-              {jobByVersion.has(v.id) && (
-                <>
-                  {' '}
-                  · for{' '}
-                  <Link
-                    to={`/jobs?job=${encodeURIComponent(jobByVersion.get(v.id)!.job.id)}`}
-                    className="underline underline-offset-2"
-                  >
-                    {jobByVersion.get(v.id)!.job.title} at {jobByVersion.get(v.id)!.job.company}
-                  </Link>
-                </>
-              )}
+              {targetNote(v)}
             </p>
           </div>
         </div>
@@ -881,18 +906,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
             {v.folder ? ` · ${v.folder}` : ''}
             {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
-            {jobByVersion.has(v.id) && (
-              <>
-                {' '}
-                · for{' '}
-                <Link
-                  to={`/jobs?job=${encodeURIComponent(jobByVersion.get(v.id)!.job.id)}`}
-                  className="underline underline-offset-2"
-                >
-                  {jobByVersion.get(v.id)!.job.title} at {jobByVersion.get(v.id)!.job.company}
-                </Link>
-              </>
-            )}
+            {targetNote(v)}
           </p>
         </div>
       </div>

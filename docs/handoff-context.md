@@ -2206,3 +2206,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据（生产 index-D7KLdISK.js，真实职位 2091088，零 AI，qa/r592-evidence.cjs editedrole）：编辑器允许改 Target role；孤儿副本 targetRole=「Sales Jedi (SaaS, EU)」同公司同 JD，再点 Saved → R589 精确匹配失败，重新造「(2)」副本并改链，定制副本继续孤儿。方案 docs/plan-r592-orphan-copy-match-by-description.md。
 - 修复仅 `orphanTargetedCopy`：公司名精确一致 &&（职位名一致 || 非空 JD 逐字一致）。部署 index-C2sZMszZ.js / Jobs-D-Beg0Mb.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375：editedrole → 无「(2)」、pipeline→qa-v1；match 同；control（Other Corp）仍新建「(2)」；375 scrollWidth 360<375；存储回基线；零 console 错误。PR 链：#812（R591）→ R592。
+
+## R593 — Dashboard 标注「目标职位已不再跟踪」的副本并给回路（2026-09-06）
+- 证据（生产 index-C2sZMszZ.js，qa/r593-evidence.cjs）：孤儿目标副本在 Job applications 分组里与通用副本无任何区别（`Edited today · ATS 8/100 · Job applications`，无链接），看不出它针对哪个职位、职位已不再跟踪、也无回路；ATS 分仍按已不跟踪的 JD 计算。方案 docs/plan-r593-dashboard-discloses-orphaned-targeted-copies.md。
+- 修复仅 src/pages/Dashboard.tsx：卡片/列表共用 `targetNote(v)`：有链接 → 原「for <Title at Company>」；无链接且 targetRole 非空 → 「targeted at role[ at company]」，jobDescription 非空再加「job no longer tracked — find it again」→ `/jobs?q=role`（/jobs 已支持 ?q 种入搜索）。部署 index-3R7pVACX.js / Dashboard-B4Q3Zp0-.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：孤儿行显示新注记与链接，点击落 /jobs?q=Sales+Jedi 且搜索框=Sales Jedi；已链接/通用副本文案不变；375 文案自然换行、无页面溢出（/jobs 360<375）；存储回基线；零 console 错误。PR 链：#813（R592）→ R593。
