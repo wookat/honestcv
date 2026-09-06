@@ -2540,3 +2540,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（qa/r657-evidence.cjs before）：Missing keywords 胶囊 `+ kw` 65×20 / `×` 21×20 零间距并排、行距 4，axe 仅靠间距豁免通过；同款 Skills 建议芯片、分类面板三键胶囊、Restore 芯片。
 - 修复：Builder.tsx 13 处 `min-h-8 sm:min-h-0` / `px-2 sm:px-1.5` / `gap-1.5 sm:gap-1`（有意采用 32px 密集芯片标准，非 40px）。生产 QA：375 32px 命中、+/× 行为不变、axe 0、无溢出；1280 逐项不变。部署 index-H5mVtm7t.js；Workers Routes code 10000 依旧。
 - 至此 R651–R657 触控热区专题：关系图行内动作、弹窗 Close、Target job 动作、示例卡标题、summary、芯片全部 ≥32px（多为 40px）。下一步 R658 四维差距审计——SOP-10 节点应升级为逐屏滚动累计 axe（R655 证明页顶单次 axe 漏报）。
+
+### R658 — SOP-10 审计节点 + 键盘焦点/锚点跳转不再落在粘性页头、builder section nav、移动底栏之下（PR 待填，链 #878 → 本 PR）
+- 审计（qa/r658-audit.cjs 逐屏累计 axe，7 路由 × 1280/375；Rezi 公开页 qa/rezi-r658*.cjs）：真实 axe 违规 1280 全 0、375 仅 builder 3 条 target-size——复核（qa/r658-chips.cjs）生产芯片实为 32px 含 `min-h-8`，审计抓到的是 R657 刚部署时的旧 Builder 分块，边缘缓存伪影非缺口。Rezi 公开能力面无新增。
+- 生产实证（qa/r658-verify.cjs before）：Shift+Tab 时浏览器把焦点滚到视口顶端、落在 57px 粘性页头下（dashboard 375 40 处/1280 36 处，documents 2 处，builder 375 26 处含 section nav 双层）；builder 375 正向 Tab 时 section nav 按钮被 61px 固定底栏遮 26 处；builder 375 页脚末行 HonestQR/HonestPDF/SubSleuth 永久位于底栏之下、触控不可达。WCAG 2.4.11，axe 无规则。
+- 修复：index.css `html{scroll-padding-top:4rem}` / `html:has([data-sticky-subnav]){7rem}` / `<1024px html:has([data-pane-switcher]){scroll-padding-bottom:5rem}`；Builder/Dashboard 既有 scroll-mt 减去同量（区段 112、#documents 80 落点不变）；builder 底部留白由 main pb-20 移到页脚外层 pb-14（页高不变）。方案 docs/plan-r658-focus-not-obscured-sticky-bars.md。
+- 生产 QA（qa/r658-verify.cjs after，index-CplAcj51.js）：375/1280 三路由 Shift+Tab / Tab 被遮焦点 0；jump 落点 112、#documents 80 不变；页脚 24/24 可达；scrollHeight 逐一不变；axe 0、无溢出、零 console 错误、存储回基线。Workers Routes code 10000 依旧。
+- 未处理：1280 builder 正向 Tab 进入预览列「Edit text」span 时其在视口外（`lg:sticky` 预览列高于视口，浏览器无法滚入）——R659 候选。
