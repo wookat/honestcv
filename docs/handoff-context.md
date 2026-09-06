@@ -1594,6 +1594,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R521 — 浏览器级离开（刷新/关标签）前警示未保存的文档/信件编辑（2026-08-31）
+- 一手证据（生产 CDP）：/documents 打开职业文档编辑器追加文本后硬刷新，编辑直接丢失（edit survived refresh: False）；应用内 Escape/关闭有 R364 确认弹窗，但 beforeunload 在 src 全仓零匹配——刷新、关标签、外链跳转绕过全部既有护栏。Builder 信件/面试弹窗（R333/R508–R511 护栏链）同样只覆盖应用内路径。
+- 修复最小两处：Dashboard.tsx 文档编辑器在 `openDoc && docText !== openDoc.text`（与 R364 应用内守卫同判定）时挂 beforeunload 监听（e.preventDefault() 触发浏览器通用提示，脏态解除即卸载）；Builder.tsx ToolDialog 复用既有 `unsavedWork` 判定挂同款监听。不加自动保存/sessionStorage 持久化、干净态零提示、不替换既有应用内确认弹窗。方案：docs/plan-r521-beforeunload-unsaved-edits.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（CDP Page.javascriptDialogOpening 实测）：/documents 干净重载零弹窗；编辑后重载弹 beforeunload、取消后编辑保留、确认离开后存储如实无该编辑；/builder?doc=cover 干净重载零弹窗、Start from a template 生成 619 字符草稿后重载弹 beforeunload、取消后草稿保留；375px 零溢出；QA 后合成存储全清。如实备案：beforeunload 弹窗需 Chrome sticky user activation（真实点击后才出提示，纯程序化导航不出），QA 用 CDP Input 真点击复现；interview 分支共用同一 unsavedWork 判定，由代码路径断言未单独生产复测。
+
 ## R520 — ATS 报告不再因编辑输入而整块消失（2026-08-31）
 - 一手证据（生产 CDP，全新存储）：粘贴简历+JD 检查得完整报告后，在简历 textarea 追加一行（模拟照着 Priority fixes 修改），第一个 input 事件即让整块报告（含 Priority fixes 清单）unmount，零提示零恢复引导。根因：两个 textarea 与上传路径的 onChange 都 `setChecked(false)`，报告由 checked 门控。
 - 修复仅 AtsChecker.tsx：报告冻结在最近一次 Check 的输入快照 `scan {resumeText, jd}` 上；result/jdSegments/analysis/isExample 全改用快照；输入编辑不再清报告，`stale`（当前文本≠快照）时报告上方渲染 role=status 琥珀条「You've edited your inputs since this check…」+ Re-check now 按钮。useDeferredValue 与 R518 瞬态守卫随快照化自然移除（评分只在 Check 点击执行一次，按键零重评分，防卡键保证强于 R406 的 defer）；sessionStorage 草稿结构不变（checked === scan!==null，刷新按当前文本重建快照）。方案：docs/plan-r520-ats-report-survives-edits.md。

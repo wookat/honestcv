@@ -299,6 +299,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   }
   const [signatureError, setSignatureError] = useState('')
   const [confirmingDocClose, setConfirmingDocClose] = useState(false)
+  const docDirty = openDoc !== null && docText !== openDoc.text
+  useEffect(() => {
+    if (!docDirty) return
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [docDirty])
   const [placeholderWarn, setPlaceholderWarn] = useState<{
     doc: CareerDoc
     text: string

@@ -10428,6 +10428,14 @@ function BundleToolDialog({
     kind !== null && result !== '' && (savedId === null || result !== savedText)
   const unsavedWork =
     kind === 'interview' ? session !== null || answer.trim() !== '' || resultAtRisk : resultAtRisk
+  useEffect(() => {
+    if (!unsavedWork) return
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsavedWork])
   const requestClose = () => {
     if (unsavedWork) setConfirmingClose('close')
     else onClose()
