@@ -1312,6 +1312,7 @@ export default function Builder() {
   const [addedSections, setAddedSections] = useState<string[]>([])
   /** Scroll the editor section that fixes a failing ATS check into view */
   const jumpToSection = (anchor: string) => {
+    if (mobilePane !== 'edit') paneScrollRef.current[mobilePane] = window.scrollY
     setMobilePane('edit')
     if (OPTIONAL_SECTION_KEYS.includes(anchor))
       setAddedSections((s) => (s.includes(anchor) ? s : [...s, anchor]))
@@ -1338,6 +1339,7 @@ export default function Builder() {
   const [flashEntryId, setFlashEntryId] = useState<string | null>(null)
   /** Scroll a specific experience card into view, expanding it if collapsed */
   const jumpToEntry = (id: string) => {
+    if (mobilePane !== 'edit') paneScrollRef.current[mobilePane] = window.scrollY
     setMobilePane('edit')
     setCollapsedEntries((s) => {
       if (!s.has(id)) return s
