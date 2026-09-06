@@ -2185,3 +2185,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Dashboard.tsx：两张快捷链 `<Link>` 增加 `min-w-0`。tsc/eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（index-CjPZ6zOd.js / Dashboard-W88Lr8Rr.js）：375 → scrollWidth 360 = clientWidth，卡右缘 344，第一张卡副标题真实省略号；360 → 345 = 345；1280 卡不渲染无回归；7 路由复扫零溢出零 console 错误；QA 存储清理回二键基线（含删除扫描时 /builder 产生的 honestcv.resumeHistory）。PR #809（基于 #808 链式分支）。
 - QA 教训：部署后紧接的第一次 CDP 测量仍命中旧 bundle（Chrome 同标签复用），先用 `fetch(url,{cache:'reload'})` + `document.scripts` 确认 index 哈希再判定。
+
+## R589 — 重新保存职位时重连已有目标副本，不再造重复（2026-09-06）
+- 证据（生产 index-CjPZ6zOd.js，真实职位 2091088，零 AI）：取消跟踪后 qa-v1 留在 dashboard；再 Saved 同一职位 → 由通用草稿新建「Sales Jedi — Creative Force (2)」并链上，定制过的 qa-v1 成孤儿、Target my resume 打开的是未定制副本。方案：docs/plan-r589-resave-reconnects-targeted-copy.md。
+- 修复仅 src/pages/Jobs.tsx：新增 `orphanTargetedCopy(job)`（未被任何 pipeline 条目链接、且 data.targetRole/targetCompany 与职位精确相等的副本）；`prepareTargetedCopy` 先复用它再 `createResumeVersion`；Saved/Target/Keywords 三入口在草稿为空但存在孤儿副本时同样重连。R587/R583 弹窗尾句改为「…reconnects if you save this job again / saving a job again reconnects its copy」。tsc/eslint/build/verify-dist 绿；部署 29 资产+worker，Workers Routes code 10000 依旧。
+- 生产 QA（index-BY6J6j0c.js / Jobs-B6vJpE3B.js）1280+375：匹配组 → versions 仍 1 份、pipeline 重指 qa-v1、详情面板显示 Targeted copy / Open targeted resume；对照组（副本 targetCompany=Other Corp）→ 仍新建「(2)」；375 scrollWidth 360 无溢出；弹窗新文案落地；存储回二键基线；零 console 错误。
+- QA 教训：种草稿必须含 `experience: []`，否则 `loadResume()` 判为不可读返回 null，Saved 不会生成副本，误判为「无重复」。

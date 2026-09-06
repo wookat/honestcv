@@ -538,19 +538,32 @@ export default function Jobs() {
     return id ? listResumeVersions().find((v) => v.id === id) : undefined
   }
 
-  /** Prepare a saved copy of the current draft targeted at this job. */
+  /** A saved copy already targeted at this job that no tracked job links to (e.g. left behind by untracking). */
+  const orphanTargetedCopy = (job: JobListing) => {
+    const linked = new Set(listPipeline().map((e) => e.resumeVersionId))
+    return listResumeVersions().find(
+      (v) =>
+        !linked.has(v.id) &&
+        v.data.targetRole.trim() === job.title.trim() &&
+        (v.data.targetCompany ?? '').trim() === job.company.trim()
+    )
+  }
+
+  /** Link this job to its existing targeted copy, or save a new copy of the current draft targeted at it. */
   const prepareTargetedCopy = (job: JobListing) => {
     const draft = loadResume() ?? emptyResume()
-    const version = createResumeVersion(
-      `${job.title} — ${job.company}`,
-      {
-        ...draft,
-        targetRole: job.title,
-        targetCompany: job.company,
-        jobDescription: job.description,
-      },
-      'Job applications'
-    )
+    const version =
+      orphanTargetedCopy(job) ??
+      createResumeVersion(
+        `${job.title} — ${job.company}`,
+        {
+          ...draft,
+          targetRole: job.title,
+          targetCompany: job.company,
+          jobDescription: job.description,
+        },
+        'Job applications'
+      )
     if (!version) {
       setStorageError(true)
       return null
@@ -584,7 +597,7 @@ export default function Jobs() {
     if (
       status === 'saved' &&
       !linkedVersion(job.id) &&
-      resumeHasContent(loadResume() ?? emptyResume())
+      (orphanTargetedCopy(job) || resumeHasContent(loadResume() ?? emptyResume()))
     )
       prepareTargetedCopy(job)
   }
@@ -592,7 +605,11 @@ export default function Jobs() {
   const targetResume = (job: JobListing, intent: 'target' | 'cover' | 'keywords') => {
     if (intent !== 'cover') {
       const dest = intent === 'keywords' ? '/builder?jump=target' : '/builder'
-      if (!linkedVersion(job.id) && !resumeHasContent(loadResume() ?? emptyResume())) {
+      if (
+        !linkedVersion(job.id) &&
+        !orphanTargetedCopy(job) &&
+        !resumeHasContent(loadResume() ?? emptyResume())
+      ) {
         const draft = loadResume() ?? emptyResume()
         const next = {
           ...draft,
@@ -1978,8 +1995,8 @@ export default function Jobs() {
                 ].filter(Boolean)
                 const tail = copy
                   ? docs > 0
-                    ? 'The copy and saved documents stay, but lose their link to this job; saving it again starts a new targeted copy.'
-                    : 'The copy stays on your dashboard, but loses its link to this job; saving it again starts a new targeted copy.'
+                    ? 'The copy and saved documents stay, but lose their link to this job; saving it again reconnects the copy.'
+                    : 'The copy stays on your dashboard and reconnects if you save this job again.'
                   : 'Targeted resume copies and saved documents stay, but documents lose their link to this job.'
                 return `This removes the job from your pipeline and deletes ${parts.join(', ')}. ${tail}`
               })()}
@@ -2125,7 +2142,7 @@ export default function Jobs() {
                           : copies > 1
                             ? 'The copies stay on your dashboard, but lose their link'
                             : 'The copy stays on your dashboard, but loses its link'
-                      } to these jobs; saving a job again starts a new targeted copy.`
+                      } to these jobs; saving a job again reconnects its copy.`
                     : docs > 0
                       ? 'Targeted resume copies and saved documents stay, but documents lose their link to these jobs.'
                       : 'Targeted resume copies stay on your dashboard.'
