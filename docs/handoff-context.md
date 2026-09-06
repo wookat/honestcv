@@ -2530,3 +2530,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（index-BooZ5OSm.js，qa/r655-sweep.cjs 逐 400px 滚动累计 axe）：`/samples`、`/dashboard` Samples 区角色名按钮 302×20 是本仓首个 axe 真 fail 的 target-size（非句内文本无豁免），R648 页顶单次 axe 看不到。Star 已 40×40；sweep 的「partially obscured」为粘性页头步长伪影。
 - 修复：Dashboard.tsx 一处 `-my-2.5 py-2.5 sm:my-0 sm:py-0`。生产 QA before/after（qa/r655-verify.cjs，ALL PASS）：375 40px 命中、文字/行业行/卡片高度不变；1280 不变；Samples 区 axe 0；预览弹窗打开/Esc 焦点归还正常。部署 index-DaRDVKBP.js；Workers Routes code 10000 依旧。
 - 后续候选：`/ats-checker` FAQ `<summary>` 294×20；builder「+ 关键词」芯片 22px（axe 间距豁免通过）。审计方法升级：SOP-10 节点应改为逐屏滚动累计 axe，而非仅页顶。
+
+### R656 — `<summary>` 折叠标题 20px/16px → 小屏 40px（PR 待填，链 #876 → 本 PR）
+- 生产实证（qa/r655-sweep.cjs 逐屏 axe；qa/r656-verify.cjs before）：`/ats-checker` FAQ 四个 summary 294×20 axe target-size 真 fail；同类「What do these scores mean?」与 builder「How this score is calculated」(16px) 同型修。静态页 mnav/rnav summary 不在范围。
+- 修复：AtsChecker.tsx 2 处 `-my-2.5 py-2.5 sm:my-0 sm:py-0`，Builder.tsx 1 处 `-my-3 py-3 sm:my-0 sm:py-0`。生产 QA（375 FAQ 40px 命中、文字/details/展开答案位置不变、axe 0；1280 不变）。部署 index-CH8uqO1t.js；Workers Routes code 10000 依旧。
+- 如实：另两个 summary 在 375 未实测（需分数/默认不渲染），仅同型推断。

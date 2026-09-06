@@ -444,7 +444,7 @@ export default function AtsChecker() {
               </div>
 
               <details className="text-muted-foreground mt-3 rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                <summary className="text-foreground cursor-pointer text-sm font-medium">
+                <summary className="text-foreground -my-2.5 cursor-pointer py-2.5 text-sm font-medium sm:my-0 sm:py-0">
                   What do these scores mean?
                 </summary>
                 <ul className="mt-2 space-y-1.5">
@@ -874,7 +874,7 @@ export default function AtsChecker() {
               },
             ].map((f) => (
               <details key={f.q} className="bg-card rounded-lg border px-4 py-3">
-                <summary className="cursor-pointer text-sm font-medium">{f.q}</summary>
+                <summary className="-my-2.5 cursor-pointer py-2.5 text-sm font-medium sm:my-0 sm:py-0">{f.q}</summary>
                 <p className="text-muted-foreground mt-2 text-sm">{f.a}</p>
               </details>
             ))}

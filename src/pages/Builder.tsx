@@ -8077,7 +8077,7 @@ export default function Builder() {
                 See full score breakdown
               </button>
               <details className="mt-2 text-xs">
-                <summary className="text-muted-foreground hover:text-foreground cursor-pointer select-none underline-offset-2 hover:underline">
+                <summary className="text-muted-foreground hover:text-foreground -my-3 cursor-pointer py-3 select-none underline-offset-2 hover:underline sm:my-0 sm:py-0">
                   How this score is calculated
                 </summary>
                 <div className="text-muted-foreground mt-1.5 space-y-1.5 rounded-md border p-2.5">
