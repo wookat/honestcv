@@ -2028,3 +2028,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：confirmTarget intent 联合加 'keywords'（对话框文案/标签按 target 同款处理）；targetResume 对 keywords intent 导航到 /builder?jump=target（普通 target 仍 /builder、cover 零改动）；报告有缺失关键词时尾部渲染「Add these keywords in the editor →」按钮，复用既有确认对话框，落地 Target 面板（R542/R544 chips 可加 Skills/可排除）。
 - tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280/375 报告尾部按钮在位 → 确认对话框（Create copy and open editor）→ 落 /builder 且「Missing keywords (N)」块 inView、chips 可操作；二次进入走「Open targeted copy」路径同样落位；R560 空草稿提示回归（无报告无按钮）、R559 展开回归；零溢出零 console 错误；QA 存储清理回六键基线。
+
+## R563 — Cover letter 流程自动跟踪职位，信件与职位保持关联（2026-09-06）
+- 一手证据（生产 CDP，播种 1 角色草稿）：/jobs 未跟踪职位点「Cover letter」→ 确认 → 生成 → 「Save to My resumes」后，honestcv.jobPipeline 仍为 []，careerDocs 保存的 cover doc 无任何职位关联；职位面板的 Cover letter 行（R384，读 entry.coverDocId）永远无法显示，Tracked 计数也不增加。代码证实根因：setPipelineCoverDoc（jobs.ts:447）只 map 既有 entry，对未跟踪职位是静默 no-op；Jobs.tsx cover 分支不像 target 流（prepareTargetedCopy 532–536 upsert 'saved'）那样先跟踪职位。方案：docs/plan-r563-cover-flow-tracks-job.md。
+- 修复仅 src/pages/Jobs.tsx：targetResume cover 分支导航前，未跟踪则 upsertPipeline(job,'saved')（applyPipeline 处理存储错误）；未跟踪确认对话框文案追加「The job is saved to your tracked applications so the letter stays linked to it.」；setPipelineCoverDoc/Builder 保存钩子/interview 流零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA：1280/375 未跟踪职位 cover 流 → 对话框新文案在位 → pipeline 出现 saved entry → 模板路径保存后 coverDocId 已链 → /jobs?job= 详情面板显示「Cover letter: Lemon.io — Cover letter · Open」；零溢出；QA 存储清理回六键基线。本轮早期探针曾消耗一次生产 AI 生成（后续改用 Start from a template 模板路径避免配额）。
