@@ -569,7 +569,10 @@ export default function Jobs() {
       const entry = pipeline.find((e) => e.job.id === job.id)
       if (
         entry &&
-        (entry.notes?.trim() || timelineOf(entry).length > 1 || linkedDocCount(entry) > 0)
+        (entry.notes?.trim() ||
+          timelineOf(entry).length > 1 ||
+          linkedDocCount(entry) > 0 ||
+          linkedVersion(job.id))
       ) {
         setConfirmUntrack(job)
         return
@@ -1964,14 +1967,21 @@ export default function Jobs() {
                   : undefined
                 const steps = entry ? timelineOf(entry).length : 0
                 const docs = entry ? linkedDocCount(entry) : 0
+                const copy = confirmUntrack ? linkedVersion(confirmUntrack.id) : undefined
                 const parts = [
                   steps > 1 ? `its application timeline (${steps} status changes)` : '',
                   entry?.notes?.trim() ? 'your notes' : '',
                   docs > 0
                     ? `its link${docs > 1 ? 's' : ''} to ${docs} saved document${docs > 1 ? 's' : ''}`
                     : '',
+                  copy ? `its link to the targeted copy "${copy.name}"` : '',
                 ].filter(Boolean)
-                return `This removes the job from your pipeline and deletes ${parts.join(', ')}. Targeted resume copies and saved documents stay, but documents lose their link to this job.`
+                const tail = copy
+                  ? docs > 0
+                    ? 'The copy and saved documents stay, but lose their link to this job; saving it again starts a new targeted copy.'
+                    : 'The copy stays on your dashboard, but loses its link to this job; saving it again starts a new targeted copy.'
+                  : 'Targeted resume copies and saved documents stay, but documents lose their link to this job.'
+                return `This removes the job from your pipeline and deletes ${parts.join(', ')}. ${tail}`
               })()}
             </DialogDescription>
           </DialogHeader>
@@ -2096,12 +2106,30 @@ export default function Jobs() {
             <DialogTitle>{`Stop tracking ${visibleBulkIds.size} job${visibleBulkIds.size === 1 ? '' : 's'}?`}</DialogTitle>
             <DialogDescription>
               {(() => {
-                const docs = pipeline
-                  .filter((e) => visibleBulkIds.has(e.job.id))
-                  .reduce((n, e) => n + linkedDocCount(e), 0)
-                return docs > 0
-                  ? `This removes the selected jobs from your pipeline and deletes their application timelines, notes, and their link${docs > 1 ? 's' : ''} to ${docs} saved document${docs > 1 ? 's' : ''}. Targeted resume copies and saved documents stay, but documents lose their link to these jobs.`
-                  : 'This removes the selected jobs from your pipeline and deletes their application timelines and notes. Targeted resume copies stay on your dashboard.'
+                const selected = pipeline.filter((e) => visibleBulkIds.has(e.job.id))
+                const docs = selected.reduce((n, e) => n + linkedDocCount(e), 0)
+                const copies = selected.filter((e) => linkedVersion(e.job.id)).length
+                const links = [
+                  docs > 0
+                    ? `their link${docs > 1 ? 's' : ''} to ${docs} saved document${docs > 1 ? 's' : ''}`
+                    : '',
+                  copies > 0
+                    ? `their link${copies > 1 ? 's' : ''} to ${copies} targeted resume cop${copies > 1 ? 'ies' : 'y'}`
+                    : '',
+                ].filter(Boolean)
+                const tail =
+                  copies > 0
+                    ? `${
+                        docs > 0
+                          ? 'Copies and saved documents stay on your dashboard, but lose their link'
+                          : copies > 1
+                            ? 'The copies stay on your dashboard, but lose their link'
+                            : 'The copy stays on your dashboard, but loses its link'
+                      } to these jobs; saving a job again starts a new targeted copy.`
+                    : docs > 0
+                      ? 'Targeted resume copies and saved documents stay, but documents lose their link to these jobs.'
+                      : 'Targeted resume copies stay on your dashboard.'
+                return `This removes the selected jobs from your pipeline and deletes their application timelines and notes${links.length > 0 ? `, plus ${links.join(' and ')}` : ''}. ${tail}`
               })()}
             </DialogDescription>
           </DialogHeader>
