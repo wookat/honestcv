@@ -622,7 +622,7 @@ export default function Jobs() {
       saveResume(next)
       syncActiveVersion(next)
     }
-    void navigate('/builder?doc=interview')
+    void navigate(`/builder?doc=interview&job=${encodeURIComponent(job.id)}`)
   }
 
   /** The next recommended action for a tracked job, from its status and tailoring progress. */
@@ -1645,6 +1645,25 @@ export default function Jobs() {
                               type="button"
                               className="text-primary underline-offset-2 hover:underline"
                               onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
+                            >
+                              Open
+                            </button>
+                          </p>
+                        )
+                      })()}
+                      {(() => {
+                        const prepDoc = entry.interviewDocId
+                          ? listCareerDocs().find((d) => d.id === entry.interviewDocId)
+                          : undefined
+                        if (!prepDoc) return null
+                        return (
+                          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                            <span className="text-muted-foreground">Interview prep:</span>
+                            <span className="font-medium">{prepDoc.title}</span>
+                            <button
+                              type="button"
+                              className="text-primary underline-offset-2 hover:underline"
+                              onClick={() => void navigate(`/documents?doc=${prepDoc.id}`)}
                             >
                               Open
                             </button>

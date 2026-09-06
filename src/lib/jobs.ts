@@ -49,6 +49,8 @@ export interface PipelineEntry {
   resumeVersionId?: string
   /** Saved cover letter written for this job (career document id) */
   coverDocId?: string
+  /** Saved interview prep brief written for this job (career document id) */
+  interviewDocId?: string
   /** Status changes in chronological order (entries saved before R190 have none) */
   history?: StatusChange[]
   /** Free-form notes: recruiter names, interview dates, follow-ups */
@@ -344,6 +346,7 @@ function sanitizeEntry(raw: unknown): PipelineEntry | null {
   }
   if (typeof e.resumeVersionId === 'string') entry.resumeVersionId = e.resumeVersionId
   if (typeof e.coverDocId === 'string') entry.coverDocId = e.coverDocId
+  if (typeof e.interviewDocId === 'string') entry.interviewDocId = e.interviewDocId
   if (typeof e.notes === 'string') entry.notes = e.notes
   if (typeof e.remindOn === 'string' && DAY_RE.test(e.remindOn)) entry.remindOn = e.remindOn
   // Entries saved before reminders became calendar days stored a local-midnight epoch
@@ -395,6 +398,7 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
       history,
       ...(prev?.resumeVersionId ? { resumeVersionId: prev.resumeVersionId } : {}),
       ...(prev?.coverDocId ? { coverDocId: prev.coverDocId } : {}),
+      ...(prev?.interviewDocId ? { interviewDocId: prev.interviewDocId } : {}),
       ...(prev?.notes ? { notes: prev.notes } : {}),
       ...(prev?.remindOn !== undefined ? { remindOn: prev.remindOn } : {}),
     },
@@ -447,6 +451,16 @@ export function setPipelineReminder(
 export function setPipelineCoverDoc(jobId: string, coverDocId: string): PipelineEntry[] | null {
   return savePipeline(
     listPipeline().map((e) => (e.job.id === jobId ? { ...e, coverDocId } : e))
+  )
+}
+
+/** Link the pipeline entry for a job to the interview prep brief written for it. */
+export function setPipelineInterviewDoc(
+  jobId: string,
+  interviewDocId: string
+): PipelineEntry[] | null {
+  return savePipeline(
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, interviewDocId } : e))
   )
 }
 

@@ -2034,3 +2034,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：targetResume cover 分支导航前，未跟踪则 upsertPipeline(job,'saved')（applyPipeline 处理存储错误）；未跟踪确认对话框文案追加「The job is saved to your tracked applications so the letter stays linked to it.」；setPipelineCoverDoc/Builder 保存钩子/interview 流零改动。
 - tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
 - 生产 QA：1280/375 未跟踪职位 cover 流 → 对话框新文案在位 → pipeline 出现 saved entry → 模板路径保存后 coverDocId 已链 → /jobs?job= 详情面板显示「Cover letter: Lemon.io — Cover letter · Open」；零溢出；QA 存储清理回六键基线。本轮早期探针曾消耗一次生产 AI 生成（后续改用 Start from a template 模板路径避免配额）。
+
+## R564 — Interview prep 文档与被跟踪职位建立关联（2026-09-06）
+- 一手证据（生产 CDP，applied:2091101）：职位面板「Open interview prep」→ /builder（无 job 参数）→ 模板路径保存 interview 文档后，pipeline entry keys 仅 job,status,updatedAt,history,resumeVersionId——无任何 interview 文档关联，职位面板也无处显示已写的 prep brief；cover 早在 R384/R563 已闭环。方案：docs/plan-r564-interview-brief-links-job.md。
+- 修复三文件：src/lib/jobs.ts（PipelineEntry.interviewDocId?、sanitize/upsert 保留、setPipelineInterviewDoc helper）；src/pages/Jobs.tsx（openInterviewPrep 导航带 &job=<id>；详情面板新增 Interview prep: 标题 · Open 行，与 cover 行同款，链 /documents?doc=）；src/pages/Builder.tsx（interview 工具透传 toolJobId，保存钩子对 interview 调 setPipelineInterviewDoc）。
+- tsc/单查 eslint（仅既有 2 warning）/build/verify-dist 绿。部署：资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA：1280/375 applied 职位 → Open interview prep → /builder 打开 Interview Prep Brief → Start from a template → Save to My resumes → pipeline entry 带 interviewDocId → /jobs?job= 面板显示「Interview prep: … — Interview prep · Open」且 Open 落 /documents；零溢出；QA 存储清理回六键基线；零 AI 配额消耗。
