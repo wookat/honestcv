@@ -72,8 +72,10 @@ import {
 import {
   attentionCount,
   copyTargetsJob,
+  jobLinksLiveCopy,
   listPipeline,
   rememberLinkedCopyJobs,
+  setPipelineVersion,
   type PipelineEntry,
 } from '@/lib/jobs'
 import { LETTER_EXAMPLES, seedLetterExample, type LetterExample } from '@/lib/letterExamples'
@@ -354,6 +356,90 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     const entry = jobByVersion.get(editing.id)
     return entry && !copyTargetsJob(editing, entry.job) ? entry.job : null
   }, [editing, jobByVersion])
+  /** Another tracked job the edited target now matches, and whether it already has a live copy. */
+  const editingMatchesTrackedJob = useMemo(() => {
+    if (!editing) return null
+    const linked = jobByVersion.get(editing.id)
+    const entry = pipeline.find(
+      (e) => e.job.id !== linked?.job.id && copyTargetsJob(editing, e.job)
+    )
+    return entry ? { job: entry.job, hasCopy: jobLinksLiveCopy(entry, versions) } : null
+  }, [editing, jobByVersion, pipeline, versions])
+  /** Save the settings dialog as a new copy (the edited copy stays as it is), optionally linking
+   * the new copy to a tracked job. */
+  const saveEditingAsNewCopy = (linkTo?: string) => {
+    if (!editing) return
+    const current = versions.find((v) => v.id === editing.id)
+    if (!current) return
+    const name = editing.name.trim()
+    const role = editing.targetRole.trim()
+    const company = editing.targetCompany.trim()
+    const created = createResumeVersion(
+      name && name !== current.name
+        ? name
+        : role
+          ? `${role}${company ? ` — ${company}` : ''}`
+          : current.name,
+      {
+        ...current.data,
+        targetRole: role,
+        targetCompany: company || undefined,
+        experienceLevel: editing.experienceLevel,
+        jobDescription: editing.jobDescription,
+      },
+      editing.folder.trim() || undefined
+    )
+    if (!created) {
+      setStorageError(true)
+      return
+    }
+    if (linkTo && setPipelineVersion(linkTo, created.id) === null) {
+      setStorageError(true)
+      return
+    }
+    applyVersions(listResumeVersions())
+    setEditing(null)
+  }
+  /** Save the settings dialog into the edited copy, optionally linking it to a tracked job. */
+  const saveEditing = (linkTo?: string) => {
+    if (!editing) return
+    const current = versions.find((v) => v.id === editing.id)
+    const target = {
+      targetRole: editing.targetRole.trim(),
+      targetCompany: editing.targetCompany.trim() || undefined,
+      experienceLevel: editing.experienceLevel,
+      jobDescription: editing.jobDescription,
+    }
+    if (
+      current &&
+      !applyVersions(
+        updateResumeVersion(editing.id, {
+          name: editing.name.trim() || current.name,
+          folder: editing.folder.trim() || undefined,
+          data: { ...current.data, ...target },
+        })
+      )
+    )
+      return
+    // The editor mirrors its draft into the active copy on every keystroke, so the
+    // draft must carry the same target or it would overwrite this edit.
+    if (
+      current &&
+      editing.id === activeId &&
+      !saveResume({ ...(loadResume() ?? current.data), ...target })
+    ) {
+      setStorageError(true)
+      return
+    }
+    if (linkTo) {
+      if (setPipelineVersion(linkTo, editing.id) === null) {
+        setStorageError(true)
+        return
+      }
+      applyVersions(listResumeVersions())
+    }
+    setEditing(null)
+  }
   const [trackedJobs] = useState(() => listPipeline().length)
   const [trackedAttention] = useState(() => attentionCount())
   const [storageError, setStorageError] = useState(false)
@@ -2128,7 +2214,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       </Dialog>
 
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Resume settings</DialogTitle>
             <DialogDescription>
@@ -2245,6 +2331,17 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               job&apos;s copy as it is, save these changes as a new copy instead.
             </p>
           )}
+          {editingMatchesTrackedJob && (
+            <p className="rounded border border-amber-300/60 bg-amber-500/10 px-2 py-1.5 text-xs dark:border-amber-400/30">
+              The new target matches tracked job &quot;{editingMatchesTrackedJob.job.title}&quot; at{' '}
+              {editingMatchesTrackedJob.job.company},{' '}
+              {editingMatchesTrackedJob.hasCopy
+                ? 'which already uses another copy — this one stays unlinked.'
+                : editingRetargetsLinkedJob
+                  ? 'which has no targeted copy yet — save these changes as a new copy for it.'
+                  : 'which has no targeted copy yet — link this copy to it.'}
+            </p>
+          )}
           <DialogFooter className="gap-2">
             <Button
               type="button"
@@ -2259,75 +2356,32 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 type="button"
                 variant="outline"
                 className="min-h-10"
-                onClick={() => {
-                  if (!editing) return
-                  const current = versions.find((v) => v.id === editing.id)
-                  if (!current) return
-                  const name = editing.name.trim()
-                  const role = editing.targetRole.trim()
-                  const company = editing.targetCompany.trim()
-                  const created = createResumeVersion(
-                    name && name !== current.name
-                      ? name
-                      : role
-                        ? `${role}${company ? ` — ${company}` : ''}`
-                        : current.name,
-                    {
-                      ...current.data,
-                      targetRole: role,
-                      targetCompany: company || undefined,
-                      experienceLevel: editing.experienceLevel,
-                      jobDescription: editing.jobDescription,
-                    },
-                    editing.folder.trim() || undefined
+                onClick={() =>
+                  saveEditingAsNewCopy(
+                    editingMatchesTrackedJob && !editingMatchesTrackedJob.hasCopy
+                      ? editingMatchesTrackedJob.job.id
+                      : undefined
                   )
-                  if (!created) {
-                    setStorageError(true)
-                    return
-                  }
-                  applyVersions(listResumeVersions())
-                  setEditing(null)
-                }}
+                }
               >
-                Save as new copy
+                {editingMatchesTrackedJob && !editingMatchesTrackedJob.hasCopy
+                  ? 'Save as new copy for that job'
+                  : 'Save as new copy'}
               </Button>
             )}
-            <Button
-              type="button"
-              className="min-h-10"
-              onClick={() => {
-                if (!editing) return
-                const current = versions.find((v) => v.id === editing.id)
-                const target = {
-                  targetRole: editing.targetRole.trim(),
-                  targetCompany: editing.targetCompany.trim() || undefined,
-                  experienceLevel: editing.experienceLevel,
-                  jobDescription: editing.jobDescription,
-                }
-                if (
-                  current &&
-                  !applyVersions(
-                    updateResumeVersion(editing.id, {
-                      name: editing.name.trim() || current.name,
-                      folder: editing.folder.trim() || undefined,
-                      data: { ...current.data, ...target },
-                    })
-                  )
-                )
-                  return
-                // The editor mirrors its draft into the active copy on every keystroke, so the
-                // draft must carry the same target or it would overwrite this edit.
-                if (
-                  current &&
-                  editing.id === activeId &&
-                  !saveResume({ ...(loadResume() ?? current.data), ...target })
-                ) {
-                  setStorageError(true)
-                  return
-                }
-                setEditing(null)
-              }}
-            >
+            {!editingRetargetsLinkedJob &&
+              editingMatchesTrackedJob &&
+              !editingMatchesTrackedJob.hasCopy && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10"
+                  onClick={() => saveEditing(editingMatchesTrackedJob.job.id)}
+                >
+                  Save and link to that job
+                </Button>
+              )}
+            <Button type="button" className="min-h-10" onClick={() => saveEditing()}>
               Save
             </Button>
           </DialogFooter>
