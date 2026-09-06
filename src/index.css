@@ -206,6 +206,19 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Keep focused/jumped-to elements clear of the sticky site header, the
+     builder's sticky section nav and its fixed mobile pane switcher. */
+  html {
+    scroll-padding-top: 4rem;
+  }
+  html:has([data-sticky-subnav]) {
+    scroll-padding-top: 7rem;
+  }
+  @media (max-width: 63.9375rem) {
+    html:has([data-pane-switcher]) {
+      scroll-padding-bottom: 5rem;
+    }
+  }
   body {
     @apply bg-background text-foreground antialiased;
     font-family:

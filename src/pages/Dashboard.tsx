@@ -1651,7 +1651,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         {section === 'documents' ? (
           <h1 className="text-2xl font-bold">Career documents</h1>
         ) : (
-          <h2 id="documents" className="mt-10 scroll-mt-20 text-lg font-semibold">Career documents</h2>
+          <h2 id="documents" className="mt-10 scroll-mt-4 text-lg font-semibold">Career documents</h2>
         )}
         <p className="text-muted-foreground mt-1 text-sm">
           Documents you saved from the AI tools in the editor.
@@ -1973,7 +1973,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             {section === 'samples' ? (
               <h1 className="text-2xl font-bold">Sample library</h1>
             ) : (
-              <h2 id="samples" className="mt-10 scroll-mt-20 text-lg font-semibold">Sample library</h2>
+              <h2 id="samples" className="mt-10 scroll-mt-4 text-lg font-semibold">Sample library</h2>
             )}
             <p className="text-muted-foreground mt-1 text-sm">
               Start from a proven example for your role, then make it yours in the editor.

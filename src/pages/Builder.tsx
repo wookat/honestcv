@@ -727,7 +727,7 @@ function Section({
     <Card
       ref={ref}
       data-section-anchor={anchor}
-      className={`scroll-mt-28 py-0 transition-shadow ${flash ? 'ring-primary/60 ring-2' : ''}`}
+      className={`py-0 transition-shadow ${flash ? 'ring-primary/60 ring-2' : ''}`}
     >
       <CardContent className="p-4">
         <button
@@ -786,6 +786,7 @@ function SectionNav({
   return (
     <nav
       aria-label="Resume sections"
+      data-sticky-subnav
       className="bg-background/85 sticky top-14 z-10 flex items-center gap-1 rounded-lg border px-1 py-1 backdrop-blur"
     >
       <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
@@ -2578,7 +2579,7 @@ export default function Builder() {
           </p>
         </div>
       )}
-      <main id="main" tabIndex={-1} className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 pb-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:pb-6">
+      <main id="main" tabIndex={-1} className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <h1 className="sr-only">Resume builder</h1>
         {/* ---- Left: editor ---- */}
         <div className={`min-w-0 space-y-4 ${mobilePane === 'edit' ? '' : 'hidden lg:block'}`}>
@@ -7389,7 +7390,7 @@ export default function Builder() {
         {/* ---- Right: preview + ATS ---- */}
         <div
           id="preview"
-          className={`scroll-mt-16 space-y-4 lg:sticky lg:top-20 lg:self-start print:block ${
+          className={`space-y-4 lg:sticky lg:top-20 lg:self-start print:block ${
             mobilePane === 'preview' ? '' : 'hidden lg:block'
           }`}
         >
@@ -8432,6 +8433,7 @@ export default function Builder() {
       <div
         role="navigation"
         aria-label="Switch between editing and preview"
+        data-pane-switcher
         className="bg-background/95 fixed inset-x-0 bottom-0 z-30 flex justify-center gap-1 border-t p-2 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] backdrop-blur lg:hidden"
       >
         {(
@@ -8757,7 +8759,9 @@ export default function Builder() {
         )}
       </div>
 
-      <SiteFooter />
+      <div className="pb-14 lg:pb-0">
+        <SiteFooter />
+      </div>
 
       <UpgradeDialog
         open={upgradeOpen}
