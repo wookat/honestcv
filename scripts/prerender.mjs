@@ -45,7 +45,7 @@ const skeleton =
   '<style>@keyframes hcv-pulse{50%{opacity:.5}}@media (max-width:767px){.hcv-sk-side{display:none}}' +
   '.hcv-sk{background:var(--muted,#e2e8f0)}html.dark .hcv-sk{background:var(--muted,oklch(0.26 0.02 260))}</style>' +
   '<div aria-busy="true" aria-label="Loading" style="max-width:72rem;margin:0 auto;padding:1rem;animation:hcv-pulse 2s cubic-bezier(.4,0,.6,1) infinite">' +
-  '<div class="hcv-sk" style="height:2.25rem;width:10rem;border-radius:.375rem;margin-bottom:1.5rem"></div>' +
+  '<!--hcv-route-header--><div class="hcv-sk" style="height:2.25rem;width:10rem;border-radius:.375rem;margin-bottom:1.5rem"></div>' +
   '<div style="display:flex;gap:2rem"><div style="flex:1;min-width:0">' +
   ['1.25rem;width:8rem', '2.5rem', '2.5rem', '6rem', '1.25rem;width:8rem', '2.5rem', '6rem']
     .map((s) => `<div class="hcv-sk" style="height:${s};border-radius:.375rem;margin-bottom:1rem"></div>`)
@@ -73,6 +73,47 @@ const routeChunks = {
 const routeChunksJson = JSON.stringify(routeChunks)
 if (routeChunksJson.includes("'")) throw new Error('prerender: route-chunks map not attribute-safe')
 
+// Route→header map for the Worker: it swaps the skeleton heading bar for the
+// route's real h1 + subtitle so the LCP text paints from the raw HTML instead
+// of waiting for hydration. Strings mirror the page components verbatim.
+const routeHeaders = {
+  '/dashboard': {
+    h1: 'My resumes',
+    sub: "One copy per job you're applying to. Everything is stored in this browser only.",
+  },
+  '/documents': {
+    h1: 'Career documents',
+    sub: 'Documents you saved from the AI tools in the editor.',
+  },
+  '/samples': {
+    h1: 'Sample library',
+    sub: 'Start from a proven example for your role, then make it yours in the editor.',
+  },
+  '/jobs': {
+    h1: 'Job search',
+    sub:
+      'Remote jobs via <a href="https://remotive.com" target="_blank" rel="noopener noreferrer" style="text-decoration:underline;color:inherit">Remotive</a>. Your application pipeline is stored in this browser only.',
+  },
+}
+const srcDir = path.join(root, 'src/pages')
+const srcText = ['Dashboard.tsx', 'Jobs.tsx']
+  .map((f) => readFileSync(path.join(srcDir, f), 'utf8'))
+  .join('\n')
+for (const [route, { h1 }] of Object.entries(routeHeaders)) {
+  if (!srcText.includes(`>${h1}</h1>`))
+    throw new Error(`prerender: route header h1 for ${route} ("${h1}") not found in src/pages`)
+}
+// Apostrophes and angle brackets in header copy are entity-escaped so the
+// JSON survives the single-quoted content attribute; the Worker decodes
+// &#39;/&lt; before parsing.
+const routeHeadersJson = JSON.stringify(routeHeaders)
+  .replaceAll("'", '&#39;')
+  .replaceAll('<', '&lt;')
+if (routeHeadersJson.includes("'") || routeHeadersJson.includes('<'))
+  throw new Error('prerender: route-headers map not attribute-safe')
+if (!skeleton.includes('<!--hcv-route-header-->'))
+  throw new Error('prerender: route-header placeholder missing from skeleton')
+
 // The homepage FAQ is only rendered on '/', so FAQPage markup must not ship
 // on the shell that serves every other route (visible-content requirement).
 const spaShell = shell
@@ -82,6 +123,7 @@ const spaShell = shell
   .replace(
     '</head>',
     `    <meta name="route-chunks" content='${routeChunksJson}' />\n` +
+      `    <meta name="route-headers" content='${routeHeadersJson}' />\n` +
       `    <link rel="modulepreload" href="/assets/${builderChunk}" />\n  </head>`
   )
   .replace(marker, `<div id="root">${skeleton}</div>`)

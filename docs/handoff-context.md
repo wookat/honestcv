@@ -1594,6 +1594,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R517 — 工作台路由 raw shell 静态渲染真实页头（2026-08-31）
+- 一手证据（生产 Lighthouse）：R513–R516 后主要路由 CLS 全 0；/jobs、/dashboard、/samples、/documents 的 LCP 元素均为路由副标题段落（TTFB ~34–50ms、element render delay ~0.54–0.74s）——静态文案却要等 JS 水合才首绘。/builder TBT ~1540ms 为更大架构项，本轮明确不做（入银行）。方案：docs/plan-r517-route-header-first-paint-lcp.md。
+- 修复两处：scripts/prerender.mjs 往 spa.html 注入 `meta name="route-headers"`（4 路由 h1+sub 映射，含 /jobs 的 Remotive 外链原样保留；' 与 < 实体转义保证属性安全，构建期校验 h1 与 src/pages 一致、占位注释存在）；worker applyRouteHeader() 对已知路由把骨架顶部灰条替换为真实 h1+副标题（内联样式匹配水合几何），未知路由/404/builder 保持通用骨架。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：1 资产（spa.html）+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：4 路由 raw HTML 各含正确静态页头（/jobs 副标题含 remotive.com 外链 noopener）；/builder 与 404 保持灰条；禁 JS 截图确证页头在水合前真实渲染（375px 零溢出，字体 font-display:optional 回退即显）；水合后 h1 照常、零 console 错误；Lighthouse 复测 4 路由 CLS 全 0。
+- 如实备案：Lighthouse LCP 数值未见可辩护的改善（复测 /jobs 3.7s、/dashboard 4.0s、/samples 4.1s、/documents 4.0s，与改动前同一区间；LCP 节点仍判给水合后段落）——本轮可证收益是「首绘即真实内容」（禁 JS 直接观测），指标层收益未证实。/builder TBT 架构项仍在银行。
+
 ## R516 — /builder 简历长度计量行首帧渲染，消灭桌面 1280px 位移（2026-08-31）
 - 一手证据（生产限速 CDP 1280px）：R515 备案的 0.0272 位移复现 @~1.8s，DOM 探针确认位移根源是长度计量行（meter+文案+Auto-fit）——`pdfLength !== null` 门控整行，R472 故意把 usePdfLength 推迟到 load+idle，测量完成后整行插入把样式 chips 行与预览列推下 ~82px。方案：docs/plan-r516-builder-length-meter-cls.md。
 - 修复仅 Builder.tsx：该行首帧即渲染；pdfLength===null 时 meter 空且中性色、文案为 measuring 占位、Auto-fit disabled；测量到达仅换内容不改行几何。首版占位文案偏短（28px vs 终态 66px，行内换行数不同）导致位移反而变 0.1662，已实测加长占位文案至与 sparse 终态同折行（66px 恒定）。

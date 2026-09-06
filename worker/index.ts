@@ -1871,12 +1871,39 @@ function applyRoutePreload(html: string, path: string): string {
   // These routes fetch the example library on mount; preloading it from the HTML
   // takes the 16KB JSON off the JS-execution critical chain. crossorigin matches
   // window.fetch() (mode cors, same-origin credentials) so the preload is reused.
-  return EXAMPLES_PRELOAD_ROUTES.has(path)
+  const withExamples = EXAMPLES_PRELOAD_ROUTES.has(path)
     ? out.replace(
         '</head>',
         '    <link rel="preload" href="/examples/examples.json" as="fetch" crossorigin="anonymous" />\n  </head>'
       )
     : out
+  return applyRouteHeader(withExamples, path)
+}
+
+// Swap the skeleton's generic heading bar for the route's real h1 + subtitle
+// (map injected by scripts/prerender.mjs) so the LCP text paints from the raw
+// HTML instead of waiting for hydration. Unknown routes keep the gray bar.
+function applyRouteHeader(html: string, path: string): string {
+  const meta = html.match(/<meta name="route-headers" content='([^']+)' \/>/)
+  if (!meta) return html
+  let headers: Record<string, { h1: string; sub: string }>
+  try {
+    headers = JSON.parse(meta[1].replaceAll('&lt;', '<').replaceAll('&#39;', "'")) as Record<
+      string,
+      { h1: string; sub: string }
+    >
+  } catch {
+    return html
+  }
+  const header = headers[path]
+  if (!header || typeof header.h1 !== 'string' || typeof header.sub !== 'string') return html
+  const block =
+    `<div style="margin-bottom:1.5rem"><h1 style="font-size:1.5rem;line-height:2rem;font-weight:700;margin:0">${header.h1}</h1>` +
+    `<p style="margin:.25rem 0 0;font-size:.875rem;line-height:1.25rem;color:var(--muted-foreground,#64748b)">${header.sub}</p></div>`
+  return html.replace(
+    /<!--hcv-route-header--><div class="hcv-sk" style="height:2\.25rem;width:10rem;border-radius:\.375rem;margin-bottom:1\.5rem"><\/div>/,
+    block
+  )
 }
 
 const EXAMPLES_PRELOAD_ROUTES = new Set(['/builder', '/dashboard', '/documents', '/samples'])
