@@ -1594,6 +1594,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R515 — /builder 空态角色选择行首帧渲染，消灭 examples.json 到达时的位移（2026-08-31）
+- 一手证据（生产限速 CDP 412px + Lighthouse）：/builder CLS 0.064（Lighthouse）/单次 0.0601 位移 @~849ms（CDP，sources 为 Getting started 卡 `div.bg-card` 与按钮区 `div.flex flex-wrap justify-end gap-2`）；对照实验 Network.setBlockedURLs 阻断 `*examples.json*` 后同条件 CLS=0——位移不是 skeleton→挂载，而是 examples.json 异步到达后 `examples.length > 0` 门控的「Or start from your role:」label+select 一整行插入，把下方内容推下。方案：docs/plan-r515-builder-role-picker-cls.md。
+- 修复仅 Builder.tsx：角色行门控 `examples.length > 0`→`!examplesFailed`（首帧即渲染）；select 加固定宽 w-48、`disabled={examples.length===0}`、首选项 "Loading roles…"→"Choose a role…"，数据到达仅换 option 内容不改几何；新增 examplesFailed（fetch 失败置 true 隐藏该行——罕见失败路径接受一次位移，与 ?example 深链失败的 exampleLoadFailed 警示条互不干扰）。不改 skeleton、不内联 16.7KB examples 数据（R496 preload 保留）。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：限速 412px buffered layout-shift 0（原 0.0601）、Lighthouse /builder CLS 0.064→0；select 加载后启用（31 options、192px 宽）、选 Software Engineer 照常填充 Alex Rivera；阻断 examples.json 时该行按设计隐藏（examplesFailed 路径）；412/1280 零溢出；QA 后存储清理回基线键。
+- 备案：桌面 1280px 冷载观测到一次与本轮无关的 0.0272 位移（sources 为章节 chip 条/工具栏区 `div.flex flex-wrap items-center gap-1.5` 等，非角色行节点），入银行待后续轮。
+
 ## R514 — 首页 hydration 布局位移：freeMode 英雄文案在构建期定型（2026-08-31）
 - 一手证据（生产 Lighthouse + 限速 CDP 412px）：/ 是主要路由中唯一非零 CLS（0.041）；英雄段落水合时 140px→112px（少一行）、CTA 上移 42px、layout-shift 0.056。诊断探针实证段落文本本身在变：付费文案 172 字符（"Pay $9.99 one time…"）→ 免费文案 161 字符（"Every plan is free during beta…"）——useFreeMode() 初始 false，/api/billing/status 返回后才翻 true。
 - 如实驳回首个假设：曾归因 font-display:optional 字体度量差并加 next/font 式 metric fallback，但字体已 resolve 时位移照旧，纯文案交换所致；CSS 改动已回退。方案：docs/plan-r514-freemode-hero-cls.md。

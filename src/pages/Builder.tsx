@@ -1470,6 +1470,7 @@ export default function Builder() {
   )
   const [pendingExample, setPendingExample] = useState<ExamplePerson | null>(null)
   const [exampleLoadFailed, setExampleLoadFailed] = useState(false)
+  const [examplesFailed, setExamplesFailed] = useState(false)
   const [exampleNotFound, setExampleNotFound] = useState(false)
   const [exampleLoadAttempt, setExampleLoadAttempt] = useState(0)
   const replaceWithExample = (person: ExamplePerson) => {
@@ -1498,6 +1499,7 @@ export default function Builder() {
       .then((list: { slug: string; role: string; sector: string; person: ExamplePerson }[]) => {
         if (cancelled) return
         setExamples(list)
+        setExamplesFailed(false)
         // ?example=<slug> deep link from the /examples/ pages
         const slug = new URLSearchParams(window.location.search).get('example')
         const entry = slug ? list.find((e) => e.slug === slug) : undefined
@@ -1514,6 +1516,7 @@ export default function Builder() {
       })
       .catch(() => {
         if (cancelled) return
+        setExamplesFailed(true)
         if (new URLSearchParams(window.location.search).get('example'))
           setExampleLoadFailed(true)
       })
@@ -2378,21 +2381,24 @@ export default function Builder() {
                   import your existing resume (PDF/DOCX/text)
                 </button>
                 .
-                {examples.length > 0 && (
+                {!examplesFailed && (
                   <span className="mt-3 flex flex-wrap items-center justify-center gap-2">
                     <label htmlFor="example-role" className="text-muted-foreground">
                       Or start from your role:
                     </label>
                     <select
                       id="example-role"
-                      className="h-11 rounded-md border px-2 text-sm"
+                      className="h-11 w-48 rounded-md border px-2 text-sm"
                       value=""
+                      disabled={examples.length === 0}
                       onChange={(e) => {
                         const entry = examples.find((x) => x.slug === e.target.value)
                         if (entry) applyExample(entry.person)
                       }}
                     >
-                      <option value="">Choose a role…</option>
+                      <option value="">
+                        {examples.length === 0 ? 'Loading roles…' : 'Choose a role…'}
+                      </option>
                       {[...new Set(examples.map((e) => e.sector))].map((sector) => (
                         <optgroup key={sector} label={sector}>
                           {examples
