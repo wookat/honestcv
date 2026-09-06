@@ -2118,3 +2118,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 Jobs.tsx 时间线 <ol>：状态步与可选 { label:'Followed up', at:followedUpAt } 事件合并按时间排序渲染，末项高亮逻辑不变；存储/过滤/文案零改动。
 - tsc/eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280「Applied · Aug 27 → Followed up · Sep 3」按序在线、无 followedUpAt 条目零渲染回归、375 同样在位、零溢出、存储回六键基线、零 AI 配额。
+
+## R578 — 二次跟进邮件如实点名首次跟进（2026-08-31，SOP-10 节点）
+- 四维复扫：7 路由 × 1280/375 零溢出零 console 错误。一手证据（生产 CDP）：种入 applied 10 天前 + followedUpAt 2 天前，「Draft follow-up email」正文仍是首触措辞「I applied … and wanted to follow up」，已记录的跟进被忽略，用户会发出装作从未跟进过的重复邮件。方案：docs/plan-r578-second-followup-email.md。
+- 修复仅 src/lib/jobs.ts followUpEmail：followedUpAt 晚于最后状态变更时，applied/interviewing 开场白改为点名跟进日期的 check-in（「…and followed up on Sep 4; I wanted to check in again…」）；offer 感谢流与无跟进条目措辞零改动。
+- tsc/eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 跟进后草稿点名「followed up on Sep 4」、无 followedUpAt 条目保持原措辞、interviewing 变体同样在位、零溢出、存储回六键基线、零 AI 配额。

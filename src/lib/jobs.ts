@@ -135,13 +135,21 @@ export function followUpEmail(
     day: 'numeric',
   })
   const when = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`
+  const followedUpOn =
+    entry.followedUpAt !== undefined && entry.followedUpAt > steps[steps.length - 1].at
+      ? new Date(entry.followedUpAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : null
   const opener = offer
     ? `Thank you again for the offer for the ${title} position. I wanted to follow up on the next steps and the timeline for my decision.`
     : interviewing
-      ? days < 2
-        ? `We spoke about the ${title} position on ${spokeOn}, and I wanted to follow up on where things stand.`
-        : `It has been ${days} days since we last spoke about the ${title} position on ${spokeOn}, and I wanted to follow up on where things stand.`
-      : `I applied for the ${title} position ${when} and wanted to follow up on the status of my application.`
+      ? followedUpOn
+        ? `We last spoke about the ${title} position on ${spokeOn} and I followed up on ${followedUpOn}; I wanted to check in again on where things stand.`
+        : days < 2
+          ? `We spoke about the ${title} position on ${spokeOn}, and I wanted to follow up on where things stand.`
+          : `It has been ${days} days since we last spoke about the ${title} position on ${spokeOn}, and I wanted to follow up on where things stand.`
+      : followedUpOn
+        ? `I applied for the ${title} position ${when} and followed up on ${followedUpOn}; I wanted to check in again on the status of my application.`
+        : `I applied for the ${title} position ${when} and wanted to follow up on the status of my application.`
   const recruiter = recruiterNameFromNotes(entry.notes)
   const body = [
     recruiter ? `Hi ${recruiter.split(' ')[0]},` : `Hi ${company} hiring team,`,
