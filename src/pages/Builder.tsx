@@ -1271,6 +1271,7 @@ export default function Builder() {
     setVersions(listResumeVersions())
     setPipelineTick((t) => t + 1)
   }
+  const focusAfterRender = useFocusAfterRender()
   /** Link the edited copy to the tracked job it targets (the job has no copy linked). */
   const linkCopyToTargetedJob = () => {
     if (!activeVersionId || !targetedTrackedJob) return
@@ -1278,6 +1279,7 @@ export default function Builder() {
       setStorageAlert(COPY_STORAGE_FULL_MSG)
       return
     }
+    focusAfterRender('builder-target-linked-job')
     setVersions(listResumeVersions())
     setPipelineTick((t) => t + 1)
   }
@@ -1314,6 +1316,7 @@ export default function Builder() {
       setStorageAlert(COPY_STORAGE_FULL_MSG)
       return
     }
+    focusAfterRender('builder-target-linked-job')
     setVersions(listResumeVersions())
     linkVersion(created.id)
     setPipelineTick((t) => t + 1)
@@ -1335,7 +1338,6 @@ export default function Builder() {
     wasActive: boolean
   } | null>(null)
   const [undoDeleteCopyFocused, setUndoDeleteCopyFocused] = useState(false)
-  const focusAfterRender = useFocusAfterRender()
   useEffect(() => {
     if (!undoDeleteCopy || undoDeleteCopyFocused) return
     const t = setTimeout(() => setUndoDeleteCopy(null), 10000)
@@ -2910,6 +2912,7 @@ export default function Builder() {
                   : ''}
                 .{' '}
                 <Link
+                  id="builder-target-linked-job"
                   to={`/jobs?job=${encodeURIComponent(linkedJob.id)}`}
                   className="text-primary font-medium underline-offset-2 hover:underline"
                 >
@@ -8045,13 +8048,13 @@ export default function Builder() {
                 {ats.keywordScore !== null && (
                   <span>
                     Keywords <span className="text-foreground font-medium">{ats.keywordScore}</span>
-                    <span className="text-muted-foreground/70"> ×70%</span>
+                    <span> ×70%</span>
                   </span>
                 )}
                 <span>
                   Structure <span className="text-foreground font-medium">{ats.structureScore}</span>
                   {ats.keywordScore !== null && (
-                    <span className="text-muted-foreground/70"> ×30%</span>
+                    <span> ×30%</span>
                   )}
                 </span>
               </div>
