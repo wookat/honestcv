@@ -649,7 +649,7 @@ export default function Jobs() {
       .sort((a, b) => b.updatedAt - a.updatedAt)
   }
 
-  /** Rows for a job's earlier documents of one kind; offers to link one when the job has no live linked document. */
+  /** Rows for a job's earlier documents of one kind; each can be linked (or swapped in for the linked one). */
   const earlierDocRows = (entry: PipelineEntry, kind: CareerDocKind, hasLinked: boolean) => {
     const noun = docNoun(kind)
     const relink =
@@ -671,15 +671,13 @@ export default function Jobs() {
         >
           Open
         </button>
-        {!hasLinked && (
-          <button
-            type="button"
-            className="text-primary underline-offset-2 hover:underline"
-            onClick={() => applyPipeline(relink(entry.job.id, doc.id))}
-          >
-            Use for this job
-          </button>
-        )}
+        <button
+          type="button"
+          className="text-primary underline-offset-2 hover:underline"
+          onClick={() => applyPipeline(relink(entry.job.id, doc.id))}
+        >
+          {hasLinked ? 'Use this one instead' : 'Use for this job'}
+        </button>
       </p>
     ))
   }
