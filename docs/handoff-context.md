@@ -1847,3 +1847,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Builder.tsx：新增 paneScrollRef 记录每个 pane 的滚动 offset；切换时先存当前 pane 的 scrollY，effect 在换 pane 提交后恢复目标 pane 上次 offset（首次为 0，保持「预览首开回顶」既有语义）；同 pane 点击不再滚动。lg+ 桌面端 switcher 隐藏、双栏并排，零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：375px Edit@1200→Preview 首开=0→Edit 恢复 1200→Preview 恢复 800（往返稳定）；?jump=skills 深链照常滚到 skills 卡（回归）；1280px switcher 隐藏、零 console 错误；全场景零溢出、存储仅基线键。
+
+## R534 — Score 卡 ATS 结构检查「Fix →」直达违规条目卡（2026-08-31）
+- 审计：Rezi changelog（2026-08 Week4）复核无新可落地项；/documents 移动端长列表开关文档滚动保持（900→900）、/ats-checker 移动端 Check 后报告自动入视口、Builder 底部 switcher 无遮挡——三条候选实测非缺陷、驳回。一手证据（生产 CDP，375×812）：/builder?example=software-engineer 预览 pane Score 卡「✗ 3–6 bullet points per role — "Software Engineer at Cardinal Apps"…」点 Fix → 落在 Experience 区顶（Role 1 Brightpath），Cardinal Apps 卡在视口外——检查已知道违规条目（bulletsPerEntryCheck 写入 entryId，R359 健康报告已用 jumpEntry），checks 列表 onClick 却只走 jumpToSection(c.anchor)。方案：docs/plan-r534-checks-fix-jumps-to-offending-entry.md。
+- 修复仅 src/pages/Builder.tsx checks 列表一处：`c.entryId ? jumpToEntry(c.entryId) : c.anchor && jumpToSection(c.anchor)`（渲染条件同步接受 entryId）。ats.ts、深链、健康报告、/ats-checker（贴文无条目 id，区锚点仍正确）零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Builder-YfHVehQD.js）：375px 点 bullet-count Fix → 聚焦 Role 2 Cardinal Apps 卡且 Edit pane 激活；区级检查（Punctuated bullet points）Fix → 照常跳 Experience 区；?jump=skills 深链回归；1280px 同样直达 Cardinal Apps 卡；全场景零溢出零 console 错误、存储仅基线键。

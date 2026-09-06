@@ -7975,11 +7975,15 @@ export default function Builder() {
                                 </span>
                               )}
                               {!c.pass && <span className="text-muted-foreground"> — {c.hint}</span>}
-                              {!c.pass && c.anchor && (
+                              {!c.pass && (c.anchor || c.entryId) && (
                                 <button
                                   type="button"
                                   className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
-                                  onClick={() => c.anchor && jumpToSection(c.anchor)}
+                                  onClick={() =>
+                                    c.entryId
+                                      ? jumpToEntry(c.entryId)
+                                      : c.anchor && jumpToSection(c.anchor)
+                                  }
                                 >
                                   Fix →
                                 </button>
