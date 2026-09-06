@@ -592,10 +592,15 @@ export default function Jobs() {
     return id ? listResumeVersions().find((v) => v.id === id) : undefined
   }
 
-  /** The job's saved cover letter / interview brief if the pipeline links one that still exists. */
-  const linkedDoc = (jobId: string, kind: 'cover' | 'interview') => {
+  /** The job's saved cover letter / interview brief / resignation letter if the pipeline links one that still exists. */
+  const linkedDoc = (jobId: string, kind: CareerDocKind) => {
     const entry = pipeline.find((e) => e.job.id === jobId)
-    const id = kind === 'cover' ? entry?.coverDocId : entry?.interviewDocId
+    const id =
+      kind === 'cover'
+        ? entry?.coverDocId
+        : kind === 'interview'
+          ? entry?.interviewDocId
+          : entry?.resignationDocId
     return id ? listCareerDocs().find((d) => d.id === id) : undefined
   }
 
@@ -996,14 +1001,35 @@ export default function Jobs() {
           runSearch(job.title)
         },
       }
-    if (entry.status === 'offer')
+    if (entry.status === 'offer') {
+      const letter = linkedDoc(job.id, 'resignation')
+      if (letter) {
+        const blanks = countLetterPlaceholders(letter.text)
+        return {
+          text: `Your resignation letter “${letter.title}” is saved${
+            blanks > 0 ? ` — ${blanks} placeholder${blanks === 1 ? '' : 's'} to fill` : ''
+          }.`,
+          label: 'Open saved letter',
+          onClick: () => void navigate(`/documents?doc=${encodeURIComponent(letter.id)}`),
+        }
+      }
       return {
         text: 'You have an offer — leave your current role on good terms.',
         label: 'Open resignation letter',
         onClick: () =>
           void navigate(`/builder?doc=resignation&job=${encodeURIComponent(job.id)}`),
       }
-    if (entry.status === 'applied' || entry.status === 'interviewing')
+    }
+    if (entry.status === 'applied' || entry.status === 'interviewing') {
+      const brief = linkedDoc(job.id, 'interview')
+      if (brief)
+        return {
+          text: `Your interview brief “${brief.title}” is saved — review it before the ${
+            entry.status === 'applied' ? 'interview' : 'next round'
+          }.`,
+          label: 'Open saved brief',
+          onClick: () => void navigate(`/documents?doc=${encodeURIComponent(brief.id)}`),
+        }
       return {
         text:
           entry.status === 'applied'
@@ -1015,6 +1041,7 @@ export default function Jobs() {
             ? setConfirmTarget({ job, intent: 'interview' })
             : openInterviewPrep(job),
       }
+    }
     const linked = linkedVersion(job.id)
     if (!linked) {
       const orphan = orphanTargetedCopy(job)
