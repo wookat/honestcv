@@ -75,6 +75,9 @@ import {
   jobLinksLiveCopy,
   listPipeline,
   rememberLinkedCopyJobs,
+  setPipelineCoverDoc,
+  setPipelineInterviewDoc,
+  setPipelineResignationDoc,
   setPipelineVersion,
   type PipelineEntry,
 } from '@/lib/jobs'
@@ -290,6 +293,21 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           : entry.interviewDocId
     return id !== undefined && docs.some((d) => d.id === id)
   }
+  /** Make this document the one its tracked job links for its kind (the job's current one, if any,
+   * stays saved and becomes an earlier document). */
+  const linkDocToJob = (d: CareerDoc, jobId: string) => {
+    const relink =
+      d.kind === 'cover'
+        ? setPipelineCoverDoc
+        : d.kind === 'resignation'
+          ? setPipelineResignationDoc
+          : setPipelineInterviewDoc
+    if (relink(jobId, d.id) === null) {
+      setStorageError(true)
+      return
+    }
+    setDocs(listCareerDocs())
+  }
   /** Which job a document belongs to: the job that links it, or the one it was written for
    * (that job now links another document, has no link left, or is no longer tracked). */
   const docTargetNote = (d: CareerDoc, sentence: boolean) => {
@@ -319,14 +337,24 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         {sentence ? 'Written for ' : 'written for '}
         {d.forJob.title} at {d.forJob.company} ·{' '}
         {tracked ? (
-          <Link
-            to={`/jobs?job=${encodeURIComponent(d.forJob.id)}`}
-            className="underline underline-offset-2"
-          >
-            {jobLinksLiveDoc(tracked, d.kind)
-              ? `job uses another ${noun}`
-              : `job has no ${noun} linked — use this one`}
-          </Link>
+          <>
+            <Link
+              to={`/jobs?job=${encodeURIComponent(d.forJob.id)}`}
+              className="underline underline-offset-2"
+            >
+              {jobLinksLiveDoc(tracked, d.kind)
+                ? `job uses another ${noun}`
+                : `job has no ${noun} linked`}
+            </Link>
+            {' — '}
+            <button
+              type="button"
+              className="text-primary underline-offset-2 hover:underline"
+              onClick={() => linkDocToJob(d, tracked.job.id)}
+            >
+              {jobLinksLiveDoc(tracked, d.kind) ? 'use this one instead' : 'use this one'}
+            </button>
+          </>
         ) : (
           <>
             job no longer tracked —{' '}

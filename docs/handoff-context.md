@@ -2440,3 +2440,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 剩余缺口（生产 index-Ck2L9KYw.js，qa/r638-evidence.cjs unlinked）：dashboard Resume settings 把未链接副本 B 改指跟踪职位 K（K 已链接 A）时只说「already uses another copy — this one stays unlinked」，按钮仅 Cancel/Save；R620 的「Save and link to that job」仅 K 无副本时出现。R636/R637 后这是最后一个只能去别处换的面。
 - 修复（Dashboard.tsx）：该按钮在 B 未被其他职位链接时常驻，文案随状态「Save and use this copy for that job instead」/「Save and link to that job」，文案补「unless you use it for that job instead」；同一 `saveEditing(linkTo)`（setPipelineVersion，R619 盖 forJob）；K 原副本不删，保留 forJob=K，在 K 卡片成为 Earlier 行可换回。B 本身是 J 链接副本时弹窗不变（仍为 Save as new copy）。部署 index-DR9zDq6k.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375：点击后 qa-j2→qa-v1、v1.forJob=qa-j2、vA 保留；linked 对照不变；375 弹窗可滚动、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R637（#858）→ R638。
+
+## R639 — /documents「use this one」原地重连（2026-09-06）
+- 生产实证（index-DR9zDq6k.js，qa/r639-evidence.cjs）：/documents 文档行「job has no cover letter linked — use this one」整句是一个 Link，点击只跳 /jobs?job=…，pipeline 不变（cover=-）；「job uses another cover letter」只有链接、无任何动作。措辞承诺了动作但只导航；R603/R635 之后卡片可换，文档面仍是最后一个无原地 setter 的关系面。
+- 修复（Dashboard.tsx `docTargetNote` + `linkDocToJob`，/documents 行与打开文档弹窗共用）：状态短语保留为职位链接，后接按钮「use this one」/「use this one instead」，按 kind 调 setPipelineCover/Interview/ResignationDoc，setDocs 触发 jobByDoc/trackedEntries 重读。原链接文档不删、保留 forJob，其行翻转为「uses another — use this one instead」，可从任一行换回。方案 docs/plan-r639-documents-note-relinks-in-place.md。
+- 注意：首次命名 `useDocForJob` 触发 rules-of-hooks（eslint 把 use* 前缀当 Hook），改名 `linkDocToJob`。部署 index-Bn3Gx10U.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375 × unset/other：点击后 URL 仍 /documents、qa-j1→cover=qa-doc1、行互换、双文档保留、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R638（#859）→ R639。
