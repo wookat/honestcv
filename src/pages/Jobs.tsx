@@ -549,6 +549,9 @@ export default function Jobs() {
     )
   }
 
+  /** The job's linked copy, or an orphan copy already targeted at it. */
+  const targetedCopyOf = (job: JobListing) => linkedVersion(job.id) ?? orphanTargetedCopy(job)
+
   /** Link this job to its existing targeted copy, or save a new copy of the current draft targeted at it. */
   const prepareTargetedCopy = (job: JobListing) => {
     const draft = loadResume() ?? emptyResume()
@@ -595,9 +598,9 @@ export default function Jobs() {
     }
     if (!applyPipeline(upsertPipeline(job, status))) return
     if (
-      status === 'saved' &&
       !linkedVersion(job.id) &&
-      (orphanTargetedCopy(job) || resumeHasContent(loadResume() ?? emptyResume()))
+      (orphanTargetedCopy(job) ||
+        (status === 'saved' && resumeHasContent(loadResume() ?? emptyResume())))
     )
       prepareTargetedCopy(job)
   }
@@ -629,7 +632,7 @@ export default function Jobs() {
       void navigate(dest)
       return
     }
-    const version = linkedVersion(job.id)
+    const version = targetedCopyOf(job)
     if (version) {
       saveResume(version.data)
       setActiveVersionId(version.id)
@@ -649,6 +652,12 @@ export default function Jobs() {
       !applyPipeline(upsertPipeline(job, 'saved'))
     )
       return
+    if (
+      version &&
+      !linkedVersion(job.id) &&
+      !applyPipeline(setPipelineVersion(job.id, version.id))
+    )
+      return
     void navigate(
       `/builder?doc=cover&company=${encodeURIComponent(job.company)}&job=${encodeURIComponent(job.id)}`
     )
@@ -656,10 +665,12 @@ export default function Jobs() {
 
   /** Open the job's targeted copy (or aim the draft at the job) and open interview prep. */
   const openInterviewPrep = (job: JobListing) => {
-    const version = linkedVersion(job.id)
+    const version = targetedCopyOf(job)
     if (version) {
       saveResume(version.data)
       setActiveVersionId(version.id)
+      if (!linkedVersion(job.id) && listPipeline().some((e) => e.job.id === job.id))
+        applyPipeline(setPipelineVersion(job.id, version.id))
     } else {
       const draft = loadResume() ?? emptyResume()
       const next = {
@@ -1945,10 +1956,14 @@ export default function Jobs() {
               {confirmTarget?.intent === 'cover'
                 ? confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'This opens the resume copy targeted at this job in the editor, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
-                  : "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any. The job is saved to your tracked applications so the letter stays linked to it."
+                  : confirmTarget && orphanTargetedCopy(confirmTarget.job)
+                    ? 'This opens the resume copy you already targeted at this job in the editor and links it to this job again, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
+                    : "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any. The job is saved to your tracked applications so the letter stays linked to it."
                 : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'This job already has a targeted copy of your resume — the editor opens that copy. Your other resumes keep their own target jobs.'
-                  : confirmTarget && !resumeHasContent(loadResume() ?? emptyResume())
+                  : confirmTarget && orphanTargetedCopy(confirmTarget.job)
+                    ? 'You already saved a copy of your resume targeted at this job — the editor opens that copy and links it to this job again. Your other resumes keep their own target jobs.'
+                    : confirmTarget && !resumeHasContent(loadResume() ?? emptyResume())
                     ? "Your resume is still empty, so there's nothing to copy yet. This aims your draft at this posting and opens the editor so you can start writing — target the job again once your resume has content to save a copy."
                     : 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard) and opens it in the editor. Your current draft keeps its own target job.'}
             </DialogDescription>
@@ -1965,7 +1980,9 @@ export default function Jobs() {
                 ? 'Open cover letter tool'
                 : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'Open targeted copy'
-                  : confirmTarget && !resumeHasContent(loadResume() ?? emptyResume())
+                  : confirmTarget && orphanTargetedCopy(confirmTarget.job)
+                    ? 'Reconnect targeted copy'
+                    : confirmTarget && !resumeHasContent(loadResume() ?? emptyResume())
                     ? 'Start my resume for this job'
                     : 'Create copy and open editor'}
             </Button>
