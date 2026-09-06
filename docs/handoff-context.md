@@ -1779,3 +1779,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 已知限界（方案已备案）：确认 Discard 后停留当前路由，用户需再按一次 Back 完成原意图。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000；useHistoryGuard-PieajzdZ.js 生产 200 且含哨兵键。
 - 生产 QA：文档编辑器——干净 Back 正常回 /dashboard、脏 Back 弹「Discard unsaved changes?」且 URL 停留、Keep editing 保留编辑、Discard 诚实关闭且存储无该编辑；Builder cover 模板 619 字符草稿 Back 弹「Close without saving?」、Keep working 保留、375px 弹窗零溢出、Discard and close 照常；零 console 错误、QA 后合成存储全清。
+
+## R523 — 应用内 SPA 链接点击不再静默丢弃未保存编辑（2026-08-31）
+- SOP-10 复扫：7 路由 ×1280/375 双视口零溢出零 console 错误；Rezi changelog 无新可落地缺口。一手证据（生产 CDP）：/documents 脏文档编辑器点页头「Jobs」SPA 链接——URL 直接到 /jobs、编辑器 unmount、零确认、存储只剩原文。路径矩阵最后一条缺口：应用内 Link 走 pushState，既不触发 beforeunload（R521）也不触发 popstate（R522）。
+- 修复仅 src/lib/useHistoryGuard.ts：active 时加 capture 阶段 document click 监听——同源站内 a[href]（无 target/download、非修饰键、主键、目标≠当前 path+search）preventDefault+stopPropagation 并弹既有样式化确认；外链/新标签/下载不拦截；Dashboard/Builder 零改动自动受益。方案：docs/plan-r523-link-guard-unsaved-edits.md。
+- 已知限界（与 R522 同款备案）：Discard 后停留当前路由，用户需再次点击链接完成导航。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：干净编辑器点 Jobs 链接正常到 /jobs；脏编辑器点链接 URL 停留 /documents 弹「Discard unsaved changes?」、Keep editing 保留编辑、Discard changes 诚实关闭且存储无该编辑；Builder cover 619 字符草稿点 Dashboard 链接弹「Close without saving?」、Keep working 保留、375px 零溢出；零 console 错误、QA 后合成存储全清。
