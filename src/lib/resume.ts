@@ -2618,6 +2618,9 @@ export const agentBullets = (a: AgentItem): string[] => [
   ...a.description.split('\n').map((l) => l.trim()).filter(Boolean),
 ]
 
+/** Whether the resume carries any user-entered content, as opposed to a blank draft that only has settings and a target job. */
+export const resumeHasContent = (r: Resume): boolean => resumeToPlainText(r).trim() !== ''
+
 /** Flatten to plain text (for AI context + ATS scoring) */
 export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }): string {
   const lines: string[] = []

@@ -1786,3 +1786,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 已知限界（与 R522 同款备案）：Discard 后停留当前路由，用户需再次点击链接完成导航。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：干净编辑器点 Jobs 链接正常到 /jobs；脏编辑器点链接 URL 停留 /documents 弹「Discard unsaved changes?」、Keep editing 保留编辑、Discard changes 诚实关闭且存储无该编辑；Builder cover 619 字符草稿点 Dashboard 链接弹「Close without saving?」、Keep working 保留、375px 零溢出；零 console 错误、QA 后合成存储全清。
+
+## R524 — 空工作区不再生成空的定向简历副本（2026-08-31）
+- 一手证据（生产 CDP，全新存储）：/jobs 选中职位 →「Target my resume」→「Create copy and open editor」——在用户简历为空时也创建命名定向版本（filed under Job applications），Builder 落在「Starting fresh?」空态；弹窗自述"saves a copy of your resume"，对空工作区属误导。对照 Rezi：自动定向简历流程以已有简历为前提。方案：docs/plan-r524-empty-draft-targeted-copy.md。
+- 修复：src/lib/resume.ts 新增 resumeHasContent()（resumeToPlainText(r).trim() !== ''）；src/pages/Jobs.tsx——targetResume 空草稿分支只把 target 元数据写入当前草稿并开 /builder（不建副本）、弹窗文案与按钮改为诚实的「Start my resume for this job」；setStatus 的 Saved 自动建副本同样加内容判定（仍照常跟踪职位）；有内容草稿与已链接副本路径零改动；cover/interview 分支零改动。
+- tsc/单查 eslint（仅既有 fetchJobs 依赖 warning）/build/verify-dist 绿。部署照旧：31 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Jobs-BzYGDUnB.js）：空草稿 Target→弹窗诚实文案+「Start my resume for this job」→/builder、0 副本、草稿 targetRole/targetCompany 就位；空草稿 Saved→pipeline 1 条 saved、无 resumeVersionId、0 副本；种子含内容草稿 Target→原「Create copy and open editor」流程照常、版本含 QA Person 内容+target 元数据；已链接副本→「Open targeted copy」照常开 /builder；375px 弹窗正常零溢出；零 console 错误、QA 后合成存储全清。

@@ -63,6 +63,7 @@ import {
   emptyResume,
   listResumeVersions,
   loadResume,
+  resumeHasContent,
   resumeToPlainText,
   saveResume,
   setActiveVersionId,
@@ -476,11 +477,29 @@ export default function Jobs() {
       return
     }
     if (!applyPipeline(upsertPipeline(job, status))) return
-    if (status === 'saved' && !linkedVersion(job.id)) prepareTargetedCopy(job)
+    if (
+      status === 'saved' &&
+      !linkedVersion(job.id) &&
+      resumeHasContent(loadResume() ?? emptyResume())
+    )
+      prepareTargetedCopy(job)
   }
 
   const targetResume = (job: JobListing, intent: 'target' | 'cover') => {
     if (intent === 'target') {
+      if (!linkedVersion(job.id) && !resumeHasContent(loadResume() ?? emptyResume())) {
+        const draft = loadResume() ?? emptyResume()
+        const next = {
+          ...draft,
+          targetRole: job.title,
+          targetCompany: job.company,
+          jobDescription: job.description,
+        }
+        saveResume(next)
+        syncActiveVersion(next)
+        void navigate('/builder')
+        return
+      }
       const version = linkedVersion(job.id) ?? prepareTargetedCopy(job)
       if (!version) return
       saveResume(version.data)
@@ -1640,7 +1659,9 @@ export default function Jobs() {
                   : "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any."
                 : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'This job already has a targeted copy of your resume — the editor opens that copy. Your other resumes keep their own target jobs.'
-                  : 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard) and opens it in the editor. Your current draft keeps its own target job.'}
+                  : confirmTarget && !resumeHasContent(loadResume() ?? emptyResume())
+                    ? "Your resume is still empty, so there's nothing to copy yet. This aims your draft at this posting and opens the editor so you can start writing — target the job again once your resume has content to save a copy."
+                    : 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard) and opens it in the editor. Your current draft keeps its own target job.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -1655,7 +1676,9 @@ export default function Jobs() {
                 ? 'Open cover letter tool'
                 : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'Open targeted copy'
-                  : 'Create copy and open editor'}
+                  : confirmTarget && !resumeHasContent(loadResume() ?? emptyResume())
+                    ? 'Start my resume for this job'
+                    : 'Create copy and open editor'}
             </Button>
           </DialogFooter>
         </DialogContent>
