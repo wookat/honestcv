@@ -158,7 +158,12 @@ import {
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText, loadExporter, professionalFileName } from '@/lib/download'
-import { listCareerDocs, saveCareerDoc, updateCareerDoc } from '@/lib/documents'
+import {
+  listCareerDocs,
+  rememberLinkedDocJobs,
+  saveCareerDoc,
+  updateCareerDoc,
+} from '@/lib/documents'
 import {
   copyTargetsJob,
   jobLinksLiveCopy,
@@ -11121,9 +11126,9 @@ function BundleToolDialog({
                     setSaveDocFailed(updated === null)
                     if (updated) setSavedText(result)
                   } else {
-                    const job = jobId
-                      ? listPipeline().find((e) => e.job.id === jobId)?.job
-                      : undefined
+                    const pipeline = listPipeline()
+                    const job = jobId ? pipeline.find((e) => e.job.id === jobId)?.job : undefined
+                    if (job) rememberLinkedDocJobs(pipeline)
                     const doc = saveCareerDoc(
                       kind === 'cover'
                         ? 'cover'

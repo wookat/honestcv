@@ -61,6 +61,7 @@ import {
   deleteCareerDoc,
   duplicateCareerDoc,
   listCareerDocs,
+  rememberLinkedDocJobs,
   renameCareerDoc,
   restoreCareerDoc,
   saveCareerDoc,
@@ -252,7 +253,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     experienceLevel: NonNullable<Resume['experienceLevel']>
     jobDescription: string
   } | null>(null)
-  const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
+  const [docs, setDocs] = useState<CareerDoc[]>(() => rememberLinkedDocJobs(listPipeline()))
   const jobByDoc = useMemo(() => {
     const map = new Map<string, PipelineEntry>()
     for (const entry of listPipeline()) {

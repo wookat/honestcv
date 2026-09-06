@@ -4,6 +4,7 @@
  */
 
 import { newId } from '@/lib/resume'
+import type { PipelineEntry } from '@/lib/jobs'
 
 export type CareerDocKind = 'cover' | 'interview' | 'resignation'
 
@@ -161,6 +162,27 @@ export function saveCareerDoc(
   }
   if (forJob) doc.forJob = forJob
   return persistDocs([doc, ...docs]) ? doc : null
+}
+
+/** Stamp forJob on documents a tracked job links but that never recorded their job (saved before forJob existed). */
+export function rememberLinkedDocJobs(pipeline: readonly PipelineEntry[]): CareerDoc[] {
+  const jobByDoc = new Map<string, DocJobRef>()
+  for (const e of pipeline) {
+    const ref = { id: e.job.id, title: e.job.title, company: e.job.company }
+    for (const id of [e.coverDocId, e.interviewDocId, e.resignationDocId])
+      if (id) jobByDoc.set(id, ref)
+  }
+  const docs = listCareerDocs()
+  let changed = false
+  const next = docs.map((d) => {
+    if (d.forJob) return d
+    const forJob = jobByDoc.get(d.id)
+    if (!forJob) return d
+    changed = true
+    return { ...d, forJob }
+  })
+  if (!changed) return docs
+  return persistDocs(next) ? next : docs
 }
 
 export function updateCareerDoc(

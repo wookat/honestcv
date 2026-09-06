@@ -63,7 +63,12 @@ import {
   updateStatuses,
   upsertPipeline,
 } from '@/lib/jobs'
-import { listCareerDocs, type CareerDoc, type CareerDocKind } from '@/lib/documents'
+import {
+  listCareerDocs,
+  rememberLinkedDocJobs,
+  type CareerDoc,
+  type CareerDocKind,
+} from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
 import {
   createResumeVersion,
@@ -174,7 +179,11 @@ export default function Jobs() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pipelineUnreadable, setPipelineUnreadable] = useState(() => stashUnreadablePipeline())
-  const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => listPipeline())
+  const [pipeline, setPipeline] = useState<PipelineEntry[]>(() => {
+    const entries = listPipeline()
+    rememberLinkedDocJobs(entries)
+    return entries
+  })
   const [selectedId, setSelectedId] = useState<string | null>(() => seedParams.get('job'))
   // Only selections the user made (row tap or ?job= deep link) belong in the
   // URL; the automatic first-row selection that feeds the desktop pane does not.
