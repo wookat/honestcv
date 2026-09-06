@@ -1302,7 +1302,7 @@ export default function Builder() {
     return { openedFor, linkJob: pipeline.find((e) => copyTargetsJob(data, e.job))?.job ?? null }
   }, [toolOpen, toolJobId, linkedJob, targetRole, targetCompany, jobDescription])
   /** Save the draft as a new copy linked to the tracked job it now targets and edit that copy;
-   * the current copy stays linked to its own job. */
+   * the current copy stays linked to its own job, and the target job's previous copy (if any) stays saved. */
   const saveDraftAsCopyFor = (job: JobListing) => {
     const created = createResumeVersion(
       `${job.title} — ${job.company}`,
@@ -2912,18 +2912,16 @@ export default function Builder() {
                 That target is tracked job &quot;{retargetedTrackedJob.job.title}&quot; at{' '}
                 {retargetedTrackedJob.job.company}, which{' '}
                 {retargetedTrackedJob.hasCopy ? 'already uses another copy' : 'has no copy yet'}.{' '}
-                {!retargetedTrackedJob.hasCopy && (
-                  <>
-                    <button
-                      type="button"
-                      className="text-primary font-medium underline-offset-2 hover:underline"
-                      onClick={() => saveDraftAsCopyFor(retargetedTrackedJob.job)}
-                    >
-                      Save as new copy for it
-                    </button>
-                    {' · '}
-                  </>
-                )}
+                <button
+                  type="button"
+                  className="text-primary font-medium underline-offset-2 hover:underline"
+                  onClick={() => saveDraftAsCopyFor(retargetedTrackedJob.job)}
+                >
+                  {retargetedTrackedJob.hasCopy
+                    ? 'Save as new copy and use it for that job instead'
+                    : 'Save as new copy for it'}
+                </button>
+                {' · '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(retargetedTrackedJob.job.id)}`}
                   className="text-primary font-medium underline-offset-2 hover:underline"

@@ -2451,3 +2451,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（index-Bn3Gx10U.js，qa/r640-evidence.cjs，dashboard + builder Copies）：「tracked job has no copy linked — reconnect it」整句是一个 Link，点击只跳 /jobs?job=…，pipeline 不变；「tracked job uses another copy」只有链接、无动作。与 R639 修前的 /documents 行同构，是副本关系图上最后一个只导航、不操作的面。方案 docs/plan-r640-copy-note-relinks-in-place.md。
 - 修复（CopyTargetNote 必填 `onLinkToJob`；Dashboard/Builder 各加 `linkCopyToJob`）：状态短语保留为职位链接，后接按钮「reconnect it」/「use this one instead」，走既有 setPipelineVersion（R619 盖 forJob），随后重读 versions/pipeline。原链接副本不删、保留 forJob，其行翻转可换回；不离开当前页。部署 index-DlbgP9dn.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375 × dashboard/builder × unset/other：点击后 URL 不变、qa-j1→qa-vB、两副本 forJob 俱在、行互换、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R639（#860）→ R640。
+
+## R641 — builder Target job：链接副本改指已有副本的职位 K 时补新副本替换动作（2026-09-06）
+- 生产实证（index-DlbgP9dn.js，qa/r622-evidence.cjs other）：J 链接副本 A 改指跟踪职位 K、K 已链接 B 时，文案「which already uses another copy. View it on the jobs board →」无任何动作；R622 的「Save as new copy for it」只在 K 无副本时出现。builder 侧最后一个「有事实无动作」分支。方案 docs/plan-r641-builder-retargeted-linked-copy-new-copy-replaces.md。
+- 修复（Builder.tsx）：按钮常驻，K 有副本时文案「Save as new copy and use it for that job instead」，同一 `saveDraftAsCopyFor`（createResumeVersion + setPipelineVersion，R619 盖 forJob，编辑器切到新副本）；A 仍链接 J，B 不删、保留 forJob=K，可在 K 卡片 Earlier 行 / 副本行换回。部署 index-BjgGSr5Z.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375 × other/nocopy：other 点击后 qa-j2→new、三副本俱在、active=new；nocopy 对照不变；无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R640（#861）→ R641。
+- 候选：dashboard Resume settings 同分支（J 链接副本改指有副本的 K）目前为不链接的「Save as new copy」，评估是否对齐为「…and use it for that job instead」。
