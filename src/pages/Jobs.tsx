@@ -63,11 +63,13 @@ import { matchReport, matchScore } from '@/lib/ats'
 import {
   createResumeVersion,
   emptyResume,
+  getActiveVersionId,
   listResumeVersions,
   loadResume,
   resumeHasContent,
   resumeToPlainText,
   saveResume,
+  saveResumeVersion,
   setActiveVersionId,
   syncActiveVersion,
   visibleResume,
@@ -185,7 +187,7 @@ export default function Jobs() {
   const [confirmBulkUntrack, setConfirmBulkUntrack] = useState(false)
   const [confirmTarget, setConfirmTarget] = useState<{
     job: JobListing
-    intent: 'target' | 'cover' | 'keywords'
+    intent: 'target' | 'cover' | 'keywords' | 'interview'
   } | null>(null)
   const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
   const [reportOpenId, setReportOpenId] = useState<string | null>(null)
@@ -548,6 +550,22 @@ export default function Jobs() {
   /** The job's linked copy, or an orphan copy already targeted at it. */
   const targetedCopyOf = (job: JobListing) => linkedVersion(job.id) ?? orphanTargetedCopy(job)
 
+  /** The editor holds a standalone draft (synced to no copy) with content, and this job already has a
+   * copy that would open over it — the one case where work is lost rather than cloned or re-aimed. */
+  const draftAtRisk = (job: JobListing) =>
+    getActiveVersionId() === null &&
+    resumeHasContent(loadResume() ?? emptyResume()) &&
+    targetedCopyOf(job) !== undefined
+
+  const keepDraftAsCopy = (): boolean => {
+    const draft = loadResume()
+    if (!draft) return true
+    if (saveResumeVersion(draft.targetRole || draft.contact.fullName || 'Untitled copy', draft))
+      return true
+    setStorageError(true)
+    return false
+  }
+
   /** Link this job to its existing targeted copy, or save a new copy of the current draft targeted at it. */
   const prepareTargetedCopy = (job: JobListing) => {
     const draft = loadResume() ?? emptyResume()
@@ -601,7 +619,14 @@ export default function Jobs() {
       prepareTargetedCopy(job)
   }
 
-  const targetResume = (job: JobListing, intent: 'target' | 'cover' | 'keywords') => {
+  const targetResume = (
+    job: JobListing,
+    intent: 'target' | 'cover' | 'keywords' | 'interview'
+  ) => {
+    if (intent === 'interview') {
+      openInterviewPrep(job)
+      return
+    }
     if (intent !== 'cover') {
       const dest = intent === 'keywords' ? '/builder?jump=target' : '/builder'
       if (
@@ -712,7 +737,10 @@ export default function Jobs() {
             ? 'Prepare for the interview while the application is fresh.'
             : 'Practice interview questions before the next round.',
         label: 'Open interview prep',
-        onClick: () => openInterviewPrep(job),
+        onClick: () =>
+          draftAtRisk(job)
+            ? setConfirmTarget({ job, intent: 'interview' })
+            : openInterviewPrep(job),
       }
     if (!linkedVersion(job.id))
       return {
@@ -1948,10 +1976,16 @@ export default function Jobs() {
             <DialogTitle>
               {confirmTarget?.intent === 'cover'
                 ? `Write a cover letter for "${confirmTarget.job.title}"?`
-                : `Open a resume targeted at "${confirmTarget?.job.title}"?`}
+                : confirmTarget?.intent === 'interview'
+                  ? `Open interview prep for "${confirmTarget.job.title}"?`
+                  : `Open a resume targeted at "${confirmTarget?.job.title}"?`}
             </DialogTitle>
             <DialogDescription>
-              {confirmTarget?.intent === 'cover'
+              {confirmTarget?.intent === 'interview'
+                ? linkedVersion(confirmTarget.job.id)
+                  ? 'This opens the resume copy targeted at this job in the editor, then opens interview prep for it.'
+                  : 'This opens the resume copy you already targeted at this job in the editor and links it to this job again, then opens interview prep for it.'
+                : confirmTarget?.intent === 'cover'
                 ? confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'This opens the resume copy targeted at this job in the editor, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
                   : confirmTarget && orphanTargetedCopy(confirmTarget.job)
@@ -1966,19 +2000,35 @@ export default function Jobs() {
                     : confirmTarget && !resumeHasContent(loadResume() ?? emptyResume())
                     ? "Your resume is still empty, so there's nothing to copy yet. This aims your draft at this posting and opens the editor so you can start writing — target the job again once your resume has content to save a copy."
                     : 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard) and opens it in the editor. Your current draft keeps its own target job.'}
+              {confirmTarget && draftAtRisk(confirmTarget.job)
+                ? " Your current draft isn't saved as a copy, so opening that copy replaces it."
+                : null}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => setConfirmTarget(null)}>
               Cancel
             </Button>
+            {confirmTarget && draftAtRisk(confirmTarget.job) && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  keepDraftAsCopy() && targetResume(confirmTarget.job, confirmTarget.intent)
+                }
+              >
+                Save draft as copy, then open
+              </Button>
+            )}
             <Button
               type="button"
               onClick={() => confirmTarget && targetResume(confirmTarget.job, confirmTarget.intent)}
             >
               {confirmTarget?.intent === 'cover'
                 ? 'Open cover letter tool'
-                : confirmTarget && linkedVersion(confirmTarget.job.id)
+                : confirmTarget?.intent === 'interview'
+                  ? 'Open interview prep'
+                  : confirmTarget && linkedVersion(confirmTarget.job.id)
                   ? 'Open targeted copy'
                   : confirmTarget && orphanTargetedCopy(confirmTarget.job)
                     ? 'Reconnect targeted copy'
