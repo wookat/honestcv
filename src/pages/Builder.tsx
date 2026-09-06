@@ -10042,7 +10042,7 @@ function BundleToolDialog({
   const [saveDocFailed, setSaveDocFailed] = useState(false)
   const [placeholderWarn, setPlaceholderWarn] = useState<'pdf' | 'docx' | 'txt' | null>(null)
   const [autoResult, setAutoResult] = useState('')
-  const [overwriteWarn, setOverwriteWarn] = useState<'generate' | 'template' | null>(null)
+  const [overwriteWarn, setOverwriteWarn] = useState<'generate' | 'template' | 'finish' | null>(null)
   const resultRef = useRef<HTMLTextAreaElement>(null)
 
   const applyResult = (text: string) => {
@@ -10191,7 +10191,7 @@ function BundleToolDialog({
       )
       .join('\n\n---\n\n')
     const report = sessionReport(entries, resume.jobDescription, resume.ignoredKeywords ?? [], resume.targetRole)
-    setResult(
+    applyResult(
       `Practice session — ${role}\n${entries.length} of ${s.questions.length} questions answered\n\n${report ? `${report}\n\n` : ''}${transcript}`
     )
     setSavedId(null)
@@ -10207,7 +10207,7 @@ function BundleToolDialog({
   const advanceSession = (s: PracticeSession) => {
     const entries = sessionEntries(s)
     if (s.idx + 1 >= s.questions.length) {
-      finishSession(s, entries)
+      requestOverwrite('finish')
       return
     }
     const next = { ...s, idx: s.idx + 1, entries }
@@ -10395,11 +10395,12 @@ function BundleToolDialog({
     else void runLetterDownload(fmt)
   }
   const resultEdited = result.trim() !== '' && result !== autoResult
-  const runOverwriteAction = (action: 'generate' | 'template') => {
+  const runOverwriteAction = (action: 'generate' | 'template' | 'finish') => {
     if (action === 'generate') void generate()
-    else insertTemplate()
+    else if (action === 'template') insertTemplate()
+    else if (session) finishSession(session, sessionEntries(session))
   }
-  const requestOverwrite = (action: 'generate' | 'template') => {
+  const requestOverwrite = (action: 'generate' | 'template' | 'finish') => {
     if (resultEdited) setOverwriteWarn(action)
     else runOverwriteAction(action)
   }
@@ -10452,11 +10453,13 @@ function BundleToolDialog({
           <DialogHeader>
             <DialogTitle>Replace your edited draft?</DialogTitle>
             <DialogDescription>
-              {`You've edited this ${kind === 'interview' ? 'prep sheet' : 'letter'} since it was ${
-                overwriteWarn === 'generate' ? 'written' : 'inserted'
-              }. ${
-                overwriteWarn === 'generate' ? 'Regenerating' : 'Starting from a template'
-              } will replace your edits with a new draft.`}
+              {overwriteWarn === 'finish'
+                ? `You've edited this ${kind === 'interview' ? 'prep sheet' : 'letter'}. Finishing the practice session will replace your edits with the session report.`
+                : `You've edited this ${kind === 'interview' ? 'prep sheet' : 'letter'} since it was ${
+                    overwriteWarn === 'generate' ? 'written' : 'inserted'
+                  }. ${
+                    overwriteWarn === 'generate' ? 'Regenerating' : 'Starting from a template'
+                  } will replace your edits with a new draft.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -11083,7 +11086,7 @@ function BundleToolDialog({
                       : 'Next question'}
                   </Button>
                   <Button
-                    onClick={() => finishSession(session, sessionEntries(session))}
+                    onClick={() => requestOverwrite('finish')}
                     disabled={feedbackBusy}
                     variant="outline"
                     className="min-h-10 sm:min-h-9"
