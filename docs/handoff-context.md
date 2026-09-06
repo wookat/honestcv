@@ -2148,3 +2148,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：新增 linkedDocCount（cover/interview/resignation 三 id 计数），setStatus('none') 守卫追加 linkedDocCount>0，确认弹窗文案如实列出「its link(s) to N saved documents」并说明文档保留但失去职位关联；bulk untrack/存储零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（index-D4i0-5V1.js）：1280 双文档条目弹窗列「2 saved documents」、Cancel 保留、确认后删除；无关联条目仍静默取消跟踪；375 单文档条目「1 saved document」单数正确、零溢出、存储回六键基线、零 AI 配额。
+
+## R583 — 批量取消跟踪弹窗如实披露文档关联损失（2026-09-06）
+- 一手证据（生产 CDP）：播种 2 条跟踪条目（1 条带 coverDocId+interviewDocId），bulk 选择 →「Untrack 2」→ 弹窗只提 timelines/notes，零字未提已链文档，确认后关联静默消失；R582 只修了单行路径，bulk 文案是静态字符串。方案：docs/plan-r583-bulk-untrack-linked-docs.md。
+- 修复仅 src/pages/Jobs.tsx：bulk 确认弹窗 description 汇总 visibleBulkIds 命中条目的 linkedDocCount，>0 时追加「their link(s) to N saved documents」+ 文档保留但失去关联说明；0 时原文案不变，流程/存储零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-BaygWKhQ.js）：1280 混合选择弹「links to 2 saved documents」、确认后 pipeline 清空且 2 份文档保留；无关联选择保持原文案；375 同文案、零溢出；存储回六键基线、零 AI 配额。

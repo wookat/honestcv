@@ -2095,8 +2095,14 @@ export default function Jobs() {
           <DialogHeader>
             <DialogTitle>{`Stop tracking ${visibleBulkIds.size} job${visibleBulkIds.size === 1 ? '' : 's'}?`}</DialogTitle>
             <DialogDescription>
-              This removes the selected jobs from your pipeline and deletes their application
-              timelines and notes. Targeted resume copies stay on your dashboard.
+              {(() => {
+                const docs = pipeline
+                  .filter((e) => visibleBulkIds.has(e.job.id))
+                  .reduce((n, e) => n + linkedDocCount(e), 0)
+                return docs > 0
+                  ? `This removes the selected jobs from your pipeline and deletes their application timelines, notes, and their link${docs > 1 ? 's' : ''} to ${docs} saved document${docs > 1 ? 's' : ''}. Targeted resume copies and saved documents stay, but documents lose their link to these jobs.`
+                  : 'This removes the selected jobs from your pipeline and deletes their application timelines and notes. Targeted resume copies stay on your dashboard.'
+              })()}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
