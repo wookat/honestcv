@@ -76,6 +76,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
 import { prefersReducedMotion } from '@/lib/motion'
+import { cn } from '@/lib/utils'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
   FreeDownloadDialog,
@@ -262,6 +263,7 @@ import {
   deleteLibrarySummary,
   type SavedSummary,
   recordResumeSnapshot,
+  restoreResumeVersion,
   type ResumeSnapshot,
   resumeHasContent as draftHasContent,
   resumeToPlainText,
@@ -1222,6 +1224,51 @@ export default function Builder() {
   )
   const [confirmDeleteCopy, setConfirmDeleteCopy] = useState<ResumeVersion | null>(null)
   const [confirmOpenCopy, setConfirmOpenCopy] = useState<ResumeVersion | null>(null)
+  const [undoDeleteCopy, setUndoDeleteCopy] = useState<{
+    version: ResumeVersion
+    index: number
+    wasActive: boolean
+  } | null>(null)
+  useEffect(() => {
+    if (!undoDeleteCopy) return
+    const t = setTimeout(() => setUndoDeleteCopy(null), 10000)
+    return () => clearTimeout(t)
+  }, [undoDeleteCopy])
+  /** Shown inside the copies dialog while it is open, otherwise as a bottom toast. */
+  const undoCopyBar = (inDialog: boolean) =>
+    undoDeleteCopy && (
+    <div
+      role="status"
+      className={cn(
+        'bg-background pointer-events-auto flex min-w-0 max-w-full items-center gap-3 rounded-lg border p-3 text-sm',
+        inDialog ? 'w-full' : 'w-fit shadow-lg'
+      )}
+    >
+      <span className="min-w-0 flex-1 truncate">Deleted "{undoDeleteCopy.version.name}"</span>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => {
+          const { version, index, wasActive } = undoDeleteCopy
+          if (!applyVersions(restoreResumeVersion(version, index))) return
+          if (wasActive && activeVersionId === null) linkVersion(version.id)
+          setUndoDeleteCopy(null)
+        }}
+      >
+        <Undo2 className="size-4" />
+        Undo
+      </Button>
+      <button
+        type="button"
+        aria-label="Dismiss"
+        className="text-muted-foreground hover:text-foreground"
+        onClick={() => setUndoDeleteCopy(null)}
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  )
   const openCopy = (v: ResumeVersion) => {
     linkVersion(v.id)
     setResume({ ...emptyResume(), ...v.data })
@@ -8228,6 +8275,7 @@ export default function Builder() {
 
       {/* Bottom status bars stack so concurrent notices stay readable */}
       <div className="pointer-events-none fixed inset-x-4 bottom-16 z-50 flex flex-col items-center gap-2 lg:bottom-4">
+        {!versionsOpen && undoCopyBar(false)}
         {storageAlert && (
           <div
             role="alert"
@@ -9179,6 +9227,7 @@ export default function Builder() {
               Not saved — your browser storage is full. Free up space and try again.
             </p>
           )}
+          {undoCopyBar(true)}
           {versions.length === 0 ? (
             <p className="text-muted-foreground text-sm">No saved copies yet.</p>
           ) : (
@@ -9397,9 +9446,13 @@ export default function Builder() {
               onClick={() => {
                 const v = confirmDeleteCopy
                 setConfirmDeleteCopy(null)
-                if (!v || !applyVersions(deleteResumeVersion(v.id))) return
+                if (!v) return
+                const index = versions.findIndex((x) => x.id === v.id)
+                if (!applyVersions(deleteResumeVersion(v.id))) return
                 revokeShareLinksFor([v.id])
-                if (v.id === activeVersionId) linkVersion(null)
+                const wasActive = v.id === activeVersionId
+                if (wasActive) linkVersion(null)
+                setUndoDeleteCopy({ version: v, index: Math.max(index, 0), wasActive })
               }}
             >
               Delete
