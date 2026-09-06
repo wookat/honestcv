@@ -1970,3 +1970,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅六处信件正则上限 60→120（Dashboard.tsx countLetterPlaceholders/firstLetterPlaceholder/jumpToNextPlaceholder + Builder.tsx BundleToolDialog 同名三处）；简历侧扫描（Builder 下载检查、guidance.ts 一致性扫描）保持 60 不动；模板文本/导出/计数 UI 零改动。
 - tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280/375 cover 模板报「5 placeholders left」且 Next placeholder 依次选中全部 5 个（含两个长槽）；resignation（未填 last day）报 3 与实际一致；零溢出；QA 存储清理回六键基线。
+
+## R554 — 信件 Preview 高亮未填占位符（2026-08-31）
+- 一手证据（生产 CDP）：/documents 自家文案承诺「placeholders show exactly what to fill in」，但保存的 cover 信 viewer Preview 页把 [role]/[Company]/[One sentence…] 等 10 个占位符渲染为普通正文（<p class="whitespace-pre-wrap"> 纯文本），信头排版下与正文完全融合；Preview 页同时隐藏计数条与「Next placeholder」，预览面完全无「还差什么」信号。Rezi 模板流程对填空槽有视觉标记。方案：docs/plan-r554-preview-placeholder-highlight.md。
+- 修复仅 Dashboard.tsx LetterPreview：新增 highlightPlaceholders(text)（按 R553 同款 /(\[[^\][\n]{1,120}\])/ 分割，命中段包 <mark> 琥珀高亮，信纸恒白底故固定 amber-100/amber-900），签名前后两处段落 map 均套用；示例预览（同组件）自动受益。导出/计数/Edit 页/Builder 弹窗零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 viewer Preview 各渲染 10 个 <mark> 占位符高亮（含长槽）、零溢出零 console 错误；QA 存储清理回六键基线。

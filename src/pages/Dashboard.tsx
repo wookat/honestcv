@@ -116,6 +116,18 @@ const editedAgo = (ms: number) => {
   return days === 1 ? 'Edited 1 day ago' : `Edited ${days} days ago`
 }
 
+function highlightPlaceholders(text: string) {
+  return text.split(/(\[[^\][\n]{1,120}\])/g).map((part, i) =>
+    part.startsWith('[') && part.endsWith(']') ? (
+      <mark key={i} className="rounded-sm bg-amber-100 px-0.5 text-amber-900">
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  )
+}
+
 /** Formatted letter preview mirroring the letterhead PDF/DOCX export. */
 function LetterPreview({
   doc,
@@ -172,7 +184,7 @@ function LetterPreview({
       ) : (
         paragraphs.map((p, i) => (
           <p key={i} className="mt-4 whitespace-pre-wrap">
-            {p}
+            {highlightPlaceholders(p)}
           </p>
         ))
       )}
@@ -181,7 +193,7 @@ function LetterPreview({
       )}
       {afterParagraphs.map((p, i) => (
         <p key={`after-${i}`} className="mt-2 whitespace-pre-wrap">
-          {p}
+          {highlightPlaceholders(p)}
         </p>
       ))}
     </div>
