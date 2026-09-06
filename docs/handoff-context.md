@@ -1594,6 +1594,13 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R518 — /ats-checker 首次检查假「Fixed since last check」徽章（2026-08-31，SOP-10 节点）
+- 四维复扫：7 路由双视口零溢出；Rezi changelog（rezi.ai/rezi-changelog）无新可落地缺口；生产 /ats-checker 真实报告链实测中发现缺口。
+- 一手证据（生产 CDP，全新存储）：粘贴简历+JD 后首次点 Check，「Punctuated bullet points」旁即出现「Fixed since last check」——用户从未做过上一次检查。根因：评分输入走 useDeferredValue（R406 防卡键），点击后第一帧用过期 deferred 文本算出瞬态报告，effect 无条件把它写入 prevScanRef 基线；deferred 追平后真实报告与假基线对比，「部分文本 fail→完整文本 pass」的检查项全被误标已修复。
+- 修复仅 AtsChecker.tsx：fixedChecks effect 加瞬态守卫——scored 值与当前输入不一致时直接 return（不更新基线/徽章），deps 补齐四值。方案：docs/plan-r518-ats-checker-false-fixed-chips.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：全新存储首次检查 0 徽章（原稳定复现 1 枚）；真实修复（两 bullet 补句号+首字母）后重查恰 1 枚徽章挂在 Punctuated bullet points（语义回归）；375px 零溢出；QA 后存储清理。
+
 ## R517 — 工作台路由 raw shell 静态渲染真实页头（2026-08-31）
 - 一手证据（生产 Lighthouse）：R513–R516 后主要路由 CLS 全 0；/jobs、/dashboard、/samples、/documents 的 LCP 元素均为路由副标题段落（TTFB ~34–50ms、element render delay ~0.54–0.74s）——静态文案却要等 JS 水合才首绘。/builder TBT ~1540ms 为更大架构项，本轮明确不做（入银行）。方案：docs/plan-r517-route-header-first-paint-lcp.md。
 - 修复两处：scripts/prerender.mjs 往 spa.html 注入 `meta name="route-headers"`（4 路由 h1+sub 映射，含 /jobs 的 Remotive 外链原样保留；' 与 < 实体转义保证属性安全，构建期校验 h1 与 src/pages 一致、占位注释存在）；worker applyRouteHeader() 对已知路由把骨架顶部灰条替换为真实 h1+副标题（内联样式匹配水合几何），未知路由/404/builder 保持通用骨架。

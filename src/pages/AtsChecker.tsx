@@ -197,6 +197,9 @@ export default function AtsChecker() {
   const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
   useEffect(() => {
     if (!result) return
+    // Deferred inputs lag the textareas; a result scored from stale text is
+    // transient and must not become the fixed-since-last-check baseline.
+    if (scoredResumeText !== resumeText || scoredJd !== jd) return
     const prev = prevScanRef.current
     prevScanRef.current = new Map(result.checks.map((c) => [c.label, c.pass]))
     setFixedChecks(
@@ -208,7 +211,7 @@ export default function AtsChecker() {
           )
         : new Set()
     )
-  }, [result])
+  }, [result, scoredResumeText, resumeText, scoredJd, jd])
 
   const jdSegments = useMemo(
     () =>
