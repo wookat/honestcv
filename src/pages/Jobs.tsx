@@ -74,6 +74,7 @@ import {
 } from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
 import {
+  type Resume,
   type ResumeVersion,
   createResumeVersion,
   emptyResume,
@@ -212,10 +213,16 @@ export default function Jobs() {
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(new Set())
   const [confirmBulkUntrack, setConfirmBulkUntrack] = useState(false)
-  const [confirmTarget, setConfirmTarget] = useState<{
+  const [confirmTarget, setConfirmTargetState] = useState<{
     job: JobListing
     intent: 'target' | 'cover' | 'keywords' | 'interview'
   } | null>(null)
+  /** Saved copy chosen in the confirm dialog as the source of a new targeted copy; null = what is open in the editor. */
+  const [copySourceId, setCopySourceId] = useState<string | null>(null)
+  const setConfirmTarget = (next: typeof confirmTarget) => {
+    setConfirmTargetState(next)
+    setCopySourceId(null)
+  }
   const [notesDraft, setNotesDraft] = useState<{ jobId: string; text: string } | null>(null)
   const [reportOpenId, setReportOpenId] = useState<string | null>(null)
   const [reportKwExpandedId, setReportKwExpandedId] = useState<string | null>(null)
@@ -791,9 +798,37 @@ export default function Jobs() {
     return false
   }
 
-  /** Link this job to its existing targeted copy, or save a new copy of the current draft targeted at it. */
-  const prepareTargetedCopy = (job: JobListing) => {
-    const draft = loadResume() ?? emptyResume()
+  /** The confirm dialog's primary action will mint a new targeted copy (no copy for this job yet, editor has content). */
+  const newCopyPending = (job: JobListing, intent: 'target' | 'cover' | 'keywords' | 'interview') =>
+    (intent === 'target' || intent === 'cover') &&
+    !targetedCopyOf(job) &&
+    resumeHasContent(loadResume() ?? emptyResume())
+
+  /** What the new copy is derived from: the editor (a copy or a standalone draft) or a saved copy picked in the dialog. */
+  const copySourceText = () => {
+    const versions = listResumeVersions()
+    const picked = copySourceId ? versions.find((v) => v.id === copySourceId) : undefined
+    if (picked) return `“${picked.name}”`
+    const active = versions.find((v) => v.id === getActiveVersionId())
+    if (!active) return 'your current draft'
+    const tracked = pipeline.find((e) => e.resumeVersionId === active.id)
+    return `“${active.name}” (the copy open in the editor${
+      tracked ? `, your copy for “${tracked.job.title}” at ${tracked.job.company}` : ''
+    })`
+  }
+
+  /** Saved copies with content that can be the source of a new targeted copy instead of the editor. */
+  const copySourceOptions = () => {
+    const activeId = getActiveVersionId()
+    return listResumeVersions().filter((v) => v.id !== activeId && resumeHasContent(v.data))
+  }
+
+  const pickedSource = (): Resume | undefined =>
+    copySourceId ? listResumeVersions().find((v) => v.id === copySourceId)?.data : undefined
+
+  /** Link this job to its existing targeted copy, or save a new copy (of the editor's resume, or `source`) targeted at it. */
+  const prepareTargetedCopy = (job: JobListing, source?: Resume) => {
+    const draft = source ?? loadResume() ?? emptyResume()
     const version =
       orphanTargetedCopy(job) ??
       createResumeVersion(
@@ -872,7 +907,7 @@ export default function Jobs() {
         void navigate(dest)
         return
       }
-      const version = linkedVersion(job.id) ?? prepareTargetedCopy(job)
+      const version = linkedVersion(job.id) ?? prepareTargetedCopy(job, pickedSource())
       if (!version) return
       saveResume(version.data)
       setActiveVersionId(version.id)
@@ -881,7 +916,8 @@ export default function Jobs() {
     }
     const draft = loadResume() ?? emptyResume()
     const version =
-      targetedCopyOf(job) ?? (resumeHasContent(draft) ? prepareTargetedCopy(job) : null)
+      targetedCopyOf(job) ??
+      (resumeHasContent(draft) ? prepareTargetedCopy(job, pickedSource()) : null)
     if (version) {
       saveResume(version.data)
       setActiveVersionId(version.id)
@@ -2287,7 +2323,7 @@ export default function Jobs() {
                   : confirmTarget && orphanTargetedCopy(confirmTarget.job)
                     ? 'This opens the resume copy you already targeted at this job in the editor and links it to this job again, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
                     : confirmTarget && resumeHasContent(loadResume() ?? emptyResume())
-                      ? 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard), opens it in the editor, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.'
+                      ? `This saves a copy of ${copySourceText()} targeted at this posting (filed under “Job applications” on your dashboard), opens it in the editor, then opens the cover letter tool pre-filled for this company. Your other resumes keep their own target jobs.`
                       : "This sets the job title and description on your current draft so the ATS score and AI tailoring in the editor aim at this posting, then opens the cover letter tool pre-filled for this company. It replaces the draft's current target job, if any. The job is saved to your tracked applications so the letter stays linked to it."
                 : confirmTarget && retargetedLinkedText(confirmTarget.job)
                   ? `${retargetedLinkedText(confirmTarget.job)}.`
@@ -2297,7 +2333,7 @@ export default function Jobs() {
                     ? 'You already saved a copy of your resume targeted at this job — the editor opens that copy and links it to this job again. Your other resumes keep their own target jobs.'
                     : confirmTarget && !resumeHasContent(loadResume() ?? emptyResume())
                     ? "Your resume is still empty, so there's nothing to copy yet. This aims your draft at this posting and opens the editor so you can start writing — target the job again once your resume has content to save a copy."
-                    : 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard) and opens it in the editor. Your current draft keeps its own target job.'}
+                    : `This saves a copy of ${copySourceText()} targeted at this posting (filed under “Job applications” on your dashboard) and opens it in the editor. Your current draft keeps its own target job.`}
               {confirmTarget && draftAtRisk(confirmTarget.job)
                 ? " Your current draft isn't saved as a copy, so opening that copy replaces it."
                 : null}
@@ -2310,6 +2346,29 @@ export default function Jobs() {
                 : null}
             </DialogDescription>
           </DialogHeader>
+          {confirmTarget &&
+            newCopyPending(confirmTarget.job, confirmTarget.intent) &&
+            copySourceOptions().length > 0 && (
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">Copy from</span>
+                <select
+                  value={copySourceId ?? ''}
+                  onChange={(e) => setCopySourceId(e.target.value || null)}
+                  className="border-input bg-background h-10 w-full rounded-md border px-2 text-sm"
+                >
+                  <option value="">
+                    {getActiveVersionId()
+                      ? `${listResumeVersions().find((v) => v.id === getActiveVersionId())?.name ?? 'Copy'} (open in the editor)`
+                      : 'Your current draft (open in the editor)'}
+                  </option>
+                  {copySourceOptions().map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => setConfirmTarget(null)}>
               Cancel
