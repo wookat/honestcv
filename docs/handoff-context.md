@@ -2525,3 +2525,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（index-DoQxTL4K.js，qa/r654-evidence.cjs 全路由逐 300px 滚动跑 axe color-contrast 只查 header）：SPA `Layout.tsx` 与静态页 `build-seo.mjs header.site` 都是 85% 背景 + blur；1280 `/pricing/` y=300/600 导航 `ATS Checker`/`Pricing` 3.87:1、`/dashboard` 空态叠渐变时 `by Zalize` 4.3:1；页顶 6.0 通过，故 R648 页顶 axe 未发现。
 - 修复：两处 85% → 95%（推算任意下层含纯黑均 ≥5.0）；builder 内区段导航同 85% 但未见失败，未改。
 - 生产 QA（qa/r654-verify.cjs before/after，ALL PASS）：最低对比 3.87→4.84、4.3→5.02，375/页顶/暗色全 ≥4.5，alpha 0.95 仍半透明，无溢出、零 console 错误。部署 index-BooZ5OSm.js；Workers Routes code 10000 依旧。
+
+### R655 — 示例卡片角色名按钮 302×20 → 小屏 40px（PR 待填，链 #875 → 本 PR）
+- 生产实证（index-BooZ5OSm.js，qa/r655-sweep.cjs 逐 400px 滚动累计 axe）：`/samples`、`/dashboard` Samples 区角色名按钮 302×20 是本仓首个 axe 真 fail 的 target-size（非句内文本无豁免），R648 页顶单次 axe 看不到。Star 已 40×40；sweep 的「partially obscured」为粘性页头步长伪影。
+- 修复：Dashboard.tsx 一处 `-my-2.5 py-2.5 sm:my-0 sm:py-0`。生产 QA before/after（qa/r655-verify.cjs，ALL PASS）：375 40px 命中、文字/行业行/卡片高度不变；1280 不变；Samples 区 axe 0；预览弹窗打开/Esc 焦点归还正常。部署 index-DaRDVKBP.js；Workers Routes code 10000 依旧。
+- 后续候选：`/ats-checker` FAQ `<summary>` 294×20；builder「+ 关键词」芯片 22px（axe 间距豁免通过）。审计方法升级：SOP-10 节点应改为逐屏滚动累计 axe，而非仅页顶。

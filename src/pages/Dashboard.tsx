@@ -2071,7 +2071,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                         <button
                           type="button"
                           onClick={() => setPreviewExample(e)}
-                          className="block w-full cursor-pointer truncate text-left text-sm font-medium hover:underline"
+                          className="-my-2.5 block w-full cursor-pointer truncate py-2.5 text-left text-sm font-medium hover:underline sm:my-0 sm:py-0"
                         >
                           {e.role}
                         </button>
