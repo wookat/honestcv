@@ -2466,4 +2466,4 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产实证（qa/r612-evidence.cjs copy）：文档被点名可 Open，孤儿副本只在按钮上以「Reconnect targeted copy」出现，名字不出现；保存职位/任一状态芯片会重连它（R589/R590）却无处告知。方案 docs/plan-r643-untracked-panel-names-orphan-copy.md。
 - 修复（Jobs.tsx `writtenDocsNote`）：句首加「targeted resume “<name>”」（无 Open，避开替换草稿），them/it 计数含副本；仅有副本无文档也显示。部署 index-C-RldWYT.js。
 - 生产 QA 1280+375：copy / copyonly / docs / control 四态如预期，无溢出、零 console 错误、零 AI 调用、存储回基线。
-- QA 基建：生产有 service worker，QA 浏览器此前会拿到旧 shell（R607「需二次部署」的真因）；qa/lib.cjs 加 `Network.setBypassServiceWorker`。PR 链：R642（#863）→ R643。
+- QA 基建：生产有 service worker，QA 浏览器曾在 curl 已返回新 bundle 时仍拿到旧 shell（疑与 R607「需二次部署」同因，推断；加 bypass 后即拿到新 bundle）；qa/lib.cjs 加 `Network.setBypassServiceWorker`。PR 链：R642（#863）→ R643。

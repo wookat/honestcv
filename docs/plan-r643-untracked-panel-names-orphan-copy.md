@@ -21,4 +21,4 @@ index-C-RldWYT.js。copy：「Written for this job earlier: targeted resume Sale
 
 ## QA 基建修正
 
-QA 浏览器此前只禁用了 HTTP cache；生产注册了 service worker（/sw.js），首访仍拿到 SW 缓存的旧 shell（curl 已是新 bundle）——R607 记录的「需二次部署」实为此。qa/lib.cjs 现加 `Network.setBypassServiceWorker`，QA 打印的 bundle 名以此为准。
+QA 浏览器此前只禁用了 HTTP cache；生产注册了 service worker（/sw.js），首访仍拿到旧 shell（curl 已是新 bundle）；SW 导航为 network-first，具体链路未定位，疑与 R607「需二次部署」同因（推断）。qa/lib.cjs 现加 `Network.setBypassServiceWorker`，QA 打印的 bundle 名以此为准。
