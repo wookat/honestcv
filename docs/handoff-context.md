@@ -1799,3 +1799,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：replaceWithExample() 在替换时保留 cur.targetRole / targetCompany / jobDescription（存在才保留，与既有 templateId 保留同款写法）；exampleToResume、导入、替换确认规则零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（index-D743uEua.js）：全新存储 /jobs Target 空草稿→向导选 Software Engineer 示例→target 三元组完整保留（Freelance Copywriter|Coalition Technologies|2783）+示例内容就位；无 target 时 ?example=software-engineer 深链→target 保持空；375px 种子 target + ?example=data-analyst 深链→QA Role|QA Co|12 保留、零溢出；零 console 错误、QA 后合成存储全清。
+
+## R526 — 跟踪队列按职位/公司即时过滤（2026-08-31）
+- 审计先如实驳回一条伪缺口（空态角色选择疑似丢 target，纠正探针后确认 target 三元组完整保留，非缺陷）。一手证据（生产 CDP）：种 25 条 pipeline 后 ?tab=tracked 无任何可见搜索/过滤输入（rows 25 / inputs visible NONE），All 标签的搜索与筛选不作用于 Tracked。对照 Rezi：其近期公开更新强调 tracked 职位的可见性。方案：docs/plan-r526-tracked-queue-filter.md。
+- 修复仅 src/pages/Jobs.tsx：trackedFilter 瞬态状态 + bulk 操作行内 type=search 输入，大小写不敏感匹配 job.title/job.company，与 followUpOnly 组合；分组保持状态排序与组内新→旧；新增 shownCounts 使组头计数如实反映可见行；无命中出诚实空态「No tracked jobs match "…"」+ Clear filter；不入 URL、不动 All 标签/bulk/详情栏/存储。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：桌面 10 条种子——全量 5 组各 (2)、filter acme→2 行仅 Saved (2)、"data analyst"→2 行 Applied (2)、zzznothing→0 行+空态+Clear filter 恢复 10 行；375px 输入可见、globex→2 行、双状态零水平溢出；零 console 错误、QA 后合成存储全清。

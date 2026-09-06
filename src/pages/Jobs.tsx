@@ -159,6 +159,7 @@ export default function Jobs() {
   // dead link says so instead of silently showing an unrelated job.
   const [pendingSeedJob, setPendingSeedJob] = useState(() => seedParams.get('job'))
   const [jobLinkNotFound, setJobLinkNotFound] = useState(false)
+  const [trackedFilter, setTrackedFilter] = useState('')
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(new Set())
   const [confirmBulkUntrack, setConfirmBulkUntrack] = useState(false)
@@ -321,18 +322,20 @@ export default function Jobs() {
   const loc = locationFilter.trim().toLowerCase()
   /** Whole application queue, grouped saved → applied → interviewing → offer → rejected,
    *  most recently updated first within a group. */
-  const trackedQueue = useMemo(
-    () =>
-      JOB_STATUSES.flatMap((s) =>
-        pipeline
-          .filter(
-            (e) => e.status === s && (!followUpOnly || staleDays(e) !== null || reminderDue(e))
-          )
-          .sort((a, b) => b.updatedAt - a.updatedAt)
-          .map((e) => e.job)
-      ),
-    [pipeline, followUpOnly]
-  )
+  const trackedQueue = useMemo(() => {
+    const needle = trackedFilter.trim().toLowerCase()
+    return JOB_STATUSES.flatMap((s) =>
+      pipeline
+        .filter(
+          (e) =>
+            e.status === s &&
+            (!followUpOnly || staleDays(e) !== null || reminderDue(e)) &&
+            (!needle || `${e.job.title} ${e.job.company}`.toLowerCase().includes(needle))
+        )
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map((e) => e.job)
+    )
+  }, [pipeline, followUpOnly, trackedFilter])
   const base: JobListing[] =
     tab === 'all'
       ? jobs
@@ -399,6 +402,17 @@ export default function Jobs() {
   const shown = [...applySort(directMatches), ...sortedAnywhere]
   /** Index of the first location-agnostic result when the location input splits the list. */
   const anywhereStart = sortedAnywhere.length > 0 ? shown.length - sortedAnywhere.length : -1
+  /** Rows actually listed per status group, so headers stay honest under filters. */
+  const shownCounts = (() => {
+    const c: Record<JobStatus, number> = { saved: 0, applied: 0, interviewing: 0, offer: 0, rejected: 0 }
+    if (tab === 'tracked') {
+      for (const j of shown) {
+        const s = statusOf.get(j.id)
+        if (s) c[s]++
+      }
+    }
+    return c
+  })()
   const selected =
     shown.find((j) => j.id === selectedId) ??
     jobs.find((j) => j.id === selectedId) ??
@@ -864,6 +878,14 @@ export default function Jobs() {
             role="group"
             aria-label="Bulk actions on tracked jobs"
           >
+            <input
+              type="search"
+              value={trackedFilter}
+              onChange={(e) => setTrackedFilter(e.target.value)}
+              placeholder="Filter by title or company"
+              aria-label="Filter tracked jobs by title or company"
+              className="border-input bg-background min-h-10 w-52 rounded-md border px-3 py-1 text-xs sm:min-h-8"
+            />
             {(attentionCount(pipeline) > 0 || followUpOnly) && (
               <button
                 type="button"
@@ -1050,6 +1072,21 @@ export default function Jobs() {
                     Clear search & filters
                   </Button>
                 </div>
+              ) : tab === 'tracked' && trackedFilter.trim() ? (
+                <div className="p-4 text-sm">
+                  <p className="text-muted-foreground">
+                    No tracked jobs match &ldquo;{trackedFilter.trim()}&rdquo;.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => setTrackedFilter('')}
+                  >
+                    Clear filter
+                  </Button>
+                </div>
               ) : (
               <p className="text-muted-foreground p-4 text-sm">
                 {tab === 'all'
@@ -1075,7 +1112,7 @@ export default function Jobs() {
                       )}
                       {tab === 'tracked' && status && status !== statusOf.get(shown[i - 1]?.id ?? '') && (
                         <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
-                          {JOB_STATUS_LABELS[status]} ({counts[status]})
+                          {JOB_STATUS_LABELS[status]} ({shownCounts[status]})
                         </p>
                       )}
                       <div
