@@ -10903,7 +10903,7 @@ function BundleToolDialog({
                     if (!doc) return
                     if (kind === 'cover' && jobId) setPipelineCoverDoc(jobId, doc.id)
                     if (kind === 'interview' && jobId) setPipelineInterviewDoc(jobId, doc.id)
-          if (kind === 'resignation' && jobId) setPipelineResignationDoc(jobId, doc.id)
+                    if (kind === 'resignation' && jobId) setPipelineResignationDoc(jobId, doc.id)
                     setSavedId(doc.id)
                     setSavedText(result)
                   }
