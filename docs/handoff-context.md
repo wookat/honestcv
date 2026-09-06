@@ -2160,3 +2160,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Dashboard.tsx：confirmDeleteDoc 弹窗 description 命中 jobByDoc 时追加「It's linked to your tracked <title> application at <company>; that application loses this document.」；无关联原文案不变，删除/Undo 流程零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（index-GapHqH9P.js）：1280 已链文档弹披露文案、确认删除后 Undo 恢复且关联回归、无关联文档保持原文案；375 同文案零溢出；存储回六键基线、零 AI 配额。
+
+## R585 — 删除简历副本弹窗如实披露职位关联（2026-08-31）
+- 一手证据（生产 CDP）：已链 resumeVersionId 的 targeted copy 在 /dashboard 点 Delete，弹窗只说「removes the copy from this browser permanently」，零字未提这是某跟踪申请的目标简历，确认后申请静默失去简历/match%/报告基础；R584 修了文档方向，副本是最后一个静默删除的已链工件。方案：docs/plan-r585-delete-copy-job-link.md。
+- 修复仅 src/pages/Dashboard.tsx：confirmDelete 弹窗 description 命中 jobByVersion 时追加「It's the targeted resume for your tracked <title> application at <company>; that application loses this resume.」，share-link 句保留在后；无关联原文案不变，删除/Undo 流程零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-BmZm-ZJL.js）：1280 已链副本弹披露、无关联副本原文案；375 同文案零溢出；存储回六键基线、零 AI 配额。

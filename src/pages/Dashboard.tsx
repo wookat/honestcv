@@ -2750,6 +2750,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             <DialogTitle>Delete "{confirmDelete?.name}"?</DialogTitle>
             <DialogDescription>
               This removes the copy from this browser permanently.
+              {confirmDelete && jobByVersion.has(confirmDelete.id)
+                ? ` It's the targeted resume for your tracked ${jobByVersion.get(confirmDelete.id)!.job.title} application at ${jobByVersion.get(confirmDelete.id)!.job.company}; that application loses this resume.`
+                : ''}
               {confirmDelete && hasShareLink(confirmDelete.id)
                 ? ' Its public share link will also be turned off.'
                 : ''}
