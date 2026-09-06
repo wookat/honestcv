@@ -2547,3 +2547,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复：index.css `html{scroll-padding-top:4rem}` / `html:has([data-sticky-subnav]){7rem}` / `<1024px html:has([data-pane-switcher]){scroll-padding-bottom:5rem}`；Builder/Dashboard 既有 scroll-mt 减去同量（区段 112、#documents 80 落点不变）；builder 底部留白由 main pb-20 移到页脚外层 pb-14（页高不变）。方案 docs/plan-r658-focus-not-obscured-sticky-bars.md。
 - 生产 QA（qa/r658-verify.cjs after，index-CplAcj51.js）：375/1280 三路由 Shift+Tab / Tab 被遮焦点 0；jump 落点 112、#documents 80 不变；页脚 24/24 可达；scrollHeight 逐一不变；axe 0、无溢出、零 console 错误、存储回基线。Workers Routes code 10000 依旧。
 - 未处理：1280 builder 正向 Tab 进入预览列「Edit text」span 时其在视口外（`lg:sticky` 预览列高于视口，浏览器无法滚入）——R659 候选。
+
+### R659 — builder 桌面预览列改为自滚动容器（链 #879 → 本 PR）
+- 生产实证（index-CplAcj51.js，qa/r659-scroll.cjs / r659-verify.cjs before）：1280×812 与 1440×900 下 `#preview`（lg:sticky top-20）列高 2744 > 视口；scrollY 0–~1700 期间粘性固定，ATS「See full score breakdown」停在 y=930、缺失关键词卡 2008–2774 全程视口外不动——编辑时看不到 ATS 细节与关键词面板；滚轮悬停预览列只滚页面（scrollY 900 / 列 scrollTop 0）；Tab 走完预览列 139 站有 3 站焦点在视口外（粘性元素不随窗口滚动移动，WCAG 2.4.11/2.4.12，R658 遗留）。
+- 修复：`#preview` 加 `lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:[scrollbar-width:thin]` + `print:max-h-none print:overflow-visible`（`#preview` 是 `[data-resume-preview]` 祖先，print 不得裁剪）。375 与左列不变。方案 docs/plan-r659-builder-preview-column-own-scroll.md。
+- 生产 QA（qa/r659-verify.cjs after，index-Dx3_79Ar.js）：1280 列底 797≤812、overflow auto、滚轮 600 → scrollY 0 / scrollTop 600、score 按钮 y=331 命中；Tab 139 站视口外 0；print 媒体 max-height none/overflow visible；列内无绝对定位后代越界；375 预览面板 static/none/visible 不变；1280/375/1440 axe 0、无溢出、零 console 错误、存储回基线。Workers Routes code 10000 依旧。
