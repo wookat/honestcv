@@ -826,6 +826,14 @@ export default function Jobs() {
   const pickedSource = (): Resume | undefined =>
     copySourceId ? listResumeVersions().find((v) => v.id === copySourceId)?.data : undefined
 
+  /** The copy open in the editor is tailored to a different job, so it is no base for an automatic copy of this one. */
+  const editorCopyAimedElsewhere = (job: JobListing): ResumeVersion | undefined => {
+    const active = listResumeVersions().find((v) => v.id === getActiveVersionId())
+    return active && active.data.targetRole.trim() !== '' && !copyTargetsJob(active.data, job)
+      ? active
+      : undefined
+  }
+
   /** Link this job to its existing targeted copy, or save a new copy (of the editor's resume, or `source`) targeted at it. */
   const prepareTargetedCopy = (job: JobListing, source?: Resume) => {
     const draft = source ?? loadResume() ?? emptyResume()
@@ -875,7 +883,9 @@ export default function Jobs() {
     if (
       !linkedVersion(job.id) &&
       (orphanTargetedCopy(job) ||
-        (status === 'saved' && resumeHasContent(loadResume() ?? emptyResume())))
+        (status === 'saved' &&
+          resumeHasContent(loadResume() ?? emptyResume()) &&
+          !editorCopyAimedElsewhere(job)))
     )
       prepareTargetedCopy(job)
   }
@@ -1023,8 +1033,15 @@ export default function Jobs() {
               ? setConfirmTarget({ job: aimed.job, intent: 'keywords' })
               : targetResume(aimed.job, 'keywords'),
         }
+      const elsewhere = editorCopyAimedElsewhere(job)
       return {
-        text: 'Create a resume targeted at this job.',
+        text: elsewhere
+          ? `Create a resume targeted at this job — the editor holds “${elsewhere.name}”, ${
+              pipeline.some((e) => e.resumeVersionId === elsewhere.id)
+                ? `your copy for ${copyTargetText(elsewhere)}`
+                : `aimed at ${copyTargetText(elsewhere)}`
+            }, so choose what to copy from.`
+          : 'Create a resume targeted at this job.',
         label: 'Target my resume',
         onClick: () => setConfirmTarget({ job, intent: 'target' }),
       }
