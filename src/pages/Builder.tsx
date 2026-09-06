@@ -165,6 +165,7 @@ import {
   updateCareerDoc,
 } from '@/lib/documents'
 import {
+  type JobListing,
   copyKeepsProvenance,
   copyTargetsJob,
   jobLinksLiveCopy,
@@ -194,6 +195,7 @@ import {
   type Resume,
   type ResumeVersion,
   aiTargetRole,
+  createResumeVersion,
   deleteResumeVersion,
   EXPERIENCE_LEVELS,
   EXPERIENCE_LEVEL_LABELS,
@@ -324,6 +326,8 @@ import {
 
 const LIBRARY_STORAGE_FULL_MSG =
   'Not saved to your library — your browser storage is full. Free up space and try again.'
+const COPY_STORAGE_FULL_MSG =
+  'Not saved — your browser storage is full. Free up space and try again.'
 const HISTORY_STORAGE_FULL_MSG =
   'Not restored — your browser storage is full, so a checkpoint of the current draft could not be saved first. Free up space and try again.'
 
@@ -1261,10 +1265,35 @@ export default function Builder() {
   const linkCopyToTargetedJob = () => {
     if (!activeVersionId || !targetedTrackedJob) return
     if (setPipelineVersion(targetedTrackedJob.id, activeVersionId) === null) {
-      setCopyStorageError(true)
+      setStorageAlert(COPY_STORAGE_FULL_MSG)
       return
     }
     setVersions(listResumeVersions())
+    setPipelineTick((t) => t + 1)
+  }
+  /** Another tracked job the linked copy's edited target now matches, and whether it already has a live copy. */
+  const retargetedTrackedJob = useMemo(() => {
+    if (!linkedJob || copyTargetsJob({ targetRole, targetCompany, jobDescription }, linkedJob))
+      return null
+    const entry = listPipeline().find(
+      (e) => e.job.id !== linkedJob.id && copyTargetsJob({ targetRole, targetCompany, jobDescription }, e.job)
+    )
+    return entry ? { job: entry.job, hasCopy: jobLinksLiveCopy(entry, versions) } : null
+  }, [linkedJob, targetRole, targetCompany, jobDescription, versions])
+  /** Save the draft as a new copy linked to the tracked job it now targets and edit that copy;
+   * the current copy stays linked to its own job. */
+  const saveDraftAsCopyFor = (job: JobListing) => {
+    const created = createResumeVersion(
+      `${job.title} — ${job.company}`,
+      resume,
+      activeVersion?.folder
+    )
+    if (!created || setPipelineVersion(job.id, created.id) === null) {
+      setStorageAlert(COPY_STORAGE_FULL_MSG)
+      return
+    }
+    setVersions(listResumeVersions())
+    linkVersion(created.id)
     setPipelineTick((t) => t + 1)
   }
   /** Editing a copy aimed at a posting that no tracked job matches (untracked, or the target was edited). */
@@ -2851,6 +2880,31 @@ export default function Builder() {
                 .{' '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(linkedJob.id)}`}
+                  className="text-primary font-medium underline-offset-2 hover:underline"
+                >
+                  View it on the jobs board &rarr;
+                </Link>
+              </p>
+            )}
+            {retargetedTrackedJob && (
+              <p className="text-muted-foreground text-xs">
+                That target is tracked job &quot;{retargetedTrackedJob.job.title}&quot; at{' '}
+                {retargetedTrackedJob.job.company}, which{' '}
+                {retargetedTrackedJob.hasCopy ? 'already uses another copy' : 'has no copy yet'}.{' '}
+                {!retargetedTrackedJob.hasCopy && (
+                  <>
+                    <button
+                      type="button"
+                      className="text-primary font-medium underline-offset-2 hover:underline"
+                      onClick={() => saveDraftAsCopyFor(retargetedTrackedJob.job)}
+                    >
+                      Save as new copy for it
+                    </button>
+                    {' · '}
+                  </>
+                )}
+                <Link
+                  to={`/jobs?job=${encodeURIComponent(retargetedTrackedJob.job.id)}`}
                   className="text-primary font-medium underline-offset-2 hover:underline"
                 >
                   View it on the jobs board &rarr;
