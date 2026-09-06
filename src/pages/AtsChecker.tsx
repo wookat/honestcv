@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -116,7 +116,13 @@ export default function AtsChecker() {
   const [draft] = useState(() => (state?.resumeText ? null : loadDraft()))
   const [resumeText, setResumeText] = useState(state?.resumeText ?? draft?.resumeText ?? '')
   const [jd, setJd] = useState(draft?.jd ?? '')
-  const [checked, setChecked] = useState(Boolean(state?.resumeText) || (draft?.checked ?? false))
+  const [scan, setScan] = useState<{ resumeText: string; jd: string } | null>(() =>
+    state?.resumeText
+      ? { resumeText: state.resumeText, jd: '' }
+      : draft?.checked
+        ? { resumeText: draft.resumeText, jd: draft.jd }
+        : null
+  )
   const [linkCopied, setLinkCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
@@ -139,7 +145,6 @@ export default function AtsChecker() {
           )
         setResumeText(text)
         setFileChecks({ name: file.name, checks })
-        setChecked(false)
       })
       .catch((err: unknown) =>
         setFileError(err instanceof Error ? err.message : 'Could not read this file.')
@@ -178,28 +183,29 @@ export default function AtsChecker() {
   useEffect(() => {
     try {
       if (!resumeText && !jd) sessionStorage.removeItem(DRAFT_KEY)
-      else sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ resumeText, jd, checked }))
+      else
+        sessionStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({ resumeText, jd, checked: scan !== null })
+        )
     } catch {
       // storage unavailable (e.g. disabled) — the page still works, just without refresh safety
     }
-  }, [resumeText, jd, checked])
+  }, [resumeText, jd, scan])
 
-  // Deferred so rescoring a very large pasted text can't block each keystroke.
-  const scoredResumeText = useDeferredValue(resumeText)
-  const scoredJd = useDeferredValue(jd)
+  // The report is frozen at the inputs of the last explicit check, so typing
+  // never rescores (or hides) it. Edits surface an honest stale notice instead.
   const result = useMemo(
-    () => (checked ? scoreResumeText(scoredResumeText, scoredJd) : null),
-    [checked, scoredResumeText, scoredJd]
+    () => (scan ? scoreResumeText(scan.resumeText, scan.jd) : null),
+    [scan]
   )
-  const isExample = resumeText === EXAMPLE_RESUME && jd === EXAMPLE_JD
+  const stale = scan !== null && (resumeText !== scan.resumeText || jd !== scan.jd)
+  const isExample = scan?.resumeText === EXAMPLE_RESUME && scan?.jd === EXAMPLE_JD
 
   const prevScanRef = useRef<Map<string, boolean> | null>(null)
   const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
   useEffect(() => {
     if (!result) return
-    // Deferred inputs lag the textareas; a result scored from stale text is
-    // transient and must not become the fixed-since-last-check baseline.
-    if (scoredResumeText !== resumeText || scoredJd !== jd) return
     const prev = prevScanRef.current
     prevScanRef.current = new Map(result.checks.map((c) => [c.label, c.pass]))
     setFixedChecks(
@@ -211,21 +217,23 @@ export default function AtsChecker() {
           )
         : new Set()
     )
-  }, [result, scoredResumeText, resumeText, scoredJd, jd])
+  }, [result])
 
   const jdSegments = useMemo(
     () =>
-      result ? segmentJd(scoredJd.slice(0, HIGHLIGHT_LIMIT), result.matched, result.missing) : [],
-    [scoredJd, result]
+      result && scan
+        ? segmentJd(scan.jd.slice(0, HIGHLIGHT_LIMIT), result.matched, result.missing)
+        : [],
+    [scan, result]
   )
 
   const analysis = useMemo(() => {
-    if (!result) return null
-    const parsed = parseResumeText(scoredResumeText)
-    parsed.jobDescription = scoredJd
+    if (!result || !scan) return null
+    const parsed = parseResumeText(scan.resumeText)
+    parsed.jobDescription = scan.jd
     const health = resumeHealth(parsed)
     return { health, fixes: priorityFixes(result, health) }
-  }, [result, scoredResumeText, scoredJd])
+  }, [result, scan])
 
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">
@@ -261,7 +269,7 @@ export default function AtsChecker() {
               onClick={() => {
                 setResumeText(EXAMPLE_RESUME)
                 setJd(EXAMPLE_JD)
-                setChecked(true)
+                setScan({ resumeText: EXAMPLE_RESUME, jd: EXAMPLE_JD })
               }}
             >
               <Target /> See an example score first
@@ -315,10 +323,7 @@ export default function AtsChecker() {
               rows={12}
               placeholder="Paste your full resume text here — or drop a PDF / DOCX file on this box…"
               value={resumeText}
-              onChange={(e) => {
-                setResumeText(e.target.value)
-                setChecked(false)
-              }}
+              onChange={(e) => setResumeText(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
@@ -328,10 +333,7 @@ export default function AtsChecker() {
               rows={12}
               placeholder="Paste the job posting you're applying to…"
               value={jd}
-              onChange={(e) => {
-                setJd(e.target.value)
-                setChecked(false)
-              }}
+              onChange={(e) => setJd(e.target.value)}
             />
           </div>
         </div>
@@ -340,7 +342,7 @@ export default function AtsChecker() {
           <Button
             size="lg"
             disabled={resumeText.trim().length < 30}
-            onClick={() => setChecked(true)}
+            onClick={() => setScan({ resumeText, jd })}
           >
             Check my ATS score <ArrowRight />
           </Button>
@@ -356,7 +358,7 @@ export default function AtsChecker() {
                 onClick={() => {
                   setResumeText(EXAMPLE_RESUME)
                   setJd(EXAMPLE_JD)
-                  setChecked(true)
+                  setScan({ resumeText: EXAMPLE_RESUME, jd: EXAMPLE_JD })
                 }}
               >
                 see an example score
@@ -366,8 +368,28 @@ export default function AtsChecker() {
           )}
         </div>
 
+        {result && stale && (
+          <div
+            role="status"
+            className="mt-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+          >
+            <span>
+              You&apos;ve edited your inputs since this check — the report below is from
+              your last check.
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setScan({ resumeText, jd })}
+            >
+              Re-check now
+            </Button>
+          </div>
+        )}
+
         {result && (
-          <Card className="mt-8 py-0">
+          <Card className={`${stale ? 'mt-3' : 'mt-8'} py-0`}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>

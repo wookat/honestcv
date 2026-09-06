@@ -1594,6 +1594,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
 
+## R520 — ATS 报告不再因编辑输入而整块消失（2026-08-31）
+- 一手证据（生产 CDP，全新存储）：粘贴简历+JD 检查得完整报告后，在简历 textarea 追加一行（模拟照着 Priority fixes 修改），第一个 input 事件即让整块报告（含 Priority fixes 清单）unmount，零提示零恢复引导。根因：两个 textarea 与上传路径的 onChange 都 `setChecked(false)`，报告由 checked 门控。
+- 修复仅 AtsChecker.tsx：报告冻结在最近一次 Check 的输入快照 `scan {resumeText, jd}` 上；result/jdSegments/analysis/isExample 全改用快照；输入编辑不再清报告，`stale`（当前文本≠快照）时报告上方渲染 role=status 琥珀条「You've edited your inputs since this check…」+ Re-check now 按钮。useDeferredValue 与 R518 瞬态守卫随快照化自然移除（评分只在 Check 点击执行一次，按键零重评分，防卡键保证强于 R406 的 defer）；sessionStorage 草稿结构不变（checked === scan!==null，刷新按当前文本重建快照）。方案：docs/plan-r520-ats-report-survives-edits.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：检查（57 分）→ 编辑简历 → 报告与 Priority fixes 仍在 + stale 条出现；Re-check now → 条消失、分数更新 67、missing 8→6；刷新后报告在（按当前文本重建）；fixed 徽章语义回归（首查 0 枚、补电话后重查恰 1 枚挂在 Phone number found）；375px 零溢出；QA 后存储清理。
+
 ## R519 — Priority fixes 标题从「通过态」改为祈使句（2026-08-31）
 - 一手证据（生产 CDP，全新存储）：短简历+JD 检查后 Priority fixes 出现「Word count in recommended range — Your resume is 54 words…」「Enough content to parse — Very short resumes…」——标题宣称通过态、正文却指出问题，自相矛盾；「Phone number found」类同。根因：priorityFixes 直接拼 `${check.label} — ${check.hint}`，check.label 全是给 pass/fail 清单用的通过态措辞。
 - 修复仅 src/lib/guidance.ts：FIX_TITLES 映射 30 个检查 label → 祈使句修复标题，priorityFixes 用 `FIX_TITLES[label] ?? label`；检查清单/fixedChecks 徽章键/health 维度/评分零改动；Builder 侧 Priority fixes 与 improveScoreReply 同函数自动受益。方案：docs/plan-r519-priority-fix-imperative-titles.md。
