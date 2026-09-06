@@ -546,6 +546,13 @@ export default function Jobs() {
     return id ? listResumeVersions().find((v) => v.id === id) : undefined
   }
 
+  /** The job's saved cover letter / interview brief if the pipeline links one that still exists. */
+  const linkedDoc = (jobId: string, kind: 'cover' | 'interview') => {
+    const entry = pipeline.find((e) => e.job.id === jobId)
+    const id = kind === 'cover' ? entry?.coverDocId : entry?.interviewDocId
+    return id ? listCareerDocs().find((d) => d.id === id) : undefined
+  }
+
   /** A saved copy already targeted at this job that no tracked job links to (e.g. left behind by untracking). */
   const orphanTargetedCopy = (job: JobListing) => {
     const linked = new Set(listPipeline().map((e) => e.resumeVersionId))
@@ -1986,6 +1993,14 @@ export default function Jobs() {
                   : `Open a resume targeted at "${confirmTarget?.job.title}"?`}
             </DialogTitle>
             <DialogDescription>
+              {confirmTarget &&
+                (confirmTarget.intent === 'cover' || confirmTarget.intent === 'interview') &&
+                (() => {
+                  const doc = linkedDoc(confirmTarget.job.id, confirmTarget.intent)
+                  if (!doc) return null
+                  const noun = confirmTarget.intent === 'cover' ? 'cover letter' : 'interview brief'
+                  return `This job already has the saved ${noun} “${doc.title}” — a ${confirmTarget.intent === 'cover' ? 'letter' : 'brief'} you save from the tool becomes its ${noun} instead; the current one stays in your documents. `
+                })()}
               {confirmTarget?.intent === 'interview'
                 ? linkedVersion(confirmTarget.job.id)
                   ? 'This opens the resume copy targeted at this job in the editor, then opens interview prep for it.'
@@ -2014,6 +2029,24 @@ export default function Jobs() {
             <Button type="button" variant="outline" onClick={() => setConfirmTarget(null)}>
               Cancel
             </Button>
+            {confirmTarget &&
+              (confirmTarget.intent === 'cover' || confirmTarget.intent === 'interview') &&
+              (() => {
+                const doc = linkedDoc(confirmTarget.job.id, confirmTarget.intent)
+                if (!doc) return null
+                return (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setConfirmTarget(null)
+                      void navigate(`/documents?doc=${encodeURIComponent(doc.id)}`)
+                    }}
+                  >
+                    {confirmTarget.intent === 'cover' ? 'Open saved letter' : 'Open saved brief'}
+                  </Button>
+                )
+              })()}
             {confirmTarget && draftAtRisk(confirmTarget.job) && (
               <Button
                 type="button"

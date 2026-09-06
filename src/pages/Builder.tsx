@@ -158,7 +158,7 @@ import {
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText, loadExporter, professionalFileName } from '@/lib/download'
-import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
+import { listCareerDocs, saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import {
   listPipeline,
   setPipelineCoverDoc,
@@ -10342,6 +10342,18 @@ function BundleToolDialog({
   const [savedId, setSavedId] = useState<string | null>(null)
   const [savedText, setSavedText] = useState('')
   const [saveDocFailed, setSaveDocFailed] = useState(false)
+  /** The document of this kind the tracked job already links to, if it still exists — Save replaces that link. */
+  const existingDoc = useMemo(() => {
+    if (!jobId || !kind) return undefined
+    const entry = listPipeline().find((e) => e.job.id === jobId)
+    const id =
+      kind === 'cover'
+        ? entry?.coverDocId
+        : kind === 'interview'
+          ? entry?.interviewDocId
+          : entry?.resignationDocId
+    return id ? listCareerDocs().find((d) => d.id === id) : undefined
+  }, [jobId, kind])
   const [placeholderWarn, setPlaceholderWarn] = useState<'pdf' | 'docx' | 'txt' | null>(null)
   const [autoResult, setAutoResult] = useState('')
   const [overwriteWarn, setOverwriteWarn] = useState<'generate' | 'template' | 'finish' | null>(null)
@@ -11078,6 +11090,17 @@ function BundleToolDialog({
             {saveDocFailed && (
               <p role="alert" className="text-destructive text-xs">
                 Not saved — your browser storage is full. Free up space and try again.
+              </p>
+            )}
+            {!savedId && existingDoc && (
+              <p className="text-muted-foreground text-xs">
+                This job already has “{existingDoc.title}” saved — Save makes this one the{' '}
+                {kind === 'cover'
+                  ? 'cover letter'
+                  : kind === 'interview'
+                    ? 'interview brief'
+                    : 'resignation letter'}{' '}
+                linked to the job; the earlier one stays in My resumes.
               </p>
             )}
           </>
