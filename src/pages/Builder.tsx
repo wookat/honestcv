@@ -157,7 +157,12 @@ import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 
 import { downloadText, loadExporter, professionalFileName } from '@/lib/download'
 import { saveCareerDoc, updateCareerDoc } from '@/lib/documents'
-import { listPipeline, setPipelineCoverDoc, setPipelineInterviewDoc } from '@/lib/jobs'
+import {
+  listPipeline,
+  setPipelineCoverDoc,
+  setPipelineInterviewDoc,
+  setPipelineResignationDoc,
+} from '@/lib/jobs'
 import { trackEvent } from '@/lib/track'
 import {
   type ShareLink,
@@ -8509,7 +8514,7 @@ export default function Builder() {
         initialCompany={
           toolOpen === 'cover' ? toolCompany || (resume.targetCompany ?? '') : toolCompany
         }
-        jobId={toolOpen === 'cover' || toolOpen === 'interview' ? toolJobId : ''}
+        jobId={toolOpen !== null ? toolJobId : ''}
         onClose={() => setToolOpen(null)}
         resume={shown}
         onQuota={setFreeLeft}
@@ -10898,6 +10903,7 @@ function BundleToolDialog({
                     if (!doc) return
                     if (kind === 'cover' && jobId) setPipelineCoverDoc(jobId, doc.id)
                     if (kind === 'interview' && jobId) setPipelineInterviewDoc(jobId, doc.id)
+          if (kind === 'resignation' && jobId) setPipelineResignationDoc(jobId, doc.id)
                     setSavedId(doc.id)
                     setSavedText(result)
                   }

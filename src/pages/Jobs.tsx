@@ -644,7 +644,8 @@ export default function Jobs() {
       return {
         text: 'You have an offer — leave your current role on good terms.',
         label: 'Open resignation letter',
-        onClick: () => void navigate('/builder?doc=resignation'),
+        onClick: () =>
+          void navigate(`/builder?doc=resignation&job=${encodeURIComponent(job.id)}`),
       }
     if (entry.status === 'applied' || entry.status === 'interviewing')
       return {
@@ -1645,6 +1646,25 @@ export default function Jobs() {
                               type="button"
                               className="text-primary underline-offset-2 hover:underline"
                               onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
+                            >
+                              Open
+                            </button>
+                          </p>
+                        )
+                      })()}
+                      {(() => {
+                        const resignationDoc = entry.resignationDocId
+                          ? listCareerDocs().find((d) => d.id === entry.resignationDocId)
+                          : undefined
+                        if (!resignationDoc) return null
+                        return (
+                          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                            <span className="text-muted-foreground">Resignation letter:</span>
+                            <span className="font-medium">{resignationDoc.title}</span>
+                            <button
+                              type="button"
+                              className="text-primary underline-offset-2 hover:underline"
+                              onClick={() => void navigate(`/documents?doc=${resignationDoc.id}`)}
                             >
                               Open
                             </button>

@@ -51,6 +51,8 @@ export interface PipelineEntry {
   coverDocId?: string
   /** Saved interview prep brief written for this job (career document id) */
   interviewDocId?: string
+  /** Saved resignation letter written when this job reached the offer stage (career document id) */
+  resignationDocId?: string
   /** Status changes in chronological order (entries saved before R190 have none) */
   history?: StatusChange[]
   /** Free-form notes: recruiter names, interview dates, follow-ups */
@@ -347,6 +349,7 @@ function sanitizeEntry(raw: unknown): PipelineEntry | null {
   if (typeof e.resumeVersionId === 'string') entry.resumeVersionId = e.resumeVersionId
   if (typeof e.coverDocId === 'string') entry.coverDocId = e.coverDocId
   if (typeof e.interviewDocId === 'string') entry.interviewDocId = e.interviewDocId
+    if (typeof e.resignationDocId === 'string') entry.resignationDocId = e.resignationDocId
   if (typeof e.notes === 'string') entry.notes = e.notes
   if (typeof e.remindOn === 'string' && DAY_RE.test(e.remindOn)) entry.remindOn = e.remindOn
   // Entries saved before reminders became calendar days stored a local-midnight epoch
@@ -399,6 +402,7 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
       ...(prev?.resumeVersionId ? { resumeVersionId: prev.resumeVersionId } : {}),
       ...(prev?.coverDocId ? { coverDocId: prev.coverDocId } : {}),
       ...(prev?.interviewDocId ? { interviewDocId: prev.interviewDocId } : {}),
+    ...(prev?.resignationDocId ? { resignationDocId: prev.resignationDocId } : {}),
       ...(prev?.notes ? { notes: prev.notes } : {}),
       ...(prev?.remindOn !== undefined ? { remindOn: prev.remindOn } : {}),
     },
@@ -451,6 +455,16 @@ export function setPipelineReminder(
 export function setPipelineCoverDoc(jobId: string, coverDocId: string): PipelineEntry[] | null {
   return savePipeline(
     listPipeline().map((e) => (e.job.id === jobId ? { ...e, coverDocId } : e))
+  )
+}
+
+/** Link the pipeline entry for a job to the resignation letter written at its offer stage. */
+export function setPipelineResignationDoc(
+  jobId: string,
+  resignationDocId: string
+): PipelineEntry[] | null {
+  return savePipeline(
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, resignationDocId } : e))
   )
 }
 

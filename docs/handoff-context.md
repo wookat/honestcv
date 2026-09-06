@@ -2040,3 +2040,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复三文件：src/lib/jobs.ts（PipelineEntry.interviewDocId?、sanitize/upsert 保留、setPipelineInterviewDoc helper）；src/pages/Jobs.tsx（openInterviewPrep 导航带 &job=<id>；详情面板新增 Interview prep: 标题 · Open 行，与 cover 行同款，链 /documents?doc=）；src/pages/Builder.tsx（interview 工具透传 toolJobId，保存钩子对 interview 调 setPipelineInterviewDoc）。
 - tsc/单查 eslint（仅既有 2 warning）/build/verify-dist 绿。部署：资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
 - 生产 QA：1280/375 applied 职位 → Open interview prep → /builder 打开 Interview Prep Brief → Start from a template → Save to My resumes → pipeline entry 带 interviewDocId → /jobs?job= 面板显示「Interview prep: … — Interview prep · Open」且 Open 落 /documents；零溢出；QA 存储清理回六键基线；零 AI 配额消耗。
+
+## R565 — Resignation letter 与 offer 阶段职位建立关联（2026-09-06）
+- 一手证据（生产 CDP，offer:2091101）：offer 状态下一步「Open resignation letter」→ /builder?doc=resignation（无 job 参数）→ 模板路径保存 resignation 文档后 entry keys 仍无任何文档关联，职位面板无处显示已写的辞职信；targeted/cover/interview 三类文档均已闭环（R183/R384+R563/R564）。方案：docs/plan-r565-resignation-letter-links-job.md。
+- 修复三文件（与 R564 同款模式）：src/lib/jobs.ts（PipelineEntry.resignationDocId?、sanitize/upsert 保留、setPipelineResignationDoc）；src/pages/Jobs.tsx（offer 分支导航带 &job=<id>；详情面板新增 Resignation letter: 标题 · Open 行）；src/pages/Builder.tsx（jobId 透传条件简化为 toolOpen !== null，保存钩子对 resignation 调 setPipelineResignationDoc）。
+- tsc/单查 eslint（仅既有 2 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-kVkULu1c.js）：1280/375 offer 职位 → Open resignation letter → 模板路径保存 → entry 带 resignationDocId → /jobs?job= 面板显示「Resignation letter: … · Open」且 Open 落 /documents；零溢出；QA 存储清理回六键基线；零 AI 配额消耗。备案：模板路径保存的辞职信标题为「Untitled — Resignation letter」（联系人姓名未播种，R398 只兜底了 interview，候选后续轮）。
