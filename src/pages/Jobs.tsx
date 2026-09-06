@@ -2073,6 +2073,29 @@ export default function Jobs() {
                         )}
                       </div>
                       {(() => {
+                        const copy = linkedVersion(entry.job.id)
+                        if (!copy) return null
+                        const retargeted = retargetedLinkedCopy(entry.job)
+                        return (
+                          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                            <span className="text-muted-foreground">Targeted resume:</span>
+                            <span className="font-medium">{copy.name}</span>
+                            {retargeted && (
+                              <span className="text-amber-700 dark:text-amber-400">
+                                now targets {copyTargetText(retargeted)}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              className="text-primary underline-offset-2 hover:underline"
+                              onClick={() => setConfirmTarget({ job: entry.job, intent: 'target' })}
+                            >
+                              Open
+                            </button>
+                          </p>
+                        )
+                      })()}
+                      {(() => {
                         const coverDoc = entry.coverDocId
                           ? listCareerDocs().find((d) => d.id === entry.coverDocId)
                           : undefined

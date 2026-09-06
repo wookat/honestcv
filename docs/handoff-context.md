@@ -2414,3 +2414,8 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据（生产 index-EEApB8_Z.js，R632 evidence reopen 段）：Offer 职位已链接辞职信，重开 `/builder?doc=resignation&job=2091088`：`reopen hints: []`——R601 的「already has …」只在 `{result && …}` 块内，用户必须先 Generate（花 AI 配额）或模板化才知道已有信；cover/interview 共用同一组件、同一条件。方案 docs/plan-r633-writer-discloses-existing-linked-doc-before-generating.md。
 - 修复（Builder.tsx）：把已有文档提示移到 Generate/模板按钮上方、内容为空时即显示，并附「Open the saved cover letter/interview brief/resignation letter」链接到 /documents?doc=id；结果块内删除重复段落，「Saving links this … to job」提示不变；新增 `docKindNoun`。部署 index-Dr0tcODM.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375（qa/r633-evidence.cjs）：预内容即显示提示+链接，链接打开对应文档，链接/文档不变；无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R632（#853）→ R633。
+
+## R634 — 跟踪职位卡在 saved 以外的状态对链接副本一无所知（不点名、不披露改指）（2026-09-06）
+- 证据（生产 index-Dr0tcODM.js，qa/r634-evidence.cjs，真实职位 2091088 置 Applied）：副本 A 链接该职位但目标字段已改为 Globex（mismatch）与 A 仍瞄准该职位（match）两组输出完全相同——头部「Targeted copy: 0% keyword match」、Next step「Prepare for the interview…」、tracked 区只有 Cover letter/Interview prep/Resignation letter 行，无任何一行说副本叫什么。R623 的「now points at …」披露只在 `nextStep()` 的 saved 分支，rejected/offer/applied/interviewing 先返回。方案 docs/plan-r634-tracked-card-names-linked-copy-and-mismatch-at-every-status.md。
+- 修复（Jobs.tsx）：tracked 区首行新增「Targeted resume: {copy.name} [now targets {copyTargetText}] Open」，与文档行同形；Open 走既有 `setConfirmTarget({intent:'target'})`（草稿守卫 + R625 New copy）；无链接副本时不渲染（主按钮已说 Target/Reconnect）。复用 `retargetedLinkedCopy/copyTargetText`。部署 index-Cq_vOAZH.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：mismatch → 行含琥珀色「now targets Site Reliability Engineer at Globex」；match → 无琥珀注；orphan → 无行；无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R633（#854）→ R634。
