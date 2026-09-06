@@ -1952,3 +1952,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复两文件：src/lib/letterExamples.ts 新增 seedLetterExample(text, kind, resume)——cover 播种 [Company]/[Facility]←targetCompany、[Current company]/[Current facility]←首个未隐藏在职经历公司、[Your name]←姓名；resignation 播种 [Company]/[Job title]←在职经历、[Your name]；无对应事实的槽位保持 [placeholder]，日期等槽位从不播种。src/pages/Dashboard.tsx 预览与保存共用同一播种文本；SEO 静态示例页与 Builder 工具模板零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：375/1280 预览显示 Acme/Globex/Ava Chen 且保存文本一致；辞职示例播种 role/company/name、[date, two weeks from today] 保留；空草稿全部占位符保留；零溢出零 console 错误；QA 存储清理回基线。
+
+## R551 — 占位符导出警示引用文档里真实存在的占位符（2026-08-31）
+- 一手证据（生产 CDP）：种本地简历（Ava Chen/Acme/Globex 在职）后 /documents「Use this example」的 Software Engineer 覆盖信（R550 已播种，全篇不含 [Company]），点 PDF 弹窗仍说 "...11 bracketed placeholders like [Company]..."，而首个真实占位符是 [Hiring manager's name]。根因：Dashboard.tsx/Builder.tsx 两个警示弹窗把示例硬编码为 [Company]。方案：docs/plan-r551-placeholder-warn-example.md。
+- 修复两文件：各自 countLetterPlaceholders 旁新增 firstLetterPlaceholder(text)=text.match(/\[[^\][\n]{1,60}\]/)?.[0] ?? '[Company]'；Dashboard 弹窗用 firstLetterPlaceholder(placeholderWarn?.text ?? '')、Builder 弹窗用 firstLetterPlaceholder(result)。计数/locator/导出/R504/R505/R507/R550 零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280 播种示例 PDF 警示引用 [Hiring manager's name]；Builder ?doc=cover 模板路径警示引用其文本首个占位符 [second relevant achievement or responsibility]；375 同款正确、零溢出零 console 错误；QA 存储清理回基线。

@@ -10131,6 +10131,8 @@ function BulletGuidance({
 
 const countLetterPlaceholders = (text: string) => text.match(/\[[^\][\n]{1,60}\]/g)?.length ?? 0
 
+const firstLetterPlaceholder = (text: string) => text.match(/\[[^\][\n]{1,60}\]/)?.[0] ?? '[Company]'
+
 function BundleToolDialog({
   kind,
   initialCompany = '',
@@ -10639,7 +10641,7 @@ function BundleToolDialog({
             <DialogDescription>
               {`This ${kind === 'interview' ? 'prep sheet' : 'letter'} still contains ${countLetterPlaceholders(result)} bracketed ${
                 countLetterPlaceholders(result) === 1 ? 'placeholder' : 'placeholders'
-              } like [Company]. Fill them in with your details before sending it out.`}
+              } like ${firstLetterPlaceholder(result)}. Fill them in with your details before sending it out.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

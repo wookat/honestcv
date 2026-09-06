@@ -106,6 +106,7 @@ interface ExampleEntry {
 
 /** Bracketed fill-in slots ([Company], [Your name], …) still left in a letter. */
 const countLetterPlaceholders = (text: string) => text.match(/\[[^\][\n]{1,60}\]/g)?.length ?? 0
+const firstLetterPlaceholder = (text: string) => text.match(/\[[^\][\n]{1,60}\]/)?.[0] ?? '[Company]'
 
 const editedAgo = (ms: number) => {
   if (!ms) return 'Edited a while ago'
@@ -2534,7 +2535,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 placeholderWarn?.count ?? 0
               } bracketed ${
                 (placeholderWarn?.count ?? 0) === 1 ? 'placeholder' : 'placeholders'
-              } like [Company]. Fill them in with your details before sending it out.`}
+              } like ${firstLetterPlaceholder(placeholderWarn?.text ?? '')}. Fill them in with your details before sending it out.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
