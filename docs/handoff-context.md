@@ -2052,3 +2052,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Builder.tsx：把 insertTemplate 内的 currentJob 查找提升为弹窗级 ongoingJob（首个非隐藏、在职的经历条目），模板播种与保存标题共用；resignation docTitle 改为 company || ongoingJob?.company || 'Untitled'。
 - tsc/单查 eslint（仅既有 1 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
 - 生产 QA（index-CO-GGYDA.js）：1280 模板保存 →「Globex — Resignation letter」；键入 Initech →「Initech — …」（键入优先）；375 无在职经历且未键入 →「Untitled — …」兜底保留；零溢出；QA 存储清理回六键基线；零 AI 配额消耗。
+
+## R567 — /documents 卡片回链被跟踪职位（2026-09-06）
+- 一手证据（生产 CDP，index-CO-GGYDA.js）：种子 pipeline entry（Senior Engineer at Globex，coverDocId/resignationDocId 已链）后，/documents 卡片 meta 只有「Cover letter · Edited today」——职位 → 文档方向 R384/R564/R565 早已闭环，文档 → 职位完全不可见。方案：docs/plan-r567-documents-link-back-to-job.md。对照 Rezi 8 月「Improved Application Tracking」。
+- 修复仅 src/pages/Dashboard.tsx：import listPipeline，useMemo（依赖 docs）建 docId → PipelineEntry 映射（扫 coverDocId/interviewDocId/resignationDocId 三字段），文档卡 meta 行追加「· for <Link to=/jobs?job=id>Senior Engineer at Globex</Link>」（SPA Link，无关联零渲染）。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-CHNPPW6-.js）：1280 cover/resignation 卡各显示「· for Senior Engineer at Globex」，点击落 /jobs?job=j1 详情面板（offer 状态、Resignation letter 行在位）；无关联文档零渲染；375 同款且零溢出；QA 存储清理回六键基线；零 AI 配额消耗。

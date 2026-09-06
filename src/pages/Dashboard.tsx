@@ -67,6 +67,7 @@ import {
   stashUnreadableDocs,
   updateCareerDoc,
 } from '@/lib/documents'
+import { listPipeline, type PipelineEntry } from '@/lib/jobs'
 import { LETTER_EXAMPLES, seedLetterExample, type LetterExample } from '@/lib/letterExamples'
 import { prefersReducedMotion } from '@/lib/motion'
 import {
@@ -251,6 +252,16 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     jobDescription: string
   } | null>(null)
   const [docs, setDocs] = useState<CareerDoc[]>(() => listCareerDocs())
+  const jobByDoc = useMemo(() => {
+    const map = new Map<string, PipelineEntry>()
+    for (const entry of listPipeline()) {
+      if (entry.coverDocId) map.set(entry.coverDocId, entry)
+      if (entry.interviewDocId) map.set(entry.interviewDocId, entry)
+      if (entry.resignationDocId) map.set(entry.resignationDocId, entry)
+    }
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when documents change
+  }, [docs])
   const [storageError, setStorageError] = useState(false)
   /** Applies a document mutation; surfaces the storage-full alert when nothing was written. */
   const applyDocs = (next: CareerDoc[] | null): boolean => {
@@ -1585,6 +1596,18 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                           {' '}
                           · {countLetterPlaceholders(d.text)} to fill
                         </span>
+                      )}
+                      {jobByDoc.has(d.id) && (
+                        <>
+                          {' '}
+                          · for{' '}
+                          <Link
+                            to={`/jobs?job=${encodeURIComponent(jobByDoc.get(d.id)!.job.id)}`}
+                            className="underline underline-offset-2"
+                          >
+                            {jobByDoc.get(d.id)!.job.title} at {jobByDoc.get(d.id)!.job.company}
+                          </Link>
+                        </>
                       )}
                     </p>
                   </div>
