@@ -34,10 +34,13 @@ Everything else: `/`, `/dashboard` (1280), `/jobs`, `/documents`,
   `background #ffffff` for the muted "Sales Jedi at Creative Force" link and
   the "tracked job uses another copy" button. Direct measurement
   (`elementsFromPoint` on the text glyph box, background chain) shows the
-  text sits on the card (`oklch(0.2 0.015 260)`), not white; the white comes
-  from the R651 40px hit-area padding box (`py-3 -my-3`) overlapping the
-  neighbouring white resume thumbnail, which makes axe give up on the
-  background and assume white. Muted fg `#9199a5` on the card is ≈5.8:1.
+  text sits on the card (`oklch(0.2 0.015 260)`), not white — no white
+  element is under any point of the glyph box. axe's `relatedNodes` for the
+  finding names the white resume thumbnail
+  (`div[data-resume-preview].bg-white`) as the background: the R651 40px
+  hit-area padding (`py-3`, mobile only) makes the link's box reach the
+  thumbnail, and axe samples the background from that overlap. Muted fg
+  `#9199a5` on the card is ≈5.8:1; at 1280 (no padding) the same link passes.
   Not a defect; noted as an axe artefact of the R651 hit-area technique.
 - Builder "obscured-only" findings (3) are the known sticky-header /
   scroll-step artefacts from R657/R658, unchanged.
