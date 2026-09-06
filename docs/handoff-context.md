@@ -1800,6 +1800,12 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA（index-D743uEua.js）：全新存储 /jobs Target 空草稿→向导选 Software Engineer 示例→target 三元组完整保留（Freelance Copywriter|Coalition Technologies|2783）+示例内容就位；无 target 时 ?example=software-engineer 深链→target 保持空；375px 种子 target + ?example=data-analyst 深链→QA Role|QA Co|12 保留、零溢出；零 console 错误、QA 后合成存储全清。
 
+## R527 — 批量操作只作用于可见行（2026-08-31）
+- 审计先驳回两条候选（notes 失焦保存路径实测导航即持久化，非缺陷；7 主要路由 axe 零违规）。一手证据（生产 CDP）：种 4 条 tracked、bulk 全选 4 后用 R526 filter 输入 globex 只剩 1 可见行，工具栏仍显「4 selected / Untrack 4」，确认后 pipeline 清空——3 条被隐藏的行被静默删除；Move to… 与 pre-R526 的 Needs follow-up 过滤同理。方案：docs/plan-r527-bulk-acts-on-visible-rows.md。
+- 修复仅 src/pages/Jobs.tsx：派生 visibleBulkIds（bulkIds ∩ 当前 shown 行）；计数/Move to…/Untrack N/确认弹窗全部改用可见选集；操作后仅从选集移除已作用的 id，被过滤隐藏的选择保留并在清除过滤后恢复可操作（复选框本就只渲染可见行，UI 一致）。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-C0He1bWY.js）：桌面全选 4→filter globex→「1 selected / Untrack 1」、弹窗「Stop tracking 1 job?」、仅 Globex 被移除余 3；Clear filter 后「3 selected」且 3 复选框仍勾选；filter acme→「2 selected」、Move to… applied 仅改 2 条 Acme，Initech 保持 saved；375px「1 selected / Untrack 1」、零水平溢出；零 console 错误、QA 后合成存储全清。
+
 ## R526 — 跟踪队列按职位/公司即时过滤（2026-08-31）
 - 审计先如实驳回一条伪缺口（空态角色选择疑似丢 target，纠正探针后确认 target 三元组完整保留，非缺陷）。一手证据（生产 CDP）：种 25 条 pipeline 后 ?tab=tracked 无任何可见搜索/过滤输入（rows 25 / inputs visible NONE），All 标签的搜索与筛选不作用于 Tracked。对照 Rezi：其近期公开更新强调 tracked 职位的可见性。方案：docs/plan-r526-tracked-queue-filter.md。
 - 修复仅 src/pages/Jobs.tsx：trackedFilter 瞬态状态 + bulk 操作行内 type=search 输入，大小写不敏感匹配 job.title/job.company，与 followUpOnly 组合；分组保持状态排序与组内新→旧；新增 shownCounts 使组头计数如实反映可见行；无命中出诚实空态「No tracked jobs match "…"」+ Clear filter；不入 URL、不动 All 标签/bulk/详情栏/存储。

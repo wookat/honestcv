@@ -413,6 +413,11 @@ export default function Jobs() {
     }
     return c
   })()
+  /** Bulk actions only touch rows the user can currently see; selections on rows hidden by a filter stay checked but inert. */
+  const visibleBulkIds =
+    tab === 'tracked' && bulkIds.size > 0
+      ? new Set([...bulkIds].filter((id) => shown.some((j) => j.id === id)))
+      : bulkIds
   const selected =
     shown.find((j) => j.id === selectedId) ??
     jobs.find((j) => j.id === selectedId) ??
@@ -914,18 +919,18 @@ export default function Jobs() {
             >
               {bulkMode ? 'Done selecting' : 'Select…'}
             </button>
-            {bulkMode && bulkIds.size > 0 && (
+            {bulkMode && visibleBulkIds.size > 0 && (
               <>
                 <span className="text-muted-foreground text-xs font-medium">
-                  {bulkIds.size} selected
+                  {visibleBulkIds.size} selected
                 </span>
                 <select
                   value=""
                   onChange={(e) => {
                     const status = e.target.value as JobStatus
                     if (!status) return
-                    if (!applyPipeline(updateStatuses([...bulkIds], status))) return
-                    setBulkIds(new Set())
+                    if (!applyPipeline(updateStatuses([...visibleBulkIds], status))) return
+                    setBulkIds((prev) => new Set([...prev].filter((id) => !visibleBulkIds.has(id))))
                   }}
                   aria-label="Move selected jobs to a status"
                   className="border-input bg-background min-h-10 rounded-md border px-1.5 text-xs sm:min-h-8"
@@ -946,7 +951,7 @@ export default function Jobs() {
                   className="text-destructive min-h-10 sm:min-h-8"
                   onClick={() => setConfirmBulkUntrack(true)}
                 >
-                  Untrack {bulkIds.size}
+                  Untrack {visibleBulkIds.size}
                 </Button>
                 <button
                   type="button"
@@ -1844,7 +1849,7 @@ export default function Jobs() {
       <Dialog open={confirmBulkUntrack} onOpenChange={(o) => !o && setConfirmBulkUntrack(false)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{`Stop tracking ${bulkIds.size} job${bulkIds.size === 1 ? '' : 's'}?`}</DialogTitle>
+            <DialogTitle>{`Stop tracking ${visibleBulkIds.size} job${visibleBulkIds.size === 1 ? '' : 's'}?`}</DialogTitle>
             <DialogDescription>
               This removes the selected jobs from your pipeline and deletes their application
               timelines and notes. Targeted resume copies stay on your dashboard.
@@ -1864,8 +1869,8 @@ export default function Jobs() {
               variant="destructive"
               className="min-h-10"
               onClick={() => {
-                if (!applyPipeline(removeManyFromPipeline([...bulkIds]))) return
-                setBulkIds(new Set())
+                if (!applyPipeline(removeManyFromPipeline([...visibleBulkIds]))) return
+                setBulkIds((prev) => new Set([...prev].filter((id) => !visibleBulkIds.has(id))))
                 setConfirmBulkUntrack(false)
               }}
             >
