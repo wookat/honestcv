@@ -1841,3 +1841,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：新增 effect——视口 <768px 且 mobileDetail 变真时记录 scrollY 到 listScrollRef 并 scrollTo(0,0)；变假且此前开过浮层（mobileDetailWasOpen 守卫，避免首挂载/刷新时干扰浏览器滚动恢复）时恢复原 scrollY。桌面端零改动；R531 哨兵、URL/深链、R528–R530 逻辑零改动。
 - tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：375px 滚到 900 点行→详情 scrollY=0 标题可见→浏览器 Back 回列表 scrollY 恢复 900；「Back to list」路径同样恢复 900；?job= 深链冷载详情从顶部显示；1280px 点行 scrollY 保持 300 不动（桌面无干预）；R530 Tracked→All 往返详情在位；全场景零溢出零 console 错误、存储仅基线键。
+
+## R533 — SOP-10 节点：移动端 Builder 切换 pane 恢复各自滚动位置（2026-08-31）
+- SOP-10 四维复扫：7 路由×1280/375 零溢出零 console 错误；Rezi changelog（2026-08 Week4）复核，Tracked 详情描述可见性候选实测未证实、驳回。一手证据（生产 CDP，375×812）：/builder 文档高 5840，Edit 滚到 scrollY=1200 → 点「Preview & score」→ 回顶（合理）→ 点回「Edit」→ scrollY=0，编辑位置丢失——pane switcher onClick 无条件 window.scrollTo({top:0})，两 pane 共用同一页面滚动上下文（与 R532 /jobs 同类缺陷）。方案：docs/plan-r533-mobile-pane-scroll-restore.md。
+- 修复仅 src/pages/Builder.tsx：新增 paneScrollRef 记录每个 pane 的滚动 offset；切换时先存当前 pane 的 scrollY，effect 在换 pane 提交后恢复目标 pane 上次 offset（首次为 0，保持「预览首开回顶」既有语义）；同 pane 点击不再滚动。lg+ 桌面端 switcher 隐藏、双栏并排，零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375px Edit@1200→Preview 首开=0→Edit 恢复 1200→Preview 恢复 800（往返稳定）；?jump=skills 深链照常滚到 skills 卡（回归）；1280px switcher 隐藏、零 console 错误；全场景零溢出、存储仅基线键。

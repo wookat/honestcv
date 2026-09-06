@@ -1298,6 +1298,15 @@ export default function Builder() {
   }, [])
   /** Once opened on mobile, the pane stays mounted so pane switching never re-runs its measurements. */
   const [previewSeen, setPreviewSeen] = useState(false)
+  /** Both panes share the page scroll on small screens: remember each pane's offset
+   *  so switching back returns the user to where they were. */
+  const paneScrollRef = useRef<Record<'edit' | 'preview', number>>({ edit: 0, preview: 0 })
+  const prevPaneRef = useRef(mobilePane)
+  useEffect(() => {
+    if (mobilePane === prevPaneRef.current) return
+    prevPaneRef.current = mobilePane
+    window.scrollTo({ top: paneScrollRef.current[mobilePane] })
+  }, [mobilePane])
   const renderPreviewPane = isLgViewport || printArmed || previewSeen || mobilePane === 'preview'
   /** Optional sections the user added this visit — shown even while still empty */
   const [addedSections, setAddedSections] = useState<string[]>([])
@@ -8073,9 +8082,10 @@ export default function Builder() {
                 : 'text-muted-foreground hover:bg-muted'
             }`}
             onClick={() => {
+              if (pane === mobilePane) return
+              paneScrollRef.current[mobilePane] = window.scrollY
               setMobilePane(pane)
               if (pane === 'preview') setPreviewSeen(true)
-              window.scrollTo({ top: 0 })
             }}
           >
             {icon} {label}
