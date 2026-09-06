@@ -3430,7 +3430,7 @@ export default function Builder() {
                     <span
                       {...expDrag.handleProps(idx)}
                       role="button"
-                      className="text-muted-foreground/60 hover:text-foreground -my-2.5 -ml-1 cursor-grab touch-none p-3.5 active:cursor-grabbing sm:my-0 sm:p-1"
+                      className="text-muted-foreground hover:text-foreground -my-2.5 -ml-1 cursor-grab touch-none p-3.5 active:cursor-grabbing sm:my-0 sm:p-1"
                       title="Drag to reorder"
                       aria-label={`Drag role ${idx + 1} to reorder`}
                     >
@@ -3918,7 +3918,7 @@ export default function Builder() {
                   <span
                     {...eduDrag.handleProps(idx)}
                     role="button"
-                    className="text-muted-foreground/60 hover:text-foreground -my-2.5 -ml-1 cursor-grab touch-none p-3.5 active:cursor-grabbing sm:my-0 sm:p-1"
+                    className="text-muted-foreground hover:text-foreground -my-2.5 -ml-1 cursor-grab touch-none p-3.5 active:cursor-grabbing sm:my-0 sm:p-1"
                     title="Drag to reorder"
                     aria-label={`Drag education ${idx + 1} to reorder`}
                   >
@@ -7331,7 +7331,7 @@ export default function Builder() {
                     <span
                       {...secDrag.handleProps(idx)}
                       role="button"
-                      className="text-muted-foreground/60 hover:text-foreground -my-2.5 cursor-grab touch-none p-3.5 active:cursor-grabbing sm:my-0 sm:p-1"
+                      className="text-muted-foreground hover:text-foreground -my-2.5 cursor-grab touch-none p-3.5 active:cursor-grabbing sm:my-0 sm:p-1"
                       title="Drag to reorder"
                       aria-label={`Drag ${sectionLabel(resume, key)} to reorder`}
                     >

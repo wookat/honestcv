@@ -2596,3 +2596,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复（docs/plan-r665-health-dialog-contrast.md）：Builder.tsx `HealthDialog` 内 emerald-600→700、amber-600→700、解释去 `/80`（保留 italic）。排除：`text-red-600` 4.77 通过；Final check `⚠` amber-600 为装饰（每行都是问题、文字承载语义）；下载成功 Check 图标与完成清单 aria-hidden 图标不改。
 - 生产 QA（index-BLTPcaBg.js）：r665-health 亮/暗 × 375/1280 全部节点 ≥4.5（amber-700 4.9、emerald-700 5.22、解释 5.38；暗 12.19/11.66/6.77），弹窗几何逐一不变（top 41/bottom 771、scrollHeight 2396/1736）；r665-dialogs ONLY=health 亮 375/1280 axe 真违规 0（原 1/2）、零 console 错误、存储回基线。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧（上传上线不受影响）。
 - 如实未验证：「No priority fixes」仍只按 token；解释从 80% 到 100% muted 层级略弱（italic 仍区分）；未做真实读屏。
+
+### R666 — builder 拖拽把手图标非文本对比度 2.47→5.53（WCAG 1.4.11，链 #886 → 本 PR）
+- 起因：R665 发现自研扫描器丢前景 alpha。R666 用 alpha 感知版重跑 8 路由（qa/r666-scan.cjs，文本 0 低于阈值），并对仓内仅剩三处 alpha 前景直接实测（qa/r666-alpha-probe.cjs 亮/暗）：AtsChecker `text-foreground/70` 7.07/7.69、Jobs JD 小标题 `text-foreground/80` 10.24/9.70 均通过；builder 拖拽把手 `GripVertical` `text-muted-foreground/60` **亮 2.47** / 暗 3.08。
+- 新审计维度：qa/r666-icons.cjs 量所有「只有 svg 的控件」（button/role=button/a/summary/tab/switch）图标对 3:1（1.4.11 非文本对比度，axe 无此规则）：/builder 64、/dashboard 10、/samples 10、其余 ≤1；唯一低于 3:1 的就是亮色拖拽把手（3 个 role 把手实渲染，education/section 把手同 className）。把手 `role=button` + aria-label，图标是控件唯一视觉标识，不豁免；键盘另有 Move up/down，非唯一路径。
+- 修复（docs/plan-r666-drag-handle-icon-contrast.md）：Builder.tsx 三处 `text-muted-foreground/60` → `text-muted-foreground`（hover 仍 text-foreground，只改色）。生产（index-D1HFeIO9.js）：5.53 亮 / 6.31 暗；icon-only 1280×64、375×38 全部 ≥3；零 console 错误；tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧。
+- 如实未验证：section-order 把手只按同 className 推断；未真机拖拽、未读屏。
