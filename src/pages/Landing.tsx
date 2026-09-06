@@ -222,7 +222,7 @@ function ShowcaseAtsScore() {
         <ScoreRing score={72} size={56} />
       </div>
       <div className="mt-3 text-xs">
-        <p className="font-medium text-green-700">Matched (4)</p>
+        <p className="font-medium text-green-700 dark:text-green-400">Matched (4)</p>
         <div className="mt-1 flex flex-wrap gap-1">
           {['react', 'typescript', 'testing', 'agile'].map((kw) => (
             <span

@@ -3756,6 +3756,7 @@ table.cmp.plans th:nth-child(2),table.cmp.plans td:nth-child(2){background:none}
 table.cmp.plans td:nth-child(2),table.cmp.plans td:nth-child(3){color:inherit;font-weight:400}
 table.cmp.plans th:nth-child(4),table.cmp.plans td:nth-child(4){background:oklch(0.5 0.18 265 / 0.06)}
 table.cmp.plans td:nth-child(4){color:#047857;font-weight:500}
+html.dark table.cmp:not(.plans) td:nth-child(2),html.dark table.cmp.plans td:nth-child(4){color:#34d399}
 .faq h3{margin:1.25rem 0 .25rem;font-size:1rem}
 .faq p{margin:0;color:var(--muted);font-size:.9375rem}
 </style>
