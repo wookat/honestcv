@@ -263,10 +263,23 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     return map
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when documents change
   }, [docs])
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when documents change
-  const trackedJobIds = useMemo(() => new Set(listPipeline().map((e) => e.job.id)), [docs])
+  const trackedEntries = useMemo(
+    () => new Map(listPipeline().map((e) => [e.job.id, e])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when documents change
+    [docs]
+  )
+  /** Whether the job's link for this kind of document still points at an existing document. */
+  const jobLinksLiveDoc = (entry: PipelineEntry, kind: CareerDocKind) => {
+    const id =
+      kind === 'cover'
+        ? entry.coverDocId
+        : kind === 'resignation'
+          ? entry.resignationDocId
+          : entry.interviewDocId
+    return id !== undefined && docs.some((d) => d.id === id)
+  }
   /** Which job a document belongs to: the job that links it, or the one it was written for
-   * (that job now links another document, or is no longer tracked). */
+   * (that job now links another document, has no link left, or is no longer tracked). */
   const docTargetNote = (d: CareerDoc, sentence: boolean) => {
     const linked = jobByDoc.get(d.id)
     if (linked)
@@ -288,16 +301,19 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         : d.kind === 'resignation'
           ? 'resignation letter'
           : 'interview brief'
+    const tracked = trackedEntries.get(d.forJob.id)
     return (
       <>
         {sentence ? 'Written for ' : 'written for '}
         {d.forJob.title} at {d.forJob.company} ·{' '}
-        {trackedJobIds.has(d.forJob.id) ? (
+        {tracked ? (
           <Link
             to={`/jobs?job=${encodeURIComponent(d.forJob.id)}`}
             className="underline underline-offset-2"
           >
-            job uses another {noun}
+            {jobLinksLiveDoc(tracked, d.kind)
+              ? `job uses another ${noun}`
+              : `job has no ${noun} linked — use this one`}
           </Link>
         ) : (
           <>
