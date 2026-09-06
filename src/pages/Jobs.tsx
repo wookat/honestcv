@@ -800,7 +800,7 @@ export default function Jobs() {
 
   /** The confirm dialog's primary action will mint a new targeted copy (no copy for this job yet, editor has content). */
   const newCopyPending = (job: JobListing, intent: 'target' | 'cover' | 'keywords' | 'interview') =>
-    (intent === 'target' || intent === 'cover') &&
+    intent !== 'keywords' &&
     !targetedCopyOf(job) &&
     resumeHasContent(loadResume() ?? emptyResume())
 
@@ -895,7 +895,7 @@ export default function Jobs() {
     intent: 'target' | 'cover' | 'keywords' | 'interview'
   ) => {
     if (intent === 'interview') {
-      openInterviewPrep(job)
+      openInterviewPrep(job, pickedSource())
       return
     }
     if (intent !== 'cover') {
@@ -958,10 +958,10 @@ export default function Jobs() {
   }
 
   /** Open the job's targeted copy (or aim the draft at the job) and open interview prep. */
-  const openInterviewPrep = (job: JobListing) => {
+  const openInterviewPrep = (job: JobListing, source?: Resume) => {
     const draft = loadResume() ?? emptyResume()
     const version =
-      targetedCopyOf(job) ?? (resumeHasContent(draft) ? prepareTargetedCopy(job) : null)
+      targetedCopyOf(job) ?? (resumeHasContent(draft) ? prepareTargetedCopy(job, source) : null)
     if (version) {
       saveResume(version.data)
       setActiveVersionId(version.id)
@@ -1010,7 +1010,7 @@ export default function Jobs() {
             : 'Practice interview questions before the next round.',
         label: 'Open interview prep',
         onClick: () =>
-          draftAtRisk(job) || aimedCopyFor(job, 'interview')
+          draftAtRisk(job) || aimedCopyFor(job, 'interview') || newCopyPending(job, 'interview')
             ? setConfirmTarget({ job, intent: 'interview' })
             : openInterviewPrep(job),
       }
@@ -2331,7 +2331,7 @@ export default function Jobs() {
                     ? 'This opens the resume copy you already targeted at this job in the editor and links it to this job again, then opens interview prep for it.'
                     : !resumeHasContent(loadResume() ?? emptyResume())
                       ? "Your resume is still empty, so there's nothing to copy yet. This aims your draft at this posting and opens interview prep for it — the brief has no resume to draw on until you write one."
-                      : 'This saves a copy of your resume targeted at this posting (filed under “Job applications” on your dashboard), links this job to it and opens interview prep for it. Your current draft keeps its own target job.'
+                      : `This saves a copy of ${copySourceText()} targeted at this posting (filed under “Job applications” on your dashboard), links this job to it and opens interview prep for it. Your current draft keeps its own target job.`
                 : confirmTarget?.intent === 'cover'
                 ? confirmTarget && retargetedLinkedText(confirmTarget.job)
                   ? `${retargetedLinkedText(confirmTarget.job)}, and the cover letter tool then writes for that job and links the letter to it, not to this one.`
