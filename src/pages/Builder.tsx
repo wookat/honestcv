@@ -77,6 +77,7 @@ import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
 import { prefersReducedMotion } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
   FreeDownloadDialog,
@@ -1222,6 +1223,8 @@ export default function Builder() {
         : null,
     [activeVersionId]
   )
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when the copies dialog opens or copies change
+  const copiesPipeline = useMemo(() => (versionsOpen ? listPipeline() : []), [versions, versionsOpen])
   const [confirmDeleteCopy, setConfirmDeleteCopy] = useState<ResumeVersion | null>(null)
   const [confirmOpenCopy, setConfirmOpenCopy] = useState<ResumeVersion | null>(null)
   const [undoDeleteCopy, setUndoDeleteCopy] = useState<{
@@ -9235,7 +9238,7 @@ export default function Builder() {
               {versions.map((v) => (
                 <li
                   key={v.id}
-                  className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"
+                  className="flex flex-col gap-2 rounded-md border p-2 text-sm sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0 flex-1">
                     {renamingId === v.id ? (
@@ -9280,10 +9283,11 @@ export default function Builder() {
                         )}
                       </p>
                     )}
-                    <p className="text-muted-foreground truncate text-xs">
+                    <p className="text-muted-foreground text-xs">
                       {new Date(v.updatedAt).toLocaleString()}
                       {v.folder ? ` · ${v.folder}` : ''} · ATS{' '}
                       {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+                      <CopyTargetNote version={v} pipeline={copiesPipeline} />
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">

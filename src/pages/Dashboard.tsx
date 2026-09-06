@@ -28,6 +28,7 @@ import {
   X,
 } from 'lucide-react'
 
+import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
   FreeDownloadDialog,
@@ -67,7 +68,7 @@ import {
   stashUnreadableDocs,
   updateCareerDoc,
 } from '@/lib/documents'
-import { attentionCount, copyTargetsJob, listPipeline, type PipelineEntry } from '@/lib/jobs'
+import { attentionCount, listPipeline, type PipelineEntry } from '@/lib/jobs'
 import { LETTER_EXAMPLES, seedLetterExample, type LetterExample } from '@/lib/letterExamples'
 import { prefersReducedMotion } from '@/lib/motion'
 import {
@@ -835,54 +836,6 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     />
   )
 
-  const targetNote = (v: ResumeVersion) => {
-    const entry = jobByVersion.get(v.id)
-    if (entry)
-      return (
-        <>
-          {' '}
-          · for{' '}
-          <Link
-            to={`/jobs?job=${encodeURIComponent(entry.job.id)}`}
-            className="underline underline-offset-2"
-          >
-            {entry.job.title} at {entry.job.company}
-          </Link>
-        </>
-      )
-    const role = v.data.targetRole.trim()
-    if (!role) return null
-    const company = (v.data.targetCompany ?? '').trim()
-    const tracked = pipeline.find((e) => copyTargetsJob(v.data, e.job))
-    return (
-      <>
-        {' '}
-        · targeted at {role}
-        {company ? ` at ${company}` : ''}
-        {tracked ? (
-          <>
-            {' '}
-            ·{' '}
-            <Link
-              to={`/jobs?job=${encodeURIComponent(tracked.job.id)}`}
-              className="underline underline-offset-2"
-            >
-              tracked job uses another copy
-            </Link>
-          </>
-        ) : v.data.jobDescription.trim() !== '' && (
-          <>
-            {' '}
-            · job no longer tracked —{' '}
-            <Link to={`/jobs?q=${encodeURIComponent(role)}`} className="underline underline-offset-2">
-              find it again
-            </Link>
-          </>
-        )}
-      </>
-    )
-  }
-
   const versionCard = (v: ResumeVersion) => (
     <div key={v.id} className="bg-card flex flex-col rounded-md border shadow-sm">
       <Thumb resume={{ ...emptyResume(), ...v.data }} />
@@ -896,7 +849,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
               {v.folder ? ` · ${v.folder}` : ''}
               {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
-              {targetNote(v)}
+              <CopyTargetNote version={v} pipeline={pipeline} />
             </p>
           </div>
         </div>
@@ -919,7 +872,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
             {v.folder ? ` · ${v.folder}` : ''}
             {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
-            {targetNote(v)}
+            <CopyTargetNote version={v} pipeline={pipeline} />
           </p>
         </div>
       </div>
