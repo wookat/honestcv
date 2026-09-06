@@ -2088,3 +2088,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：提取 shortDateOf(date)，当日期年份 ≠ 当前年时追加 year:'numeric'，同年保持「Mon D」紧凑格式；shortDate/shortDay 共用；存储/提醒逻辑/评分零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
 - 生产 QA（index-CNGI6V6y.js）：1280/375 详情面板「Reminder due Jan 1, 2020」、Tracked tab 行 chip 同样带年、同年时间线仍「Applied · Sep 6」无年、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R573（SOP-10 节点）— Tracked 行显示未到期跟进提醒（2026-08-31）
+- 四维复扫：7 路由 ×（1280/375）零横向溢出、存储基线完好。一手证据（生产 CDP）：remindOn=2027-03-15（未到期）时，详情面板只有 date input 里能看到日期，页面文本零提及；Tracked 行只有 stale「No update · Nd」与到期「Follow up due」两种 chip——已排程未到期的提醒在队列面零信号。方案：docs/plan-r573-upcoming-reminder-chip.md。
+- 修复仅 src/pages/Jobs.tsx：行 chip 块新增未到期分支——muted 边框 chip「Follow-up {shortDay(remindOn)}」（复用 R572 年份感知格式），琥珀仍专属需关注状态；存储/提醒逻辑/评分零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-DqvSD9zj.js）：1280/375 Tracked 行「Follow-up Mar 15, 2027」chip 在位、到期行仍琥珀「Follow up due」、无提醒行零 chip、零溢出；QA 存储清理回六键基线；零 AI 配额。

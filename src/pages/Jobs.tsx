@@ -1299,6 +1299,11 @@ export default function Jobs() {
                                       Follow up due
                                     </span>
                                   )}
+                                  {entry?.remindOn !== undefined && !due && (
+                                    <span className="text-muted-foreground ml-2 rounded-full border px-1.5 py-0.5 text-[11px] font-medium">
+                                      Follow-up {shortDay(entry.remindOn)}
+                                    </span>
+                                  )}
                                 </>
                               )
                             })()}
