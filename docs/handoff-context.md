@@ -2179,3 +2179,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - tsc/单查 eslint（0 错误，L258 既有 exhaustive-deps 警告未动）/build/verify-dist 绿。部署：29 资产+worker 上传成功（index-AZ1YhpkC.js / Jobs-CYddL7y0.js）、Workers Routes auth code 10000。PR #808（基于 R586 分支链）。
 - 生产 QA（~/qa/r587-evidence.cjs）：1280/375 单条带副本弹窗含副本名、Cancel 保留链；1280/375 bulk「Untrack 2」（1 条带副本）文案「plus their link to 1 targeted resume copy. The copy stays…」；无任何关联条目仍静默取消跟踪；零溢出、零 console 错误、存储回基线、零 AI 配额。
 - QA 工具：~/qa/lib.cjs（CDP 连 Chrome、honestcv.qa=1 标记、shot/seed/keys/overflow）+ r586-evidence.cjs / r587-evidence.cjs，非仓库文件。
+## R588 — SOP-10 四维审计节点 + /dashboard 移动端快捷链横向溢出（2026-09-06）
+- 审计（生产 index-AZ1YhpkC.js，零 AI/分享/支付）：7 路由 × 1280/375 CDP 复扫零 console 错误；/ 与 /builder 的超出元素均为有意 overflow-x-auto 内滚；唯一真实页面溢出为 /dashboard 375：`md:hidden` 两张快捷链卡（AI assistant / Job search）scrollWidth 367 > clientWidth 360（360 视口下溢出 22px），副标题 `truncate` 失效。rezi.ai 公开页（首页/features/pricing）三支柱 Build/Score/Target 已对齐，社会证明差距沿 R298 缓议。方案：docs/plan-r588-sop10-audit-dashboard-quicklinks-overflow.md。
+- 根因：grid 隐式 auto 轨道按子项 min-content 定尺，`<Link class="flex">` 作为 grid item 缺 `min-width:0`，nowrap 副标题的整行宽度撑大轨道；内层 `span.min-w-0` 拦不住 min-content 传播（skill 第 52 条）。现场注入 `style.minWidth='0'` 先验证有效再改代码。
+- 修复仅 src/pages/Dashboard.tsx：两张快捷链 `<Link>` 增加 `min-w-0`。tsc/eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-CjPZ6zOd.js / Dashboard-W88Lr8Rr.js）：375 → scrollWidth 360 = clientWidth，卡右缘 344，第一张卡副标题真实省略号；360 → 345 = 345；1280 卡不渲染无回归；7 路由复扫零溢出零 console 错误；QA 存储清理回二键基线（含删除扫描时 /builder 产生的 honestcv.resumeHistory）。PR #809（基于 #808 链式分支）。
+- QA 教训：部署后紧接的第一次 CDP 测量仍命中旧 bundle（Chrome 同标签复用），先用 `fetch(url,{cache:'reload'})` + `document.scripts` 确认 index 哈希再判定。

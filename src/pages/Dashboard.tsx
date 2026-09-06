@@ -989,7 +989,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         <div className="mb-6 grid gap-3 md:hidden">
           <Link
             to="/builder?assistant=1"
-            className="bg-card hover:bg-accent flex items-center gap-3 rounded-md border p-4"
+            className="bg-card hover:bg-accent flex min-w-0 items-center gap-3 rounded-md border p-4"
           >
             <MessagesSquare className="text-primary size-5 shrink-0" />
             <span className="min-w-0">
@@ -1001,7 +1001,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           </Link>
           <Link
             to={trackedAttention > 0 ? '/jobs?attention=1' : '/jobs'}
-            className="bg-card hover:bg-accent flex items-center gap-3 rounded-md border p-4"
+            className="bg-card hover:bg-accent flex min-w-0 items-center gap-3 rounded-md border p-4"
           >
             <BriefcaseBusiness className="text-primary size-5 shrink-0" />
             <span className="min-w-0">
