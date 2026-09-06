@@ -100,13 +100,20 @@ const postedAgo = (iso: string) => {
 
 const countLetterPlaceholders = (text: string) => text.match(/\[[^\][\n]{1,120}\]/g)?.length ?? 0
 
-const shortDate = (ms: number) =>
-  new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+/** "Mon D" for dates in the current year, "Mon D, YYYY" otherwise. */
+const shortDateOf = (date: Date) =>
+  date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(date.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' as const } : {}),
+  })
 
-/** yyyy-mm-dd → "Mon D" using the day's components (no timezone shifting). */
+const shortDate = (ms: number) => shortDateOf(new Date(ms))
+
+/** yyyy-mm-dd formatted from the day's components (no timezone shifting). */
 const shortDay = (day: string) => {
   const [y, m, d] = day.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return shortDateOf(new Date(y, m - 1, d))
 }
 
 const agoFromMs = (ms: number) => {

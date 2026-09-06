@@ -2082,3 +2082,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Dashboard.tsx：mount 时读 listPipeline().length 与 attentionCount()（既有 helper），卡片副标题在 tracked>0 时改为「N tracked application(s)」+ attention>0 时琥珀「· M need(s) follow-up」（amber-700/dark amber-400，R555 同色）；空管线保持原文案；导航/存储/评分零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
 - 生产 QA（Dashboard-_5vEa70r.js，375）：2 tracked+1 到期 →「2 tracked applications · 1 needs follow-up」（琥珀）、1 tracked 无到期 →「1 tracked application」无琥珀、空管线恢复静态文案、卡片仍链 /jobs、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R572 — /jobs 跨年日期显示年份（2026-08-31）
+- 一手证据（生产 CDP）：pipeline 条目 remindOn=2020-01-01 时，/jobs 详情面板显示「Reminder due Jan 1 — consider following up.」——过期六年的提醒与即将到来的 Jan 1 无法区分；同一 shortDate/shortDay 还格式化时间线（Applied · Sep 6）与 Tracked 行提醒 chip，任何跨年日期同样歧义。方案：docs/plan-r572-cross-year-dates-show-year.md。
+- 修复仅 src/pages/Jobs.tsx：提取 shortDateOf(date)，当日期年份 ≠ 当前年时追加 year:'numeric'，同年保持「Mon D」紧凑格式；shortDate/shortDay 共用；存储/提醒逻辑/评分零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-CNGI6V6y.js）：1280/375 详情面板「Reminder due Jan 1, 2020」、Tracked tab 行 chip 同样带年、同年时间线仍「Applied · Sep 6」无年、零溢出；QA 存储清理回六键基线；零 AI 配额。
