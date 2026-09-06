@@ -98,6 +98,8 @@ const postedAgo = (iso: string) => {
   return days === 1 ? '1 day ago' : `${days} days ago`
 }
 
+const countLetterPlaceholders = (text: string) => text.match(/\[[^\][\n]{1,120}\]/g)?.length ?? 0
+
 const shortDate = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 
@@ -1642,6 +1644,11 @@ export default function Jobs() {
                           <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                             <span className="text-muted-foreground">Cover letter:</span>
                             <span className="font-medium">{coverDoc.title}</span>
+                            {countLetterPlaceholders(coverDoc.text) > 0 && (
+                              <span className="text-amber-700 dark:text-amber-400">
+                                {countLetterPlaceholders(coverDoc.text)} to fill
+                              </span>
+                            )}
                             <button
                               type="button"
                               className="text-primary underline-offset-2 hover:underline"
@@ -1661,6 +1668,11 @@ export default function Jobs() {
                           <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                             <span className="text-muted-foreground">Resignation letter:</span>
                             <span className="font-medium">{resignationDoc.title}</span>
+                            {countLetterPlaceholders(resignationDoc.text) > 0 && (
+                              <span className="text-amber-700 dark:text-amber-400">
+                                {countLetterPlaceholders(resignationDoc.text)} to fill
+                              </span>
+                            )}
                             <button
                               type="button"
                               className="text-primary underline-offset-2 hover:underline"

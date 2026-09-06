@@ -2064,3 +2064,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Dashboard.tsx 查看器 DialogDescription：openDoc 命中 jobByDoc（R567 同款映射）时追加「Written for <Link to=/jobs?job=id>Senior Engineer at Globex</Link>.」；无关联零渲染；useHistoryGuard 链接拦截天然覆盖未保存编辑。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
 - 生产 QA（index-7_UaM6dz.js）：1280/375 查看器链接在位、点击落 /jobs?job=j1 详情面板（Cover letter 行在位）、无关联文档零渲染、脏编辑点链接 → 确认弹窗且留在 /documents、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R569 — /jobs 关联信件行显示未填占位符计数（2026-09-06）
+- 一手证据（生产 CDP）：/documents 卡片（R555）显示「· 4 to fill」，但 /jobs 详情面板同一文档的「Cover letter: … Open」行零未完成信号——决定「能否投递」的正是这个面板。对照 Rezi 8 月 Improved Application Tracking（追踪器内呈现材料状态）。方案：docs/plan-r569-jobs-rows-show-placeholder-count.md。
+- 修复仅 src/pages/Jobs.tsx：新增同款 countLetterPlaceholders（1–120 字正则，与 R553 对齐），cover/resignation 行在标题后追加琥珀「N to fill」（amber-700/dark amber-400，与 R555 同色）；interview 行不适用；填完（0 占位符）零渲染。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-B6_DyRtL.js）：1280/375 cover「4 to fill」+resignation「1 to fill」在位且与 /documents 卡计数一致、填完信件零徽标、interview 行不变、零溢出；QA 存储清理回六键基线；零 AI 配额。
