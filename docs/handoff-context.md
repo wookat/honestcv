@@ -2130,3 +2130,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx 行 chip 块：followedUpAt 晚于最后状态事件且行未显示 stale/due 琥珀 chip 时，渲染 muted 边框 chip「Followed up <shortDate>」（R572 年份感知格式）；存储/attention/面板零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280/375 跟进行 chip 在位、无跟进行零渲染、再度 stale 行只显琥珀「No update」、零溢出、存储回六键基线、零 AI 配额。
+
+## R580 — 详情面板直接「Mark as followed up」（2026-08-31）
+- 一手证据（生产 CDP）：stale/到期提醒的详情面板只有「Draft follow-up email」与提醒日期输入，「Mark as followed up」唯一入口在跟进邮件弹窗 footer（R576）——电话/LinkedIn/当面跟进的用户必须打开一个不需要的邮件编辑弹窗才能清除关注状态。方案：docs/plan-r580-mark-followed-up-in-pane.md。
+- 修复仅 src/pages/Jobs.tsx canDraft 块：Draft 按钮旁新增同款「Mark as followed up」按钮，调 applyPipeline(markFollowedUp(entry.job.id))；弹窗 footer 按钮保留，存储/队列零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 stale+到期条目点面板按钮 → 琥珀信号全消、Needs follow-up 过滤钮隐藏（计数归零即隐藏，既有行为）、时间线出现「Followed up」、R579 行 chip 在位、remindOn 清除、零溢出、存储回六键基线、零 AI 配额。

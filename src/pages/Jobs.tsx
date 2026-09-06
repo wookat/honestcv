@@ -1795,6 +1795,13 @@ export default function Jobs() {
                                   ? 'Draft thank-you email'
                                   : 'Draft follow-up email'}
                               </button>
+                              <button
+                                type="button"
+                                className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
+                                onClick={() => applyPipeline(markFollowedUp(entry.job.id))}
+                              >
+                                Mark as followed up
+                              </button>
                             </div>
                           )
                         )
