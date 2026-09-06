@@ -1835,3 +1835,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx：新增 effect——mobileDetail 为真且视口 <768px 时 push `hcv-mobile-detail` 哨兵历史条目，popstate 时 setMobileDetail(false)（留在 /jobs）；浮层经应用内「Back to list」等路径关闭时清理哨兵（history.back() 消掉哨兵条目）。桌面端不建哨兵；URL 查询语义、深链、R528/R529/R530 逻辑零改动。架构先例：src/lib/useHistoryGuard.ts 哨兵模式的无确认简化版。
 - tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：375px 点行开详情→Back 回列表且 URL 仍 /jobs→再 Back 回 /dashboard；?job= 深链开详情→Back 回列表；「Back to list」关闭后 Back 直接离开 /jobs（哨兵已清）；1280px 点行→Back 直接回 /dashboard（桌面无哨兵）；R528 过滤外深链信息条、R529 换选后信息条消失、R530 Tracked→All 往返详情在位全部回归；全场景零溢出零 console 错误、QA 后存储回基线键。
+
+## R532 — 移动端职位详情浮层从顶部打开，返回列表恢复原滚动位置（2026-08-31）
+- 一手证据（生产 CDP，375×812）：/jobs 列表滚到 scrollY=900 点行开详情，scrollY 仍 900——标题 h2 在视口外（y=-148）、「Back to list」按钮也在视口外（y=-202），用户落在描述中段需手动上滑。对照 Rezi Week4「Seamless Messaging Navigation…without losing your place」。方案：docs/plan-r532-mobile-detail-opens-at-top.md。
+- 修复仅 src/pages/Jobs.tsx：新增 effect——视口 <768px 且 mobileDetail 变真时记录 scrollY 到 listScrollRef 并 scrollTo(0,0)；变假且此前开过浮层（mobileDetailWasOpen 守卫，避免首挂载/刷新时干扰浏览器滚动恢复）时恢复原 scrollY。桌面端零改动；R531 哨兵、URL/深链、R528–R530 逻辑零改动。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375px 滚到 900 点行→详情 scrollY=0 标题可见→浏览器 Back 回列表 scrollY 恢复 900；「Back to list」路径同样恢复 900；?job= 深链冷载详情从顶部显示；1280px 点行 scrollY 保持 300 不动（桌面无干预）；R530 Tracked→All 往返详情在位；全场景零溢出零 console 错误、存储仅基线键。

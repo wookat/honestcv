@@ -264,6 +264,23 @@ export default function Jobs() {
     }
   }, [mobileDetail])
 
+  // The mobile detail pane shares the page scroll with the list, so opening a
+  // job deep in the list would land mid-description: show the detail from the
+  // top and restore the list's scroll offset when the pane closes.
+  const listScrollRef = useRef(0)
+  const mobileDetailWasOpen = useRef(false)
+  useEffect(() => {
+    if (!window.matchMedia('(max-width: 767px)').matches) return
+    if (mobileDetail) {
+      mobileDetailWasOpen.current = true
+      listScrollRef.current = window.scrollY
+      window.scrollTo(0, 0)
+    } else if (mobileDetailWasOpen.current) {
+      mobileDetailWasOpen.current = false
+      window.scrollTo(0, listScrollRef.current)
+    }
+  }, [mobileDetail])
+
   const statusOf = useMemo(() => {
     const map = new Map<string, JobStatus>()
     for (const e of pipeline) map.set(e.job.id, e.status)
