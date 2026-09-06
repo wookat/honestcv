@@ -2336,7 +2336,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               The new target matches tracked job &quot;{editingMatchesTrackedJob.job.title}&quot; at{' '}
               {editingMatchesTrackedJob.job.company},{' '}
               {editingMatchesTrackedJob.hasCopy
-                ? 'which already uses another copy — this one stays unlinked.'
+                ? editingRetargetsLinkedJob
+                  ? 'which already uses another copy — this one stays unlinked.'
+                  : 'which already uses another copy — this one stays unlinked unless you use it for that job instead.'
                 : editingRetargetsLinkedJob
                   ? 'which has no targeted copy yet — save these changes as a new copy for it.'
                   : 'which has no targeted copy yet — link this copy to it.'}
@@ -2369,18 +2371,18 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   : 'Save as new copy'}
               </Button>
             )}
-            {!editingRetargetsLinkedJob &&
-              editingMatchesTrackedJob &&
-              !editingMatchesTrackedJob.hasCopy && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-10"
-                  onClick={() => saveEditing(editingMatchesTrackedJob.job.id)}
-                >
-                  Save and link to that job
-                </Button>
-              )}
+            {!editingRetargetsLinkedJob && editingMatchesTrackedJob && (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-10"
+                onClick={() => saveEditing(editingMatchesTrackedJob.job.id)}
+              >
+                {editingMatchesTrackedJob.hasCopy
+                  ? 'Save and use this copy for that job instead'
+                  : 'Save and link to that job'}
+              </Button>
+            )}
             <Button type="button" className="min-h-10" onClick={() => saveEditing()}>
               Save
             </Button>

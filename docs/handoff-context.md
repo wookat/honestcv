@@ -2434,3 +2434,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 证据（生产 index-Cj5uxiAF.js，qa/r637-evidence.cjs，真实职位 2091088 Applied，职位链接 A，编辑器打开同职位副本 B）：文案「…but that tracked job uses another copy. View it on the jobs board →」，按钮仅有链接；R621 的「Link this copy to it」只在职位无副本时出现。dashboard（R620）与 jobs 板（R636）均可原地链接，builder 是最后一个「有事实无动作」的面。方案 docs/plan-r637-builder-target-job-use-this-copy-instead.md。
 - 修复（Builder.tsx）：按钮常驻，文案随状态「Use this copy instead」/「Link this copy to it」，同一 `linkCopyToTargetedJob`（setPipelineVersion，R619 盖 forJob）；不删原副本，原副本在职位卡变为 Earlier 行（R636）可换回。部署 index-Ck2L9KYw.js（Routes code 10000 依旧）。
 - 生产 QA 1280+375：点击后 copy=qa-copyB、两副本俱在 forJob=2091088、active 不变、文案变为「This copy is tailored to …」；无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R636（#857）→ R637。
+
+## R638 — SOP-10 审计节点 + Resume settings「Save and use this copy for that job instead」（2026-09-06）
+- 审计（方案 docs/plan-r638-audit-node-and-resume-settings-use-this-copy-instead.md）：7 路由 × 1280/375 页面无溢出（仅既有两处有意横滚容器）；Rezi 公开页（job-search 指南 2026-07-16 版、features）能力项——按状态排除、Best match/Newest 排序、五状态、Apply on site、选择来源简历——RezUp 均已具备，无新公开能力缺口；关系 sweep（r616 375）R634–R637 新行无回归。
+- 剩余缺口（生产 index-Ck2L9KYw.js，qa/r638-evidence.cjs unlinked）：dashboard Resume settings 把未链接副本 B 改指跟踪职位 K（K 已链接 A）时只说「already uses another copy — this one stays unlinked」，按钮仅 Cancel/Save；R620 的「Save and link to that job」仅 K 无副本时出现。R636/R637 后这是最后一个只能去别处换的面。
+- 修复（Dashboard.tsx）：该按钮在 B 未被其他职位链接时常驻，文案随状态「Save and use this copy for that job instead」/「Save and link to that job」，文案补「unless you use it for that job instead」；同一 `saveEditing(linkTo)`（setPipelineVersion，R619 盖 forJob）；K 原副本不删，保留 forJob=K，在 K 卡片成为 Earlier 行可换回。B 本身是 J 链接副本时弹窗不变（仍为 Save as new copy）。部署 index-DR9zDq6k.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：点击后 qa-j2→qa-v1、v1.forJob=qa-j2、vA 保留；linked 对照不变；375 弹窗可滚动、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R637（#858）→ R638。
