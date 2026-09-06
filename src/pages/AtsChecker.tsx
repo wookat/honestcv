@@ -618,7 +618,12 @@ export default function AtsChecker() {
                     <span className="rounded bg-amber-100 px-1 text-amber-900">amber</span> =
                     missing.
                   </p>
-                  <div className="bg-muted/40 mt-2 max-h-56 overflow-y-auto rounded-md border p-3 text-sm whitespace-pre-wrap">
+                  <div
+                    className="bg-muted/40 mt-2 max-h-56 overflow-y-auto rounded-md border p-3 text-sm whitespace-pre-wrap"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Job description with keywords highlighted"
+                  >
                     {jdSegments.map((s, i) =>
                       s.kind === 'plain' ? (
                         <span key={i}>{s.text}</span>

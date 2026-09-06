@@ -2580,3 +2580,11 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复（docs/plan-r663-landing-showcase-mock-text-contrast.md）：Landing.tsx 287 `emerald-600→700`、`amber-600→700`；557 `emerald-600→700`；red-600 不动。无布局/文案/`dark:` 变化。
 - 生产 QA（qa/r663-verify.cjs 亮/暗 × 1280/375，index-C_rL1zCr.js）：Detected/3 positions 5.36（暗 10.87）、72 amber 5.03（暗 11.36）、83 5.36、Parsed as body text / 40 red-600 4.77（暗 7.96）；零 console 错误、存储回基线。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧。
 - 如实：装饰 vs 信息是记录在案的判断而非测量；芯片 ✓ 反向判断为装饰；未做真实读屏。
+
+### R664 — 纯文本滚动区不可键盘聚焦/无名称：ATS JD 高亮框、信件预览（链 #884 → 本 PR）
+- 覆盖缺口先补：7 路由 SOP-10 fixture 从未渲染过 /ats-checker **结果态**。qa/r664-ats.cjs 点「See an example score first」后跑逐屏 axe + 计算式对比度（亮/暗 × 1280/375，index-C_rL1zCr.js）：对比度四组 0 命中；axe 在 375 报 1 个真违规 `scrollable-region-focusable`（serious）：「Job description with keywords highlighted」框 `max-h-56 overflow-y-auto`，375 下 scrollHeight 304 > clientHeight 222，tabIndex −1、内无可聚焦元素；1280 下不溢出（184/184）所以桌面 sweep 从未见过。同构：/dashboard Letter examples 弹窗与文档 Preview 视图共用的 `LetterPreview`（maxHeight 55vh）375 下 716 > 445、同样不可聚焦无名称。
+- 如实：审计浏览器 Chrome 137 默认把无可聚焦子元素的滚动容器纳入 Tab 序（实测第 11 个 Tab 停在框上、ArrowDown 滚 80px、UA `outline auto`）；WebKit 未实现属推断未实测（本机无 WebKit）。无名称是各引擎都存在的问题。
+- 修复（docs/plan-r664-keyboard-scrollable-regions.md）：沿用仓内既有约定（Landing 定价对比表 `tabIndex={0} role="region" aria-label`）——AtsChecker.tsx JD 框 + Dashboard.tsx `LetterPreview` 根元素加 `tabIndex={0} role="region" aria-label`（"Job description with keywords highlighted" / "<title> preview"）。无布局/文案/颜色变化。
+- 排除：builder Copies `ul`、jobs 两栏、示例弹窗外层 wrapper 均含可聚焦内容（axe 通过）；AssistantPanel 消息区需真实 AI 对话才溢出，零配额未测，列候选。
+- 生产 QA（index-DHP4Xevh.js）：r664-ats 亮/暗 375 + 亮 1280 axe real 0（原 375 为 1）、对比度 0、无溢出、零 console 错误、atsDraft 回基线；r664-evidence 375 两框 tabIndex 0/role region/有名，Tab 可达；r664-dialog-axe 375 弹窗 axe 0，第 4 个 Tab 到达 preview region，ArrowDown 滚 40px。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧。
+- 如实未验证：R662「No priority fixes」态示例数据不触发，仍只按 token；桌面多出 1 个 Tab 停（与定价表同取舍）；未做真实读屏。

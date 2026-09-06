@@ -179,6 +179,9 @@ function LetterPreview({
         tpl.serif ? 'font-serif' : 'font-sans'
       }`}
       style={{ maxHeight: '55vh' }}
+      tabIndex={0}
+      role="region"
+      aria-label={`${doc.title} preview`}
     >
       {doc.kind === 'interview' ? (
         <p className="text-base font-bold">{doc.title}</p>
