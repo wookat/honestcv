@@ -1727,24 +1727,35 @@ export default function Jobs() {
                       })()}
                       <p className="text-sm font-medium">Application timeline</p>
                       <ol className="mt-1.5 flex flex-wrap items-center gap-y-1 text-xs">
-                        {steps.map((step, i) => (
-                          <li key={`${step.status}-${step.at}`} className="flex items-center">
-                            {i > 0 && (
-                              <span aria-hidden className="text-muted-foreground mx-1.5">
-                                →
+                        {(() => {
+                          const events = [
+                            ...steps.map((s) => ({
+                              label: JOB_STATUS_LABELS[s.status],
+                              at: s.at,
+                            })),
+                            ...(entry.followedUpAt !== undefined
+                              ? [{ label: 'Followed up', at: entry.followedUpAt }]
+                              : []),
+                          ].sort((a, b) => a.at - b.at)
+                          return events.map((ev, i) => (
+                            <li key={`${ev.label}-${ev.at}`} className="flex items-center">
+                              {i > 0 && (
+                                <span aria-hidden className="text-muted-foreground mx-1.5">
+                                  →
+                                </span>
+                              )}
+                              <span
+                                className={
+                                  i === events.length - 1
+                                    ? 'bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium'
+                                    : 'text-muted-foreground'
+                                }
+                              >
+                                {ev.label} · {shortDate(ev.at)}
                               </span>
-                            )}
-                            <span
-                              className={
-                                i === steps.length - 1
-                                  ? 'bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium'
-                                  : 'text-muted-foreground'
-                              }
-                            >
-                              {JOB_STATUS_LABELS[step.status]} · {shortDate(step.at)}
-                            </span>
-                          </li>
-                        ))}
+                            </li>
+                          ))
+                        })()}
                       </ol>
                       {(() => {
                         const stale = staleDays(entry)

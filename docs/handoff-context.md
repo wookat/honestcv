@@ -2112,3 +2112,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复两文件：jobs.ts 增 PipelineEntry.followedUpAt?（sanitize/upsert 保留）、staleDays 改从 max(最后状态变更, followedUpAt) 计、新增 markFollowedUp(jobId)（置 now 并清 remindOn）；Jobs.tsx followUpDraft 携带 jobId、弹窗 footer 新增「Mark as followed up」按钮（applyPipeline + 关弹窗）。过滤谓词/存储键/文案零改动。
 - tsc/eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280 到期+stale → 弹窗四按钮（Close/Open in email app/Mark as followed up/Copy email）→ 点击后琥珀信号全消、Needs follow-up (0)、followedUpAt 写入、remindOn 清除、reminder input 空；375 stale-only interviewing 同样闭环；零溢出；存储清理回六键基线；零 AI 配额。
+
+## R577 — 跟进事件写入申请时间线（2026-08-31）
+- 一手证据（生产 CDP）：种入 followedUpAt=3 天前的 applied 条目，/jobs 详情面板全文无「Followed up」——时间线只渲染状态变更（Applied · 日期），R576 记录的跟进事实用户无处可见。方案：docs/plan-r577-followed-up-in-timeline.md。
+- 修复仅 Jobs.tsx 时间线 <ol>：状态步与可选 { label:'Followed up', at:followedUpAt } 事件合并按时间排序渲染，末项高亮逻辑不变；存储/过滤/文案零改动。
+- tsc/eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280「Applied · Aug 27 → Followed up · Sep 3」按序在线、无 followedUpAt 条目零渲染回归、375 同样在位、零溢出、存储回六键基线、零 AI 配额。
