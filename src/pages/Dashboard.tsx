@@ -2797,6 +2797,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             <DialogDescription>
               This removes the selected copies from this browser permanently.
               {(() => {
+                const targeted = bulkSelected.filter((id) => jobByVersion.has(id)).length
+                if (targeted === 0) return ''
+                return targeted === 1
+                  ? ' One of them is the targeted resume for a tracked application, which loses this resume.'
+                  : ` ${targeted} of them are targeted resumes for tracked applications, which lose these resumes.`
+              })()}
+              {(() => {
                 const linked = bulkSelected.filter((id) => hasShareLink(id)).length
                 if (linked === 0) return ''
                 return linked === 1
