@@ -160,6 +160,7 @@ import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { downloadText, loadExporter, professionalFileName } from '@/lib/download'
 import { listCareerDocs, saveCareerDoc, updateCareerDoc } from '@/lib/documents'
 import {
+  copyTargetsJob,
   listPipeline,
   setPipelineCoverDoc,
   setPipelineInterviewDoc,
@@ -1223,6 +1224,24 @@ export default function Builder() {
         : null,
     [activeVersionId]
   )
+  /** Tracked job this copy targets without being its linked copy (the job uses another copy). */
+  const { targetRole, targetCompany, jobDescription } = resume
+  const targetedTrackedJob = useMemo(
+    () =>
+      activeVersionId && !linkedJob
+        ? (listPipeline().find((e) =>
+            copyTargetsJob({ targetRole, targetCompany, jobDescription }, e.job)
+          )?.job ?? null)
+        : null,
+    [activeVersionId, linkedJob, targetRole, targetCompany, jobDescription]
+  )
+  /** Editing a copy aimed at a posting that no tracked job matches (untracked, or the target was edited). */
+  const targetJobUntracked =
+    activeVersionId !== null &&
+    !linkedJob &&
+    !targetedTrackedJob &&
+    resume.targetRole.trim() !== '' &&
+    resume.jobDescription.trim() !== ''
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when the copies dialog opens or copies change
   const copiesPipeline = useMemo(() => (versionsOpen ? listPipeline() : []), [versions, versionsOpen])
   const [confirmDeleteCopy, setConfirmDeleteCopy] = useState<ResumeVersion | null>(null)
@@ -2796,6 +2815,31 @@ export default function Builder() {
                   className="text-primary font-medium underline-offset-2 hover:underline"
                 >
                   View it on the jobs board &rarr;
+                </Link>
+              </p>
+            )}
+            {targetedTrackedJob && (
+              <p className="text-muted-foreground text-xs">
+                This copy is targeted at &quot;{targetedTrackedJob.title}&quot; at{' '}
+                {targetedTrackedJob.company}, but that tracked job uses another copy.{' '}
+                <Link
+                  to={`/jobs?job=${encodeURIComponent(targetedTrackedJob.id)}`}
+                  className="text-primary font-medium underline-offset-2 hover:underline"
+                >
+                  View it on the jobs board &rarr;
+                </Link>
+              </p>
+            )}
+            {targetJobUntracked && (
+              <p className="text-muted-foreground text-xs">
+                This copy is targeted at &quot;{resume.targetRole.trim()}&quot;
+                {resume.targetCompany?.trim() ? ` at ${resume.targetCompany.trim()}` : ''} &mdash; that
+                job is no longer tracked.{' '}
+                <Link
+                  to={`/jobs?q=${encodeURIComponent(resume.targetRole.trim())}`}
+                  className="text-primary font-medium underline-offset-2 hover:underline"
+                >
+                  Find it again &rarr;
                 </Link>
               </p>
             )}
