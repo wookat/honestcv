@@ -15,6 +15,7 @@ import {
   Lightbulb,
   Search,
   StickyNote,
+  Undo2,
   X,
 } from 'lucide-react'
 
@@ -37,6 +38,7 @@ import {
   type JobListing,
   type JobStatus,
   type PipelineEntry,
+  type RemovedPipelineEntry,
   attentionCount,
   copyTargetsJob,
   followUpEmail,
@@ -44,8 +46,8 @@ import {
   listPipeline,
   locationFacets,
   markFollowedUp,
-  removeFromPipeline,
   removeManyFromPipeline,
+  restorePipelineEntries,
   searchJobs,
   reminderDue,
   setPipelineCoverDoc,
@@ -543,6 +545,23 @@ export default function Jobs() {
     return true
   }
 
+  const [undoUntrack, setUndoUntrack] = useState<RemovedPipelineEntry[] | null>(null)
+  useEffect(() => {
+    if (!undoUntrack) return
+    const t = setTimeout(() => setUndoUntrack(null), 10000)
+    return () => clearTimeout(t)
+  }, [undoUntrack])
+  /** Untracks jobs and offers to put their entries back (status, timeline, notes, links) for 10s. */
+  const untrack = (ids: readonly string[]): boolean => {
+    const set = new Set(ids)
+    const removed = pipeline.flatMap((entry, index) =>
+      set.has(entry.job.id) ? [{ entry, index }] : []
+    )
+    if (!applyPipeline(removeManyFromPipeline(ids))) return false
+    setUndoUntrack(removed.length > 0 ? removed : null)
+    return true
+  }
+
   /** The job's targeted copy if the pipeline links one that still exists. */
   const linkedVersion = (jobId: string) => {
     const id = pipeline.find((e) => e.job.id === jobId)?.resumeVersionId
@@ -675,7 +694,7 @@ export default function Jobs() {
         setConfirmUntrack(job)
         return
       }
-      applyPipeline(removeFromPipeline(job.id))
+      untrack([job.id])
       return
     }
     if (!applyPipeline(upsertPipeline(job, status))) return
@@ -2198,8 +2217,7 @@ export default function Jobs() {
               variant="destructive"
               className="min-h-10"
               onClick={() => {
-                if (confirmUntrack && !applyPipeline(removeFromPipeline(confirmUntrack.id)))
-                  return
+                if (confirmUntrack && !untrack([confirmUntrack.id])) return
                 setConfirmUntrack(null)
               }}
             >
@@ -2346,7 +2364,7 @@ export default function Jobs() {
               variant="destructive"
               className="min-h-10"
               onClick={() => {
-                if (!applyPipeline(removeManyFromPipeline([...visibleBulkIds]))) return
+                if (!untrack([...visibleBulkIds])) return
                 setBulkIds((prev) => new Set([...prev].filter((id) => !visibleBulkIds.has(id))))
                 setConfirmBulkUntrack(false)
               }}
@@ -2357,24 +2375,59 @@ export default function Jobs() {
         </DialogContent>
       </Dialog>
 
-      {storageError && (
-        <div
-          role="alert"
-          className="bg-background fixed inset-x-4 bottom-4 z-50 mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
-        >
-          <span className="text-destructive min-w-0">
-            Not saved — your browser storage is full. Free up space and try again.
-          </span>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => setStorageError(false)}
+      {/* Bottom status bars stack so concurrent notices stay readable */}
+      <div className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-center gap-2">
+        {undoUntrack && (
+          <div
+            role="status"
+            className="bg-background pointer-events-auto flex w-fit min-w-0 max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
           >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+            <span className="min-w-0 flex-1 truncate">
+              {undoUntrack.length === 1
+                ? `Stopped tracking "${undoUntrack[0].entry.job.title}"`
+                : `Stopped tracking ${undoUntrack.length} jobs`}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (!applyPipeline(restorePipelineEntries(undoUntrack))) return
+                setUndoUntrack(null)
+              }}
+            >
+              <Undo2 className="size-4" />
+              Undo
+            </Button>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setUndoUntrack(null)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+        {storageError && (
+          <div
+            role="alert"
+            className="bg-background pointer-events-auto flex w-fit max-w-full items-center gap-3 rounded-lg border p-3 text-sm shadow-lg"
+          >
+            <span className="text-destructive min-w-0">
+              Not saved — your browser storage is full. Free up space and try again.
+            </span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setStorageError(false)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

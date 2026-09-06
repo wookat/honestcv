@@ -528,3 +528,22 @@ export function setPipelineVersion(
 export function removeFromPipeline(id: string): PipelineEntry[] | null {
   return savePipeline(listPipeline().filter((e) => e.job.id !== id))
 }
+
+export interface RemovedPipelineEntry {
+  entry: PipelineEntry
+  index: number
+}
+
+/** Put untracked entries back where they were (Undo); a job tracked again meanwhile is skipped. */
+export function restorePipelineEntries(
+  removed: readonly RemovedPipelineEntry[]
+): PipelineEntry[] | null {
+  const next = listPipeline()
+  const present = new Set(next.map((e) => e.job.id))
+  for (const { entry, index } of [...removed].sort((a, b) => a.index - b.index)) {
+    if (present.has(entry.job.id)) continue
+    next.splice(Math.min(index, next.length), 0, entry)
+    present.add(entry.job.id)
+  }
+  return savePipeline(next)
+}
