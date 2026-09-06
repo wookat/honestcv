@@ -76,6 +76,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
 import { prefersReducedMotion } from '@/lib/motion'
+import { focusOnClose, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { cn } from '@/lib/utils'
 import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
@@ -1333,11 +1334,13 @@ export default function Builder() {
     index: number
     wasActive: boolean
   } | null>(null)
+  const [undoDeleteCopyFocused, setUndoDeleteCopyFocused] = useState(false)
+  const focusAfterRender = useFocusAfterRender()
   useEffect(() => {
-    if (!undoDeleteCopy) return
+    if (!undoDeleteCopy || undoDeleteCopyFocused) return
     const t = setTimeout(() => setUndoDeleteCopy(null), 10000)
     return () => clearTimeout(t)
-  }, [undoDeleteCopy])
+  }, [undoDeleteCopy, undoDeleteCopyFocused])
   /** Shown inside the copies dialog while it is open, otherwise as a bottom toast. */
   const undoCopyBar = (inDialog: boolean) =>
     undoDeleteCopy && (
@@ -1347,16 +1350,23 @@ export default function Builder() {
         'bg-background pointer-events-auto flex min-w-0 max-w-full items-center gap-3 rounded-lg border p-3 text-sm',
         inDialog ? 'w-full' : 'w-fit shadow-lg'
       )}
+      onFocus={() => setUndoDeleteCopyFocused(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setUndoDeleteCopyFocused(false)
+      }}
     >
       <span className="min-w-0 flex-1 truncate">Deleted "{undoDeleteCopy.version.name}"</span>
       <Button
+        id="undo-copy"
         type="button"
         size="sm"
         variant="outline"
         onClick={() => {
           const { version, index, wasActive } = undoDeleteCopy
           if (!applyVersions(restoreResumeVersion(version, index))) return
-          if (wasActive && activeVersionId === null) linkVersion(version.id)
+          const relink = wasActive && activeVersionId === null
+          if (relink) linkVersion(version.id)
+          focusAfterRender(`builder-copy-${version.id}-${relink ? 'rename' : 'open'}`)
           setUndoDeleteCopy(null)
         }}
       >
@@ -9488,6 +9498,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      id={`builder-copy-${v.id}-rename`}
                       className="h-10 w-10 p-0 text-xs sm:h-7 sm:w-7"
                       aria-label={`Rename copy ${v.name}`}
                       onClick={() => {
@@ -9512,6 +9523,7 @@ export default function Builder() {
                       type="button"
                       variant="outline"
                       size="sm"
+                      id={`builder-copy-${v.id}-open`}
                       className="h-10 text-xs sm:h-7"
                       disabled={v.id === activeVersionId}
                       aria-label={`Open copy ${v.name}`}
@@ -9613,7 +9625,7 @@ export default function Builder() {
         open={confirmDeleteCopy !== null}
         onOpenChange={(o) => !o && setConfirmDeleteCopy(null)}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-copy')}>
           <DialogHeader>
             <DialogTitle>Delete "{confirmDeleteCopy?.name}"?</DialogTitle>
             <DialogDescription>
@@ -9651,6 +9663,7 @@ export default function Builder() {
                 revokeShareLinksFor([v.id])
                 const wasActive = v.id === activeVersionId
                 if (wasActive) linkVersion(null)
+                setUndoDeleteCopyFocused(false)
                 setUndoDeleteCopy({ version: v, index: Math.max(index, 0), wasActive })
               }}
             >
