@@ -15,6 +15,22 @@ export interface CareerDoc {
   updatedAt: number
   /** Signature image (PNG data URL); absent = unsigned letter */
   signature?: string
+  /** The tracked job this document was written for, kept even after the job links a newer document or is untracked. */
+  forJob?: DocJobRef
+}
+
+export interface DocJobRef {
+  id: string
+  title: string
+  company: string
+}
+
+function sanitizeJobRef(input: unknown): DocJobRef | undefined {
+  if (typeof input !== 'object' || input === null) return undefined
+  const raw = input as Record<string, unknown>
+  if (typeof raw.id !== 'string' || !raw.id) return undefined
+  if (typeof raw.title !== 'string' || typeof raw.company !== 'string') return undefined
+  return { id: raw.id, title: raw.title, company: raw.company }
 }
 
 const CLOSING_RE =
@@ -97,6 +113,8 @@ function sanitizeCareerDoc(input: unknown): CareerDoc | null {
     updatedAt: typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : 0,
   }
   if (typeof raw.signature === 'string' && raw.signature) doc.signature = raw.signature
+  const forJob = sanitizeJobRef(raw.forJob)
+  if (forJob) doc.forJob = forJob
   return doc
 }
 
@@ -127,7 +145,12 @@ function numberedDocTitle(title: string, docs: CareerDoc[]): string {
 }
 
 /** Returns null when the document could not be persisted (storage full). */
-export function saveCareerDoc(kind: CareerDocKind, title: string, text: string): CareerDoc | null {
+export function saveCareerDoc(
+  kind: CareerDocKind,
+  title: string,
+  text: string,
+  forJob?: DocJobRef
+): CareerDoc | null {
   const docs = listCareerDocs()
   const doc: CareerDoc = {
     id: newId(),
@@ -136,6 +159,7 @@ export function saveCareerDoc(kind: CareerDocKind, title: string, text: string):
     text,
     updatedAt: Date.now(),
   }
+  if (forJob) doc.forJob = forJob
   return persistDocs([doc, ...docs]) ? doc : null
 }
 

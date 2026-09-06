@@ -11057,6 +11057,9 @@ function BundleToolDialog({
                     setSaveDocFailed(updated === null)
                     if (updated) setSavedText(result)
                   } else {
+                    const job = jobId
+                      ? listPipeline().find((e) => e.job.id === jobId)?.job
+                      : undefined
                     const doc = saveCareerDoc(
                       kind === 'cover'
                         ? 'cover'
@@ -11064,7 +11067,8 @@ function BundleToolDialog({
                           ? 'resignation'
                           : 'interview',
                       docTitle,
-                      result
+                      result,
+                      job ? { id: job.id, title: job.title, company: job.company } : undefined
                     )
                     setSaveDocFailed(doc === null)
                     if (!doc) return

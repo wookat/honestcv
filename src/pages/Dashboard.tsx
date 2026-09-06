@@ -263,6 +263,56 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     return map
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when documents change
   }, [docs])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when documents change
+  const trackedJobIds = useMemo(() => new Set(listPipeline().map((e) => e.job.id)), [docs])
+  /** Which job a document belongs to: the job that links it, or the one it was written for
+   * (that job now links another document, or is no longer tracked). */
+  const docTargetNote = (d: CareerDoc, sentence: boolean) => {
+    const linked = jobByDoc.get(d.id)
+    if (linked)
+      return (
+        <>
+          {sentence ? 'Written for ' : 'for '}
+          <Link
+            to={`/jobs?job=${encodeURIComponent(linked.job.id)}`}
+            className="underline underline-offset-2"
+          >
+            {linked.job.title} at {linked.job.company}
+          </Link>
+        </>
+      )
+    if (!d.forJob) return null
+    const noun =
+      d.kind === 'cover'
+        ? 'cover letter'
+        : d.kind === 'resignation'
+          ? 'resignation letter'
+          : 'interview brief'
+    return (
+      <>
+        {sentence ? 'Written for ' : 'written for '}
+        {d.forJob.title} at {d.forJob.company} ·{' '}
+        {trackedJobIds.has(d.forJob.id) ? (
+          <Link
+            to={`/jobs?job=${encodeURIComponent(d.forJob.id)}`}
+            className="underline underline-offset-2"
+          >
+            job uses another {noun}
+          </Link>
+        ) : (
+          <>
+            job no longer tracked —{' '}
+            <Link
+              to={`/jobs?q=${encodeURIComponent(d.forJob.title)}`}
+              className="underline underline-offset-2"
+            >
+              find it again
+            </Link>
+          </>
+        )}
+      </>
+    )
+  }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the pipeline when copies change
   const pipeline = useMemo(() => listPipeline(), [versions])
   const jobByVersion = useMemo(() => {
@@ -1623,18 +1673,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                           · {countLetterPlaceholders(d.text)} to fill
                         </span>
                       )}
-                      {jobByDoc.has(d.id) && (
-                        <>
-                          {' '}
-                          · for{' '}
-                          <Link
-                            to={`/jobs?job=${encodeURIComponent(jobByDoc.get(d.id)!.job.id)}`}
-                            className="underline underline-offset-2"
-                          >
-                            {jobByDoc.get(d.id)!.job.title} at {jobByDoc.get(d.id)!.job.company}
-                          </Link>
-                        </>
-                      )}
+                      {(jobByDoc.has(d.id) || d.forJob) && <> · {docTargetNote(d, false)}</>}
                     </p>
                   </div>
                 </div>
@@ -2419,19 +2458,8 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   ? 'Resignation letter'
                   : 'Interview prep brief'}{' '}
               — edits are saved to this browser.
-              {openDoc !== null && jobByDoc.has(openDoc.id) && (
-                <>
-                  {' '}
-                  Written for{' '}
-                  <Link
-                    to={`/jobs?job=${encodeURIComponent(jobByDoc.get(openDoc.id)!.job.id)}`}
-                    className="underline underline-offset-2"
-                  >
-                    {jobByDoc.get(openDoc.id)!.job.title} at{' '}
-                    {jobByDoc.get(openDoc.id)!.job.company}
-                  </Link>
-                  .
-                </>
+              {openDoc !== null && (jobByDoc.has(openDoc.id) || openDoc.forJob) && (
+                <> {docTargetNote(openDoc, true)}.</>
               )}
             </DialogDescription>
           </DialogHeader>
