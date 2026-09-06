@@ -168,6 +168,7 @@ import {
   type ShareLink,
   SHARE_SLUG_RE,
   createShareLink,
+  hasShareLink,
   loadShareLink,
   revokeShareLink,
   revokeShareLinksFor,
@@ -1218,6 +1219,7 @@ export default function Builder() {
         : null,
     [activeVersionId]
   )
+  const [confirmDeleteCopy, setConfirmDeleteCopy] = useState<ResumeVersion | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
   const [renameFolder, setRenameFolder] = useState('')
@@ -9272,11 +9274,7 @@ export default function Builder() {
                       variant="ghost"
                       size="sm"
                       className="text-destructive h-10 text-xs sm:h-7"
-                      onClick={() => {
-                        if (!applyVersions(deleteResumeVersion(v.id))) return
-                        revokeShareLinksFor([v.id])
-                        if (v.id === activeVersionId) linkVersion(null)
-                      }}
+                      onClick={() => setConfirmDeleteCopy(v)}
                     >
                       Delete
                     </Button>
@@ -9308,6 +9306,52 @@ export default function Builder() {
               resume as a copy first if you want to keep it.
             </p>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={confirmDeleteCopy !== null}
+        onOpenChange={(o) => !o && setConfirmDeleteCopy(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete "{confirmDeleteCopy?.name}"?</DialogTitle>
+            <DialogDescription>
+              This removes the copy from this browser permanently.
+              {(() => {
+                if (!confirmDeleteCopy) return ''
+                const job = listPipeline().find(
+                  (e) => e.resumeVersionId === confirmDeleteCopy.id
+                )?.job
+                return job
+                  ? ` It's the targeted resume for your tracked ${job.title} application at ${job.company}; that application loses this resume.`
+                  : ''
+              })()}
+              {confirmDeleteCopy && hasShareLink(confirmDeleteCopy.id)
+                ? ' Its public share link will also be turned off.'
+                : ''}
+              {confirmDeleteCopy && confirmDeleteCopy.id === activeVersionId
+                ? " You're editing this copy — the editor keeps its content as a plain draft."
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setConfirmDeleteCopy(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                const v = confirmDeleteCopy
+                setConfirmDeleteCopy(null)
+                if (!v || !applyVersions(deleteResumeVersion(v.id))) return
+                revokeShareLinksFor([v.id])
+                if (v.id === activeVersionId) linkVersion(null)
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={shareLinkOpen} onOpenChange={setShareLinkOpen}>
