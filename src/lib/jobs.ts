@@ -560,9 +560,16 @@ export function setPipelineVersion(
   jobId: string,
   resumeVersionId: string
 ): PipelineEntry[] | null {
-  return savePipeline(
-    listPipeline().map((e) => (e.job.id === jobId ? { ...e, resumeVersionId } : e))
+  const all = listPipeline()
+  const saved = savePipeline(
+    all.map((e) => (e.job.id === jobId ? { ...e, resumeVersionId } : e))
   )
+  const job = saved ? all.find((e) => e.job.id === jobId)?.job : undefined
+  if (job)
+    rememberVersionJobs(
+      new Map([[resumeVersionId, { id: job.id, title: job.title, company: job.company }]])
+    )
+  return saved
 }
 
 export function removeFromPipeline(id: string): PipelineEntry[] | null {
