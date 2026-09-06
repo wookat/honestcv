@@ -8329,7 +8329,7 @@ export default function Builder() {
                       <ul className="mt-1 space-y-1 text-xs">
                         {rows.map((c) => (
                           <li key={c.label} className="flex items-start gap-1.5">
-                            <span className={c.pass ? 'text-green-600' : 'text-red-500'}>
+                            <span className={c.pass ? 'text-green-700' : 'text-red-600'}>
                               {c.pass ? '✓' : '✗'}
                             </span>
                             <span>

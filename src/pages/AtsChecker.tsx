@@ -490,7 +490,7 @@ export default function AtsChecker() {
                     in the ATS score.
                   </p>
                   {analysis.fixes.length === 0 ? (
-                    <p className="mt-1.5 text-xs text-emerald-600">
+                    <p className="mt-1.5 text-xs text-emerald-700">
                       No priority fixes — every check passes and all writing
                       dimensions score 80+.
                     </p>
