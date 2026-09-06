@@ -308,9 +308,12 @@ export default function Jobs() {
     return map
   }, [pipeline])
 
-  const updatedAtOf = useMemo(() => {
+  const statusChangedAtOf = useMemo(() => {
     const map = new Map<string, number>()
-    for (const e of pipeline) map.set(e.job.id, e.updatedAt)
+    for (const e of pipeline) {
+      const steps = timelineOf(e)
+      map.set(e.job.id, steps[steps.length - 1].at)
+    }
     return map
   }, [pipeline])
 
@@ -1207,7 +1210,7 @@ export default function Jobs() {
               <ul>
                 {shown.map((j, i) => {
                   const status = statusOf.get(j.id)
-                  const updated = updatedAtOf.get(j.id)
+                  const updated = statusChangedAtOf.get(j.id)
                   return (
                     <li key={j.id} className="border-b last:border-b-0">
                       {i === anywhereStart && (

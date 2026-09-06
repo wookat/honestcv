@@ -2136,3 +2136,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复仅 src/pages/Jobs.tsx canDraft 块：Draft 按钮旁新增同款「Mark as followed up」按钮，调 applyPipeline(markFollowedUp(entry.job.id))；弹窗 footer 按钮保留，存储/队列零改动。
 - tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
 - 生产 QA：1280/375 stale+到期条目点面板按钮 → 琥珀信号全消、Needs follow-up 过滤钮隐藏（计数归零即隐藏，既有行为）、时间线出现「Followed up」、R579 行 chip 在位、remindOn 清除、零溢出、存储回六键基线、零 AI 配额。
+
+## R581 — Tracked 行状态时间用真实状态变更时刻（2026-08-31）
+- 一手证据（生产 CDP）：播种 history 显示 applied 10 天前、updatedAt=now 的条目（同状态 upsertPipeline——如已跟踪职位再走 cover/target 流——即产生此形态），Tracked 行同时显示「Applied today」与「No update · 10d」，状态时间与 stale chip、详情时间线互相矛盾。方案：docs/plan-r581-row-status-recency.md。
+- 修复仅 src/pages/Jobs.tsx：updatedAtOf map 改为 statusChangedAtOf（取 timelineOf 末步 at），行标签「Applied N days ago」与 staleDays/时间线同源；队列排序仍按 updatedAt，存储/面板零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 分歧条目显示「Applied 10 days ago」且「Applied today」消失、新状态变更仍「Interviewing today」、stale chip 一致、零溢出、存储回六键基线、零 AI 配额。
