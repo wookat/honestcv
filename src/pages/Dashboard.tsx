@@ -30,7 +30,7 @@ import {
 
 import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
-import { focusOnClose, useFocusAfterRender } from '@/lib/useFocusAfterRender'
+import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import {
   FreeDownloadDialog,
   UpgradeDialog,
@@ -644,9 +644,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const [pendingRestore, setPendingRestore] = useState<Record<string, string> | null>(null)
   const [workspaceError, setWorkspaceError] = useState('')
   const [undoDelete, setUndoDelete] = useState<
-    | { kind: 'copy'; version: ResumeVersion; index: number }
-    | { kind: 'copies'; entries: { version: ResumeVersion; index: number }[] }
-    | { kind: 'doc'; doc: CareerDoc; index: number }
+    | ({ dismissFocusId: string } & (
+        | { kind: 'copy'; version: ResumeVersion; index: number }
+        | { kind: 'copies'; entries: { version: ResumeVersion; index: number }[] }
+        | { kind: 'doc'; doc: CareerDoc; index: number }
+      ))
     | null
   >(null)
 
@@ -2932,11 +2934,20 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               onClick={() => {
                 if (confirmDeleteDoc) {
                   const index = docs.findIndex((d) => d.id === confirmDeleteDoc.id)
+                  const dismissFocusId = neighbourFocusId(
+                    [`doc-${confirmDeleteDoc.id}-open`],
+                    '[id^="doc-"][id$="-open"]'
+                  )
                   const next = deleteCareerDoc(confirmDeleteDoc.id)
                   if (applyDocs(next) && next) {
                     if (docKind !== 'all' && !next.some((d) => d.kind === docKind)) setDocKind('all')
                     setUndoDeleteFocused(false)
-                    setUndoDelete({ kind: 'doc', doc: confirmDeleteDoc, index: Math.max(index, 0) })
+                    setUndoDelete({
+                      kind: 'doc',
+                      doc: confirmDeleteDoc,
+                      index: Math.max(index, 0),
+                      dismissFocusId,
+                    })
                   }
                 }
                 setConfirmDeleteDoc(null)
@@ -2972,6 +2983,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               onClick={() => {
                 if (confirmDelete) {
                   const index = versions.findIndex((v) => v.id === confirmDelete.id)
+                  const dismissFocusId = neighbourFocusId(
+                    [`copy-${confirmDelete.id}-open`],
+                    '[id^="copy-"][id$="-open"]'
+                  )
                   if (!applyVersions(deleteResumeVersion(confirmDelete.id))) {
                     setConfirmDelete(null)
                     return
@@ -2982,6 +2997,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     kind: 'copy',
                     version: confirmDelete,
                     index: Math.max(index, 0),
+                    dismissFocusId,
                   })
                 }
                 setConfirmDelete(null)
@@ -3029,13 +3045,17 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   .map((version, index) => ({ version, index }))
                   .filter((e) => bulkIds.has(e.version.id))
                 if (entries.length > 0) {
+                  const dismissFocusId = neighbourFocusId(
+                    entries.map((e) => `copy-${e.version.id}-open`),
+                    '[id^="copy-"][id$="-open"]'
+                  )
                   if (!applyVersions(deleteResumeVersions(entries.map((e) => e.version.id)))) {
                     setConfirmBulkDelete(false)
                     return
                   }
                   revokeShareLinksFor(entries.map((e) => e.version.id))
                   setUndoDeleteFocused(false)
-                  setUndoDelete({ kind: 'copies', entries })
+                  setUndoDelete({ kind: 'copies', entries, dismissFocusId })
                 }
                 setBulkIds(new Set())
                 setConfirmBulkDelete(false)
@@ -3323,7 +3343,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             type="button"
             aria-label="Dismiss"
             className="text-muted-foreground hover:text-foreground"
-            onClick={() => setUndoDelete(null)}
+            onClick={() => {
+              focusAfterRender(undoDelete.dismissFocusId, 'main')
+              setUndoDelete(null)
+            }}
           >
             <X className="size-4" />
           </button>

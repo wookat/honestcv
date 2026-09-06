@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
-import { focusOnClose, useFocusAfterRender } from '@/lib/useFocusAfterRender'
+import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { PlanCard, WorkspaceNav } from '@/components/WorkspaceNav'
 import { Button } from '@/components/ui/button'
 import {
@@ -576,6 +576,9 @@ export default function Jobs() {
 
   const [undoUntrack, setUndoUntrack] = useState<RemovedPipelineEntry[] | null>(null)
   const [undoUntrackFocused, setUndoUntrackFocused] = useState(false)
+  /** Where "Dismiss" on the undo toast sends focus: the selected job's status chip if its panel is
+   *  still shown, else the neighbouring list card, else `main`. */
+  const undoUntrackDismissFocus = useRef<string[]>(['main'])
   useEffect(() => {
     if (!undoUntrack || undoUntrackFocused) return
     const t = setTimeout(() => setUndoUntrack(null), 10000)
@@ -587,7 +590,24 @@ export default function Jobs() {
     const removed = pipeline.flatMap((entry, index) =>
       set.has(entry.job.id) ? [{ entry, index }] : []
     )
+    const shown = removed.find((r) => r.entry.job.id === selected?.id)
+    // The selected job disappears from the detail pane when the pipeline was
+    // its only source (tracked tab); on mobile that leaves an empty pane over
+    // the hidden list, so return to the list.
+    const vanishes =
+      shown !== undefined &&
+      !jobs.some((j) => j.id === shown.entry.job.id) &&
+      linkedJob?.id !== shown.entry.job.id
+    undoUntrackDismissFocus.current = [
+      ...(shown && !vanishes ? [`track-chip-${shown.entry.status}`] : []),
+      neighbourFocusId(
+        ids.map((id) => `job-card-${id}`),
+        '[id^="job-card-"]'
+      ),
+      'main',
+    ]
     if (!applyPipeline(removeManyFromPipeline(ids))) return false
+    if (vanishes) setMobileDetail(false)
     if (removed.length > 0) focusAfterRender('undo-untrack')
     setUndoUntrackFocused(false)
     setUndoUntrack(removed.length > 0 ? removed : null)
@@ -1676,6 +1696,7 @@ export default function Jobs() {
                         <div className="min-w-0 flex-1">
                         <button
                           type="button"
+                          id={`job-card-${j.id}`}
                           onClick={() => {
                             explicitSelection.current = true
                             setSelectedId(j.id)
@@ -2831,7 +2852,10 @@ export default function Jobs() {
               type="button"
               aria-label="Dismiss"
               className="text-muted-foreground hover:text-foreground"
-              onClick={() => setUndoUntrack(null)}
+              onClick={() => {
+                focusAfterRender(...undoUntrackDismissFocus.current)
+                setUndoUntrack(null)
+              }}
             >
               <X className="size-4" />
             </button>

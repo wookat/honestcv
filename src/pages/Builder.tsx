@@ -76,7 +76,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
 import { prefersReducedMotion } from '@/lib/motion'
-import { focusOnClose, useFocusAfterRender } from '@/lib/useFocusAfterRender'
+import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { cn } from '@/lib/utils'
 import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
@@ -1339,6 +1339,7 @@ export default function Builder() {
     version: ResumeVersion
     index: number
     wasActive: boolean
+    dismissFocusId: string
   } | null>(null)
   const [undoDeleteCopyFocused, setUndoDeleteCopyFocused] = useState(false)
   useEffect(() => {
@@ -1382,7 +1383,10 @@ export default function Builder() {
         type="button"
         aria-label="Dismiss"
         className="text-muted-foreground hover:text-foreground"
-        onClick={() => setUndoDeleteCopy(null)}
+        onClick={() => {
+          focusAfterRender(undoDeleteCopy.dismissFocusId, 'main')
+          setUndoDeleteCopy(null)
+        }}
       >
         <X className="size-4" />
       </button>
@@ -9665,12 +9669,21 @@ export default function Builder() {
                 setConfirmDeleteCopy(null)
                 if (!v) return
                 const index = versions.findIndex((x) => x.id === v.id)
+                const dismissFocusId = neighbourFocusId(
+                  [`builder-copy-${v.id}-open`],
+                  '[id^="builder-copy-"][id$="-open"]'
+                )
                 if (!applyVersions(deleteResumeVersion(v.id))) return
                 revokeShareLinksFor([v.id])
                 const wasActive = v.id === activeVersionId
                 if (wasActive) linkVersion(null)
                 setUndoDeleteCopyFocused(false)
-                setUndoDeleteCopy({ version: v, index: Math.max(index, 0), wasActive })
+                setUndoDeleteCopy({
+                  version: v,
+                  index: Math.max(index, 0),
+                  wasActive,
+                  dismissFocusId,
+                })
               }}
             >
               Delete
