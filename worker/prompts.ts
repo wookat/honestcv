@@ -361,6 +361,7 @@ export function groundingRules(resumeText: string, today = new Date()): string {
       : ''
   }
 - Every statement about the candidate must be traceable to the resume text. Do not attribute tools, technologies, methods, employers, team sizes, remote or hybrid work, metrics, certifications or duties the resume does not state, even when the job description asks for them. When the job description needs something the resume does not show, name it as a gap to prepare an honest answer for — never as experience the candidate has.
+- The resume records what the candidate did, not what they have never done and not how they feel: never tell them what they have or have not experienced beyond the resume ("you've operated at the execution end"), and never attribute preferences, comfort, opinions or working style ("comfortable working with product managers", "cares deeply about") the resume does not state. Interest in this role and company is fine.
 - Where a specific is unknown, write a bracketed placeholder such as [metric] or [project] instead of a guess.`
 }
 
@@ -382,7 +383,7 @@ export function buildCoverLetterMessages(
   return [
     {
       role: 'system',
-      content: `You are an expert cover-letter writer.${toneLine} Write a concise, specific, one-page cover letter (250-350 words). Structure: hook tied to the company/role, 2 short paragraphs mapping the candidate's real experience to the job's needs, warm closing. Never fabricate experience: every skill, tool, employer, metric or duty you mention must appear in the candidate's resume or in the "details to highlight" — a job-description requirement the resume does not show is not the candidate's experience. Plain text, no markdown. Start with "Dear Hiring Manager," unless an "Addressed to" name is given — then address that person directly ("Dear <name>,"). If the candidate lists details to highlight, weave them naturally into the body paragraphs (do not present them as a list). Do not include addresses or dates.`,
+      content: `You are an expert cover-letter writer.${toneLine} Write a concise, specific, one-page cover letter (250-350 words). Structure: hook tied to the company/role, 2 short paragraphs mapping the candidate's real experience to the job's needs, warm closing. Never fabricate experience: every skill, tool, employer, metric or duty you mention must appear in the candidate's resume or in the "details to highlight" — a job-description requirement the resume does not show is not the candidate's experience. Do not claim preferences, comfort levels, opinions or working style the resume does not state ("I'm comfortable working with product managers to refine quarterly goals", "I care deeply about …"); interest in this company and role is welcome, feelings about job-description duties are not. Plain text, no markdown. Start with "Dear Hiring Manager," unless an "Addressed to" name is given — then address that person directly ("Dear <name>,"). If the candidate lists details to highlight, weave them naturally into the body paragraphs (do not present them as a list). Do not include addresses or dates.`,
     },
     {
       role: 'user',
@@ -474,10 +475,10 @@ export function buildInterviewBriefMessages(
     {
       role: 'system',
       content: `You are an interview coach. Produce a practical interview prep brief with exactly these sections, in plain text with these headings:
-LIKELY QUESTIONS — 8 questions this specific role/JD will ask, each followed by a one-line answer angle drawn from the candidate's real resume (cite the employer or bullet it comes from; if the resume has nothing on the topic, say "no direct evidence — position it as a gap").
-YOUR STORIES — 3 STAR stories the candidate should prepare, each built from one actual experience bullet quoted from the resume; use bracketed placeholders for any detail the bullet does not give.
+LIKELY QUESTIONS — 8 questions this specific role/JD will ask, each followed by a one-line answer angle drawn from the candidate's real resume (cite the employer or bullet it comes from; if the resume has nothing on the topic, write "not on your resume — if you have done this, say so and add it; otherwise the closest analogue is …" and name the closest real bullet).
+YOUR STORIES — 3 STAR stories the candidate should prepare, each built from one actual experience bullet quoted from the resume; the Situation and Task come from that bullet or are bracketed placeholders — never a plausible backstory the resume does not state.
 QUESTIONS TO ASK — 4 sharp questions for the interviewer.
-GAPS TO PREPARE FOR — 2-3 likely weak spots vs the JD and how to address them honestly.
+GAPS TO PREPARE FOR — 2-3 JD requirements the resume does not show. Phrase each as what the resume does not show (not as what the candidate has never done), then two lines: "If you have done this: …" (add it to the resume and how to say it) and "If not: …" (the closest real experience and an honest framing).
 Never fabricate experience. No markdown syntax beyond the plain headings above.
 ${groundingRules(resumeText, today)}`,
     },
