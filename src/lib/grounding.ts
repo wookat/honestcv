@@ -1,0 +1,525 @@
+/**
+ * Deterministic post-check for AI text that is supposed to be grounded in the
+ * user's resume (interview brief, cover letter): names, tools and figures the
+ * output states that appear in none of the source texts.
+ *
+ * Complements the prompt-level rules in worker/prompts.ts (R705) — the prompt
+ * asks the model not to invent, this proves whether it did. It cannot judge
+ * paraphrases or duties, only concrete tokens, so it never claims the rest is
+ * verified.
+ */
+
+/** Sentence-initial or structural words that are capitalised without naming anything */
+const GENERIC_CAPS = new Set([
+  "a",
+  "an",
+  "the",
+  "i",
+  "my",
+  "me",
+  "we",
+  "you",
+  "your",
+  "they",
+  "their",
+  "it",
+  "its",
+  "this",
+  "that",
+  "these",
+  "those",
+  "and",
+  "or",
+  "but",
+  "so",
+  "if",
+  "as",
+  "at",
+  "by",
+  "for",
+  "from",
+  "in",
+  "of",
+  "on",
+  "to",
+  "with",
+  "be",
+  "is",
+  "are",
+  "was",
+  "were",
+  "has",
+  "have",
+  "had",
+  "do",
+  "does",
+  "did",
+  "can",
+  "could",
+  "will",
+  "would",
+  "should",
+  "may",
+  "might",
+  "no",
+  "not",
+  "yes",
+  "how",
+  "what",
+  "when",
+  "where",
+  "which",
+  "who",
+  "why",
+  "then",
+  "there",
+  "here",
+  "after",
+  "before",
+  "while",
+  "during",
+  "since",
+  "until",
+  "once",
+  "because",
+  "although",
+  "though",
+  "however",
+  "also",
+  "both",
+  "each",
+  "every",
+  "any",
+  "all",
+  "some",
+  "most",
+  "many",
+  "much",
+  "more",
+  "less",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "first",
+  "second",
+  "third",
+  "next",
+  "last",
+  "new",
+  "own",
+  "same",
+  "other",
+  "such",
+  "very",
+  "just",
+  "only",
+  "even",
+  "still",
+  "yet",
+  "never",
+  "always",
+  "often",
+  "usually",
+  "ask",
+  "tell",
+  "describe",
+  "explain",
+  "walk",
+  "give",
+  "share",
+  "talk",
+  "discuss",
+  "show",
+  "lead",
+  "led",
+  "built",
+  "build",
+  "added",
+  "add",
+  "use",
+  "used",
+  "using",
+  "gap",
+  "gaps",
+  "angle",
+  "situation",
+  "task",
+  "action",
+  "result",
+  "results",
+  "story",
+  "stories",
+  "question",
+  "questions",
+  "answer",
+  "answers",
+  "position",
+  "summary",
+  "experience",
+  "skills",
+  "education",
+  "projects",
+  "dear",
+  "sincerely",
+  "regards",
+  "hiring",
+  "manager",
+  "present",
+  "ongoing",
+  "today",
+  "currently",
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "sept",
+  "oct",
+  "nov",
+  "dec",
+  "january",
+  "february",
+  "march",
+  "april",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+  "star",
+  "jd",
+  "s",
+  "t",
+  "r",
+  "q",
+]);
+
+/** Words that start a capitalised run but are ordinary English when the rest of the run is too */
+const TITLE_WORDS = new Set([
+  "senior",
+  "junior",
+  "lead",
+  "principal",
+  "staff",
+  "head",
+  "chief",
+  "engineer",
+  "developer",
+  "manager",
+  "director",
+  "analyst",
+  "designer",
+  "consultant",
+  "specialist",
+  "coordinator",
+  "associate",
+  "intern",
+  "officer",
+  "nurse",
+  "teacher",
+  "assistant",
+  "architect",
+  "scientist",
+  "administrator",
+  "technician",
+  "representative",
+  "executive",
+  "partner",
+  "founder",
+  "owner",
+  "president",
+  "vice",
+]);
+
+const normalise = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ");
+
+/** Alphanumeric key for loose containment: "GitHub Actions" ~ "github actions", "Node.js" ~ "nodejs" */
+const key = (s: string) => normalise(s).replace(/[^a-z0-9]+/g, "");
+
+const CAP_RUN_RE =
+  /(?:^|[^A-Za-z0-9.+#@/])((?:[A-Z][A-Za-z0-9+#]*(?:\.[A-Za-z][A-Za-z0-9]*)*)(?:[ -][A-Z][A-Za-z0-9+#]*(?:\.[A-Za-z][A-Za-z0-9]*)*)*)/g;
+
+/** Capitalised runs ("GitHub Actions", "Node.js", "AWS") minus the sentence-initial ordinary words */
+function properRuns(text: string): string[] {
+  const out: string[] = [];
+  for (const line of text.split("\n")) {
+    if (/^[A-Z0-9 &'’/—–-]{4,}$/.test(line.trim())) continue; // heading in caps
+    for (const m of line.matchAll(CAP_RUN_RE)) {
+      const before = line.slice(0, m.index! + (m[0].length - m[1].length));
+      const sentenceStart =
+        /(^|[.!?:;"“”\u2014\u2013([]\s*|^\s*(?:\d+[.)]|[-•*]|[STAR]:)\s*)$/.test(
+          before,
+        ) || /^\s*$/.test(before);
+      let words = m[1].split(/[ -]/);
+      // Drop leading ordinary words when the run opens a sentence ("Six years", "Tell us", "Median page")
+      if (sentenceStart) {
+        while (
+          words.length &&
+          !/[0-9.+#]/.test(words[0]) &&
+          words[0] !== words[0].toUpperCase() &&
+          (GENERIC_CAPS.has(words[0].toLowerCase()) ||
+            words.length === 1 ||
+            TITLE_WORDS.has(words[0].toLowerCase()))
+        ) {
+          words = words.slice(1);
+        }
+      }
+      // Drop generic capitalised words anywhere ("I", "Present", month names, STAR letters)
+      words = words.filter((w) => !GENERIC_CAPS.has(w.toLowerCase()));
+      if (!words.length) continue;
+      const run = words.join(" ");
+      if (run.length < 2) continue;
+      if (words.every((w) => TITLE_WORDS.has(w.toLowerCase()))) continue;
+      out.push(run);
+    }
+  }
+  return out;
+}
+
+const NUMBER_RE =
+  /(?<![A-Za-z0-9.])(\$?\d[\d,]*(?:\.\d+)?)(\s*(?:%|percent|k\b|m\b|x\b|ms\b|s\b|seconds?\b|minutes?\b|hours?\b|days?\b|weeks?\b|months?\b|years?\b)?)/gi;
+
+/** Figures that read as evidence (percentages, money, decimals, 2+ digit counts) — not tenures, list numbers or durations */
+function figures(text: string): string[] {
+  const out: string[] = [];
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.replace(/^\s*\d+[.)]\s+/, ""); // list index
+    for (const m of line.matchAll(NUMBER_RE)) {
+      const num = m[1];
+      const unit = m[2].trim().toLowerCase();
+      if (/^(minutes?|hours?|days?|weeks?|months?|years?)$/.test(unit))
+        continue;
+      const bare = num.replace(/[$,]/g, "");
+      const isDecimal = bare.includes(".");
+      const val = Number(bare);
+      if (
+        !unit &&
+        !isDecimal &&
+        !num.startsWith("$") &&
+        (Number.isNaN(val) || val < 10)
+      )
+        continue;
+      if (/^(19|20)\d{2}$/.test(bare)) continue; // year
+      out.push((num + (unit ? (unit === "%" ? "%" : " " + unit) : "")).trim());
+    }
+  }
+  return out;
+}
+
+/** Does any source contain the term (loose: case, punctuation and "Node.js"/"NodeJS" folded)? */
+function supported(
+  term: string,
+  sourceKeys: string[],
+  sourceTexts: string[],
+): boolean {
+  const k = key(term);
+  if (!k) return true;
+  if (sourceKeys.some((s) => s.includes(k))) return true;
+  // Multi-word run: accept when every word is supported on its own (order/joiner may differ)
+  const words = term.split(/[ -]/).filter(Boolean);
+  if (
+    words.length > 1 &&
+    words.every((w) => sourceKeys.some((s) => s.includes(key(w))))
+  )
+    return true;
+  const n = normalise(term);
+  return sourceTexts.some((s) => s.includes(n));
+}
+
+function figureSupported(fig: string, sourceTexts: string[]): boolean {
+  const num = fig.match(/\$?\d[\d,]*(?:\.\d+)?/)![0].replace(/[$,]/g, "");
+  const re = new RegExp(`(?<![0-9.])${num.replace(".", "\\.")}(?![0-9])`);
+  return sourceTexts.some((s) => re.test(s));
+}
+
+const wordSet = (s: string) =>
+  new Set(
+    normalise(s)
+      .replace(/[^a-z0-9 ]+/g, " ")
+      .split(" ")
+      .filter((w) => w.length > 2),
+  );
+
+/** Share of `quote`'s words that some single resume line also contains (best line wins) */
+function bestLineOverlap(quote: string, lines: Set<string>[]): number {
+  const q = wordSet(quote);
+  if (q.size < 4) return 0;
+  let best = 0;
+  for (const l of lines) {
+    let hit = 0;
+    for (const w of q) if (l.has(w)) hit++;
+    best = Math.max(best, hit / q.size);
+  }
+  return best;
+}
+
+/** Numbered items of one heading's section: `[{ n, text }]`; `null` when the heading is absent */
+function section(
+  text: string,
+  heading: RegExp,
+): { n: number; text: string }[] | null {
+  const lines = text.split("\n");
+  const start = lines.findIndex((l) => heading.test(l.trim()));
+  if (start < 0) return null;
+  const items: { n: number; text: string }[] = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (/^[A-Z][A-Z0-9 &'’/—–-]{5,}$/.test(l.trim()) && !/^\d/.test(l.trim()))
+      break; // next heading
+    const m = /^\s*(\d+)[.)]\s*(.*)$/.exec(l);
+    if (m) items.push({ n: Number(m[1]), text: m[2] });
+    else if (items.length && l.trim())
+      items[items.length - 1].text += "\n" + l.trim();
+  }
+  return items;
+}
+
+const QUOTE_RE = /["“]([^"“”\n]{20,})["”]/g;
+
+export interface BriefGrounding {
+  /** LIKELY QUESTIONS whose answer angle neither names an employer / school / resume line nor calls the topic a gap */
+  uncitedQuestions: number[];
+  questionCount: number;
+  /** YOUR STORIES with no quoted resume bullet, or whose quote is not in the resume */
+  unquotedStories: number[];
+  storyCount: number;
+}
+
+/**
+ * Checks the contract the interview-brief prompt sets (R705): every LIKELY
+ * QUESTION angle cites the employer or bullet it comes from or says "no direct
+ * evidence — position it as a gap"; every STORY is built from one quoted
+ * resume bullet. `anchors` are the resume's employer and school names.
+ * Returns `null` when the text is not in the brief's shape (template,
+ * user-written, older output).
+ */
+export function briefGrounding(
+  text: string,
+  resumeText: string,
+  anchors: string[],
+): BriefGrounding | null {
+  const questions = section(text, /^LIKELY QUESTIONS\b/);
+  const stories = section(text, /^YOUR STORIES\b/);
+  if (!questions || !stories || (!questions.length && !stories.length))
+    return null;
+  const resumeLines = resumeText
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 20)
+    .map(wordSet);
+  const resumeKey = key(resumeText);
+  // Full name plus its distinctive first word ("Northstar" for "Northstar Digital")
+  const anchorKeys = anchors
+    .flatMap((a) => {
+      const first = a.trim().split(/\s+/)[0] ?? "";
+      return [
+        key(a),
+        first.length >= 5 && !TITLE_WORDS.has(first.toLowerCase())
+          ? key(first)
+          : "",
+      ];
+    })
+    .filter((k) => k.length >= 4);
+
+  const uncitedQuestions: number[] = [];
+  for (const q of questions) {
+    const body = q.text.replace(/\n/g, " ");
+    // The angle follows the question: after its "?", else after the first line break / " — "
+    const qEnd = body.indexOf("?");
+    const nl = q.text.indexOf("\n");
+    const dash = body.search(/\s[—–-]\s/);
+    const cut = qEnd >= 0 ? qEnd + 1 : nl >= 0 ? nl : dash >= 0 ? dash : 0;
+    const angle = body.slice(cut);
+    const k = key(angle);
+    const citesEmployer = anchorKeys.some((e) => k.includes(e));
+    const namesGap =
+      /no direct evidence|\bgaps?\b|\bhonest|not (?:stated|mentioned|listed|shown|covered|in (?:the )?(?:commercial|listed|resume))|does not (?:mention|state|list|show)|doesn't (?:mention|state|list|show)|resume (?:has nothing|does not|doesn't|lacks|shows no)|no (?:commercial|production|direct|stated|listed) (?:experience|evidence|work)|\b(?:have|has|had) not\b|haven't|hasn't|i'd need to|would need to/i.test(
+        angle,
+      );
+    const quotesResume = [...angle.matchAll(QUOTE_RE)].some(
+      (m) =>
+        resumeKey.includes(key(m[1])) ||
+        bestLineOverlap(m[1], resumeLines) >= 0.7,
+    );
+    if (!citesEmployer && !namesGap && !quotesResume)
+      uncitedQuestions.push(q.n);
+  }
+
+  const unquotedStories: number[] = [];
+  for (const s of stories) {
+    const quotes = [...s.text.matchAll(QUOTE_RE)].map((m) => m[1]);
+    const grounded = quotes.some(
+      (qt) =>
+        resumeKey.includes(key(qt)) || bestLineOverlap(qt, resumeLines) >= 0.7,
+    );
+    if (!grounded) unquotedStories.push(s.n);
+  }
+  return {
+    uncitedQuestions,
+    questionCount: questions.length,
+    unquotedStories,
+    storyCount: stories.length,
+  };
+}
+
+export interface UnsupportedClaims {
+  /** Names / tools / places the text states that no source mentions */
+  terms: string[];
+  /** Figures (%, money, decimals, counts ≥ 10) that no source contains */
+  figures: string[];
+}
+
+/**
+ * Concrete claims in `text` (an AI-written brief or letter) that appear in none
+ * of `sources` (resume text, job description, the user's own notes).
+ */
+export function unsupportedClaims(
+  text: string,
+  sources: string[],
+): UnsupportedClaims {
+  const src = sources.filter((s) => s && s.trim());
+  const sourceTexts = src.map(normalise);
+  const sourceKeys = src.map(key);
+  const terms: string[] = [];
+  const seenT = new Set<string>();
+  for (const run of properRuns(text)) {
+    const k = key(run);
+    if (seenT.has(k)) continue;
+    seenT.add(k);
+    if (!supported(run, sourceKeys, sourceTexts)) terms.push(run);
+  }
+  const figs: string[] = [];
+  const seenF = new Set<string>();
+  for (const f of figures(text)) {
+    if (seenF.has(f)) continue;
+    seenF.add(f);
+    if (!figureSupported(f, sourceTexts)) figs.push(f);
+  }
+  return { terms, figures: figs };
+}
