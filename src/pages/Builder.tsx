@@ -80,10 +80,16 @@ import {
   briefGrounding,
   draftClaims,
   preferenceClaims,
+  skillListChanges,
   tailorClaims,
   unsupportedClaims,
 } from '@/lib/grounding'
-import { DraftFlagList, draftFlagGroups, type DraftFlagGroup } from '@/components/DraftFlagList'
+import {
+  DraftFlagList,
+  draftFlagGroups,
+  skillFlagGroups,
+  type DraftFlagGroup,
+} from '@/components/DraftFlagList'
 import { evidenceText, recordAppliedAnyway } from '@/lib/appliedAnyway'
 import { prefersReducedMotion } from '@/lib/motion'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
@@ -1179,6 +1185,8 @@ export default function Builder() {
     regenerate?: (avoid?: string[]) => void
     /** Reopen the generator's setup dialog (e.g. summary role & skills) */
     adjust?: () => void
+    /** What the candidates are; a skills cleanup is checked item by item, prose word by word */
+    kind?: 'summary' | 'bullets' | 'skills'
   } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(() => {
@@ -1935,18 +1943,26 @@ export default function Builder() {
         req.signal
       )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
-      if (texts && texts.length > 1) {
-        setVariantPick({
-          title: kind === 'summary' ? 'Pick a summary' : 'Pick a rewrite',
-          candidates: texts,
-          original: text,
-          apply,
-          tag,
-          regenerate: (nextAvoid) => void runRewrite(tag, kind, text, apply, emphasis, nextAvoid),
-        })
-      } else {
-        apply(out)
-      }
+      const candidates = texts && texts.length > 1 ? texts : [out]
+      if (candidates.every((c) => !c.trim())) throw new Error('The AI returned nothing usable. Try again.')
+      setVariantPick({
+        title:
+          kind === 'skills'
+            ? 'Review the cleaned-up skills'
+            : candidates.length > 1
+              ? kind === 'summary'
+                ? 'Pick a summary'
+                : 'Pick a rewrite'
+              : kind === 'summary'
+                ? 'Review the polished summary'
+                : 'Review the rewrite',
+        candidates,
+        original: text,
+        apply,
+        tag,
+        kind,
+        regenerate: (nextAvoid) => void runRewrite(tag, kind, text, apply, emphasis, nextAvoid),
+      })
     } catch (e) {
       if (isAbortError(e)) return
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
@@ -2164,9 +2180,10 @@ export default function Builder() {
     }
     variantPick?.candidates.forEach((cand, i) => {
       const original = evidenceText(variantPick.original ?? '')
-      const groups = draftFlagGroups(
-        draftClaims(cand, resumeText, jd, original.trim() ? [original] : [])
-      )
+      const groups =
+        variantPick.kind === 'skills'
+          ? skillFlagGroups(skillListChanges(variantPick.original ?? '', cand))
+          : draftFlagGroups(draftClaims(cand, resumeText, jd, original.trim() ? [original] : []))
       if (groups.length > 0) out.set(`variant-${i}`, groups)
     })
     return out
@@ -9160,9 +9177,18 @@ export default function Builder() {
           <DialogHeader>
             <DialogTitle>{variantPick?.title}</DialogTitle>
             <DialogDescription>
-              {variantPick?.candidates.some((_, i) => draftFlags.has(`variant-${i}`))
-                ? 'Three takes on your text. Options marked below use figures, names, job-ad wording or a remit your resume never states — check those before picking one; picking applies it as written. Bracketed placeholders like [add %] mark where a real number would help.'
-                : 'Three takes on your text, checked word by word against your resume — nothing flagged. Bracketed placeholders like [add %] mark where a real number would help.'}
+              {(() => {
+                const n = variantPick?.candidates.length ?? 0
+                const takes = n === 1 ? 'One take' : n === 2 ? 'Two takes' : 'Three takes'
+                const flagged = variantPick?.candidates.some((_, i) => draftFlags.has(`variant-${i}`))
+                if (variantPick?.kind === 'skills')
+                  return flagged
+                    ? 'Your skills, cleaned up and compared item by item with your list. Anything added, dropped or flattened is marked below — check it before picking; picking applies it as written.'
+                    : 'Your skills, cleaned up and compared item by item with your list — nothing added, dropped or flattened. Picking applies it as written.'
+                return flagged
+                  ? `${takes} on your text. Options marked below use figures, names, job-ad wording or a remit your resume never states — check those before picking one; picking applies it as written. Bracketed placeholders like [add %] mark where a real number would help.`
+                  : `${takes} on your text, checked word by word against your resume — nothing flagged. Bracketed placeholders like [add %] mark where a real number would help.`
+              })()}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -9196,13 +9222,17 @@ export default function Builder() {
                         : 'hover:border-primary hover:bg-muted/50'
                     } ${flagged && !isRejected ? 'border-amber-300' : ''}`}
                     onClick={() => {
-                      if (flagged) recordAppliedAnyway(cand)
+                      if (flagged && variantPick.kind !== 'skills') recordAppliedAnyway(cand)
                       variantPick.apply(cand)
                       setVariantPick(null)
                     }}
                   >
                     <span className="text-muted-foreground mb-1 block pr-24 text-xs font-medium">
-                      {['Concise', 'Impact-focused', 'Keyword-focused'][i] ?? `Option ${i + 1}`}
+                      {variantPick.candidates.length === 1
+                        ? variantPick.kind === 'skills'
+                          ? 'Cleaned up'
+                          : 'Rewritten'
+                        : (['Concise', 'Impact-focused', 'Keyword-focused'][i] ?? `Option ${i + 1}`)}
                       {isRejected && ' · marked not helpful'}
                       {flagged && !isRejected && ' · check before using'}
                     </span>
@@ -9279,8 +9309,12 @@ export default function Builder() {
                   {aiBusy === variantPick.tag
                     ? 'Writing…'
                     : variantPick.rejected?.length
-                      ? 'Regenerate avoiding marked options'
-                      : 'Regenerate options'}
+                      ? variantPick.candidates.length === 1
+                        ? 'Regenerate avoiding this one'
+                        : 'Regenerate avoiding marked options'
+                      : variantPick.candidates.length === 1
+                        ? 'Regenerate'
+                        : 'Regenerate options'}
                 </Button>
                 {variantPick.adjust && (
                   <Button

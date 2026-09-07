@@ -4,7 +4,7 @@
  * draft dialogs and the assistant panel's proposal cards.
  */
 
-import type { DraftClaims } from "@/lib/grounding";
+import type { DraftClaims, SkillListChanges } from "@/lib/grounding";
 
 export interface DraftFlagGroup {
   label: string;
@@ -21,6 +21,18 @@ export function draftFlagGroups(c: DraftClaims): DraftFlagGroup[] {
       items: c.mirrored,
     },
     { label: "Claims a remit your resume never states", items: c.scope },
+  ].filter((g) => g.items.length > 0);
+}
+
+/** Item-level checks a skills cleanup failed against the original list — a cleanup renames and reorders, never adds or drops */
+export function skillFlagGroups(c: SkillListChanges): DraftFlagGroup[] {
+  return [
+    { label: "Not in your skills list", items: c.added },
+    { label: "Dropped from your skills list", items: c.dropped },
+    {
+      label: "Category lines flattened",
+      items: c.categoriesLost ? ["your labelled lines become one plain list"] : [],
+    },
   ].filter((g) => g.items.length > 0);
 }
 
