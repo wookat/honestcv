@@ -880,6 +880,8 @@ interface NormalizedJob {
   tags: string[]
   description: string
   descriptionTruncated: boolean
+  /** Feed the row came from (`remotive` | `jobicy` | `arbeitnow` | `themuse`); stamped at assembly */
+  source?: string
 }
 
 const JOBS_UPSTREAM_TIMEOUT_MS = 8_000
@@ -1378,7 +1380,7 @@ interface JobSearchPayload {
 }
 
 const jobsCacheKey = (query: JobQuery, category: string, museLabel: string | null) =>
-  `jobs:v17:${query.upstream}|${query.ranking.join(' ')}|${category}|${museLabel ?? ''}`
+  `jobs:v18:${query.upstream}|${query.ranking.join(' ')}|${category}|${museLabel ?? ''}`
 
 // Relevance tiers for a query: every token in the title beats some tokens in
 // the title, which beats a match found only in the body text.
@@ -1389,8 +1391,9 @@ function assembleJobs(
 ): Omit<JobSearchPayload, 'broaden'> {
   const sources = feeds.filter(([, jobs]) => jobs).map(([name]) => name)
   const seen = new Set<string>()
-  const byFeed = feeds.map(([, list]) =>
+  const byFeed = feeds.map(([name, list]) =>
     (list ?? [])
+      .map((j) => ({ ...j, source: name }))
       .filter((j) => !category || matchesCategory(category, j.category))
       .filter((j) =>
         matchesJobQuery(

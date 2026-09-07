@@ -67,6 +67,7 @@ import {
   setPipelineReminder,
   setPipelineResignationDoc,
   setPipelineVersion,
+  jobSourceLabel,
   staleDays,
   stashUnreadablePipeline,
   structureJobDescription,
@@ -2135,6 +2136,13 @@ export default function Jobs() {
                   {selected.company} · {selected.location}
                   {selected.type && ` · ${selected.type}`}
                   {selected.salary && ` · ${selected.salary}`}
+                  {(postedAgo(selected.postedAt) || jobSourceLabel(selected)) &&
+                    ` · ${[
+                      postedAgo(selected.postedAt) && `posted ${postedAgo(selected.postedAt)}`,
+                      jobSourceLabel(selected) && `via ${jobSourceLabel(selected)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}`}
                   {tailoredMatchOf.has(selected.id) ? (
                     <span
                       className={
