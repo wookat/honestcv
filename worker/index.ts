@@ -53,6 +53,8 @@ interface Env extends BillingEnv, LsEnv {
   LLM_RELAY_BASE_URL?: string
   LLM_RELAY_API_KEY?: string
   LLM_MODEL?: string
+  /** GLM `thinking.type` ("disabled" | "enabled"); unset = provider default */
+  LLM_THINKING?: string
   /** Checkout switch: frontend opens checkout only when "true" */
   CHECKOUT_ENABLED?: string
   /** Launch/traffic mode: downloads free, bundle AI tools share the free quota */
@@ -105,6 +107,10 @@ async function entitlementFromRequest(c: {
   return verifyToken(secret, token)
 }
 
+/** Set once the relay rejects the `thinking` parameter, so later calls in this
+ * isolate skip it instead of paying a 400 round trip each time. */
+let thinkingParamRejected = false
+
 async function callLlm(
   env: Env,
   messages: { role: string; content: string }[],
@@ -120,8 +126,14 @@ async function callLlm(
   }
   // One automatic retry on transient upstream failures (429/5xx/network)
   let upstream: Response | null = null
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt > 0) await new Promise((r) => setTimeout(r, 1000))
+  const startedAt = Date.now()
+  const thinkingType = env.LLM_THINKING?.trim()
+  let withThinking = Boolean(thinkingType) && !thinkingParamRejected
+  let attempts = 2
+  let backoff = false
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (backoff) await new Promise((r) => setTimeout(r, 1000))
+    backoff = true
     try {
       upstream = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
@@ -129,10 +141,25 @@ async function callLlm(
           'content-type': 'application/json',
           authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+          ...(withThinking ? { thinking: { type: thinkingType } } : {}),
+        }),
       })
     } catch {
       upstream = null
+      continue
+    }
+    if (withThinking && upstream.status === 400) {
+      // Relay does not know the GLM `thinking` parameter — fall back to the default mode.
+      thinkingParamRejected = true
+      withThinking = false
+      attempts++
+      backoff = false
+      console.error('LLM upstream rejected thinking param', (await upstream.text().catch(() => '')).slice(0, 300))
       continue
     }
     if (upstream.ok || (upstream.status !== 429 && upstream.status < 500)) break
@@ -154,16 +181,79 @@ async function callLlm(
     }
   }
   const body = (await upstream.json().catch(() => null)) as {
-    choices?: { message?: { content?: string } }[]
+    model?: string
+    choices?: { message?: { content?: string; reasoning_content?: string }; finish_reason?: string }[]
+    usage?: {
+      prompt_tokens?: number
+      completion_tokens?: number
+      completion_tokens_details?: { reasoning_tokens?: number }
+    }
   } | null
-  const text = body?.choices?.[0]?.message?.content?.trim()
+  const choice = body?.choices?.[0]
+  // Upstream timing + token usage, so `wrangler tail` can attribute latency
+  // (prompt vs completion vs hidden reasoning tokens) per endpoint.
+  console.log(
+    'LLM upstream',
+    JSON.stringify({
+      ms: Date.now() - startedAt,
+      model: body?.model ?? model,
+      finish: choice?.finish_reason,
+      prompt: body?.usage?.prompt_tokens,
+      completion: body?.usage?.completion_tokens,
+      reasoningTokens: body?.usage?.completion_tokens_details?.reasoning_tokens,
+      reasoningChars: choice?.message?.reasoning_content?.length,
+      thinking: withThinking ? thinkingType : 'default',
+      maxTokens,
+    })
+  )
+  const text = choice?.message?.content?.trim()
   if (!text) return { error: 'Empty response from the AI service. Please retry.', status: 502 }
   return { text }
 }
 
+/** Top-level `{…}` objects in a reply that was emitted as JSON Lines or
+ * concatenated objects instead of an array. String-aware brace matching, so
+ * braces inside text are ignored; an unterminated final object is dropped. */
+function scanTopLevelObjects(raw: string): unknown[] {
+  const out: unknown[] = []
+  let depth = 0
+  let start = -1
+  let inString = false
+  let escaped = false
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (ch === '\\') escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') {
+      if (depth > 0) inString = true
+      continue
+    }
+    if (ch === '{') {
+      if (depth === 0) start = i
+      depth++
+    } else if (ch === '}' && depth > 0) {
+      depth--
+      if (depth === 0 && start >= 0) {
+        try {
+          out.push(JSON.parse(raw.slice(start, i + 1)) as unknown)
+        } catch {
+          /* skip malformed object */
+        }
+        start = -1
+      }
+    }
+  }
+  return out
+}
+
 /** Parse a model reply that is supposed to be a JSON array. Tolerates code
- * fences, prose around the array, and a reply truncated by max_tokens (the
- * complete leading elements are kept). Returns null when nothing usable. */
+ * fences, prose around the array, JSON Lines / concatenated objects instead
+ * of an array, and a reply truncated by max_tokens (the complete leading
+ * elements are kept). Returns null when nothing usable. */
 export function parseJsonArrayLenient(text: string): unknown[] | null {
   const raw = text.replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
   const tryParse = (s: string): unknown[] | null => {
@@ -176,8 +266,18 @@ export function parseJsonArrayLenient(text: string): unknown[] | null {
   }
   const direct = tryParse(raw)
   if (direct) return direct
+  const objectsOrNull = (): unknown[] | null => {
+    const objects = scanTopLevelObjects(raw)
+    if (objects.length === 1) {
+      // A single wrapper object such as {"suggestions": [...]}: unwrap.
+      const values = Object.values(objects[0] as Record<string, unknown>)
+      const inner = values.find(Array.isArray)
+      if (inner && values.length === 1) return inner as unknown[]
+    }
+    return objects.length > 0 ? objects : null
+  }
   const start = raw.indexOf('[')
-  if (start < 0) return null
+  if (start < 0) return objectsOrNull()
   const end = raw.lastIndexOf(']')
   if (end > start) {
     const inner = tryParse(raw.slice(start, end + 1))
@@ -193,7 +293,7 @@ export function parseJsonArrayLenient(text: string): unknown[] | null {
       cut = body.lastIndexOf(closer, cut - 1)
     }
   }
-  return null
+  return objectsOrNull()
 }
 
 const AI_TROUBLE_ERROR =
