@@ -111,6 +111,97 @@ async function entitlementFromRequest(c: {
  * isolate skip it instead of paying a 400 round trip each time. */
 let thinkingParamRejected = false
 
+/** A failed attempt that already ran this long is not retried: a second full
+ * generation would double a wait the user has mostly given up on. */
+const LLM_RETRY_BUDGET_MS = 30_000
+
+interface LlmUsage {
+  prompt_tokens?: number
+  completion_tokens?: number
+  completion_tokens_details?: { reasoning_tokens?: number }
+}
+
+interface LlmReply {
+  model?: string
+  finish?: string
+  content: string
+  reasoningChars: number
+  usage?: LlmUsage
+  /** Stream ended without `[DONE]` / a finish reason */
+  interrupted?: boolean
+}
+
+interface LlmStreamChunk {
+  model?: string
+  choices?: {
+    delta?: { content?: string; reasoning_content?: string }
+    finish_reason?: string | null
+  }[]
+  usage?: LlmUsage | null
+  error?: { message?: string }
+}
+
+/** Assemble an OpenAI-style SSE completion stream into one reply. */
+async function readLlmStream(body: ReadableStream<Uint8Array>): Promise<LlmReply> {
+  const reply: LlmReply = { content: '', reasoningChars: 0, interrupted: true }
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  const handle = (line: string) => {
+    if (!line.startsWith('data:')) return
+    const data = line.slice(5).trim()
+    if (!data) return
+    if (data === '[DONE]') {
+      reply.interrupted = false
+      return
+    }
+    let chunk: LlmStreamChunk
+    try {
+      chunk = JSON.parse(data) as LlmStreamChunk
+    } catch {
+      return
+    }
+    if (chunk.error?.message) throw new Error(chunk.error.message)
+    if (chunk.model) reply.model = chunk.model
+    if (chunk.usage) reply.usage = chunk.usage
+    const choice = chunk.choices?.[0]
+    if (!choice) return
+    if (choice.delta?.content) reply.content += choice.delta.content
+    if (choice.delta?.reasoning_content) reply.reasoningChars += choice.delta.reasoning_content.length
+    if (choice.finish_reason) {
+      reply.finish = choice.finish_reason
+      reply.interrupted = false
+    }
+  }
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split(/\r?\n/)
+    buffer = lines.pop() ?? ''
+    for (const line of lines) handle(line)
+  }
+  buffer += decoder.decode()
+  if (buffer) handle(buffer)
+  return reply
+}
+
+async function readLlmJson(upstream: Response): Promise<LlmReply> {
+  const body = (await upstream.json().catch(() => null)) as {
+    model?: string
+    choices?: { message?: { content?: string; reasoning_content?: string }; finish_reason?: string }[]
+    usage?: LlmUsage
+  } | null
+  const choice = body?.choices?.[0]
+  return {
+    model: body?.model,
+    finish: choice?.finish_reason,
+    content: choice?.message?.content ?? '',
+    reasoningChars: choice?.message?.reasoning_content?.length ?? 0,
+    usage: body?.usage,
+  }
+}
+
 async function callLlm(
   env: Env,
   messages: { role: string; content: string }[],
@@ -124,16 +215,26 @@ async function callLlm(
   if (!baseUrl || !apiKey) {
     return { error: 'The AI service is not configured yet. Please try again later.', status: 503 }
   }
-  // One automatic retry on transient upstream failures (429/5xx/network)
-  let upstream: Response | null = null
+  // One automatic retry on transient upstream failures (429/5xx/network/cut
+  // stream) that fail fast. The reply is requested as a stream so response
+  // headers arrive with the first token instead of after the whole
+  // generation — a 100 s header timeout on the path cannot end a long
+  // completion.
   const startedAt = Date.now()
   const thinkingType = env.LLM_THINKING?.trim()
   let withThinking = Boolean(thinkingType) && !thinkingParamRejected
   let attempts = 2
   let backoff = false
+  let failure = {
+    error: 'Could not reach the AI service — please retry in a minute. None of your free AI uses were spent.',
+    status: 502,
+  }
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (backoff) await new Promise((r) => setTimeout(r, 1000))
     backoff = true
+    const attemptStartedAt = Date.now()
+    const elapsed = () => Date.now() - attemptStartedAt
+    let upstream: Response
     try {
       upstream = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
@@ -146,13 +247,15 @@ async function callLlm(
           messages,
           temperature,
           max_tokens: maxTokens,
+          stream: true,
           ...(withThinking ? { thinking: { type: thinkingType } } : {}),
         }),
       })
     } catch {
-      upstream = null
+      if (elapsed() >= LLM_RETRY_BUDGET_MS) break
       continue
     }
+    const firstByteMs = elapsed()
     if (withThinking && upstream.status === 400) {
       // Relay does not know the GLM `thinking` parameter — fall back to the default mode.
       thinkingParamRejected = true
@@ -162,53 +265,63 @@ async function callLlm(
       console.error('LLM upstream rejected thinking param', (await upstream.text().catch(() => '')).slice(0, 300))
       continue
     }
-    if (upstream.ok || (upstream.status !== 429 && upstream.status < 500)) break
-    console.error('LLM upstream retryable error', upstream.status)
-  }
-  if (!upstream) {
-    return {
-      error:
-        'Could not reach the AI service — please retry in a minute. None of your free AI uses were spent.',
-      status: 502,
+    if (!upstream.ok) {
+      const detail = await upstream.text().catch(() => '')
+      console.error('LLM upstream error', upstream.status, `${elapsed()}ms`, detail.slice(0, 500))
+      failure = {
+        error: `The AI service is temporarily unavailable (${upstream.status}) — please retry in a minute. None of your free AI uses were spent.`,
+        status: 502,
+      }
+      const retryable = upstream.status === 429 || upstream.status >= 500
+      if (!retryable || elapsed() >= LLM_RETRY_BUDGET_MS) break
+      continue
     }
-  }
-  if (!upstream.ok) {
-    const detail = await upstream.text().catch(() => '')
-    console.error('LLM upstream error', upstream.status, detail.slice(0, 500))
-    return {
-      error: `The AI service is temporarily unavailable (${upstream.status}) — please retry in a minute. None of your free AI uses were spent.`,
-      status: 502,
+    const streamed =
+      (upstream.headers.get('content-type') ?? '').includes('text/event-stream') && upstream.body !== null
+    let reply: LlmReply
+    try {
+      reply = streamed ? await readLlmStream(upstream.body as ReadableStream<Uint8Array>) : await readLlmJson(upstream)
+    } catch (err) {
+      reply = {
+        content: '',
+        reasoningChars: 0,
+        interrupted: true,
+        finish: err instanceof Error ? err.message.slice(0, 120) : String(err),
+      }
     }
-  }
-  const body = (await upstream.json().catch(() => null)) as {
-    model?: string
-    choices?: { message?: { content?: string; reasoning_content?: string }; finish_reason?: string }[]
-    usage?: {
-      prompt_tokens?: number
-      completion_tokens?: number
-      completion_tokens_details?: { reasoning_tokens?: number }
+    // Upstream timing + token usage, so `wrangler tail` can attribute latency
+    // (queue wait vs generation vs hidden reasoning tokens) per endpoint.
+    console.log(
+      'LLM upstream',
+      JSON.stringify({
+        ms: Date.now() - startedAt,
+        attemptMs: elapsed(),
+        firstByteMs,
+        stream: streamed,
+        model: reply.model ?? model,
+        finish: reply.finish,
+        prompt: reply.usage?.prompt_tokens,
+        completion: reply.usage?.completion_tokens,
+        reasoningTokens: reply.usage?.completion_tokens_details?.reasoning_tokens,
+        reasoningChars: reply.reasoningChars || undefined,
+        interrupted: reply.interrupted || undefined,
+        thinking: withThinking ? thinkingType : 'default',
+        maxTokens,
+      })
+    )
+    if (reply.interrupted) {
+      failure = {
+        error: 'The AI service was interrupted — please retry in a minute. None of your free AI uses were spent.',
+        status: 502,
+      }
+      if (elapsed() >= LLM_RETRY_BUDGET_MS) break
+      continue
     }
-  } | null
-  const choice = body?.choices?.[0]
-  // Upstream timing + token usage, so `wrangler tail` can attribute latency
-  // (prompt vs completion vs hidden reasoning tokens) per endpoint.
-  console.log(
-    'LLM upstream',
-    JSON.stringify({
-      ms: Date.now() - startedAt,
-      model: body?.model ?? model,
-      finish: choice?.finish_reason,
-      prompt: body?.usage?.prompt_tokens,
-      completion: body?.usage?.completion_tokens,
-      reasoningTokens: body?.usage?.completion_tokens_details?.reasoning_tokens,
-      reasoningChars: choice?.message?.reasoning_content?.length,
-      thinking: withThinking ? thinkingType : 'default',
-      maxTokens,
-    })
-  )
-  const text = choice?.message?.content?.trim()
-  if (!text) return { error: 'Empty response from the AI service. Please retry.', status: 502 }
-  return { text }
+    const text = reply.content.trim()
+    if (!text) return { error: 'Empty response from the AI service. Please retry.', status: 502 }
+    return { text }
+  }
+  return failure
 }
 
 /** Top-level `{…}` objects in a reply that was emitted as JSON Lines or
