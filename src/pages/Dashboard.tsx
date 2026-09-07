@@ -704,19 +704,32 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       localStorage.setItem('honestcv.dashboardFoldersCollapsed', JSON.stringify(next))
       return next
     })
+  const folderId = (f: string) => `folder-${encodeURIComponent(f)}`
   const moveVersionTo = (folder: string | undefined) => {
     if (!moving) return
-    if (moving === 'bulk') {
-      let next: ResumeVersion[] | null = versions
-      for (const id of bulkSelected) {
-        next = updateResumeVersion(id, { folder })
-        if (next === null) break
-      }
-      if (!applyVersions(next)) return
-      setBulkIds(new Set())
-    } else if (!applyVersions(updateResumeVersion(moving.id, { folder }))) {
-      return
+    const ids = moving === 'bulk' ? bulkSelected : [moving.id]
+    let next: ResumeVersion[] | null = versions
+    for (const id of ids) {
+      next = updateResumeVersion(id, { folder })
+      if (next === null) break
     }
+    if (!applyVersions(next)) return
+    if (moving === 'bulk') {
+      setBulkIds(new Set())
+      const n = ids.length
+      announce(
+        `${n} ${n === 1 ? 'copy' : 'copies'} ${folder ? `moved to “${folder}”` : `removed from ${n === 1 ? 'its folder' : 'their folders'}`}.`
+      )
+    } else {
+      announce(
+        `“${moving.name}” ${folder ? `moved to “${folder}”` : 'removed from its folder'}.`
+      )
+    }
+    focusAfterRender(
+      ...ids.map((id) => `copy-${id}-open`),
+      ...(folder ? [folderId(folder)] : []),
+      'main'
+    )
     setMoving(null)
     setMoveNewName('')
   }
@@ -742,15 +755,22 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       localStorage.setItem('honestcv.dashboardFoldersCollapsed', JSON.stringify(updated))
       return updated
     })
+    announce(`Folder “${from}” renamed to “${to}”.`)
+    focusAfterRender(folderId(to), 'main')
   }
   const removeFolder = (name: string) => {
+    const members = versions.filter((v) => v.folder === name)
     let next: ResumeVersion[] | null = versions
-    for (const v of versions) {
-      if (v.folder !== name) continue
+    for (const v of members) {
       next = updateResumeVersion(v.id, { folder: undefined })
       if (next === null) break
     }
-    applyVersions(next)
+    if (!applyVersions(next)) return
+    const n = members.length
+    announce(
+      `Folder “${name}” removed — ${n} ${n === 1 ? 'copy is' : 'copies are'} no longer in a folder.`
+    )
+    focusAfterRender(...members.map((v) => `copy-${v.id}-open`), 'main')
   }
   const folders = useMemo(() => {
     const names = new Set<string>()
@@ -1662,6 +1682,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 <h2 className="contents">
                   <button
                     type="button"
+                    id={folderId(f)}
                     aria-expanded={!isCollapsed}
                     onClick={() => toggleFolder(f)}
                     className="hover:bg-accent flex min-h-10 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold sm:min-h-8"
