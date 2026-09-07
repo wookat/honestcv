@@ -10766,6 +10766,8 @@ function BundleToolDialog({
   const [placeholderWarn, setPlaceholderWarn] = useState<'pdf' | 'docx' | 'txt' | null>(null)
   const [autoResult, setAutoResult] = useState('')
   const [overwriteWarn, setOverwriteWarn] = useState<'generate' | 'template' | 'finish' | null>(null)
+  /** Model text received so far while a cover letter / brief is being generated (shown read-only). */
+  const [live, setLive] = useState('')
   const resultRef = useRef<HTMLTextAreaElement>(null)
 
   const applyResult = (text: string) => {
@@ -11081,21 +11083,27 @@ function BundleToolDialog({
       }
       const { text, freeRemaining } =
         kind === 'cover'
-          ? await aiCoverLetter({
-              resumeText,
-              jobDescription: jd,
-              company,
-              role: aiTargetRole(resume),
-              addressee: addressee.trim() || undefined,
-              highlights: highlights.trim() || undefined,
-              language: resume.language,
-              tone: letterTone || undefined,
-            })
-          : await aiInterviewBrief({
-              resumeText,
-              jobDescription: jd,
-              role: aiTargetRole(resume),
-            })
+          ? await aiCoverLetter(
+              {
+                resumeText,
+                jobDescription: jd,
+                company,
+                role: aiTargetRole(resume),
+                addressee: addressee.trim() || undefined,
+                highlights: highlights.trim() || undefined,
+                language: resume.language,
+                tone: letterTone || undefined,
+              },
+              setLive
+            )
+          : await aiInterviewBrief(
+              {
+                resumeText,
+                jobDescription: jd,
+                role: aiTargetRole(resume),
+              },
+              setLive
+            )
       applyResult(text)
       setSavedId(null)
     setSaveDocFailed(false)
@@ -11103,6 +11111,7 @@ function BundleToolDialog({
     } catch (e) {
       setError((e as Error).message)
     } finally {
+      setLive('')
       setBusy(false)
     }
   }
@@ -11480,15 +11489,28 @@ function BundleToolDialog({
         </div>
         {busy && (
           <p className="text-muted-foreground text-xs" role="status">
-            Usually takes 15–40 seconds — the draft appears here for you to edit.
+            {kind === 'resignation'
+              ? 'Usually takes 15–40 seconds — the draft appears here for you to edit.'
+              : live
+                ? 'Writing… you can read along; editing unlocks when the draft is complete.'
+                : 'Starting… the first words usually appear within 10 seconds and the draft builds up here.'}
           </p>
+        )}
+        {busy && live && (
+          <Textarea
+            aria-label="Draft in progress"
+            rows={14}
+            value={live}
+            readOnly
+            className="font-mono text-xs"
+          />
         )}
         {error && (
           <p role="alert" className="text-destructive text-sm">
             {error}
           </p>
         )}
-        {result && (
+        {result && !(busy && live) && (
           <>
             {countLetterPlaceholders(result) > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-300/60 bg-amber-500/10 px-2 py-1.5 dark:border-amber-400/30">

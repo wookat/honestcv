@@ -1,5 +1,6 @@
 import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
+import { streamSSE } from 'hono/streaming'
 import {
   jobRankingHits,
   jobTitleRank,
@@ -142,7 +143,10 @@ interface LlmStreamChunk {
 }
 
 /** Assemble an OpenAI-style SSE completion stream into one reply. */
-async function readLlmStream(body: ReadableStream<Uint8Array>): Promise<LlmReply> {
+async function readLlmStream(
+  body: ReadableStream<Uint8Array>,
+  onDelta?: (text: string) => void
+): Promise<LlmReply> {
   const reply: LlmReply = { content: '', reasoningChars: 0, interrupted: true }
   const reader = body.getReader()
   const decoder = new TextDecoder()
@@ -166,7 +170,10 @@ async function readLlmStream(body: ReadableStream<Uint8Array>): Promise<LlmReply
     if (chunk.usage) reply.usage = chunk.usage
     const choice = chunk.choices?.[0]
     if (!choice) return
-    if (choice.delta?.content) reply.content += choice.delta.content
+    if (choice.delta?.content) {
+      reply.content += choice.delta.content
+      onDelta?.(choice.delta.content)
+    }
     if (choice.delta?.reasoning_content) reply.reasoningChars += choice.delta.reasoning_content.length
     if (choice.finish_reason) {
       reply.finish = choice.finish_reason
@@ -202,11 +209,19 @@ async function readLlmJson(upstream: Response): Promise<LlmReply> {
   }
 }
 
+/** Live hooks for callers that forward the reply to the browser as it arrives.
+ * `reset` fires when a retry starts after an earlier attempt already emitted text. */
+interface LlmLiveHooks {
+  delta: (text: string) => void
+  reset: () => void
+}
+
 async function callLlm(
   env: Env,
   messages: { role: string; content: string }[],
   temperature = 0.5,
-  maxTokens = 1200
+  maxTokens = 1200,
+  live?: LlmLiveHooks
 ): Promise<{ text?: string; error?: string; status?: number }> {
   let baseUrl = env.LLM_RELAY_BASE_URL?.replace(/\/+$/, '')
   if (baseUrl && !/\/v\d+$/.test(baseUrl)) baseUrl = `${baseUrl}/v1`
@@ -225,6 +240,7 @@ async function callLlm(
   let withThinking = Boolean(thinkingType) && !thinkingParamRejected
   let attempts = 2
   let backoff = false
+  let emitted = false
   let failure = {
     error: 'Could not reach the AI service — please retry in a minute. None of your free AI uses were spent.',
     status: 502,
@@ -233,6 +249,10 @@ async function callLlm(
     if (backoff) await new Promise((r) => setTimeout(r, 1000))
     backoff = true
     const attemptStartedAt = Date.now()
+    if (emitted) {
+      live?.reset()
+      emitted = false
+    }
     const elapsed = () => Date.now() - attemptStartedAt
     let upstream: Response
     try {
@@ -280,7 +300,12 @@ async function callLlm(
       (upstream.headers.get('content-type') ?? '').includes('text/event-stream') && upstream.body !== null
     let reply: LlmReply
     try {
-      reply = streamed ? await readLlmStream(upstream.body as ReadableStream<Uint8Array>) : await readLlmJson(upstream)
+      reply = streamed
+        ? await readLlmStream(upstream.body as ReadableStream<Uint8Array>, (text) => {
+            emitted = true
+            live?.delta(text)
+          })
+        : await readLlmJson(upstream)
     } catch (err) {
       reply = {
         content: '',
@@ -445,6 +470,35 @@ async function callLlmJsonArray(
   if (retried && retried.length > 0) return { items: retried }
   console.error('LLM non-JSON output after re-ask', (second.text ?? '').slice(0, 200))
   return { error: AI_TROUBLE_ERROR, status: 502 }
+}
+
+const wantsLiveReply = (c: { req: { header: (name: string) => string | undefined } }) =>
+  (c.req.header('accept') ?? '').includes('text/event-stream')
+
+/** Forward the model reply to the browser as SSE while it is generated.
+ * `delta` events carry text as it arrives; `reset` means a retry started and
+ * the text shown so far must be discarded; `done` carries the authoritative
+ * full text plus quota; `error` the message the JSON path would have returned.
+ * Quota is consumed only once a usable reply exists, exactly like the JSON path. */
+function liveAiReply(
+  c: Context<{ Bindings: Env }>,
+  freeRemaining: number | null,
+  run: (live: LlmLiveHooks) => Promise<{ text?: string; error?: string; status?: number }>
+) {
+  return streamSSE(c, async (stream) => {
+    const send = (event: string, data: unknown) =>
+      stream.writeSSE({ event, data: JSON.stringify(data) }).catch(() => {})
+    const result = await run({
+      delta: (text) => void send('delta', text),
+      reset: () => void send('reset', null),
+    })
+    if (result.error) {
+      await send('error', { error: result.error, status: result.status ?? 502 })
+      return
+    }
+    const remaining = freeRemaining !== null ? Math.max(await consumeFreeQuota(c), 0) : null
+    await send('done', { text: result.text, freeRemaining: remaining })
+  })
 }
 
 /** Consume one free-AI-quota unit; returns remaining, or -1 when exhausted */
@@ -1863,22 +1917,22 @@ app.post('/api/ai/cover-letter', async (c) => {
   const jd = body.jobDescription?.trim()
   if (!resumeText) return c.json({ error: 'Add resume content first.' }, 400)
   if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
-  const result = await callLlm(
-    c.env,
-    withOutputLanguage(
-      buildCoverLetterMessages(
-        resumeText,
-        jd,
-        body.company ?? '',
-        body.role ?? '',
-        body.addressee?.trim() ?? '',
-        body.highlights?.trim() ?? '',
-        body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
-      ),
-      body.language
+  const messages = withOutputLanguage(
+    buildCoverLetterMessages(
+      resumeText,
+      jd,
+      body.company ?? '',
+      body.role ?? '',
+      body.addressee?.trim() ?? '',
+      body.highlights?.trim() ?? '',
+      body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
     ),
-    0.6
+    body.language
   )
+  if (wantsLiveReply(c)) {
+    return liveAiReply(c, freeRemaining, (live) => callLlm(c.env, messages, 0.6, 1200, live))
+  }
+  const result = await callLlm(c.env, messages, 0.6)
   // Quota is consumed only after a successful call, so failures cost nothing
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
@@ -1974,11 +2028,11 @@ app.post('/api/ai/interview-brief', async (c) => {
   const jd = body.jobDescription?.trim()
   if (!resumeText) return c.json({ error: 'Add resume content first.' }, 400)
   if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
-  const result = await callLlm(
-    c.env,
-    buildInterviewBriefMessages(resumeText, jd, body.role ?? ''),
-    0.5
-  )
+  const messages = buildInterviewBriefMessages(resumeText, jd, body.role ?? '')
+  if (wantsLiveReply(c)) {
+    return liveAiReply(c, freeRemaining, (live) => callLlm(c.env, messages, 0.5, 1200, live))
+  }
+  const result = await callLlm(c.env, messages, 0.5)
   // Quota is consumed only after a successful call, so failures cost nothing
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)

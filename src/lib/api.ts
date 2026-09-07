@@ -36,21 +36,110 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     error?: string
     code?: string
   }
-  if (!res.ok) {
-    if (res.status === 402 || data.code === 'payment_required') {
-      throw new PaymentRequiredError(data.error || 'Unlock RezUp to continue.')
-    }
-    throw new Error(
-      data.error ||
-        (res.status === 429
-          ? 'Too many requests right now — wait a moment and try again.'
-          : res.status >= 500
-            ? 'Something went wrong on our side — please try again in a moment.'
-            : `The request didn’t go through (error ${res.status}). Please try again.`)
-    )
-  }
+  if (!res.ok) throw apiError(res.status, data)
   if (path.startsWith('/api/ai/')) trackEvent('ai-use')
   return data
+}
+
+type AiText = { text: string; freeRemaining: number | null }
+
+/** POST that asks the Worker to forward the model reply as it is generated
+ * (SSE: `delta` / `reset` / `done` / `error`). `onDelta` receives the text so
+ * far; the resolved value is the Worker's authoritative final text. A Worker
+ * that answers plain JSON (older deploy, quota/validation errors) is handled
+ * exactly like `post`. */
+async function postLive(
+  path: string,
+  body: unknown,
+  onDelta: (textSoFar: string) => void
+): Promise<AiText> {
+  let res: Response
+  try {
+    res = await fetch(path, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+        ...licenseHeaders(),
+      },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new Error(
+      'You appear to be offline — check your connection and try again.'
+    )
+  }
+  if (!(res.headers.get('content-type') ?? '').includes('text/event-stream') || !res.body) {
+    const data = (await res.json().catch(() => ({}))) as AiText & {
+      error?: string
+      code?: string
+    }
+    if (!res.ok) throw apiError(res.status, data)
+    trackEvent('ai-use')
+    return data
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let soFar = ''
+  const final: { value: AiText | null } = { value: null }
+  const handleEvent = (event: string, data: string) => {
+    if (event === 'delta') {
+      soFar += JSON.parse(data) as string
+      onDelta(soFar)
+    } else if (event === 'reset') {
+      soFar = ''
+      onDelta('')
+    } else if (event === 'done') {
+      final.value = JSON.parse(data) as AiText
+    } else if (event === 'error') {
+      const err = JSON.parse(data) as { error?: string; status?: number }
+      throw apiError(err.status ?? 502, err)
+    }
+  }
+  const handleBlock = (block: string) => {
+    let event = 'message'
+    const data: string[] = []
+    for (const line of block.split('\n')) {
+      if (line.startsWith('event:')) event = line.slice(6).trim()
+      else if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''))
+    }
+    if (data.length) handleEvent(event, data.join('\n'))
+  }
+  for (;;) {
+    const { value, done: eof } = await reader.read()
+    if (eof) break
+    buffer += decoder.decode(value, { stream: true })
+    const blocks = buffer.split(/\r?\n\r?\n/)
+    buffer = blocks.pop() ?? ''
+    for (const block of blocks) handleBlock(block)
+  }
+  buffer += decoder.decode()
+  if (buffer.trim()) handleBlock(buffer)
+  if (!final.value) {
+    throw new Error(
+      'The connection dropped before the AI finished — please try again. Your free AI uses are only spent on a finished result.'
+    )
+  }
+  trackEvent('ai-use')
+  return final.value
+}
+
+function apiError(
+  status: number,
+  data: { error?: string; code?: string }
+): Error {
+  if (status === 402 || data.code === 'payment_required') {
+    return new PaymentRequiredError(data.error || 'Unlock RezUp to continue.')
+  }
+  return new Error(
+    data.error ||
+      (status === 429
+        ? 'Too many requests right now — wait a moment and try again.'
+        : status >= 500
+          ? 'Something went wrong on our side — please try again in a moment.'
+          : `The request didn’t go through (error ${status}). Please try again.`)
+  )
 }
 
 /** Remaining free-AI quota for this client, without consuming any.
@@ -188,21 +277,27 @@ export async function aiSuggestBullet(input: {
   })
 }
 
-export async function aiCoverLetter(input: {
-  resumeText: string
-  jobDescription: string
-  company: string
-  role: string
-  addressee?: string
-  highlights?: string
-  language?: string
-  tone?: 'formal' | 'friendly'
-}): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/cover-letter', {
+export async function aiCoverLetter(
+  input: {
+    resumeText: string
+    jobDescription: string
+    company: string
+    role: string
+    addressee?: string
+    highlights?: string
+    language?: string
+    tone?: 'formal' | 'friendly'
+  },
+  onDelta?: (textSoFar: string) => void
+): Promise<AiText> {
+  const body = {
     ...input,
     resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
     jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
-  })
+  }
+  return onDelta
+    ? postLive('/api/ai/cover-letter', body, onDelta)
+    : post<AiText>('/api/ai/cover-letter', body)
 }
 
 export async function aiResignationLetter(input: {
@@ -217,16 +312,22 @@ export async function aiResignationLetter(input: {
   return post<{ text: string; freeRemaining: number | null }>('/api/ai/resignation-letter', input)
 }
 
-export async function aiInterviewBrief(input: {
-  resumeText: string
-  jobDescription: string
-  role: string
-}): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-brief', {
+export async function aiInterviewBrief(
+  input: {
+    resumeText: string
+    jobDescription: string
+    role: string
+  },
+  onDelta?: (textSoFar: string) => void
+): Promise<AiText> {
+  const body = {
     ...input,
     resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
     jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
-  })
+  }
+  return onDelta
+    ? postLive('/api/ai/interview-brief', body, onDelta)
+    : post<AiText>('/api/ai/interview-brief', body)
 }
 
 export async function aiInterviewQuestions(input: {
