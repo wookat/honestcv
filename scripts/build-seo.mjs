@@ -1442,6 +1442,7 @@ html.dark .exdoc{background:var(--card)}
 html.dark .ai-art{background:var(--card)}
 #hub-filter{background:var(--card);color:var(--fg)}
 *{box-sizing:border-box;border-color:var(--border)}
+html{scroll-padding-top:4rem}
 body{margin:0;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.7}
 a{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
 a.btn,a.brand{text-decoration:none}
@@ -1470,7 +1471,7 @@ ul.features li{margin:.4rem 0}
 .toc li{margin:.15rem 0;break-inside:avoid}
 .toc a{text-decoration:underline}
 @media (max-width:640px){.toc ol{columns:1}}
-h2[id]{scroll-margin-top:1rem}
+h2[id]{scroll-margin-top:.5rem}
 .related ul{list-style:none;padding:0;margin:0;display:grid;gap:.5rem}
 footer.site{border-top:1px solid var(--border)}
 footer.site .in{max-width:72rem;margin:0 auto;padding:1.5rem 1rem;text-align:center;font-size:.75rem;color:var(--muted)}
