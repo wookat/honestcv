@@ -49,6 +49,7 @@ import {
   isKnownPlace,
   locationTier,
   queryTitleRank,
+  describeJobQuery,
   widerAreasOf,
   listPipeline,
   locationFacets,
@@ -594,7 +595,9 @@ export default function Jobs() {
     sortedAnywhere.length > 0 ? directMatches.length + sortedWider.length : -1
   /** Index of the first row that only mentions the query in its body. */
   const textOnlyStart = sortedTextOnly.length > 0 ? titleShownCount : -1
-  const fetchedQueryLabel = fetchedQuery.trim()
+  /** How the API read the query when grade words / brackets / connectors were set aside. */
+  const queryNote = describeJobQuery(fetchedQuery)
+  const fetchedQueryLabel = queryNote?.searched ?? fetchedQuery.trim()
   const hideTextOnly = () => {
     setTextOnlyExpandedFor(null)
     if (selectedId !== null && sortedTextOnly.some((j) => j.id === selectedId)) {
@@ -1686,6 +1689,24 @@ export default function Jobs() {
                         ? ` · ${textOnlyInPlace.length} more only mention it in the description`
                         : ''
                     }`}
+              </p>
+            )}
+            {tab === 'all' && !error && !loading && queryNote && (
+              <p className="text-muted-foreground border-b px-4 py-1.5 text-xs">
+                Matching &ldquo;{queryNote.searched}&rdquo;
+                {queryNote.ranking.length > 0 && (
+                  <>
+                    {' '}
+                    &middot; {queryNote.ranking.map((w) => `“${w}”`).join(', ')} only{' '}
+                    {queryNote.ranking.length === 1 ? 'ranks' : 'rank'} titles higher
+                  </>
+                )}
+                {queryNote.dropped.length > 0 && (
+                  <>
+                    {' '}
+                    &middot; {queryNote.dropped.map((w) => `“${w}”`).join(', ')} ignored
+                  </>
+                )}
               </p>
             )}
             {loading ? (

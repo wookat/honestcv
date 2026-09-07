@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { jobRankingHits, jobTitleRank, matchesJobQuery, parseJobQuery } from './jobQuery'
 import {
   type BillingEnv,
   type LicenseRecord,
@@ -403,6 +404,8 @@ app.get('/api/ai/quota', async (c) => {
 // straight into the JD tailoring flow (and the CSP never has to allow
 // third-party origins).
 const JOBS_CACHE_TTL = 60 * 60
+/** A response missing a feed (upstream timeout / 5xx) is kept only briefly, so the feed is retried soon rather than hidden for an hour. */
+const JOBS_DEGRADED_CACHE_TTL = 5 * 60
 const JOBS_MAX_QUERY = 80
 const JOBS_MAX_LOCATION = 60
 const JOBS_MAX_DESCRIPTION = 8_000
@@ -461,13 +464,8 @@ const JOBS_KNOWN_LABELS = new Set(
   Object.values(JOBS_CATEGORIES).flat()
 )
 
-// Like the category label match above, the query is enforced here because the
-// upstream `search` parameter is not always honored: every whitespace token of
-// the query must appear somewhere in the job's searchable text.
-function matchesQuery(tokens: string[], haystack: string): boolean {
-  return tokens.every((t) => haystack.includes(t))
-}
-
+// Like the query match (worker/jobQuery.ts), the category label match is
+// enforced here because the upstream parameter is not always honored.
 function matchesCategory(slug: string, label: string): boolean {
   const l = label.trim().toLowerCase()
   if (slug === 'all-others') return !JOBS_KNOWN_LABELS.has(l)
@@ -957,26 +955,24 @@ async function fetchMuse(label: string, categories: string[]): Promise<Normalize
 
 // Relevance tiers for a query: every token in the title beats some tokens in
 // the title, which beats a match found only in the body text.
-function queryRank(tokens: string[], job: NormalizedJob): number {
-  if (tokens.length === 0) return 0
-  const title = job.title.toLowerCase()
-  const hits = tokens.filter((t) => title.includes(t)).length
-  return hits === tokens.length ? 2 : hits > 0 ? 1 : 0
-}
-
 app.get('/api/jobs/search', async (c) => {
   const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
   const rawCategory = (c.req.query('category') ?? '').trim()
   const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
   const museLabel = museLocation((c.req.query('location') ?? '').slice(0, JOBS_MAX_LOCATION))
-  const cacheKey = `jobs:v11:${q.toLowerCase()}|${category}|${museLabel ?? ''}`
+  // "Senior Frontend Engineer (React)" must find frontend-engineer jobs: the
+  // role words gate, the grade / bracketed words only rank (worker/jobQuery.ts).
+  const query = parseJobQuery(q)
+  const cacheKey = `jobs:v14:${query.upstream}|${query.ranking.join(' ')}|${category}|${museLabel ?? ''}`
   const cached = await c.env.KV.get(cacheKey)
   if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
   const [remotive, jobicy, arbeitnow, muse] = await Promise.all([
-    fetchRemotive(q, category),
-    fetchJobicy(q),
+    fetchRemotive(query.upstream, category),
+    fetchJobicy(query.upstream),
     fetchArbeitnow(),
-    museLabel ? fetchMuse(museLabel, museCategories(category, q)) : Promise.resolve(null),
+    museLabel
+      ? fetchMuse(museLabel, museCategories(category, query.upstream))
+      : Promise.resolve(null),
   ])
   const feeds: [string, NormalizedJob[] | null][] = [
     ['remotive', remotive],
@@ -988,20 +984,17 @@ app.get('/api/jobs/search', async (c) => {
   if (sources.length === 0) {
     return c.json({ error: 'Job search is unavailable right now — please retry shortly.' }, 502)
   }
-  const qTokens = q.toLowerCase().split(/\s+/).filter(Boolean)
   const seen = new Set<string>()
   const byFeed = feeds.map(([, list]) =>
     (list ?? [])
       .filter((j) => !category || matchesCategory(category, j.category))
-      .filter(
-        (j) =>
-          qTokens.length === 0 ||
-          matchesQuery(
-            qTokens,
-            [j.title, j.company, j.category, j.location, ...j.tags, j.description]
-              .join('\n')
-              .toLowerCase()
-          )
+      .filter((j) =>
+        matchesJobQuery(
+          query,
+          [j.title, j.company, j.category, j.location, ...j.tags, j.description]
+            .join('\n')
+            .toLowerCase()
+        )
       )
       .filter((j) => {
         // The same posting syndicated to several boards: keep the first copy
@@ -1014,20 +1007,37 @@ app.get('/api/jobs/search', async (c) => {
   )
   // Arbeitnow alone publishes a couple of hundred postings a day, so a plain
   // newest-first sort would bury the remote-first feeds: within each relevance
-  // tier take the newest posting from each feed in turn.
+  // tier take the newest posting from each feed in turn; titles carrying more
+  // of the ranking words ("senior", "react") form their own band ahead of the
+  // rest of the tier across every feed, so one feed's unranked titles cannot
+  // interleave above another feed's "Head of …" rows.
   const jobs: NormalizedJob[] = []
   for (const tier of [2, 1, 0]) {
-    const queues = byFeed.map((list) => list.filter((j) => queryRank(qTokens, j) === tier))
-    while (queues.some((qu) => qu.length > 0) && jobs.length < JOBS_MAX_RESULTS) {
-      for (const qu of queues) {
-        const next = qu.shift()
-        if (next && jobs.length < JOBS_MAX_RESULTS) jobs.push(next)
+    for (let hits = query.ranking.length; hits >= 0; hits--) {
+      const queues = byFeed.map((list) =>
+        list.filter(
+          (j) => jobTitleRank(query, j.title) === tier && jobRankingHits(query, j.title) === hits
+        )
+      )
+      while (queues.some((qu) => qu.length > 0) && jobs.length < JOBS_MAX_RESULTS) {
+        for (const qu of queues) {
+          const next = qu.shift()
+          if (next && jobs.length < JOBS_MAX_RESULTS) jobs.push(next)
+        }
       }
     }
   }
-  const payload = { jobs, source: sources.join('+'), sources }
+  const payload = {
+    jobs,
+    source: sources.join('+'),
+    sources,
+    query: { terms: query.required.map((g) => g[0]), ranking: query.ranking },
+  }
+  const degraded = sources.length < feeds.length
   c.executionCtx.waitUntil(
-    c.env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: JOBS_CACHE_TTL })
+    c.env.KV.put(cacheKey, JSON.stringify(payload), {
+      expirationTtl: degraded ? JOBS_DEGRADED_CACHE_TTL : JOBS_CACHE_TTL,
+    })
   )
   return c.json(payload)
 })
