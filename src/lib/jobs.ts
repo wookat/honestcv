@@ -5,6 +5,7 @@
  */
 
 import { latestDocsFor } from '@/lib/documents'
+import { jobTitleRank, parseJobQuery } from '../../worker/jobQuery'
 import {
   rememberVersionJobs,
   setVersionJob,
@@ -351,16 +352,26 @@ export function isKnownPlace(place: string): boolean {
 }
 
 /**
- * The API's relevance tier, recomputed client-side: 2 = every query token is
- * in the title, 1 = some are, 0 = the query only appears in the body, tags,
- * company or location ("free barista coffee" for a barista search).
+ * The API's relevance tier, recomputed client-side with the same parser the
+ * Worker uses: 2 = every role word is in the title, 1 = some are, 0 = the query
+ * only appears in the body, tags, company or location ("free barista coffee"
+ * for a barista search). Grade words and bracketed qualifiers never count.
  */
 export function queryTitleRank(query: string, title: string): 0 | 1 | 2 {
-  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean)
-  if (tokens.length === 0) return 2
-  const t = title.toLowerCase()
-  const hits = tokens.filter((x) => t.includes(x)).length
-  return hits === tokens.length ? 2 : hits > 0 ? 1 : 0
+  return jobTitleRank(parseJobQuery(query), title)
+}
+
+/**
+ * What the search actually matched on, when that differs from what was typed:
+ * `searched` is the role words, `ranking` the words that only order results
+ * ("senior", "(react)"), `dropped` the connector / arrangement words.
+ */
+export function describeJobQuery(
+  query: string
+): { searched: string; ranking: string[]; dropped: string[] } | null {
+  const parsed = parseJobQuery(query)
+  if (parsed.ranking.length === 0 && parsed.dropped.length === 0) return null
+  return { searched: parsed.upstream, ranking: parsed.ranking, dropped: parsed.dropped }
 }
 
 export type LocationTier = 'direct' | 'wider' | 'anywhere'
