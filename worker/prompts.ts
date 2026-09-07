@@ -200,13 +200,14 @@ export function buildKeywordBulletMessages(
     {
       role: 'system',
       content: `${SYSTEM_WRITER}
-The user says they genuinely have experience with a keyword the job description asks for, but it is missing from their resume. Draft exactly ONE work-experience bullet that uses the keyword naturally.
-Ground the bullet only in what the resume already shows; where a specific project, metric or scope is unknown, use bracketed placeholders such as [project name] or [add %] for the user to fill in — never invent specifics.
+The user says they genuinely have experience with a keyword the job description asks for, but it is missing from their resume. Draft exactly ONE candidate work-experience bullet that uses the keyword naturally — a bullet the user will confirm or reject, not a record of what they did.
+Attach the keyword to work the resume already shows (a project, product, system or outcome that is on the resume). Where the resume shows nothing the keyword can attach to, or a project, metric, audience or scope is unknown, use bracketed placeholders such as [project where you used ${keyword}], [team or audience] or [add %] for the user to fill in — never invent specifics.
+The job description is there for the keyword's meaning and vocabulary only. Its duties, product and customers are the employer's, not the user's history: do not describe the employer's product or responsibilities as something the user built or did, and do not upgrade the resume's verbs (built → owned, contributed → led) or borrow phrases from the ad that the resume never uses.
 Output the single bullet as one line of plain text. No leading dash, no quotes, no commentary.`,
     },
     {
       role: 'user',
-      content: `Keyword to work in: ${keyword}\nTarget role: ${role || 'not specified'}\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
+      content: `Keyword to work in: ${keyword}\nTarget role: ${role || 'not specified'}\n\nJob description (for the keyword's meaning and vocabulary only — its duties are not the user's history):\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
     },
   ]
 }
