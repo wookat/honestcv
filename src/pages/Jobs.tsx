@@ -1173,9 +1173,17 @@ export default function Jobs() {
         <div className="min-w-0 flex-1">
         <h1 className="text-2xl font-bold">Job search</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Remote jobs via{' '}
+          Remote and European jobs via{' '}
           <a href="https://remotive.com" target="_blank" rel="noopener noreferrer" className="underline">
             Remotive
+          </a>
+          ,{' '}
+          <a href="https://jobicy.com" target="_blank" rel="noopener noreferrer" className="underline">
+            Jobicy
+          </a>{' '}
+          and{' '}
+          <a href="https://www.arbeitnow.com" target="_blank" rel="noopener noreferrer" className="underline">
+            Arbeitnow
           </a>
           . Your application pipeline is stored in this browser only.
         </p>

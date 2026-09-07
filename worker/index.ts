@@ -242,7 +242,7 @@ app.use('*', async (c, next) => {
     // The sha256 hash allows exactly the inline pre-paint theme snippet
     // (see THEME_INLINE in scripts/build-seo.mjs, which verifies the hash).
     "default-src 'self'; script-src 'self' 'sha256-N/UQmAIyFzhi3Hmx8pQOPRHy6bKhEKOZ7DC6QVyuIpc='; style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: blob: https://remotive.com; font-src 'self'; connect-src 'self' https://resume.zalize.com https://resume-forge.wookat520.workers.dev; " +
+      "img-src 'self' data: blob: https://remotive.com https://jobicy.com; font-src 'self'; connect-src 'self' https://resume.zalize.com https://resume-forge.wookat520.workers.dev; " +
       "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; " +
       "form-action 'self'; frame-ancestors 'self'"
   )
@@ -323,13 +323,15 @@ app.get('/api/ai/quota', async (c) => {
   return c.json({ freeRemaining: Math.max(limit - used, 0) })
 })
 
-// Job search: proxy Remotive's public remote-jobs API behind a KV cache so
-// the upstream sees at most one request per query per hour. Descriptions are
-// flattened to plain text so the client can feed them straight into the JD
-// tailoring flow (and the CSP never has to allow third-party origins).
+// Job search: aggregate the keyless public feeds (Remotive, Jobicy, Arbeitnow)
+// behind a KV cache so each upstream sees at most one request per query per
+// hour. Descriptions are flattened to plain text so the client can feed them
+// straight into the JD tailoring flow (and the CSP never has to allow
+// third-party origins).
 const JOBS_CACHE_TTL = 60 * 60
 const JOBS_MAX_QUERY = 80
 const JOBS_MAX_DESCRIPTION = 8_000
+const JOBS_MAX_RESULTS = 150
 
 // Cut over-limit descriptions at the last whitespace inside the cap so the
 // visible text never ends mid-word; the flag lets the client disclose the cut.
@@ -397,6 +399,63 @@ function matchesCategory(slug: string, label: string): boolean {
   return JOBS_CATEGORIES[slug].includes(l)
 }
 
+// Other feeds label categories their own way ("Software Engineering",
+// "Marketing & Sales", tags like "backend"); fold them onto the Remotive-style
+// labels the category filter understands. Order matters: first hit wins.
+const CATEGORY_HINTS: [RegExp, string][] = [
+  [/customer|support|success/, 'customer service'],
+  [/devops|sysadmin|sre\b|site reliability|cloud|infrastructure/, 'devops'],
+  [/\bqa\b|quality|test/, 'qa'],
+  [/data|analytics|machine learning|\bml\b|\bai\b/, 'data analysis'],
+  [/software|engineer|developer|programming|frontend|backend|full[- ]?stack|mobile/, 'software development'],
+  [/design|ux|ui\b|creative|multimedia/, 'design'],
+  [/marketing|seo|growth/, 'marketing'],
+  [/sales|business|account exec/, 'sales'],
+  [/product/, 'product'],
+  [/project|program manag|scrum|agile/, 'project management'],
+  [/finance|accounting|legal|compliance/, 'finance'],
+  [/\bhr\b|human resources|recruit|talent|people/, 'human resources'],
+  [/writ|content|copy|editor|translation/, 'writing'],
+]
+function canonicalCategory(...labels: string[]): string {
+  const joined = labels.join(' ').toLowerCase()
+  if (!joined.trim()) return ''
+  if (JOBS_KNOWN_LABELS.has(joined.trim())) return joined.trim()
+  for (const [re, label] of CATEGORY_HINTS) if (re.test(joined)) return label
+  return labels.find(Boolean) ?? ''
+}
+
+interface NormalizedJob {
+  id: string
+  title: string
+  company: string
+  logo: string
+  category: string
+  type: string
+  location: string
+  postedAt: string
+  salary: string
+  url: string
+  tags: string[]
+  description: string
+  descriptionTruncated: boolean
+}
+
+const JOBS_UPSTREAM_TIMEOUT_MS = 8_000
+async function fetchJson<T>(url: URL | string, init?: RequestInit): Promise<T | null> {
+  try {
+    const res = await fetch(url, {
+      ...init,
+      headers: { accept: 'application/json', ...(init?.headers ?? {}) },
+      signal: AbortSignal.timeout(JOBS_UPSTREAM_TIMEOUT_MS),
+    })
+    if (!res.ok) return null
+    return (await res.json()) as T
+  } catch {
+    return null
+  }
+}
+
 interface RemotiveJob {
   id?: number | string
   url?: string
@@ -427,39 +486,21 @@ function normalizeTags(tags: string[] | undefined): string[] {
   return out
 }
 
-app.get('/api/jobs/search', async (c) => {
-  const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
-  const rawCategory = (c.req.query('category') ?? '').trim()
-  const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
-  const cacheKey = `jobs:v6:${q.toLowerCase()}|${category}`
-  const cached = await c.env.KV.get(cacheKey)
-  if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
-  const upstreamUrl = new URL('https://remotive.com/api/remote-jobs')
-  if (q) upstreamUrl.searchParams.set('search', q)
-  if (category) upstreamUrl.searchParams.set('category', category)
-  upstreamUrl.searchParams.set('limit', '50')
-  let upstream: Response | undefined
-  try {
-    upstream = await fetch(upstreamUrl, { headers: { accept: 'application/json' } })
-  } catch {
-    // network failure: handled below
-  }
-  if (!upstream?.ok) {
-    return c.json({ error: 'Job search is unavailable right now — please retry shortly.' }, 502)
-  }
-  const data = await upstream
-    .json<{ jobs?: RemotiveJob[] }>()
-    .catch(() => ({ jobs: [] as RemotiveJob[] }))
-  const qTokens = q.toLowerCase().split(/\s+/).filter(Boolean)
-  const jobs = (data.jobs ?? [])
+async function fetchRemotive(q: string, category: string): Promise<NormalizedJob[] | null> {
+  const url = new URL('https://remotive.com/api/remote-jobs')
+  if (q) url.searchParams.set('search', q)
+  if (category) url.searchParams.set('category', category)
+  url.searchParams.set('limit', '50')
+  const data = await fetchJson<{ jobs?: RemotiveJob[] }>(url)
+  if (!data) return null
+  return (data.jobs ?? [])
     .filter((j) => j.id && j.title && j.url)
-    .filter((j) => !category || matchesCategory(category, j.category ?? ''))
     .map((j) => ({
       id: String(j.id),
       title: (j.title ?? '').trim(),
       company: (j.company_name ?? '').trim(),
       logo: j.company_logo ?? '',
-      category: j.category ?? '',
+      category: canonicalCategory(j.category ?? ''),
       type: (j.job_type ?? '').replace(/_/g, ' '),
       location: j.candidate_required_location || 'Remote',
       postedAt: j.publication_date ?? '',
@@ -468,17 +509,200 @@ app.get('/api/jobs/search', async (c) => {
       tags: normalizeTags(j.tags),
       ...truncateDescription(htmlToText(j.description ?? '')),
     }))
-    .filter(
-      (j) =>
-        qTokens.length === 0 ||
-        matchesQuery(
-          qTokens,
-          [j.title, j.company, j.category, j.location, ...j.tags, j.description]
-            .join('\n')
-            .toLowerCase()
-        )
+}
+
+interface JobicyJob {
+  id?: number | string
+  url?: string
+  jobTitle?: string
+  companyName?: string
+  companyLogo?: string
+  jobIndustry?: string[] | string
+  jobType?: string[] | string
+  jobGeo?: string
+  jobLevel?: string
+  jobDescription?: string
+  jobExcerpt?: string
+  pubDate?: string
+  salaryMin?: number | string
+  salaryMax?: number | string
+  salaryCurrency?: string
+  salaryPeriod?: string
+}
+
+const decodeEntities = (s: string) => htmlToText(s).replace(/\n/g, ' ')
+
+const toIso = (raw: string | undefined): string => {
+  if (!raw) return ''
+  const t = Date.parse(raw)
+  return Number.isNaN(t) ? '' : new Date(t).toISOString()
+}
+
+const asList = (v: string[] | string | undefined): string[] =>
+  Array.isArray(v) ? v.map(String) : v ? [String(v)] : []
+
+// Jobicy (remote-only, worldwide). `tag` is a free-text match the API does
+// honour, so the query goes upstream too; the local token filter still applies.
+async function fetchJobicy(q: string): Promise<NormalizedJob[] | null> {
+  const url = new URL('https://jobicy.com/api/v2/remote-jobs')
+  url.searchParams.set('count', '50')
+  if (q) url.searchParams.set('tag', q)
+  const data = await fetchJson<{ jobs?: JobicyJob[] }>(url)
+  if (!data) return null
+  return (data.jobs ?? [])
+    .filter((j) => j.id && j.jobTitle && j.url)
+    .map((j) => {
+      const industry = asList(j.jobIndustry).map(decodeEntities)
+      const min = Number(j.salaryMin) || 0
+      const max = Number(j.salaryMax) || 0
+      const salary =
+        min || max
+          ? `${j.salaryCurrency ?? ''} ${[min, max]
+              .filter(Boolean)
+              .map((n) => n.toLocaleString('en-US'))
+              .join(' – ')}${j.salaryPeriod ? ` / ${j.salaryPeriod.replace(/ly$/, '')}` : ''}`.trim()
+          : ''
+      const geo = (j.jobGeo ?? '').replace(/\s+/g, ' ').trim()
+      return {
+        id: `jobicy-${j.id}`,
+        title: decodeEntities(j.jobTitle ?? ''),
+        company: decodeEntities(j.companyName ?? ''),
+        logo: j.companyLogo ?? '',
+        category: canonicalCategory(...industry),
+        type: asList(j.jobType).join(', ').toLowerCase().replace(/-/g, ' '),
+        location: !geo || /^anywhere$/i.test(geo) ? 'Worldwide' : geo,
+        postedAt: toIso(j.pubDate),
+        salary,
+        url: j.url ?? '',
+        tags: normalizeTags([...industry, ...(j.jobLevel ? [j.jobLevel] : [])]),
+        ...truncateDescription(htmlToText(j.jobDescription || j.jobExcerpt || '')),
+      }
+    })
+}
+
+interface ArbeitnowJob {
+  slug?: string
+  company_name?: string
+  title?: string
+  description?: string
+  remote?: boolean
+  url?: string
+  tags?: string[]
+  job_types?: string[]
+  location?: string
+  created_at?: number
+}
+
+// A posting written in German or French cannot be applied to with an English
+// resume; the density of those languages' function words in the opening text
+// tells them apart without touching English postings from European companies.
+const NON_ENGLISH_STOPWORDS_RE =
+  /\b(und|wir|sie|mit|für|der|die|das|nicht|eine|einen|bei|auf|dich|deine|unser|unsere|et|nous|vous|les|des|pour|une|dans|avec|notre|votre|sur)\b/gi
+const isNonEnglishText = (text: string) =>
+  (text.slice(0, 800).match(NON_ENGLISH_STOPWORDS_RE)?.length ?? 0) >= 6
+
+// Arbeitnow (Europe, on-site + remote). Its `search` parameter is ignored
+// upstream, so the newest pages are fetched and filtered locally.
+async function fetchArbeitnow(): Promise<NormalizedJob[] | null> {
+  const pages = await Promise.all(
+    [1, 2].map((p) =>
+      fetchJson<{ data?: ArbeitnowJob[] }>(`https://www.arbeitnow.com/api/job-board-api?page=${p}`)
     )
-  const payload = { jobs, source: 'remotive' }
+  )
+  if (pages.every((p) => !p)) return null
+  return pages
+    .flatMap((p) => p?.data ?? [])
+    .filter((j) => j.slug && j.title && j.url)
+    .map((j) => {
+      const tags = normalizeTags(j.tags)
+      const location = (j.location ?? '').trim()
+      const description = htmlToText(j.description ?? '')
+      return {
+        id: `arbeitnow-${j.slug}`,
+        title: (j.title ?? '').trim(),
+        company: (j.company_name ?? '').trim(),
+        logo: '',
+        category: canonicalCategory(...tags, j.title ?? ''),
+        type: (j.job_types ?? []).join(', ').toLowerCase().replace(/_/g, ' '),
+        location: j.remote ? (location ? `Remote · ${location}` : 'Remote') : location || 'Europe',
+        postedAt: j.created_at ? toIso(new Date(j.created_at * 1000).toISOString()) : '',
+        salary: '',
+        url: j.url ?? '',
+        tags,
+        ...truncateDescription(description),
+      }
+    })
+    .filter((j) => !isNonEnglishText(`${j.title} ${j.description}`))
+}
+
+// Relevance tiers for a query: every token in the title beats some tokens in
+// the title, which beats a match found only in the body text.
+function queryRank(tokens: string[], job: NormalizedJob): number {
+  if (tokens.length === 0) return 0
+  const title = job.title.toLowerCase()
+  const hits = tokens.filter((t) => title.includes(t)).length
+  return hits === tokens.length ? 2 : hits > 0 ? 1 : 0
+}
+
+app.get('/api/jobs/search', async (c) => {
+  const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
+  const rawCategory = (c.req.query('category') ?? '').trim()
+  const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
+  const cacheKey = `jobs:v9:${q.toLowerCase()}|${category}`
+  const cached = await c.env.KV.get(cacheKey)
+  if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
+  const [remotive, jobicy, arbeitnow] = await Promise.all([
+    fetchRemotive(q, category),
+    fetchJobicy(q),
+    fetchArbeitnow(),
+  ])
+  const feeds: [string, NormalizedJob[] | null][] = [
+    ['remotive', remotive],
+    ['jobicy', jobicy],
+    ['arbeitnow', arbeitnow],
+  ]
+  const sources = feeds.filter(([, jobs]) => jobs).map(([name]) => name)
+  if (sources.length === 0) {
+    return c.json({ error: 'Job search is unavailable right now — please retry shortly.' }, 502)
+  }
+  const qTokens = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const seen = new Set<string>()
+  const byFeed = feeds.map(([, list]) =>
+    (list ?? [])
+      .filter((j) => !category || matchesCategory(category, j.category))
+      .filter(
+        (j) =>
+          qTokens.length === 0 ||
+          matchesQuery(
+            qTokens,
+            [j.title, j.company, j.category, j.location, ...j.tags, j.description]
+              .join('\n')
+              .toLowerCase()
+          )
+      )
+      .filter((j) => {
+        // The same posting syndicated to several boards: keep the first copy
+        const key = `${j.title}|${j.company}`.toLowerCase().replace(/\s+/g, ' ')
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      .sort((a, b) => (b.postedAt || '').localeCompare(a.postedAt || ''))
+  )
+  // Arbeitnow alone publishes a couple of hundred postings a day, so a plain
+  // newest-first sort would bury the remote-first feeds: within each relevance
+  // tier take the newest posting from each feed in turn.
+  const jobs: NormalizedJob[] = []
+  for (const tier of [2, 1, 0]) {
+    const queues = byFeed.map((list) => list.filter((j) => queryRank(qTokens, j) === tier))
+    while (queues.some((qu) => qu.length > 0) && jobs.length < JOBS_MAX_RESULTS) {
+      for (const qu of queues) {
+        const next = qu.shift()
+        if (next && jobs.length < JOBS_MAX_RESULTS) jobs.push(next)
+      }
+    }
+  }
+  const payload = { jobs, source: sources.join('+'), sources }
   c.executionCtx.waitUntil(
     c.env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: JOBS_CACHE_TTL })
   )
