@@ -154,6 +154,79 @@ async function callLlm(
   return { text }
 }
 
+/** Parse a model reply that is supposed to be a JSON array. Tolerates code
+ * fences, prose around the array, and a reply truncated by max_tokens (the
+ * complete leading elements are kept). Returns null when nothing usable. */
+export function parseJsonArrayLenient(text: string): unknown[] | null {
+  const raw = text.replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
+  const tryParse = (s: string): unknown[] | null => {
+    try {
+      const v = JSON.parse(s) as unknown
+      return Array.isArray(v) ? v : null
+    } catch {
+      return null
+    }
+  }
+  const direct = tryParse(raw)
+  if (direct) return direct
+  const start = raw.indexOf('[')
+  if (start < 0) return null
+  const end = raw.lastIndexOf(']')
+  if (end > start) {
+    const inner = tryParse(raw.slice(start, end + 1))
+    if (inner) return inner
+  }
+  // Truncated mid-element: keep every complete element before the cut.
+  const body = raw.slice(start)
+  for (const closer of ['}', '"']) {
+    let cut = body.lastIndexOf(closer)
+    while (cut > 0) {
+      const salvaged = tryParse(body.slice(0, cut + 1).replace(/,\s*$/, '') + ']')
+      if (salvaged && salvaged.length > 0) return salvaged
+      cut = body.lastIndexOf(closer, cut - 1)
+    }
+  }
+  return null
+}
+
+const AI_TROUBLE_ERROR =
+  'The AI service is having trouble right now — please retry in a minute. None of your free AI uses were spent.'
+
+/** callLlm for endpoints that need a JSON array back. When the reply is not
+ * a usable array even after lenient parsing, asks the model once more with an
+ * explicit format reminder at low temperature before giving up. */
+async function callLlmJsonArray(
+  env: Env,
+  messages: { role: string; content: string }[],
+  temperature: number,
+  maxTokens: number
+): Promise<{ items?: unknown[]; error?: string; status?: number }> {
+  const first = await callLlm(env, messages, temperature, maxTokens)
+  if (first.error) return { error: first.error, status: first.status }
+  const items = parseJsonArrayLenient(first.text ?? '')
+  if (items && items.length > 0) return { items }
+  console.error('LLM non-JSON output, re-asking', (first.text ?? '').slice(0, 200))
+  const second = await callLlm(
+    env,
+    [
+      ...messages,
+      { role: 'assistant', content: first.text ?? '' },
+      {
+        role: 'user',
+        content:
+          'That reply was not a JSON array. Reply again with ONLY the JSON array described above — no prose, no markdown, no code fence.',
+      },
+    ],
+    Math.min(temperature, 0.2),
+    maxTokens
+  )
+  if (second.error) return { error: second.error, status: second.status }
+  const retried = parseJsonArrayLenient(second.text ?? '')
+  if (retried && retried.length > 0) return { items: retried }
+  console.error('LLM non-JSON output after re-ask', (second.text ?? '').slice(0, 200))
+  return { error: AI_TROUBLE_ERROR, status: 502 }
+}
+
 /** Consume one free-AI-quota unit; returns remaining, or -1 when exhausted */
 async function consumeFreeQuota(c: {
   req: { header: (name: string) => string | undefined }
@@ -845,7 +918,7 @@ app.post('/api/ai/summary-draft', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlm(
+  const result = await callLlmJsonArray(
     c.env,
     withOutputLanguage(
       buildSummaryDraftMessages(
@@ -862,28 +935,11 @@ app.post('/api/ai/summary-draft', async (c) => {
   )
   // Quota is consumed only after a successful call, so failures cost nothing
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
-  let texts: string[] = []
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    if (Array.isArray(parsed)) {
-      texts = parsed
-        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
-        .map((t) => t.trim())
-        .slice(0, 3)
-    }
-  } catch {
-    texts = []
-  }
-  if (texts.length === 0) {
-    return c.json(
-      {
-        error:
-          'The AI service is having trouble right now — please retry in a minute. None of your free AI uses were spent.',
-      },
-      502
-    )
-  }
+  const texts = (result.items ?? [])
+    .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+    .map((t) => t.trim())
+    .slice(0, 3)
+  if (texts.length === 0) return c.json({ error: AI_TROUBLE_ERROR }, 502)
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ text: texts[0], texts, freeRemaining })
 })
@@ -929,7 +985,7 @@ app.post('/api/ai/skill-suggest', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlm(
+  const result = await callLlmJsonArray(
     c.env,
     buildSkillSuggestMessages(skills, role, body.jobDescription ?? '', context, category),
     0.5,
@@ -937,29 +993,12 @@ app.post('/api/ai/skill-suggest', async (c) => {
   )
   // Quota is consumed only after a successful call, so failures cost nothing
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
-  let suggested: string[] = []
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    if (Array.isArray(parsed)) {
-      suggested = parsed
-        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
-        .map((t) => t.trim())
-        .filter((t) => t.length <= 40)
-        .slice(0, 12)
-    }
-  } catch {
-    suggested = []
-  }
-  if (suggested.length === 0) {
-    return c.json(
-      {
-        error:
-          'The AI service is having trouble right now — please retry in a minute. None of your free AI uses were spent.',
-      },
-      502
-    )
-  }
+  const suggested = (result.items ?? [])
+    .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+    .map((t) => t.trim())
+    .filter((t) => t.length <= 40)
+    .slice(0, 12)
+  if (suggested.length === 0) return c.json({ error: AI_TROUBLE_ERROR }, 502)
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ skills: suggested, freeRemaining })
 })
@@ -1113,7 +1152,7 @@ app.post('/api/ai/tailor', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlm(
+  const result = await callLlmJsonArray(
     c.env,
     withOutputLanguage(buildTailorMessages(items, jd, body.role ?? ''), body.language),
     0.4,
@@ -1121,31 +1160,16 @@ app.post('/api/ai/tailor', async (c) => {
   )
   // Quota is consumed only after a successful call, so failures cost nothing
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
-  let suggestions: { id: string; text: string }[] = []
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    if (Array.isArray(parsed)) {
-      const known = new Set(items.map((i) => i.id))
-      suggestions = parsed.filter(
-        (s): s is { id: string; text: string } =>
-          Boolean(
-            s &&
-              typeof (s as { id?: unknown }).id === 'string' &&
-              typeof (s as { text?: unknown }).text === 'string' &&
-              known.has((s as { id: string }).id)
-          )
+  const known = new Set(items.map((i) => i.id))
+  const suggestions = (result.items ?? []).filter(
+    (s): s is { id: string; text: string } =>
+      Boolean(
+        s &&
+          typeof (s as { id?: unknown }).id === 'string' &&
+          typeof (s as { text?: unknown }).text === 'string' &&
+          known.has((s as { id: string }).id)
       )
-    }
-  } catch {
-    return c.json(
-      {
-        error:
-          'The AI service is having trouble right now — please retry in a minute. None of your free AI uses were spent.',
-      },
-      502
-    )
-  }
+  )
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ suggestions, freeRemaining })
 })
@@ -1340,7 +1364,7 @@ app.post('/api/ai/interview-questions', async (c) => {
   const jd = body.jobDescription?.trim()
   if (!resumeText) return c.json({ error: 'Add resume content first.' }, 400)
   if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
-  const result = await callLlm(
+  const result = await callLlmJsonArray(
     c.env,
     buildInterviewQuestionsMessages(resumeText, jd, body.role ?? ''),
     0.6,
@@ -1348,28 +1372,11 @@ app.post('/api/ai/interview-questions', async (c) => {
   )
   // Quota is consumed only after a successful call, so failures cost nothing
   if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const raw = (result.text ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
-  let questions: string[] = []
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    if (Array.isArray(parsed)) {
-      questions = parsed
-        .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
-        .map((q) => q.trim().slice(0, 200))
-        .slice(0, 5)
-    }
-  } catch {
-    questions = []
-  }
-  if (questions.length === 0) {
-    return c.json(
-      {
-        error:
-          'The AI service is having trouble right now — please retry in a minute. None of your free AI uses were spent.',
-      },
-      502
-    )
-  }
+  const questions = (result.items ?? [])
+    .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
+    .map((q) => q.trim().slice(0, 200))
+    .slice(0, 5)
+  if (questions.length === 0) return c.json({ error: AI_TROUBLE_ERROR }, 502)
   if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
   return c.json({ questions, freeRemaining })
 })
