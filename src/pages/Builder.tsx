@@ -10769,6 +10769,14 @@ function BundleToolDialog({
   /** Model text received so far while a cover letter / brief is being generated (shown read-only). */
   const [live, setLive] = useState('')
   const resultRef = useRef<HTMLTextAreaElement>(null)
+  const liveRef = useRef<HTMLTextAreaElement>(null)
+  /** Keep the live draft scrolled to its newest line unless the reader scrolled up. */
+  const followLive = useRef(true)
+  useEffect(() => {
+    if (!live) followLive.current = true
+    const el = liveRef.current
+    if (el && followLive.current) el.scrollTop = el.scrollHeight
+  }, [live])
 
   const applyResult = (text: string) => {
     setResult(text)
@@ -11493,15 +11501,20 @@ function BundleToolDialog({
               ? 'Usually takes 15–40 seconds — the draft appears here for you to edit.'
               : live
                 ? 'Writing… you can read along; editing unlocks when the draft is complete.'
-                : 'Starting… the first words usually appear within 10 seconds and the draft builds up here.'}
+                : 'Starting… the first words usually appear within 10–30 seconds and the draft builds up here.'}
           </p>
         )}
         {busy && live && (
           <Textarea
+            ref={liveRef}
             aria-label="Draft in progress"
             rows={14}
             value={live}
             readOnly
+            onScroll={(e) => {
+              const el = e.currentTarget
+              followLive.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+            }}
             className="font-mono text-xs"
           />
         )}
