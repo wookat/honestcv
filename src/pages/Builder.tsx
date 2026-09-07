@@ -76,7 +76,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
-import { briefGrounding, tailorClaims, unsupportedClaims } from '@/lib/grounding'
+import { briefGrounding, preferenceClaims, tailorClaims, unsupportedClaims } from '@/lib/grounding'
 import { prefersReducedMotion } from '@/lib/motion'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
@@ -10831,6 +10831,8 @@ function BundleToolDialog({
   /** Deterministic check of the generated text against the resume / job ad (updates as the user edits). */
   const grounding = useMemo(() => {
     if (!result || kind === 'resignation') return null
+    // The practice-session report is computed locally (scores, keyword labels), not written about the candidate
+    if (kind === 'interview' && /^Practice session — /.test(result)) return null
     const resumeText = resumeToPlainText(resume)
     const claims = unsupportedClaims(result, [
       resumeText,
@@ -10847,13 +10849,15 @@ function BundleToolDialog({
             ...resume.education.map((e) => e.school),
           ])
         : null
-    return { claims, brief }
+    const feelings = kind === 'cover' ? preferenceClaims(result, [resumeText, highlights]) : []
+    return { claims, brief, feelings }
   }, [result, kind, resume, highlights, company, addressee])
   // Unsupported names in a brief are usually questions or advice ("tools like Copilot"), so they
   // only lower the verdict for a letter, where every name is a claim about the candidate.
   const groundingIssues = grounding
     ? (grounding.brief ? 0 : grounding.claims.terms.length) +
       grounding.claims.figures.length +
+      grounding.feelings.length +
       (grounding.brief?.uncitedQuestions.length ?? 0) +
       (grounding.brief?.unquotedStories.length ?? 0)
     : 0
@@ -11670,6 +11674,11 @@ function BundleToolDialog({
                 {grounding.claims.figures.length > 0 && (
                   <p>
                     {`Figure${grounding.claims.figures.length === 1 ? '' : 's'} not in your resume or the job ad: ${grounding.claims.figures.join(', ')}.`}
+                  </p>
+                )}
+                {grounding.feelings.length > 0 && (
+                  <p>
+                    {`Says how you feel, which your resume doesn't: ${grounding.feelings.map((f) => `“${f}”`).join(', ')} — keep it only if it's true for you.`}
                   </p>
                 )}
               </div>

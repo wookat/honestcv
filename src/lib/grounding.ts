@@ -420,8 +420,9 @@ export interface BriefGrounding {
 
 /**
  * Checks the contract the interview-brief prompt sets (R705): every LIKELY
- * QUESTION angle cites the employer or bullet it comes from or says "no direct
- * evidence — position it as a gap"; every STORY is built from one quoted
+ * QUESTION angle cites the employer or bullet it comes from or says the topic
+ * is "not on your resume" (R736; older briefs: "no direct evidence — position
+ * it as a gap"); every STORY is built from one quoted
  * resume bullet. `anchors` are the resume's employer and school names.
  * Returns `null` when the text is not in the brief's shape (template,
  * user-written, older output).
@@ -466,7 +467,7 @@ export function briefGrounding(
     const k = key(angle);
     const citesEmployer = anchorKeys.some((e) => k.includes(e));
     const namesGap =
-      /no direct evidence|\bgaps?\b|\bhonest|not (?:stated|mentioned|listed|shown|covered|in (?:the )?(?:commercial|listed|resume))|does not (?:mention|state|list|show)|doesn't (?:mention|state|list|show)|resume (?:has nothing|does not|doesn't|lacks|shows no)|no (?:commercial|production|direct|stated|listed) (?:experience|evidence|work)|\b(?:have|has|had) not\b|haven't|hasn't|i'd need to|would need to/i.test(
+      /no direct evidence|\bgaps?\b|\bhonest|not (?:stated|mentioned|listed|shown|covered|on (?:your|the|my) resume|in (?:the )?(?:commercial|listed|resume))|does not (?:mention|state|list|show)|doesn't (?:mention|state|list|show)|resume (?:has nothing|does not|doesn't|lacks|shows no)|no (?:commercial|production|direct|stated|listed) (?:experience|evidence|work)|\b(?:have|has|had) not\b|haven't|hasn't|i'd need to|would need to/i.test(
         angle,
       );
     const quotesResume = [...angle.matchAll(QUOTE_RE)].some(
@@ -480,7 +481,15 @@ export function briefGrounding(
 
   const unquotedStories: number[] = [];
   for (const s of stories) {
-    const quotes = [...s.text.matchAll(QUOTE_RE)].map((m) => m[1]);
+    // Quoted spans, plus each STAR segment ("A: Led a customer-facing …") — models
+    // reproduce the bullet verbatim without quotation marks as often as with them
+    const quotes = [
+      ...[...s.text.matchAll(QUOTE_RE)].map((m) => m[1]),
+      ...s.text
+        .split(/(?:^|\n|\s)(?:[STAR]|Situation|Task|Action|Result)\s*[:\u2014-]\s*/i)
+        .map((seg) => seg.replace(/\s+/g, " ").trim())
+        .filter((seg) => seg.length >= 20),
+    ];
     const grounded = quotes.some(
       (qt) =>
         resumeKey.includes(key(qt)) || bestLineOverlap(qt, resumeLines) >= 0.7,
@@ -529,6 +538,39 @@ export function unsupportedClaims(
     if (!figureSupported(f, sourceTexts)) figs.push(f);
   }
   return { terms, figures: figs };
+}
+
+const PREFERENCE_RE =
+  /\bI(?:'m| am) (?:comfortable|passionate|happy|at ease|used to|drawn to|energi[sz]ed by)\b[^.;!?\n]{0,60}|\bI (?:care deeply|thrive|enjoy|love|prefer|relish|value|genuinely (?:enjoy|care|love))\b[^.;!?\n]{0,60}|\bI(?:'ve| have) always\b[^.;!?\n]{0,60}/g;
+
+/**
+ * First-person feelings a letter states about the candidate — "I'm comfortable
+ * working with product managers to refine quarterly goals", "I care deeply
+ * about accessibility" — that none of `sources` (resume, the user's own
+ * highlights) say. A resume records what someone did; a model that needs a
+ * bridge to a job-ad duty tends to invent how the candidate feels about it.
+ */
+export function preferenceClaims(text: string, sources: string[]): string[] {
+  const own = normalise(sources.filter((s) => s && s.trim()).join("\n"));
+  const out: string[] = [];
+  for (const m of text.match(PREFERENCE_RE) ?? []) {
+    const phrase = m
+      .split(",")[0]
+      .trim()
+      .split(" ")
+      .slice(0, 9)
+      .join(" ");
+    // The user's own words (highlights) or a resume summary that says it are fine
+    const words = normalise(phrase)
+      .replace(/[^a-z0-9' ]+/g, " ")
+      .split(" ")
+      .filter((w) => w.length > 3);
+    const stated =
+      words.length > 0 &&
+      words.filter((w) => own.includes(w)).length / words.length >= 0.8;
+    if (!stated) out.push(phrase);
+  }
+  return out;
 }
 
 export interface TailorClaims {
