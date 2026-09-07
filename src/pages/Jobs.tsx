@@ -46,7 +46,8 @@ import {
   copyKeepsProvenance,
   copyTargetsJob,
   followUpEmail,
-  isLocationAgnostic,
+  locationTier,
+  widerAreasOf,
   listPipeline,
   locationFacets,
   markFollowedUp,
@@ -495,16 +496,12 @@ export default function Jobs() {
       : afterType
   /** Candidate locations in the current results (pre-location-filter) with counts. */
   const locFacets = tab === 'all' ? locationFacets(afterSkills.map((j) => j.location)) : []
-  const directMatches =
-    tab === 'all' && loc
-      ? afterSkills.filter((j) => j.location.toLowerCase().includes(loc))
-      : afterSkills
-  const anywhereMatches =
-    tab === 'all' && loc
-      ? afterSkills.filter(
-          (j) => !j.location.toLowerCase().includes(loc) && isLocationAgnostic(j.location)
-        )
-      : []
+  const tierOf = (j: JobListing) => (tab === 'all' && loc ? locationTier(j.location, loc) : 'direct')
+  const directMatches = afterSkills.filter((j) => tierOf(j) === 'direct')
+  /** Postings open to the filter's country / region ("UK", "Europe" for a London filter). */
+  const widerMatches = afterSkills.filter((j) => tierOf(j) === 'wider')
+  const widerAreas = tab === 'all' && loc ? widerAreasOf(loc) : []
+  const anywhereMatches = afterSkills.filter((j) => tierOf(j) === 'anywhere')
   const applySort = (list: JobListing[]) =>
     tab === 'all' && sort === 'newest'
       ? [...list].sort(
@@ -517,8 +514,11 @@ export default function Jobs() {
               new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
           )
         : list
+  const sortedWider = applySort(widerMatches)
   const sortedAnywhere = applySort(anywhereMatches)
-  const shown = [...applySort(directMatches), ...sortedAnywhere]
+  const shown = [...applySort(directMatches), ...sortedWider, ...sortedAnywhere]
+  /** Index of the first country/region-wide result when the location input splits the list. */
+  const widerStart = sortedWider.length > 0 ? directMatches.length : -1
   /** Index of the first location-agnostic result when the location input splits the list. */
   const anywhereStart = sortedAnywhere.length > 0 ? shown.length - sortedAnywhere.length : -1
   /** Rows actually listed per status group, so headers stay honest under filters. */
@@ -1684,6 +1684,11 @@ export default function Jobs() {
                   const updated = statusChangedAtOf.get(j.id)
                   return (
                     <li key={j.id} className="border-b last:border-b-0">
+                      {i === widerStart && (
+                        <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
+                          Open to {widerAreas.join(' / ')} ({sortedWider.length})
+                        </p>
+                      )}
                       {i === anywhereStart && (
                         <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
                           Open to any location ({sortedAnywhere.length})
