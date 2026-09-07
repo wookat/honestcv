@@ -578,11 +578,20 @@ export default function AtsChecker() {
                       Matched keywords ({result.matched.length})
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {result.matched.map((k) => (
-                        <Badge key={k} variant="secondary">
-                          {k}
-                        </Badge>
-                      ))}
+                      {result.matched.map((k) => {
+                        const found = result.variants.find((v) => v.keyword === k)?.found
+                        return (
+                          <Badge key={k} variant="secondary">
+                            {k}
+                            {found && (
+                              <span className="text-muted-foreground font-normal">
+                                {' '}
+                                as “{found}”
+                              </span>
+                            )}
+                          </Badge>
+                        )
+                      })}
                       {result.matched.length === 0 && (
                         <p className="text-muted-foreground text-sm">None yet.</p>
                       )}

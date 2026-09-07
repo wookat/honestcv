@@ -1807,16 +1807,24 @@ export default function Builder() {
     () => scoreResume(shown, shown.jobDescription, pdfLength?.pages ?? null),
     [shown, pdfLength]
   )
+  const variantWording = useMemo(
+    () => new Map(ats.variants.map((v) => [v.keyword, v.found])),
+    [ats.variants]
+  )
   useEffect(() => {
     if (!highlightKw || !shown.jobDescription.trim() || ats.matched.length === 0) {
       clearKeywordHighlight()
       return
     }
     const t = window.setTimeout(() => {
-      if (previewWrapRef.current) applyKeywordHighlight(previewWrapRef.current, ats.matched)
+      if (previewWrapRef.current)
+        applyKeywordHighlight(
+          previewWrapRef.current,
+          ats.matched.map((kw) => variantWording.get(kw) ?? kw)
+        )
     }, 150)
     return () => window.clearTimeout(t)
-  }, [highlightKw, shown, ats.matched, previewView, renderPreviewPane])
+  }, [highlightKw, shown, ats.matched, variantWording, previewView, renderPreviewPane])
   useEffect(() => clearKeywordHighlight, [])
   const prevPassRef = useRef<Map<string, boolean> | null>(null)
   const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
@@ -8226,6 +8234,12 @@ export default function Builder() {
                             className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-green-800"
                           >
                             <span aria-hidden className="text-green-600">✓</span> {kw}
+                            {variantWording.has(kw) && (
+                              <span className="text-green-700/80">
+                                {' '}
+                                as “{variantWording.get(kw)}”
+                              </span>
+                            )}
                           </span>
                         ))}
                       </span>

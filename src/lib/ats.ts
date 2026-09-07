@@ -3,6 +3,7 @@
  * measure how many appear in the resume. Free forever — runs entirely in the
  * browser; the JD and resume never leave the device for scoring.
  */
+import { stemmer } from 'stemmer'
 
 const STOPWORDS = new Set(
   `a about above after again all also am an and any are as at be because been
@@ -127,6 +128,8 @@ export interface AtsResult {
   keywordScore: number | null
   /** Structure/best-practices sub-score 0-100 */
   structureScore: number
+  /** Matched keywords the resume words differently from the posting (PostgreSQL → "postgres") */
+  variants: KeywordVariant[]
   /** Structural checks independent of the JD */
   checks: {
     label: string
@@ -167,6 +170,141 @@ export function matchTokenSet(tokens: Iterable<string>): Set<string> {
   return set
 }
 
+/** UK spellings folded to US before stemming so "analysing" and "analyzed" share a stem. */
+const UK_US_SUFFIXES: [RegExp, string][] = [
+  [/isation$/, 'ization'],
+  [/ising$/, 'izing'],
+  [/ised$/, 'ized'],
+  [/ise$/, 'ize'],
+  [/ysation$/, 'yzation'],
+  [/ysing$/, 'yzing'],
+  [/ysed$/, 'yzed'],
+  [/yse$/, 'yze'],
+  [/(.{3,})our$/, '$1or'],
+  [/(.{3,})mme(s?)$/, '$1m$2'],
+]
+
+/** Porter stem of a plain word; tokens with digits or symbols (c++, k8s, ci/cd) stay as written. */
+function stemToken(t: string): string {
+  if (t.length < 4 || !/^[a-z]+$/.test(t)) return t
+  let w = t
+  for (const [re, rep] of UK_US_SUFFIXES) {
+    if (re.test(w)) {
+      w = w.replace(re, rep)
+      break
+    }
+  }
+  return stemmer(w)
+}
+
+/**
+ * Spellings recruiters and candidates use interchangeably. Only forms that
+ * are unambiguous on a resume are listed — bare "go", "express" or "excel"
+ * are ordinary words and would produce false matches.
+ */
+const ALIAS_GROUPS: string[][] = [
+  ['javascript', 'js'],
+  ['typescript', 'ts'],
+  ['node.js', 'nodejs', 'node'],
+  ['react.js', 'reactjs', 'react'],
+  ['vue.js', 'vuejs', 'vue'],
+  ['next.js', 'nextjs'],
+  ['nuxt.js', 'nuxt'],
+  ['angular.js', 'angularjs', 'angular'],
+  ['express.js', 'expressjs'],
+  ['postgresql', 'postgres'],
+  ['mongodb', 'mongo'],
+  ['kubernetes', 'k8s'],
+  ['gcp', 'google cloud', 'google cloud platform'],
+  ['aws', 'amazon web services'],
+  ['azure', 'microsoft azure'],
+  ['ci/cd', 'ci cd', 'continuous integration', 'continuous delivery', 'continuous deployment'],
+  ['machine learning', 'ml'],
+  ['artificial intelligence', 'ai'],
+  ['natural language processing', 'nlp'],
+  ['large language models', 'large language model', 'llms', 'llm'],
+  ['a/b testing', 'a/b tests', 'a/b test', 'ab testing', 'split testing'],
+  ['user experience', 'ux'],
+  ['user interface', 'ui'],
+  ['quality assurance', 'qa'],
+  ['rest api', 'rest apis', 'restful api', 'restful apis', 'restful'],
+  ['sql server', 'mssql', 'microsoft sql server'],
+  ['c#', 'csharp'],
+  ['c++', 'cpp'],
+  ['.net', 'dotnet'],
+  ['object-oriented', 'object oriented', 'oop'],
+  ['test-driven development', 'test driven development', 'tdd'],
+  ['infrastructure as code', 'iac'],
+  ['search engine optimization', 'search engine optimisation', 'seo'],
+  ['customer relationship management', 'crm'],
+  ['key performance indicators', 'kpis', 'kpi'],
+  ['software as a service', 'saas'],
+  ['business to business', 'b2b'],
+  ['registered nurse', 'rn'],
+  ['intensive care', 'icu', 'critical care'],
+  ['basic life support', 'bls'],
+  ['advanced cardiac life support', 'acls'],
+  ['power bi', 'powerbi'],
+]
+const ALIASES = new Map<string, string[]>()
+for (const group of ALIAS_GROUPS) for (const form of group) ALIASES.set(form, group)
+
+/** Resume text prepared once for keyword lookups: surface tokens, their stems, and the compound-part set. */
+export interface ResumeIndex {
+  text: string
+  tokens: string[]
+  tokenSet: Set<string>
+  stems: string[]
+}
+
+export function indexResumeText(resumeTextRaw: string): ResumeIndex {
+  const text = resumeTextRaw.toLowerCase()
+  const tokens = tokenize(text)
+  const stems = tokens.map(stemToken)
+  return { text, tokens, tokenSet: matchTokenSet(tokens), stems }
+}
+
+/** Resume wording that matched `needle` exactly ('' when written as-is), or null. */
+function findForm(needle: string, idx: ResumeIndex): string | null {
+  if (needle.includes(' ')) {
+    if (idx.text.includes(needle)) return ''
+    const parts = tokenize(needle).map(stemToken)
+    outer: for (let i = 0; i + parts.length <= idx.stems.length; i++) {
+      for (let j = 0; j < parts.length; j++) if (idx.stems[i + j] !== parts[j]) continue outer
+      return idx.tokens.slice(i, i + parts.length).join(' ')
+    }
+    return null
+  }
+  if (idx.tokenSet.has(needle)) return ''
+  const at = idx.stems.indexOf(stemToken(needle))
+  return at >= 0 ? idx.tokens[at] : null
+}
+
+/**
+ * Whether the resume contains `kw` — as written, as an inflection/spelling
+ * variant (dashboards / dashboard, analysing / analyzed) or as a known alias
+ * (Postgres for PostgreSQL). `found` is the resume's wording when it differs.
+ */
+export function keywordHit(
+  kw: string,
+  idx: ResumeIndex
+): { hit: boolean; found: string } {
+  const own = findForm(kw, idx)
+  if (own !== null) return { hit: true, found: own }
+  for (const alias of ALIASES.get(kw) ?? []) {
+    if (alias === kw) continue
+    const f = findForm(alias, idx)
+    if (f !== null) return { hit: true, found: f || alias }
+  }
+  return { hit: false, found: '' }
+}
+
+/** JD keywords the resume states in different wording, e.g. PostgreSQL → "postgres". */
+export interface KeywordVariant {
+  keyword: string
+  found: string
+}
+
 function countOccurrences(haystack: string, tokens: string[], kw: string): number {
   if (kw.includes(' ')) {
     let n = 0
@@ -182,18 +320,23 @@ function countOccurrences(haystack: string, tokens: string[], kw: string): numbe
 
 function keywordDetailFor(
   keywords: string[],
-  resumeText: string,
-  resumeTokens: string[],
-  jd: string
+  idx: ResumeIndex,
+  jd: string,
+  variants: KeywordVariant[]
 ): KeywordDetail[] {
   const jdLower = jd.toLowerCase()
   const jdTokens = tokenize(jd)
+  const wording = new Map(variants.map((v) => [v.keyword, v.found]))
   return keywords
-    .map((kw) => ({
-      keyword: kw,
-      inResume: countOccurrences(resumeText, resumeTokens, kw),
-      inJobAd: countOccurrences(jdLower, jdTokens, kw),
-    }))
+    .map((kw) => {
+      const found = wording.get(kw)
+      const n = countOccurrences(idx.text, idx.tokens, found ?? kw)
+      return {
+        keyword: kw,
+        inResume: found ? Math.max(1, n) : n,
+        inJobAd: countOccurrences(jdLower, jdTokens, kw),
+      }
+    })
     .sort((a, b) => (a.inResume === 0 ? 0 : 1) - (b.inResume === 0 ? 0 : 1) || b.inJobAd - a.inJobAd)
 }
 
@@ -915,12 +1058,9 @@ export function highPriorityKeywords(jd: string, keywords: string[]): Set<string
 export function matchScore(resumeTextRaw: string, jd: string): number | null {
   const keywords = jd.trim() ? extractKeywords(jd) : []
   if (keywords.length === 0) return null
-  const resumeText = resumeTextRaw.toLowerCase()
-  const resumeTokens = matchTokenSet(tokenize(resumeText))
+  const idx = indexResumeText(resumeTextRaw)
   let matched = 0
-  for (const kw of keywords) {
-    if (kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)) matched++
-  }
+  for (const kw of keywords) if (keywordHit(kw, idx).hit) matched++
   return Math.round((matched / keywords.length) * 100)
 }
 
@@ -929,6 +1069,8 @@ export interface MatchReport {
   covered: string[]
   missing: string[]
   highPriorityMissing: string[]
+  /** Covered keywords the resume words differently from the posting */
+  variants: KeywordVariant[]
 }
 
 /** Per-keyword breakdown behind matchScore — same extraction, matching and rounding. */
@@ -939,13 +1081,17 @@ export function matchReport(
 ): MatchReport | null {
   const keywords = withoutRoleTokens(jd.trim() ? extractKeywords(jd) : [], targetRole)
   if (keywords.length === 0) return null
-  const resumeText = resumeTextRaw.toLowerCase()
-  const resumeTokens = matchTokenSet(tokenize(resumeText))
+  const idx = indexResumeText(resumeTextRaw)
   const covered: string[] = []
   const missing: string[] = []
+  const variants: KeywordVariant[] = []
   for (const kw of keywords) {
-    if (kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)) covered.push(kw)
-    else missing.push(kw)
+    const { hit, found } = keywordHit(kw, idx)
+    if (!hit) missing.push(kw)
+    else {
+      covered.push(kw)
+      if (found) variants.push({ keyword: kw, found })
+    }
   }
   const high = highPriorityKeywords(jd, keywords)
   return {
@@ -953,23 +1099,17 @@ export function matchReport(
     covered,
     missing,
     highPriorityMissing: missing.filter((k) => high.has(k)),
+    variants,
   }
 }
 
 /** Score pasted resume text (standalone ATS checker page) */
 export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
-  const resumeText = resumeTextRaw.toLowerCase()
-  const resumeTokenList = tokenize(resumeText)
-  const resumeTokens = matchTokenSet(resumeTokenList)
+  const idx = indexResumeText(resumeTextRaw)
+  const resumeText = idx.text
 
   const keywords = jd.trim() ? extractKeywords(jd) : []
-  const matched: string[] = []
-  const missing: string[] = []
-  for (const kw of keywords) {
-    const hit = kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)
-    if (hit) matched.push(kw)
-    else missing.push(kw)
-  }
+  const { matched, missing, variants } = splitKeywords(keywords, idx)
 
   const checks: AtsResult['checks'] = [
     {
@@ -1040,7 +1180,25 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     entryLocationsCheck(textEntryLocations(resumeTextRaw)),
   ]
 
-  return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
+  return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, idx, jd, variants), variants)
+}
+
+function splitKeywords(
+  keywords: string[],
+  idx: ResumeIndex
+): { matched: string[]; missing: string[]; variants: KeywordVariant[] } {
+  const matched: string[] = []
+  const missing: string[] = []
+  const variants: KeywordVariant[] = []
+  for (const kw of keywords) {
+    const { hit, found } = keywordHit(kw, idx)
+    if (!hit) missing.push(kw)
+    else {
+      matched.push(kw)
+      if (found) variants.push({ keyword: kw, found })
+    }
+  }
+  return { matched, missing, variants }
 }
 
 function finalize(
@@ -1049,7 +1207,8 @@ function finalize(
   missing: string[],
   ignored: string[],
   checks: AtsResult['checks'],
-  keywordDetail: KeywordDetail[]
+  keywordDetail: KeywordDetail[],
+  variants: KeywordVariant[]
 ): AtsResult {
   const applicable = checks.filter((c) => !c.na)
   const structureRatio = applicable.filter((c) => c.pass).length / applicable.length
@@ -1060,7 +1219,7 @@ function finalize(
     keywordScore !== null
       ? Math.round((keywordScore * 70 + structureScore * 30) / 100)
       : structureScore
-  return { score, matched, missing, ignored, keywordDetail, keywordScore, structureScore, checks: applicable }
+  return { score, matched, missing, ignored, keywordDetail, keywordScore, structureScore, checks: applicable, variants }
 }
 
 /**
@@ -1105,23 +1264,14 @@ export function scoreResume(
   jd: string,
   pdfPages?: number | null
 ): AtsResult {
-  const resumeText = resumeToPlainText(resume).toLowerCase()
-  const resumeTokenList = tokenize(resumeText)
-  const resumeTokens = matchTokenSet(resumeTokenList)
+  const idx = indexResumeText(resumeToPlainText(resume))
+  const resumeText = idx.text
 
   const ignoredSet = new Set((resume.ignoredKeywords ?? []).map((k) => k.toLowerCase()))
   const allKeywords = withoutRoleTokens(jd.trim() ? extractKeywords(jd) : [], resume.targetRole)
   const ignored = allKeywords.filter((kw) => ignoredSet.has(kw))
   const keywords = allKeywords.filter((kw) => !ignoredSet.has(kw))
-  const matched: string[] = []
-  const missing: string[] = []
-  for (const kw of keywords) {
-    const hit = kw.includes(' ')
-      ? resumeText.includes(kw)
-      : resumeTokens.has(kw)
-    if (hit) matched.push(kw)
-    else missing.push(kw)
-  }
+  const { matched, missing, variants } = splitKeywords(keywords, idx)
 
   const bulletCount = resume.experience.reduce(
     (n, e) => n + e.bullets.filter((b) => b.trim()).length,
@@ -1313,7 +1463,7 @@ export function scoreResume(
     ]),
   ]
 
-  return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
+  return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, idx, jd, variants), variants)
 }
 
 export type ReadinessTier = 'ready' | 'almost' | 'not-yet'
