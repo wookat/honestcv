@@ -84,6 +84,7 @@ import {
   unsupportedClaims,
 } from '@/lib/grounding'
 import { DraftFlagList, draftFlagGroups, type DraftFlagGroup } from '@/components/DraftFlagList'
+import { evidenceText, recordAppliedAnyway } from '@/lib/appliedAnyway'
 import { prefersReducedMotion } from '@/lib/motion'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
@@ -2153,7 +2154,7 @@ export default function Builder() {
   const draftFlags = useMemo(() => {
     const out = new Map<string, DraftFlagGroup[]>()
     if (!bulletSuggest && !variantPick) return out
-    const resumeText = resumeToPlainText(shown)
+    const resumeText = evidenceText(resumeToPlainText(shown))
     const jd = resume.jobDescription
     if (bulletSuggest?.text.trim()) {
       const groups = draftFlagGroups(
@@ -2162,8 +2163,9 @@ export default function Builder() {
       if (groups.length > 0) out.set('suggest', groups)
     }
     variantPick?.candidates.forEach((cand, i) => {
+      const original = evidenceText(variantPick.original ?? '')
       const groups = draftFlagGroups(
-        draftClaims(cand, resumeText, jd, variantPick.original?.trim() ? [variantPick.original] : [])
+        draftClaims(cand, resumeText, jd, original.trim() ? [original] : [])
       )
       if (groups.length > 0) out.set(`variant-${i}`, groups)
     })
@@ -9194,6 +9196,7 @@ export default function Builder() {
                         : 'hover:border-primary hover:bg-muted/50'
                     } ${flagged && !isRejected ? 'border-amber-300' : ''}`}
                     onClick={() => {
+                      if (flagged) recordAppliedAnyway(cand)
                       variantPick.apply(cand)
                       setVariantPick(null)
                     }}
@@ -9344,6 +9347,7 @@ export default function Builder() {
                     if (!cur) return
                     const line = bulletSuggest.text.split('\n')[0]?.trim() ?? ''
                     if (!line) return
+                    if (draftFlags.has('suggest')) recordAppliedAnyway(line)
                     if (bulletSuggest.lineIndex != null)
                       cur.replaceLine(bulletSuggest.lineIndex, line)
                     else cur.apply(line)
@@ -12329,11 +12333,30 @@ function TailorDialog({
     }
   }
 
+  const jd = snapshot.jobDescription
+  const flags = useMemo(() => {
+    const out = new Map<string, { label: string; items: string[] }[]>()
+    if (!rows) return out
+    const resumeText = evidenceText(resumeToPlainText(snapshot))
+    for (const r of rows) {
+      const c = tailorClaims(r.original, r.suggestion, resumeText, jd)
+      const groups = [
+        { label: 'Figures your resume never states', items: c.figures },
+        { label: 'Names / tools your resume never mentions', items: c.terms },
+        { label: 'Wording taken from the job ad that your resume never uses', items: c.mirrored },
+      ].filter((g) => g.items.length > 0)
+      if (groups.length > 0) out.set(r.id, groups)
+    }
+    return out
+  }, [rows, snapshot, jd])
   const decide = (id: string, status: 'accepted' | 'skipped') => {
     setRows((rs) => rs?.map((r) => (r.id === id ? { ...r, status } : r)) ?? null)
     if (status === 'accepted') {
       const row = rows?.find((r) => r.id === id)
-      if (row) onApply(row.id, row.suggestion)
+      if (row) {
+        if (flags.has(id)) recordAppliedAnyway(row.suggestion)
+        onApply(row.id, row.suggestion)
+      }
     }
   }
 
@@ -12346,22 +12369,6 @@ function TailorDialog({
     }
     onDraftKeyword(kw)
   }
-  const jd = snapshot.jobDescription
-  const flags = useMemo(() => {
-    const out = new Map<string, { label: string; items: string[] }[]>()
-    if (!rows) return out
-    const resumeText = resumeToPlainText(snapshot)
-    for (const r of rows) {
-      const c = tailorClaims(r.original, r.suggestion, resumeText, jd)
-      const groups = [
-        { label: 'Figures your resume never states', items: c.figures },
-        { label: 'Names / tools your resume never mentions', items: c.terms },
-        { label: 'Wording taken from the job ad that your resume never uses', items: c.mirrored },
-      ].filter((g) => g.items.length > 0)
-      if (groups.length > 0) out.set(r.id, groups)
-    }
-    return out
-  }, [rows, snapshot, jd])
   const pendingFlagged = pending.filter((r) => flags.has(r.id))
   const pendingClean = pending.filter((r) => !flags.has(r.id))
   const report = useMemo(() => {
@@ -13131,7 +13138,7 @@ function KeywordBulletDialog({
     () =>
       text?.trim()
         ? draftFlagGroups(
-            draftClaims(text, resumeToPlainText(resume), resume.jobDescription, [keyword])
+            draftClaims(text, evidenceText(resumeToPlainText(resume)), resume.jobDescription, [keyword])
           )
         : [],
     [text, resume, keyword]
@@ -13226,6 +13233,7 @@ function KeywordBulletDialog({
                   size="sm"
                   disabled={busy || !text.trim() || !expId}
                   onClick={() => {
+                    if (flagged) recordAppliedAnyway(text.trim())
                     onInsert(expId, text.trim())
                     setInserted(true)
                   }}
