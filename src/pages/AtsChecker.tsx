@@ -83,6 +83,11 @@ function segmentJd(jd: string, matched: string[], missing: string[]): JdSegment[
 
 /** Longest JD prefix rendered in the inline highlight view — the score always uses the full text. */
 const HIGHLIGHT_LIMIT = 20_000
+/** Missing keywords also get a dashed underline so the two kinds are not told apart by hue alone. */
+const JD_MARK = {
+  matched: 'rounded bg-emerald-100 px-0.5 text-emerald-900',
+  missing: 'rounded bg-amber-100 px-0.5 text-amber-900 underline decoration-dashed underline-offset-2',
+}
 
 const DRAFT_KEY = 'honestcv.atsCheckerDraft'
 
@@ -613,10 +618,8 @@ export default function AtsChecker() {
                 <div className="mt-5">
                   <p className="text-sm font-medium">Job description with keywords highlighted</p>
                   <p className="text-muted-foreground mt-1 text-xs">
-                    <span className="rounded bg-emerald-100 px-1 text-emerald-900">green</span>{' '}
-                    = already on your resume,{' '}
-                    <span className="rounded bg-amber-100 px-1 text-amber-900">amber</span> =
-                    missing.
+                    Highlighted <mark className={JD_MARK.matched}>like this</mark> = already on
+                    your resume, <mark className={JD_MARK.missing}>like this</mark> = missing.
                   </p>
                   <div
                     className="bg-muted/40 mt-2 max-h-56 overflow-y-auto rounded-md border p-3 text-sm whitespace-pre-wrap"
@@ -630,11 +633,7 @@ export default function AtsChecker() {
                       ) : (
                         <mark
                           key={i}
-                          className={`rounded px-0.5 ${
-                            s.kind === 'matched'
-                              ? 'bg-emerald-100 text-emerald-900'
-                              : 'bg-amber-100 text-amber-900'
-                          }`}
+                          className={s.kind === 'matched' ? JD_MARK.matched : JD_MARK.missing}
                         >
                           {s.text}
                         </mark>
