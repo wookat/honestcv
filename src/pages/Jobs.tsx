@@ -342,15 +342,26 @@ export default function Jobs() {
   // place come from the API, so a settled location re-runs the search in the
   // background (the list stays put until the new one arrives).
   const lastFetchedLoc = useRef(locationFilter.trim().toLowerCase())
+  // The search the list currently shows, read when the debounce fires: the
+  // refetch must re-run that search for the new place, not whatever the search
+  // box held when the place changed.
+  const shownSearch = useRef({ query: fetchedQuery, category })
+  useEffect(() => {
+    shownSearch.current = { query: fetchedQuery, category }
+  }, [fetchedQuery, category])
   useEffect(() => {
     const loc = locationFilter.trim().toLowerCase()
     if (loc === lastFetchedLoc.current) return
+    const seqAtChange = jobsFetchSeq
     const t = window.setTimeout(() => {
       lastFetchedLoc.current = loc
-      void fetchJobs(query, category, locationFilter)
+      // A search submitted meanwhile already carried this place.
+      if (jobsFetchSeq !== seqAtChange) return
+      const { query: q, category: cat } = shownSearch.current
+      void fetchJobs(q, cat, locationFilter)
     }, 700)
     return () => window.clearTimeout(t)
-    // query/category are read at fire time; only a location change should refetch
+    // only a location change should schedule a refetch
   }, [locationFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

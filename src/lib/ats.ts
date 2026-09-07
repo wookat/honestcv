@@ -1030,14 +1030,17 @@ function splitBoilerplate(jd: string): { job: string; boilerplate: string } {
 export function extractKeywords(jd: string, limit = 30, company?: string): string[] {
   const lower = jd.toLowerCase()
   const found = new Map<string, number>()
+  const { job, boilerplate } = splitBoilerplate(jd)
+  // A phrase in the employer's own sections ("our verified social media
+  // channels" in a recruitment-scam notice) describes the employer, not the job.
+  const jobLower = job.toLowerCase()
   for (const phrase of KNOWN_PHRASES) {
-    if (lower.includes(phrase)) found.set(phrase, 5)
+    if (jobLower.includes(phrase)) found.set(phrase, 5)
   }
   const employer = employerTokens(jd, company)
   const isEmployer = (tok: string) =>
     employer.has(tok) || tok.split(/[./-]/).some((part) => part.length >= 3 && employer.has(part))
   const counts = new Map<string, number>()
-  const { job, boilerplate } = splitBoilerplate(jd)
   // Ordinary words count only where the ad describes the job; a skill named in
   // "About us" ("we build Next.js") still counts.
   for (const tok of [...tokenize(job), ...tokenize(boilerplate).filter(looksLikeSkill)]) {
@@ -1119,9 +1122,23 @@ function headerLineTokens(jd: string): Set<string> {
 }
 
 /**
+ * Words that one in ten job ads repeats whatever the role (measured over 85 real
+ * ads from the /jobs feeds — engineering, nursing, teaching, accounting, sales).
+ * Repeating them says nothing about this job; they are still prioritized when
+ * the ad's requirements list or title names them.
+ */
+const COMMON_AD_WORDS = new Set(
+  `support product products systems tools engineering engineers design technical
+teams data growth drive business process complex solutions learning performance
+development platform workflows senior success personal technology analytics lead
+global customers customer revenue content market training enterprise`.split(/\s+/)
+)
+
+/**
  * JD keywords worth prioritizing: known multi-word phrases, keywords repeated
- * ≥3 times, keywords in the requirements/qualifications block, and keywords in
- * the JD's first line (usually the job title).
+ * ≥3 times (unless every ad repeats them), keywords in the
+ * requirements/qualifications block, and keywords in the JD's first line
+ * (usually the job title).
  */
 export function highPriorityKeywords(jd: string, keywords: string[]): Set<string> {
   const high = new Set<string>()
@@ -1138,7 +1155,7 @@ export function highPriorityKeywords(jd: string, keywords: string[]): Set<string
       high.add(kw)
       continue
     }
-    if (countOccurrences(lower, jdTokens, kw) >= 3) {
+    if (!COMMON_AD_WORDS.has(kw) && countOccurrences(lower, jdTokens, kw) >= 3) {
       high.add(kw)
       continue
     }
