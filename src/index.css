@@ -325,6 +325,11 @@
     outline: 2px solid CanvasText !important;
     outline-offset: 2px !important;
   }
+  /* Link-styled buttons rely on text-primary alone at rest; buttons get ButtonText (not LinkText)
+     under forced-colors, so show the hover underline permanently. */
+  :is(button, [role='button'], [data-slot='button'])[class~='hover:underline'] {
+    text-decoration-line: underline;
+  }
 }
 
 @media print {
