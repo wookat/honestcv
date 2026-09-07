@@ -841,3 +841,88 @@ export function draftClaims(
     scope,
   };
 }
+
+export interface SkillListChanges {
+  /** Items in `after` that `before` never listed (renames excluded) */
+  added: string[];
+  /** Items in `before` that `after` no longer lists (renames excluded) */
+  dropped: string[];
+  /** before → after pairs that name the same skill in another form (REST APIs → REST API, TS → TypeScript) */
+  renamed: [string, string][];
+  /** `before` had labelled category lines and `after` has none */
+  categoriesLost: boolean;
+}
+
+const SKILL_LABEL_RE = /^[^:]{1,40}:\s*(.+)$/;
+
+const skillItems = (skills: string): string[] =>
+  skills
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const m = line.match(SKILL_LABEL_RE);
+      return (m ? m[1] : line)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    });
+
+const skillKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9+#]+/g, "");
+
+const skillWords = (s: string) =>
+  s
+    .toLowerCase()
+    .split(/[^a-z0-9+#]+/)
+    .filter(Boolean)
+    .map((w) => w.replace(/s$/, ""));
+
+/**
+ * Same skill in another form: one's words all sit in the other's ("accessibility"
+ * ≈ "Web accessibility", "REST APIs" ≈ "REST API"), or the ATS alias / stem
+ * matcher pairs them (TS ≈ TypeScript, K8s ≈ Kubernetes).
+ */
+const sameSkill = (a: string, b: string) => {
+  const wa = skillWords(a);
+  const wb = skillWords(b);
+  if (wa.length === 0 || wb.length === 0) return false;
+  const [shorter, longer] = wa.length <= wb.length ? [wa, wb] : [wb, wa];
+  if (shorter.every((w) => longer.includes(w))) return true;
+  return (
+    keywordHit(a.toLowerCase(), indexResumeText(b)).hit ||
+    keywordHit(b.toLowerCase(), indexResumeText(a)).hit
+  );
+};
+
+const labelledLines = (skills: string) =>
+  skills.split("\n").filter((l) => SKILL_LABEL_RE.test(l.trim())).length;
+
+/**
+ * Item-level diff of a skills list before and after an AI cleanup. A cleanup may
+ * reorder, dedupe and rename; anything it adds or drops is reported as such, and
+ * so is flattening labelled category lines into one list. Lexical, advisory.
+ */
+export function skillListChanges(before: string, after: string): SkillListChanges {
+  const b = skillItems(before);
+  const a = skillItems(after);
+  const bKeys = new Set(b.map(skillKey));
+  const aKeys = new Set(a.map(skillKey));
+  const onlyAfter = a.filter((s) => !bKeys.has(skillKey(s)));
+  const onlyBefore = b.filter((s) => !aKeys.has(skillKey(s)));
+  const renamed: [string, string][] = [];
+  const added: string[] = [];
+  const dropped = [...onlyBefore];
+  for (const s of onlyAfter) {
+    const i = dropped.findIndex((d) => sameSkill(d, s));
+    if (i >= 0) {
+      renamed.push([dropped[i], s]);
+      dropped.splice(i, 1);
+    } else added.push(s);
+  }
+  return {
+    added,
+    dropped,
+    renamed,
+    categoriesLost: labelledLines(before) >= 2 && labelledLines(after) === 0,
+  };
+}

@@ -58,7 +58,7 @@ export function buildRewriteMessages(
   if (kind === 'summary') {
     task = `Rewrite the following professional summary in 2-3 punchy sentences (max 60 words). No first person ("I", "my").`
   } else if (kind === 'skills') {
-    task = `Clean up the following skills list: deduplicate, group related skills, use canonical industry names, order by relevance. Output a single comma-separated list.`
+    task = `Clean up the following skills list: remove duplicates, use canonical industry names, order by relevance. Keep every skill the input lists and add none — this is a cleanup, not a suggestion. If the input has labelled lines ("Label: a, b, c"), output one line per label in the same order and clean up within each line; otherwise output a single comma-separated list.`
   } else {
     task = `Rewrite the following work-experience bullet points. Return the same number of bullets (or merge only redundant ones), one per line, each starting with "- ".`
   }
@@ -72,7 +72,9 @@ export function buildRewriteMessages(
   if (target) parts.push(`Target role: ${target}`)
   if (jd)
     parts.push(
-      `Tailor wording toward this job description (mirror its keywords where truthful):\n"""\n${jd.slice(0, 4000)}\n"""`
+      kind === 'skills'
+        ? `Order the skills by relevance to this job description and prefer the names it uses for skills the input already has; do not add skills from it:\n"""\n${jd.slice(0, 4000)}\n"""`
+        : `Tailor wording toward this job description (mirror its keywords where truthful):\n"""\n${jd.slice(0, 4000)}\n"""`
     )
   if (avoid.length) parts.push(avoidPart(avoid))
   parts.push(`Input:\n"""\n${text.slice(0, 4000)}\n"""`)
