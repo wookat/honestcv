@@ -1557,7 +1557,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               <p className="text-muted-foreground text-xs">
                 Click or drop a PDF, DOCX or TXT here — read entirely in your browser.
               </p>
-              {importError && <p className="text-destructive text-xs">{importError}</p>}
+              {importError && (
+                <p role="alert" className="text-destructive text-xs">
+                  {importError}
+                </p>
+              )}
             </button>
             <button
               type="button"
@@ -1733,7 +1737,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             }}
           />
         </div>
-        {docImportError && <p className="text-destructive mt-2 text-xs">{docImportError}</p>}
+        {docImportError && (
+          <p role="alert" className="text-destructive mt-2 text-xs">
+            {docImportError}
+          </p>
+        )}
         <div className="mt-4">
           {section === 'documents' ? (
             <h2 className="text-sm font-semibold">Letter examples</h2>

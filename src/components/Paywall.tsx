@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useId, useState } from 'react'
 import { KeyRound, Loader2, Lock, Mail, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -107,7 +107,11 @@ export function CheckoutButton({
             ? 'Opening checkout…'
             : children}
       </Button>
-      {error && <p className="text-destructive mt-1.5 text-xs">{error}</p>}
+      {error && (
+        <p role="alert" className="text-destructive mt-1.5 text-xs">
+          {error}
+        </p>
+      )}
       <LeadDialog open={leadOpen} onOpenChange={setLeadOpen} plan={plan} />
     </div>
   )
@@ -127,6 +131,7 @@ export function LeadDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const errorId = useId()
 
   const submit = async () => {
     const addr = email.trim()
@@ -165,7 +170,14 @@ export function LeadDialog({
             Thanks for your patience!
           </div>
         ) : (
-          <div className="space-y-2">
+          <form
+            noValidate
+            className="space-y-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void submit()
+            }}
+          >
             <Label htmlFor="lead-email">Email address</Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
@@ -175,17 +187,23 @@ export function LeadDialog({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={busy}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? errorId : undefined}
               />
-              <Button onClick={() => void submit()} disabled={busy} className="shrink-0">
+              <Button type="submit" disabled={busy} className="shrink-0">
                 {busy ? <Loader2 className="animate-spin" /> : <Mail />}
                 {busy ? 'Sending…' : 'Notify me'}
               </Button>
             </div>
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && (
+              <p id={errorId} role="alert" className="text-destructive text-sm">
+                {error}
+              </p>
+            )}
             <p className="text-muted-foreground text-xs">
               We'll only use your email for the launch notification and discount.
             </p>
-          </div>
+          </form>
         )}
       </DialogContent>
     </Dialog>
@@ -208,6 +226,7 @@ export function FreeDownloadDialog({
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const errorId = useId()
 
   const submit = async () => {
     const addr = email.trim()
@@ -242,7 +261,14 @@ export function FreeDownloadDialog({
             RezUp updates.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2">
+        <form
+          noValidate
+          className="space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void submit()
+          }}
+        >
           <Label htmlFor="free-email">Email address</Label>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input
@@ -252,13 +278,19 @@ export function FreeDownloadDialog({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={busy}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
             />
-            <Button onClick={() => void submit()} disabled={busy} className="shrink-0">
+            <Button type="submit" disabled={busy} className="shrink-0">
               {busy ? <Loader2 className="animate-spin" /> : <Mail />}
               {busy ? 'Unlocking…' : 'Unlock downloads'}
             </Button>
           </div>
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          {error && (
+            <p id={errorId} role="alert" className="text-destructive text-sm">
+              {error}
+            </p>
+          )}
           <p className="text-muted-foreground text-xs">
             One email, all downloads — no card, nothing to cancel, unsubscribe anytime.
           </p>
@@ -270,7 +302,7 @@ export function FreeDownloadDialog({
               Privacy policy
             </a>
           </p>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   )
@@ -289,6 +321,7 @@ export function ActivateForm({ onActivated }: { onActivated?: (s: LicenseState) 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState<LicenseState | null>(null)
+  const errorId = useId()
 
   const activate = async () => {
     if (!key.trim()) {
@@ -318,7 +351,14 @@ export function ActivateForm({ onActivated }: { onActivated?: (s: LicenseState) 
   }
 
   return (
-    <div className="space-y-2">
+    <form
+      noValidate
+      className="space-y-2"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void activate()
+      }}
+    >
       <Label htmlFor="license-key">Already paid? Re-activate with your license key</Label>
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
@@ -327,18 +367,24 @@ export function ActivateForm({ onActivated }: { onActivated?: (s: LicenseState) 
           value={key}
           onChange={(e) => setKey(e.target.value)}
           disabled={busy}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
         />
-        <Button onClick={() => void activate()} disabled={busy} className="shrink-0">
+        <Button type="submit" disabled={busy} className="shrink-0">
           {busy ? <Loader2 className="animate-spin" /> : <KeyRound />}
           {busy ? 'Checking…' : 'Activate'}
         </Button>
       </div>
-      {error && <p className="text-destructive text-sm">{error}</p>}
+      {error && (
+        <p id={errorId} role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      )}
       <p className="text-muted-foreground text-xs">
         After payment your license activates automatically and shows a license key —
         keep it to re-activate on another device.
       </p>
-    </div>
+    </form>
   )
 }
 

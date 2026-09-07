@@ -322,13 +322,18 @@ export default function AtsChecker() {
                 }}
               />
             </div>
-            {fileError && <p className="text-destructive text-xs">{fileError}</p>}
+            {fileError && (
+              <p id="resume-file-error" role="alert" className="text-destructive text-xs">
+                {fileError}
+              </p>
+            )}
             <Textarea
               id="resume-text"
               rows={12}
               placeholder="Paste your full resume text here — or drop a PDF / DOCX file on this box…"
               value={resumeText}
               onChange={(e) => setResumeText(e.target.value)}
+              aria-describedby={fileError ? 'resume-file-error' : undefined}
             />
           </div>
           <div className="space-y-1.5">
