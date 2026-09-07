@@ -3461,7 +3461,7 @@ export default function Builder() {
                       label={`Role ${idx + 1}`}
                     />
                   </p>
-                  <div className="ml-auto flex shrink-0 items-center">
+                  <div className="ml-auto flex items-center max-sm:basis-full max-sm:flex-wrap max-sm:justify-end sm:shrink-0">
                     <Button
                       type="button"
                       variant="ghost"

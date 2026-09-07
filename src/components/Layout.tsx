@@ -212,7 +212,7 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
       >
         <Link to="/" className="flex items-center gap-2 font-semibold">
           <LogoMark className="size-6" />
-          RezUp
+          <span className="max-[359px]:sr-only">RezUp</span>
           <span className="text-muted-foreground hidden text-xs font-normal sm:inline">by Zalize</span>
         </Link>
         <nav

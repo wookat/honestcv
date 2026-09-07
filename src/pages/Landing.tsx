@@ -479,7 +479,12 @@ export default function Landing() {
                 Start free — no sign-up <ArrowRight />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="max-[359px]:h-auto max-[359px]:min-h-10 max-[359px]:py-2 max-[359px]:whitespace-normal"
+            >
               <Link to="/ats-checker">
                 <Target /> Check my resume&apos;s ATS score
               </Link>
