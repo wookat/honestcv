@@ -774,6 +774,13 @@ export function draftClaims(
     lineWords.has(stemmer(w)) ||
     (w.includes("-") &&
       w.split("-").some((p) => p.length >= 3 && lineWords.has(stemmer(p))));
+  // Word offsets that open a sentence: capitalised there says nothing
+  const sentenceStarts = new Set<number>();
+  let idx = 0;
+  for (const m of draft.matchAll(CONTENT_RE)) {
+    if (/(^|[.!?;:\n•*-])\s*$/.test(draft.slice(0, m.index))) sentenceStarts.add(idx);
+    idx++;
+  }
   const scope: string[] = [];
   for (const w of words) {
     const plain = w.toLowerCase();
@@ -820,7 +827,7 @@ export function draftClaims(
     if (inJd === 0 || seen.has(stemmer(plain))) continue;
     const specific =
       plain.includes("-") ||
-      (i > 0 && /^[A-Z]/.test(w)) ||
+      (!sentenceStarts.has(i) && /^[A-Z]/.test(w)) ||
       looksLikeSkill(plain) ||
       inJd >= 2;
     if (!specific) continue;
