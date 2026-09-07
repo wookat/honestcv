@@ -10,6 +10,7 @@
  */
 
 import { stemmer } from "stemmer";
+import { indexResumeText, keywordHit, type ResumeIndex } from "./ats";
 
 /** Sentence-initial or structural words that are capitalised without naming anything */
 const GENERIC_CAPS = new Set([
@@ -334,11 +335,16 @@ function figures(text: string): string[] {
   return out;
 }
 
-/** Does any source contain the term (loose: case, punctuation and "Node.js"/"NodeJS" folded)? */
+/**
+ * Does any source contain the term — loose on case, punctuation and
+ * "Node.js"/"NodeJS", and on the wording variants the ATS matcher accepts
+ * (plural "UIs" for "UI", "E2E" for "end-to-end", "PMs" for "product managers")?
+ */
 function supported(
   term: string,
   sourceKeys: string[],
   sourceTexts: string[],
+  sourceIndex: ResumeIndex,
 ): boolean {
   const k = key(term);
   if (!k) return true;
@@ -351,7 +357,15 @@ function supported(
   )
     return true;
   const n = normalise(term);
-  return sourceTexts.some((s) => s.includes(n));
+  if (sourceTexts.some((s) => s.includes(n))) return true;
+  // Acronym plurals ("UIs", "PMs", "APIs") are shorter than the ATS stemmer's floor
+  const forms = (w: string) =>
+    /^[a-z0-9]{2,4}s$/.test(w) ? [w, w.slice(0, -1)] : [w];
+  return words.every(
+    (w) =>
+      sourceKeys.some((s) => s.includes(key(w))) ||
+      forms(normalise(w)).some((f) => keywordHit(f, sourceIndex).hit),
+  );
 }
 
 /** A percentage must appear as one in the source; "+44 7700…" (phone) never supports "44%" */
@@ -522,13 +536,14 @@ export function unsupportedClaims(
   const src = sources.filter((s) => s && s.trim());
   const sourceTexts = src.map(normalise);
   const sourceKeys = src.map(key);
+  const sourceIndex = indexResumeText(src.join("\n"));
   const terms: string[] = [];
   const seenT = new Set<string>();
   for (const run of properRuns(text)) {
     const k = key(run);
     if (seenT.has(k)) continue;
     seenT.add(k);
-    if (!supported(run, sourceKeys, sourceTexts)) terms.push(run);
+    if (!supported(run, sourceKeys, sourceTexts, sourceIndex)) terms.push(run);
   }
   const figs: string[] = [];
   const seenF = new Set<string>();

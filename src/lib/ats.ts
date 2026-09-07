@@ -234,6 +234,8 @@ const ALIAS_GROUPS: string[][] = [
   ['user experience', 'ux'],
   ['user interface', 'ui'],
   ['quality assurance', 'qa'],
+  ['end-to-end', 'end to end', 'e2e'],
+  ['product manager', 'pm'],
   ['rest api', 'rest apis', 'restful api', 'restful apis', 'restful'],
   ['sql server', 'mssql', 'microsoft sql server'],
   ['c#', 'csharp'],
@@ -298,7 +300,7 @@ export function keywordHit(
 ): { hit: boolean; found: string } {
   const own = findForm(kw, idx)
   if (own !== null) return { hit: true, found: own }
-  for (const alias of ALIASES.get(kw) ?? []) {
+  for (const alias of ALIASES.get(kw) ?? ALIASES.get(stemToken(kw)) ?? []) {
     if (alias === kw) continue
     const f = findForm(alias, idx)
     if (f !== null) return { hit: true, found: f || alias }
