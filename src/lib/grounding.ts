@@ -10,7 +10,12 @@
  */
 
 import { stemmer } from "stemmer";
-import { indexResumeText, keywordHit, type ResumeIndex } from "./ats";
+import {
+  indexResumeText,
+  keywordHit,
+  looksLikeSkill,
+  type ResumeIndex,
+} from "./ats";
 
 /** Sentence-initial or structural words that are capitalised without naming anything */
 const GENERIC_CAPS = new Set([
@@ -650,5 +655,182 @@ export function tailorClaims(
     figures,
     terms: terms.filter((t) => !jdTerms.has(key(t))),
     mirrored,
+  };
+}
+
+/** Ad words that say nothing about the candidate on their own */
+const GENERIC_AD_WORDS = new Set(
+  `team teams technical platform product products engineering engineers design
+support systems tools business process solutions performance development
+workflows senior success technology data customers customer users user
+experience experiences internal external stakeholders quality scalable robust
+modern high fast complex end key core new impact real world class
+build building built develop developing developed deliver delivering delivered
+drive driving driven work working worked help helping helped
+create creating created make making made use using used improve improving
+improved ensure ensuring collaborate collaborating collaborated partner
+partnering partnered ship shipping shipped manage managing
+managed support supporting supported align aligning aligned enable enabling
+enabled apply applying applied span spanning spanned across`.split(/\s+/),
+);
+
+const CONTENT_RE = /[A-Za-z][A-Za-z'-]*[A-Za-z]/g;
+const CLAUSE_RE = /[,;:.()[\]\n]|\s[-–—]\s/;
+
+const contentStems = (text: string): string[] => {
+  const out: string[] = [];
+  for (const w of normalise(text).match(CONTENT_RE) ?? []) {
+    const plain = w.replace(/'s$/, "");
+    if (plain.length < 3 || FUNCTION_WORDS.has(plain)) continue;
+    out.push(stemmer(plain));
+  }
+  return out;
+};
+
+/** Adjacent content-word pairs inside one clause (never across , ; : . ( ) or a line break) */
+const bigrams = (text: string): Set<string> => {
+  const out = new Set<string>();
+  for (const clause of text.split(CLAUSE_RE)) {
+    const stems = contentStems(clause);
+    for (let i = 0; i + 1 < stems.length; i++)
+      out.add(`${stems[i]} ${stems[i + 1]}`);
+  }
+  return out;
+};
+
+const stemCounts = (text: string): Map<string, number> => {
+  const out = new Map<string, number>();
+  for (const s of contentStems(text)) out.set(s, (out.get(s) ?? 0) + 1);
+  return out;
+};
+
+/**
+ * Verbs that widen the candidate's remit (owner / leader / architect) — stems,
+ * with the irregular past forms the stemmer cannot map.
+ */
+const SCOPE_VERB_STEMS = new Set(
+  `own lead spearhead architect direct head manag drive pioneer oversee
+orchestr champion found establish`.split(/\s+/),
+);
+const IRREGULAR_STEMS: Record<string, string> = {
+  led: "lead",
+  drove: "drive",
+  driven: "drive",
+  oversaw: "oversee",
+  overseen: "oversee",
+};
+const verbStem = (w: string) => IRREGULAR_STEMS[w] ?? stemmer(w);
+
+export interface DraftClaims {
+  /** Figures the draft states that the resume (and the line it completes) do not */
+  figures: string[];
+  /** Names / tools the draft states that neither the resume nor the job ad mention */
+  terms: string[];
+  /** Job-ad phrases and specific words the draft uses that the resume never does */
+  mirrored: string[];
+  /** Remit verbs (owned / led / architected …) the resume never uses in any form */
+  scope: string[];
+}
+
+/**
+ * What an AI-drafted bullet ("Suggest a bullet", "…with key numbers", "Complete
+ * line", rewrite variants) says that the candidate's resume does not. Unlike
+ * {@link tailorClaims} there may be no original line, so every word is new —
+ * the signal is job-ad *phrases* (two content words the ad uses together and
+ * the resume never does: "design documents", "multi-sided booking") plus
+ * ad-specific single words (hyphenated, capitalised, known skills), not the
+ * generic verbs and nouns any bullet shares with any ad ("using", "teams").
+ */
+export function draftClaims(
+  draft: string,
+  resumeText: string,
+  jobDescription: string,
+  own: string[] = [],
+): DraftClaims {
+  const ownText = [resumeText, ...own].filter((s) => s && s.trim()).join("\n");
+  const { terms, figures } = unsupportedClaims(draft, [ownText]);
+  const jdTerms = new Set(
+    unsupportedClaims(draft, [jobDescription]).terms.map(key),
+  );
+  const have = wordStems(ownText);
+  const haveBigrams = bigrams(ownText);
+  const lineWords = wordStems(own.join("\n"));
+  const jd = stemCounts(jobDescription);
+  const jdBigrams = bigrams(jobDescription);
+  const mirrored: string[] = [];
+  const seen = new Set<string>();
+  const words = draft.match(CONTENT_RE) ?? [];
+  const haveVerbs = new Set(
+    (normalise(ownText).match(CONTENT_RE) ?? []).map(verbStem),
+  );
+  const isOwn = (w: string) =>
+    have.has(w) || have.has(stemmer(w)) || haveVerbs.has(verbStem(w));
+  // "customer-facing" is the candidate's own "customer"; "multi-sided" is nobody's
+  const ownWord = (w: string) =>
+    isOwn(w) ||
+    (w.includes("-") &&
+      w.split("-").some((p) => p.length >= 3 && isOwn(p)));
+  const lineWord = (w: string) =>
+    lineWords.has(stemmer(w)) ||
+    (w.includes("-") &&
+      w.split("-").some((p) => p.length >= 3 && lineWords.has(stemmer(p))));
+  const scope: string[] = [];
+  for (const w of words) {
+    const plain = w.toLowerCase();
+    const st = verbStem(plain);
+    if (!SCOPE_VERB_STEMS.has(st) || isOwn(plain) || seen.has(`scope:${st}`))
+      continue;
+    seen.add(`scope:${st}`);
+    seen.add(stemmer(plain));
+    scope.push(w);
+  }
+  // Phrases: two adjacent content words the ad uses together and the resume never does
+  for (const clause of draft.split(CLAUSE_RE)) {
+    const ws = clause.match(CONTENT_RE) ?? [];
+    for (let i = 0; i + 1 < ws.length; i++) {
+      const a = ws[i].toLowerCase().replace(/'s$/, "");
+      const b = ws[i + 1].toLowerCase().replace(/'s$/, "");
+      if (a.length < 3 || b.length < 3) continue;
+      if (FUNCTION_WORDS.has(a) || FUNCTION_WORDS.has(b)) continue;
+      const pair = `${stemmer(a)} ${stemmer(b)}`;
+      if (!jdBigrams.has(pair) || haveBigrams.has(pair) || seen.has(pair))
+        continue;
+      // Rewording the line being rewritten ("reviewing code" → "code reviews",
+      // "customer reporting" → "customer-facing analytics") is not borrowing
+      if (
+        (lineWord(a) || lineWord(b)) &&
+        (lineWord(a) || ownWord(a)) &&
+        (lineWord(b) || ownWord(b))
+      )
+        continue;
+      seen.add(pair);
+      seen.add(stemmer(a));
+      seen.add(stemmer(b));
+      mirrored.push(`${ws[i]} ${ws[i + 1]}`);
+    }
+  }
+  // Single words the ad is specific about: hyphenated, capitalised mid-sentence,
+  // a technology name, or a theme the ad repeats
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    const plain = w.toLowerCase().replace(/'s$/, "");
+    if (plain.length < 3 || FUNCTION_WORDS.has(plain)) continue;
+    if (GENERIC_AD_WORDS.has(plain) || ownWord(plain)) continue;
+    const inJd = jd.get(stemmer(plain)) ?? 0;
+    if (inJd === 0 || seen.has(stemmer(plain))) continue;
+    const specific =
+      plain.includes("-") ||
+      (i > 0 && /^[A-Z]/.test(w)) ||
+      looksLikeSkill(plain) ||
+      inJd >= 2;
+    if (!specific) continue;
+    seen.add(stemmer(plain));
+    mirrored.push(w);
+  }
+  return {
+    figures,
+    terms: terms.filter((t) => !jdTerms.has(key(t))),
+    mirrored,
+    scope,
   };
 }

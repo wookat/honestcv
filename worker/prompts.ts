@@ -240,17 +240,20 @@ export function buildSuggestBulletMessages(
         : "Complete the user's partially written work-experience bullet into exactly ONE finished bullet. Keep the user's words, facts and intent — extend and polish the fragment, never replace it with a different achievement."
   const suggestLine =
     section === 'project'
-      ? 'Draft exactly ONE project bullet for the project described by the user, describing a typical, checkable outcome for that kind of project (what was built, improved, or delivered).'
+      ? 'Draft exactly ONE candidate project bullet for the project described by the user — an outcome (what was built, improved, or delivered) the user will confirm or reject.'
       : section === 'involvement'
-        ? 'Draft exactly ONE involvement bullet for the volunteer, club or extracurricular role described by the user, describing a typical, checkable contribution for that kind of role.'
-        : 'Draft exactly ONE work-experience bullet for the role described by the user, describing a typical, checkable achievement for that kind of role.'
+        ? 'Draft exactly ONE candidate involvement bullet for the volunteer, club or extracurricular role described by the user — a contribution the user will confirm or reject.'
+        : 'Draft exactly ONE candidate work-experience bullet for the role described by the user — an achievement the user will confirm or reject.'
+  const groundingLine = draft.trim()
+    ? 'Ground the completion only in the fragment and what the resume already shows; where a specific project, metric or scope is unknown, use bracketed placeholders such as [project name] or [add %] for the user to fill in — never invent specifics.'
+    : 'The bullet is a candidate, not a record: the user has not told you this happened, so it must be one they can check against their own memory. Prefer work the resume already evidences for this entry or nearby entries. Anything the resume does not show — a deliverable, an audience, a scope, a metric — goes in a bracketed placeholder such as [project name], [team or audience] or [add %] instead of being asserted. Do not present a duty from the job description as something the user did; at most offer it as a placeholder-marked candidate.'
   const draftLine = draft.trim() ? completeLine : suggestLine
   return [
     {
       role: 'system',
       content: `${SYSTEM_WRITER}
 ${draftLine}
-Ground the bullet only in what the resume already shows; where a specific project, metric or scope is unknown, use bracketed placeholders such as [project name] or [add %] for the user to fill in — never invent specifics.
+${groundingLine}
 Do not repeat or lightly rephrase any of the existing bullets; cover a different responsibility or outcome.
 Start with a strong action verb. Output the single bullet as one line of plain text ending with a period. No leading dash, no quotes, no commentary.${
         variant === 'key-numbers'
@@ -276,7 +279,7 @@ Start with a strong action verb. Output the single bullet as one line of plain t
         targetRole.trim() ? `\n\nTarget role: ${targetRole.trim()}` : ''
       }${
         jobDescription.trim()
-          ? `\n\nTailor wording toward this job description (mirror its keywords only where the resume truthfully supports them):\n"""\n${jobDescription.slice(0, 4000)}\n"""`
+          ? `\n\nTailor wording toward this job description (mirror its keywords only where the resume truthfully supports them; its duties are not the user's history):\n"""\n${jobDescription.slice(0, 4000)}\n"""`
           : ''
       }\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
     },
