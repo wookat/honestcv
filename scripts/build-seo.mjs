@@ -1911,6 +1911,8 @@ function templatePage(p) {
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Templates', path: '/templates/' }, { name: `${p.name} resume template`, path: p.path }]))}</script>
 <style>${CSS}
+.tpl-hero{margin:1rem 0}
+.tpl-hero svg{max-width:100%;height:auto}
 .tpl-others{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr));gap:1rem;margin-top:1rem}
 .tpl-others a{display:block;text-decoration:none;color:inherit}
 .tpl-others a:hover svg{border-color:var(--primary)}
@@ -1927,7 +1929,7 @@ ${NAV_HTML}
 </div></header>
 <main id="main" tabindex="-1">
 <h1>${esc(p.name)} — ATS-friendly resume template</h1>
-<div style="margin:1rem 0">${templateThumbSvg(p.path.split('/').pop(), 300)}</div>
+<div class="tpl-hero">${templateThumbSvg(p.path.split('/').pop(), 300)}</div>
 <p class="lede">${esc(p.blurb)}</p>
 <ul class="features">
 <li>Strictly single-column — the layout ATS parsers read most reliably</li>

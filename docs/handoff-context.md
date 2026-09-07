@@ -2656,3 +2656,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 方案 docs/plan-r674-dialog-max-height.md：`ui/dialog.tsx` DialogContent 默认加 `max-h-[calc(100dvh-2rem)] overflow-y-auto`，一处覆盖全部弹窗；已有 `max-h-[85/90vh]` 者经 tailwind-merge 覆盖不变。
 - 生产 QA（index-DeqeoDPH.js）：667×375 九弹窗全部在视口内、超高者自身可滚、Close 与末按钮 elementFromPoint 命中；812 高 375/1280 九弹窗几何逐项不变；`r670-verify.cjs` 48 组对 R673 快照 0 差异；零 console 错误；存储回基线。
 - 如实未验证：真机横屏（软键盘弹出后的 dvh）；需数据才能打开的其余 27 个弹窗仅同原语推断。
+
+### R675 — 25 个 /templates/<slug>/ 静态页 hero 缩略图在 320 强制整页横滚（WCAG 1.4.10）（链 #895 → 本 PR）
+
+- 取证（`qa/r675-static-sweep.cjs` 全 120 条 sitemap URL × 320 默认 / 375+1.4.12 间距；`qa/r675-tpl.cjs`）：375+间距 0 页溢出；320 默认 **25/120** 溢出、恰为全部 /templates/ 页，均 316/305——`templateThumbSvg(slug, 300)` 输出 `<svg width="300">` 固定宽，主栏 320 时仅 273 宽，凸出 11px。其余静态路由（guides/examples/vs/信件页）均已反流。
+- 方案 docs/plan-r675-template-page-thumb-reflow.md：build-seo.mjs 该页样式加 `.tpl-hero svg{max-width:100%;height:auto}`，包裹 div 改 class；≥332 宽渲染与原先相同。
+- 生产 QA（静态 HTML 已带 `.tpl-hero svg`，app bundle 仍 index-DeqeoDPH.js）：120 URL 320/375+间距 0 溢出；/templates/classic/ 320 svg 273×352 且 305/305，375/1280 svg 300×387 与修复前一致；console 0；存储键不变。
+- 顺带量到但未改（需老板拍板）：全站输入框/下拉边框对背景仅 1.23–1.53:1（shadcn `border-input` 既定值，亮/暗同），占位符文字 5.2–6.8:1 达标。1.4.11 对文本框边框是否强制 3:1 存争议（有可见标签/占位符时可豁免），且改深会改变整站视觉，故记录不动。
