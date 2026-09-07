@@ -574,6 +574,11 @@ export default function Jobs() {
   }
 
   const focusAfterRender = useFocusAfterRender()
+  const [actionNote, setActionNote] = useState('')
+  const announce = (text: string) => {
+    setActionNote(text)
+    window.setTimeout(() => setActionNote((cur) => (cur === text ? '' : cur)), 1800)
+  }
   /** id of the "Open" button on a job card's linked-copy / linked-document row. */
   const linkedRowOpenId = (jobId: string, kind: CareerDocKind | 'copy') => `job-${jobId}-${kind}-open`
 
@@ -2332,7 +2337,10 @@ export default function Jobs() {
                               <button
                                 type="button"
                                 className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
-                                onClick={() => applyPipeline(markFollowedUp(entry.job.id))}
+                                onClick={() => {
+                                  if (applyPipeline(markFollowedUp(entry.job.id)))
+                                    announce('Marked as followed up — added to the timeline.')
+                                }}
                               >
                                 Mark as followed up
                               </button>
@@ -2348,18 +2356,22 @@ export default function Jobs() {
                           id="job-remind"
                           type="date"
                           value={entry.remindOn ?? ''}
-                          onChange={(e) =>
-                            applyPipeline(
-                              setPipelineReminder(selected.id, e.target.value || null)
-                            )
-                          }
+                          onChange={(e) => {
+                            const day = e.target.value
+                            if (!applyPipeline(setPipelineReminder(selected.id, day || null))) return
+                            announce(day ? `Reminder set for ${shortDay(day)}.` : 'Reminder cleared.')
+                          }}
                           className="border-input bg-background min-h-8 rounded-md border px-2.5 py-1 text-sm"
                         />
                         {entry.remindOn !== undefined && (
                           <button
                             type="button"
                             className="min-h-8 rounded-md border px-2 py-0.5 text-xs font-medium transition hover:border-muted-foreground/40"
-                            onClick={() => applyPipeline(setPipelineReminder(selected.id, null))}
+                            onClick={() => {
+                              if (!applyPipeline(setPipelineReminder(selected.id, null))) return
+                              announce('Reminder cleared.')
+                              focusAfterRender('job-remind')
+                            }}
                           >
                             Clear reminder
                           </button>
@@ -2387,6 +2399,7 @@ export default function Jobs() {
                           if (!applyPipeline(setPipelineNotes(selected.id, notesDraft.text)))
                             return
                           setNotesDraft(null)
+                          announce('Notes saved.')
                         }}
                         rows={3}
                         placeholder="Recruiter name, interview dates, follow-ups… saved in this browser only."
@@ -2829,6 +2842,9 @@ export default function Jobs() {
 
       {/* Bottom status bars stack so concurrent notices stay readable */}
       <div className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-center gap-2">
+        <p role="status" className="sr-only">
+          {actionNote}
+        </p>
         {undoUntrack && (
           <div
             role="status"
