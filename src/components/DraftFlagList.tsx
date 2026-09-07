@@ -4,17 +4,28 @@
  * draft dialogs and the assistant panel's proposal cards.
  */
 
-import type { DraftClaims, SkillListChanges } from "@/lib/grounding";
+import type {
+  DraftClaims,
+  RemeasuredFigure,
+  SkillListChanges,
+} from "@/lib/grounding";
 
 export interface DraftFlagGroup {
   label: string;
   items: string[];
 }
 
+export const REMEASURED_LABEL = "Your figure now measures something else";
+
+/** `35%: rendering performance → load times` */
+export const remeasuredItems = (r: RemeasuredFigure[]): string[] =>
+  r.map((x) => `${x.figure}: ${x.was} → ${x.now}`);
+
 /** Word-level checks an AI draft failed against the resume — advisory, never proof */
 export function draftFlagGroups(c: DraftClaims): DraftFlagGroup[] {
   return [
     { label: "Figures your resume never states", items: c.figures },
+    { label: REMEASURED_LABEL, items: remeasuredItems(c.remeasured) },
     { label: "Names / tools your resume never mentions", items: c.terms },
     {
       label: "Wording from the job ad that your resume never uses",

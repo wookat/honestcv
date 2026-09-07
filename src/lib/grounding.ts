@@ -600,6 +600,8 @@ export interface TailorClaims {
   terms: string[];
   /** Job-ad words the rewrite adds that appear nowhere in the resume */
   mirrored: string[];
+  /** Figures kept from the original line but attached to something else */
+  remeasured: RemeasuredFigure[];
 }
 
 const FUNCTION_WORDS = new Set(
@@ -655,6 +657,7 @@ export function tailorClaims(
     figures,
     terms: terms.filter((t) => !jdTerms.has(key(t))),
     mirrored,
+    remeasured: remeasuredFigures(original, suggestion),
   };
 }
 
@@ -730,6 +733,8 @@ export interface DraftClaims {
   mirrored: string[];
   /** Remit verbs (owned / led / architected …) the resume never uses in any form */
   scope: string[];
+  /** Figures kept from the line being rewritten but attached to something else */
+  remeasured: RemeasuredFigure[];
 }
 
 /**
@@ -839,6 +844,7 @@ export function draftClaims(
     terms: terms.filter((t) => !jdTerms.has(key(t))),
     mirrored,
     scope,
+    remeasured: remeasuredFigures(own.join("\n"), draft),
   };
 }
 
@@ -925,4 +931,168 @@ export function skillListChanges(before: string, after: string): SkillListChange
     renamed,
     categoriesLost: labelledLines(before) >= 2 && labelledLines(after) === 0,
   };
+}
+
+export interface RemeasuredFigure {
+  /** The figure as the rewrite states it ("35%", "3.2 seconds") */
+  figure: string;
+  /** What the original line measured with it ("dashboard rendering performance") */
+  was: string;
+  /** What the rewrite measures with it ("dashboard load times") */
+  now: string;
+}
+
+/** Words that sit between a figure and the thing it measures without naming it */
+const MEASURE_LINK_WORDS = new Set(
+  `by from to of at over under within above below around nearly approximately
+about roughly almost than up down per across with for in on through via the a an
+its our their my more less least most only some every each`.split(/\s+/),
+);
+/** A new clause starts here: the words beyond do not belong to the figure */
+const MEASURE_STOP_WORDS = new Set(
+  "and or but that which while who whom whose where when".split(" "),
+);
+const UNIT_RE =
+  /^(%|percent|k|m|x|ms|s|seconds?|minutes?|hours?|days?|weeks?|months?|years?|\+)$/i;
+const MEASURE_CLAUSE_RE = /[,;:()[\]\n]|\s[-–—]\s|\.(?=\s|$)/;
+const LINKING_PREP_RE =
+  /^(by|from|to|of|at|over|under|within|above|below|around|nearly|approximately|about|roughly|almost|than)$/i;
+
+interface MeasureToken {
+  text: string;
+  start: number;
+}
+
+const measureTokens = (clause: string): MeasureToken[] => {
+  const out: MeasureToken[] = [];
+  for (const m of clause.matchAll(
+    /\$?\d[\d,]*(?:\.\d+)?%?|[A-Za-z][A-Za-z0-9'-]*[A-Za-z0-9]|[A-Za-z]/g,
+  ))
+    out.push({ text: m[0], start: m.index });
+  return out;
+};
+
+const isFigureToken = (t: string) => /^\$?\d/.test(t);
+const isFiller = (t: string) =>
+  isFigureToken(t) ||
+  UNIT_RE.test(t) ||
+  MEASURE_LINK_WORDS.has(t.toLowerCase()) ||
+  FUNCTION_WORDS.has(t.toLowerCase());
+
+/** Up to three content words walking back from `from` (exclusive) inside the clause */
+const wordsBefore = (tokens: MeasureToken[], from: number): string[] => {
+  const out: string[] = [];
+  for (let i = from - 1; i >= 0 && out.length < 3; i--) {
+    const t = tokens[i].text;
+    if (MEASURE_STOP_WORDS.has(t.toLowerCase())) break;
+    if (isFiller(t)) continue;
+    out.unshift(t);
+  }
+  return out;
+};
+
+/** Up to three content words right after `from` (exclusive), stopping at the first link word */
+const wordsAfter = (tokens: MeasureToken[], from: number): string[] => {
+  const out: string[] = [];
+  for (let i = from + 1; i < tokens.length && out.length < 3; i++) {
+    const t = tokens[i].text;
+    if (isFigureToken(t) || UNIT_RE.test(t)) continue;
+    if (MEASURE_STOP_WORDS.has(t.toLowerCase())) break;
+    if (isFiller(t)) {
+      if (out.length || LINKING_PREP_RE.test(t) || t.toLowerCase() === "through") break;
+      continue;
+    }
+    out.push(t);
+  }
+  return out;
+};
+
+/**
+ * The noun phrase a figure measures, as up to three content words: for
+ * "improved dashboard rendering performance by 35% through profiling" →
+ * "dashboard rendering performance"; for "for 120 business accounts" →
+ * "business accounts". A bare count names what follows it; a figure after a
+ * linking preposition (by / from / to / of …) names what precedes it.
+ */
+const measuredPhrase = (clause: string, figStart: number, bareCount: boolean): string[] => {
+  const tokens = measureTokens(clause);
+  const at = tokens.findIndex((t) => t.start === figStart);
+  if (at < 0) return [];
+  const linked = at > 0 && LINKING_PREP_RE.test(tokens[at - 1].text);
+  const after = wordsAfter(tokens, at);
+  if (bareCount && after.length) return after;
+  if (linked) {
+    const before = wordsBefore(tokens, at);
+    if (before.length) return before;
+  }
+  if (after.length) return after;
+  return wordsBefore(tokens, at);
+};
+
+const formatFigure = (num: string, unit: string) => {
+  if (!unit) return num;
+  if (unit === "%" || unit === "percent") return `${num}%`;
+  return /^(k|m|x|ms|s)$/.test(unit) ? `${num}${unit}` : `${num} ${unit}`;
+};
+
+/** Every figure in `text` with the phrase it measures, keyed by the figure's normalised value */
+const measuredFigures = (text: string): Map<string, { figure: string; phrase: string[] }[]> => {
+  const out = new Map<string, { figure: string; phrase: string[] }[]>();
+  for (const clause of text.split(MEASURE_CLAUSE_RE)) {
+    for (const m of clause.matchAll(NUMBER_RE)) {
+      const num = m[1].replace(/[$,]/g, "");
+      const unit = m[2].trim().toLowerCase();
+      if (/^(minutes?|hours?|days?|weeks?|months?|years?)$/.test(unit)) continue;
+      const bareCount = !unit && !num.includes(".") && !m[1].startsWith("$");
+      if (bareCount && Number(num) < 10) continue;
+      if (/^(19|20)\d{2}$/.test(num)) continue;
+      const pct = unit === "%" || unit === "percent";
+      const k = `${num}${pct ? "%" : ""}`;
+      const phrase = measuredPhrase(clause, m.index, bareCount);
+      const list = out.get(k) ?? [];
+      list.push({ figure: formatFigure(m[1], unit), phrase });
+      out.set(k, list);
+    }
+  }
+  return out;
+};
+
+/**
+ * Figures a rewrite keeps from the original line but attaches to something
+ * else — "improved dashboard rendering performance by 35%" rewritten as
+ * "reduced dashboard load times by 35%". The number survives every figure
+ * check; what it measures did not. A phrase is the same measurement when its
+ * head word (the last one) is the original phrase's head, or appears anywhere
+ * in the original line in some form (stem / alias), so "rendering performance"
+ * → "rendering speed" is reported and "page load time" → "checkout load time"
+ * is not. An original phrase of one word ("Saved $40k") is too little to
+ * compare against. Lexical, advisory; one note per figure.
+ */
+export function remeasuredFigures(original: string, rewrite: string): RemeasuredFigure[] {
+  const was = measuredFigures(original);
+  if (was.size === 0) return [];
+  const now = measuredFigures(rewrite);
+  const originalStems = wordStems(original);
+  const originalIndex = indexResumeText(original);
+  const out: RemeasuredFigure[] = [];
+  for (const [k, uses] of now) {
+    const before = (was.get(k) ?? []).filter((b) => b.phrase.length >= 2);
+    if (!before.length) continue;
+    for (const use of uses) {
+      const head = use.phrase[use.phrase.length - 1];
+      if (!head) continue;
+      const headPlain = head.toLowerCase().replace(/'s$/, "");
+      const same = before.some(
+        (b) =>
+          stemmer(b.phrase[b.phrase.length - 1].toLowerCase()) === stemmer(headPlain) ||
+          originalStems.has(headPlain) ||
+          originalStems.has(stemmer(headPlain)) ||
+          keywordHit(headPlain, originalIndex).hit,
+      );
+      if (same) continue;
+      out.push({ figure: use.figure, was: before[0].phrase.join(" "), now: use.phrase.join(" ") });
+      break;
+    }
+  }
+  return out;
 }
