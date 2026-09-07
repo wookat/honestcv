@@ -115,3 +115,36 @@ Probe results (`npx tsx qa/r714-probe.mts`): fixture → 3 labelled lines; wrapp
 Production QA (`qa/r714-evidence.cjs` 1280, `qa/r714-mobile.cjs` 375; `index-Bi9Ceaw9.js`): skills field holds the three categories verbatim, preview shows three rows with bold `Languages:` / `Frontend:` / `Testing and tools:`, 6 bullets, website `github.com/alexmorgan-example`, ATS 91/100, `scrollWidth === clientWidth` at both widths, 0 console errors, AI traffic = `GET /api/ai/quota` only. Mobile preview reached via `getByRole('button', { name: /Preview & score/ })` (the first probe used `/^Preview$/`, which does not exist — script error, not product). The first mobile probe printed rows with `.slice(0, 60)`, which looked like clipping — probe artefact, not product. `qa/r714-mobile-geom.cjs` then measured the three rows in the scaled preview at 375: each spans x 42–318 of a 360px viewport, `scrollWidth ≤ clientWidth`, `white-space: normal`, bold label spans present, page overflow 0 (`qa/shots/r714-skills-375.png`).
 
 Known limits: heuristic wrap detection (a genuinely unlabelled second line starting lowercase after a labelled line is treated as a wrap); one real fixture; DOCX/TXT import paths share the parser but were not re-run on production this round.
+
+## R723 refresh (10 rounds after R713) — function-oriented SOP-10 benchmark
+
+Evidence, first-hand, 2026-09-07: Rezi's 7 public pages re-fetched (`qa/r723-rezi.mjs` → `qa/r723-rezi.json`) are **byte-identical in headings to the R713 capture** — no new Rezi capability to benchmark against. Our production was probed directly (`qa/r723-prod.mjs`, `qa/r723-links.mjs`, `qa/r723-jdsample.mjs` → 84 real feed postings in `qa/r723-jds.json`) and the whole job-seeker golden path was walked by the testing agent at 1280 and 375 with exactly 3 real AI calls (`qa/r723-testing-report.md`, `qa/shots/r723/`, recording `screencasts/r723-functional/`).
+
+### What changed since R713 (all verified on production this round)
+
+Job search went from "three feeds, no location" to: location tiers + The Muse on-site rows for known cities (R716–R718), title/body relevance fold (R719), role-query parser (R720), explicit broadening pills (R721), shared feed snapshots with stale-on-failure (R722). Posting links: 51 sampled apply URLs across Remotive / Jobicy / Arbeitnow .com/.fr/.co.uk all resolve to live pages in a real browser (the 12 `arbeitnow.co.uk` 403s from `fetch()` are bot-blocking, 200 in Chrome). Posting age p50 4 days, p90 19, max 31.
+
+### Dimension by dimension (delta vs R713)
+
+| # | Dimension | R723 first-hand result | Verdict |
+|---|---|---|---|
+| 1 | Workbench | track → Applied → note → reminder → targeted copy → cover letter → brief → practice doc all persisted through reload; Duplicate → Delete → Undo restored | parity, no gap |
+| 2 | AI writing | 3/3 calls HTTP 200; Tailor flagged JD-only wording before Accept; cover letter kept real employers and figures; brief cited resume facts | parity; **P2**: brief turns absence of evidence into definite negatives ("haven't produced formal design docs") |
+| 3 | Scoring | **P1 (new, measured)**: on 84 real feed JDs the employer's own name is a "keyword" in 69 (top-1 in 26: clickup, perk, phantom, spotify, thriveworks…); ≈1.2 boilerplate words per top-15 (please / notice / sponsorship / like / together / hours / one / real); HTML tokens (`li ul div h3 nbsp class`) in 5. The Perk run scored 4/29 → 5/29 while the pool held `perk, like, together, hours, one, come, real` | **P1 → R725** |
+| 4 | Tailoring | works end-to-end; denominator quality is the scoring gap above | see #3 |
+| 5 | Cover letters | generated, saved, linked, exported PDF/DOCX with correct content | parity |
+| 6 | Interview prep | brief + local practice scoring without AI | parity; wording P2 above |
+| 7 | Job search | live links, fresh postings, strict + explicit broadening, truthful barista header; **P2 data**: 5/84 postings (Arbeitnow, all `.co.uk`/`.fr` ATS-fed) reach the detail pane as raw `<div class="content-intro"><p>…` because the upstream double-escapes HTML and `htmlToText` strips tags before decoding entities | **P1-data → R724** (user-visible markup + pollutes #3) |
+| 8 | Import | six bullets whole, three categorised skill lines, GitHub as website — on both widths | parity |
+| 9 | Landing / funnel | upload → score → builder continuous; export asks for an email in a "no sign-up" funnel | P2 (product decision, unchanged) |
+| 10 | Architecture | AI latency: Tailor 37.7 s, cover 29.4 s, brief 69.5 s (non-streaming Worker) | **P2 → candidate R726** (streaming or shorter prompts; needs a latency sample first) |
+
+### Refreshed P0/P1 list (ordered by value)
+
+| Priority | Gap | Basis | Plan |
+|---|---|---|---|
+| **P1** | Keyword denominator polluted by employer name, boilerplate and HTML residue | `qa/r723-extract2.mts` on 84 JDs: company in 69/84, top-1 in 26; 1.18 boilerplate words / top-15; testing-agent Perk run | **R725**: drop `targetCompany` tokens + domain forms; section-aware trimming (About us / Benefits / EEO / How to apply) when a duties/requirements section exists; measured before/after on the 84 |
+| **P1-data** | Raw HTML in 5/84 postings | `qa/r723-jds.json`; upstream `&lt;div class=&quot;…` | **R724**: `htmlToText` decodes entities before stripping (and again after); cache key bump; verify on Proton / Everway / intercom rows |
+| P2 | AI latency 30–70 s | 3 timed calls | R726 candidate: measure 5 more, then stream or trim |
+| P2 | Brief states unsupported negatives | `qa/r723-interview.txt` | prompt-level: "not shown on the resume — confirm" instead of "haven't" |
+| P2 | Boston nurse → no Muse rows | Muse Healthcare inventory for Boston is 0 (R717 local probe agreed) | inventory, not a defect; Adzuna/JSearch key request unchanged |
