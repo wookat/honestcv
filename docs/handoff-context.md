@@ -2735,3 +2735,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 方案 docs/plan-r685-forced-colors-jd-marks.md：`JD_MARK` 常量——missing 加 `underline decoration-dashed underline-offset-2`（**有意在普通模式也可见**，1.4.1 非色彩线索），图例改为按例示意 `Highlighted <mark>like this</mark> = already on your resume, <mark dashed>like this</mark> = missing`，图例元素改 `<mark>` 与正文同款。不改分词/评分/ARIA。
 - 生产 QA（二次 deploy，index-pR3LCzHj.js；1280/375 forced `matchedEqualsMissing:false`、missing `deco:underline`，图例两 `<mark>` 与正文样本逐字段相同；普通模式 matched 样本与修前相同、missing 仅 `deco` 变化；`r678-forced.cjs` /ats-checker noOutline 0；`r664` region Tab 第 9 次可达；零 console 错误；localStorage 回基线，sessionStorage 草稿键由页面自身清理）。
 - 如实未验证：真实 Windows 高对比度；Prettier 对 AtsChecker.tsx 的告警为既有（stash 对照同样报），未整文件重排。
+
+### R686 — ScoreRing 轨道在 forced-colors 下几乎不可见（弧悬空），修为 CanvasText 轨道 + Highlight 弧（链 #906 → 本 PR）
+
+- 取证（`qa/r686-evidence.cjs 1280/375`，生产 index-pR3LCzHj.js）：`ScoreRing` 轨道 `stroke=currentColor class=text-muted` → forced-colors 下取 `--muted` token 值 `oklch(0.26 0.02 260)`，对 Canvas 黑约 1.6:1（真实白底 HC 会是 `oklch(0.96)` ≈1.1:1）；弧 `stroke={authorColor}` 保持琥珀/翠绿——Chrome **不**强制 SVG `stroke` 表现属性（计算值原样、`forced-color-adjust: preserve-parent-color`）；数字 inline color 被强制为 CanvasText。结果：只剩一段悬空弧，「满分 100」的余量消失（`qa/shots/r686/01-ring-atschecker-forced-1280-1280.png`）。涉及 /ats-checker 结果、首页 2 处 mock、builder 分数环（同组件）。
+- 方案 docs/plan-r686-forced-colors-score-ring.md：与 R684 条形一致——轨道 `forced-colors:stroke-[CanvasText]`、弧 `forced-colors:stroke-[Highlight]`；CSS `stroke` 仅在媒体查询内覆盖表现属性，普通模式逐字段不变；不需要 `forced-color-adjust`。
+- 生产 QA（二次 deploy，index-Bp2TguoI.js；CSS 产出 `stroke:canvastext`/`stroke:highlight`）：1280/375 × /ats-checker + / 共 3 环 forced 轨道 `rgb(255,255,255)`、弧 `rgba(0,230,255,0.8)`、dashoffset 不变；普通模式与修前相同；`r684-evidence.cjs` 11/11 distinct 无回归；零 console 错误；存储回基线。
+- 如实未验证：builder 环仅同组件推断（需 seed 简历才渲染）；真实 Windows 高对比度未测；Prettier 对 ScoreRing.tsx 告警为既有格式。

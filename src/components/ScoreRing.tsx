@@ -28,7 +28,7 @@ export function ScoreRing({ score, size = 84 }: { score: number; size?: number }
           r={r}
           fill="none"
           stroke="currentColor"
-          className="text-muted"
+          className="text-muted forced-colors:stroke-[CanvasText]"
           strokeWidth={stroke}
         />
         <circle
@@ -37,6 +37,7 @@ export function ScoreRing({ score, size = 84 }: { score: number; size?: number }
           r={r}
           fill="none"
           stroke={color}
+          className="forced-colors:stroke-[Highlight]"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
