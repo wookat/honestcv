@@ -288,9 +288,12 @@ function ShowcaseBreakdown() {
               {score}
             </span>
           </div>
-          <div aria-hidden className="bg-muted mt-1 h-1.5 w-full overflow-hidden rounded-full">
+          <div
+            aria-hidden
+            className="bg-muted mt-1 h-1.5 w-full overflow-hidden rounded-full forced-colors:border forced-colors:border-[CanvasText]"
+          >
             <div
-              className={`h-full rounded-full ${score >= 80 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-400'}`}
+              className={`h-full rounded-full forced-colors:bg-[Highlight] forced-colors:[forced-color-adjust:none] ${score >= 80 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-400'}`}
               style={{ width: `${score}%` }}
             />
           </div>

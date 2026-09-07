@@ -7404,10 +7404,10 @@ export default function Builder() {
                     ? 'Resume length is being measured'
                     : `Resume fills ${Math.round(Math.min(pdfLength.length, 1) * 100)}% of the first page`
                 }
-                className="bg-muted inline-block h-1.5 w-16 overflow-hidden rounded-full"
+                className="bg-muted inline-block h-1.5 w-16 overflow-hidden rounded-full forced-colors:border forced-colors:border-[CanvasText]"
               >
                 <span
-                  className={`block h-full rounded-full ${
+                  className={`block h-full rounded-full forced-colors:bg-[Highlight] forced-colors:[forced-color-adjust:none] ${
                     pdfLength === null
                       ? 'bg-muted'
                       : pdfLength.pages > 1 || pdfLength.length < 0.45
@@ -12244,7 +12244,7 @@ function HealthDialog({
                 </span>
               </div>
               <div
-                className="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full"
+                className="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full forced-colors:border forced-colors:border-[CanvasText]"
                 role="progressbar"
                 aria-label={d.label}
                 aria-valuenow={d.score}
@@ -12252,7 +12252,7 @@ function HealthDialog({
                 aria-valuemax={100}
               >
                 <div
-                  className={`h-full rounded-full ${
+                  className={`h-full rounded-full forced-colors:bg-[Highlight] forced-colors:[forced-color-adjust:none] ${
                     d.score >= 80
                       ? 'bg-emerald-500'
                       : d.score >= 50

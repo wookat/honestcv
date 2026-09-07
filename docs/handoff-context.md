@@ -2721,3 +2721,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 方案 docs/plan-r683-forced-colors-static-btn-frame.md：静态 CSS 串加一行 `@media (forced-colors:active){.btn{border:1px solid}}`，颜色交给系统调色板（同 R679 `forced-colors:border`）；普通渲染零字节变化。
 - 生产 QA（二次 deploy 后 /pricing/ /templates/ served HTML 含该规则；`r683-evidence.cjs 1280/375` 三路由全部 `a.btn` bw 1px、截图有框；`qa/r683-normal.cjs` 1280/375 普通模式 before/after 文本文件 diff 为空——bw 0px、`oklch(0.5 0.18 265)`、44px 高不变；`r678-forced.cjs /pricing` noOutline 0；`r681-proof.cjs` 七路由 79/33 不变；零 console 错误）。
 - 如实未验证：真实 Windows 高对比度；其余 117 静态页只由 `grep` dist 120/120 含规则 + 同一 CSS 串推断，未逐页量。
+
+### R684 — 11 条量值条（Health 弹窗 7 条 `role=progressbar`、预览「Resume fills N%」长度条、首页 Score breakdown 3 条）在 forced-colors 下从整条不可见改为 CanvasText 框 + Highlight 填充（链 #904 → 本 PR）
+
+- 取证（`qa/r684-evidence.cjs 1280/375`，CDP forced-colors:active，生产 index-8Az81lmn.js）：三处都是 `h-1.5` `bg-muted` 轨 + `bg-emerald/amber/red` 填充按 `width:%`，UA 抹掉作者背景后轨与填充都是 `rgb(0,0,0)`、无边框，11/11 `distinct:false`（`qa/shots/r684/03-health-bars-forced-1280-1280.png`：标签与分数在、条那一行全黑）。分数数字仍在，信息未丢，但 1.4.11 非文本组件整条为零；长度条的百分比只在 `aria-label` 里。原型（`… proto`，注入等价 CSS）11/11 `distinct:true`。排除：ScoreRing / 强度表盘是 SVG stroke，不受影响。
+- 方案 docs/plan-r684-forced-colors-meter-bars.md：仿 Windows 原生进度条——轨 `forced-colors:border forced-colors:border-[CanvasText]`，填充 `forced-colors:bg-[Highlight] forced-colors:[forced-color-adjust:none]`（`forced-color-adjust:none` 只落在填充，同 R682）；Builder.tsx 两处 + Landing.tsx 一处 className，无 ARIA/阈值/普通模式改动。
+- 生产 QA（二次 deploy，index-fDVUOzVR.js；1280/375 三面 11/11 `trackBorder 1px CanvasText`、`fillBg Highlight`、`distinct:true`；`… normal` 1280/375 before/after 文本 diff 为空——0px 轨、oklch 作者色、6px 高不变；回归 `r678-forced.cjs` 8 路由 noOutline 0、`r680-state.cjs` 六路由 indistinguishable 0、`r682-evidence.cjs` 9/9；零 console 错误；存储回基线）。
+- 如实未验证：真实 Windows 高对比度（模拟调色板 Highlight=青、CanvasText=白）；首页 3 条仍 `aria-hidden`（同 R663 视为「装饰但会被看」）。
