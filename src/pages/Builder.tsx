@@ -87,6 +87,8 @@ import {
 import {
   DraftFlagList,
   draftFlagGroups,
+  REMEASURED_LABEL,
+  remeasuredItems,
   skillFlagGroups,
   type DraftFlagGroup,
 } from '@/components/DraftFlagList'
@@ -9186,7 +9188,7 @@ export default function Builder() {
                     ? 'Your skills, cleaned up and compared item by item with your list. Anything added, dropped or flattened is marked below — check it before picking; picking applies it as written.'
                     : 'Your skills, cleaned up and compared item by item with your list — nothing added, dropped or flattened. Picking applies it as written.'
                 return flagged
-                  ? `${takes} on your text. Options marked below use figures, names, job-ad wording or a remit your resume never states — check those before picking one; picking applies it as written. Bracketed placeholders like [add %] mark where a real number would help.`
+                  ? `${takes} on your text. Options marked below use figures, names, job-ad wording or a remit your resume never states, or attach one of your figures to something else — check those before picking one; picking applies it as written. Bracketed placeholders like [add %] mark where a real number would help.`
                   : `${takes} on your text, checked word by word against your resume — nothing flagged. Bracketed placeholders like [add %] mark where a real number would help.`
               })()}
             </DialogDescription>
@@ -12376,6 +12378,7 @@ function TailorDialog({
       const c = tailorClaims(r.original, r.suggestion, resumeText, jd)
       const groups = [
         { label: 'Figures your resume never states', items: c.figures },
+        { label: REMEASURED_LABEL, items: remeasuredItems(c.remeasured) },
         { label: 'Names / tools your resume never mentions', items: c.terms },
         { label: 'Wording taken from the job ad that your resume never uses', items: c.mirrored },
       ].filter((g) => g.items.length > 0)
