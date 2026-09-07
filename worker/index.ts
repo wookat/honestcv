@@ -438,18 +438,32 @@ const truncateDescription = (text: string): { description: string; descriptionTr
   }
 }
 
-const htmlToText = (html: string) =>
-  html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<li[^>]*>/gi, '\n• ')
-    .replace(/<br\s*\/?>|<\/p>|<\/div>|<\/h[1-6]>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
+const decodeHtmlEntities = (s: string) =>
+  s
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&(#39|apos|#x27);/g, "'")
     .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+
+// Some feeds (Arbeitnow for ATS-fed postings) ship the body entity-encoded
+// (`&lt;div class=&quot;…`) with only a real-markup footer after it; when the
+// encoded tags outnumber the real ones the markup is decoded first so the tag
+// strip sees it, and the final passes decode the text's own entities (twice:
+// Jobicy ships `PKI &amp;amp; SSL`).
+const isEntityEncodedMarkup = (s: string) =>
+  (s.match(/&lt;\/?[a-z]/gi)?.length ?? 0) > (s.match(/<\/?[a-z]/g)?.length ?? 0)
+const htmlToText = (html: string) =>
+  decodeHtmlEntities(
+    decodeHtmlEntities(
+      (isEntityEncodedMarkup(html) ? decodeHtmlEntities(html) : html)
+        .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+        .replace(/<li[^>]*>/gi, '\n• ')
+        .replace(/<br\s*\/?>|<\/p>|<\/div>|<\/h[1-6]>/gi, '\n')
+        .replace(/<[^>]+>/g, ' ')
+    )
+  )
     .replace(/[ \t]+/g, ' ')
     .replace(/ ?\n ?/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -1025,7 +1039,7 @@ interface JobSearchPayload {
 }
 
 const jobsCacheKey = (query: JobQuery, category: string, museLabel: string | null) =>
-  `jobs:v15:${query.upstream}|${query.ranking.join(' ')}|${category}|${museLabel ?? ''}`
+  `jobs:v17:${query.upstream}|${query.ranking.join(' ')}|${category}|${museLabel ?? ''}`
 
 // Relevance tiers for a query: every token in the title beats some tokens in
 // the title, which beats a match found only in the body text.
@@ -1098,11 +1112,11 @@ async function fetchJobFeeds(
   const [remotive, jobicy, arbeitnow, muse] = await Promise.all([
     fetchRemotive(query.upstream, category),
     fetchJobicy(query.upstream),
-    shared ? shared.arbeitnow : sharedFeed(c, 'jobs:feed:v1:arbeitnow', fetchArbeitnow),
+    shared ? shared.arbeitnow : sharedFeed(c, 'jobs:feed:v3:arbeitnow', fetchArbeitnow),
     shared
       ? shared.muse
       : museLabel
-        ? sharedFeed(c, `jobs:feed:v1:muse:${museLabel}|${[...museCats].sort().join(',')}`, (partial) =>
+        ? sharedFeed(c, `jobs:feed:v3:muse:${museLabel}|${[...museCats].sort().join(',')}`, (partial) =>
             fetchMuse(museLabel, museCats, partial)
           )
         : Promise.resolve(null),
