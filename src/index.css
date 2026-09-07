@@ -306,6 +306,27 @@
   }
 }
 
+/* Windows High Contrast: selected / pressed / current controls use the system Highlight pair,
+   since author backgrounds, rings and border colours are all discarded there. */
+@media (forced-colors: active) {
+  [aria-pressed='true'],
+  [aria-current],
+  [aria-selected='true'] {
+    forced-color-adjust: none;
+    background-color: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+  :is([aria-pressed='true'], [aria-current], [aria-selected='true']) * {
+    color: inherit !important;
+  }
+  /* forced-color-adjust: none also stops the UA from recolouring a transparent focus outline */
+  :is([aria-pressed='true'], [aria-current], [aria-selected='true']):focus-visible {
+    outline: 2px solid CanvasText !important;
+    outline-offset: 2px !important;
+  }
+}
+
 @media print {
   /* display:none (not visibility) so non-resume chrome frees its layout
      space instead of printing as blank pages; ancestors stay displayed */
