@@ -38,6 +38,7 @@ import {
   JOB_CATEGORIES,
   JOB_STATUSES,
   JOB_STATUS_LABELS,
+  type JobBroaden,
   type JobListing,
   type JobStatus,
   type PipelineEntry,
@@ -58,6 +59,7 @@ import {
   removeManyFromPipeline,
   restorePipelineEntries,
   searchJobs,
+  searchJobsWithMeta,
   reminderDue,
   setPipelineCoverDoc,
   setPipelineInterviewDoc,
@@ -204,6 +206,10 @@ export default function Jobs() {
   // count until asked for; remembering which query was expanded means a new
   // query starts folded again.
   const [textOnlyExpandedFor, setTextOnlyExpandedFor] = useState<string | null>(null)
+  // Broader queries the API found more complete title matches for (only sent
+  // when the fetched query has few); the typed query is never widened on its own.
+  const [broaden, setBroaden] = useState<JobBroaden[]>([])
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pipelineUnreadable, setPipelineUnreadable] = useState(() => stashUnreadablePipeline())
@@ -257,10 +263,11 @@ export default function Jobs() {
 
   const fetchJobs = (q: string, cat = '', loc = locationFilter) => {
     const seq = ++jobsFetchSeq
-    return searchJobs(q, cat, loc)
-      .then(async (list) => {
+    return searchJobsWithMeta(q, cat, loc)
+      .then(async ({ jobs: list, broaden: wider }) => {
         if (seq !== jobsFetchSeq) return
         setJobs(list)
+        setBroaden(wider)
         setFetchedQuery(q)
         let seedResolved: JobListing | null = null
         if (pendingSeedJob) {
@@ -598,6 +605,19 @@ export default function Jobs() {
   /** How the API read the query when grade words / brackets / connectors were set aside. */
   const queryNote = describeJobQuery(fetchedQuery)
   const fetchedQueryLabel = queryNote?.searched ?? fetchedQuery.trim()
+  /** Rows whose title carries every role word (the API's `titled` count, before local filters). */
+  const fullTitleCount =
+    tab === 'all' ? afterSkills.filter((j) => queryTitleRank(fetchedQuery, j.title) === 2).length : 0
+  // Accepting a broader query is a search of its own: the box shows the new
+  // text, the API answers from the cache it filled while suggesting it, and
+  // focus moves to the box because the suggestion row itself goes away.
+  const searchBroader = (next: string) => {
+    setQuery(next)
+    setSelectedId(null)
+    setTextOnlyExpandedFor(null)
+    searchInputRef.current?.focus()
+    runSearch(next)
+  }
   const hideTextOnly = () => {
     setTextOnlyExpandedFor(null)
     if (selectedId !== null && sortedTextOnly.some((j) => j.id === selectedId)) {
@@ -1380,6 +1400,7 @@ export default function Jobs() {
             }}
           >
             <Input
+              ref={searchInputRef}
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -1708,6 +1729,36 @@ export default function Jobs() {
                   </>
                 )}
               </p>
+            )}
+            {tab === 'all' && !error && !loading && broaden.length > 0 && (
+              <div className="bg-muted/40 flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-4 py-2 text-xs">
+                <p className="text-muted-foreground">
+                  {fullTitleCount === 0 ? (
+                    <>No job title has all of &ldquo;{fetchedQueryLabel}&rdquo;</>
+                  ) : (
+                    <>
+                      Only {fullTitleCount} job {fullTitleCount === 1 ? 'title has' : 'titles have'}{' '}
+                      all of &ldquo;{fetchedQueryLabel}&rdquo;
+                    </>
+                  )}{' '}
+                  &mdash; broader:
+                </p>
+                {broaden.map((b) => (
+                  <button
+                    key={b.query}
+                    type="button"
+                    onClick={() => searchBroader(b.query)}
+                    className={`${INLINE_ACTION} bg-background rounded-full border px-2.5 py-0.5 font-medium hover:underline`}
+                  >
+                    &ldquo;{b.query}&rdquo;
+                    <span className="text-muted-foreground font-normal">
+                      {' '}
+                      &middot; {b.titled} {b.titled === 1 ? 'title matches' : 'titles match'} &middot;{' '}
+                    {b.jobs} {b.jobs === 1 ? 'job' : 'jobs'}
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
             {loading ? (
               <div aria-busy="true" className="animate-pulse">

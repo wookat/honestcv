@@ -475,8 +475,25 @@ export const JOB_CATEGORIES: [slug: string, label: string][] = [
   ['all-others', 'All others'],
 ]
 
+/** A broader query the API found more complete title matches for, with its real counts. */
+export interface JobBroaden {
+  query: string
+  jobs: number
+  titled: number
+}
+
+export interface JobSearchResult {
+  jobs: JobListing[]
+  /** Present only when the typed query has few complete title matches. */
+  broaden: JobBroaden[]
+}
+
 /** `location` lets the API add on-site postings for that place (The Muse) to the remote feeds. */
-export async function searchJobs(q: string, category = '', location = ''): Promise<JobListing[]> {
+export async function searchJobsWithMeta(
+  q: string,
+  category = '',
+  location = ''
+): Promise<JobSearchResult> {
   const params = new URLSearchParams({ q })
   if (category) params.set('category', category)
   if (location.trim()) params.set('location', location.trim())
@@ -488,15 +505,23 @@ export async function searchJobs(q: string, category = '', location = ''): Promi
   }
   const data = (await res.json().catch(() => ({}))) as {
     jobs?: JobListing[]
+    broaden?: JobBroaden[]
     error?: string
   }
   if (!res.ok) throw new Error(data.error || `Job search failed (${res.status})`)
-  // Upstream company/title strings can carry stray whitespace (e.g. Remotive)
-  return (data.jobs ?? []).map((j) => ({
-    ...j,
-    title: (j.title ?? '').trim(),
-    company: (j.company ?? '').trim(),
-  }))
+  return {
+    // Upstream company/title strings can carry stray whitespace (e.g. Remotive)
+    jobs: (data.jobs ?? []).map((j) => ({
+      ...j,
+      title: (j.title ?? '').trim(),
+      company: (j.company ?? '').trim(),
+    })),
+    broaden: Array.isArray(data.broaden) ? data.broaden : [],
+  }
+}
+
+export async function searchJobs(q: string, category = '', location = ''): Promise<JobListing[]> {
+  return (await searchJobsWithMeta(q, category, location)).jobs
 }
 
 /** One section of a structured job description; `heading: null` for the preamble. */

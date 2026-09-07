@@ -1,6 +1,12 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
-import { jobRankingHits, jobTitleRank, matchesJobQuery, parseJobQuery } from './jobQuery'
+import {
+  jobRankingHits,
+  jobTitleRank,
+  matchesJobQuery,
+  parseJobQuery,
+  type JobQuery,
+} from './jobQuery'
 import {
   type BillingEnv,
   type LicenseRecord,
@@ -410,6 +416,11 @@ const JOBS_MAX_QUERY = 80
 const JOBS_MAX_LOCATION = 60
 const JOBS_MAX_DESCRIPTION = 8_000
 const JOBS_MAX_RESULTS = 150
+/** Fewer complete title matches than this and the response also offers broader queries (with their own counts). */
+const JOBS_BROADEN_BELOW = 3
+const JOBS_BROADEN_MAX = 2
+/** A broader query is only offered when at least this share of its rows are complete title matches. */
+const JOBS_BROADEN_MIN_TITLED_SHARE = 0.05
 
 // Cut over-limit descriptions at the last whitespace inside the cap so the
 // visible text never ends mid-word; the flag lets the client disclose the cut.
@@ -522,9 +533,13 @@ async function fetchJson<T>(url: URL | string, init?: RequestInit): Promise<T | 
       headers: { accept: 'application/json', ...(init?.headers ?? {}) },
       signal: AbortSignal.timeout(JOBS_UPSTREAM_TIMEOUT_MS),
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.warn(`jobs feed ${new URL(String(url)).host} -> ${res.status}`)
+      return null
+    }
     return (await res.json()) as T
-  } catch {
+  } catch (e) {
+    console.warn(`jobs feed ${new URL(String(url)).host} -> ${e instanceof Error ? e.name : 'error'}`)
     return null
   }
 }
@@ -953,37 +968,30 @@ async function fetchMuse(label: string, categories: string[]): Promise<Normalize
     })
 }
 
+type JobFeeds = [string, NormalizedJob[] | null][]
+
+interface JobSearchPayload {
+  jobs: NormalizedJob[]
+  source: string
+  sources: string[]
+  query: { terms: string[]; ranking: string[] }
+  /** Complete title matches (every role word in the title). */
+  titled: number
+  /** Broader queries that have more complete title matches than this one, with their real counts. */
+  broaden?: { query: string; jobs: number; titled: number }[]
+}
+
+const jobsCacheKey = (query: JobQuery, category: string, museLabel: string | null) =>
+  `jobs:v15:${query.upstream}|${query.ranking.join(' ')}|${category}|${museLabel ?? ''}`
+
 // Relevance tiers for a query: every token in the title beats some tokens in
 // the title, which beats a match found only in the body text.
-app.get('/api/jobs/search', async (c) => {
-  const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
-  const rawCategory = (c.req.query('category') ?? '').trim()
-  const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
-  const museLabel = museLocation((c.req.query('location') ?? '').slice(0, JOBS_MAX_LOCATION))
-  // "Senior Frontend Engineer (React)" must find frontend-engineer jobs: the
-  // role words gate, the grade / bracketed words only rank (worker/jobQuery.ts).
-  const query = parseJobQuery(q)
-  const cacheKey = `jobs:v14:${query.upstream}|${query.ranking.join(' ')}|${category}|${museLabel ?? ''}`
-  const cached = await c.env.KV.get(cacheKey)
-  if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
-  const [remotive, jobicy, arbeitnow, muse] = await Promise.all([
-    fetchRemotive(query.upstream, category),
-    fetchJobicy(query.upstream),
-    fetchArbeitnow(),
-    museLabel
-      ? fetchMuse(museLabel, museCategories(category, query.upstream))
-      : Promise.resolve(null),
-  ])
-  const feeds: [string, NormalizedJob[] | null][] = [
-    ['remotive', remotive],
-    ['jobicy', jobicy],
-    ['arbeitnow', arbeitnow],
-    ...(museLabel ? ([['themuse', muse]] as [string, NormalizedJob[] | null][]) : []),
-  ]
+function assembleJobs(
+  query: JobQuery,
+  category: string,
+  feeds: JobFeeds
+): Omit<JobSearchPayload, 'broaden'> {
   const sources = feeds.filter(([, jobs]) => jobs).map(([name]) => name)
-  if (sources.length === 0) {
-    return c.json({ error: 'Job search is unavailable right now — please retry shortly.' }, 502)
-  }
   const seen = new Set<string>()
   const byFeed = feeds.map(([, list]) =>
     (list ?? [])
@@ -1027,18 +1035,131 @@ app.get('/api/jobs/search', async (c) => {
       }
     }
   }
-  const payload = {
+  return {
     jobs,
     source: sources.join('+'),
     sources,
     query: { terms: query.required.map((g) => g[0]), ranking: query.ranking },
+    titled: jobs.filter((j) => jobTitleRank(query, j.title) === 2).length,
   }
-  const degraded = sources.length < feeds.length
+}
+
+async function fetchJobFeeds(
+  query: JobQuery,
+  category: string,
+  museLabel: string | null,
+  shared?: { arbeitnow: NormalizedJob[] | null; muse: NormalizedJob[] | null }
+): Promise<JobFeeds> {
+  const [remotive, jobicy, arbeitnow, muse] = await Promise.all([
+    fetchRemotive(query.upstream, category),
+    fetchJobicy(query.upstream),
+    shared ? shared.arbeitnow : fetchArbeitnow(),
+    shared
+      ? shared.muse
+      : museLabel
+        ? fetchMuse(museLabel, museCategories(category, query.upstream))
+        : Promise.resolve(null),
+  ])
+  return [
+    ['remotive', remotive],
+    ['jobicy', jobicy],
+    ['arbeitnow', arbeitnow],
+    ...(museLabel ? ([['themuse', muse]] as JobFeeds) : []),
+  ]
+}
+
+const cacheJobs = (c: Context<{ Bindings: Env }>, key: string, payload: JobSearchPayload, feedCount: number) =>
   c.executionCtx.waitUntil(
-    c.env.KV.put(cacheKey, JSON.stringify(payload), {
-      expirationTtl: degraded ? JOBS_DEGRADED_CACHE_TTL : JOBS_CACHE_TTL,
+    c.env.KV.put(key, JSON.stringify(payload), {
+      expirationTtl: payload.sources.length < feedCount ? JOBS_DEGRADED_CACHE_TTL : JOBS_CACHE_TTL,
     })
   )
+
+// "Registered Nurse - ICU" is one indirect match on the remote feeds while
+// "nurse" is 25; the user cannot know which word to drop, so the response
+// names the broader queries that do have complete title matches, each with its
+// real counts, and the client offers them — the typed query is never widened
+// on its own. Each broader query is a full search (Remotive / Jobicy re-asked
+// with the shorter term; the Arbeitnow / Muse pages are shared) and its result
+// is cached under its own key, so accepting a suggestion is instant.
+async function broaderQueries(
+  c: Context<{ Bindings: Env }>,
+  query: JobQuery,
+  category: string,
+  museLabel: string | null,
+  feeds: JobFeeds,
+  titled: number
+): Promise<JobSearchPayload['broaden']> {
+  const groups = query.required
+  if (titled >= JOBS_BROADEN_BELOW || groups.length < 2 || groups.length > 4) return undefined
+  const shared = {
+    arbeitnow: feeds.find(([name]) => name === 'arbeitnow')?.[1] ?? null,
+    muse: feeds.find(([name]) => name === 'themuse')?.[1] ?? null,
+  }
+  const tried = new Set<string>([query.upstream])
+  const run = async (keep: string[][]) => {
+    const label = keep.map((g) => g[0]).join(' ')
+    const cq = parseJobQuery(label)
+    if (cq.required.length === 0 || tried.has(cq.upstream)) return null
+    tried.add(cq.upstream)
+    const cacheKey = jobsCacheKey(cq, category, museLabel)
+    const cached = await c.env.KV.get(cacheKey)
+    const payload: JobSearchPayload = cached
+      ? (JSON.parse(cached) as JobSearchPayload)
+      : assembleJobs(cq, category, await fetchJobFeeds(cq, category, museLabel, shared))
+    if (payload.sources.length === 0) return null
+    if (!cached) cacheJobs(c, cacheKey, payload, feeds.length)
+    return {
+      query: label,
+      jobs: payload.jobs.length,
+      titled: payload.titled,
+      // English job titles are head-final ("Technical Writer" is a writer), so
+      // a query that keeps the last role word is offered before one that drops it.
+      head: keep[keep.length - 1] === groups[groups.length - 1],
+    }
+  }
+  // Worth offering only when it clearly beats the typed query and its own
+  // complete title matches are not a rounding error: "icu" alone is 118 rows
+  // ("difficult", "curriculum") with 1 titled.
+  const better = (xs: ({ query: string; jobs: number; titled: number; head: boolean } | null)[]) =>
+    xs
+      .filter(
+        (x): x is NonNullable<typeof x> =>
+          x !== null &&
+          x.titled > titled &&
+          x.titled >= JOBS_BROADEN_BELOW &&
+          x.titled >= x.jobs * JOBS_BROADEN_MIN_TITLED_SHARE
+      )
+      .sort((a, b) => Number(b.head) - Number(a.head) || b.titled - a.titled || b.jobs - a.jobs)
+      .map(({ query, jobs, titled }) => ({ query, jobs, titled }))
+  // Drop one role word first; only when no such query qualifies ("registered
+  // nurse", "nurse icu", "registered icu" all have 0) fall back to single words.
+  let found = better(await Promise.all(groups.map((_, i) => run(groups.filter((__, j) => j !== i)))))
+  if (groups.length > 2 && found.length === 0) {
+    found = better(await Promise.all(groups.map((g) => run([g]))))
+  }
+  return found.length > 0 ? found.slice(0, JOBS_BROADEN_MAX) : undefined
+}
+
+app.get('/api/jobs/search', async (c) => {
+  const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
+  const rawCategory = (c.req.query('category') ?? '').trim()
+  const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
+  const museLabel = museLocation((c.req.query('location') ?? '').slice(0, JOBS_MAX_LOCATION))
+  // "Senior Frontend Engineer (React)" must find frontend-engineer jobs: the
+  // role words gate, the grade / bracketed words only rank (worker/jobQuery.ts).
+  const query = parseJobQuery(q)
+  const cacheKey = jobsCacheKey(query, category, museLabel)
+  const cached = await c.env.KV.get(cacheKey)
+  if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
+  const feeds = await fetchJobFeeds(query, category, museLabel)
+  const assembled = assembleJobs(query, category, feeds)
+  if (assembled.sources.length === 0) {
+    return c.json({ error: 'Job search is unavailable right now — please retry shortly.' }, 502)
+  }
+  const broaden = await broaderQueries(c, query, category, museLabel, feeds, assembled.titled)
+  const payload: JobSearchPayload = broaden ? { ...assembled, broaden } : assembled
+  cacheJobs(c, cacheKey, payload, feeds.length)
   return c.json(payload)
 })
 
