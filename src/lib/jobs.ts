@@ -185,6 +185,178 @@ export function isLocationAgnostic(location: string): boolean {
 }
 
 /**
+ * Country → the names the feeds use for it (Remotive/Jobicy geo labels and the
+ * city-board wording seen in Arbeitnow). Keys are the display labels.
+ */
+const COUNTRY_ALIASES: Record<string, string[]> = {
+  UK: ['uk', 'united kingdom', 'great britain', 'britain', 'england', 'scotland', 'wales', 'royaume-uni'],
+  USA: ['usa', 'united states', 'u.s.', 'us only', 'usa timezones'],
+  Canada: ['canada'],
+  France: ['france', 'île-de-france', 'ile-de-france', 'auvergne-rhône-alpes'],
+  Germany: ['germany', 'deutschland', 'remote de'],
+  Spain: ['spain', 'españa'],
+  Netherlands: ['netherlands', 'the netherlands', 'holland'],
+  Switzerland: ['switzerland', 'schweiz', 'suisse'],
+  Ireland: ['ireland'],
+  Italy: ['italy', 'italia'],
+  Poland: ['poland', 'polska'],
+  Portugal: ['portugal'],
+  Sweden: ['sweden'],
+  Norway: ['norway'],
+  Austria: ['austria', 'österreich'],
+  Czechia: ['czechia', 'czech republic'],
+  Hungary: ['hungary'],
+  Romania: ['romania'],
+  Bulgaria: ['bulgaria'],
+  Croatia: ['croatia'],
+  Ukraine: ['ukraine'],
+  Israel: ['israel'],
+  UAE: ['uae', 'united arab emirates', 'dubai'],
+  Mexico: ['mexico', 'méxico'],
+  Brazil: ['brazil', 'brasil'],
+  Argentina: ['argentina'],
+  'Costa Rica': ['costa rica'],
+  Australia: ['australia'],
+  'New Zealand': ['new zealand'],
+  Singapore: ['singapore'],
+  Japan: ['japan'],
+  'South Korea': ['south korea', 'korea'],
+  China: ['china'],
+  'Hong Kong': ['hong kong'],
+  Philippines: ['philippines'],
+  Thailand: ['thailand'],
+  Vietnam: ['vietnam'],
+  India: ['india'],
+}
+
+/** Regions a posting may name instead of a country — a candidate in the country still qualifies. */
+const REGION_ALIASES: Record<string, string[]> = {
+  Europe: ['europe', 'eu', 'european timezones', 'european union'],
+  EMEA: ['emea'],
+  Americas: ['americas', 'north america'],
+  LATAM: ['latam', 'latin america', 'south america'],
+  APAC: ['apac', 'asia', 'asia pacific', 'asia-pacific'],
+}
+
+const EUROPE = [
+  'UK', 'France', 'Germany', 'Spain', 'Netherlands', 'Switzerland', 'Ireland', 'Italy', 'Poland',
+  'Portugal', 'Sweden', 'Norway', 'Austria', 'Czechia', 'Hungary', 'Romania', 'Bulgaria', 'Croatia',
+  'Ukraine',
+]
+const REGIONS_OF_COUNTRY: Record<string, string[]> = Object.fromEntries([
+  ...EUROPE.map((c) => [c, ['Europe', 'EMEA']]),
+  ['Israel', ['EMEA']],
+  ['UAE', ['EMEA']],
+  ['USA', ['Americas']],
+  ['Canada', ['Americas']],
+  ...['Mexico', 'Brazil', 'Argentina', 'Costa Rica'].map((c) => [c, ['LATAM', 'Americas']]),
+  ...[
+    'Australia', 'New Zealand', 'Singapore', 'Japan', 'South Korea', 'China', 'Hong Kong',
+    'Philippines', 'Thailand', 'Vietnam', 'India',
+  ].map((c) => [c, ['APAC']]),
+])
+
+/** City → country, for the cities the feeds actually publish. */
+const CITY_COUNTRY: Record<string, string> = {
+  london: 'UK', londres: 'UK', 'greater london': 'UK', manchester: 'UK', bristol: 'UK',
+  edinburgh: 'UK', cambridge: 'UK', leeds: 'UK', birmingham: 'UK', glasgow: 'UK', watford: 'UK',
+  lincoln: 'UK', 'milton keynes': 'UK', oxford: 'UK',
+  paris: 'France', lyon: 'France', bordeaux: 'France', 'la défense': 'France', toulouse: 'France',
+  nantes: 'France', lille: 'France', marseille: 'France',
+  berlin: 'Germany', münchen: 'Germany', munich: 'Germany', hamburg: 'Germany', köln: 'Germany',
+  cologne: 'Germany', frankfurt: 'Germany', 'frankfurt am main': 'Germany', stuttgart: 'Germany',
+  karlsruhe: 'Germany', aachen: 'Germany', düsseldorf: 'Germany', leipzig: 'Germany',
+  madrid: 'Spain', barcelona: 'Spain', amsterdam: 'Netherlands', zurich: 'Switzerland',
+  zürich: 'Switzerland', geneva: 'Switzerland', dublin: 'Ireland', milan: 'Italy', rome: 'Italy',
+  warsaw: 'Poland', lisbon: 'Portugal', stockholm: 'Sweden', vienna: 'Austria', prague: 'Czechia',
+  budapest: 'Hungary', 'tel aviv': 'Israel', dubai: 'UAE',
+  'new york': 'USA', 'san francisco': 'USA', 'los angeles': 'USA', chicago: 'USA', boston: 'USA',
+  seattle: 'USA', austin: 'USA', denver: 'USA', toronto: 'Canada', vancouver: 'Canada',
+  montreal: 'Canada', 'mexico city': 'Mexico', 'são paulo': 'Brazil', 'sao paulo': 'Brazil',
+  'buenos aires': 'Argentina', sydney: 'Australia', melbourne: 'Australia', tokyo: 'Japan',
+  bangalore: 'India', bengaluru: 'India', mumbai: 'India', wien: 'Austria', praha: 'Czechia',
+  lisboa: 'Portugal', milano: 'Italy', roma: 'Italy', 'genève': 'Switzerland',
+}
+
+/** Other spellings of a city the feeds use (Remotive publishes French city labels). */
+const CITY_SYNONYMS: string[][] = [
+  ['london', 'londres'],
+  ['munich', 'münchen'],
+  ['cologne', 'köln'],
+  ['zurich', 'zürich'],
+  ['vienna', 'wien'],
+  ['prague', 'praha'],
+  ['lisbon', 'lisboa'],
+  ['milan', 'milano'],
+  ['rome', 'roma'],
+  ['geneva', 'genève'],
+]
+
+const norm = (s: string) => s.trim().toLowerCase()
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** Word match, so `uk` / `eu` / `usa` never hit inside another word ("Ukraine"). */
+const mentions = (haystack: string, term: string) =>
+  new RegExp(`(^|[^a-z])${escapeRe(term)}(?![a-z])`).test(haystack)
+/** What the user typed: a whole word, except that a longer prefix may still be mid-typing ("Lond"). */
+const typedMatch = (haystack: string, term: string) =>
+  term.length <= 3 ? mentions(haystack, term) : new RegExp(`(^|[^a-z])${escapeRe(term)}`).test(haystack)
+
+const cityCountry = (p: string): string | null =>
+  Object.hasOwn(CITY_COUNTRY, p) ? CITY_COUNTRY[p] : null
+
+const countryOf = (place: string): string | null => {
+  const p = norm(place)
+  const viaCity = cityCountry(p)
+  if (viaCity) return viaCity
+  for (const [country, aliases] of Object.entries(COUNTRY_ALIASES)) {
+    if (country.toLowerCase() === p || aliases.includes(p)) return country
+  }
+  return null
+}
+
+/**
+ * Wider areas a posting may be open to that still include `place`: the
+ * country when `place` is a city, then the regions containing that country
+ * ("London" → ["UK", "Europe", "EMEA"]; "UK" → ["Europe", "EMEA"]; "Europe" → []).
+ */
+export function widerAreasOf(place: string): string[] {
+  const country = countryOf(place)
+  if (!country) return []
+  const isCity = cityCountry(norm(place)) !== null
+  return [...(isCity ? [country] : []), ...(REGIONS_OF_COUNTRY[country] ?? [])]
+}
+
+export type LocationTier = 'direct' | 'wider' | 'anywhere'
+
+/**
+ * How a posting's location relates to the user's location filter:
+ * `direct` — names the place (or the same country under another name),
+ * `wider` — names the place's country or a region containing it,
+ * `anywhere` — open to any location, `null` — somewhere else.
+ */
+export function locationTier(location: string, filter: string): LocationTier | null {
+  const l = norm(location)
+  const f = norm(filter)
+  if (!f) return 'direct'
+  if (typedMatch(l, f)) return 'direct'
+  const sameCity = CITY_SYNONYMS.find((names) => names.includes(f)) ?? []
+  if (sameCity.some((name) => name !== f && mentions(l, name))) return 'direct'
+  const country = countryOf(f)
+  if (country && !cityCountry(f)) {
+    if (COUNTRY_ALIASES[country].some((a) => mentions(l, a))) return 'direct'
+  }
+  for (const aliases of Object.values(REGION_ALIASES)) {
+    if (aliases.includes(f) && aliases.some((a) => mentions(l, a))) return 'direct'
+  }
+  for (const area of widerAreasOf(f)) {
+    const aliases = COUNTRY_ALIASES[area] ?? REGION_ALIASES[area] ?? [area.toLowerCase()]
+    if (aliases.some((a) => mentions(l, a))) return 'wider'
+  }
+  if (isLocationAgnostic(location)) return 'anywhere'
+  return null
+}
+
+/**
  * Distinct candidate regions across listings with posting counts, most
  * common first (ties alphabetical). Compound locations ("LATAM, Europe, USA")
  * count once toward each listed region. Location-agnostic postings are
