@@ -36,7 +36,11 @@ build builds building built create creates creating created
 deliver delivers delivering delivered ensure ensures ensuring ensured
 improve improves improving improved provide provides providing provided
 maintain maintains maintaining maintained develop develops developing developed
-manage manages managing managed`.split(/\s+/)
+manage manages managing managed
+turn turns turning run runs running write writes writing present presents
+presenting bring brings bringing ship ships shipping reduce reduces reducing
+against comfort comfortable hands-on welcome fundamentals own owns owning owned
+expect expects expected fluency fluent solid grasp expertise`.split(/\s+/)
 )
 
 /** Multi-word tech/business phrases worth matching as units */
@@ -784,10 +788,14 @@ function tokenize(text: string): string[] {
   return (
     text
       .toLowerCase()
+      .replace(/[’']([a-z]{1,2})\b/g, '')
       .replace(/[^a-z0-9+#./ -]/g, ' ')
       .match(/[a-z0-9+#][a-z0-9+#./-]*/g) ?? []
   ).map((t) => t.replace(/[./-]+$/, ''))
 }
+
+/** Fewest keywords worth scoring against; short ads are topped up to this many. */
+const MIN_KEYWORDS = 15
 
 /** Extract ranked keywords (words + known phrases) from a job description */
 export function extractKeywords(jd: string, limit = 30): string[] {
@@ -798,16 +806,32 @@ export function extractKeywords(jd: string, limit = 30): string[] {
   }
   const counts = new Map<string, number>()
   for (const tok of tokenize(jd)) {
-    if (tok.length < 2 || STOPWORDS.has(tok) || /^\d+$/.test(tok)) continue
+    if (tok.length < 2 || STOPWORDS.has(tok) || !/[a-z]/.test(tok)) continue
     counts.set(tok, (counts.get(tok) ?? 0) + 1)
   }
-  const ranked = [...counts.entries()]
-    .filter(([tok, n]) => n >= 2 || counts.size < 40 || looksLikeSkill(tok))
-    .map(([tok, n]) => [tok, looksLikeSkill(tok) ? n + 2 : n] as const)
+  const reqTokens = new Set(tokenize(requirementsBlock(lower)))
+  const score = (tok: string, n: number) =>
+    (looksLikeSkill(tok) ? n + 2 : n) + (reqTokens.has(tok) ? 0.5 : 0)
+  const entries = [...counts.entries()]
+  const core = entries
+    .filter(([tok, n]) => n >= 2 || looksLikeSkill(tok))
+    .map(([tok, n]) => [tok, score(tok, n)] as const)
     .sort((a, b) => b[1] - a[1])
-  for (const [word, n] of ranked) {
-    if ([...found.keys()].some((p) => p.includes(word))) continue
+  // Short ads rarely repeat anything: top up from single-mention words, the
+  // requirements block first, then the rest in reading order.
+  const header = headerLineTokens(jd)
+  const fill = entries
+    .filter(([tok, n]) => n < 2 && !looksLikeSkill(tok) && !header.has(tok))
+    .sort((a, b) => Number(reqTokens.has(b[0])) - Number(reqTokens.has(a[0])))
+    .map(([tok, n]) => [tok, score(tok, n) - 1] as const)
+  const add = ([word, n]: readonly [string, number]) => {
+    if ([...found.keys()].some((p) => p.includes(word))) return
     found.set(word, n)
+  }
+  core.forEach(add)
+  for (const entry of fill) {
+    if (found.size >= MIN_KEYWORDS) break
+    add(entry)
   }
   return [...found.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -828,7 +852,31 @@ function withoutRoleTokens(keywords: string[], targetRole: string): string[] {
 }
 
 const REQUIREMENTS_HEADING_RE =
-  /^.*\b(requirements|qualifications|must[- ]haves?|what you.ll need|what we.re looking for|who you are)\b.*$/im
+  /^.*\b(requirements|qualifications|must[- ]haves?|what you.ll need|what we.re looking for|who you are|about you|what you bring|you.ll bring|you bring|ideal candidate|your profile|your background)\b.*$/im
+
+/**
+ * Text from the requirements heading onwards. An inline "Requirements: …" list
+ * starts after the colon; a long sentence such as "You bring 4+ years of …" is
+ * itself part of the block, a short heading line is not.
+ */
+function requirementsBlock(lower: string): string {
+  const m = REQUIREMENTS_HEADING_RE.exec(lower)
+  if (!m) return ''
+  const colon = m[0].indexOf(':')
+  const start = colon >= 0 ? colon + 1 : m[0].length > 60 ? 0 : m[0].length
+  return lower.slice(m.index + start)
+}
+
+/**
+ * Tokens of the short line under the title — usually "Company — City, Country"
+ * — which name neither a skill nor a duty.
+ */
+function headerLineTokens(jd: string): Set<string> {
+  const lines = jd.trim().split(/\n/)
+  if (lines.length < 3) return new Set()
+  const toks = tokenize(lines[1] ?? '')
+  return new Set(toks.length <= 12 ? toks : [])
+}
 
 /**
  * JD keywords worth prioritizing: known multi-word phrases, keywords repeated
@@ -842,10 +890,7 @@ export function highPriorityKeywords(jd: string, keywords: string[]): Set<string
   const jdTokens = tokenize(jd)
   const firstLine = (jd.trim().split(/\n/, 1)[0] ?? '').toLowerCase()
   const firstLineTokens = new Set(tokenize(firstLine))
-  const headingMatch = REQUIREMENTS_HEADING_RE.exec(jd)
-  const reqBlock = headingMatch
-    ? lower.slice(headingMatch.index + headingMatch[0].length)
-    : ''
+  const reqBlock = requirementsBlock(lower)
   const reqTokens = new Set(tokenize(reqBlock))
   for (const kw of keywords) {
     const phrase = kw.includes(' ')
