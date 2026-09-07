@@ -6,6 +6,7 @@ import { ResumePreview } from '@/components/ResumePreview'
 import { usePageMeta } from '@/components/Layout'
 import { professionalFileName } from '@/lib/download'
 import { fetchSharedResume } from '@/lib/share'
+import { useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import type { Resume } from '@/lib/resume'
 
 export default function SharedResume() {
@@ -17,7 +18,8 @@ export default function SharedResume() {
     | { status: 'ready'; resume: Resume; createdAt: number }
   >(id ? { status: 'loading' } : { status: 'gone' })
   const [attempt, setAttempt] = useState(0)
-  const [dl, setDl] = useState<'idle' | 'busy' | 'failed'>('idle')
+  const [dl, setDl] = useState<'idle' | 'busy' | 'done' | 'failed'>('idle')
+  const focusAfterDownload = useFocusAfterRender({ onlyIfLost: true })
 
   // Mirrors the worker's raw-HTML rewrite so the tab keeps the candidate's
   // name after client-side navigation (e.g. Back from /builder).
@@ -40,10 +42,12 @@ export default function SharedResume() {
         state.resume,
         professionalFileName([contact.fullName, targetRole, 'resume'], 'pdf')
       )
-      setDl('idle')
+      setDl('done')
+      window.setTimeout(() => setDl((cur) => (cur === 'done' ? 'idle' : cur)), 1800)
     } catch {
       setDl('failed')
     }
+    focusAfterDownload('share-dl-pdf')
   }
 
   useEffect(() => {
@@ -77,10 +81,18 @@ export default function SharedResume() {
           </p>
           <div className="flex items-center gap-2">
             {state.status === 'ready' && (
-              <Button size="sm" onClick={() => void downloadPdf()} disabled={dl === 'busy'}>
+              <Button
+                id="share-dl-pdf"
+                size="sm"
+                onClick={() => void downloadPdf()}
+                disabled={dl === 'busy'}
+              >
                 <Download /> {dl === 'busy' ? 'Preparing…' : 'Download PDF'}
               </Button>
             )}
+            <p role="status" className="sr-only">
+              {dl === 'busy' ? 'Preparing your PDF…' : dl === 'done' ? 'PDF downloaded.' : ''}
+            </p>
             {state.status === 'ready' && (
               <Button
                 size="sm"

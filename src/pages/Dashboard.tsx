@@ -9,6 +9,7 @@ import { FilterResultStatus } from '@/components/FilterResultStatus'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   BriefcaseBusiness,
+  Check,
   ChevronDown,
   ChevronRight,
   Copy,
@@ -626,9 +627,15 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   const unlocked = Boolean(license)
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [freeDlOpen, setFreeDlOpen] = useState(false)
-  const pendingDl = useRef<{ resume: Resume; fmt: 'pdf' | 'docx' } | null>(null)
-  const [downloading, setDownloading] = useState<string | null>(null)
+  const pendingDl = useRef<{ resume: Resume; fmt: 'pdf' | 'docx'; key: string } | null>(null)
+  const [downloading, setDownloading] = useState<{ key: string; fmt: string } | null>(null)
+  const [downloaded, setDownloaded] = useState<{ key: string; fmt: string } | null>(null)
   const [dlError, setDlError] = useState<string | null>(null)
+  const focusAfterDownload = useFocusAfterRender({ onlyIfLost: true })
+  const markDownloaded = (key: string, fmt: string) => {
+    setDownloaded({ key, fmt: fmt.toUpperCase() })
+    window.setTimeout(() => setDownloaded((cur) => (cur?.key === key ? null : cur)), 1800)
+  }
   const [view, setView] = useState<'grid' | 'list'>(() =>
     localStorage.getItem('honestcv.dashboardView') === 'list' ? 'list' : 'grid'
   )
@@ -771,7 +778,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     fmt: 'pdf' | 'docx' | 'txt',
     key: string
   ) => {
-    setDownloading(key)
+    setDownloading({ key, fmt: fmt.toUpperCase() })
     setDlError(null)
     try {
           const letterhead = draft ?? emptyResume()
@@ -787,23 +794,26 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             if (d.kind === 'interview') await m.downloadTextDocx(d.title, text, name)
             else await m.downloadLetterDocx(letterhead, text, name, d.signature)
           }
+          markDownloaded(key, fmt)
     } catch (e) {
       setDlError(
         `${fmt.toUpperCase()} download failed: ${e instanceof Error ? e.message : String(e)}`
       )
     } finally {
       setDownloading(null)
+      focusAfterDownload(`dl-${key}`)
     }
   }
 
   const docDownload = (d: CareerDoc, text: string, fmt: 'pdf' | 'docx' | 'txt', key: string) => (
     <Button
+      id={`dl-${key}`}
       type="button"
       variant="outline"
       size="sm"
       className="min-h-10 gap-1 px-2 text-xs sm:min-h-8"
       title={`Download ${d.title} as ${fmt.toUpperCase()}`}
-      disabled={downloading === key}
+      disabled={downloading?.key === key}
       onClick={() => {
         const count = countLetterPlaceholders(text)
         if (count > 0) {
@@ -813,8 +823,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         void runDocDownload(d, text, fmt, key)
       }}
     >
-      {downloading === key ? (
+      {downloading?.key === key ? (
         <Loader2 className="size-3.5 animate-spin" />
+      ) : downloaded?.key === key ? (
+        <Check className="size-3.5 text-emerald-600" />
       ) : (
         <FileDown className="size-3.5" />
       )}
@@ -823,7 +835,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   )
 
   const runDownload = async (r: Resume, fmt: 'pdf' | 'docx', key: string) => {
-    setDownloading(key)
+    setDownloading({ key, fmt: fmt.toUpperCase() })
     setDlError(null)
     try {
       const name = professionalFileName([r.contact.fullName, r.targetRole, 'resume'], fmt)
@@ -832,12 +844,14 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         await (await loadExporter(() => import('@/lib/pdf'))).downloadResumePdf(out, name)
       else await (await loadExporter(() => import('@/lib/docx'))).downloadResumeDocx(out, name)
       if (!localStorage.getItem('honestcv.shared')) localStorage.setItem('honestcv.shared', '1')
+      markDownloaded(key, fmt)
     } catch (e) {
       setDlError(
         `${fmt.toUpperCase()} download failed: ${e instanceof Error ? e.message : String(e)}`
       )
     } finally {
       setDownloading(null)
+      focusAfterDownload(`dl-${key}`)
     }
   }
 
@@ -848,7 +862,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         return
       }
       if (!hasSubscribed() && !localStorage.getItem('honestcv.shared')) {
-        pendingDl.current = { resume: r, fmt }
+        pendingDl.current = { resume: r, fmt, key }
         setFreeDlOpen(true)
         return
       }
@@ -858,16 +872,19 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
 
   const dlButton = (r: Resume, fmt: 'pdf' | 'docx', key: string, label: string) => (
     <Button
+      id={`dl-${key}`}
       type="button"
       variant="outline"
       size="sm"
       className="min-h-10 gap-1 px-2 text-xs sm:min-h-8"
       title={`Download ${label} as ${fmt.toUpperCase()}`}
-      disabled={downloading === key}
+      disabled={downloading?.key === key}
       onClick={() => download(r, fmt, key)}
     >
-      {downloading === key ? (
+      {downloading?.key === key ? (
         <Loader2 className="size-3.5 animate-spin" />
+      ) : downloaded?.key === key ? (
+        <Check className="size-3.5 text-emerald-600" />
       ) : (
         <FileDown className="size-3.5" />
       )}
@@ -1184,6 +1201,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           </Button>
         }
       />
+      <p role="status" className="sr-only">
+        {downloading
+          ? `Preparing your ${downloading.fmt}…`
+          : downloaded
+            ? `${downloaded.fmt} downloaded.`
+            : ''}
+      </p>
       {dlError && (
         <div className="mx-auto w-full max-w-6xl px-4 pt-3">
           <p
@@ -3298,7 +3322,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         onUnlocked={() => {
           const p = pendingDl.current
           pendingDl.current = null
-          if (p) void runDownload(p.resume, p.fmt, 'pending')
+          if (p) void runDownload(p.resume, p.fmt, p.key)
         }}
       />
       <UpgradeDialog
