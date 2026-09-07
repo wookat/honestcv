@@ -7643,7 +7643,7 @@ export default function Builder() {
                   >
                     <span
                       aria-hidden
-                      className={`block size-5 rounded-full border-2 transition ${
+                      className={`block size-5 rounded-full border-2 transition forced-colors:border-[CanvasText] forced-colors:[forced-color-adjust:none] ${
                         active ? 'border-primary scale-110' : 'border-transparent hover:scale-110'
                       }`}
                       style={{ background: color }}
@@ -7675,7 +7675,7 @@ export default function Builder() {
                   >
                     <span
                       aria-hidden
-                      className={`block size-5 rounded-full border-2 transition ${
+                      className={`block size-5 rounded-full border-2 transition forced-colors:border-[CanvasText] forced-colors:[forced-color-adjust:none] ${
                         active ? 'border-primary scale-110' : 'border-transparent hover:scale-110'
                       }`}
                       style={{ background: TEXT_INKS[value] }}
