@@ -938,6 +938,7 @@ function tokenize(text: string): string[] {
   return (
     text
       .toLowerCase()
+      .replace(/\b[a-z]+n[’']t\b/g, ' not ')
       .replace(/[’']([a-z]{1,2})\b/g, '')
       .replace(/[^a-z0-9+#./ -]/g, ' ')
       .match(/[a-z0-9+#][a-z0-9+#./-]*/g) ?? []
@@ -1023,11 +1024,31 @@ function splitBoilerplate(jd: string): { job: string; boilerplate: string } {
 }
 
 /**
+ * The ad with each verbatim-repeated paragraph kept once. Some feeds paste the
+ * same duty paragraph twice; counting it twice would make every word in it a
+ * "repeated" keyword.
+ */
+function withoutRepeatedParagraphs(jd: string): string {
+  const seen = new Set<string>()
+  return jd
+    .split(/\n/)
+    .filter((line) => {
+      const key = line.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+      if (key.split(' ').length < 8) return true
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .join('\n')
+}
+
+/**
  * Extract ranked keywords (words + known phrases) from a job description.
  * `company` is the employer the ad is for, when known — its name is never a
  * keyword, however often the ad repeats it.
  */
-export function extractKeywords(jd: string, limit = 30, company?: string): string[] {
+export function extractKeywords(jdRaw: string, limit = 30, company?: string): string[] {
+  const jd = withoutRepeatedParagraphs(jdRaw)
   const lower = jd.toLowerCase()
   const found = new Map<string, number>()
   const { job, boilerplate } = splitBoilerplate(jd)
@@ -1140,9 +1161,10 @@ global customers customer revenue content market training enterprise`.split(/\s+
  * requirements/qualifications block, and keywords in the JD's first line
  * (usually the job title).
  */
-export function highPriorityKeywords(jd: string, keywords: string[]): Set<string> {
+export function highPriorityKeywords(jdRaw: string, keywords: string[]): Set<string> {
   const high = new Set<string>()
-  if (!jd.trim() || keywords.length === 0) return high
+  if (!jdRaw.trim() || keywords.length === 0) return high
+  const jd = withoutRepeatedParagraphs(jdRaw)
   const lower = jd.toLowerCase()
   const jdTokens = tokenize(jd)
   const firstLine = (jd.trim().split(/\n/, 1)[0] ?? '').toLowerCase()
