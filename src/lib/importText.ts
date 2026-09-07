@@ -48,23 +48,33 @@ const SECTION_HEADINGS: [RegExp, SectionName][] = [
 const CUSTOM_HEADING_RE =
   /^(awards?|honors?|achievements?|publications?|volunteer(ing|\s+experience)?|languages?|interests?|hobbies|activities|leadership|references)\b/i
 
-const isBullet = (line: string) => /^[-–—•*·▪◦]\s+/.test(line)
-const stripBullet = (line: string) => line.replace(/^[-–—•*·▪◦]\s+/, '').trim()
+// Word's default list glyph is ● (U+25CF); Symbol-font bullets reach text
+// extraction as a lone Private Use Area character.
+const BULLET_MARK_RE = /^[-–—•*·▪▫◦●○■□◆◇❖➢➤►▶✓✔→\uE000-\uF8FF]\s+/
+const isBullet = (line: string) => BULLET_MARK_RE.test(line)
+const stripBullet = (line: string) => line.replace(BULLET_MARK_RE, '').trim()
 
 // A sentence-like description line without a bullet marker (plain-text and
 // DOCX exports often drop the markers): ends in sentence punctuation or is
 // too long to be an entry header.
 const looksLikeBodyLine = (line: string) => /[.!?;]$/.test(line) || line.length > 60
 
+// "Role (long qualifier) · Company," — a header long enough to wrap: the
+// middle dot binds role and company and prose never ends a line with it.
+const looksLikeWrappedHeader = (line: string) =>
+  line.length <= 120 && /\s·\s/.test(line) && /,$/.test(line)
+
 // PDF text extraction yields one line per visual line, so a bullet that wraps
 // arrives as "Reduced load time from 3.2" + "seconds to 1.8 seconds.": a
-// marker-less line starting in lowercase (or with a currency amount) after a
-// line with no terminal punctuation continues that line.
+// marker-less line starting in lowercase (or with a figure / currency amount)
+// after a line with no terminal punctuation continues that line. A line that
+// opens with a year is a date, not a continuation.
 const continuesPrevious = (prev: string | undefined, line: string) =>
   !!prev &&
   !/[.!?:;]$/.test(prev) &&
   !isBullet(line) &&
-  /^[a-zà-ÿ$€£]/.test(line) &&
+  /^[a-zà-ÿ$€£0-9]/.test(line) &&
+  !/^\(?\d{4}\b/.test(line) &&
   !DATE_RANGE_RE.test(line)
 
 const GITHUB_RE = /(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s|,;)]+/i
@@ -351,10 +361,27 @@ export function parseResumeText(raw: string): Resume {
             // date range on its own line under the entry header
             currentExp.startDate = start
             currentExp.endDate = end
+          } else if (
+            currentExp &&
+            !currentExp.startDate &&
+            currentExp.bullets.length === 0 &&
+            /,$/.test(currentExp.company) &&
+            rest.length <= 60 &&
+            !looksLikeBodyLine(rest)
+          ) {
+            // header wrapped after the company's trailing comma: the location
+            // (and possibly the dates) sit on the next visual line
+            currentExp.company = currentExp.company.replace(/,$/, '').trim()
+            currentExp.location = [currentExp.location, rest].filter(Boolean).join(', ')
+            if (start) {
+              currentExp.startDate = start
+              currentExp.endDate = end
+            }
           } else if (currentExp && !currentExp.company && !start && rest.length <= 60 && !looksLikeBodyLine(line)) {
             // second header line (e.g. company on its own line)
+            currentExp.role = currentExp.role.replace(/,$/, '').trim()
             currentExp.company = rest
-          } else if (currentExp && !start && looksLikeBodyLine(line)) {
+          } else if (currentExp && !start && looksLikeBodyLine(line) && !looksLikeWrappedHeader(line)) {
             // marker-less description line under the current entry
             currentExp.bullets.push(line)
           } else {

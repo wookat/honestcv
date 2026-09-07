@@ -93,6 +93,99 @@ export async function extractResumeFile(file: File): Promise<ExtractedResumeFile
   throw new Error('Unsupported file type — please upload a PDF, DOCX or TXT file.')
 }
 
+const GAP_EMS = 2.5
+
+export interface PdfTextItem {
+  str: string
+  transform: number[]
+  width: number
+}
+
+/** One page's text in reading order, assembled from pdf.js text items. */
+export function pdfPageText(items: PdfTextItem[]): {
+  text: string
+  multiColumn: boolean
+  smallChars: number
+  totalChars: number
+} {
+  let smallChars = 0
+  let totalChars = 0
+  // Group items into lines by their y coordinate so the structure survives.
+  const lines = new Map<number, { x: number; w: number; size: number; str: string }[]>()
+  for (const item of items) {
+    if (!item.str.trim()) continue
+    const chars = item.str.trim().length
+    const size = Math.hypot(item.transform[0], item.transform[1])
+    totalChars += chars
+    if (size < 9) smallChars += chars
+    const y = Math.round(item.transform[5])
+    let line = lines.get(y)
+    if (!line) {
+      for (const key of lines.keys()) {
+        if (Math.abs(key - y) <= 2) {
+          line = lines.get(key)
+          break
+        }
+      }
+    }
+    if (!line) {
+      line = []
+      lines.set(y, line)
+    }
+    line.push({ x: item.transform[4], w: item.width, size, str: item.str })
+  }
+  // Split each visual line into segments at wide gaps (e.g. a right-aligned
+  // date after an entry header, a section label in a left column, or a
+  // sidebar next to the main column). Measured in the text's own size: word
+  // and separator gaps stay under 1.5em even in justified prose, while a
+  // layout gap is several ems wide however narrow the column.
+  const segments: { x: number; y: number; text: string }[] = []
+  for (const [y, lineItems] of lines) {
+    const sorted = lineItems.sort((a, b) => a.x - b.x)
+    let start = sorted[0].x
+    let text = ''
+    let prevEnd = -Infinity
+    let prevSize = 0
+    for (const it of sorted) {
+      if (text && it.x - prevEnd > GAP_EMS * Math.max(it.size, prevSize)) {
+        segments.push({ x: start, y, text })
+        text = ''
+        start = it.x
+      } else if (text) {
+        text += ' '
+      }
+      text += it.str
+      prevEnd = it.x + it.w
+      prevSize = it.size
+    }
+    if (text) segments.push({ x: start, y, text })
+  }
+  // Two-column layouts (like LinkedIn profile exports: sidebar + main
+  // column) would interleave when read purely top-to-bottom. Detect a wide
+  // gap between segment start positions and emit each column in one block
+  // so headings stay grouped with their content.
+  const split = detectColumnSplit(segments)
+  const inOrder = (segs: typeof segments) =>
+    segs
+      .sort((a, b) => b.y - a.y || a.x - b.x)
+      .map((s) => s.text.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .join('\n')
+  if (split === null) return { text: inOrder(segments), multiColumn: false, smallChars, totalChars }
+  const left = segments.filter((s) => s.x <= split)
+  const right = segments.filter((s) => s.x > split)
+  const chars = (segs: typeof segments) => segs.reduce((n, s) => n + s.text.length, 0)
+  // Main column (the one with more text) first, sidebar after, so the
+  // name/headline stay at the top and headings stay with their content.
+  const [main, side] = chars(right) >= chars(left) ? [right, left] : [left, right]
+  return {
+    text: [inOrder(main), inOrder(side)].filter(Boolean).join('\n'),
+    multiColumn: true,
+    smallChars,
+    totalChars,
+  }
+}
+
 async function extractPdf(file: File): Promise<ExtractedResumeFile> {
   // legacy build ships polyfills, so it works on browsers without the newest APIs
   const pdfjs = await loadEngine(() => import('pdfjs-dist/legacy/build/pdf.mjs'))
@@ -117,73 +210,11 @@ async function extractPdf(file: File): Promise<ExtractedResumeFile> {
     )
       hasImages = true
     const content = await page.getTextContent()
-    // Group items into lines by their y coordinate so the structure survives.
-    const lines = new Map<number, { x: number; w: number; str: string }[]>()
-    for (const item of content.items) {
-      if (!('str' in item) || !item.str.trim()) continue
-      const chars = item.str.trim().length
-      totalChars += chars
-      if (Math.hypot(item.transform[0], item.transform[1]) < 9) smallChars += chars
-      const y = Math.round(item.transform[5])
-      let line = lines.get(y)
-      if (!line) {
-        for (const key of lines.keys()) {
-          if (Math.abs(key - y) <= 2) {
-            line = lines.get(key)
-            break
-          }
-        }
-      }
-      if (!line) {
-        line = []
-        lines.set(y, line)
-      }
-      line.push({ x: item.transform[4], w: item.width, str: item.str })
-    }
-    // Split each visual line into segments at wide gaps (e.g. a right-aligned
-    // date after an entry header, or a sidebar next to the main column).
-    const segments: { x: number; y: number; text: string }[] = []
-    for (const [y, items] of lines) {
-      const sorted = items.sort((a, b) => a.x - b.x)
-      let start = sorted[0].x
-      let text = ''
-      let prevEnd = -Infinity
-      for (const it of sorted) {
-        if (text && it.x - prevEnd > 40) {
-          segments.push({ x: start, y, text })
-          text = ''
-          start = it.x
-        } else if (text) {
-          text += ' '
-        }
-        text += it.str
-        prevEnd = it.x + it.w
-      }
-      if (text) segments.push({ x: start, y, text })
-    }
-    // Two-column layouts (like LinkedIn profile exports: sidebar + main
-    // column) would interleave when read purely top-to-bottom. Detect a wide
-    // gap between segment start positions and emit each column in one block
-    // so headings stay grouped with their content.
-    const split = detectColumnSplit(segments)
-    const inOrder = (segs: typeof segments) =>
-      segs
-        .sort((a, b) => b.y - a.y || a.x - b.x)
-        .map((s) => s.text.replace(/\s+/g, ' ').trim())
-        .filter(Boolean)
-        .join('\n')
-    if (split !== null) multiColumn = true
-    if (split === null) {
-      pages.push(inOrder(segments))
-    } else {
-      const left = segments.filter((s) => s.x <= split)
-      const right = segments.filter((s) => s.x > split)
-      const chars = (segs: typeof segments) => segs.reduce((n, s) => n + s.text.length, 0)
-      // Main column (the one with more text) first, sidebar after, so the
-      // name/headline stay at the top and headings stay with their content.
-      const [main, side] = chars(right) >= chars(left) ? [right, left] : [left, right]
-      pages.push([inOrder(main), inOrder(side)].filter(Boolean).join('\n'))
-    }
+    const pageText = pdfPageText(content.items.filter((item) => 'str' in item))
+    if (pageText.multiColumn) multiColumn = true
+    smallChars += pageText.smallChars
+    totalChars += pageText.totalChars
+    pages.push(pageText.text)
   }
   const checks: FileCheck[] = [
     sizeCheck(file),
