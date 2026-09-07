@@ -8091,7 +8091,10 @@ export default function Builder() {
               className="shrink-0"
               onClick={() => {
                 const next = saveResumeVersion(
-                  versionName.trim() || 'Untitled copy',
+                  versionName.trim() ||
+                    resume.targetRole.trim() ||
+                    resume.contact.fullName.trim() ||
+                    'Untitled copy',
                   resume
                 )
                 setVersions(next)
