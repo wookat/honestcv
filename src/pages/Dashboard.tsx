@@ -2043,7 +2043,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     <button
                       type="button"
                       onClick={() => setPreviewExample(e)}
-                      className="focus-visible:ring-ring cursor-pointer rounded-t-md text-left focus-visible:ring-2 focus-visible:outline-none"
+                      className="focus-visible:ring-ring cursor-pointer rounded-t-md text-left focus-visible:ring-2 focus-visible:outline-hidden"
                     >
                       <span className="sr-only">Preview {e.role} sample</span>
                       <Thumb resume={exampleToResume(e.person)} />

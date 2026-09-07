@@ -127,7 +127,7 @@ function InlineText({
       spellCheck={false}
       role="textbox"
       aria-label="Edit text"
-      className="cursor-text rounded-sm outline-none focus:bg-sky-100/70 focus:ring-2 focus:ring-sky-600"
+      className="cursor-text rounded-sm outline-none focus:outline-hidden focus:bg-sky-100/70 focus:ring-2 focus:ring-sky-600"
       onClick={(e) => e.stopPropagation()}
       onPaste={(e) => {
         e.preventDefault()
@@ -187,7 +187,7 @@ function DraftBullet({
         spellCheck={false}
         role="textbox"
         aria-label="New bullet"
-        className="min-w-[60px] cursor-text rounded-sm outline-none focus:bg-sky-100/70 focus:ring-2 focus:ring-sky-600"
+        className="min-w-[60px] cursor-text rounded-sm outline-none focus:outline-hidden focus:bg-sky-100/70 focus:ring-2 focus:ring-sky-600"
         onClick={(e) => e.stopPropagation()}
         onPaste={(e) => {
           e.preventDefault()
