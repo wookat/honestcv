@@ -53,6 +53,17 @@ A relative threshold of 2.5em sits ≥1.8× above the widest in-text gap and
   jobs, 3 education entries). That needs heading detection independent of
   line order and is out of scope here.
 
+## Production QA (`qa/r746-import-verify.cjs`, 1280 + 375, 0 AI calls)
+
+`index-DONu8F_L.js` live. Each of `northstar-sidebar.pdf`, `word-plain.pdf`,
+`word-longtitle.pdf` uploaded on `/ats-checker` → "Fix in builder" →
+`honestcv.resume`: 2 roles, 6 bullets, 0 leading `●`/`•`, 1 education entry,
+three labelled skill lines, `London, UK` + dates on every role; longtitle
+keeps `Senior Software Engineer (Frontend Platform, Design Systems and
+Accessibility)` as the role. No overflow at either width, 0 console errors.
+(`waitUntil: 'load'` never resolves on `/ats-checker` — a long-lived request
+keeps the page loading; the probe waits for `domcontentloaded`.)
+
 ## Limits
 
 - Threshold and glyph list come from this corpus (26 templates, one Word
