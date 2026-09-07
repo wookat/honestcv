@@ -210,9 +210,9 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
       <div
         className={`mx-auto flex h-14 items-center justify-between px-4 ${wideAction ? 'max-w-[1600px]' : 'max-w-6xl'}`}
       >
-        <Link to="/" className="flex items-center gap-2 font-semibold">
-          <LogoMark className="size-6" />
-          <span className="max-[359px]:sr-only">RezUp</span>
+        <Link to="/" className="flex min-w-0 items-center gap-2 font-semibold">
+          <LogoMark className="size-6 shrink-0" />
+          <span className="truncate max-[359px]:sr-only">RezUp</span>
           <span className="text-muted-foreground hidden text-xs font-normal sm:inline">by Zalize</span>
         </Link>
         <nav
@@ -228,7 +228,9 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
           </Link>
           <a className="hover:text-foreground" href="/pricing/">Pricing</a>
         </nav>
-        <div className="flex items-center gap-1">
+        <div
+          className={`-mr-3 flex shrink-0 items-center gap-0.5 sm:-mr-2 sm:gap-1 ${navAt === 'lg' ? 'lg:mr-0' : 'md:mr-0'}`}
+        >
           <ThemeToggle />
           {action}
           <button
@@ -237,7 +239,7 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
             aria-label="Menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
-            className={`hover:bg-accent -mr-2 inline-flex size-10 items-center justify-center rounded-md ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
+            className={`hover:bg-accent inline-flex size-10 items-center justify-center rounded-md ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>

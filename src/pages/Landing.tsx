@@ -452,7 +452,7 @@ export default function Landing() {
             }}
           />
           <div className="mx-auto max-w-3xl">
-          <Badge variant="secondary" className="animate-rise-slide mb-4 gap-1">
+          <Badge variant="secondary" className="animate-rise-slide mb-4 gap-1 whitespace-normal text-center">
             <Sparkles className="size-3" /> AI-powered. ATS-friendly. Free during beta.
           </Badge>
           <h1 className="animate-rise-slide text-4xl font-semibold tracking-tight [--rise-delay:60ms] sm:text-[3.4rem] sm:leading-[1.1]">
@@ -483,7 +483,7 @@ export default function Landing() {
               asChild
               size="lg"
               variant="outline"
-              className="max-[359px]:h-auto max-[359px]:min-h-10 max-[359px]:py-2 max-[359px]:whitespace-normal"
+              className="max-sm:h-auto max-sm:min-h-11 max-sm:py-2 max-sm:whitespace-normal"
             >
               <Link to="/ats-checker">
                 <Target /> Check my resume&apos;s ATS score
