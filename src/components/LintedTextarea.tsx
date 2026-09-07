@@ -77,7 +77,7 @@ export function LintedTextarea({
                 flagged[i] &&
                   'underline decoration-amber-500 decoration-wavy underline-offset-4 forced-colors:decoration-[CanvasText]',
                 i === highlightLine &&
-                  'rounded-sm bg-amber-200/60 forced-colors:bg-transparent forced-colors:outline forced-colors:outline-2 forced-colors:outline-[Highlight]',
+                  'rounded-sm bg-amber-200/60 mix-blend-multiply dark:mix-blend-screen forced-colors:bg-transparent forced-colors:outline forced-colors:outline-2 forced-colors:outline-[Highlight]',
               ]
                 .filter(Boolean)
                 .join(' ') || undefined
