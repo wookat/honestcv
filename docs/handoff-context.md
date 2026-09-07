@@ -3051,3 +3051,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - Tail parsing lesson: `wrangler tail --format json` writes concatenated pretty-printed objects — `json.JSONDecoder().raw_decode` in a loop parses them (the R728 line-based parser saw 0 events).
 - Not done: dialog not clicked through on production this round; array endpoints stay buffered by design; client disconnect does not cancel upstream generation.
 - Next: R730 next functional gap; SOP-04 report R728–R732.
+
+### R730 — live draft follows the newest line; R729 clicked through on production (chain #947 → this PR, `docs/plan-r730-live-draft-follow.md`)
+- Evidence (production Builder, one real call, `qa/r730-evidence.cjs`, `qa/shots/r730/*`): headers 746 ms `text/event-stream`, first live text 26 973 ms (84 chars), mid 42 153 ms (608 chars), done 50 610 ms → editable result 2 012 chars, `readOnly false`, 0 console errors, exactly quota GET + one SSE POST, storage back to baseline. The read-only textarea is `rows={14}` and stopped showing new text once the draft overflowed it (~700 chars) — the "read along" promise broke for every real letter. Status copy said first words "within 10 seconds"; samples are 9.3 s and 27.0 s → "10–30 seconds".
+- Fix (`Builder.tsx` letter dialog): `liveRef` + `followLive` ref; effect on `[live]` scrolls to bottom while following and re-arms when `live` empties; `onScroll` disarms when the reader is >24 px above the bottom. Final editable textarea unchanged.
+- Local (`MODE=stream LONG=1` mock ≈3.1 KB, `qa/r730-local.cjs`): follow 25/25 overflowing samples at bottom; after a reader scroll-up 0/24 pulled back; result editable both runs. Production edge serves `Builder-NTS2pr40.js` with the change (no second paid call).
+- Probe lesson: `!generate.disabled` is not a finish signal — the button re-enables for a moment between the quota check and the request; wait for the status line to vanish and the result textarea to be editable. That false positive cost one free use.
+- Next: R731 next functional gap; SOP-04 report R728–R732.
