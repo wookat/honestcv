@@ -8923,6 +8923,10 @@ export default function Builder() {
           onClose={() => setTailorOpen(false)}
           onQuota={setFreeLeft}
           onApply={applyTailorSuggestion}
+          onDraftKeyword={(kw) => {
+            setTailorOpen(false)
+            window.setTimeout(() => setKwBulletFor(kw), 250)
+          }}
         />
       )}
       <HealthDialog
@@ -12075,17 +12079,21 @@ function TailorDialog({
   onClose,
   onQuota,
   onApply,
+  onDraftKeyword,
 }: {
   resume: Resume
   onClose: () => void
   onQuota: (remaining: number) => void
   onApply: (id: string, text: string) => void
+  /** Hand a still-missing keyword to the grounded bullet drafter (closes this dialog) */
+  onDraftKeyword: (keyword: string) => void
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [rows, setRows] = useState<TailorSuggestion[] | null>(null)
   const [snapshot, setSnapshot] = useState<Resume>(resume)
   const [confirmingClose, setConfirmingClose] = useState<'busy' | 'pending' | null>(null)
+  const [draftAfterClose, setDraftAfterClose] = useState<string | null>(null)
   const [slow, setSlow] = useState(false)
   useEffect(() => {
     if (!busy) return
@@ -12141,6 +12149,14 @@ function TailorDialog({
   }
 
   const pending = rows?.filter((r) => r.status === 'pending') ?? []
+  const draft = (kw: string) => {
+    if (pending.length > 0) {
+      setDraftAfterClose(kw)
+      setConfirmingClose('pending')
+      return
+    }
+    onDraftKeyword(kw)
+  }
   const jd = snapshot.jobDescription
   const flags = useMemo(() => {
     const out = new Map<string, { label: string; items: string[] }[]>()
@@ -12268,19 +12284,35 @@ function TailorDialog({
               </p>
             )}
             {report.after.missing.length > 0 && (
-              <p className="flex flex-wrap items-center gap-1 text-xs">
-                <span className="text-muted-foreground">Still missing:</span>
-                {report.after.missing.slice(0, 6).map((k) => (
-                  <span key={k} className="rounded-full bg-muted px-2 py-0.5">
-                    {k}
-                  </span>
-                ))}
-                {report.after.missing.length > 6 && (
-                  <span className="text-muted-foreground">
-                    +{report.after.missing.length - 6} more
-                  </span>
-                )}
-              </p>
+              <div className="text-xs">
+                <span className="text-muted-foreground">
+                  Still missing — tailoring only rewords what your resume already says, so it
+                  can&apos;t cover these. If you genuinely have one, draft a bullet grounded in
+                  your experience:
+                </span>
+                <RovingChipGroup
+                  label="Keywords still missing after tailoring"
+                  className="mt-1 flex flex-wrap gap-1.5 sm:gap-1"
+                >
+                  {report.after.missing.slice(0, 6).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className="bg-muted hover:bg-primary/10 inline-flex min-h-8 items-center gap-1 rounded-full border px-2 py-0.5 sm:min-h-0"
+                      title={`Draft an experience bullet using "${k}"`}
+                      aria-label={`Draft a bullet using ${k}`}
+                      onClick={() => draft(k)}
+                    >
+                      <Sparkles aria-hidden className="size-3" /> {k}
+                    </button>
+                  ))}
+                  {report.after.missing.length > 6 && (
+                    <span className="text-muted-foreground self-center">
+                      +{report.after.missing.length - 6} more in Missing keywords
+                    </span>
+                  )}
+                </RovingChipGroup>
+              </div>
             )}
           </div>
         )}
@@ -12386,7 +12418,14 @@ function TailorDialog({
           </>
         )}
       </DialogContent>
-      <Dialog open={confirmingClose !== null} onOpenChange={(o) => !o && setConfirmingClose(null)}>
+      <Dialog
+        open={confirmingClose !== null}
+        onOpenChange={(o) => {
+          if (o) return
+          setConfirmingClose(null)
+          setDraftAfterClose(null)
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -12396,20 +12435,30 @@ function TailorDialog({
               {confirmingClose === 'busy'
                 ? 'A tailoring request is still running — close and discard its results?'
                 : `Discard ${pending.length} tailoring suggestion${pending.length === 1 ? '' : 's'} you haven't reviewed yet? Getting them again will use another AI request.`}
+              {draftAfterClose !== null && confirmingClose === 'pending' && (
+                <> Accept or keep each one first to draft a bullet for “{draftAfterClose}” without losing them.</>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmingClose(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConfirmingClose(null)
+                setDraftAfterClose(null)
+              }}
+            >
               Keep reviewing
             </Button>
             <Button
               variant="destructive"
               onClick={() => {
                 setConfirmingClose(null)
-                onClose()
+                if (draftAfterClose !== null) onDraftKeyword(draftAfterClose)
+                else onClose()
               }}
             >
-              Discard and close
+              {draftAfterClose !== null ? 'Discard and draft bullet' : 'Discard and close'}
             </Button>
           </DialogFooter>
         </DialogContent>
