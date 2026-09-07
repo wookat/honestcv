@@ -148,3 +148,7 @@ Job search went from "three feeds, no location" to: location tiers + The Muse on
 | P2 | AI latency 30–70 s | 3 timed calls | R726 candidate: measure 5 more, then stream or trim |
 | P2 | Brief states unsupported negatives | `qa/r723-interview.txt` | prompt-level: "not shown on the resume — confirm" instead of "haven't" |
 | P2 | Boston nurse → no Muse rows | Muse Healthcare inventory for Boston is 0 (R717 local probe agreed) | inventory, not a defect; Adzuna/JSearch key request unchanged |
+
+## R733 refresh (10 rounds after R723)
+
+Full table, evidence and the two P1 fixes it produced (boilerplate phrases in the high-priority keyword pool; stale list after clearing the place and submitting a new query) live in `docs/plan-r733-boilerplate-phrases-and-search-race.md`. Rezi's public pages advertise the same set as R713/R723 (`/resume-keyword-scanner` now 404); our production golden path was walked at 1280 + 375 with 4 real AI POSTs (`qa/r733-testing-report.md`).
