@@ -1441,6 +1441,7 @@ html.dark .toc{background:var(--card)}
 html.dark .exdoc{background:var(--card)}
 html.dark .ai-art{background:var(--card)}
 #hub-filter{background:var(--card);color:var(--fg)}
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 *{box-sizing:border-box;border-color:var(--border)}
 html{scroll-padding-top:4rem}
 body{margin:0;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.7}
@@ -2035,7 +2036,7 @@ ${NAV_HTML}
 <main id="main" tabindex="-1"${mainStyle ? ` style="${mainStyle}"` : ''}>
 <h1>${esc(h1)}</h1>
 <p class="lede">${esc(intro)}</p>
-${filterPlaceholder ? `<input id="hub-filter" type="search" hidden placeholder="${esc(filterPlaceholder)}" aria-label="Filter the list below" autocomplete="off" style="width:100%;max-width:26rem;min-height:2.75rem;margin-top:1rem;padding:0 .875rem;border:1px solid var(--border);border-radius:.5rem;font:inherit" />\n<p id="hub-filter-empty" hidden style="margin-top:1.5rem;color:#667085">${esc(filterEmpty ?? 'No examples match that search \u2014 try a broader word like \u201cengineer\u201d or \u201cmanager\u201d.')}</p>` : ''}
+${filterPlaceholder ? `<input id="hub-filter" type="search" hidden placeholder="${esc(filterPlaceholder)}" aria-label="Filter the list below" autocomplete="off" style="width:100%;max-width:26rem;min-height:2.75rem;margin-top:1rem;padding:0 .875rem;border:1px solid var(--border);border-radius:.5rem;font:inherit" />\n<p id="hub-filter-status" role="status" class="vh"></p>\n<p id="hub-filter-empty" hidden style="margin-top:1.5rem;color:var(--muted)">${esc(filterEmpty ?? 'No examples match that search \u2014 try a broader word like \u201cengineer\u201d or \u201cmanager\u201d.')}</p>` : ''}
 ${bodyHtml ?? renderHubItems(items)}
 <div class="cta">
 <p>${FREE_MODE ? 'RezUp is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The RezUp builder is free to try, with a one-time $9.99 download and no subscription.'}</p>

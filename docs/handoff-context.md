@@ -2616,3 +2616,9 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 修复（docs/plan-r668-static-pages-scroll-padding.md）：scripts/build-seo.mjs CSS 加 `html{scroll-padding-top:4rem}`、`h2[id]` scroll-margin 1rem→.5rem（落点 72px = 页头下 15px）。不改页面内容/结构、不改应用侧。dist 121 个 HTML 全部含新规则（含 spa.html 由应用 CSS 自带）。
 - 生产 QA（HTML 内联 CSS 已含 `scroll-padding-top:4rem`；应用 bundle 仍 index-DE-3CXPP.js，未改应用源）：3 条目录跳转 1280/375 h2Top 71.6–72.3、`elementsFromPoint` 命中 H2；Shift+Tab 三页 × 1280/375 各 200 次焦点被页头盖住 0（`a.skip` z-index 30 在页头之上，排除）；7 静态路由 × 1280/375 × 亮/暗 axe 真违规仍只有上述 2 条伪影、console 0、存储回基线。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧。
 - 如实未验证：114 页只抽样 12 页跑 axe（CSS 同源，其余按同模板推断）；未做真实读屏与真机。
+
+### R669 — /examples/ 搜索框把 30 张缩略图里同一份样例简历文字算作匹配（「engineer」= 30/30）；筛选无状态通报（WCAG 4.1.3）；空态暗色 3.91:1（链 #889 → 本 PR）
+- 取证（qa/r669-hub.cjs、qa/r669-probe.cjs，375/1280 × 亮/暗）：每张卡 `<li>` 含 `<svg role="img">` 缩略图，`<text>` 全是同一份 mock（Jordan Reyes / Senior Software Engineer / Nimbus Cloud…），`public/hub-filter.js` 用 `item.textContent` 匹配 → 「engineer」30/30 保留、「nurse」1；页面 `[aria-live]/[role=status]` 0；空态 `color:#667085` 亮 4.84 / 暗 3.91。/guides/ 无 svg，「engineer」3/37 正常。
+- 修复（docs/plan-r669-hub-filter-svg-text-status.md）：hub-filter.js 改为 TreeWalker 只取非 `svg` 内文本节点；新增 `<p id="hub-filter-status" role="status" class="vh">` 写「N of M shown」/「No matches」（空查询清空）；空态色改 `var(--muted)`；新增 `.vh` 视觉隐藏类。仍是外链脚本，CSP 不变。
+- 生产 QA（qa/r669-verify.cjs；HTML/hub-filter.js 已含新代码，应用 bundle 仍 index-DE-3CXPP.js）：/examples/「engineer」3/30（Software / DevOps / Mechanical Engineer）、「nurse」1/30、「zzqq」No matches + 空态可见、清空后 status 为空；/guides/ 3/37；status 文本随输入更新；空态对比度亮 5.38 / 暗 6.76；筛选态 axe 违规 0；console 0；375 与 1280 一致。tsc/eslint/build/verify-dist 绿。
+- 如实未验证：未用真实读屏听 `role=status` 播报（仅 DOM 断言）；`.vh` 未在 /templates/ 使用（该页无筛选框）。
