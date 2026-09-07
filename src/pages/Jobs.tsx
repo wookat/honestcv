@@ -46,6 +46,7 @@ import {
   copyKeepsProvenance,
   copyTargetsJob,
   followUpEmail,
+  isKnownPlace,
   locationTier,
   widerAreasOf,
   listPipeline,
@@ -273,12 +274,17 @@ export default function Jobs() {
             }
           }
         }
+        // With a location typed, the panel should open on a row the list will
+        // actually show for it (or nothing) instead of a hidden remote row.
+        const inPlace = (j: JobListing) => !loc.trim() || locationTier(j.location, loc) !== null
         setSelectedId((cur) => {
+          const current = list.find((j) => j.id === cur)
           if (
             cur &&
-            (list.some((j) => j.id === cur) ||
+            (current ||
               listPipeline().some((e) => e.job.id === cur) ||
-              seedResolved?.id === cur)
+              seedResolved?.id === cur) &&
+            (explicitSelection.current || !current || inPlace(current))
           ) {
             return cur
           }
@@ -288,7 +294,7 @@ export default function Jobs() {
             const first = listPipeline().find((e) => staleDays(e) !== null || reminderDue(e))
             if (first) return first.job.id
           }
-          return list[0]?.id ?? null
+          return list.find(inPlace)?.id ?? null
         })
       })
       .catch((e: Error) => {
@@ -1661,9 +1667,40 @@ export default function Jobs() {
               tab === 'all' &&
               (query.trim() || category || locationFilter || typeFilter || skillsFilter) ? (
                 <div className="p-4 text-sm">
-                  <p className="text-muted-foreground">
-                    No jobs found — try another search term.
-                  </p>
+                  {loc && afterSkills.length > 0 ? (
+                    <>
+                      <p className="text-muted-foreground">
+                        None of the {afterSkills.length}{' '}
+                        {afterSkills.length === 1 ? 'job' : 'jobs'}{' '}
+                        {query.trim() ? <>for &ldquo;{query.trim()}&rdquo; </> : null}
+                        {isKnownPlace(locationFilter) ? (
+                          <>
+                            is in {locationFilter.trim()}
+                            {widerAreas.length > 0 ? <> or open to {widerAreas.join(' / ')}</> : null}.
+                          </>
+                        ) : (
+                          <>
+                            names {locationFilter.trim()}, and we don&rsquo;t know which country it
+                            is in — postings open to a whole country or region can&rsquo;t be matched
+                            to it. Try its country instead (for example &ldquo;UK&rdquo;).
+                          </>
+                        )}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 mr-2"
+                        onClick={() => setLocationFilter('')}
+                      >
+                        Clear location
+                      </Button>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      No jobs found — try another search term.
+                    </p>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -1716,12 +1753,14 @@ export default function Jobs() {
                     <li key={j.id} className="border-b last:border-b-0">
                       {i === widerStart && (
                         <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
-                          Open to {widerAreas.join(' / ')} ({sortedWider.length})
+                          {i === 0 ? <>Nothing names {locationFilter.trim()} itself — open to</> : 'Open to'}{' '}
+                          {widerAreas.join(' / ')} ({sortedWider.length})
                         </p>
                       )}
                       {i === anywhereStart && (
                         <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
-                          Open to any location ({sortedAnywhere.length})
+                          {i === 0 ? <>Nothing names {locationFilter.trim()} itself — open to</> : 'Open to'}{' '}
+                          any location ({sortedAnywhere.length})
                         </p>
                       )}
                       {tab === 'tracked' && status && status !== statusOf.get(shown[i - 1]?.id ?? '') && (

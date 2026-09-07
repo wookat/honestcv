@@ -260,7 +260,9 @@ const REGIONS_OF_COUNTRY: Record<string, string[]> = Object.fromEntries([
 const CITY_COUNTRY: Record<string, string> = {
   london: 'UK', londres: 'UK', 'greater london': 'UK', manchester: 'UK', bristol: 'UK',
   edinburgh: 'UK', cambridge: 'UK', leeds: 'UK', birmingham: 'UK', glasgow: 'UK', watford: 'UK',
-  lincoln: 'UK', 'milton keynes': 'UK', oxford: 'UK',
+  lincoln: 'UK', 'milton keynes': 'UK', oxford: 'UK', bath: 'UK', sheffield: 'UK', liverpool: 'UK',
+  newcastle: 'UK', nottingham: 'UK', leicester: 'UK', cardiff: 'UK', belfast: 'UK', brighton: 'UK',
+  reading: 'UK', southampton: 'UK', aberdeen: 'UK',
   paris: 'France', lyon: 'France', bordeaux: 'France', 'la défense': 'France', toulouse: 'France',
   nantes: 'France', lille: 'France', marseille: 'France',
   berlin: 'Germany', münchen: 'Germany', munich: 'Germany', hamburg: 'Germany', köln: 'Germany',
@@ -270,8 +272,15 @@ const CITY_COUNTRY: Record<string, string> = {
   zürich: 'Switzerland', geneva: 'Switzerland', dublin: 'Ireland', milan: 'Italy', rome: 'Italy',
   warsaw: 'Poland', lisbon: 'Portugal', stockholm: 'Sweden', vienna: 'Austria', prague: 'Czechia',
   budapest: 'Hungary', 'tel aviv': 'Israel', dubai: 'UAE',
-  'new york': 'USA', 'san francisco': 'USA', 'los angeles': 'USA', chicago: 'USA', boston: 'USA',
-  seattle: 'USA', austin: 'USA', denver: 'USA', toronto: 'Canada', vancouver: 'Canada',
+  'new york': 'USA', nyc: 'USA', 'san francisco': 'USA', sf: 'USA', 'los angeles': 'USA',
+  chicago: 'USA', boston: 'USA', seattle: 'USA', austin: 'USA', denver: 'USA', atlanta: 'USA',
+  dallas: 'USA', houston: 'USA', miami: 'USA', washington: 'USA', 'washington dc': 'USA', dc: 'USA',
+  philadelphia: 'USA', phoenix: 'USA', 'san diego': 'USA', minneapolis: 'USA', portland: 'USA',
+  charlotte: 'USA', nashville: 'USA', detroit: 'USA', 'salt lake city': 'USA', pittsburgh: 'USA',
+  raleigh: 'USA', 'san jose': 'USA', columbus: 'USA', indianapolis: 'USA', 'kansas city': 'USA',
+  'st. louis': 'USA', 'st louis': 'USA', tampa: 'USA', orlando: 'USA', 'las vegas': 'USA',
+  baltimore: 'USA', sacramento: 'USA', cincinnati: 'USA', cleveland: 'USA', milwaukee: 'USA',
+  'san antonio': 'USA', toronto: 'Canada', vancouver: 'Canada', ottawa: 'Canada', calgary: 'Canada',
   montreal: 'Canada', 'mexico city': 'Mexico', 'são paulo': 'Brazil', 'sao paulo': 'Brazil',
   'buenos aires': 'Argentina', sydney: 'Australia', melbourne: 'Australia', tokyo: 'Japan',
   bangalore: 'India', bengaluru: 'India', mumbai: 'India', wien: 'Austria', praha: 'Czechia',
@@ -282,6 +291,7 @@ const CITY_COUNTRY: Record<string, string> = {
 const CITY_SYNONYMS: string[][] = [
   ['london', 'londres'],
   ['new york', 'nyc'],
+  ['san francisco', 'sf'],
   ['washington', 'washington dc', 'dc'],
   ['munich', 'münchen'],
   ['cologne', 'köln'],
@@ -326,6 +336,18 @@ export function widerAreasOf(place: string): string[] {
   if (!country) return []
   const isCity = cityCountry(norm(place)) !== null
   return [...(isCity ? [country] : []), ...(REGIONS_OF_COUNTRY[country] ?? [])]
+}
+
+/**
+ * Whether the filter names a place whose country / region the tiers know, so
+ * "wider" rows can exist for it. Unknown places ("Atlantis", a small town)
+ * only ever match postings that spell them out.
+ */
+export function isKnownPlace(place: string): boolean {
+  const p = norm(place)
+  if (!p) return false
+  if (countryOf(p)) return true
+  return Object.values(REGION_ALIASES).some((aliases) => aliases.includes(p))
 }
 
 export type LocationTier = 'direct' | 'wider' | 'anywhere'
