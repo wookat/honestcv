@@ -76,7 +76,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
-import { briefGrounding, unsupportedClaims } from '@/lib/grounding'
+import { briefGrounding, tailorClaims, unsupportedClaims } from '@/lib/grounding'
 import { prefersReducedMotion } from '@/lib/motion'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
@@ -12142,6 +12142,23 @@ function TailorDialog({
 
   const pending = rows?.filter((r) => r.status === 'pending') ?? []
   const jd = snapshot.jobDescription
+  const flags = useMemo(() => {
+    const out = new Map<string, { label: string; items: string[] }[]>()
+    if (!rows) return out
+    const resumeText = resumeToPlainText(snapshot)
+    for (const r of rows) {
+      const c = tailorClaims(r.original, r.suggestion, resumeText, jd)
+      const groups = [
+        { label: 'Figures your resume never states', items: c.figures },
+        { label: 'Names / tools your resume never mentions', items: c.terms },
+        { label: 'Wording taken from the job ad that your resume never uses', items: c.mirrored },
+      ].filter((g) => g.items.length > 0)
+      if (groups.length > 0) out.set(r.id, groups)
+    }
+    return out
+  }, [rows, snapshot, jd])
+  const pendingFlagged = pending.filter((r) => flags.has(r.id))
+  const pendingClean = pending.filter((r) => !flags.has(r.id))
   const report = useMemo(() => {
     if (!rows || rows.length === 0 || !jd.trim()) return null
     const before = scoreResume(snapshot, jd)
@@ -12273,18 +12290,36 @@ function TailorDialog({
               <span className="text-muted-foreground">
                 {rows.filter((r) => r.status === 'accepted').length} accepted ·{' '}
                 {pending.length} to review
+                {pendingFlagged.length > 0 && (
+                  <>
+                    {' · '}
+                    <span className="text-amber-800">
+                      {pendingFlagged.length} need{pendingFlagged.length === 1 ? 's' : ''} a
+                      closer look
+                    </span>
+                  </>
+                )}
               </span>
-              {pending.length > 0 && (
+              {pendingClean.length > 0 && (
                 <Button
                   size="sm"
                   variant="outline"
                   className="h-10 text-xs sm:h-7"
-                  onClick={() => pending.forEach((r) => decide(r.id, 'accepted'))}
+                  onClick={() => pendingClean.forEach((r) => decide(r.id, 'accepted'))}
                 >
-                  Accept all remaining
+                  {pendingFlagged.length > 0
+                    ? `Accept the ${pendingClean.length} unflagged`
+                    : 'Accept all remaining'}
                 </Button>
               )}
             </div>
+            {flags.size > 0 && (
+              <p className="text-muted-foreground text-xs" role="status">
+                Flagged lines add a figure, name or job-ad wording that appears nowhere in your
+                resume — the AI may have stretched the fact to match the ad. Accept only what is
+                true of you; unflagged lines are not guaranteed accurate either.
+              </p>
+            )}
             <div className="space-y-3">
               {rows.map((r) => (
                 <div key={r.id} className="space-y-2 rounded-lg border p-3 text-sm">
@@ -12293,6 +12328,26 @@ function TailorDialog({
                     {r.original}
                   </p>
                   <p className="font-medium text-emerald-800">{r.suggestion}</p>
+                  {flags.has(r.id) && (
+                    <ul
+                      className="space-y-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900"
+                      aria-label="Check before accepting"
+                    >
+                      {flags.get(r.id)?.map((g) => (
+                        <li key={g.label}>
+                          <span className="font-medium">{g.label}:</span>{' '}
+                          {g.items.map((it, i) => (
+                            <span key={it}>
+                              {i > 0 && ', '}
+                              <mark className="rounded bg-amber-200/70 px-0.5 text-inherit">
+                                {it}
+                              </mark>
+                            </span>
+                          ))}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {r.status === 'pending' ? (
                     <div className="flex gap-2">
                       <Button

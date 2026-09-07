@@ -9,6 +9,8 @@
  * verified.
  */
 
+import { stemmer } from "stemmer";
+
 /** Sentence-initial or structural words that are capitalised without naming anything */
 const GENERIC_CAPS = new Set([
   "a",
@@ -352,9 +354,14 @@ function supported(
   return sourceTexts.some((s) => s.includes(n));
 }
 
+/** A percentage must appear as one in the source; "+44 7700…" (phone) never supports "44%" */
 function figureSupported(fig: string, sourceTexts: string[]): boolean {
   const num = fig.match(/\$?\d[\d,]*(?:\.\d+)?/)![0].replace(/[$,]/g, "");
-  const re = new RegExp(`(?<![0-9.])${num.replace(".", "\\.")}(?![0-9])`);
+  const pct = fig.endsWith("%") ? "\\s*(?:%|percent)" : "";
+  const re = new RegExp(
+    `(?<![0-9.+])${num.replace(".", "\\.")}(?![0-9])${pct}`,
+    "i",
+  );
   return sourceTexts.some((s) => re.test(s));
 }
 
@@ -522,4 +529,69 @@ export function unsupportedClaims(
     if (!figureSupported(f, sourceTexts)) figs.push(f);
   }
   return { terms, figures: figs };
+}
+
+export interface TailorClaims {
+  /** Figures the rewrite states that the original line and resume do not */
+  figures: string[];
+  /** Names / tools the rewrite states that the resume and job ad do not */
+  terms: string[];
+  /** Job-ad words the rewrite adds that appear nowhere in the resume */
+  mirrored: string[];
+}
+
+const FUNCTION_WORDS = new Set(
+  `a an and as at be by for from in into is it of on or our that the their this
+to with your you we who which while when where what how all any each more most
+other some such than then there these those through under up out over via per
+across within without between both but not no nor so if also well very`.split(
+    /\s+/,
+  ),
+);
+
+const wordStems = (text: string): Set<string> => {
+  const out = new Set<string>();
+  for (const w of normalise(text).match(/[a-z][a-z'-]*[a-z]|[a-z]/g) ?? []) {
+    const plain = w.replace(/'s$/, "");
+    out.add(plain);
+    out.add(stemmer(plain));
+  }
+  return out;
+};
+
+/**
+ * What a "Tailor to this job" rewrite adds that the candidate's own text does
+ * not support. The prompt allows JD wording only where the fact is already in
+ * the line, so a job-ad word the whole resume never uses is the exact signal
+ * for scope or skill inflation ("Owned", "conversion", "latency").
+ */
+export function tailorClaims(
+  original: string,
+  suggestion: string,
+  resumeText: string,
+  jobDescription: string,
+): TailorClaims {
+  const own = [original, resumeText];
+  const { terms, figures } = unsupportedClaims(suggestion, own);
+  const jdTerms = new Set(
+    unsupportedClaims(suggestion, [jobDescription]).terms.map(key),
+  );
+  const have = wordStems(`${original}\n${resumeText}`);
+  const jd = wordStems(jobDescription);
+  const mirrored: string[] = [];
+  const seen = new Set<string>();
+  for (const w of suggestion.match(/[A-Za-z][A-Za-z'-]*[A-Za-z]/g) ?? []) {
+    const plain = w.toLowerCase().replace(/'s$/, "");
+    if (plain.length < 3 || FUNCTION_WORDS.has(plain)) continue;
+    if (have.has(plain) || have.has(stemmer(plain))) continue;
+    if (!jd.has(plain) && !jd.has(stemmer(plain))) continue;
+    if (seen.has(stemmer(plain))) continue;
+    seen.add(stemmer(plain));
+    mirrored.push(w);
+  }
+  return {
+    figures,
+    terms: terms.filter((t) => !jdTerms.has(key(t))),
+    mirrored,
+  };
 }
