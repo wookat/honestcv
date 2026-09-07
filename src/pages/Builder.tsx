@@ -10389,10 +10389,34 @@ function EntryAuditChip({
   }
   const passedNames = checks.filter((c) => !groups.has(c))
   const passed = passedNames.length
+  const [shown, setShown] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+  useEffect(() => {
+    if (!shown || dismissed) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDismissed(true)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [shown, dismissed])
+  const reveal = () => {
+    setShown(true)
+    setDismissed(false)
+  }
+  const wrapProps = {
+    className: 'relative flex shrink-0',
+    onMouseEnter: reveal,
+    onMouseLeave: () => setShown(false),
+    onFocus: reveal,
+    onBlur: () => setShown(false),
+  }
   const panel = (
     <div
       aria-hidden
-      className="bg-popover text-popover-foreground fixed inset-x-4 bottom-20 z-40 hidden rounded-md border p-2 text-left shadow-md group-focus-within:block group-hover:block sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:bottom-auto sm:mt-1 sm:w-64"
+      className={cn(
+        'bg-popover text-popover-foreground fixed inset-x-4 bottom-20 z-40 rounded-md border p-2 text-left shadow-md sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:bottom-auto sm:mt-1 sm:w-64',
+        shown && !dismissed ? 'block' : 'hidden',
+      )}
     >
       <ul className="space-y-1 text-[11px] leading-snug font-normal">
         {[...groups.entries()].map(([category, lines]) => (
@@ -10421,7 +10445,7 @@ function EntryAuditChip({
   if (findings.length === 0) {
     if (!filled) return null
     return (
-      <span className="group relative flex shrink-0">
+      <span {...wrapProps}>
         <span
           tabIndex={0}
           className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
@@ -10435,7 +10459,7 @@ function EntryAuditChip({
   }
   if (!expandable) {
     return (
-      <span className="group relative flex shrink-0">
+      <span {...wrapProps}>
         <span
           tabIndex={0}
           className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
@@ -10448,7 +10472,7 @@ function EntryAuditChip({
     )
   }
   return (
-    <span className="group relative flex shrink-0">
+    <span {...wrapProps}>
       <button
         type="button"
         className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100"
