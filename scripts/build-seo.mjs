@@ -1487,13 +1487,13 @@ nav.main{display:none}
 @media (min-width:768px){nav.main{display:flex;align-items:center;gap:1.25rem;font-size:.875rem}}
 nav.main a{color:var(--muted);text-decoration:none}
 nav.main a:hover{color:var(--fg)}
-details.mnav{position:relative}
+details.mnav{position:static}
 @media (min-width:768px){details.mnav{display:none}}
 details.mnav summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;border-radius:calc(var(--radius) - 2px);color:var(--fg)}
 details.mnav summary::-webkit-details-marker{display:none}
 details.mnav summary:hover{background:var(--border)}
 details.mnav[open] summary{background:var(--border)}
-details.mnav .panel{position:absolute;right:0;top:calc(100% + .5rem);min-width:11rem;background:var(--bg);border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);box-shadow:0 8px 24px rgb(0 0 0 / .08);padding:.25rem}
+details.mnav .panel{position:absolute;left:0;right:0;top:100%;background:var(--bg);border-bottom:1px solid var(--border);box-shadow:0 8px 24px rgb(0 0 0 / .08);padding:.25rem 1rem .5rem;max-height:calc(100dvh - 3.5rem);overflow-y:auto}
 details.mnav .panel a{display:flex;align-items:center;min-height:2.5rem;padding:0 .75rem;font-size:.875rem;color:var(--fg);text-decoration:none;border-radius:calc(var(--radius) - 4px)}
 details.mnav .panel a:hover{background:var(--border)}
 details.mnav .panel p{margin:.5rem 0 0;padding:0 .75rem;font-size:.6875rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}

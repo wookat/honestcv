@@ -192,7 +192,7 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
   // the inline nav and the actions never fight for the same header width.
   const navAt = wideAction ? 'lg' : 'md'
   return (
-    <header ref={headerRef} className="bg-background/95 sticky top-0 z-20 border-b backdrop-blur">
+    <header ref={headerRef} className={`bg-background/95 sticky top-0 border-b backdrop-blur ${menuOpen ? 'z-40' : 'z-20'}`}>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:bg-background focus:absolute focus:left-2 focus:top-2 focus:z-30 focus:rounded-md focus:border focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg"
@@ -253,7 +253,7 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
         <nav
           ref={mobileNavRef}
           aria-label="Main"
-          className={`bg-background border-t px-4 pb-2 ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
+          className={`bg-background max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-t px-4 pb-2 ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
         >
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/templates/">Templates</a>
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/examples/">Examples</a>

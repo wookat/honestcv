@@ -2663,3 +2663,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 方案 docs/plan-r675-template-page-thumb-reflow.md：build-seo.mjs 该页样式加 `.tpl-hero svg{max-width:100%;height:auto}`，包裹 div 改 class；≥332 宽渲染与原先相同。
 - 生产 QA（静态 HTML 已带 `.tpl-hero svg`，app bundle 仍 index-DeqeoDPH.js）：120 URL 320/375+间距 0 溢出；/templates/classic/ 320 svg 273×352 且 305/305，375/1280 svg 300×387 与修复前一致；console 0；存储键不变。
 - 顺带量到但未改（需老板拍板）：全站输入框/下拉边框对背景仅 1.23–1.53:1（shadcn `border-input` 既定值，亮/暗同），占位符文字 5.2–6.8:1 达标。1.4.11 对文本框边框是否强制 3:1 存争议（有可见标签/占位符时可豁免），且改深会改变整站视觉，故记录不动。
+
+### R676 — 手机头部「Menu」展开后高于视口，末尾链接不可达；静态页菜单面板左缘出界（链 #896 → 本 PR）
+
+- 取证（index-DeqeoDPH.js，`qa/r676-mobile-menu.cjs`、`qa/r676-hit.cjs`、`qa/r676-static-panel.cjs`）：SPA 菜单 16 行×40px 在 `sticky` 页头内把页头撑到 730 高；375×667（iPhone SE/8 CSS 视口）与 667×375 下末链接「About」681–721 不可见，只有把整页滚到底（`/` 为 16 443px）粘性页头被容器末端顶起时才露出；静态页 `details.mnav .panel` 是绝对定位、无高度上限，末尾 8/14 条链接永远不可达。另：静态面板锚在页头中部的汉堡按钮上（`right:0`+`min-width:11rem`），375 面板 x −25…151、链接文字从 −8 起（"Templates" 被裁），320 为 −38/−21（负左缘不增加 scrollWidth，历次 sweep 均量不到）；/builder 375×667 末行还被固定底部 pane 切换条（z-30）盖住（页头 z-20）。
+- 方案 docs/plan-r676-mobile-menu-max-height.md：Layout.tsx 移动 nav 加 `max-h-[calc(100dvh-3.5rem)] overflow-y-auto`，页头在菜单打开时 `z-20 → z-40`；build-seo.mjs 面板改为页头下方整宽条（`details.mnav{position:static}`，`.panel{left:0;right:0;top:100%}`）并加同一高度上限。放得下（812 高）几何不变。
+- 生产 QA（index-DubLXy8S.js，`qa/r676-verify.cjs 667/375/812`）：375×667 与 667×375 五路由（/、/builder、/dashboard、/templates/、/examples/）默认+间距：菜单底 ≤ 视口、菜单内滚动后末链接可见且 `elementFromPoint` 命中、页面 scrollY 保持 0；/builder 末行命中对象由 pane 按钮变为链接；静态 320/375/414/767 面板 left 0、首链接文字从 28px 起；375×812 SPA 菜单 56→729 与修复前逐项相同、无内滚；120 URL 320/375+间距 0 溢出；console 0；存储 keys 不变。
+- 如实未验证：真机（浏览器工具栏进一步压缩 dvh，只会更需要此上限）；/builder 键盘聚焦末链接时页面自身滚 290px（R658 scroll-padding 行为，链接仍在视口内且命中，未改）。
