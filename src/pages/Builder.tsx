@@ -77,6 +77,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
 import {
+  briefAssertions,
   briefGrounding,
   draftClaims,
   preferenceClaims,
@@ -10951,7 +10952,8 @@ function BundleToolDialog({
     const feelings = kind === 'cover' ? preferenceClaims(result, [resumeText, highlights]) : []
     const borrowed =
       kind === 'cover' ? letterBorrowing(result, resumeText, resume.jobDescription, [highlights]) : []
-    return { claims, brief, feelings, borrowed }
+    const asserted = kind === 'interview' ? briefAssertions(result, [resumeText, highlights]) : []
+    return { claims, brief, feelings, borrowed, asserted }
   }, [result, kind, resume, highlights, company, addressee])
   // Unsupported names in a brief are usually questions or advice ("tools like Copilot"), so they
   // only lower the verdict for a letter, where every name is a claim about the candidate.
@@ -10960,6 +10962,7 @@ function BundleToolDialog({
       grounding.claims.figures.length +
       grounding.feelings.length +
       grounding.borrowed.length +
+      grounding.asserted.length +
       (grounding.brief?.uncitedQuestions.length ?? 0) +
       (grounding.brief?.unquotedStories.length ?? 0)
     : 0
@@ -11781,6 +11784,13 @@ function BundleToolDialog({
                 {grounding.feelings.length > 0 && (
                   <p>
                     {`Says how you feel, which your resume doesn't: ${grounding.feelings.map((f) => `“${f}”`).join(', ')} — keep it only if it's true for you.`}
+                  </p>
+                )}
+                {grounding.asserted.length > 0 && (
+                  <p>
+                    {`Tells you to claim something your resume doesn't record: ${grounding.asserted
+                      .map((a) => `“${a}”`)
+                      .join(', ')} — say it only if it's true, and add it to your resume if it is.`}
                   </p>
                 )}
                 {grounding.borrowed.map((b) => (

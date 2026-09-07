@@ -593,6 +593,40 @@ export function preferenceClaims(text: string, sources: string[]): string[] {
   return out;
 }
 
+const ASSERTION_RE =
+  /\b(?:say|mention|note|explain|emphasi[sz]e|stress|point out|make clear|show|state|suggesting|signal(?:ling|ing)?|showing) (?:that )?you(?:'ve| have|'re| are|'d| would| had|'ll| will)? (?!need|not\b|haven't|have not|may|might|if\b)([a-z][^.;!?\n]{8,90})/gi;
+
+const ASSERTION_HEDGE_RE =
+  /\b(?:need to learn|not on your resume|if you have|haven't|have not|no direct evidence|ready to learn|would need|be honest|acknowledge)\b/i;
+
+/**
+ * Brief lines that coach the candidate to assert an experience or stance the
+ * resume does not record — "say you've operated at the execution-and-quality
+ * end", "suggesting you owned the problem, not just the ticket", "note you'd
+ * look for opportunities to scale that influence". Advice that names a gap
+ * ("acknowledge you'd need to learn …") is left alone. Second-person analogue
+ * of `preferenceClaims`; word-level, so a claim written in the resume's own
+ * vocabulary passes.
+ */
+export function briefAssertions(text: string, sources: string[]): string[] {
+  const own = wordStems(sources.filter((s) => s && s.trim()).join("\n"));
+  const out: string[] = [];
+  for (const m of text.matchAll(ASSERTION_RE)) {
+    const clause = m[1].split(",")[0].trim();
+    if (ASSERTION_HEDGE_RE.test(m[0])) continue;
+    const words = (normalise(clause).match(/[a-z][a-z'-]*[a-z]/g) ?? []).filter(
+      (w) => w.length > 3 && !FUNCTION_WORDS.has(w),
+    );
+    if (words.length < 2) continue;
+    const stated =
+      words.filter((w) => own.has(w) || own.has(stemmer(w))).length /
+        words.length >=
+      0.8;
+    if (!stated) out.push(m[0].split(",")[0].trim());
+  }
+  return out;
+}
+
 export interface TailorClaims {
   /** Figures the rewrite states that the original line and resume do not */
   figures: string[];
