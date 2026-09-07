@@ -350,6 +350,19 @@ export function isKnownPlace(place: string): boolean {
   return Object.values(REGION_ALIASES).some((aliases) => aliases.includes(p))
 }
 
+/**
+ * The API's relevance tier, recomputed client-side: 2 = every query token is
+ * in the title, 1 = some are, 0 = the query only appears in the body, tags,
+ * company or location ("free barista coffee" for a barista search).
+ */
+export function queryTitleRank(query: string, title: string): 0 | 1 | 2 {
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) return 2
+  const t = title.toLowerCase()
+  const hits = tokens.filter((x) => t.includes(x)).length
+  return hits === tokens.length ? 2 : hits > 0 ? 1 : 0
+}
+
 export type LocationTier = 'direct' | 'wider' | 'anywhere'
 
 /**

@@ -48,6 +48,7 @@ import {
   followUpEmail,
   isKnownPlace,
   locationTier,
+  queryTitleRank,
   widerAreasOf,
   listPipeline,
   locationFacets,
@@ -194,6 +195,14 @@ export default function Jobs() {
   })
   const [excluded, setExcluded] = useState<ReadonlySet<JobStatus>>(new Set())
   const [jobs, setJobs] = useState<JobListing[]>([])
+  // The query `jobs` were fetched for (the search box may have been edited since).
+  const [fetchedQuery, setFetchedQuery] = useState(
+    () => seedQuery ?? loadResume()?.targetRole ?? ''
+  )
+  // Rows where the query appears only in the body / tags stay folded behind a
+  // count until asked for; remembering which query was expanded means a new
+  // query starts folded again.
+  const [textOnlyExpandedFor, setTextOnlyExpandedFor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pipelineUnreadable, setPipelineUnreadable] = useState(() => stashUnreadablePipeline())
@@ -251,6 +260,7 @@ export default function Jobs() {
       .then(async (list) => {
         if (seq !== jobsFetchSeq) return
         setJobs(list)
+        setFetchedQuery(q)
         let seedResolved: JobListing | null = null
         if (pendingSeedJob) {
           setPendingSeedJob(null)
@@ -274,9 +284,13 @@ export default function Jobs() {
             }
           }
         }
-        // With a location typed, the panel should open on a row the list will
-        // actually show for it (or nothing) instead of a hidden remote row.
+        // The panel should open on a row the list will actually show — one in
+        // the typed place, and a title match while any exists (body-only
+        // matches start folded) — or on nothing, never on a hidden row.
         const inPlace = (j: JobListing) => !loc.trim() || locationTier(j.location, loc) !== null
+        const titled = (j: JobListing) => queryTitleRank(q, j.title) > 0
+        const anyTitled = list.some((j) => inPlace(j) && titled(j))
+        const visible = (j: JobListing) => inPlace(j) && (!anyTitled || titled(j))
         setSelectedId((cur) => {
           const current = list.find((j) => j.id === cur)
           if (
@@ -284,7 +298,7 @@ export default function Jobs() {
             (current ||
               listPipeline().some((e) => e.job.id === cur) ||
               seedResolved?.id === cur) &&
-            (explicitSelection.current || !current || inPlace(current))
+            (explicitSelection.current || !current || visible(current))
           ) {
             return cur
           }
@@ -294,7 +308,7 @@ export default function Jobs() {
             const first = listPipeline().find((e) => staleDays(e) !== null || reminderDue(e))
             if (first) return first.job.id
           }
-          return list.find(inPlace)?.id ?? null
+          return list.find(visible)?.id ?? null
         })
       })
       .catch((e: Error) => {
@@ -526,14 +540,25 @@ export default function Jobs() {
           return skillTerms.every((term) => termRegex(term).test(haystack))
         })
       : afterType
+  /** Rows whose title carries (part of) the query; the rest only mention it in the body. */
+  const titleHits =
+    tab === 'all'
+      ? afterSkills.filter((j) => queryTitleRank(fetchedQuery, j.title) > 0)
+      : afterSkills
+  const textOnly =
+    tab === 'all' ? afterSkills.filter((j) => queryTitleRank(fetchedQuery, j.title) === 0) : []
   /** Candidate locations in the current results (pre-location-filter) with counts. */
-  const locFacets = tab === 'all' ? locationFacets(afterSkills.map((j) => j.location)) : []
+  const locFacets =
+    tab === 'all'
+      ? locationFacets((titleHits.length > 0 ? titleHits : afterSkills).map((j) => j.location))
+      : []
   const tierOf = (j: JobListing) => (tab === 'all' && loc ? locationTier(j.location, loc) : 'direct')
-  const directMatches = afterSkills.filter((j) => tierOf(j) === 'direct')
+  const directMatches = titleHits.filter((j) => tierOf(j) === 'direct')
   /** Postings open to the filter's country / region ("UK", "Europe" for a London filter). */
-  const widerMatches = afterSkills.filter((j) => tierOf(j) === 'wider')
+  const widerMatches = titleHits.filter((j) => tierOf(j) === 'wider')
   const widerAreas = tab === 'all' && loc ? widerAreasOf(loc) : []
-  const anywhereMatches = afterSkills.filter((j) => tierOf(j) === 'anywhere')
+  const anywhereMatches = titleHits.filter((j) => tierOf(j) === 'anywhere')
+  const textOnlyInPlace = textOnly.filter((j) => tierOf(j) !== null)
   const applySort = (list: JobListing[]) =>
     tab === 'all' && sort === 'newest'
       ? [...list].sort(
@@ -548,11 +573,35 @@ export default function Jobs() {
         : list
   const sortedWider = applySort(widerMatches)
   const sortedAnywhere = applySort(anywhereMatches)
-  const shown = [...applySort(directMatches), ...sortedWider, ...sortedAnywhere]
+  const titleShownCount = directMatches.length + sortedWider.length + sortedAnywhere.length
+  /** Body-only matches are listed when asked for, when they are all there is, or when one is open (deep link). */
+  const fetchedQueryKey = fetchedQuery.trim().toLowerCase()
+  const textOnlyExpanded =
+    textOnlyExpandedFor === fetchedQueryKey ||
+    titleShownCount === 0 ||
+    textOnlyInPlace.some((j) => j.id === selectedId)
+  const sortedTextOnly = textOnlyExpanded ? applySort(textOnlyInPlace) : []
+  const shown = [
+    ...applySort(directMatches),
+    ...sortedWider,
+    ...sortedAnywhere,
+    ...sortedTextOnly,
+  ]
   /** Index of the first country/region-wide result when the location input splits the list. */
   const widerStart = sortedWider.length > 0 ? directMatches.length : -1
   /** Index of the first location-agnostic result when the location input splits the list. */
-  const anywhereStart = sortedAnywhere.length > 0 ? shown.length - sortedAnywhere.length : -1
+  const anywhereStart =
+    sortedAnywhere.length > 0 ? directMatches.length + sortedWider.length : -1
+  /** Index of the first row that only mentions the query in its body. */
+  const textOnlyStart = sortedTextOnly.length > 0 ? titleShownCount : -1
+  const fetchedQueryLabel = fetchedQuery.trim()
+  const hideTextOnly = () => {
+    setTextOnlyExpandedFor(null)
+    if (selectedId !== null && sortedTextOnly.some((j) => j.id === selectedId)) {
+      explicitSelection.current = false
+      setSelectedId(shown.find((j) => queryTitleRank(fetchedQuery, j.title) > 0)?.id ?? null)
+    }
+  }
   /** Rows actually listed per status group, so headers stay honest under filters. */
   const shownCounts = (() => {
     const c: Record<JobStatus, number> = { saved: 0, applied: 0, interviewing: 0, offer: 0, rejected: 0 }
@@ -1632,7 +1681,11 @@ export default function Jobs() {
               >
                 {loading
                   ? 'Loading jobs…'
-                  : `${shown.length} ${shown.length === 1 ? 'job' : 'jobs'} found`}
+                  : `${shown.length} ${shown.length === 1 ? 'job' : 'jobs'} found${
+                      !textOnlyExpanded && textOnlyInPlace.length > 0
+                        ? ` · ${textOnlyInPlace.length} more only mention it in the description`
+                        : ''
+                    }`}
               </p>
             )}
             {loading ? (
@@ -1762,6 +1815,39 @@ export default function Jobs() {
                           {i === 0 ? <>Nothing names {locationFilter.trim()} itself — open to</> : 'Open to'}{' '}
                           any location ({sortedAnywhere.length})
                         </p>
+                      )}
+                      {i === textOnlyStart && (
+                        <div className="bg-muted/60 text-muted-foreground flex items-center justify-between gap-2 border-b px-4 py-1.5 text-xs font-medium">
+                          <p>
+                            {i === 0 ? (
+                              <>
+                                {titleHits.length > 0 ? (
+                                  <>
+                                    No job titled &ldquo;{fetchedQueryLabel}&rdquo; is in{' '}
+                                    {locationFilter.trim()}
+                                  </>
+                                ) : (
+                                  <>No job title matches &ldquo;{fetchedQueryLabel}&rdquo;</>
+                                )}{' '}
+                                — these {sortedTextOnly.length} only mention it in the description
+                              </>
+                            ) : (
+                              <>
+                                Only mention &ldquo;{fetchedQueryLabel}&rdquo; in the description (
+                                {sortedTextOnly.length})
+                              </>
+                            )}
+                          </p>
+                          {i > 0 && (
+                            <button
+                              type="button"
+                              onClick={hideTextOnly}
+                              className={`${INLINE_ACTION} shrink-0 font-medium hover:underline`}
+                            >
+                              Hide
+                            </button>
+                          )}
+                        </div>
                       )}
                       {tab === 'tracked' && status && status !== statusOf.get(shown[i - 1]?.id ?? '') && (
                         <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
@@ -1918,6 +2004,20 @@ export default function Jobs() {
                   )
                 })}
               </ul>
+            )}
+            {!loading && !error && !textOnlyExpanded && textOnlyInPlace.length > 0 && (
+              <div className="border-t p-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto w-full py-2 whitespace-normal"
+                  onClick={() => setTextOnlyExpandedFor(fetchedQueryKey)}
+                >
+                  Show {textOnlyInPlace.length} more that only mention &ldquo;{fetchedQueryLabel}
+                  &rdquo; in the description
+                </Button>
+              </div>
             )}
           </div>
 
