@@ -8,9 +8,13 @@ export const prefersReducedMotion = () =>
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 
-/** Animated count from 0 to `target` (renders `target` directly under reduced motion). */
+/**
+ * Animated count from 0 to `target` (jumps straight to `target` under reduced motion).
+ * The first render is always 0 so prerendered HTML hydrates cleanly whatever the visitor's
+ * motion preference; the effect then snaps or tweens.
+ */
 export function useCountUp(target: number, durationSec = 0.9): number {
-  const [value, setValue] = useState(prefersReducedMotion() ? target : 0)
+  const [value, setValue] = useState(0)
   const prev = useRef<number | null>(null)
   useEffect(() => {
     const reduced = prefersReducedMotion()
