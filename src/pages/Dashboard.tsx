@@ -636,6 +636,23 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
     setDownloaded({ key, fmt: fmt.toUpperCase() })
     window.setTimeout(() => setDownloaded((cur) => (cur?.key === key ? null : cur)), 1800)
   }
+  const [actionNote, setActionNote] = useState('')
+  const announce = (text: string) => {
+    setActionNote(text)
+    window.setTimeout(() => setActionNote((cur) => (cur === text ? '' : cur)), 1800)
+  }
+  const duplicateCopy = (v: ResumeVersion) => {
+    const next = duplicateResumeVersion(v.id)
+    if (!applyVersions(next) || !next) return
+    announce(`Duplicated as “${next[0].name}”.`)
+    focusAfterRender(`copy-${next[0].id}-open`)
+  }
+  const duplicateDoc = (d: CareerDoc) => {
+    const next = duplicateCareerDoc(d.id)
+    if (!applyDocs(next) || !next) return
+    announce(`Duplicated as “${next[0].title}”.`)
+    focusAfterRender(`doc-${next[0].id}-open`)
+  }
   const [view, setView] = useState<'grid' | 'list'>(() =>
     localStorage.getItem('honestcv.dashboardView') === 'list' ? 'list' : 'grid'
   )
@@ -1013,7 +1030,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         size="sm"
         className="min-h-10 sm:min-h-8"
         title="Duplicate this copy"
-        onClick={() => applyVersions(duplicateResumeVersion(v.id))}
+        onClick={() => duplicateCopy(v)}
       >
         <Copy className="size-3.5" />
         <span className="sr-only">Duplicate {v.name}</span>
@@ -1207,6 +1224,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           : downloaded
             ? `${downloaded.fmt} downloaded.`
             : ''}
+      </p>
+      <p role="status" className="sr-only">
+        {actionNote}
       </p>
       {dlError && (
         <div className="mx-auto w-full max-w-6xl px-4 pt-3">
@@ -1935,7 +1955,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     size="sm"
                     className="min-h-10 sm:min-h-8"
                     title="Duplicate this document"
-                    onClick={() => applyDocs(duplicateCareerDoc(d.id))}
+                    onClick={() => duplicateDoc(d)}
                   >
                     <Copy className="size-3.5" />
                     <span className="sr-only">Duplicate {d.title}</span>
