@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { CopyStatus } from '@/components/CopyStatus'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -9830,6 +9831,7 @@ export default function Builder() {
                       : 'Copy'}
                 </Button>
               </div>
+              <CopyStatus state={shareLinkCopied} copied="Share link copied to clipboard." />
               <p className="text-muted-foreground text-xs">
                 The link shows a snapshot from{' '}
                 {new Date(shareLink.sharedAt).toLocaleString()} — publish again

@@ -6,6 +6,7 @@
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { CopyStatus } from '@/components/CopyStatus'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -2756,6 +2757,7 @@ export default function Jobs() {
                   ? 'Copy failed'
                   : 'Copy email'}
             </Button>
+            <CopyStatus state={followUpCopied} copied="Email copied to clipboard." />
           </DialogFooter>
         </DialogContent>
       </Dialog>

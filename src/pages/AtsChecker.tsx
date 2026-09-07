@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { ScoreRing } from '@/components/ScoreRing'
+import { CopyStatus } from '@/components/CopyStatus'
 import {
   CHECK_CATEGORIES,
   applicationReadiness,
@@ -838,7 +839,8 @@ export default function AtsChecker() {
                     : linkCopied === 'failed'
                       ? 'Copy failed'
                       : 'Copy the checker link'}
-                </button>{' '}
+                </button>
+                <CopyStatus state={linkCopied} copied="Checker link copied to clipboard." />{' '}
                 — free, no sign-up, nothing leaves the browser.
               </p>
             </CardContent>

@@ -2800,3 +2800,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 方案 docs/plan-r694-ats-result-focus.md：四个显式扫描入口（Check / See an example score first / 行内 see an example score / Re-check now）在 `setScan` 后 `focusAfterRender('ats-result-heading')`（R645 helper）；结果 `<h2 id="ats-result-heading" tabIndex={-1} className="… outline-none">` 加 `sr-only`「— N out of 100」，聚焦即播报标题+分数。不改评分/过期逻辑/带草稿加载（加载不调 setter，不移焦点）。
 - 生产 QA（index-BVZDsw52.js，`qa/r694-verify.cjs`，1280/375）：三种入口点击后 activeElement 均为 `ats-result-heading`，可访问文本「Your/Example ATS match score — 37/33/63 out of 100」，标题 top ≥ 页头底 57 且在视口内；reload 带已检草稿 → 结果仍渲染、焦点 body（无主动夺焦）；0 console 错误。
 - 如实：未做真实读屏实听（标题聚焦播报按焦点管理模式推断）；1280 下焦点最小滚动使标题落在视口底部（top 781/812），卡片主体仍需再滚——与修前 84px 可见相当，未额外加 scroll-margin。
+
+### R695 —「Copied」剪贴板反馈只是按钮换字，没有 status 消息（WCAG 4.1.3，链 #915 → 本 PR）
+
+- 取证（`qa/r695-evidence.cjs 1280|375`，生产 index-BVZDsw52.js，MutationObserver live-region 记录仪 + 键盘 Enter）：/ats-checker「Copy the checker link」→「Link copied!」、/jobs 跟进邮件弹窗「Copy email」→「Copied」、/dashboard 文档查看器「Copy text」→「Copied」，三处 live 记录**全空**，按钮不在任何 live region 内、无 aria-live。唯一反馈是聚焦按钮的可访问名变了——AT 是否播报焦点控件改名因实现而异（未实听）。builder「Resume downloaded」toast 内的「Copy checker link」本就在 `role=status` 容器内，不在本轮。builder Share-link 弹窗「Copy」同型（需真实分享链接，未实测）。
+- 方案 docs/plan-r695-copy-feedback-status.md：新增 `src/components/CopyStatus.tsx`（常驻 `role=status sr-only`，idle 为空、copied/failed 填文案），四处按钮旁各放一个；按钮文案/handler/布局/状态机不变。
+- 生产 QA（index-smApJyJU.js，同脚本 1280/375）：三处点击后各得一条 `childList:status:… copied to clipboard.`，焦点仍在按钮，可见文案与修前逐字相同，0 console 错误。
+- 如实：未真实读屏实听；Share-link 弹窗仅同组件推断；失败态复用同一 polite 区（按钮可见文案已写 Copy failed），未另加 alert。

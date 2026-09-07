@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CopyStatus } from '@/components/CopyStatus'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   BriefcaseBusiness,
@@ -2835,6 +2836,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   ? 'Copy failed'
                   : 'Copy text'}
             </Button>
+            <CopyStatus state={docCopied} copied="Document text copied to clipboard." />
             <Button
               type="button"
               onClick={() => {
