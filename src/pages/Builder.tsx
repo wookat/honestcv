@@ -76,7 +76,14 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
-import { briefGrounding, preferenceClaims, tailorClaims, unsupportedClaims } from '@/lib/grounding'
+import {
+  briefGrounding,
+  draftClaims,
+  preferenceClaims,
+  tailorClaims,
+  unsupportedClaims,
+  type DraftClaims,
+} from '@/lib/grounding'
 import { prefersReducedMotion } from '@/lib/motion'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
@@ -677,6 +684,43 @@ function applyAutoSort(r: Resume, isHeld?: (key: AutoSortSection) => boolean): R
     if (sorted.some((it, i) => it !== r.education[i])) next = { ...next, education: sorted }
   }
   return next
+}
+
+interface DraftFlagGroup {
+  label: string
+  items: string[]
+}
+
+/** Word-level checks an AI draft failed against the resume — advisory, never proof */
+function draftFlagGroups(c: DraftClaims): DraftFlagGroup[] {
+  return [
+    { label: 'Figures your resume never states', items: c.figures },
+    { label: 'Names / tools your resume never mentions', items: c.terms },
+    { label: 'Wording from the job ad that your resume never uses', items: c.mirrored },
+    { label: 'Claims a remit your resume never states', items: c.scope },
+  ].filter((g) => g.items.length > 0)
+}
+
+function DraftFlagList({ id, groups }: { id?: string; groups: DraftFlagGroup[] }) {
+  return (
+    <ul
+      id={id}
+      className="space-y-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900"
+      aria-label="Check before accepting"
+    >
+      {groups.map((g) => (
+        <li key={g.label}>
+          <span className="font-medium">{g.label}:</span>{' '}
+          {g.items.map((it, i) => (
+            <span key={it}>
+              {i > 0 && ', '}
+              <mark className="rounded bg-amber-200/70 px-0.5 text-inherit">{it}</mark>
+            </span>
+          ))}
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 function Section({
@@ -2142,6 +2186,26 @@ export default function Builder() {
   const bulletSuggestTarget = bulletSuggest
     ? suggestTargetFor(bulletSuggest.kind, bulletSuggest.entryId)
     : undefined
+  /** What the open AI draft(s) say that the resume does not — per candidate */
+  const draftFlags = useMemo(() => {
+    const out = new Map<string, DraftFlagGroup[]>()
+    if (!bulletSuggest && !variantPick) return out
+    const resumeText = resumeToPlainText(shown)
+    const jd = resume.jobDescription
+    if (bulletSuggest?.text.trim()) {
+      const groups = draftFlagGroups(
+        draftClaims(bulletSuggest.text, resumeText, jd, bulletSuggest.draft ? [bulletSuggest.draft] : [])
+      )
+      if (groups.length > 0) out.set('suggest', groups)
+    }
+    variantPick?.candidates.forEach((cand, i) => {
+      const groups = draftFlagGroups(
+        draftClaims(cand, resumeText, jd, variantPick.original?.trim() ? [variantPick.original] : [])
+      )
+      if (groups.length > 0) out.set(`variant-${i}`, groups)
+    })
+    return out
+  }, [bulletSuggest, variantPick, shown, resume.jobDescription])
   const bulletSuggestBusy =
     bulletSuggest !== null &&
     (aiBusy === `${bulletSuggest.kind}-${bulletSuggest.entryId}-suggest` ||
@@ -9131,8 +9195,9 @@ export default function Builder() {
           <DialogHeader>
             <DialogTitle>{variantPick?.title}</DialogTitle>
             <DialogDescription>
-              Three honest takes on your text — nothing invented. Bracketed placeholders like
-              [add %] mark where a real number would help.
+              {variantPick?.candidates.some((_, i) => draftFlags.has(`variant-${i}`))
+                ? 'Three takes on your text. Options marked below use figures, names, job-ad wording or a remit your resume never states — check those before picking one; picking applies it as written. Bracketed placeholders like [add %] mark where a real number would help.'
+                : 'Three takes on your text, checked word by word against your resume — nothing flagged. Bracketed placeholders like [add %] mark where a real number would help.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -9153,16 +9218,18 @@ export default function Builder() {
             )}
             {variantPick?.candidates.map((cand, i) => {
               const isRejected = variantPick.rejected?.includes(i) ?? false
+              const flagged = draftFlags.get(`variant-${i}`)
               return (
-                <div key={cand.slice(0, 40) + String(i)} className="relative">
+                <div key={cand.slice(0, 40) + String(i)} className="relative space-y-1.5">
                   <button
                     type="button"
                     disabled={isRejected}
+                    aria-describedby={flagged ? `variant-flags-${i}` : undefined}
                     className={`w-full rounded-lg border p-3 text-left text-sm whitespace-pre-wrap transition ${
                       isRejected
                         ? 'cursor-not-allowed opacity-50'
                         : 'hover:border-primary hover:bg-muted/50'
-                    }`}
+                    } ${flagged && !isRejected ? 'border-amber-300' : ''}`}
                     onClick={() => {
                       variantPick.apply(cand)
                       setVariantPick(null)
@@ -9171,6 +9238,7 @@ export default function Builder() {
                     <span className="text-muted-foreground mb-1 block pr-24 text-xs font-medium">
                       {['Concise', 'Impact-focused', 'Keyword-focused'][i] ?? `Option ${i + 1}`}
                       {isRejected && ' · marked not helpful'}
+                      {flagged && !isRejected && ' · check before using'}
                     </span>
                     {variantPick.original?.trim()
                       ? diffNewWords(variantPick.original, cand).map((chunk, j) =>
@@ -9187,6 +9255,7 @@ export default function Builder() {
                         )
                       : cand}
                   </button>
+                  {flagged && <DraftFlagList id={`variant-flags-${i}`} groups={flagged} />}
                   {variantPick.regenerate && (
                     <button
                       type="button"
@@ -9274,8 +9343,13 @@ export default function Builder() {
             </DialogTitle>
             <DialogDescription>
               {bulletSuggest?.lineIndex != null
-                ? 'Your half-written line, completed — edit it, regenerate a new version, or apply it to replace the line.'
-                : 'Review the draft before it lands on your resume — edit it, regenerate a new version, or apply it as is.'}
+                ? 'Your half-written line, completed. It is a draft, not a record of what you did — edit it, regenerate a new version, or replace the line with it.'
+                : `A candidate bullet drafted from your resume${resume.jobDescription.trim() ? ' and the job ad' : ''}. It is a draft, not a record of what you did — edit it, regenerate a new version, or apply it as is.`}
+              {draftFlags.has('suggest')
+                ? ' Marked below: what it says that your resume never states.'
+                : bulletSuggest
+                  ? ' Checked word by word against your resume — nothing flagged.'
+                  : ''}
             </DialogDescription>
           </DialogHeader>
           {bulletSuggest && (
@@ -9285,7 +9359,11 @@ export default function Builder() {
                 value={bulletSuggest.text}
                 onChange={(e) => setBulletSuggest({ ...bulletSuggest, text: e.target.value })}
                 aria-label="Suggested bullet text"
+                aria-describedby={draftFlags.has('suggest') ? 'suggest-flags' : undefined}
               />
+              {draftFlags.has('suggest') && (
+                <DraftFlagList id="suggest-flags" groups={draftFlags.get('suggest') ?? []} />
+              )}
               {aiError &&
                 (aiErrorTag?.startsWith(
                   `${bulletSuggest.kind}-${bulletSuggest.entryId}-suggest`
@@ -9309,7 +9387,13 @@ export default function Builder() {
                     setBulletSuggest(null)
                   }}
                 >
-                  {bulletSuggest.lineIndex != null ? 'Replace line' : 'Apply to entry'}
+                  {bulletSuggest.lineIndex != null
+                    ? draftFlags.has('suggest')
+                      ? 'Replace line anyway'
+                      : 'Replace line'
+                    : draftFlags.has('suggest')
+                      ? 'Apply anyway'
+                      : 'Apply to entry'}
                 </Button>
                 <Button
                   type="button"
@@ -12502,26 +12586,7 @@ function TailorDialog({
                     {r.original}
                   </p>
                   <p className="font-medium text-emerald-800">{r.suggestion}</p>
-                  {flags.has(r.id) && (
-                    <ul
-                      className="space-y-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900"
-                      aria-label="Check before accepting"
-                    >
-                      {flags.get(r.id)?.map((g) => (
-                        <li key={g.label}>
-                          <span className="font-medium">{g.label}:</span>{' '}
-                          {g.items.map((it, i) => (
-                            <span key={it}>
-                              {i > 0 && ', '}
-                              <mark className="rounded bg-amber-200/70 px-0.5 text-inherit">
-                                {it}
-                              </mark>
-                            </span>
-                          ))}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  {flags.has(r.id) && <DraftFlagList groups={flags.get(r.id) ?? []} />}
                   {r.status === 'pending' ? (
                     <div className="flex gap-2">
                       <Button

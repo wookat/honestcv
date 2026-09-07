@@ -102,7 +102,7 @@ profiling caching cdn graphql-federation lightroom after-effects blender`.split(
 /** Tokens shaped like a technology name: "next.js", "c++", "c#", "html5", "asp.net". */
 const TECH_SHAPE_RE = /\.(js|ts|net|py|rb)$|^[a-z]+[+#]+$|^[a-z]{2,}\d{1,2}$/
 
-function looksLikeSkill(tok: string): boolean {
+export function looksLikeSkill(tok: string): boolean {
   return KNOWN_SKILLS.has(tok) || TECH_SHAPE_RE.test(tok)
 }
 
