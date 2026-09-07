@@ -10986,7 +10986,21 @@ function BundleToolDialog({
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
   const [feedback, setFeedback] = useState('')
+  /** The answer the current feedback was written about — the candidate's own words count as evidence */
+  const [feedbackAnswer, setFeedbackAnswer] = useState('')
   const [feedbackBusy, setFeedbackBusy] = useState(false)
+  /** Deterministic check of the STRONGER ANSWER against the resume and the candidate's own answer. */
+  const feedbackGrounding = useMemo(() => {
+    const stronger = feedback.split(/^STRONGER ANSWER:?\s*$/m)[1]?.trim()
+    if (!stronger) return null
+    const resumeText = resumeToPlainText(resume)
+    const own = [resumeText, feedbackAnswer, highlights]
+    const claims = unsupportedClaims(stronger, [...own, resume.jobDescription, company, resume.targetRole])
+    const feelings = preferenceClaims(stronger, own)
+    const borrowed = letterBorrowing(stronger, resumeText, resume.jobDescription, [feedbackAnswer, highlights])
+    const issues = claims.terms.length + claims.figures.length + feelings.length + borrowed.length
+    return { claims, feelings, borrowed, issues }
+  }, [feedback, feedbackAnswer, resume, highlights, company])
   const [feedbackError, setFeedbackError] = useState('')
   const [suggested, setSuggested] = useState<string[]>([])
   const [suggestBusy, setSuggestBusy] = useState(false)
@@ -11218,6 +11232,7 @@ function BundleToolDialog({
         req.signal
       )
       setFeedback(text)
+      setFeedbackAnswer(answer)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
       if (!req.signal.aborted && !isAbortError(e)) setFeedbackError((e as Error).message)
@@ -12268,6 +12283,45 @@ function BundleToolDialog({
               <p role="alert" className="text-destructive text-sm">
                 {feedbackError}
               </p>
+            )}
+            {feedbackGrounding && (
+              <div
+                role="status"
+                className={cn(
+                  'space-y-1 rounded border px-2 py-1.5 text-xs',
+                  feedbackGrounding.issues > 0
+                    ? 'border-amber-300/60 bg-amber-500/10 dark:border-amber-400/30'
+                    : 'border-green-200 bg-green-50 text-green-800'
+                )}
+              >
+                <p className="font-medium">
+                  {feedbackGrounding.issues > 0
+                    ? 'The stronger answer says things your resume and your answer don\'t — check before you use it:'
+                    : 'Grounded: the stronger answer states only what your resume or your own answer says.'}
+                </p>
+                {feedbackGrounding.claims.terms.length > 0 && (
+                  <p>{`Not in your resume, your answer or the job ad: ${feedbackGrounding.claims.terms.join(', ')}.`}</p>
+                )}
+                {feedbackGrounding.claims.figures.length > 0 && (
+                  <p>
+                    {`Figure${feedbackGrounding.claims.figures.length === 1 ? '' : 's'} not in your resume, your answer or the job ad: ${feedbackGrounding.claims.figures.join(', ')}.`}
+                  </p>
+                )}
+                {feedbackGrounding.feelings.length > 0 && (
+                  <p>
+                    {`Says how you feel, which neither your resume nor your answer does: ${feedbackGrounding.feelings
+                      .map((f) => `“${f}”`)
+                      .join(', ')} — say it only if it's true for you.`}
+                  </p>
+                )}
+                {feedbackGrounding.borrowed.map((b) => (
+                  <p key={b.sentence}>
+                    {`Describes your past work in the job ad's words, which your resume never uses: ${b.words
+                      .map((w) => `“${w}”`)
+                      .join(', ')} — in “${excerptAround(b.sentence, b.words[0])}”.`}
+                  </p>
+                ))}
+              </div>
             )}
             {feedback && (
               <Textarea
