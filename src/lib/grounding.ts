@@ -608,9 +608,9 @@ const FUNCTION_WORDS = new Set(
   `a an and as at be by for from in into is it of on or our that the their this
 to with your you we who which while when where what how all any each more most
 other some such than then there these those through under up out over via per
-across within without between both but not no nor so if also well very`.split(
-    /\s+/,
-  ),
+across within without between both but not no nor so if also well very
+has have had can could would should will may might just about like why
+because whether`.split(/\s+/),
 );
 
 const wordStems = (text: string): Set<string> => {
@@ -667,7 +667,8 @@ const GENERIC_AD_WORDS = new Set(
 support systems tools business process solutions performance development
 workflows senior success technology data customers customer users user
 experience experiences internal external stakeholders quality scalable robust
-modern high fast complex end key core new impact real world class
+modern high fast complex end key core new impact real world class person
+people role roles opportunity company
 build building built develop developing developed deliver delivering delivered
 drive driving driven work working worked help helping helped
 create creating created make making made use using used improve improving
@@ -846,6 +847,62 @@ export function draftClaims(
     scope,
     remeasured: remeasuredFigures(own.join("\n"), draft),
   };
+}
+
+export interface BorrowedSentence {
+  /** The letter sentence, as written */
+  sentence: string;
+  /** Job-ad phrases / words the candidate's own part of it uses that the resume never does */
+  words: string[];
+}
+
+/** "I led / I have built / we shipped" — a sentence that states what the candidate did */
+const PAST_CLAIM_RE =
+  /\b(?:I|[Ww]e)(?:\s+(?:also|then|later|recently|personally|previously|first))?\s+(?:[a-z]{2,}ed|led|built|ran|wrote|grew|won|drove|oversaw|took|made|spent|set|cut|kept|held|brought|taught|began|became|sold|met|left|found|went|gave|got)\b|\b(?:I|[Ww]e)(?:'ve| have|'d| had)\s+(?:also\s+|since\s+)?[a-z]{2,}(?:ed|en|t)\b/;
+
+/**
+ * Where a letter sentence stops describing the candidate and starts relating
+ * that to the job: "— work that speaks to …", ", which aligns with …",
+ * "experience relevant to …", "the kind of …". Everything after is about the
+ * employer and may use the ad's words freely.
+ */
+const BRIDGE_RE =
+  /\s(?:—|–)\s|,\s*(?:work|experience|skills?|results?|habits?|a background|an experience|something|exactly|precisely|directly|all of which|which|an?\s+(?:\w+\s+){0,2}(?:experience|record|background|match))\s+(?:that|which|relevant|directly|closely|I\b|is\b|are\b|maps?|speaks?|aligns?|fits?|matches?|mirrors?|translates?)|\b(?:so\s+that|which|that|and)\s+(?:maps?|speaks?|aligns?|fits?|matches?|mirrors?|translates?|carries?|applies?|relates?|would|will|could|should)\b|\b(?:maps?|mapping|speaks?|speaking|aligns?|aligning|fits?|fitting|matches?|matching|mirrors?|mirroring|translates?|translating|transfers?|transferring)\s+(?:directly\s+|closely\s+|well\s+|naturally\s+)?(?:onto|to|with|into)\b|\b(?:relevant|similar|comparable|applicable|transferable)\s+to\b|\bthe\s+(?:same\s+)?kind\s+of\b|\b(?:as|just as|much as|exactly what|precisely what|what)\s+(?:your|the)\s+(?:team|role|ad|posting|position|job)\b|\byou(?:r|'re| are)?\b/;
+
+const LETTER_SENTENCES = (text: string): string[] =>
+  text
+    .split(/\n+/)
+    .flatMap((p) => p.match(/[^.!?]+(?:[.!?]+|$)/g) ?? [])
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+/**
+ * Sentences of a cover letter that describe what the candidate did in the job
+ * ad's words when the resume never uses them — "documenting keyboard
+ * interactions so that planners, support specialists, suppliers and
+ * participants could navigate" from a resume that says "our product design
+ * system". Only the part before the bridge to the employer counts: a letter
+ * must talk about the job, but the candidate's past must stay the resume's.
+ * Lexical and advisory: a borrowed duty written in the resume's own words
+ * passes, and a legitimate synonym the ad happens to use is listed too.
+ */
+export function letterBorrowing(
+  letter: string,
+  resumeText: string,
+  jobDescription: string,
+  own: string[] = [],
+): BorrowedSentence[] {
+  if (!jobDescription.trim()) return [];
+  const out: BorrowedSentence[] = [];
+  for (const sentence of LETTER_SENTENCES(letter)) {
+    if (!PAST_CLAIM_RE.test(sentence)) continue;
+    const bridge = BRIDGE_RE.exec(sentence);
+    const claim = bridge ? sentence.slice(0, bridge.index) : sentence;
+    if (!PAST_CLAIM_RE.test(claim)) continue;
+    const { mirrored } = draftClaims(claim, resumeText, jobDescription, own);
+    if (mirrored.length) out.push({ sentence, words: mirrored });
+  }
+  return out;
 }
 
 export interface SkillListChanges {

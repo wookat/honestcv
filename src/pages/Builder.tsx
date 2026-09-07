@@ -80,6 +80,7 @@ import {
   briefGrounding,
   draftClaims,
   preferenceClaims,
+  letterBorrowing,
   skillListChanges,
   tailorClaims,
   unsupportedClaims,
@@ -580,6 +581,17 @@ function useUndo(
 }
 
 const moveId = (list: string, index: number, dir: 'up' | 'down') => `move-${list}-${index}-${dir}`
+
+/** A short window of `text` around the first occurrence of `around` (whole text when it is short). */
+const excerptAround = (text: string, around: string, span = 110): string => {
+  if (text.length <= span) return text
+  const at = text.toLowerCase().indexOf(around.toLowerCase())
+  let start = Math.max(0, Math.min(at < 0 ? 0 : at - Math.floor(span / 2), text.length - span))
+  if (start > 0) start = text.indexOf(' ', start) + 1 || start
+  let end = Math.min(text.length, start + span)
+  if (end < text.length) end = text.lastIndexOf(' ', end) > start ? text.lastIndexOf(' ', end) : end
+  return `${start > 0 ? '…' : ''}${text.slice(start, end).trim()}${end < text.length ? '…' : ''}`
+}
 
 function moveItem<T>(arr: T[], index: number, delta: number): T[] {
   const next = index + delta
@@ -10937,7 +10949,9 @@ function BundleToolDialog({
           ])
         : null
     const feelings = kind === 'cover' ? preferenceClaims(result, [resumeText, highlights]) : []
-    return { claims, brief, feelings }
+    const borrowed =
+      kind === 'cover' ? letterBorrowing(result, resumeText, resume.jobDescription, [highlights]) : []
+    return { claims, brief, feelings, borrowed }
   }, [result, kind, resume, highlights, company, addressee])
   // Unsupported names in a brief are usually questions or advice ("tools like Copilot"), so they
   // only lower the verdict for a letter, where every name is a claim about the candidate.
@@ -10945,6 +10959,7 @@ function BundleToolDialog({
     ? (grounding.brief ? 0 : grounding.claims.terms.length) +
       grounding.claims.figures.length +
       grounding.feelings.length +
+      grounding.borrowed.length +
       (grounding.brief?.uncitedQuestions.length ?? 0) +
       (grounding.brief?.unquotedStories.length ?? 0)
     : 0
@@ -11768,6 +11783,13 @@ function BundleToolDialog({
                     {`Says how you feel, which your resume doesn't: ${grounding.feelings.map((f) => `“${f}”`).join(', ')} — keep it only if it's true for you.`}
                   </p>
                 )}
+                {grounding.borrowed.map((b) => (
+                  <p key={b.sentence}>
+                    {`Describes your past work in the job ad's words, which your resume never uses: ${b.words
+                      .map((w) => `“${w}”`)
+                      .join(', ')} — in “${excerptAround(b.sentence, b.words[0])}”. Say what you actually did, or make it about the role instead.`}
+                  </p>
+                ))}
               </div>
             )}
             <Textarea
