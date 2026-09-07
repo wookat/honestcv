@@ -41,7 +41,10 @@ manage manages managing managed
 turn turns turning run runs running write writes writing present presents
 presenting bring brings bringing ship ships shipping reduce reduces reducing
 against comfort comfortable hands-on welcome fundamentals own owns owning owned
-expect expects expected fluency fluent solid grasp expertise`.split(/\s+/)
+expect expects expected fluency fluent solid grasp expertise
+ideally highly strongly closely actively effectively successfully independently
+proactively especially particularly primarily typically regularly currently
+previously additionally directly record track`.split(/\s+/)
 )
 
 /** Multi-word tech/business phrases worth matching as units */
@@ -987,11 +990,14 @@ function roleTokensOf(role: string): Set<string> {
   return new Set(role.toLowerCase().split(/[^a-z0-9+#]+/).filter(Boolean))
 }
 
-/** Drop single-word keywords that are just the target role's title words; phrases always stay. */
+/**
+ * Drop single-word keywords that are just the target role's title words;
+ * phrases and skills named in the title ("Python Developer") always stay.
+ */
 function withoutRoleTokens(keywords: string[], targetRole: string): string[] {
   const roleTokens = roleTokensOf(targetRole.trim())
   if (roleTokens.size === 0) return keywords
-  return keywords.filter((kw) => kw.includes(' ') || !roleTokens.has(kw))
+  return keywords.filter((kw) => kw.includes(' ') || looksLikeSkill(kw) || !roleTokens.has(kw))
 }
 
 const REQUIREMENTS_HEADING_RE =
