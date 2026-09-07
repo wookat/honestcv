@@ -13164,6 +13164,16 @@ function KeywordBulletDialog({
   /** In-flight request; closing the dialog aborts it so the Worker stops the model. */
   const drafting = useRef<AbortController | null>(null)
   useEffect(() => () => drafting.current?.abort(), [])
+  const flags = useMemo(
+    () =>
+      text?.trim()
+        ? draftFlagGroups(
+            draftClaims(text, resumeToPlainText(resume), resume.jobDescription, [keyword])
+          )
+        : [],
+    [text, resume, keyword]
+  )
+  const flagged = flags.length > 0
 
   const run = async () => {
     setBusy(true)
@@ -13198,8 +13208,12 @@ function KeywordBulletDialog({
           <DialogTitle>Draft a bullet for “{keyword}”</DialogTitle>
           <DialogDescription>
             The AI drafts one bullet that works this keyword in, grounded in your existing resume —
-            unknowns become [bracketed placeholders] for you to fill in. Only use it if the
-            experience is genuinely yours.
+            unknowns become [bracketed placeholders] for you to fill in. It is a draft, not a record
+            of what you did — only add it if the experience is genuinely yours.
+            {text !== null &&
+              (flagged
+                ? ` Marked below: what it says beyond “${keyword}” that your resume never states.`
+                : ` Checked word by word against your resume — apart from “${keyword}”, nothing flagged.`)}
           </DialogDescription>
         </DialogHeader>
         {resume.experience.length === 0 ? (
@@ -13216,7 +13230,10 @@ function KeywordBulletDialog({
               value={text}
               onChange={(e) => setText(e.target.value)}
               aria-label="Drafted bullet"
+              aria-describedby={flagged ? 'kw-bullet-flags' : undefined}
+              className={flagged ? 'border-amber-400' : undefined}
             />
+            {flagged && <DraftFlagList id="kw-bullet-flags" groups={flags} />}
             <div className="space-y-1.5">
               <Label htmlFor="kwBulletExp">Add to</Label>
               <select
@@ -13250,7 +13267,7 @@ function KeywordBulletDialog({
                     setInserted(true)
                   }}
                 >
-                  <Check className="size-3" /> Add bullet
+                  <Check className="size-3" /> {flagged ? 'Add anyway' : 'Add bullet'}
                 </Button>
                 <Button size="sm" variant="outline" disabled={busy} onClick={() => void run()}>
                   {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
