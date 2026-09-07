@@ -432,7 +432,7 @@ export default function Jobs() {
     if (!resumeText.trim()) return map
     for (const j of [...jobs, ...pipeline.map((e) => e.job)]) {
       if (map.has(j.id)) continue
-      const m = matchScore(resumeText, j.description)
+      const m = matchScore(resumeText, j.description, j.company)
       if (m !== null) map.set(j.id, m)
     }
     return map
@@ -446,7 +446,7 @@ export default function Jobs() {
       if (!e.resumeVersionId) continue
       const v = versions.find((x) => x.id === e.resumeVersionId)
       if (!v) continue
-      const m = matchScore(resumeToPlainText(visibleResume(v.data)), e.job.description)
+      const m = matchScore(resumeToPlainText(visibleResume(v.data)), e.job.description, e.job.company)
       if (m !== null) map.set(e.job.id, m)
     }
     return map
@@ -657,7 +657,7 @@ export default function Jobs() {
       : undefined
     const text = version ? resumeToPlainText(visibleResume(version.data)) : resumeText
     if (!text.trim()) return null
-    const report = matchReport(text, selected.description)
+    const report = matchReport(text, selected.description, '', selected.company)
     return report ? { ...report, source: version ? ('copy' as const) : ('draft' as const) } : null
   })()
 

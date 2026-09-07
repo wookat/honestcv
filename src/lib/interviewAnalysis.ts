@@ -396,7 +396,7 @@ export function localInterviewQuestions(resume: Resume): string[] {
   }
   const jd = resume.jobDescription
   if (jd.trim()) {
-    const keywords = extractKeywords(jd)
+    const keywords = extractKeywords(jd, 30, resume.targetCompany)
     const high = highPriorityKeywords(jd, keywords)
     const skills = skillLikeKeywords(resume, keywords)
     const picks = [...skills.filter((k) => high.has(k)), ...skills.filter((k) => !high.has(k))]

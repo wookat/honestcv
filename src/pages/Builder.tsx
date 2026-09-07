@@ -10902,7 +10902,12 @@ function BundleToolDialog({
   /** JD keywords demonstrated in this answer that the resume itself still lacks. */
   const resumeGaps = useMemo(() => {
     if (kind !== 'interview' || !analysis?.keywords) return []
-    const report = matchReport(resumeToPlainText(resume), resume.jobDescription ?? '', resume.targetRole)
+    const report = matchReport(
+      resumeToPlainText(resume),
+      resume.jobDescription ?? '',
+      resume.targetRole,
+      resume.targetCompany
+    )
     if (!report) return []
     const missingFromResume = new Set(report.missing)
     return analysis.keywords.covered.filter((k) => missingFromResume.has(k))
