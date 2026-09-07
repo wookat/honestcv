@@ -421,6 +421,10 @@ const JOBS_BROADEN_BELOW = 3
 const JOBS_BROADEN_MAX = 2
 /** A broader query is only offered when at least this share of its rows are complete title matches. */
 const JOBS_BROADEN_MIN_TITLED_SHARE = 0.05
+/** Feeds that ignore the query (Arbeitnow; The Muse per place) are fetched once per this window and shared by every query. */
+const JOBS_FEED_FRESH_MS = 15 * 60 * 1000
+/** …and the last good copy is kept this long so an upstream 429 / timeout serves it instead of dropping the feed. */
+const JOBS_FEED_KEEP_TTL = 24 * 60 * 60
 
 // Cut over-limit descriptions at the last whitespace inside the cap so the
 // visible text never ends mid-word; the flag lets the client disclose the cut.
@@ -691,13 +695,13 @@ const isNonEnglishText = (text: string) =>
 
 // Arbeitnow (Europe, on-site + remote). Its `search` parameter is ignored
 // upstream, so the newest pages are fetched and filtered locally.
-async function fetchArbeitnow(): Promise<NormalizedJob[] | null> {
+async function fetchArbeitnow(allowPartial: boolean): Promise<NormalizedJob[] | null> {
   const pages = await Promise.all(
     [1, 2].map((p) =>
       fetchJson<{ data?: ArbeitnowJob[] }>(`https://www.arbeitnow.com/api/job-board-api?page=${p}`)
     )
   )
-  if (pages.every((p) => !p)) return null
+  if (allowPartial ? pages.every((p) => !p) : pages.some((p) => !p)) return null
   return pages
     .flatMap((p) => p?.data ?? [])
     .filter((j) => j.slug && j.title && j.url)
@@ -910,7 +914,11 @@ interface MusePage {
   results?: MuseJob[]
 }
 
-async function fetchMuse(label: string, categories: string[]): Promise<NormalizedJob[] | null> {
+async function fetchMuse(
+  label: string,
+  categories: string[],
+  allowPartial: boolean
+): Promise<NormalizedJob[] | null> {
   const pageUrl = (p: number) => {
     const url = new URL('https://www.themuse.com/api/public/jobs')
     url.searchParams.set('page', String(p))
@@ -924,6 +932,7 @@ async function fetchMuse(label: string, categories: string[]): Promise<Normalize
   const rest = await Promise.all(
     Array.from({ length: Math.max(lastPage - 1, 0) }, (_, i) => fetchJson<MusePage>(pageUrl(i + 2)))
   )
+  if (!allowPartial && rest.some((p) => !p)) return null
   const cutoff = Date.now() - MUSE_MAX_AGE_DAYS * 86_400_000
   const perCompany = new Map<string, number>()
   return [first, ...rest]
@@ -969,6 +978,40 @@ async function fetchMuse(label: string, categories: string[]): Promise<Normalize
 }
 
 type JobFeeds = [string, NormalizedJob[] | null][]
+
+interface FeedSnapshot {
+  at: number
+  jobs: NormalizedJob[]
+}
+
+// Arbeitnow ignores its `search` parameter and The Muse is asked per place, so
+// every uncached query used to re-download the same pages — a burst of 12 new
+// queries got Arbeitnow's 429 on four of them and the feed silently vanished
+// from `sources`. One snapshot per feed (per place) is shared by all queries;
+// when the upstream fails, the last good snapshot is served rather than nothing.
+// A refresh with a missing page only replaces the snapshot when there is none
+// to fall back on (`allowPartial`), so a half feed never overwrites a whole one.
+async function sharedFeed(
+  c: Context<{ Bindings: Env }>,
+  key: string,
+  load: (allowPartial: boolean) => Promise<NormalizedJob[] | null>
+): Promise<NormalizedJob[] | null> {
+  const raw = await c.env.KV.get(key)
+  const snap = raw ? (JSON.parse(raw) as FeedSnapshot) : null
+  const age = snap ? Date.now() - snap.at : Infinity
+  if (snap && age < JOBS_FEED_FRESH_MS) return snap.jobs
+  const fresh = await load(snap === null)
+  if (fresh) {
+    const next: FeedSnapshot = { at: Date.now(), jobs: fresh }
+    c.executionCtx.waitUntil(c.env.KV.put(key, JSON.stringify(next), { expirationTtl: JOBS_FEED_KEEP_TTL }))
+    return fresh
+  }
+  if (snap) {
+    console.warn(`jobs feed ${key} -> serving ${Math.round(age / 60_000)} min old snapshot after upstream failure`)
+    return snap.jobs
+  }
+  return null
+}
 
 interface JobSearchPayload {
   jobs: NormalizedJob[]
@@ -1045,19 +1088,23 @@ function assembleJobs(
 }
 
 async function fetchJobFeeds(
+  c: Context<{ Bindings: Env }>,
   query: JobQuery,
   category: string,
   museLabel: string | null,
   shared?: { arbeitnow: NormalizedJob[] | null; muse: NormalizedJob[] | null }
 ): Promise<JobFeeds> {
+  const museCats = museLabel ? museCategories(category, query.upstream) : []
   const [remotive, jobicy, arbeitnow, muse] = await Promise.all([
     fetchRemotive(query.upstream, category),
     fetchJobicy(query.upstream),
-    shared ? shared.arbeitnow : fetchArbeitnow(),
+    shared ? shared.arbeitnow : sharedFeed(c, 'jobs:feed:v1:arbeitnow', fetchArbeitnow),
     shared
       ? shared.muse
       : museLabel
-        ? fetchMuse(museLabel, museCategories(category, query.upstream))
+        ? sharedFeed(c, `jobs:feed:v1:muse:${museLabel}|${[...museCats].sort().join(',')}`, (partial) =>
+            fetchMuse(museLabel, museCats, partial)
+          )
         : Promise.resolve(null),
   ])
   return [
@@ -1106,7 +1153,7 @@ async function broaderQueries(
     const cached = await c.env.KV.get(cacheKey)
     const payload: JobSearchPayload = cached
       ? (JSON.parse(cached) as JobSearchPayload)
-      : assembleJobs(cq, category, await fetchJobFeeds(cq, category, museLabel, shared))
+      : assembleJobs(cq, category, await fetchJobFeeds(c, cq, category, museLabel, shared))
     if (payload.sources.length === 0) return null
     if (!cached) cacheJobs(c, cacheKey, payload, feeds.length)
     return {
@@ -1152,7 +1199,7 @@ app.get('/api/jobs/search', async (c) => {
   const cacheKey = jobsCacheKey(query, category, museLabel)
   const cached = await c.env.KV.get(cacheKey)
   if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
-  const feeds = await fetchJobFeeds(query, category, museLabel)
+  const feeds = await fetchJobFeeds(c, query, category, museLabel)
   const assembled = assembleJobs(query, category, feeds)
   if (assembled.sources.length === 0) {
     return c.json({ error: 'Job search is unavailable right now — please retry shortly.' }, 502)
