@@ -2742,3 +2742,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 方案 docs/plan-r686-forced-colors-score-ring.md：与 R684 条形一致——轨道 `forced-colors:stroke-[CanvasText]`、弧 `forced-colors:stroke-[Highlight]`；CSS `stroke` 仅在媒体查询内覆盖表现属性，普通模式逐字段不变；不需要 `forced-color-adjust`。
 - 生产 QA（二次 deploy，index-Bp2TguoI.js；CSS 产出 `stroke:canvastext`/`stroke:highlight`）：1280/375 × /ats-checker + / 共 3 环 forced 轨道 `rgb(255,255,255)`、弧 `rgba(0,230,255,0.8)`、dashoffset 不变；普通模式与修前相同；`r684-evidence.cjs` 11/11 distinct 无回归；零 console 错误；存储回基线。
 - 如实未验证：builder 环仅同组件推断（需 seed 简历才渲染）；真实 Windows 高对比度未测；Prettier 对 ScoreRing.tsx 告警为既有格式。
+
+### R687 — 静态 /pricing 在 forced-colors 下「Best value」药丸变裸文字、推荐列色带消失（链 #907 → 本 PR）
+
+- 取证（`qa/r687-pricing.cjs 1280/375`，生产静态页 `pricingPage()`）：R679–R686 全在 SPA/Tailwind，而 /pricing/ 是 `scripts/build-seo.mjs` 预渲染页。「One-time」药丸有 `border:1px solid var(--border)` → forced 下 CanvasText 框仍在；「Best value」只有 `background:#047857` 无边框 → bg 被压成 Canvas、只剩裸文字，两张卡角标不对称。两张对比表推荐列（plans `td:nth-child(4)` / cmp `td:nth-child(2)`）靠 `oklch(... / 0.06)` 色带 + `#047857` + weight 500 —— forced 下 bg 变 `rgba(0,0,0,0.06)`（Chrome 保留 alpha、颜色强制为 Canvas → Canvas 叠 Canvas 不可见）、颜色变 CanvasText，`plansOnlyWeight/cmpOnlyWeight = true`，✓/— 行与邻列逐像素相同。SPA 首页同款 UI 无此问题（Badge 自带 `border`、RezUp 列有 BadgeCheck 图标）。
+- 方案 docs/plan-r687-forced-colors-static-pricing.md：药丸加 `border:1px solid transparent` 并 padding 各减 1px（普通模式几何逐像素不变 79×25，forced 下透明边框→CanvasText，与 Badge 组件同机制）；`@media (forced-colors:active)` 内给推荐列 th/td 加左右 1px 边框成「框住的列」；普通模式零变化。
+- 生产 QA（二次 deploy，`curl /pricing/` 含新规则）：1280/375 普通模式药丸 rect/bg/color 与修前相同、表格 bg/color/weight 相同；forced 下药丸 `1px solid rgb(255,255,255)`、推荐列 `border-left 1px solid rgb(255,255,255)`、`*OnlyWeight=false`；R683 四个 `a.btn` 框仍为 `1px solid`；零 console 错误。
+- 如实未验证：真实 Windows 高对比度；QA 脚本 `same()` 首版把 `rgba(0,0,0,0.06)` 与透明判为不同，修正为「alpha-only bg 视为无」后才得 OnlyWeight 结论。

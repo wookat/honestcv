@@ -3719,7 +3719,7 @@ function pricingPage() {
   }
   const planCard = (name, price, tagline, features, dark) => `
 <div style="border:1px solid ${dark ? 'transparent' : 'var(--border)'};border-radius:var(--radius);padding:1.5rem;${dark ? 'background:#0a0a0a;color:#fff;box-shadow:0 12px 32px rgb(0 0 0/.18)' : 'background:var(--card)'}">
-<p style="margin:0;display:flex;justify-content:space-between;align-items:center"><strong>${name}</strong>${dark ? '<span style="background:#047857;color:#fff;border-radius:999px;padding:.15rem .6rem;font-size:.75rem;font-weight:600">Best value</span>' : '<span style="border:1px solid var(--border);border-radius:999px;padding:.15rem .6rem;font-size:.75rem">One-time</span>'}</p>
+<p style="margin:0;display:flex;justify-content:space-between;align-items:center"><strong>${name}</strong>${dark ? '<span style="background:#047857;color:#fff;border:1px solid transparent;border-radius:999px;padding:calc(.15rem - 1px) calc(.6rem - 1px);font-size:.75rem;font-weight:600">Best value</span>' : '<span style="border:1px solid var(--border);border-radius:999px;padding:.15rem .6rem;font-size:.75rem">One-time</span>'}</p>
 <p style="margin:.75rem 0 0;font-size:2.75rem;font-weight:700;letter-spacing:-.02em;line-height:1">${price} <span style="font-size:.85rem;font-weight:400;${dark ? 'color:#a3a3a3' : 'color:var(--muted)'}">once, forever</span></p>
 <ul style="margin:1rem 0 0;padding:0;list-style:none;${dark ? 'color:#d4d4d4' : 'color:var(--muted)'};font-size:.9rem">
 ${features.map((f) => `<li style="margin:.4rem 0">· ${esc(f)}</li>`).join('\n')}
@@ -3762,6 +3762,7 @@ table.cmp.plans td:nth-child(2),table.cmp.plans td:nth-child(3){color:inherit;fo
 table.cmp.plans th:nth-child(4),table.cmp.plans td:nth-child(4){background:oklch(0.5 0.18 265 / 0.06)}
 table.cmp.plans td:nth-child(4){color:#047857;font-weight:500}
 html.dark table.cmp:not(.plans) td:nth-child(2),html.dark table.cmp.plans td:nth-child(4){color:#34d399}
+@media (forced-colors:active){table.cmp:not(.plans) th:nth-child(2),table.cmp:not(.plans) td:nth-child(2),table.cmp.plans th:nth-child(4),table.cmp.plans td:nth-child(4){border-left:1px solid;border-right:1px solid}}
 .faq h3{margin:1.25rem 0 .25rem;font-size:1rem}
 .faq p{margin:0;color:var(--muted);font-size:.9375rem}
 </style>
