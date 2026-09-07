@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
@@ -352,6 +352,7 @@ function HeroResumeDrop() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [dragOver, setDragOver] = useState(false)
+  const errorId = useId()
 
   const handleFile = (file: File | undefined) => {
     if (!file || busy) return
@@ -377,6 +378,7 @@ function HeroResumeDrop() {
       <button
         type="button"
         disabled={busy}
+        aria-describedby={error ? errorId : undefined}
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault()
@@ -414,7 +416,11 @@ function HeroResumeDrop() {
           e.target.value = ''
         }}
       />
-      {error && <p className="text-destructive mt-2 text-xs">{error}</p>}
+      {error && (
+        <p id={errorId} role="alert" className="text-destructive mt-2 text-xs">
+          {error}
+        </p>
+      )}
       <p className="text-muted-foreground mt-2 text-xs">
         PDF, DOCX or TXT · read entirely in your browser — never uploaded to a server.
       </p>

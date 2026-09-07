@@ -3215,6 +3215,7 @@ export default function Builder() {
                 variant="outline"
                 size="sm"
                 className="min-h-10 sm:min-h-8"
+                aria-describedby={photoError ? 'photo-error' : undefined}
                 title="Optional photo shown top-right on the preview and PDF — many regions expect resumes without one"
                 onClick={() => photoInputRef.current?.click()}
               >
@@ -3263,7 +3264,11 @@ export default function Builder() {
                   img.src = url
                 }}
               />
-              {photoError && <span className="text-destructive text-xs">{photoError}</span>}
+              {photoError && (
+                <span id="photo-error" role="alert" className="text-destructive text-xs">
+                  {photoError}
+                </span>
+              )}
               {photoDraft && (
                 <PhotoCropDialog
                   draft={photoDraft}
@@ -10095,7 +10100,32 @@ export default function Builder() {
               </Button>
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-2">
+          <form
+            noValidate
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (rcBusy || !rcInput.trim()) return
+              const shareId = parseShareId(rcInput)
+              if (!shareId) {
+                setImportError('Paste a Resume Center share link or share ID.')
+                return
+              }
+              setRcBusy(true)
+              setImportError('')
+              fetchResumeProfile(shareId)
+                .then((rp) => {
+                  linkVersion(null)
+                  setResume(resumeFromProfile(rp))
+                  setImportOpen(false)
+                  setRcInput('')
+                })
+                .catch((err: unknown) =>
+                  setImportError(err instanceof Error ? err.message : 'Import failed.')
+                )
+                .finally(() => setRcBusy(false))
+            }}
+          >
             <span className="text-muted-foreground text-xs">or pull from Resume Center:</span>
             <input
               className="border-input bg-background h-8 min-w-0 flex-1 rounded-md border px-2 text-xs"
@@ -10103,39 +10133,26 @@ export default function Builder() {
               placeholder="Share link or share ID"
               value={rcInput}
               onChange={(e) => setRcInput(e.target.value)}
+              aria-invalid={importError ? true : undefined}
+              aria-describedby={importError ? 'import-error' : undefined}
             />
             <Button
-              type="button"
+              type="submit"
               variant="outline"
               size="sm"
               disabled={rcBusy || !rcInput.trim()}
-              onClick={() => {
-                const shareId = parseShareId(rcInput)
-                if (!shareId) {
-                  setImportError('Paste a Resume Center share link or share ID.')
-                  return
-                }
-                setRcBusy(true)
-                setImportError('')
-                fetchResumeProfile(shareId)
-                  .then((rp) => {
-                    linkVersion(null)
-                    setResume(resumeFromProfile(rp))
-                    setImportOpen(false)
-                    setRcInput('')
-                  })
-                  .catch((err: unknown) =>
-                    setImportError(err instanceof Error ? err.message : 'Import failed.')
-                  )
-                  .finally(() => setRcBusy(false))
-              }}
             >
               {rcBusy ? 'Importing…' : 'Import from Resume Center'}
             </Button>
-          </div>
-          {importError && <p className="text-destructive text-sm">{importError}</p>}
+          </form>
+          {importError && (
+            <p id="import-error" role="alert" className="text-destructive text-sm">
+              {importError}
+            </p>
+          )}
           <Textarea
             aria-label="Paste your resume text"
+            aria-describedby={importError ? 'import-error' : undefined}
             rows={12}
             placeholder={'Jordan Reyes\nSoftware Engineer\njordan@email.com | (555) 210-4432\n\nEXPERIENCE\nSoftware Engineer at Brightlane (Jun 2023 – Present)\n- Led migration of the checkout flow…'}
             value={importText}
@@ -11283,7 +11300,11 @@ function BundleToolDialog({
             Usually takes 15–40 seconds — the draft appears here for you to edit.
           </p>
         )}
-        {error && <p className="text-destructive text-sm">{error}</p>}
+        {error && (
+          <p role="alert" className="text-destructive text-sm">
+            {error}
+          </p>
+        )}
         {result && (
           <>
             {countLetterPlaceholders(result) > 0 && (
@@ -11755,7 +11776,11 @@ function BundleToolDialog({
                 Usually takes 15–40 seconds — feedback appears below.
               </p>
             )}
-            {feedbackError && <p className="text-destructive text-sm">{feedbackError}</p>}
+            {feedbackError && (
+              <p role="alert" className="text-destructive text-sm">
+                {feedbackError}
+              </p>
+            )}
             {feedback && (
               <Textarea
                 readOnly
@@ -11930,7 +11955,11 @@ function TailorDialog({
             )}
           </>
         )}
-        {error && <p className="text-destructive text-sm">{error}</p>}
+        {error && (
+          <p role="alert" className="text-destructive text-sm">
+            {error}
+          </p>
+        )}
         {rows !== null && rows.length === 0 && (
           <p className="text-sm">
             No changes suggested — your summary and bullets already read well against this job
@@ -12666,7 +12695,11 @@ function KeywordBulletDialog({
             )}
           </div>
         )}
-        {error && <p className="text-destructive text-sm">{error}</p>}
+        {error && (
+          <p role="alert" className="text-destructive text-sm">
+            {error}
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   )

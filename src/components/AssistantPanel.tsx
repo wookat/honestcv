@@ -471,7 +471,11 @@ export function AssistantPanel({
             <Loader2 className="size-3.5 animate-spin" /> Thinking…
           </div>
         )}
-        {error && <p className="text-destructive text-xs">{error}</p>}
+        {error && (
+          <p role="alert" className="text-destructive text-xs">
+            {error}
+          </p>
+        )}
       </div>
       {turns.length > 0 && report && (
         <p className="text-muted-foreground border-t px-4 py-1.5 text-xs">
