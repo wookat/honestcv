@@ -283,6 +283,87 @@ Start with a strong action verb. Output the single bullet as one line of plain t
   ]
 }
 
+const MONTHS: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11,
+}
+const DATE_TOKEN = String.raw`(?:[A-Za-z]{3,9}\.?\s+\d{4}|\d{4}-\d{2}|\d{1,2}/\d{4}|\d{4})`
+const PRESENT_TOKEN = String.raw`(?:Present|Current|Now|Today|Ongoing)`
+const DATE_RANGE_RE = new RegExp(
+  String.raw`\((${DATE_TOKEN})\s*[–—-]\s*(${DATE_TOKEN}|${PRESENT_TOKEN})\)`,
+  'i'
+)
+
+/** Month index (year*12+month) for a resume date token; null when unparseable. */
+function monthIndex(token: string, today: Date): number | null {
+  const t = token.trim()
+  if (new RegExp(`^${PRESENT_TOKEN}$`, 'i').test(t)) {
+    return today.getUTCFullYear() * 12 + today.getUTCMonth()
+  }
+  let m = /^([A-Za-z]{3,9})\.?\s+(\d{4})$/.exec(t)
+  if (m) {
+    const mon = MONTHS[m[1].slice(0, 4).toLowerCase()] ?? MONTHS[m[1].slice(0, 3).toLowerCase()]
+    return mon === undefined ? null : Number(m[2]) * 12 + mon
+  }
+  m = /^(\d{4})-(\d{2})$/.exec(t)
+  if (m) return Number(m[1]) * 12 + Number(m[2]) - 1
+  m = /^(\d{1,2})\/(\d{4})$/.exec(t)
+  if (m) return Number(m[2]) * 12 + Number(m[1]) - 1
+  m = /^(\d{4})$/.exec(t)
+  if (m) return Number(m[1]) * 12
+  return null
+}
+
+const formatMonths = (n: number): string => {
+  const y = Math.floor(n / 12)
+  const mo = n % 12
+  const parts = [y ? `${y} year${y === 1 ? '' : 's'}` : '', mo ? `${mo} month${mo === 1 ? '' : 's'}` : '']
+  return parts.filter(Boolean).join(' ') || 'under a month'
+}
+
+/**
+ * Deterministic tenure arithmetic for every "(start – end)" heading in the
+ * plain-text resume, so the model quotes durations instead of computing them
+ * (it has no clock and mis-estimates "July 2020 – Present").
+ */
+export function tenureFacts(resumeText: string, today = new Date()): string {
+  const lines: string[] = []
+  for (const raw of resumeText.split('\n')) {
+    const m = DATE_RANGE_RE.exec(raw)
+    if (!m) continue
+    const start = monthIndex(m[1], today)
+    let end = monthIndex(m[2], today)
+    if (start === null || end === null) continue
+    if (/^\d{4}$/.test(m[2].trim())) end += 11
+    const ongoing = new RegExp(`^${PRESENT_TOKEN}$`, 'i').test(m[2].trim())
+    const span = end - start + 1
+    const label = raw.slice(0, m.index).trim().replace(/[\s:–—-]+$/, '')
+    if (!label || span < 0) continue
+    lines.push(`- ${label} (${m[1].trim()} – ${m[2].trim()}): ${formatMonths(span)}${ongoing ? ', ongoing' : ''}`)
+    if (lines.length >= 12) break
+  }
+  return lines.join('\n')
+}
+
+const formatToday = (today: Date): string =>
+  today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+
+/**
+ * Rules and computed facts every resume-grounded coaching prompt shares:
+ * the current date, pre-computed tenures, and the ban on attributing
+ * anything to the candidate that the resume text does not state.
+ */
+export function groundingRules(resumeText: string, today = new Date()): string {
+  const tenure = tenureFacts(resumeText, today)
+  return `Grounding rules:
+- Today is ${formatToday(today)}. "Present" in the resume means today.${
+    tenure
+      ? ` Use these pre-computed lengths of service whenever you mention how long the candidate did something — never do the date arithmetic yourself:\n${tenure}`
+      : ''
+  }
+- Every statement about the candidate must be traceable to the resume text. Do not attribute tools, technologies, methods, employers, team sizes, remote or hybrid work, metrics, certifications or duties the resume does not state, even when the job description asks for them. When the job description needs something the resume does not show, name it as a gap to prepare an honest answer for — never as experience the candidate has.
+- Where a specific is unknown, write a bracketed placeholder such as [metric] or [project] instead of a guess.`
+}
+
 export function buildCoverLetterMessages(
   resumeText: string,
   jobDescription: string,
@@ -301,7 +382,7 @@ export function buildCoverLetterMessages(
   return [
     {
       role: 'system',
-      content: `You are an expert cover-letter writer.${toneLine} Write a concise, specific, one-page cover letter (250-350 words). Structure: hook tied to the company/role, 2 short paragraphs mapping the candidate's real experience to the job's needs, warm closing. Never fabricate experience. Plain text, no markdown. Start with "Dear Hiring Manager," unless an "Addressed to" name is given — then address that person directly ("Dear <name>,"). If the candidate lists details to highlight, weave them naturally into the body paragraphs (do not present them as a list). Do not include addresses or dates.`,
+      content: `You are an expert cover-letter writer.${toneLine} Write a concise, specific, one-page cover letter (250-350 words). Structure: hook tied to the company/role, 2 short paragraphs mapping the candidate's real experience to the job's needs, warm closing. Never fabricate experience: every skill, tool, employer, metric or duty you mention must appear in the candidate's resume or in the "details to highlight" — a job-description requirement the resume does not show is not the candidate's experience. Plain text, no markdown. Start with "Dear Hiring Manager," unless an "Addressed to" name is given — then address that person directly ("Dear <name>,"). If the candidate lists details to highlight, weave them naturally into the body paragraphs (do not present them as a list). Do not include addresses or dates.`,
     },
     {
       role: 'user',
@@ -343,12 +424,14 @@ export function buildResignationLetterMessages(
 export function buildInterviewQuestionsMessages(
   resumeText: string,
   jobDescription: string,
-  role: string
+  role: string,
+  today = new Date()
 ): ChatMessage[] {
   return [
     {
       role: 'system',
-      content: `You are the interviewer for the given role. Write exactly 5 interview questions tailored to this job description and this candidate's resume: a mix of behavioral questions probing their actual experience and role-specific questions from the JD's key requirements. Each question must be a single sentence under 200 characters. Reply with ONLY a JSON array of 5 strings — no markdown, no commentary.`,
+      content: `You are the interviewer for the given role. Write exactly 5 interview questions tailored to this job description and this candidate's resume: a mix of behavioral questions probing their actual experience and role-specific questions from the JD's key requirements. Behavioral questions may only reference employers, projects, tools and dates that appear in the resume text. Each question must be a single sentence under 200 characters. Reply with ONLY a JSON array of 5 strings — no markdown, no commentary.
+${groundingRules(resumeText, today)}`,
     },
     {
       role: 'user',
@@ -362,7 +445,8 @@ export function buildInterviewFeedbackMessages(
   answer: string,
   resumeText: string,
   jobDescription: string,
-  role: string
+  role: string,
+  today = new Date()
 ): ChatMessage[] {
   return [
     {
@@ -370,7 +454,8 @@ export function buildInterviewFeedbackMessages(
       content: `You are an interview coach reviewing one practice answer. Assess the candidate's answer to the given question and reply in plain text with exactly these headings:
 WHAT WORKED — 2-3 specific strengths of this answer.
 WHAT TO IMPROVE — 2-3 concrete, actionable fixes (structure, specificity, relevance to the role).
-STRONGER ANSWER — a rewritten answer the candidate could give, grounded only in their real resume content; where a specific detail is unknown, use a bracketed placeholder like [metric] or [project name]. Never invent experience the resume does not support. No markdown syntax beyond the plain headings above.`,
+STRONGER ANSWER — a rewritten answer the candidate could give, grounded only in their real resume content; where a specific detail is unknown, use a bracketed placeholder like [metric] or [project name]. Never invent experience the resume does not support. No markdown syntax beyond the plain headings above.
+${groundingRules(resumeText, today)}`,
     },
     {
       role: 'user',
@@ -382,17 +467,19 @@ STRONGER ANSWER — a rewritten answer the candidate could give, grounded only i
 export function buildInterviewBriefMessages(
   resumeText: string,
   jobDescription: string,
-  role: string
+  role: string,
+  today = new Date()
 ): ChatMessage[] {
   return [
     {
       role: 'system',
       content: `You are an interview coach. Produce a practical interview prep brief with exactly these sections, in plain text with these headings:
-LIKELY QUESTIONS — 8 questions this specific role/JD will ask, each followed by a one-line answer angle drawn from the candidate's real resume.
-YOUR STORIES — 3 STAR stories the candidate should prepare, built from their actual experience bullets.
+LIKELY QUESTIONS — 8 questions this specific role/JD will ask, each followed by a one-line answer angle drawn from the candidate's real resume (cite the employer or bullet it comes from; if the resume has nothing on the topic, say "no direct evidence — position it as a gap").
+YOUR STORIES — 3 STAR stories the candidate should prepare, each built from one actual experience bullet quoted from the resume; use bracketed placeholders for any detail the bullet does not give.
 QUESTIONS TO ASK — 4 sharp questions for the interviewer.
 GAPS TO PREPARE FOR — 2-3 likely weak spots vs the JD and how to address them honestly.
-Never fabricate experience. No markdown syntax beyond the plain headings above.`,
+Never fabricate experience. No markdown syntax beyond the plain headings above.
+${groundingRules(resumeText, today)}`,
     },
     {
       role: 'user',
