@@ -100,10 +100,13 @@ notes in R607 / R667 / R682 were seeing. Always `npm run build` (or `npm run dep
 - `Registered Nurse - ICU` still requires all three role words (1 row on the current feeds).
   Dropping the last word automatically would guess at the user's intent; a "broaden to
   ‘nurse’ (25)" suggestion when a multi-word query returns very few rows is the R721 candidate.
-- `barista` still returns 4 description-only rows ("free barista coffee" perks in Graphcore /
-  Funding Circle ads). Upstream really has ~19 barista rows (Remotive 17, Arbeitnow 2) but they
-  are not in the ≤200-per-feed windows the Worker pulls; R719's truthful header stays the
-  disclosure.
+- `barista` still returns 4 description-only rows ("free barista coffee" perks). Checked
+  upstream directly (2026-09-07): Remotive `search=barista` returns 17 rows, none a barista job
+  and none mentioning the word (its search is fuzzy, all 17 are dropped by the local gate);
+  Jobicy `tag=barista` returns 0; Arbeitnow's two pages (500 rows) contain the word only in
+  those 4 perk sentences. The three remote feeds simply carry no barista jobs — R719's
+  "No job title matches" header is the truthful state, and only an on-site source (R717 The
+  Muse with a city, or a keyed API) can change it.
 - Bracketed words are ranking-only, so `(Remote, UK)` treats `uk` as a title preference, not a
   location filter — the location box is the filter; the header line says so.
 - Grade equivalence is a fixed table (senior/sr/snr, junior/jr/jnr, vp); no stemming or
