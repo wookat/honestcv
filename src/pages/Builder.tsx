@@ -561,6 +561,8 @@ function useUndo(
   return { undo, canUndo, redo, canRedo }
 }
 
+const moveId = (list: string, index: number, dir: 'up' | 'down') => `move-${list}-${index}-${dir}`
+
 function moveItem<T>(arr: T[], index: number, delta: number): T[] {
   const next = index + delta
   if (next < 0 || next >= arr.length) return arr
@@ -1265,6 +1267,20 @@ export default function Builder() {
   )
   const targetedTrackedJob = targetedTrackedEntry?.job ?? null
   const focusAfterRender = useFocusAfterRender()
+  const [actionNote, setActionNote] = useState('')
+  const announce = (text: string) => {
+    setActionNote(text)
+    window.setTimeout(() => setActionNote((cur) => (cur === text ? '' : cur)), 1800)
+  }
+  /** Announces a Move up / Move down and keeps keyboard focus on the moved entry's arrow — the same
+   *  arrow, or the opposite one when the entry reached an end and that arrow is now disabled. */
+  const movedEntry = (list: string, noun: string, index: number, delta: number, length: number) => {
+    const to = index + delta
+    if (to < 0 || to >= length) return
+    const dir = delta < 0 ? 'up' : 'down'
+    announce(`${noun} moved ${dir} — now ${to + 1} of ${length}.`)
+    focusAfterRender(moveId(list, to, dir), moveId(list, to, dir === 'up' ? 'down' : 'up'))
+  }
   const focusAfterDownload = useFocusAfterRender({ onlyIfLost: true })
   const focusExportControl = (fmt: string) => {
     for (const id of ['dl-menu', `dl-${fmt}`]) {
@@ -2484,6 +2500,9 @@ export default function Builder() {
                   ? `${downloaded.toUpperCase()} downloaded.`
                   : ''}
             </p>
+            <p role="status" className="sr-only">
+              {actionNote}
+            </p>
             <Button
               id="dl-pdf"
               size="sm"
@@ -3506,13 +3525,15 @@ export default function Builder() {
                       size="sm"
                       className="h-10 sm:h-7"
                       disabled={idx === 0}
+                      id={moveId('experience', idx, 'up')}
                       title="Move up"
-                      onClick={() =>
+                      onClick={() => {
                         setResume((r) => ({
                           ...r,
                           experience: moveItem(r.experience, idx, -1),
                         }))
-                      }
+                        movedEntry('experience', 'Role', idx, -1, resume.experience.length)
+                      }}
                     >
                       <ArrowUp className="size-3.5" />
                     </Button>
@@ -3522,13 +3543,15 @@ export default function Builder() {
                       size="sm"
                       className="h-10 sm:h-7"
                       disabled={idx === resume.experience.length - 1}
+                      id={moveId('experience', idx, 'down')}
                       title="Move down"
-                      onClick={() =>
+                      onClick={() => {
                         setResume((r) => ({
                           ...r,
                           experience: moveItem(r.experience, idx, 1),
                         }))
-                      }
+                        movedEntry('experience', 'Role', idx, 1, resume.experience.length)
+                      }}
                     >
                       <ArrowDown className="size-3.5" />
                     </Button>
@@ -4161,10 +4184,12 @@ export default function Builder() {
                     size="sm"
                     className="h-9 shrink-0"
                     disabled={idx === 0}
+                    id={moveId('education', idx, 'up')}
                     title="Move up"
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({ ...r, education: moveItem(r.education, idx, -1) }))
-                    }
+                      movedEntry('education', 'Education', idx, -1, resume.education.length)
+                    }}
                   >
                     <ArrowUp className="size-3.5" />
                   </Button>
@@ -4174,10 +4199,12 @@ export default function Builder() {
                     size="sm"
                     className="h-9 shrink-0"
                     disabled={idx === resume.education.length - 1}
+                    id={moveId('education', idx, 'down')}
                     title="Move down"
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({ ...r, education: moveItem(r.education, idx, 1) }))
-                    }
+                      movedEntry('education', 'Education', idx, 1, resume.education.length)
+                    }}
                   >
                     <ArrowDown className="size-3.5" />
                   </Button>
@@ -4364,11 +4391,13 @@ export default function Builder() {
                       size="sm"
                       className="h-10 sm:h-7"
                       disabled={pIdx === 0}
+                      id={moveId('projects', pIdx, 'up')}
                       title="Move up"
                       aria-label={`Move project ${pIdx + 1} up`}
-                      onClick={() =>
+                      onClick={() => {
                         setResume((r) => ({ ...r, projects: moveItem(r.projects, pIdx, -1) }))
-                      }
+                        movedEntry('projects', 'Project', pIdx, -1, (resume.projects ?? []).length)
+                      }}
                     >
                       <ArrowUp className="size-3.5" />
                     </Button>
@@ -4378,11 +4407,13 @@ export default function Builder() {
                       size="sm"
                       className="h-10 sm:h-7"
                       disabled={pIdx === resume.projects.length - 1}
+                      id={moveId('projects', pIdx, 'down')}
                       title="Move down"
                       aria-label={`Move project ${pIdx + 1} down`}
-                      onClick={() =>
+                      onClick={() => {
                         setResume((r) => ({ ...r, projects: moveItem(r.projects, pIdx, 1) }))
-                      }
+                        movedEntry('projects', 'Project', pIdx, 1, (resume.projects ?? []).length)
+                      }}
                     >
                       <ArrowDown className="size-3.5" />
                     </Button>
@@ -4910,14 +4941,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={invIdx === 0}
+                    id={moveId('involvement', invIdx, 'up')}
                     title="Move up"
                     aria-label={`Move involvement ${invIdx + 1} up`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         involvement: moveItem(r.involvement ?? [], invIdx, -1),
                       }))
-                    }
+                      movedEntry('involvement', 'Involvement', invIdx, -1, (resume.involvement ?? []).length)
+                    }}
                   >
                     <ArrowUp className="size-3.5" />
                   </Button>
@@ -4927,14 +4960,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={invIdx === (resume.involvement ?? []).length - 1}
+                    id={moveId('involvement', invIdx, 'down')}
                     title="Move down"
                     aria-label={`Move involvement ${invIdx + 1} down`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         involvement: moveItem(r.involvement ?? [], invIdx, 1),
                       }))
-                    }
+                      movedEntry('involvement', 'Involvement', invIdx, 1, (resume.involvement ?? []).length)
+                    }}
                   >
                     <ArrowDown className="size-3.5" />
                   </Button>
@@ -5326,14 +5361,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={cwIdx === 0}
+                    id={moveId('coursework', cwIdx, 'up')}
                     title="Move up"
                     aria-label={`Move coursework ${cwIdx + 1} up`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         coursework: moveItem(r.coursework ?? [], cwIdx, -1),
                       }))
-                    }
+                      movedEntry('coursework', 'Coursework', cwIdx, -1, (resume.coursework ?? []).length)
+                    }}
                   >
                     <ArrowUp className="size-3.5" />
                   </Button>
@@ -5343,14 +5380,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={cwIdx === (resume.coursework ?? []).length - 1}
+                    id={moveId('coursework', cwIdx, 'down')}
                     title="Move down"
                     aria-label={`Move coursework ${cwIdx + 1} down`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         coursework: moveItem(r.coursework ?? [], cwIdx, 1),
                       }))
-                    }
+                      movedEntry('coursework', 'Coursework', cwIdx, 1, (resume.coursework ?? []).length)
+                    }}
                   >
                     <ArrowDown className="size-3.5" />
                   </Button>
@@ -5590,14 +5629,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={aIdx === 0}
+                    id={moveId('awards', aIdx, 'up')}
                     title="Move up"
                     aria-label={`Move award ${aIdx + 1} up`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         awards: moveItem(r.awards ?? [], aIdx, -1),
                       }))
-                    }
+                      movedEntry('awards', 'Award', aIdx, -1, (resume.awards ?? []).length)
+                    }}
                   >
                     <ArrowUp className="size-3.5" />
                   </Button>
@@ -5607,14 +5648,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={aIdx === (resume.awards ?? []).length - 1}
+                    id={moveId('awards', aIdx, 'down')}
                     title="Move down"
                     aria-label={`Move award ${aIdx + 1} down`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         awards: moveItem(r.awards ?? [], aIdx, 1),
                       }))
-                    }
+                      movedEntry('awards', 'Award', aIdx, 1, (resume.awards ?? []).length)
+                    }}
                   >
                     <ArrowDown className="size-3.5" />
                   </Button>
@@ -5880,14 +5923,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={pubIdx === 0}
+                    id={moveId('publications', pubIdx, 'up')}
                     title="Move up"
                     aria-label={`Move publication ${pubIdx + 1} up`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         publications: moveItem(r.publications ?? [], pubIdx, -1),
                       }))
-                    }
+                      movedEntry('publications', 'Publication', pubIdx, -1, (resume.publications ?? []).length)
+                    }}
                   >
                     <ArrowUp className="size-3.5" />
                   </Button>
@@ -5897,14 +5942,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={pubIdx === (resume.publications ?? []).length - 1}
+                    id={moveId('publications', pubIdx, 'down')}
                     title="Move down"
                     aria-label={`Move publication ${pubIdx + 1} down`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         publications: moveItem(r.publications ?? [], pubIdx, 1),
                       }))
-                    }
+                      movedEntry('publications', 'Publication', pubIdx, 1, (resume.publications ?? []).length)
+                    }}
                   >
                     <ArrowDown className="size-3.5" />
                   </Button>
@@ -6184,14 +6231,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={refIdx === 0}
+                    id={moveId('references', refIdx, 'up')}
                     title="Move up"
                     aria-label={`Move reference ${refIdx + 1} up`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         references: moveItem(r.references ?? [], refIdx, -1),
                       }))
-                    }
+                      movedEntry('references', 'Reference', refIdx, -1, (resume.references ?? []).length)
+                    }}
                   >
                     <ArrowUp className="size-3.5" />
                   </Button>
@@ -6201,14 +6250,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={refIdx === (resume.references ?? []).length - 1}
+                    id={moveId('references', refIdx, 'down')}
                     title="Move down"
                     aria-label={`Move reference ${refIdx + 1} down`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         references: moveItem(r.references ?? [], refIdx, 1),
                       }))
-                    }
+                      movedEntry('references', 'Reference', refIdx, 1, (resume.references ?? []).length)
+                    }}
                   >
                     <ArrowDown className="size-3.5" />
                   </Button>
@@ -6478,14 +6529,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={mIdx === 0}
+                    id={moveId('military', mIdx, 'up')}
                     title="Move up"
                     aria-label={`Move military service ${mIdx + 1} up`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         military: moveItem(r.military ?? [], mIdx, -1),
                       }))
-                    }
+                      movedEntry('military', 'Military service', mIdx, -1, (resume.military ?? []).length)
+                    }}
                   >
                     <ArrowUp className="size-3.5" />
                   </Button>
@@ -6495,14 +6548,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={mIdx === (resume.military ?? []).length - 1}
+                    id={moveId('military', mIdx, 'down')}
                     title="Move down"
                     aria-label={`Move military service ${mIdx + 1} down`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         military: moveItem(r.military ?? [], mIdx, 1),
                       }))
-                    }
+                      movedEntry('military', 'Military service', mIdx, 1, (resume.military ?? []).length)
+                    }}
                   >
                     <ArrowDown className="size-3.5" />
                   </Button>
@@ -6644,14 +6699,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={agIdx === 0}
+                    id={moveId('agents', agIdx, 'up')}
                     title="Move up"
                     aria-label={`Move agent ${agIdx + 1} up`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         agents: moveItem(r.agents ?? [], agIdx, -1),
                       }))
-                    }
+                      movedEntry('agents', 'Agent', agIdx, -1, (resume.agents ?? []).length)
+                    }}
                   >
                     <ArrowUp className="size-3.5" />
                   </Button>
@@ -6661,14 +6718,16 @@ export default function Builder() {
                     size="sm"
                     className="min-h-10 shrink-0 sm:min-h-9"
                     disabled={agIdx === (resume.agents ?? []).length - 1}
+                    id={moveId('agents', agIdx, 'down')}
                     title="Move down"
                     aria-label={`Move agent ${agIdx + 1} down`}
-                    onClick={() =>
+                    onClick={() => {
                       setResume((r) => ({
                         ...r,
                         agents: moveItem(r.agents ?? [], agIdx, 1),
                       }))
-                    }
+                      movedEntry('agents', 'Agent', agIdx, 1, (resume.agents ?? []).length)
+                    }}
                   >
                     <ArrowDown className="size-3.5" />
                   </Button>
@@ -7044,14 +7103,16 @@ export default function Builder() {
                       size="sm"
                       className="min-h-10 shrink-0 sm:min-h-9"
                       disabled={cIdx === 0}
+                      id={moveId('certItems', cIdx, 'up')}
                       title="Move up"
                       aria-label={`Move certification ${cIdx + 1} up`}
-                      onClick={() =>
+                      onClick={() => {
                         setResume((r) => ({
                           ...r,
                           certItems: moveItem(r.certItems ?? [], cIdx, -1),
                         }))
-                      }
+                        movedEntry('certItems', 'Certification', cIdx, -1, (resume.certItems ?? []).length)
+                      }}
                     >
                       <ArrowUp className="size-3.5" />
                     </Button>
@@ -7061,14 +7122,16 @@ export default function Builder() {
                       size="sm"
                       className="min-h-10 shrink-0 sm:min-h-9"
                       disabled={cIdx === (resume.certItems ?? []).length - 1}
+                      id={moveId('certItems', cIdx, 'down')}
                       title="Move down"
                       aria-label={`Move certification ${cIdx + 1} down`}
-                      onClick={() =>
+                      onClick={() => {
                         setResume((r) => ({
                           ...r,
                           certItems: moveItem(r.certItems ?? [], cIdx, 1),
                         }))
-                      }
+                        movedEntry('certItems', 'Certification', cIdx, 1, (resume.certItems ?? []).length)
+                      }}
                     >
                       <ArrowDown className="size-3.5" />
                     </Button>
@@ -7384,13 +7447,15 @@ export default function Builder() {
                       size="sm"
                       className="h-10 sm:h-7"
                       disabled={idx === 0}
+                      id={moveId('sectionOrder', idx, 'up')}
                       title="Move up"
-                      onClick={() =>
+                      onClick={() => {
                         setResume((r) => ({
                           ...r,
                           sectionOrder: moveItem(orderedSectionKeys(r), idx, -1),
                         }))
-                      }
+                        movedEntry('sectionOrder', `${sectionLabel(resume, key)} section`, idx, -1, orderedSectionKeys(resume).length)
+                      }}
                     >
                       <ArrowUp className="size-3.5" />
                     </Button>
@@ -7400,13 +7465,15 @@ export default function Builder() {
                       size="sm"
                       className="h-10 sm:h-7"
                       disabled={idx === keys.length - 1}
+                      id={moveId('sectionOrder', idx, 'down')}
                       title="Move down"
-                      onClick={() =>
+                      onClick={() => {
                         setResume((r) => ({
                           ...r,
                           sectionOrder: moveItem(orderedSectionKeys(r), idx, 1),
                         }))
-                      }
+                        movedEntry('sectionOrder', `${sectionLabel(resume, key)} section`, idx, 1, orderedSectionKeys(resume).length)
+                      }}
                     >
                       <ArrowDown className="size-3.5" />
                     </Button>
