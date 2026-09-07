@@ -2686,3 +2686,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 生产 QA（index-uSMKYuvU.js）：`r678-forced.cjs` 1280/375 八路由聚焦无 outline 0/0（builder 用 CLEAR_DRAFT=1 避开「Load this example?」弹窗 inert）；CTA `<a>`/`<button>`/`Textarea` 失焦→聚焦像素 diff 为 2px 环、rest 无环；普通渲染 `r667-focus.cjs` 亮/暗 × 1280/375 弱/无 0（唯一额外命中是「Load this example?」弹窗 Close × 的 `ring-offset` 背景层被扫描器当环读成 1:1，`qa/r678-dialogclose.cjs` 像素实测真环 `oklch(0.5 0.18 265) 4px` 有渲染，非缺口）；`r670-verify.cjs` 48 组对 R674 快照 42 组相同、6 组仅 builder 角色行 top 随草稿内容变化（x/宽/高相同）；console 0；存储回基线。
 - 如实未验证：真实 Windows 高对比度（仅 CDP 媒体模拟，系统色/焦点色取自 Chrome 模拟调色板）；真实读屏；真机。
 - 顺带量到但未改（R679 候选）：`Button asChild` 的 `<a>`（首页全部 CTA）`border:0`，forced-colors 去掉背景后只剩黄色文字、无按钮外框，而真 `<button>` 有 UA `ButtonBorder`；需单独取证设计。
+
+### R679 — forced-colors 下 Button 的 default/destructive/secondary/ghost 变体补 1px 外框（Windows 高对比度主按钮不再是裸文字，链 #899 → 本 PR）
+
+- 取证（`qa/r679-evidence.cjs 1280`，CDP forced-colors:active，index-uSMKYuvU.js）：R678 注记的「`<a>` 无框」实为**所有靠背景表意的变体**——forced-colors 抹掉 background/box-shadow 后 `default/destructive/secondary/ghost` 均 `border-width:0`，渲染为与正文无异的裸文字；`outline` 变体有 `border` 保留外框。8 路由 `data-slot=button` 无框数：/ 9、builder 34、dashboard 12、jobs 3、documents 2、ats 2、samples 11。像素证据 `qa/shots/r679-combo.png`：dashboard「Create new resume」（主按钮）白字无框，旁边「Back up everything」（outline）有框——视觉层级倒置，主动作是唯一看起来不像按钮的。真 `<button>` 也没有 UA 边框（Tailwind preflight 已归零），R678 注记中「真 button 有 ButtonBorder」的推断不成立，已更正。
+- 方案 docs/plan-r679-forced-colors-button-frame.md：`ui/button.tsx` 四个变体前缀 `forced-colors:border`（Tailwind 4.3.3 内建变体 → `@media (forced-colors:active){border-style:solid;border-width:1px}`，颜色由系统调色板强制），`link` 变体保持链接外观不加。普通亮/暗渲染 CSS 惰性、字节不变。
+- 生产 QA（index-CdsS47gU.js）：`r679-evidence.cjs` 1280 八路由 + 375 四路由，`data-slot=button` 无框仅剩首页 5 个 `variant="link"`（有意）；「Create new resume」bw 0→1px，hero CTA `<a>` 截图有 LinkText 色外框。普通渲染 `qa/r679-normal.cjs before/after` 三控件（dashboard 主按钮 / hero CTA / builder ghost 图标键）像素 diff 均 None、盒几何不变。`r678-forced.cjs` 1280 聚焦无 outline 仍 0；console 0；存储回基线。
+- 如实未验证：真实 Windows 高对比度；未改的还有非 `Button` 的裸 `<button>`（分段控件/芯片/pane switcher，每路由 11–44 个）与静态 /pricing 的 `<a>` CTA——R680 候选。
