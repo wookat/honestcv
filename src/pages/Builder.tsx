@@ -114,6 +114,7 @@ import {
   aiSummaryDraft,
   aiTailor,
   fetchAiQuota,
+  isAbortError,
 } from '@/lib/api'
 import {
   type AtsResult,
@@ -10768,10 +10769,18 @@ function BundleToolDialog({
   const [overwriteWarn, setOverwriteWarn] = useState<'generate' | 'template' | 'finish' | null>(null)
   /** Model text received so far while a cover letter / brief is being generated (shown read-only). */
   const [live, setLive] = useState('')
+  const [stopped, setStopped] = useState(false)
   const resultRef = useRef<HTMLTextAreaElement>(null)
   const liveRef = useRef<HTMLTextAreaElement>(null)
   /** Keep the live draft scrolled to its newest line unless the reader scrolled up. */
   const followLive = useRef(true)
+  /** In-flight generation; aborting it also tells the Worker to stop the model. */
+  const writing = useRef<AbortController | null>(null)
+  const stopWriting = () => writing.current?.abort()
+  useEffect(() => {
+    if (kind === null) writing.current?.abort()
+    return () => writing.current?.abort()
+  }, [kind])
   useEffect(() => {
     if (!live) followLive.current = true
     const el = liveRef.current
@@ -10841,7 +10850,7 @@ function BundleToolDialog({
     entries: { q: string; a: string; fb: string; score: number | null }[]
   } | null>(null)
   const [lastKind, setLastKind] = useState(kind)
-  const [confirmingClose, setConfirmingClose] = useState<false | 'close' | 'jump'>(false)
+  const [confirmingClose, setConfirmingClose] = useState<false | 'close' | 'jump' | 'busy'>(false)
   const [timerStart, setTimerStart] = useState<number | null>(null)
   const [timerNow, setTimerNow] = useState(0)
   const [elapsedSec, setElapsedSec] = useState<number | null>(null)
@@ -10947,6 +10956,7 @@ function BundleToolDialog({
     setAnswer('')
     setTimerStart(null)
     setElapsedSec(null)
+    setStopped(false)
   }
 
   const docFileName = (ext: string) =>
@@ -11062,21 +11072,27 @@ function BundleToolDialog({
   const generate = async () => {
     setBusy(true)
     setError('')
+    setStopped(false)
+    const run = new AbortController()
+    writing.current = run
     try {
       if (kind === 'resignation') {
         if (!company.trim() || !currentRole.trim()) {
           setError('Fill in your company and current role first.')
           return
         }
-        const { text, freeRemaining } = await aiResignationLetter({
-          company,
-          role: currentRole,
-          lastDay,
-          reason,
-          name: resume.contact.fullName,
-          language: resume.language,
-          tone: letterTone || undefined,
-        })
+        const { text, freeRemaining } = await aiResignationLetter(
+          {
+            company,
+            role: currentRole,
+            lastDay,
+            reason,
+            name: resume.contact.fullName,
+            language: resume.language,
+            tone: letterTone || undefined,
+          },
+          run.signal
+        )
         applyResult(text)
         setSavedId(null)
     setSaveDocFailed(false)
@@ -11102,7 +11118,8 @@ function BundleToolDialog({
                 language: resume.language,
                 tone: letterTone || undefined,
               },
-              setLive
+              setLive,
+              run.signal
             )
           : await aiInterviewBrief(
               {
@@ -11110,15 +11127,18 @@ function BundleToolDialog({
                 jobDescription: jd,
                 role: aiTargetRole(resume),
               },
-              setLive
+              setLive,
+              run.signal
             )
       applyResult(text)
       setSavedId(null)
     setSaveDocFailed(false)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
-      setError((e as Error).message)
+      if (run.signal.aborted || isAbortError(e)) setStopped(true)
+      else setError((e as Error).message)
     } finally {
+      if (writing.current === run) writing.current = null
       setLive('')
       setBusy(false)
     }
@@ -11233,7 +11253,8 @@ function BundleToolDialog({
     useCallback(() => setConfirmingClose('close'), [])
   )
   const requestClose = () => {
-    if (unsavedWork) setConfirmingClose('close')
+    if (busy) setConfirmingClose('busy')
+    else if (unsavedWork) setConfirmingClose('close')
     else onClose()
   }
   return (
@@ -11242,10 +11263,16 @@ function BundleToolDialog({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {kind === 'interview' ? 'Close interview practice?' : 'Close without saving?'}
+              {confirmingClose === 'busy'
+                ? `Still writing your ${docKindNoun(kind)}`
+                : kind === 'interview'
+                  ? 'Close interview practice?'
+                  : 'Close without saving?'}
             </DialogTitle>
             <DialogDescription>
-              {kind === 'interview'
+              {confirmingClose === 'busy'
+                ? 'Closing now stops the draft — it will not be finished in the background. A free AI use is only spent on a finished draft.'
+                : kind === 'interview'
                 ? resultAtRisk
                   ? 'Your current session, typed answer and unsaved prep brief will be lost.'
                   : session !== null || answer.trim() !== ''
@@ -11260,18 +11287,19 @@ function BundleToolDialog({
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setConfirmingClose(false)}>
-              Keep working
+              {confirmingClose === 'busy' ? 'Keep writing' : 'Keep working'}
             </Button>
             <Button
               variant="destructive"
               onClick={() => {
                 const action = confirmingClose
                 setConfirmingClose(false)
+                if (action === 'busy') stopWriting()
                 if (action === 'jump') onJumpToTarget()
                 else onClose()
               }}
             >
-              Discard and close
+              {confirmingClose === 'busy' ? 'Stop and close' : 'Discard and close'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -11486,22 +11514,29 @@ function BundleToolDialog({
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {busy ? 'Writing…' : result ? 'Regenerate' : 'Generate'}
           </Button>
-          <Button
-            className="min-h-10 sm:min-h-9"
-            variant="outline"
-            onClick={() => requestOverwrite('template')}
-            disabled={busy}
-          >
-            Start from a template
-          </Button>
+          {busy ? (
+            <Button className="min-h-10 sm:min-h-9" variant="outline" onClick={stopWriting}>
+              Stop
+            </Button>
+          ) : (
+            <Button
+              className="min-h-10 sm:min-h-9"
+              variant="outline"
+              onClick={() => requestOverwrite('template')}
+            >
+              Start from a template
+            </Button>
+          )}
         </div>
-        {busy && (
+        {(busy || stopped) && (
           <p className="text-muted-foreground text-xs" role="status">
-            {kind === 'resignation'
-              ? 'Usually takes 15–40 seconds — the draft appears here for you to edit.'
-              : live
-                ? 'Writing… you can read along; editing unlocks when the draft is complete.'
-                : 'Starting… the first words usually appear within 10–30 seconds and the draft builds up here.'}
+            {stopped
+              ? 'Stopped. Nothing was kept from the unfinished draft; a free AI use is only spent on a finished one.'
+              : kind === 'resignation'
+                ? 'Usually takes 15–40 seconds — the draft appears here for you to edit.'
+                : live
+                  ? 'Writing… you can read along; editing unlocks when the draft is complete.'
+                  : 'Starting… the first words usually appear within 10–30 seconds and the draft builds up here.'}
           </p>
         )}
         {busy && live && (
