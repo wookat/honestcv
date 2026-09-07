@@ -2649,3 +2649,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 方案 docs/plan-r673-hero-ctas-wrap-sm.md：Landing.tsx CTA 行 `sm:flex-row` → `sm:flex-row sm:flex-wrap`，放得下时几何不变、放不下时第二颗换行居中。
 - 生产 QA（index-Be73VzZf.js）：640 十路由 625/625、溢出根 0；375 十路由 360/360；默认排版 640/700/768/1280 两颗 CTA 几何逐项不变；`r670-verify.cjs` 48 组对 R672 快照 0 差异；零 console 错误；应用存储键不变。
 - 如实未验证：真实浏览器 200% 缩放（以 640 视口等效）；真机。
+
+### R674 — 弹窗在矮视口（横屏手机 667×375）顶部 Close × 与底部按钮同时被截且不可滚动（链 #894 → 本 PR）
+
+- 取证（index-Be73VzZf.js，`qa/r674-dialogs-landscape.cjs 667` H=375）：R665 起弹窗审计只跑过 812 高。667×375 下 dashboard「Start a new resume」默认即 −43..419（视口 375）、无滚动；加 1.4.12 间距后 LinkedIn 导入 −5..381、builder Copies −55..431 同样截断。Radix 锁 body 滚动 + `fixed` 居中 + 无 `max-h` → Close × 与操作按钮都到不了（触控无 Esc）。R620 只单独修过 Resume settings；51 个 DialogContent 有 36 个无 max-h。同批先量了 375/1280（812 高）9 弹窗在 1.4.12 间距下：无新溢出/裁切/重叠，非缺口。
+- 方案 docs/plan-r674-dialog-max-height.md：`ui/dialog.tsx` DialogContent 默认加 `max-h-[calc(100dvh-2rem)] overflow-y-auto`，一处覆盖全部弹窗；已有 `max-h-[85/90vh]` 者经 tailwind-merge 覆盖不变。
+- 生产 QA（index-DeqeoDPH.js）：667×375 九弹窗全部在视口内、超高者自身可滚、Close 与末按钮 elementFromPoint 命中；812 高 375/1280 九弹窗几何逐项不变；`r670-verify.cjs` 48 组对 R673 快照 0 差异；零 console 错误；存储回基线。
+- 如实未验证：真机横屏（软键盘弹出后的 dvh）；需数据才能打开的其余 27 个弹窗仅同原语推断。
