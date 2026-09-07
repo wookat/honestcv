@@ -11961,6 +11961,15 @@ function TailorDialog({
   const [rows, setRows] = useState<TailorSuggestion[] | null>(null)
   const [snapshot, setSnapshot] = useState<Resume>(resume)
   const [confirmingClose, setConfirmingClose] = useState<'busy' | 'pending' | null>(null)
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    if (!busy) return
+    const t = window.setTimeout(() => setSlow(true), 45_000)
+    return () => {
+      window.clearTimeout(t)
+      setSlow(false)
+    }
+  }, [busy])
 
   const run = async () => {
     setSnapshot(resume)
@@ -12056,8 +12065,9 @@ function TailorDialog({
             </Button>
             {busy && (
               <p className="text-muted-foreground text-xs" role="status">
-                Usually takes 15–40 seconds — every line comes back for your review before
-                anything changes.
+                {slow
+                  ? 'Taking longer than usual — if the first AI reply was unusable we ask it once more before giving up. Your free AI uses are only spent on a successful result.'
+                  : 'Usually takes 15–40 seconds — every line comes back for your review before anything changes.'}
               </p>
             )}
           </>
