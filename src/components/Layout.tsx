@@ -213,7 +213,11 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
         <Link to="/" className="flex min-w-0 items-center gap-2 font-semibold">
           <LogoMark className="size-6 shrink-0" />
           <span className="truncate max-[359px]:sr-only">RezUp</span>
-          <span className="text-muted-foreground hidden text-xs font-normal sm:inline">by Zalize</span>
+          <span
+            className={`text-muted-foreground hidden text-xs font-normal sm:inline ${navAt === 'lg' ? 'lg:hidden xl:inline' : 'md:hidden lg:inline'}`}
+          >
+            by Zalize
+          </span>
         </Link>
         <nav
           aria-label="Main"

@@ -2635,3 +2635,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 首版（index-C1s9V2L_.js）生产实测推翻方案假设——/builder 375 **默认**排版品牌字样被截成「Rez…」：R670 页头内容 82.22 + 258 − 8 = 332.2 > 328 容器内宽，此前靠右组溢出 4px 藏在内边距里，`min-w-0` 后由品牌承担。二版（index-BjDh0t2L.js，负边距移到右组）仍 332.2；三版收紧 `<sm` gap 与 `-mr-3` → 324.2 才通过。教训：改 `min-w-0`/`shrink` 前先量默认排版是否已经靠溢出撑着。
 - 生产 QA（index-DMBnqyNn.js）：`r671-textspacing.cjs` 375 全部 360/360、新裁切 0；1280 全部 1265/1265、新裁切仅 hero 装饰预览；`r671-hdr.cjs` 默认 brand 16–98 / Menu 316–356，加间距后 brand 16–102（省略）/ Menu 仍 316–356；`r670-verify.cjs` 48 组对 R670 after 快照 50 处差异全部为有意：`<sm` 各路由 Menu/右组右移 4px（Menu 右缘统一为视口 −4px，即 R670 时 /builder 的位置）46 处 + 首页 320 徽章两行使 CTA 下移 15px 4 处；零 console 错误；存储键回基线。
 - 如实未验证：真实浏览器扩展/用户样式表（等价 CSS 注入）；真机；加间距后品牌字样以省略号收缩是有意取舍（Menu 可达优先，链接可访问名仍为 RezUp）。
+
+### R672 — 页头副标「by Zalize」在桌面 nav 出现的那一档让位：修 R671 在 768–≈800 引入的默认「Rez…」回归 + 既有「ATS Checker」折行（链 #892 → 本 PR）
+
+- 生产取证（index-DMBnqyNn.js，`qa/r672-hdr.cjs`/`r672-hdr768.cjs`/`r672-hdr768b.cjs`）：768 默认排版 `/` 品牌 16–149、nav 149–605、右组 605–737 首尾相接（容器内宽 721 被占满）；字样 span clientWidth 46 < scrollWidth 50 → 「Rez…」，副标两行，nav「ATS Checker」两行（/jobs 字样 43）。页内去掉 `min-w-0`/`truncate` 复现 R670 版：字样完整、副标与「ATS Checker」仍两行 → R671 的回归是字样被一起压缩；副标/nav 折行为既有问题。800 默认刚好（49.8/50），900 起宽松。/builder（navAt=lg）1024 同构：品牌 16–155 与 nav 155–633 相接。整页无横向滚动，是页头内部挤压。
+- 方案 docs/plan-r672-header-tagline.md：Layout.tsx 副标 `hidden sm:inline` 追加 `${navAt==='lg' ? 'lg:hidden xl:inline' : 'md:hidden lg:inline'}`——在桌面 nav 出现的第一档隐藏、下一档恢复。nav gap/字号、右组不动。
+- 生产 QA（index-Bhsgxnfj.js）：768/800/900 `/`、/jobs 字样 50.2/50 完整、副标 display none、nav 自然宽 484 一行（768 `/`：brand 16–98 / nav 110–593 / grp 605–737）；1024 /builder brand 16–98 / nav 124–608；1280 全部与 R671 一致（副标恢复）。加 1.4.12 间距后 768：brand 16–67（省略）、nav 67–595、grp 595–737，三段不重叠，nav 全部可见。`r670-verify.cjs` 48 组对 R671 快照 **0 差异**；`r671-textspacing.cjs` 375 十路由 360/360、新裁切 0；零 console 错误；存储回基线。
+- 如实未验证：真机；768–1023（builder 1024–1279）副标隐藏是取舍；加间距后 768 字样省略仍是 R671 的兜底。
