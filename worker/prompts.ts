@@ -167,20 +167,20 @@ export function buildTailorMessages(
   jobDescription: string,
   role: string
 ): ChatMessage[] {
-  const list = items
+  const list = `[\n${items
     .map((i) => JSON.stringify({ id: i.id, kind: i.kind, text: i.text.slice(0, 500) }))
-    .join('\n')
+    .join(',\n')}\n]`
   return [
     {
       role: 'system',
       content: `${SYSTEM_WRITER}
 You are tailoring an existing resume to one specific job description.
 For each input item, decide whether rewording it toward the JD makes it stronger. Mirror the JD's exact keywords and phrasing ONLY where the underlying fact is already in the item's text — never add tools, metrics, scope, or responsibilities the item does not contain.
-Output STRICT JSON only: an array of objects {"id": string, "text": string} for the items you changed. Omit items that are already well-tailored. No markdown fences, no commentary.`,
+Output STRICT JSON only: one array of objects {"id": string, "text": string} for the items you changed, e.g. [{"id":"b0","text":"…"},{"id":"b2","text":"…"}]. Omit items that are already well-tailored. Not one object per line — a single array. No markdown fences, no commentary.`,
     },
     {
       role: 'user',
-      content: `Target role: ${role || 'not specified'}\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nResume items (JSON, one per line):\n${list}`,
+      content: `Target role: ${role || 'not specified'}\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nResume items (JSON array):\n${list}`,
     },
   ]
 }

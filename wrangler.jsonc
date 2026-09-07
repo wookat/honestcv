@@ -25,6 +25,8 @@
     // LS_VARIANT_*_ID / LICENSE_SIGNING_SECRET are set via
     // `wrangler secret put` or .dev.vars. Never hardcode secrets here.
     "LLM_MODEL": "glm-5.2",
+    // GLM 5.x reasons by default; the writer tasks don't need it.
+    "LLM_THINKING": "disabled",
     // Checkout switch: only takes effect once Lemon Squeezy is fully configured.
     // While "false" the buy button degrades to an email waitlist (POST /api/leads).
     "CHECKOUT_ENABLED": "true",
