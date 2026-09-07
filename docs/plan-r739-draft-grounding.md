@@ -51,6 +51,10 @@ Word-level, English, advisory: it cannot prove a draft true or false, an invente
 
 Deployed `index-DRl6OsVc.js` / `Builder-DuwWAO7A.js` (first deploy; Routes listing `code 10000` as always). Plain rewrite picker → "…nothing flagged", no lists; key-numbers picker → conditional copy, one candidate "Keyword-focused · check before using" with `aria-describedby=variant-flags-2` resolving to the amber list `technical quality` / `architecting`; Suggest a bullet with the Perk duty → "Marked below…", list `design documents, multi-sided, booking`, button **Apply anyway**; editing the textarea to resume facts → "…nothing flagged", button **Apply to entry**; Apply anyway appends the line as written (5 bullets); Complete line 4 on fragment "Wrote customer-facing analytics" → grounded completion clean + **Replace line**, JD-borrowing completion → `multi-sided, booking` + **Replace line anyway**, which replaces line 4 only. 0 horizontal overflow at 375, 0 console errors, storage back to baseline. Shots `qa/shots/r739/`.
 
+## Prompt sample after deploy (1 real call, `qa/r739-prompt-sample.cjs`)
+
+Same Northstar entry + Perk ad as R738. R738 (old prompt): "Authored technical design documents for a multi-sided booking experience across [number] internal teams…" — an ad duty stated as history. R739 prompt: "Collaborated with product managers and designers to shape the frontend roadmap for [product area], translating customer feedback into [add number] prioritized features and reducing manual support work by [add %]." — unknowns are placeholders, but `shape` is the ad's verb (`shaping` ×3, `Shape` ×1; resume never) and the live check marked it (`Wording from the job ad that your resume never uses: shape`, button **Apply anyway**). One sample; it shows the shape of the answer changed, not that borrowing stopped — the post-check remains the safeguard.
+
 ## Gates
 
 tsc app + worker, eslint (changed files; pre-existing `exhaustive-deps` warning only), `npm run build`, `node scripts/verify-dist.mjs` — green. Prettier `--check` on `grounding.ts` / `prompts.ts` reports pre-existing formatting only (same on base).
