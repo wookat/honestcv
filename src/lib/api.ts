@@ -19,17 +19,25 @@ const JOB_DESCRIPTION_MAX = 9_000
 const SCORE_SUMMARY_MAX = 3_000
 const TURN_CONTENT_MAX = 2_500
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+/** True for the rejection `fetch` / `reader.read()` produce when the caller's
+ * AbortSignal fires; callers treat it as "stopped", not as a failure. */
+export const isAbortError = (e: unknown) =>
+  e instanceof DOMException && e.name === 'AbortError'
+
+async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
   let res: Response
   try {
     res = await fetch(path, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...licenseHeaders() },
       body: JSON.stringify(body),
+      signal,
     })
-  } catch {
+  } catch (e) {
+    if (isAbortError(e)) throw e
     throw new Error(
-      'You appear to be offline — check your connection and try again.'
+      'You appear to be offline — check your connection and try again.',
+      { cause: e }
     )
   }
   const data = (await res.json().catch(() => ({}))) as T & {
@@ -51,7 +59,8 @@ type AiText = { text: string; freeRemaining: number | null }
 async function postLive(
   path: string,
   body: unknown,
-  onDelta: (textSoFar: string) => void
+  onDelta: (textSoFar: string) => void,
+  signal?: AbortSignal
 ): Promise<AiText> {
   let res: Response
   try {
@@ -63,10 +72,13 @@ async function postLive(
         ...licenseHeaders(),
       },
       body: JSON.stringify(body),
+      signal,
     })
-  } catch {
+  } catch (e) {
+    if (isAbortError(e)) throw e
     throw new Error(
-      'You appear to be offline — check your connection and try again.'
+      'You appear to be offline — check your connection and try again.',
+      { cause: e }
     )
   }
   if (!(res.headers.get('content-type') ?? '').includes('text/event-stream') || !res.body) {
@@ -288,7 +300,8 @@ export async function aiCoverLetter(
     language?: string
     tone?: 'formal' | 'friendly'
   },
-  onDelta?: (textSoFar: string) => void
+  onDelta?: (textSoFar: string) => void,
+  signal?: AbortSignal
 ): Promise<AiText> {
   const body = {
     ...input,
@@ -296,20 +309,23 @@ export async function aiCoverLetter(
     jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
   }
   return onDelta
-    ? postLive('/api/ai/cover-letter', body, onDelta)
-    : post<AiText>('/api/ai/cover-letter', body)
+    ? postLive('/api/ai/cover-letter', body, onDelta, signal)
+    : post<AiText>('/api/ai/cover-letter', body, signal)
 }
 
-export async function aiResignationLetter(input: {
-  company: string
-  role: string
-  lastDay: string
-  reason: string
-  name: string
-  language?: string
-  tone?: 'formal' | 'friendly'
-}): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/resignation-letter', input)
+export async function aiResignationLetter(
+  input: {
+    company: string
+    role: string
+    lastDay: string
+    reason: string
+    name: string
+    language?: string
+    tone?: 'formal' | 'friendly'
+  },
+  signal?: AbortSignal
+): Promise<AiText> {
+  return post<AiText>('/api/ai/resignation-letter', input, signal)
 }
 
 export async function aiInterviewBrief(
@@ -318,7 +334,8 @@ export async function aiInterviewBrief(
     jobDescription: string
     role: string
   },
-  onDelta?: (textSoFar: string) => void
+  onDelta?: (textSoFar: string) => void,
+  signal?: AbortSignal
 ): Promise<AiText> {
   const body = {
     ...input,
@@ -326,8 +343,8 @@ export async function aiInterviewBrief(
     jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
   }
   return onDelta
-    ? postLive('/api/ai/interview-brief', body, onDelta)
-    : post<AiText>('/api/ai/interview-brief', body)
+    ? postLive('/api/ai/interview-brief', body, onDelta, signal)
+    : post<AiText>('/api/ai/interview-brief', body, signal)
 }
 
 export async function aiInterviewQuestions(input: {

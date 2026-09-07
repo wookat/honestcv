@@ -210,11 +210,15 @@ async function readLlmJson(upstream: Response): Promise<LlmReply> {
 }
 
 /** Live hooks for callers that forward the reply to the browser as it arrives.
- * `reset` fires when a retry starts after an earlier attempt already emitted text. */
+ * `reset` fires when a retry starts after an earlier attempt already emitted text;
+ * `signal` aborts the upstream generation when the browser has gone away. */
 interface LlmLiveHooks {
   delta: (text: string) => void
   reset: () => void
+  signal?: AbortSignal
 }
+
+const LLM_CANCELLED = { error: 'Cancelled.', status: 499 }
 
 async function callLlm(
   env: Env,
@@ -248,6 +252,7 @@ async function callLlm(
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (backoff) await new Promise((r) => setTimeout(r, 1000))
     backoff = true
+    if (live?.signal?.aborted) return LLM_CANCELLED
     const attemptStartedAt = Date.now()
     if (emitted) {
       live?.reset()
@@ -270,8 +275,10 @@ async function callLlm(
           stream: true,
           ...(withThinking ? { thinking: { type: thinkingType } } : {}),
         }),
+        signal: live?.signal,
       })
     } catch {
+      if (live?.signal?.aborted) return LLM_CANCELLED
       if (elapsed() >= LLM_RETRY_BUDGET_MS) break
       continue
     }
@@ -311,7 +318,11 @@ async function callLlm(
         content: '',
         reasoningChars: 0,
         interrupted: true,
-        finish: err instanceof Error ? err.message.slice(0, 120) : String(err),
+        finish: live?.signal?.aborted
+          ? 'cancelled'
+          : err instanceof Error
+            ? err.message.slice(0, 120)
+            : String(err),
       }
     }
     // Upstream timing + token usage, so `wrangler tail` can attribute latency
@@ -334,6 +345,7 @@ async function callLlm(
         maxTokens,
       })
     )
+    if (live?.signal?.aborted) return LLM_CANCELLED
     if (reply.interrupted) {
       failure = {
         error: 'The AI service was interrupted — please retry in a minute. None of your free AI uses were spent.',
@@ -479,19 +491,32 @@ const wantsLiveReply = (c: { req: { header: (name: string) => string | undefined
  * `delta` events carry text as it arrives; `reset` means a retry started and
  * the text shown so far must be discarded; `done` carries the authoritative
  * full text plus quota; `error` the message the JSON path would have returned.
- * Quota is consumed only once a usable reply exists, exactly like the JSON path. */
+ * Quota is consumed only once a usable reply exists, exactly like the JSON path.
+ * When the browser disconnects first (dialog closed, Stop pressed) the upstream
+ * generation is aborted and nothing is charged. */
 function liveAiReply(
   c: Context<{ Bindings: Env }>,
   freeRemaining: number | null,
   run: (live: LlmLiveHooks) => Promise<{ text?: string; error?: string; status?: number }>
 ) {
   return streamSSE(c, async (stream) => {
+    const gone = new AbortController()
+    const startedAt = Date.now()
+    const abandon = () => {
+      if (gone.signal.aborted) return
+      gone.abort()
+      console.log('LLM live reply abandoned by client', JSON.stringify({ ms: Date.now() - startedAt }))
+    }
+    stream.onAbort(abandon)
+    c.req.raw.signal.addEventListener('abort', abandon)
     const send = (event: string, data: unknown) =>
       stream.writeSSE({ event, data: JSON.stringify(data) }).catch(() => {})
     const result = await run({
       delta: (text) => void send('delta', text),
       reset: () => void send('reset', null),
+      signal: gone.signal,
     })
+    if (gone.signal.aborted) return
     if (result.error) {
       await send('error', { error: result.error, status: result.status ?? 502 })
       return
