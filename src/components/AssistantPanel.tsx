@@ -22,6 +22,7 @@ import {
 import { aiTargetRole, resumeToPlainText, type Resume } from '@/lib/resume'
 import { matchReport, type AtsResult } from '@/lib/ats'
 import { draftClaims } from '@/lib/grounding'
+import { evidenceText, recordAppliedAnyway } from '@/lib/appliedAnyway'
 import { DraftFlagList, draftFlagGroups, type DraftFlagGroup } from '@/components/DraftFlagList'
 import { improveScoreReply, targetJobReply, type PriorityFix } from '@/lib/guidance'
 
@@ -182,8 +183,12 @@ export function AssistantPanel({
     const out = new Map<number, DraftFlagGroup[]>()
     turns.forEach((t, i) => {
       if (!t.action || t.applied || t.action.type === 'skills') return
-      const own = t.action.type === 'summary' ? [resume.summary] : t.action.replace ? [t.action.replace] : []
-      const groups = draftFlagGroups(draftClaims(t.action.value, resumeText, jobDescription, own))
+      const own = (
+        t.action.type === 'summary' ? [resume.summary] : t.action.replace ? [t.action.replace] : []
+      ).map(evidenceText)
+      const groups = draftFlagGroups(
+        draftClaims(t.action.value, evidenceText(resumeText), jobDescription, own)
+      )
       if (groups.length > 0) out.set(i, groups)
     })
     return out
@@ -311,6 +316,8 @@ export function AssistantPanel({
   const apply = (index: number) => {
     const msg = turns[index]
     if (!msg.action || msg.applied) return
+    if (proposalFlags.has(index) && typeof msg.action.value === 'string')
+      recordAppliedAnyway(msg.action.value)
     onApply(msg.action)
     const next = turns.map((t, i) => (i === index ? { ...t, applied: true } : t))
     setTurns(next)
