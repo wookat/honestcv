@@ -4,6 +4,9 @@
   // would detach the existing secrets / custom domain / KV history.
   "name": "honestcv",
   "compatibility_date": "2026-07-01",
+  // Request.signal fires when the browser disconnects, so an abandoned AI
+  // request can stop the upstream generation instead of running to the end.
+  "compatibility_flags": ["enable_request_signal"],
   "main": "worker/index.ts",
   "routes": [{ "pattern": "cv.zalize.com", "custom_domain": true }],
   "assets": {

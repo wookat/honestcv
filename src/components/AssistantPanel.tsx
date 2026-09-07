@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
   aiAssistant,
+  isAbortError,
   PaymentRequiredError,
   type AssistantAction,
   type AssistantTurnInput,
@@ -175,6 +176,10 @@ export function AssistantPanel({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
+  /** In-flight reply. Closing the modeless panel keeps it (the answer lands in the history);
+   *  leaving the builder aborts it so the Worker stops the model. */
+  const replying = useRef<AbortController | null>(null)
+  useEffect(() => () => replying.current?.abort(), [])
 
   useEffect(() => {
     if (open) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
@@ -205,14 +210,19 @@ export function AssistantPanel({
     setInput('')
     setError('')
     setBusy(true)
+    const req = new AbortController()
+    replying.current = req
     try {
-      const { text: reply, action, freeRemaining } = await aiAssistant({
-        turns: next.slice(-12).map((t) => ({ role: t.role, content: t.content })),
-        resumeText: resumeToPlainText(resume),
-        jobDescription,
-        role: aiTargetRole(resume),
-        scoreSummary,
-      })
+      const { text: reply, action, freeRemaining } = await aiAssistant(
+        {
+          turns: next.slice(-12).map((t) => ({ role: t.role, content: t.content })),
+          resumeText: resumeToPlainText(resume),
+          jobDescription,
+          role: aiTargetRole(resume),
+          scoreSummary,
+        },
+        req.signal
+      )
       if (typeof reply !== 'string' || !reply.trim())
         throw new Error('The assistant sent back an empty reply — please try again.')
       if (typeof freeRemaining === 'number') onQuota(freeRemaining)
@@ -227,9 +237,11 @@ export function AssistantPanel({
       setTurns(withReply)
       persistChat(withReply)
     } catch (e) {
+      if (isAbortError(e)) return
       if (e instanceof PaymentRequiredError) onPaymentRequired(e.message)
       setError(e instanceof Error ? e.message : 'Something went wrong — please retry.')
     } finally {
+      if (replying.current === req) replying.current = null
       setBusy(false)
     }
   }

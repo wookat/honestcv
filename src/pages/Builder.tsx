@@ -1065,6 +1065,9 @@ export default function Builder() {
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [upgradeReason, setUpgradeReason] = useState('')
   const [aiBusy, setAiBusy] = useState<string | null>(null)
+  /** In-flight inline AI requests (rewrite / suggest / summary / skills); aborted when the builder unmounts. */
+  const [inlineAi] = useState(() => new Set<AbortController>())
+  useEffect(() => () => inlineAi.forEach((req) => req.abort()), [inlineAi])
   const [hlLine, setHlLine] = useState<{ key: string; line: number } | null>(null)
   const [aiError, setAiError] = useState('')
   const [aiErrorTag, setAiErrorTag] = useState<string | null>(null)
@@ -1906,6 +1909,8 @@ export default function Builder() {
     setAiBusy(tag)
     setAiError('')
     setAiErrorTag(tag)
+    const req = new AbortController()
+    inlineAi.add(req)
     try {
       const wantVariants = kind !== 'skills'
       const { text: out, texts, freeRemaining } = await aiRewrite(
@@ -1918,7 +1923,8 @@ export default function Builder() {
         },
         wantVariants,
         emphasis,
-        avoid
+        avoid,
+        req.signal
       )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       if (texts && texts.length > 1) {
@@ -1934,10 +1940,12 @@ export default function Builder() {
         apply(out)
       }
     } catch (e) {
+      if (isAbortError(e)) return
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
     } finally {
-      setAiBusy(null)
+      inlineAi.delete(req)
+      setAiBusy((busy) => (busy === tag ? null : busy))
     }
   }
 
@@ -2089,22 +2097,27 @@ export default function Builder() {
     setAiBusy(tag)
     setAiError('')
     setAiErrorTag(tag)
+    const req = new AbortController()
+    inlineAi.add(req)
     try {
-      const { text, freeRemaining } = await aiSuggestBullet({
-        role: target.role,
-        company: target.company,
-        companyInfo: target.companyInfo,
-        bullets: complete
-          ? target.bullets.filter((_, i) => i !== complete.lineIndex)
-          : target.bullets,
-        resumeText: resumeToPlainText(shown),
-        variant,
-        language: resume.language,
-        section: target.section,
-        targetRole: resume.targetRole.trim() || undefined,
-        jobDescription: resume.jobDescription.trim() || undefined,
-        draft: complete?.draft,
-      })
+      const { text, freeRemaining } = await aiSuggestBullet(
+        {
+          role: target.role,
+          company: target.company,
+          companyInfo: target.companyInfo,
+          bullets: complete
+            ? target.bullets.filter((_, i) => i !== complete.lineIndex)
+            : target.bullets,
+          resumeText: resumeToPlainText(shown),
+          variant,
+          language: resume.language,
+          section: target.section,
+          targetRole: resume.targetRole.trim() || undefined,
+          jobDescription: resume.jobDescription.trim() || undefined,
+          draft: complete?.draft,
+        },
+        req.signal
+      )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
       if (line)
@@ -2117,10 +2130,12 @@ export default function Builder() {
           lineIndex: complete?.lineIndex,
         })
     } catch (err) {
+      if (isAbortError(err)) return
       if (err instanceof PaymentRequiredError && !freeMode) requireUnlock(err.message)
       else setAiError((err as Error).message)
     } finally {
-      setAiBusy(null)
+      inlineAi.delete(req)
+      setAiBusy((busy) => (busy === tag ? null : busy))
     }
   }
 
@@ -2186,15 +2201,20 @@ export default function Builder() {
     setAiBusy(tag)
     setAiError('')
     setAiErrorTag(tag)
+    const req = new AbortController()
+    inlineAi.add(req)
     try {
-      const { texts, freeRemaining } = await aiSummaryDraft({
-        resumeText: resumeToPlainText({ ...shown, summary: '' }),
-        role: position.trim() || aiTargetRole(resume),
-        highlights: highlights.length ? highlights : undefined,
-        jobDescription: resume.jobDescription.trim() || undefined,
-        ...(avoid?.length ? { avoid } : {}),
-        language: resume.language,
-      })
+      const { texts, freeRemaining } = await aiSummaryDraft(
+        {
+          resumeText: resumeToPlainText({ ...shown, summary: '' }),
+          role: position.trim() || aiTargetRole(resume),
+          highlights: highlights.length ? highlights : undefined,
+          jobDescription: resume.jobDescription.trim() || undefined,
+          ...(avoid?.length ? { avoid } : {}),
+          language: resume.language,
+        },
+        req.signal
+      )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setVariantPick({
         title: 'Pick a summary',
@@ -2213,10 +2233,12 @@ export default function Builder() {
         },
       })
     } catch (e) {
+      if (isAbortError(e)) return
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
     } finally {
-      setAiBusy(null)
+      inlineAi.delete(req)
+      setAiBusy((busy) => (busy === tag ? null : busy))
     }
   }
 
@@ -2239,21 +2261,28 @@ export default function Builder() {
     setAiBusy(tag)
     setAiError('')
     setAiErrorTag(tag)
+    const req = new AbortController()
+    inlineAi.add(req)
     try {
-      const { skills, freeRemaining } = await aiSkillSuggest({
-        skills: resume.skills,
-        role: aiTargetRole(resume),
-        jobDescription: resume.jobDescription,
-        context: context.trim() ? context.trim().slice(0, 200) : undefined,
-        category: category.trim() ? category.trim() : undefined,
-      })
+      const { skills, freeRemaining } = await aiSkillSuggest(
+        {
+          skills: resume.skills,
+          role: aiTargetRole(resume),
+          jobDescription: resume.jobDescription,
+          context: context.trim() ? context.trim().slice(0, 200) : undefined,
+          category: category.trim() ? category.trim() : undefined,
+        },
+        req.signal
+      )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setAiSkillChips(skills)
     } catch (e) {
+      if (isAbortError(e)) return
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
     } finally {
-      setAiBusy(null)
+      inlineAi.delete(req)
+      setAiBusy((busy) => (busy === tag ? null : busy))
     }
   }
 
@@ -10777,9 +10806,17 @@ function BundleToolDialog({
   /** In-flight generation; aborting it also tells the Worker to stop the model. */
   const writing = useRef<AbortController | null>(null)
   const stopWriting = () => writing.current?.abort()
+  /** In-flight interview-practice request (questions / feedback); cancelled with the dialog. */
+  const practicing = useRef<AbortController | null>(null)
   useEffect(() => {
-    if (kind === null) writing.current?.abort()
-    return () => writing.current?.abort()
+    if (kind === null) {
+      writing.current?.abort()
+      practicing.current?.abort()
+    }
+    return () => {
+      writing.current?.abort()
+      practicing.current?.abort()
+    }
   }, [kind])
   useEffect(() => {
     if (!live) followLive.current = true
@@ -11026,17 +11063,23 @@ function BundleToolDialog({
     }
     setSuggestBusy(true)
     setFeedbackError('')
+    const req = new AbortController()
+    practicing.current = req
     try {
-      const { questions, freeRemaining } = await aiInterviewQuestions({
-        resumeText: resumeToPlainText(resume),
-        jobDescription: resume.jobDescription,
-        role: aiTargetRole(resume),
-      })
+      const { questions, freeRemaining } = await aiInterviewQuestions(
+        {
+          resumeText: resumeToPlainText(resume),
+          jobDescription: resume.jobDescription,
+          role: aiTargetRole(resume),
+        },
+        req.signal
+      )
       setSuggested(questions)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
-      setFeedbackError((e as Error).message)
+      if (!req.signal.aborted && !isAbortError(e)) setFeedbackError((e as Error).message)
     } finally {
+      if (practicing.current === req) practicing.current = null
       setSuggestBusy(false)
     }
   }
@@ -11052,19 +11095,25 @@ function BundleToolDialog({
     }
     setFeedbackBusy(true)
     setFeedbackError('')
+    const req = new AbortController()
+    practicing.current = req
     try {
-      const { text, freeRemaining } = await aiInterviewFeedback({
-        question,
-        answer,
-        resumeText: resumeToPlainText(resume),
-        jobDescription: resume.jobDescription,
-        role: aiTargetRole(resume),
-      })
+      const { text, freeRemaining } = await aiInterviewFeedback(
+        {
+          question,
+          answer,
+          resumeText: resumeToPlainText(resume),
+          jobDescription: resume.jobDescription,
+          role: aiTargetRole(resume),
+        },
+        req.signal
+      )
       setFeedback(text)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
-      setFeedbackError((e as Error).message)
+      if (!req.signal.aborted && !isAbortError(e)) setFeedbackError((e as Error).message)
     } finally {
+      if (practicing.current === req) practicing.current = null
       setFeedbackBusy(false)
     }
   }
@@ -12170,6 +12219,9 @@ function TailorDialog({
   const [confirmingClose, setConfirmingClose] = useState<'busy' | 'pending' | null>(null)
   const [draftAfterClose, setDraftAfterClose] = useState<string | null>(null)
   const [slow, setSlow] = useState(false)
+  /** In-flight request; aborting it (Stop and close / unmount) also tells the Worker to stop the model. */
+  const tailoring = useRef<AbortController | null>(null)
+  useEffect(() => () => tailoring.current?.abort(), [])
   useEffect(() => {
     if (!busy) return
     const t = window.setTimeout(() => setSlow(true), 45_000)
@@ -12183,18 +12235,23 @@ function TailorDialog({
     setSnapshot(resume)
     setBusy(true)
     setError('')
+    const req = new AbortController()
+    tailoring.current = req
     try {
       const { items, where } = tailorItemsFrom(resume)
       if (items.length === 0) {
         setError('Add a summary or experience bullets first — tailoring rewords your real content.')
         return
       }
-      const { suggestions, freeRemaining } = await aiTailor({
-        items,
-        jobDescription: resume.jobDescription,
-        role: aiTargetRole(resume),
-        language: resume.language,
-      })
+      const { suggestions, freeRemaining } = await aiTailor(
+        {
+          items,
+          jobDescription: resume.jobDescription,
+          role: aiTargetRole(resume),
+          language: resume.language,
+        },
+        req.signal
+      )
       if (freeRemaining !== null) onQuota(freeRemaining)
       const byId = new Map(items.map((i) => [i.id, i.text]))
       setRows(
@@ -12209,8 +12266,9 @@ function TailorDialog({
           }))
       )
     } catch (e) {
-      setError((e as Error).message)
+      if (!req.signal.aborted && !isAbortError(e)) setError((e as Error).message)
     } finally {
+      if (tailoring.current === req) tailoring.current = null
       setBusy(false)
     }
   }
@@ -12508,7 +12566,7 @@ function TailorDialog({
             </DialogTitle>
             <DialogDescription>
               {confirmingClose === 'busy'
-                ? 'A tailoring request is still running — close and discard its results?'
+                ? 'Closing now stops the request — it will not finish in the background. A free AI use is only spent on suggestions you get to review.'
                 : `Discard ${pending.length} tailoring suggestion${pending.length === 1 ? '' : 's'} you haven't reviewed yet? Getting them again will use another AI request.`}
               {draftAfterClose !== null && confirmingClose === 'pending' && (
                 <> Accept or keep each one first to draft a bullet for “{draftAfterClose}” without losing them.</>
@@ -12523,17 +12581,23 @@ function TailorDialog({
                 setDraftAfterClose(null)
               }}
             >
-              Keep reviewing
+              {confirmingClose === 'busy' ? 'Keep waiting' : 'Keep reviewing'}
             </Button>
             <Button
               variant="destructive"
               onClick={() => {
+                const action = confirmingClose
                 setConfirmingClose(null)
+                if (action === 'busy') tailoring.current?.abort()
                 if (draftAfterClose !== null) onDraftKeyword(draftAfterClose)
                 else onClose()
               }}
             >
-              {draftAfterClose !== null ? 'Discard and draft bullet' : 'Discard and close'}
+              {draftAfterClose !== null
+                ? 'Discard and draft bullet'
+                : confirmingClose === 'busy'
+                  ? 'Stop and close'
+                  : 'Discard and close'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -13023,23 +13087,32 @@ function KeywordBulletDialog({
   )
   const [expId, setExpId] = useState(bestId ?? resume.experience[0]?.id ?? '')
   const [inserted, setInserted] = useState(false)
+  /** In-flight request; closing the dialog aborts it so the Worker stops the model. */
+  const drafting = useRef<AbortController | null>(null)
+  useEffect(() => () => drafting.current?.abort(), [])
 
   const run = async () => {
     setBusy(true)
     setError('')
+    const req = new AbortController()
+    drafting.current = req
     try {
-      const { text: drafted, freeRemaining } = await aiKeywordBullet({
-        keyword,
-        resumeText: resumeToPlainText(resume),
-        jobDescription: resume.jobDescription,
-        role: aiTargetRole(resume),
-        language: resume.language,
-      })
+      const { text: drafted, freeRemaining } = await aiKeywordBullet(
+        {
+          keyword,
+          resumeText: resumeToPlainText(resume),
+          jobDescription: resume.jobDescription,
+          role: aiTargetRole(resume),
+          language: resume.language,
+        },
+        req.signal
+      )
       if (freeRemaining !== null) onQuota(freeRemaining)
       setText(drafted)
     } catch (e) {
-      setError((e as Error).message)
+      if (!req.signal.aborted && !isAbortError(e)) setError((e as Error).message)
     } finally {
+      if (drafting.current === req) drafting.current = null
       setBusy(false)
     }
   }

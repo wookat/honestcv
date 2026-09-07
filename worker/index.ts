@@ -1,6 +1,6 @@
 import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
-import { streamSSE } from 'hono/streaming'
+import { stream, streamSSE } from 'hono/streaming'
 import {
   jobRankingHits,
   jobTitleRank,
@@ -213,12 +213,13 @@ async function readLlmJson(upstream: Response): Promise<LlmReply> {
  * `reset` fires when a retry starts after an earlier attempt already emitted text;
  * `signal` aborts the upstream generation when the browser has gone away. */
 interface LlmLiveHooks {
-  delta: (text: string) => void
-  reset: () => void
+  delta?: (text: string) => void
+  reset?: () => void
   signal?: AbortSignal
 }
 
 const LLM_CANCELLED = { error: 'Cancelled.', status: 499 }
+
 
 async function callLlm(
   env: Env,
@@ -250,12 +251,13 @@ async function callLlm(
     status: 502,
   }
   for (let attempt = 0; attempt < attempts; attempt++) {
+    if (live?.signal?.aborted) return LLM_CANCELLED
     if (backoff) await new Promise((r) => setTimeout(r, 1000))
     backoff = true
     if (live?.signal?.aborted) return LLM_CANCELLED
     const attemptStartedAt = Date.now()
     if (emitted) {
-      live?.reset()
+      live?.reset?.()
       emitted = false
     }
     const elapsed = () => Date.now() - attemptStartedAt
@@ -310,7 +312,7 @@ async function callLlm(
       reply = streamed
         ? await readLlmStream(upstream.body as ReadableStream<Uint8Array>, (text) => {
             emitted = true
-            live?.delta(text)
+            live?.delta?.(text)
           })
         : await readLlmJson(upstream)
     } catch (err) {
@@ -456,9 +458,10 @@ async function callLlmJsonArray(
   env: Env,
   messages: { role: string; content: string }[],
   temperature: number,
-  maxTokens: number
+  maxTokens: number,
+  live?: LlmLiveHooks
 ): Promise<{ items?: unknown[]; error?: string; status?: number }> {
-  const first = await callLlm(env, messages, temperature, maxTokens)
+  const first = await callLlm(env, messages, temperature, maxTokens, live)
   if (first.error) return { error: first.error, status: first.status }
   const items = parseJsonArrayLenient(first.text ?? '')
   if (items && items.length > 0) return { items }
@@ -475,7 +478,8 @@ async function callLlmJsonArray(
       },
     ],
     Math.min(temperature, 0.2),
-    maxTokens
+    maxTokens,
+    live
   )
   if (second.error) return { error: second.error, status: second.status }
   const retried = parseJsonArrayLenient(second.text ?? '')
@@ -523,6 +527,49 @@ function liveAiReply(
     }
     const remaining = freeRemaining !== null ? Math.max(await consumeFreeQuota(c), 0) : null
     await send('done', { text: result.text, freeRemaining: remaining })
+  })
+}
+
+type AiReplyBody = Record<string, unknown> | { error: string; status: number }
+
+const aiFailure = (r: { error?: string; status?: number }) => ({
+  error: r.error ?? AI_TROUBLE_ERROR,
+  status: r.status ?? 502,
+})
+
+/** Buffered (JSON) AI reply whose headers leave at once and whose body is one
+ * JSON document preceded by keep-alive spaces (one per second while the model
+ * works). Starting the response early is what lets the runtime notice a browser
+ * that has disconnected: over HTTP/3 `Request.signal` does not fire before the
+ * first response byte, so an abandoned request would otherwise run to the end
+ * and be charged. Failures decided after the headers travel in the body as
+ * `{ error, status }`; validation and quota errors keep their real status
+ * because routes decide them before entering here. */
+function bufferedAiReply(
+  c: Context<{ Bindings: Env }>,
+  run: (live: LlmLiveHooks) => Promise<AiReplyBody>
+) {
+  c.header('content-type', 'application/json; charset=utf-8')
+  c.header('cache-control', 'no-store')
+  return stream(c, async (s) => {
+    const gone = new AbortController()
+    const startedAt = Date.now()
+    const abandon = () => {
+      if (gone.signal.aborted) return
+      gone.abort()
+      console.log('LLM buffered reply abandoned by client', JSON.stringify({ ms: Date.now() - startedAt }))
+    }
+    s.onAbort(abandon)
+    c.req.raw.signal.addEventListener('abort', abandon)
+    const keepAlive = setInterval(() => void s.write(' '), 1000)
+    let body: AiReplyBody
+    try {
+      body = await run({ signal: gone.signal })
+    } finally {
+      clearInterval(keepAlive)
+    }
+    if (gone.signal.aborted) return
+    await s.write(JSON.stringify(body))
   })
 }
 
@@ -1578,34 +1625,37 @@ app.post('/api/ai/rewrite', async (c) => {
   const emphasis =
     body.emphasis === 'key-numbers' && kind === 'bullets' ? ('key-numbers' as const) : undefined
   const avoid = sanitizeAvoid(body.avoid)
-  const result = await callLlm(
-    c.env,
-    withOutputLanguage(
-      buildRewriteMessages(
-        kind,
-        text,
-        { role: body.role, jobDescription: body.jobDescription },
-        wantVariants,
-        emphasis,
-        avoid
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      withOutputLanguage(
+        buildRewriteMessages(
+          kind,
+          text,
+          { role: body.role, jobDescription: body.jobDescription },
+          wantVariants,
+          emphasis,
+          avoid
+        ),
+        body.language
       ),
-      body.language
-    ),
-    0.5,
-    wantVariants ? 2000 : 1200
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  let texts: string[] | undefined
-  if (wantVariants && result.text) {
-    texts = result.text
-      .split(/^\s*===+\s*$/m)
-      .map((t) => t.trim())
-      .filter(Boolean)
-    if (texts.length < 2) texts = undefined
-  }
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: texts?.[0] ?? result.text, texts, freeRemaining })
+      0.5,
+      wantVariants ? 2000 : 1200,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    let texts: string[] | undefined
+    if (wantVariants && result.text) {
+      texts = result.text
+        .split(/^\s*===+\s*$/m)
+        .map((t) => t.trim())
+        .filter(Boolean)
+      if (texts.length < 2) texts = undefined
+    }
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { text: texts?.[0] ?? result.text, texts, freeRemaining }
+  })
 })
 
 // Summary draft: write candidate summaries from the resume alone, grounded
@@ -1652,30 +1702,33 @@ app.post('/api/ai/summary-draft', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlmJsonArray(
-    c.env,
-    withOutputLanguage(
-      buildSummaryDraftMessages(
-        resumeText,
-        body.role ?? '',
-        highlights,
-        typeof body.jobDescription === 'string' ? body.jobDescription : '',
-        sanitizeAvoid(body.avoid)
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlmJsonArray(
+      c.env,
+      withOutputLanguage(
+        buildSummaryDraftMessages(
+          resumeText,
+          body.role ?? '',
+          highlights,
+          typeof body.jobDescription === 'string' ? body.jobDescription : '',
+          sanitizeAvoid(body.avoid)
+        ),
+        body.language
       ),
-      body.language
-    ),
-    0.5,
-    900
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const texts = (result.items ?? [])
-    .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
-    .map((t) => t.trim())
-    .slice(0, 3)
-  if (texts.length === 0) return c.json({ error: AI_TROUBLE_ERROR }, 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: texts[0], texts, freeRemaining })
+      0.5,
+      900,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const texts = (result.items ?? [])
+      .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+      .map((t) => t.trim())
+      .slice(0, 3)
+    if (texts.length === 0) return { error: AI_TROUBLE_ERROR, status: 502 }
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { text: texts[0], texts, freeRemaining }
+  })
 })
 
 // Skill suggestions: discovery chips related to the user's existing skills /
@@ -1719,22 +1772,25 @@ app.post('/api/ai/skill-suggest', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlmJsonArray(
-    c.env,
-    buildSkillSuggestMessages(skills, role, body.jobDescription ?? '', context, category),
-    0.5,
-    400
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const suggested = (result.items ?? [])
-    .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
-    .map((t) => t.trim())
-    .filter((t) => t.length <= 40)
-    .slice(0, 12)
-  if (suggested.length === 0) return c.json({ error: AI_TROUBLE_ERROR }, 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ skills: suggested, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlmJsonArray(
+      c.env,
+      buildSkillSuggestMessages(skills, role, body.jobDescription ?? '', context, category),
+      0.5,
+      400,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const suggested = (result.items ?? [])
+      .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+      .map((t) => t.trim())
+      .filter((t) => t.length <= 40)
+      .slice(0, 12)
+    if (suggested.length === 0) return { error: AI_TROUBLE_ERROR, status: 502 }
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { skills: suggested, freeRemaining }
+  })
 })
 
 // Keyword bullet: draft one bullet working a missing JD keyword into the
@@ -1770,17 +1826,20 @@ app.post('/api/ai/keyword-bullet', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlm(
-    c.env,
-    withOutputLanguage(buildKeywordBulletMessages(keyword, resumeText, jd, body.role ?? ''), body.language),
-    0.5,
-    400
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      withOutputLanguage(buildKeywordBulletMessages(keyword, resumeText, jd, body.role ?? ''), body.language),
+      0.5,
+      400,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { text, freeRemaining }
+  })
 })
 
 // Suggest one new bullet for a specific experience, project or involvement
@@ -1836,20 +1895,23 @@ app.post('/api/ai/suggest-bullet', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlm(
-    c.env,
-    withOutputLanguage(
-      buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo, section, targetRole, jobDescription, draft),
-      body.language
-    ),
-    0.6,
-    400
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      withOutputLanguage(
+        buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo, section, targetRole, jobDescription, draft),
+        body.language
+      ),
+      0.6,
+      400,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { text, freeRemaining }
+  })
 })
 
 // Tailor pass: rewrite summary + bullets toward one JD in a single call,
@@ -1886,26 +1948,29 @@ app.post('/api/ai/tailor', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlmJsonArray(
-    c.env,
-    withOutputLanguage(buildTailorMessages(items, jd, body.role ?? ''), body.language),
-    0.4,
-    3000
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const known = new Set(items.map((i) => i.id))
-  const suggestions = (result.items ?? []).filter(
-    (s): s is { id: string; text: string } =>
-      Boolean(
-        s &&
-          typeof (s as { id?: unknown }).id === 'string' &&
-          typeof (s as { text?: unknown }).text === 'string' &&
-          known.has((s as { id: string }).id)
-      )
-  )
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ suggestions, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlmJsonArray(
+      c.env,
+      withOutputLanguage(buildTailorMessages(items, jd, body.role ?? ''), body.language),
+      0.4,
+      3000,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const known = new Set(items.map((i) => i.id))
+    const suggestions = (result.items ?? []).filter(
+      (s): s is { id: string; text: string } =>
+        Boolean(
+          s &&
+            typeof (s as { id?: unknown }).id === 'string' &&
+            typeof (s as { text?: unknown }).text === 'string' &&
+            known.has((s as { id: string }).id)
+        )
+    )
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { suggestions, freeRemaining }
+  })
 })
 
 // Cover letter — Career Bundle (free mode: shares the free AI quota)
@@ -1957,11 +2022,13 @@ app.post('/api/ai/cover-letter', async (c) => {
   if (wantsLiveReply(c)) {
     return liveAiReply(c, freeRemaining, (live) => callLlm(c.env, messages, 0.6, 1200, live))
   }
-  const result = await callLlm(c.env, messages, 0.6)
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: result.text, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(c.env, messages, 0.6, 1200, live)
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { text: result.text, freeRemaining }
+  })
 })
 
 // Resignation letter — Career Bundle (free mode: shares the free AI quota)
@@ -1998,25 +2065,29 @@ app.post('/api/ai/resignation-letter', async (c) => {
   const role = body.role?.trim()
   if (!company) return c.json({ error: 'Add your company name first.' }, 400)
   if (!role) return c.json({ error: 'Add your current role first.' }, 400)
-  const result = await callLlm(
-    c.env,
-    withOutputLanguage(
-      buildResignationLetterMessages(
-        company,
-        role,
-        body.lastDay?.trim() ?? '',
-        body.reason ?? '',
-        body.name?.trim() ?? '',
-        body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      withOutputLanguage(
+        buildResignationLetterMessages(
+          company,
+          role,
+          body.lastDay?.trim() ?? '',
+          body.reason ?? '',
+          body.name?.trim() ?? '',
+          body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
+        ),
+        body.language
       ),
-      body.language
-    ),
-    0.6
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: result.text, freeRemaining })
+      0.6,
+      1200,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { text: result.text, freeRemaining }
+  })
 })
 
 // Interview brief — Career Bundle (free mode: shares the free AI quota)
@@ -2057,11 +2128,13 @@ app.post('/api/ai/interview-brief', async (c) => {
   if (wantsLiveReply(c)) {
     return liveAiReply(c, freeRemaining, (live) => callLlm(c.env, messages, 0.5, 1200, live))
   }
-  const result = await callLlm(c.env, messages, 0.5)
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: result.text, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(c.env, messages, 0.5, 1200, live)
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { text: result.text, freeRemaining }
+  })
 })
 
 // Interview practice questions — Career Bundle (free mode: shares the free AI quota)
@@ -2098,21 +2171,24 @@ app.post('/api/ai/interview-questions', async (c) => {
   const jd = body.jobDescription?.trim()
   if (!resumeText) return c.json({ error: 'Add resume content first.' }, 400)
   if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
-  const result = await callLlmJsonArray(
-    c.env,
-    buildInterviewQuestionsMessages(resumeText, jd, body.role ?? ''),
-    0.6,
-    600
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const questions = (result.items ?? [])
-    .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
-    .map((q) => q.trim().slice(0, 200))
-    .slice(0, 5)
-  if (questions.length === 0) return c.json({ error: AI_TROUBLE_ERROR }, 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ questions, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlmJsonArray(
+      c.env,
+      buildInterviewQuestionsMessages(resumeText, jd, body.role ?? ''),
+      0.6,
+      600,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const questions = (result.items ?? [])
+      .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
+      .map((q) => q.trim().slice(0, 200))
+      .slice(0, 5)
+    if (questions.length === 0) return { error: AI_TROUBLE_ERROR, status: 502 }
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { questions, freeRemaining }
+  })
 })
 
 // Interview answer feedback — Career Bundle (free mode: shares the free AI quota)
@@ -2157,21 +2233,25 @@ app.post('/api/ai/interview-feedback', async (c) => {
   if (!answer || answer.length < 20) {
     return c.json({ error: 'Write your answer first — a couple of sentences at least.' }, 400)
   }
-  const result = await callLlm(
-    c.env,
-    buildInterviewFeedbackMessages(
-      question,
-      answer,
-      body.resumeText ?? '',
-      body.jobDescription ?? '',
-      body.role ?? ''
-    ),
-    0.5
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: result.text, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      buildInterviewFeedbackMessages(
+        question,
+        answer,
+        body.resumeText ?? '',
+        body.jobDescription ?? '',
+        body.role ?? ''
+      ),
+      0.5,
+      1200,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    return { text: result.text, freeRemaining }
+  })
 })
 
 // Resume assistant chat — Career Bundle (free mode: shares the free AI quota)
@@ -2220,23 +2300,26 @@ app.post('/api/ai/assistant', async (c) => {
   if (turns.length === 0 || turns[turns.length - 1].role !== 'user') {
     return c.json({ error: 'Type a message first.' }, 400)
   }
-  const result = await callLlm(
-    c.env,
-    buildAssistantMessages(
-      turns,
-      body.resumeText ?? '',
-      body.jobDescription ?? '',
-      body.role ?? '',
-      typeof body.scoreSummary === 'string' ? body.scoreSummary : ''
-    ),
-    0.5,
-    1200
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  const { text, action } = parseAssistantAction(result.text ?? '')
-  return c.json({ text, action, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      buildAssistantMessages(
+        turns,
+        body.resumeText ?? '',
+        body.jobDescription ?? '',
+        body.role ?? '',
+        typeof body.scoreSummary === 'string' ? body.scoreSummary : ''
+      ),
+      0.5,
+      1200,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    const { text, action } = parseAssistantAction(result.text ?? '')
+    return { text, action, freeRemaining }
+  })
 })
 
 // Checkout availability: frontend checks before opening checkout; when

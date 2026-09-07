@@ -40,11 +40,19 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
       { cause: e }
     )
   }
-  const data = (await res.json().catch(() => ({}))) as T & {
-    error?: string
-    code?: string
+  let data: T & { error?: string; code?: string; status?: number }
+  try {
+    data = await res.json()
+  } catch (e) {
+    if (isAbortError(e)) throw e
+    data = {} as typeof data
   }
   if (!res.ok) throw apiError(res.status, data)
+  // AI replies stream their headers before the model has answered, so a failure
+  // decided later arrives in a 200 body as { error, status }.
+  if (typeof data.error === 'string' && typeof data.status === 'number') {
+    throw apiError(data.status, data)
+  }
   if (path.startsWith('/api/ai/')) trackEvent('ai-use')
   return data
 }
@@ -182,47 +190,64 @@ export async function aiRewrite(
   context: { role?: string; jobDescription?: string; language?: string },
   variants = false,
   emphasis?: 'key-numbers',
-  avoid?: string[]
+  avoid?: string[],
+  signal?: AbortSignal
 ): Promise<{ text: string; texts?: string[]; freeRemaining: number | null }> {
   const data = await post<{
     text: string
     texts?: string[]
     freeRemaining: number | null
-  }>('/api/ai/rewrite', {
-    kind,
-    text,
-    variants,
-    ...(emphasis ? { emphasis } : {}),
-    ...(avoid?.length ? { avoid } : {}),
-    ...context,
-    ...(context.jobDescription !== undefined
-      ? { jobDescription: context.jobDescription.slice(0, JOB_DESCRIPTION_MAX) }
-      : {}),
-  })
+  }>(
+    '/api/ai/rewrite',
+    {
+      kind,
+      text,
+      variants,
+      ...(emphasis ? { emphasis } : {}),
+      ...(avoid?.length ? { avoid } : {}),
+      ...context,
+      ...(context.jobDescription !== undefined
+        ? {
+            jobDescription: context.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+          }
+        : {}),
+    },
+    signal
+  )
   return data
 }
 
-export async function aiSkillSuggest(input: {
-  skills: string
-  role: string
-  jobDescription: string
-  context?: string
-  category?: string
-}): Promise<{ skills: string[]; freeRemaining: number | null }> {
-  return post<{ skills: string[]; freeRemaining: number | null }>('/api/ai/skill-suggest', {
-    ...input,
-    jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
-  })
+export async function aiSkillSuggest(
+  input: {
+    skills: string
+    role: string
+    jobDescription: string
+    context?: string
+    category?: string
+  },
+  signal?: AbortSignal
+): Promise<{ skills: string[]; freeRemaining: number | null }> {
+  return post<{ skills: string[]; freeRemaining: number | null }>(
+    '/api/ai/skill-suggest',
+    {
+      ...input,
+      jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+    },
+    signal
+  )
 }
 
-export async function aiSummaryDraft(input: {
-  resumeText: string
-  role: string
-  highlights?: string[]
-  jobDescription?: string
-  avoid?: string[]
-  language?: string
-}): Promise<{ text: string; texts: string[]; freeRemaining: number | null }> {
+export async function aiSummaryDraft(
+  input: {
+    resumeText: string
+    role: string
+    highlights?: string[]
+    jobDescription?: string
+    avoid?: string[]
+    language?: string
+  },
+  signal?: AbortSignal
+): Promise<{ text: string; texts: string[]; freeRemaining: number | null }> {
   return post<{ text: string; texts: string[]; freeRemaining: number | null }>(
     '/api/ai/summary-draft',
     {
@@ -231,7 +256,8 @@ export async function aiSummaryDraft(input: {
       ...(input.jobDescription !== undefined
         ? { jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX) }
         : {}),
-    }
+    },
+    signal
   )
 }
 
@@ -241,52 +267,79 @@ export interface TailorItemInput {
   text: string
 }
 
-export async function aiTailor(input: {
-  items: TailorItemInput[]
-  jobDescription: string
-  role: string
-  language?: string
-}): Promise<{ suggestions: { id: string; text: string }[]; freeRemaining: number | null }> {
-  return post<{ suggestions: { id: string; text: string }[]; freeRemaining: number | null }>(
+export async function aiTailor(
+  input: {
+    items: TailorItemInput[]
+    jobDescription: string
+    role: string
+    language?: string
+  },
+  signal?: AbortSignal
+): Promise<{
+  suggestions: { id: string; text: string }[]
+  freeRemaining: number | null
+}> {
+  return post<{
+    suggestions: { id: string; text: string }[]
+    freeRemaining: number | null
+  }>(
     '/api/ai/tailor',
-    { ...input, jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX) }
+    {
+      ...input,
+      jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+    },
+    signal
   )
 }
 
-export async function aiKeywordBullet(input: {
-  keyword: string
-  resumeText: string
-  jobDescription: string
-  role: string
-  language?: string
-}): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/keyword-bullet', {
-    ...input,
-    resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
-    jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
-  })
+export async function aiKeywordBullet(
+  input: {
+    keyword: string
+    resumeText: string
+    jobDescription: string
+    role: string
+    language?: string
+  },
+  signal?: AbortSignal
+): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>(
+    '/api/ai/keyword-bullet',
+    {
+      ...input,
+      resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+      jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+    },
+    signal
+  )
 }
 
-export async function aiSuggestBullet(input: {
-  role: string
-  company: string
-  companyInfo?: string
-  bullets: string[]
-  resumeText: string
-  variant?: 'key-numbers'
-  language?: string
-  section?: 'project' | 'involvement'
-  targetRole?: string
-  jobDescription?: string
-  draft?: string
-}): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/suggest-bullet', {
-    ...input,
-    resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
-    ...(input.jobDescription !== undefined
-      ? { jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX) }
-      : {}),
-  })
+export async function aiSuggestBullet(
+  input: {
+    role: string
+    company: string
+    companyInfo?: string
+    bullets: string[]
+    resumeText: string
+    variant?: 'key-numbers'
+    language?: string
+    section?: 'project' | 'involvement'
+    targetRole?: string
+    jobDescription?: string
+    draft?: string
+  },
+  signal?: AbortSignal
+): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>(
+    '/api/ai/suggest-bullet',
+    {
+      ...input,
+      resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+      ...(input.jobDescription !== undefined
+        ? { jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX) }
+        : {}),
+    },
+    signal
+  )
 }
 
 export async function aiCoverLetter(
@@ -347,18 +400,22 @@ export async function aiInterviewBrief(
     : post<AiText>('/api/ai/interview-brief', body, signal)
 }
 
-export async function aiInterviewQuestions(input: {
-  resumeText: string
-  jobDescription: string
-  role: string
-}): Promise<{ questions: string[]; freeRemaining: number | null }> {
+export async function aiInterviewQuestions(
+  input: {
+    resumeText: string
+    jobDescription: string
+    role: string
+  },
+  signal?: AbortSignal
+): Promise<{ questions: string[]; freeRemaining: number | null }> {
   return post<{ questions: string[]; freeRemaining: number | null }>(
     '/api/ai/interview-questions',
     {
       ...input,
       resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
       jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
-    }
+    },
+    signal
   )
 }
 
@@ -372,35 +429,57 @@ export interface AssistantTurnInput {
   content: string
 }
 
-export async function aiAssistant(input: {
-  turns: AssistantTurnInput[]
-  resumeText: string
-  jobDescription: string
-  role: string
-  scoreSummary: string
-}): Promise<{ text: string; action: AssistantAction | null; freeRemaining: number | null }> {
-  return post<{ text: string; action: AssistantAction | null; freeRemaining: number | null }>(
+export async function aiAssistant(
+  input: {
+    turns: AssistantTurnInput[]
+    resumeText: string
+    jobDescription: string
+    role: string
+    scoreSummary: string
+  },
+  signal?: AbortSignal
+): Promise<{
+  text: string
+  action: AssistantAction | null
+  freeRemaining: number | null
+}> {
+  return post<{
+    text: string
+    action: AssistantAction | null
+    freeRemaining: number | null
+  }>(
     '/api/ai/assistant',
     {
       ...input,
-      turns: input.turns.map((t) => ({ ...t, content: t.content.slice(0, TURN_CONTENT_MAX) })),
+      turns: input.turns.map((t) => ({
+        ...t,
+        content: t.content.slice(0, TURN_CONTENT_MAX),
+      })),
       resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
       jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
       scoreSummary: input.scoreSummary.slice(0, SCORE_SUMMARY_MAX),
-    }
+    },
+    signal
   )
 }
 
-export async function aiInterviewFeedback(input: {
-  question: string
-  answer: string
-  resumeText: string
-  jobDescription: string
-  role: string
-}): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-feedback', {
-    ...input,
-    resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
-    jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
-  })
+export async function aiInterviewFeedback(
+  input: {
+    question: string
+    answer: string
+    resumeText: string
+    jobDescription: string
+    role: string
+  },
+  signal?: AbortSignal
+): Promise<{ text: string; freeRemaining: number | null }> {
+  return post<{ text: string; freeRemaining: number | null }>(
+    '/api/ai/interview-feedback',
+    {
+      ...input,
+      resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+      jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+    },
+    signal
+  )
 }
