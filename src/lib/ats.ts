@@ -986,21 +986,35 @@ function employerTokens(jd: string, company: string | undefined): Set<string> {
 const URL_TOKEN_RE = /^www\.|\.(?:com|co|io|org|ai|de|uk|us|fr|eu|nl|es|it)$/
 
 const BOILERPLATE_HEADING_RE =
-  /^(?:(?:a bit |more )?about (?!(?:the |this )?(?:role|job|position|opportunity|team)\b|you\b).+|who we are|our (?:story|mission|values|culture|benefits|perks|commitment.*|hiring process|interview process|offer|way of working)|how we work|what we offer|what.s in it for you|what you.ll get|you.ll get|we offer|in return|rewards?|your benefits|why (?:join|work|you.ll love|us).*|the (?:perks|benefits|package)|(?:perks|benefits)(?: (?:&|and) (?:perks|benefits))?|compensation.*|salary.*|equal (?:employment )?opportunity.*|diversity.*|inclusion.*|how to apply|application process|interview process|hiring process|the process|next steps|what to expect|.*recruitment scams?.*|life at .*|the company|company (?:overview|description)|working at .*|what we do|join us)$/i
+  /^(?:(?:a bit |more )?about (?!(?:the |this )?(?:role|job|position|opportunity|team)\b|you\b).+|who we are|our (?:story|mission|values|culture|benefits|perks|commitment.*|hiring process|interview process|offer|way of working)|how we work|what we offer|what we give|what.s in it for you|what you.ll get|you.ll get|we offer|in return|rewards?|your benefits|why (?:join|work|you.ll love|us).*|the (?:perks|benefits|package)|(?:perks|benefits)(?: (?:&|and) (?:perks|benefits))?|(?:overview of|employee|pay (?:&|and)) benefits|compensation.*|salary.*|equal (?:employment )?opportunity.*|eeo statement|diversity.*|inclusion.*|accommodations|how to apply|application process|interview process|hiring process|the process|next steps|what to expect|.*recruitment scams?.*|.*(?:notice|alert)|visa sponsorship|life at .*|the company|company (?:overview|description)|working at .*|what we do|join us)$/i
+
+/**
+ * A paragraph that is employer boilerplate wherever it sits — equal-opportunity
+ * statements, recruitment-scam warnings, privacy and sponsorship notes often
+ * follow the last section with no heading of their own.
+ */
+const BOILERPLATE_PARAGRAPH_RE =
+  /equal (?:employment )?opportunit|without regard to|discriminat(?:e|ion)|recruit(?:ment|ing) scams?|job scams?|will (?:only|never) (?:email|contact|ask|request)|privacy (?:notice|policy|statement)|visa sponsorship|sponsor(?:ship of)? (?:an? )?(?:employment )?visa|reasonable accommodations?|protected veteran|by (?:clicking|submitting) (?:apply|your application)/i
 
 const LIST_ITEM_LINE_RE = /^\s*(?:[-–—•*▪◦·]|\d+[.)])\s/
 
-/** A short, non-bullet, non-sentence line — how sections are titled in job ads. */
+/** A short, non-bullet, non-sentence line with words in it — how sections are titled in job ads. */
 function isHeadingLine(line: string): boolean {
   const t = line.trim()
   return (
     t.length > 0 &&
     t.length <= 60 &&
+    /[a-z]/i.test(t) &&
     !LIST_ITEM_LINE_RE.test(line) &&
     !/[.,;!?]$/.test(t) &&
     t.split(/\s+/).length <= 6
   )
 }
+
+const wordCount = (line: string) => line.trim().split(/\s+/).length
+
+/** A long non-list line — prose rather than a list item or heading. */
+const isParagraph = (line: string) => !LIST_ITEM_LINE_RE.test(line) && wordCount(line) >= 25
 
 /**
  * Splits the ad into the text that describes the job and its "About us" /
@@ -1018,7 +1032,12 @@ function splitBoilerplate(jd: string): { job: string; boilerplate: string } {
       inBoiler = BOILERPLATE_HEADING_RE.test(line.trim().replace(/[:\s]+$/, ''))
       if (inBoiler) continue
     }
-    ;(inBoiler ? boilerplate : job).push(line)
+    // "Here's how to know you're speaking with a real member of our team:"
+    // introduces a list that is boilerplate too.
+    const notice =
+      !LIST_ITEM_LINE_RE.test(line) && wordCount(line) >= 8 && BOILERPLATE_PARAGRAPH_RE.test(line)
+    if (notice && /:\s*$/.test(line)) inBoiler = true
+    ;(inBoiler || notice ? boilerplate : job).push(line)
   }
   const text = job.join('\n')
   if (boilerplate.length === 0 || tokenize(text).length < 40) return { job: jd, boilerplate: '' }
@@ -1026,13 +1045,16 @@ function splitBoilerplate(jd: string): { job: string; boilerplate: string } {
 }
 
 /**
- * The ad with each verbatim-repeated paragraph kept once. Some feeds paste the
- * same duty paragraph twice; counting it twice would make every word in it a
- * "repeated" keyword.
+ * The ad with a bullet marker left alone on its line rejoined to the item it
+ * introduces (`•\nBuild features` → `• Build features`), and each
+ * verbatim-repeated paragraph kept once. Some feeds paste the same duty
+ * paragraph twice; counting it twice would make every word in it a "repeated"
+ * keyword.
  */
-function withoutRepeatedParagraphs(jd: string): string {
+function normalizeAd(jd: string): string {
   const seen = new Set<string>()
   return jd
+    .replace(/^([ \t]*(?:[-–—•*▪◦·]|\d+[.)]))[ \t]*\n+[ \t]*(?=\S)/gm, '$1 ')
     .split(/\n/)
     .filter((line) => {
       const key = line.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
@@ -1050,8 +1072,7 @@ function withoutRepeatedParagraphs(jd: string): string {
  * keyword, however often the ad repeats it.
  */
 export function extractKeywords(jdRaw: string, limit = 30, company?: string): string[] {
-  const jd = withoutRepeatedParagraphs(jdRaw)
-  const lower = jd.toLowerCase()
+  const jd = normalizeAd(jdRaw)
   const found = new Map<string, number>()
   const { job, boilerplate } = splitBoilerplate(jd)
   // A phrase in the employer's own sections ("our verified social media
@@ -1072,7 +1093,7 @@ export function extractKeywords(jdRaw: string, limit = 30, company?: string): st
     if (URL_TOKEN_RE.test(tok) && !KNOWN_SKILLS.has(tok)) continue
     counts.set(tok, (counts.get(tok) ?? 0) + 1)
   }
-  const reqTokens = new Set(tokenize(requirementsBlock(lower)))
+  const reqTokens = new Set(tokenize(requirementsBlock(jd)))
   const score = (tok: string, n: number) =>
     (looksLikeSkill(tok) ? n + 2 : n) + (reqTokens.has(tok) ? 0.5 : 0)
   const entries = [...counts.entries()]
@@ -1117,20 +1138,68 @@ function withoutRoleTokens(keywords: string[], targetRole: string): string[] {
   return keywords.filter((kw) => kw.includes(' ') || looksLikeSkill(kw) || !roleTokens.has(kw))
 }
 
+/** Section titles under which ads list what the candidate must bring (measured over 84 real ads). */
 const REQUIREMENTS_HEADING_RE =
-  /^.*\b(requirements|qualifications|must[- ]haves?|what you.ll need|what we.re looking for|who you are|about you|what you bring|you.ll bring|you bring|ideal candidate|your profile|your background)\b.*$/im
+  /\b(requirements?|qualifications|must[- ]haves?|what you.ll need|what we.re looking for|who we.re looking for|skills we.re looking for|who you are|about you|what you bring|you.ll bring|you bring|ideal candidate|your profile|your background|what we need|required|experience|skills|expertise|tech stack|our stack|this role is for you if|license\/certification|nice[- ]to[- ]haves?|preferred|bonus|votre profil)\b/i
+
+/** A requirements section continues through its "Nice to have" / "Preferred" sub-heading. */
+const NICE_TO_HAVE_HEADING_RE = /\b(nice[- ]to[- ]haves?|bonus|preferred|plus|desirable|good to have|great if|optional|valued)\b/i
+
+/** A sentence that opens the candidate profile in ads without a requirements heading. */
+const REQUIREMENTS_SENTENCE_RE =
+  /^\s*(you bring|you.ll bring|what we.re looking for|the ideal candidate|we are looking for|we.re looking for|you have|you are)\b/i
 
 /**
- * Text from the requirements heading onwards. An inline "Requirements: …" list
- * starts after the colon; a long sentence such as "You bring 4+ years of …" is
- * itself part of the block, a short heading line is not.
+ * The ad's requirements sections — every one of them, since "Minimum" and
+ * "Preferred qualifications" both count. A section runs from its heading (or an
+ * inline "Requirements: …" label, or a "You bring 4+ years of …" sentence) to
+ * the next heading that is not a nice-to-have sub-heading, or to the first
+ * prose paragraph after its list — the equal-opportunity statement that follows
+ * the last list with no heading of its own. Lower-cased; empty when the ad has
+ * no such section.
  */
-function requirementsBlock(lower: string): string {
-  const m = REQUIREMENTS_HEADING_RE.exec(lower)
-  if (!m) return ''
-  const colon = m[0].indexOf(':')
-  const start = colon >= 0 ? colon + 1 : m[0].length > 60 ? 0 : m[0].length
-  return lower.slice(m.index + start)
+function requirementsBlock(jd: string): string {
+  const out: string[] = []
+  let inside = false
+  let sawList = false
+  for (const raw of jd.split(/\n/)) {
+    const line = raw.trim()
+    if (!line) continue
+    if (isHeadingLine(line)) {
+      const label = line.replace(/[:\s]+$/, '')
+      if (BOILERPLATE_HEADING_RE.test(label)) {
+        inside = false
+      } else if (REQUIREMENTS_HEADING_RE.test(label)) {
+        inside = true
+        sawList = false
+      } else if (!(inside && NICE_TO_HAVE_HEADING_RE.test(label))) {
+        inside = false
+      }
+      continue
+    }
+    const colon = line.indexOf(':')
+    const label = colon > 1 && colon <= 50 ? line.slice(0, colon) : ''
+    if (label && !LIST_ITEM_LINE_RE.test(raw) && !/\d/.test(label) && REQUIREMENTS_HEADING_RE.test(label)) {
+      inside = true
+      sawList = false
+      out.push(line.slice(colon + 1))
+      continue
+    }
+    if (!inside && !LIST_ITEM_LINE_RE.test(raw) && REQUIREMENTS_SENTENCE_RE.test(line)) {
+      inside = true
+      sawList = false
+      out.push(line)
+      continue
+    }
+    if (!inside) continue
+    if (sawList && isParagraph(line)) {
+      inside = false
+      continue
+    }
+    if (LIST_ITEM_LINE_RE.test(raw)) sawList = true
+    out.push(line)
+  }
+  return out.join('\n').toLowerCase()
 }
 
 /**
@@ -1158,36 +1227,39 @@ global customers customer revenue content market training enterprise`.split(/\s+
 )
 
 /**
- * JD keywords worth prioritizing: known multi-word phrases, keywords repeated
- * ≥3 times (unless every ad repeats them), keywords in the
- * requirements/qualifications block, and keywords in the JD's first line
- * (usually the job title).
+ * JD keywords worth prioritizing: keywords in the ad's requirements sections
+ * or its first line (usually the job title), known multi-word phrases and
+ * skills named where the ad describes the job, and keywords the job
+ * description itself repeats ≥3 times (unless every ad repeats them). Words
+ * repeated only across "About us" / "Benefits" / EEO / scam-notice sections
+ * describe the employer, not the job.
  */
 export function highPriorityKeywords(jdRaw: string, keywords: string[]): Set<string> {
   const high = new Set<string>()
   if (!jdRaw.trim() || keywords.length === 0) return high
-  const jd = withoutRepeatedParagraphs(jdRaw)
-  const lower = jd.toLowerCase()
-  const jdTokens = tokenize(jd)
-  const firstLine = (jd.trim().split(/\n/, 1)[0] ?? '').toLowerCase()
+  const jd = normalizeAd(jdRaw)
+  const job = splitBoilerplate(jd).job.toLowerCase()
+  const jobTokens = tokenize(job)
+  // The first line is the job title only when it is short; an ad that opens
+  // with an "At Acme, we're transforming…" paragraph has no title line.
+  const opening = (jd.trim().split(/\n/, 1)[0] ?? '').trim().toLowerCase()
+  const firstLine = opening.length <= 100 && wordCount(opening) <= 12 ? opening : ''
   const firstLineTokens = new Set(tokenize(firstLine))
-  const reqBlock = requirementsBlock(lower)
+  const reqBlock = requirementsBlock(jd)
   const reqTokens = new Set(tokenize(reqBlock))
   for (const kw of keywords) {
     const phrase = kw.includes(' ')
-    if (phrase && lower.includes(kw)) {
-      high.add(kw)
-      continue
-    }
-    if (!COMMON_AD_WORDS.has(kw) && countOccurrences(lower, jdTokens, kw) >= 3) {
-      high.add(kw)
-      continue
-    }
     if (phrase ? reqBlock.includes(kw) : reqTokens.has(kw)) {
       high.add(kw)
       continue
     }
-    if (phrase ? firstLine.includes(kw) : firstLineTokens.has(kw)) high.add(kw)
+    if (phrase ? firstLine.includes(kw) : firstLineTokens.has(kw)) {
+      high.add(kw)
+      continue
+    }
+    const n = countOccurrences(job, jobTokens, kw)
+    if (n === 0) continue
+    if (phrase || looksLikeSkill(kw) || (!COMMON_AD_WORDS.has(kw) && n >= 3)) high.add(kw)
   }
   return high
 }
