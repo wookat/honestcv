@@ -7,6 +7,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { CopyStatus } from '@/components/CopyStatus'
+import { FilterResultStatus } from '@/components/FilterResultStatus'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -1444,6 +1445,12 @@ export default function Jobs() {
               placeholder="Filter by title or company"
               aria-label="Filter tracked jobs by title or company"
               className="border-input bg-background min-h-10 w-52 rounded-md border px-3 py-1 text-xs sm:min-h-8"
+            />
+            <FilterResultStatus
+              query={trackedFilter}
+              shown={trackedQueue.length}
+              total={pipeline.length}
+              noun="tracked jobs"
             />
             {(attentionCount(pipeline) > 0 || followUpOnly) && (
               <button

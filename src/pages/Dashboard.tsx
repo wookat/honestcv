@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CopyStatus } from '@/components/CopyStatus'
+import { FilterResultStatus } from '@/components/FilterResultStatus'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   BriefcaseBusiness,
@@ -910,6 +911,13 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   }, [section, exampleQuery, activeSector, savedOnly])
   // A seeded ?kind= with no matching saved docs falls back to All (its chip is hidden).
   const activeDocKind = docKind !== 'all' && !docs.some((d) => d.kind === docKind) ? 'all' : docKind
+  const filteredDocs = useMemo(() => {
+    const q = docQuery.trim().toLowerCase()
+    return docs.filter(
+      (d) =>
+        (activeDocKind === 'all' || d.kind === activeDocKind) && d.title.toLowerCase().includes(q)
+    )
+  }, [docs, activeDocKind, docQuery])
   useEffect(() => {
     if (section !== 'documents') return
     const params = new URLSearchParams()
@@ -1320,6 +1328,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 aria-label="Search saved copies by name or folder"
                 className="bg-card min-h-10 w-44 rounded-md border py-1 pr-2 pl-7 text-sm sm:min-h-8"
               />
+              <FilterResultStatus
+                query={copyQuery}
+                shown={sortedVersions.length}
+                total={versions.length}
+                noun="saved copies"
+              />
             </div>
             <div className="flex items-center gap-1.5">
               <label htmlFor="version-sort" className="text-muted-foreground text-xs">
@@ -1591,7 +1605,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         )}
 
         {copyQuery.trim() !== '' && versions.length > 0 && sortedVersions.length === 0 && (
-          <p role="status" className="text-muted-foreground mt-4 text-sm">
+          <p className="text-muted-foreground mt-4 text-sm">
             No saved copies match “{copyQuery.trim()}”.
           </p>
         )}
@@ -1780,6 +1794,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 aria-label="Search saved documents by title"
                 className="bg-card min-h-10 w-44 rounded-md border py-1 pr-2 pl-7 text-sm sm:min-h-8"
               />
+              <FilterResultStatus
+                query={docQuery}
+                shown={filteredDocs.length}
+                total={docs.length}
+                noun="documents"
+              />
             </div>
             <div
               className="flex flex-wrap gap-1.5"
@@ -1827,13 +1847,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           </p>
         ) : (
           <ul className="mt-4 space-y-2">
-            {docs
-              .filter(
-                (d) =>
-                  (activeDocKind === 'all' || d.kind === activeDocKind) &&
-                  d.title.toLowerCase().includes(docQuery.trim().toLowerCase())
-              )
-              .map((d) => (
+            {filteredDocs.map((d) => (
               <li
                 key={d.id}
                 className="bg-card flex items-center justify-between gap-2 rounded-md border p-3"
@@ -1923,11 +1937,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         )}
         {docQuery.trim() !== '' &&
           docs.length > 0 &&
-          !docs.some(
-            (d) =>
-              (activeDocKind === 'all' || d.kind === activeDocKind) &&
-              d.title.toLowerCase().includes(docQuery.trim().toLowerCase())
-          ) && (
+          filteredDocs.length === 0 && (
             <p className="text-muted-foreground mt-4 rounded-md border border-dashed p-4 text-sm">
               No documents match “{docQuery.trim()}”.
             </p>
@@ -1998,6 +2008,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 placeholder="Search samples by role or industry"
                 aria-label="Search samples by role or industry"
                 className="h-10 max-w-xs"
+              />
+              <FilterResultStatus
+                query={exampleQuery}
+                shown={filteredExamples.length}
+                total={examples.length}
+                noun="samples"
               />
               <div
                 className="flex flex-wrap gap-1.5"

@@ -2807,3 +2807,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 方案 docs/plan-r695-copy-feedback-status.md：新增 `src/components/CopyStatus.tsx`（常驻 `role=status sr-only`，idle 为空、copied/failed 填文案），四处按钮旁各放一个；按钮文案/handler/布局/状态机不变。
 - 生产 QA（index-smApJyJU.js，同脚本 1280/375）：三处点击后各得一条 `childList:status:… copied to clipboard.`，焦点仍在按钮，可见文案与修前逐字相同，0 console 错误。
 - 如实：未真实读屏实听；Share-link 弹窗仅同组件推断；失败态复用同一 polite 区（按钮可见文案已写 Copy failed），未另加 alert。
+
+### R696 — 应用内四个筛选框（copies / documents / samples / tracked jobs）缩小列表时没有任何播报（WCAG 4.1.3，链 #916 → 本 PR）
+
+- 取证（`qa/r696-evidence.cjs 1280|375`，生产 index-smApJyJU.js，MutationObserver live-region 记录仪）：/dashboard「Search copies」输入 engineer（4→2）live 记录 none、输入 zzz 得 `added:status:No saved copies match`（仅空态有 role）；/documents「Search documents」、/samples「Search samples」、/jobs Tracked「Filter by title or company」有结果/无结果 live 记录均 none，空态段落可见但无 role。/jobs All 页既有「N jobs found」与 R669 给静态 /examples/ 加的「N of M shown」是本仓正确先例。
+- 方案 docs/plan-r696-filter-result-status.md：新增 `src/components/FilterResultStatus.tsx`（常驻 `role=status sr-only`，query 为空时空串，否则「N of M {noun} match “q”」/「No {noun} match “q”」），四个输入框旁各放一个；copies 空态 `<p>` 去掉 `role=status` 避免双报；documents 把列表与空态各算一次的内联 filter 提成 `filteredDocs` useMemo；可见文案/过滤谓词/排序不变。
+- 生产 QA（index-Dy36HEk7.js，同脚本 1280/375）：copies engineer → `2 of 4 saved copies match`，zzz → 单条 `No saved copies match`（无双报），清空 → 区域清空；documents `1 of 2 documents match` / `No documents match`；samples `1 of 30 samples match` / `No samples match`；tracked `1 of 1 tracked jobs match` / `No tracked jobs match`；焦点始终留在输入框；0 console 错误；存储回基线。
+- 如实：未真实读屏实听（逐字输入时 polite 区域的合并/打断行为因读屏而异，未验证）；tracked 的 total 是整个 pipeline，开着「follow-up only」时分母不随之缩小。
