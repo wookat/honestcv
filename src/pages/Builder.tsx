@@ -76,6 +76,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
+import { briefGrounding, unsupportedClaims } from '@/lib/grounding'
 import { prefersReducedMotion } from '@/lib/motion'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
@@ -10767,6 +10768,38 @@ function BundleToolDialog({
     setResult(text)
     setAutoResult(text)
   }
+  /** Deterministic check of the generated text against the resume / job ad (updates as the user edits). */
+  const grounding = useMemo(() => {
+    if (!result || kind === 'resignation') return null
+    const resumeText = resumeToPlainText(resume)
+    const claims = unsupportedClaims(result, [
+      resumeText,
+      resume.jobDescription,
+      highlights,
+      company,
+      addressee,
+      resume.targetRole,
+    ])
+    const brief =
+      kind === 'interview'
+        ? briefGrounding(result, resumeText, [
+            ...resume.experience.map((e) => e.company),
+            ...resume.education.map((e) => e.school),
+          ])
+        : null
+    return { claims, brief }
+  }, [result, kind, resume, highlights, company, addressee])
+  // Unsupported names in a brief are usually questions or advice ("tools like Copilot"), so they
+  // only lower the verdict for a letter, where every name is a claim about the candidate.
+  const groundingIssues = grounding
+    ? (grounding.brief ? 0 : grounding.claims.terms.length) +
+      grounding.claims.figures.length +
+      (grounding.brief?.uncitedQuestions.length ?? 0) +
+      (grounding.brief?.unquotedStories.length ?? 0)
+    : 0
+  const groundingNotes = grounding
+    ? groundingIssues + (grounding.brief ? grounding.claims.terms.length : 0)
+    : 0
 
   const jumpToNextPlaceholder = () => {
     const ta = resultRef.current
@@ -11464,6 +11497,53 @@ function BundleToolDialog({
                 >
                   Next placeholder
                 </Button>
+              </div>
+            )}
+            {grounding && (grounding.brief || groundingNotes > 0) && (
+              <div
+                role="status"
+                className={cn(
+                  'space-y-1 rounded border px-2 py-1.5 text-xs',
+                  groundingIssues > 0
+                    ? 'border-amber-300/60 bg-amber-500/10 dark:border-amber-400/30'
+                    : 'border-green-200 bg-green-50 text-green-800'
+                )}
+              >
+                <p className="font-medium">
+                  {groundingIssues > 0
+                    ? 'Check against your resume before you rely on this:'
+                    : `Grounded: all ${grounding.brief?.questionCount ?? 0} answer angles cite your resume or name a gap, and all ${grounding.brief?.storyCount ?? 0} stories quote a resume bullet.`}
+                </p>
+                {grounding.brief && grounding.brief.uncitedQuestions.length > 0 && (
+                  <p>
+                    {`Answer angle${grounding.brief.uncitedQuestions.length === 1 ? '' : 's'} ${grounding.brief.uncitedQuestions.join(', ')} cite${
+                      grounding.brief.uncitedQuestions.length === 1 ? 's' : ''
+                    } nothing from your resume and ${
+                      grounding.brief.uncitedQuestions.length === 1 ? "doesn't" : "don't"
+                    } name a gap — rewrite from a real bullet or say it's a gap.`}
+                  </p>
+                )}
+                {grounding.brief && grounding.brief.unquotedStories.length > 0 && (
+                  <p>
+                    {`Stor${grounding.brief.unquotedStories.length === 1 ? 'y' : 'ies'} ${grounding.brief.unquotedStories.join(', ')} ${
+                      grounding.brief.unquotedStories.length === 1 ? "doesn't" : "don't"
+                    } quote a bullet from your resume — the details may be invented.`}
+                  </p>
+                )}
+                {grounding.claims.terms.length > 0 && (
+                  <p>
+                    {`Not in your resume or the job ad: ${grounding.claims.terms.join(', ')} — ${
+                      grounding.brief
+                        ? 'fine as a question or a suggestion, not as your experience.'
+                        : 'a suggestion, not your experience.'
+                    }`}
+                  </p>
+                )}
+                {grounding.claims.figures.length > 0 && (
+                  <p>
+                    {`Figure${grounding.claims.figures.length === 1 ? '' : 's'} not in your resume or the job ad: ${grounding.claims.figures.join(', ')}.`}
+                  </p>
+                )}
               </div>
             )}
             <Textarea
