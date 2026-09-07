@@ -1583,7 +1583,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 </div>
               </div>
             </div>
-          ) : (
+          ) : versions.length === 0 ? (
             <div className="bg-card flex min-h-64 flex-col items-center justify-center gap-3 rounded-md border border-dashed p-6 text-center">
               <FilePlus2 className="text-muted-foreground size-8" />
               <p className="text-muted-foreground text-sm">
@@ -1593,7 +1593,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 <Link to="/builder">Create my resume</Link>
               </Button>
             </div>
-          )}
+          ) : null}
 
           <button
             type="button"

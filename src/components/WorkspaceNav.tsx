@@ -21,7 +21,7 @@ import { fetchAiQuota } from '@/lib/api'
 import { listCareerDocs } from '@/lib/documents'
 import { attentionCount, listPipeline } from '@/lib/jobs'
 import { loadLicense } from '@/lib/license'
-import { listResumeVersions, loadResume } from '@/lib/resume'
+import { getActiveVersionId, listResumeVersions, loadResume } from '@/lib/resume'
 
 const PLAN_LABELS = { resume: 'Resume plan', bundle: 'Bundle plan' } as const
 
@@ -81,15 +81,18 @@ export function PlanCard({ className }: { className?: string } = {}) {
 
 export function WorkspaceNav({ onCreate }: { onCreate?: () => void } = {}) {
   const { pathname } = useLocation()
-  const counts = useMemo(
-    () => ({
-      resumes: listResumeVersions().length + (loadResume() ? 1 : 0),
+  const counts = useMemo(() => {
+    const versions = listResumeVersions()
+    const activeId = getActiveVersionId()
+    // A draft that is a saved copy open in the editor is already counted as that copy.
+    const standaloneDraft = loadResume() && !versions.some((v) => v.id === activeId) ? 1 : 0
+    return {
+      resumes: versions.length + standaloneDraft,
       docs: listCareerDocs().length,
       pipeline: listPipeline().length,
       attention: attentionCount(),
-    }),
-    []
-  )
+    }
+  }, [])
   const items: NavItem[] = [
     { label: 'My resumes', to: '/dashboard', icon: Files, count: counts.resumes, active: pathname === '/dashboard' },
     { label: 'Career documents', to: '/documents', icon: FileText, count: counts.docs, active: pathname === '/documents' },
