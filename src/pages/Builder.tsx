@@ -10777,7 +10777,7 @@ function BundleToolDialog({
   const [session, setSession] = useState<{
     questions: string[]
     idx: number
-    entries: { q: string; a: string; fb: string }[]
+    entries: { q: string; a: string; fb: string; score: number | null }[]
   } | null>(null)
   const [lastKind, setLastKind] = useState(kind)
   const [confirmingClose, setConfirmingClose] = useState<false | 'close' | 'jump'>(false)
@@ -10834,6 +10834,20 @@ function BundleToolDialog({
     [kind, analysis, answer]
   )
 
+  /** Running practice score across the session's answered questions (local, no AI). */
+  const runningScore = useMemo(() => {
+    if (kind !== 'interview' || !session) return null
+    const scores = session.entries
+      .map((e) => e.score)
+      .filter((s): s is number => s !== null)
+    if (analysis) scores.push(analysis.score)
+    if (scores.length === 0) return null
+    return {
+      scored: scores.length,
+      average: Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length),
+    }
+  }, [kind, session, analysis])
+
   /** JD keywords demonstrated in this answer that the resume itself still lacks. */
   const resumeGaps = useMemo(() => {
     if (kind !== 'interview' || !analysis?.keywords) return []
@@ -10876,17 +10890,23 @@ function BundleToolDialog({
         ? professionalFileName([resume.contact.fullName, company, 'cover-letter'], ext)
         : professionalFileName([resume.contact.fullName, 'resignation-letter'], ext)
 
-  type PracticeSession = { questions: string[]; idx: number; entries: { q: string; a: string; fb: string }[] }
+  type PracticeEntry = { q: string; a: string; fb: string; score: number | null }
+  type PracticeSession = { questions: string[]; idx: number; entries: PracticeEntry[] }
 
   const sessionEntries = (s: PracticeSession) => {
     const entries = [...s.entries]
     if (answer.trim() || feedback) {
-      entries.push({ q: s.questions[s.idx], a: answer.trim(), fb: feedback })
+      entries.push({
+        q: s.questions[s.idx],
+        a: answer.trim(),
+        fb: feedback,
+        score: analysis?.score ?? null,
+      })
     }
     return entries
   }
 
-  const finishSession = (s: PracticeSession, entries: { q: string; a: string; fb: string }[]) => {
+  const finishSession = (s: PracticeSession, entries: PracticeEntry[]) => {
     const role = aiTargetRole(resume) || 'your target job'
     const transcript = entries
       .map(
@@ -11544,6 +11564,17 @@ function BundleToolDialog({
                 <div className="bg-muted/50 space-y-1 rounded-md border px-3 py-2">
                   <p className="text-muted-foreground text-xs">
                     Question {session.idx + 1} of {session.questions.length}
+                    {runningScore && (
+                      <>
+                        {' · '}
+                        <span className="text-foreground">
+                          Running score{' '}
+                          <span className="tabular-nums">{runningScore.average}</span>/100
+                        </span>{' '}
+                        across {runningScore.scored}{' '}
+                        {runningScore.scored === 1 ? 'answer' : 'answers'}
+                      </>
+                    )}
                   </p>
                   <p className="text-sm">{session.questions[session.idx]}</p>
                 </div>

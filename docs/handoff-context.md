@@ -2887,3 +2887,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 方案 docs/plan-r706-ai-output-retry.md：`worker/index.ts` 新增 `parseJsonArrayLenient`（去围栏 → 直接 parse → `[`…`]` 切片 → 回退到最后一个完整 `}`/`"` 补 `]` 抢救截断）与 `callLlmJsonArray`（首答不可用则把原答复 + 「只回 JSON 数组」追加再问一次，温度 ≤0.2；二次仍不可用返回 502 `AI_TROUBLE_ERROR`「None of your free AI uses were spent」）；四端点改用之，逐项形状校验与 `consumeQuota` 位置不变（成功后才扣）。客户端 `TailorDialog` busy 状态 45s 后同一 `role=status` 节点改为如实文案「Taking longer than usual — if the first AI reply was unusable we ask it once more before giving up. Your free AI uses are only spent on a successful result.」。
 - 验证：`qa/r706-parse.mts` 8 例；本地 `wrangler dev` + 脚本化 mock relay（`qa/r706-mock-llm.cjs` / `qa/r706-local.cjs`）：散文→再问→200 且配额 12→11；围栏+截断→抢救 2 项 200 且 11→10；两次散文→502 配额不动；relay 不可达→1s 后 502 配额不动。tsc / eslint（0 error）/ build / verify-dist 绿。
 - 如实：Worker 不流式，客户端只能按时长切换文案、无法真正得知「正在再问」；截断抢救会丢掉被截元素；生产无法强制触发非 JSON 分支，生产仅做 1 次真实 tailor 调用确认无回归；Workers Routes code 10000 依旧（上传上线不受影响）；R707 待做。
+
+### R707 — 面试练习会话内显示滚动平均分（running score）+ 更正 R703 差距表（P1 → P2，链 #927 → 本 PR）
+
+- 取证（代码 `Builder.tsx` `PracticeSession`/`advanceSession`/`finishSession`/`sessionReport` + 生产 `/builder?doc=interview` 实走）：R703 把「面试准备只是静态 brief + 一次性反馈、非练习循环」列为 P1 不成立——生产已有「Practice all N」逐题练习、2 分钟计时、每题本地 STAR/关键词/语速评分、可选 AI 逐题点评、结束生成含每题分数的 Session report。对标 Rezi AI Interview 唯一缺的是会话进行中可见的分数（我方只在最终报告出现）。R703 表已如实更正，不按原描述重做。
+- 方案 docs/plan-r707-practice-running-score.md（仅 `src/pages/Builder.tsx`）：`PracticeEntry.score`（提交答案时记录本地 `analyzeAnswer` 分，跳过/<10 词为 null，与 `sessionReport` 同阈值）；`runningScore = useMemo` 对已提交条目 + 当前答案实时分求均值；会话头「Question 2 of 5 · Running score 68/100 across 2 answers」。零新端点、零 AI 调用。
+- 验证：tsc / eslint（0 错误）/ build / verify-dist 绿；部署 index-B8ZtG934.js；生产 `qa/r707-evidence.cjs 1280|375`：Q1 答案 82 → 头 82/1；跳过 Q2 不改计数；Q3 答案 56 → 头 69/2（= round((82+56)/2)）；End early 报告「average practice score 69/100 · Q1 82 · Q2 56」与头一致；唯一 `/api/ai/` 请求是 `GET /api/ai/quota`，0 console 错误，存储回基线。
+- 如实：Rezi 的分数是模型评分，我方 running score 是本地启发式（与既有「Practice score」同源），AI 点评仍是文字无分数；未改 Worker；Workers Routes code 10000 依旧（上传上线不受影响）。
