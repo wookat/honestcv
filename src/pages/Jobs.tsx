@@ -158,6 +158,10 @@ const agoFromMs = (ms: number) => {
   return days === 1 ? '1 day ago' : `${days} days ago`
 }
 
+// Searches are numbered so a slower earlier response cannot overwrite the
+// list a later search already produced.
+let jobsFetchSeq = 0
+
 export default function Jobs() {
   usePageMeta(
     'Job search — RezUp',
@@ -240,9 +244,11 @@ export default function Jobs() {
   } | null>(null)
   const [followUpCopied, setFollowUpCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
 
-  const fetchJobs = (q: string, cat = '') =>
-    searchJobs(q, cat)
+  const fetchJobs = (q: string, cat = '', loc = locationFilter) => {
+    const seq = ++jobsFetchSeq
+    return searchJobs(q, cat, loc)
       .then(async (list) => {
+        if (seq !== jobsFetchSeq) return
         setJobs(list)
         let seedResolved: JobListing | null = null
         if (pendingSeedJob) {
@@ -285,8 +291,13 @@ export default function Jobs() {
           return list[0]?.id ?? null
         })
       })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false))
+      .catch((e: Error) => {
+        if (seq === jobsFetchSeq) setError(e.message)
+      })
+      .finally(() => {
+        if (seq === jobsFetchSeq) setLoading(false)
+      })
+  }
 
   const runSearch = (q: string, cat = category) => {
     setLoading(true)
@@ -298,6 +309,21 @@ export default function Jobs() {
     void fetchJobs(seedQuery ?? loadResume()?.targetRole ?? '', seedParams.get('cat') ?? '')
     // seedQuery/seedParams are set once from the URL and never change
   }, [seedQuery, seedParams])
+
+  // The remote feeds are filtered locally, but on-site postings for the typed
+  // place come from the API, so a settled location re-runs the search in the
+  // background (the list stays put until the new one arrives).
+  const lastFetchedLoc = useRef(locationFilter.trim().toLowerCase())
+  useEffect(() => {
+    const loc = locationFilter.trim().toLowerCase()
+    if (loc === lastFetchedLoc.current) return
+    const t = window.setTimeout(() => {
+      lastFetchedLoc.current = loc
+      void fetchJobs(query, category, locationFilter)
+    }, 700)
+    return () => window.clearTimeout(t)
+    // query/category are read at fire time; only a location change should refetch
+  }, [locationFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const params = new URLSearchParams()
@@ -1185,6 +1211,10 @@ export default function Jobs() {
           <a href="https://www.arbeitnow.com" target="_blank" rel="noopener noreferrer" className="underline">
             Arbeitnow
           </a>
+          ; add a location to include on-site jobs there via{' '}
+          <a href="https://www.themuse.com" target="_blank" rel="noopener noreferrer" className="underline">
+            The Muse
+          </a>
           . Your application pipeline is stored in this browser only.
         </p>
 
@@ -1348,7 +1378,7 @@ export default function Jobs() {
               type="search"
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              placeholder="Location, e.g. Europe"
+              placeholder="Location, e.g. London"
               aria-label="Filter by location"
               className="h-10 w-36"
               list="job-location-options"
