@@ -30,7 +30,20 @@ export interface JobListing {
   descriptionTruncated?: boolean
   /** Upstream skill tags (may be missing on entries saved before it existed) */
   tags?: string[]
+  /** Feed the posting came from (`remotive` | `jobicy` | `arbeitnow` | `themuse`; missing on entries saved before it existed) */
+  source?: string
 }
+
+export const JOB_SOURCE_LABELS: Record<string, string> = {
+  remotive: 'Remotive',
+  jobicy: 'Jobicy',
+  arbeitnow: 'Arbeitnow',
+  themuse: 'The Muse',
+}
+
+/** Human name of the feed a posting came from, or '' when unknown. */
+export const jobSourceLabel = (job: Pick<JobListing, 'source'>) =>
+  job.source ? (JOB_SOURCE_LABELS[job.source] ?? job.source) : ''
 
 export type JobStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'rejected'
 
