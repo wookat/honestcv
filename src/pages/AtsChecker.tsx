@@ -27,6 +27,7 @@ import { IMPORT_ACCEPT, extractResumeFile, type FileCheck } from '@/lib/extractF
 import { priorityFixes, resumeHealth } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
 import { loadResume, saveResume, setActiveVersionId } from '@/lib/resume'
+import { useFocusAfterRender } from '@/lib/useFocusAfterRender'
 
 const EXAMPLE_RESUME = `Jordan Reyes
 Software Engineer
@@ -129,6 +130,7 @@ export default function AtsChecker() {
         : null
   )
   const [linkCopied, setLinkCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const focusAfterRender = useFocusAfterRender()
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
   const [fileChecks, setFileChecks] = useState<{ name: string; checks: FileCheck[] } | null>(
@@ -275,6 +277,7 @@ export default function AtsChecker() {
                 setResumeText(EXAMPLE_RESUME)
                 setJd(EXAMPLE_JD)
                 setScan({ resumeText: EXAMPLE_RESUME, jd: EXAMPLE_JD })
+                focusAfterRender('ats-result-heading')
               }}
             >
               <Target /> See an example score first
@@ -352,7 +355,10 @@ export default function AtsChecker() {
           <Button
             size="lg"
             disabled={resumeText.trim().length < 30}
-            onClick={() => setScan({ resumeText, jd })}
+            onClick={() => {
+              setScan({ resumeText, jd })
+              focusAfterRender('ats-result-heading')
+            }}
           >
             Check my ATS score <ArrowRight />
           </Button>
@@ -369,6 +375,7 @@ export default function AtsChecker() {
                   setResumeText(EXAMPLE_RESUME)
                   setJd(EXAMPLE_JD)
                   setScan({ resumeText: EXAMPLE_RESUME, jd: EXAMPLE_JD })
+                  focusAfterRender('ats-result-heading')
                 }}
               >
                 see an example score
@@ -391,7 +398,10 @@ export default function AtsChecker() {
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => setScan({ resumeText, jd })}
+              onClick={() => {
+                setScan({ resumeText, jd })
+                focusAfterRender('ats-result-heading')
+              }}
             >
               Re-check now
             </Button>
@@ -403,8 +413,13 @@ export default function AtsChecker() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold">
+                  <h2
+                    id="ats-result-heading"
+                    tabIndex={-1}
+                    className="text-lg font-semibold outline-none"
+                  >
                     {isExample ? 'Example ATS match score' : 'Your ATS match score'}
+                    <span className="sr-only"> — {result.score} out of 100</span>
                   </h2>
                   {isExample && (
                     <Badge
