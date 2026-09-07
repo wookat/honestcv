@@ -994,9 +994,13 @@ const BOILERPLATE_HEADING_RE =
  * follow the last section with no heading of their own.
  */
 const BOILERPLATE_PARAGRAPH_RE =
-  /equal (?:employment )?opportunit|without regard to|discriminat(?:e|ion)|recruit(?:ment|ing) scams?|job scams?|will (?:only|never) (?:email|contact|ask|request)|privacy (?:notice|policy|statement)|visa sponsorship|sponsor(?:ship of)? (?:an? )?(?:employment )?visa|reasonable accommodations?|protected veteran|by (?:clicking|submitting) (?:apply|your application)/i
+  /equal (?:employment )?opportunit|without regard to|discriminat(?:e|ion)|recruit(?:ment|ing) scams?|job scams?|will (?:only|never) (?:email|contact|ask|request)|privacy (?:notice|policy|statement)|visa sponsorship|sponsor(?:ship of)? (?:an? )?(?:employment )?visa|reasonable accommodations?|protected veteran|by (?:clicking|submitting) (?:apply|your application)|401\(k\)|dental (?:insurance|coverage)|paid time off|employment eligibility/i
 
 const LIST_ITEM_LINE_RE = /^\s*(?:[-–—•*▪◦·]|\d+[.)])\s/
+
+/** `Location: Berlin (Hybrid)` / `Job Type: Full-Time (W2)` — the posting's metadata, not its vocabulary. */
+const METADATA_LABEL_RE =
+  /^\s*(?:work )?(?:location|salary|compensation|pay(?: range)?|job type|employment type|contract type|schedule|hours|working hours|start date|workplace)\s*:/i
 
 /** A short, non-bullet, non-sentence line with words in it — how sections are titled in job ads. */
 function isHeadingLine(line: string): boolean {
@@ -1004,9 +1008,9 @@ function isHeadingLine(line: string): boolean {
   return (
     t.length > 0 &&
     t.length <= 60 &&
-    /[a-z]/i.test(t) &&
+    /^[^#]*[a-z]/i.test(t) &&
     !LIST_ITEM_LINE_RE.test(line) &&
-    !/[.,;!?]$/.test(t) &&
+    !/[.,;?]$/.test(t) &&
     t.split(/\s+/).length <= 6
   )
 }
@@ -1035,8 +1039,9 @@ function splitBoilerplate(jd: string): { job: string; boilerplate: string } {
     // "Here's how to know you're speaking with a real member of our team:"
     // introduces a list that is boilerplate too.
     const notice =
-      !LIST_ITEM_LINE_RE.test(line) && wordCount(line) >= 8 && BOILERPLATE_PARAGRAPH_RE.test(line)
-    if (notice && /:\s*$/.test(line)) inBoiler = true
+      METADATA_LABEL_RE.test(line) ||
+      (!LIST_ITEM_LINE_RE.test(line) && wordCount(line) >= 8 && BOILERPLATE_PARAGRAPH_RE.test(line))
+    if (notice && /:\s*$/.test(line) && !METADATA_LABEL_RE.test(line)) inBoiler = true
     ;(inBoiler || notice ? boilerplate : job).push(line)
   }
   const text = job.join('\n')
@@ -1044,18 +1049,54 @@ function splitBoilerplate(jd: string): { job: string; boilerplate: string } {
   return { job: text, boilerplate: boilerplate.join('\n') }
 }
 
+/** Section titles as ads write them, for recognising one glued to the text next to it. */
+const GLUED_HEADING_RE =
+  /^(?:about (?:the )?(?:company|role|us|team|position|job|opportunity)|about (?!(?:the|a|an|our|this|your)\b)[a-z][a-z.&-]*|who we.re looking for|what we.re looking for|what we offer|what we give|what you.ll (?:do|be doing|need|bring|get)|what you bring|who you are|about you|requirements|responsibilities|(?:key|your|main) responsibilities|(?:preferred|minimum|basic|required) qualifications|qualifications|preferred|nice to haves?|benefits|compensation|your (?:profile|role|mission|tasks)|the role|the team|(?:our )?tech stack|why (?:join us|[a-z][a-z.&-]*)|how to apply|next steps|the opportunity|job description|(?:role |position )?(?:overview|summary)|duties|skills(?: (?:&|and) qualifications)?|education|experience)$/i
+
+const GLUED_MAX_WORDS = 5
+
+/**
+ * A line whose section title is glued to the paragraph after it (`About the
+ * Company One of the fastest…`) or to the list item before it (`…and tooling.
+ * Requirements`) is split so the title is a line of its own. Plain-text feeds
+ * drop the line break after a heading; without it the heading is neither seen
+ * nor does it bound its section.
+ */
+function splitGluedHeading(line: string): string[] {
+  const words = line.trim().split(/\s+/)
+  if (words.length < 8) return [line]
+  const isTitleCase = (w: string) => /^[A-Z]/.test(w)
+  for (let n = Math.min(GLUED_MAX_WORDS, words.length - 3); n >= 1; n--) {
+    const head = words.slice(0, n).join(' ')
+    // "Compensation: This is a fee-for-service position" is an inline label
+    // whose content is the rest of the line; leave it whole.
+    if (isTitleCase(words[0]) && isTitleCase(words[n]) && !/:$/.test(head) && GLUED_HEADING_RE.test(head)) {
+      return [head, ...splitGluedHeading(words.slice(n).join(' '))]
+    }
+  }
+  for (let n = Math.min(4, words.length - 3); n >= 1; n--) {
+    const tail = words.slice(-n)
+    const before = words[words.length - n - 1]
+    if (tail.every(isTitleCase) && /[a-z.)]$/.test(before) && GLUED_HEADING_RE.test(tail.join(' ').replace(/[:\s]+$/, ''))) {
+      return [words.slice(0, -n).join(' '), tail.join(' ')]
+    }
+  }
+  return [line]
+}
+
 /**
  * The ad with a bullet marker left alone on its line rejoined to the item it
- * introduces (`•\nBuild features` → `• Build features`), and each
- * verbatim-repeated paragraph kept once. Some feeds paste the same duty
- * paragraph twice; counting it twice would make every word in it a "repeated"
- * keyword.
+ * introduces (`•\nBuild features` → `• Build features`), glued section titles
+ * on their own line, and each verbatim-repeated paragraph kept once. Some
+ * feeds paste the same duty paragraph twice; counting it twice would make
+ * every word in it a "repeated" keyword.
  */
-function normalizeAd(jd: string): string {
+export function normalizeAd(jd: string): string {
   const seen = new Set<string>()
   return jd
     .replace(/^([ \t]*(?:[-–—•*▪◦·]|\d+[.)]))[ \t]*\n+[ \t]*(?=\S)/gm, '$1 ')
     .split(/\n/)
+    .flatMap(splitGluedHeading)
     .filter((line) => {
       const key = line.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
       if (key.split(' ').length < 8) return true
@@ -1150,6 +1191,13 @@ const REQUIREMENTS_SENTENCE_RE =
   /^\s*(you bring|you.ll bring|what we.re looking for|the ideal candidate|we are looking for|we.re looking for|you have|you are)\b/i
 
 /**
+ * What makes such a sentence state requirements rather than introduce the role
+ * ("We are looking for a Frontend Engineer in Berlin who loves building").
+ */
+const REQUIREMENTS_CUE_RE =
+  /\b(\d\+?\s*years?|experienced?|proficien|degree|fluen|knowledge|background|skills?|certif|licens|qualif)/i
+
+/**
  * The ad's requirements sections — every one of them, since "Minimum" and
  * "Preferred qualifications" both count. A section runs from its heading (or an
  * inline "Requirements: …" label, or a "You bring 4+ years of …" sentence) to
@@ -1158,20 +1206,22 @@ const REQUIREMENTS_SENTENCE_RE =
  * the last list with no heading of its own. Lower-cased; empty when the ad has
  * no such section.
  */
-function requirementsBlock(jd: string): string {
+export function requirementsBlock(jd: string): string {
   const out: string[] = []
   let inside = false
   let sawList = false
+  let bySentence = false
   for (const raw of jd.split(/\n/)) {
     const line = raw.trim()
     if (!line) continue
     if (isHeadingLine(line)) {
-      const label = line.replace(/[:\s]+$/, '')
+      const label = line.replace(/[:!\s]+$/, '')
       if (BOILERPLATE_HEADING_RE.test(label)) {
         inside = false
       } else if (REQUIREMENTS_HEADING_RE.test(label)) {
         inside = true
         sawList = false
+        bySentence = false
       } else if (!(inside && NICE_TO_HAVE_HEADING_RE.test(label))) {
         inside = false
       }
@@ -1182,17 +1232,27 @@ function requirementsBlock(jd: string): string {
     if (label && !LIST_ITEM_LINE_RE.test(raw) && !/\d/.test(label) && REQUIREMENTS_HEADING_RE.test(label)) {
       inside = true
       sawList = false
+      bySentence = false
       out.push(line.slice(colon + 1))
       continue
     }
-    if (!inside && !LIST_ITEM_LINE_RE.test(raw) && REQUIREMENTS_SENTENCE_RE.test(line)) {
+    if (
+      !inside &&
+      !LIST_ITEM_LINE_RE.test(raw) &&
+      REQUIREMENTS_SENTENCE_RE.test(line) &&
+      (REQUIREMENTS_CUE_RE.test(line) || /:$/.test(line))
+    ) {
       inside = true
+      bySentence = true
       sawList = false
       out.push(line)
       continue
     }
     if (!inside) continue
-    if (sawList && isParagraph(line)) {
+    // A block opened by a sentence is that sentence plus the list under it;
+    // the "We are looking for a Frontend Engineer in Berlin" intro is followed
+    // by the employer's own story, not by requirements.
+    if ((sawList || bySentence) && !LIST_ITEM_LINE_RE.test(raw) && (bySentence || isParagraph(line))) {
       inside = false
       continue
     }

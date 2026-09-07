@@ -777,6 +777,10 @@ const truncateDescription = (text: string): { description: string; descriptionTr
   }
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  mdash: '—', ndash: '–', hellip: '…', bull: '•', middot: '·',
+  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', euro: '€', pound: '£', trade: '™', copy: '©', reg: '®',
+}
 const decodeHtmlEntities = (s: string) =>
   s
     .replace(/&nbsp;/g, ' ')
@@ -784,6 +788,11 @@ const decodeHtmlEntities = (s: string) =>
     .replace(/&gt;/g, '>')
     .replace(/&(#39|apos|#x27);/g, "'")
     .replace(/&quot;/g, '"')
+    .replace(/&#(x[0-9a-f]{1,6}|\d{1,7});/gi, (m, code: string) => {
+      const cp = code[0].toLowerCase() === 'x' ? parseInt(code.slice(1), 16) : parseInt(code, 10)
+      return cp >= 0x20 && cp <= 0x10ffff && !(cp >= 0xd800 && cp <= 0xdfff) ? String.fromCodePoint(cp) : m
+    })
+    .replace(/&([a-z]+);/gi, (m, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? m)
     .replace(/&amp;/g, '&')
 
 // Some feeds (Arbeitnow for ATS-fed postings) ship the body entity-encoded
@@ -1063,7 +1072,8 @@ async function fetchArbeitnow(allowPartial: boolean): Promise<NormalizedJob[] | 
     .map((j) => {
       const tags = normalizeTags(j.tags)
       const location = (j.location ?? '').trim()
-      const description = htmlToText(j.description ?? '')
+      // Every Arbeitnow body ends with the board's own `<p>Find <a>Jobs in Germany</a> on Arbeitnow</a>` footer
+      const description = htmlToText(j.description ?? '').replace(/\n*Find Jobs in [^\n]{1,60} on Arbeitnow\s*$/i, '')
       return {
         id: `arbeitnow-${j.slug}`,
         title: (j.title ?? '').trim(),
