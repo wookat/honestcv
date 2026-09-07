@@ -134,7 +134,12 @@ export async function zalizeSessionEmail(): Promise<string | null> {
 
 /** Primary resume of the signed-in Zalize account, proxied by our Worker. */
 export async function fetchZalizePrimary(): Promise<ResumeProfileV1> {
-  const res = await fetch('/api/za/primary')
+  let res: Response
+  try {
+    res = await fetch('/api/za/primary')
+  } catch {
+    throw new Error('Reaching Resume Center failed — check your connection and try again.')
+  }
   if (res.status === 401) throw new Error('Sign in at account.zalize.com first.')
   if (res.status === 404) throw new Error('No resume in Resume Center yet — create one at resume.zalize.com.')
   if (!res.ok) throw new Error(`Resume Center request failed (${res.status}).`)
@@ -144,7 +149,12 @@ export async function fetchZalizePrimary(): Promise<ResumeProfileV1> {
 }
 
 export async function fetchResumeProfile(shareId: string): Promise<ResumeProfileV1> {
-  const res = await fetch(`${RESUME_CENTER_API}/api/export/${encodeURIComponent(shareId)}`)
+  let res: Response
+  try {
+    res = await fetch(`${RESUME_CENTER_API}/api/export/${encodeURIComponent(shareId)}`)
+  } catch {
+    throw new Error('Reaching Resume Center failed — check your connection and try again.')
+  }
   if (res.status === 404) throw new Error('Share link not found or expired — generate a new one in Resume Center.')
   if (!res.ok) throw new Error(`Resume Center request failed (${res.status}).`)
   const data: unknown = await res.json()

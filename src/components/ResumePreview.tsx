@@ -127,7 +127,7 @@ function InlineText({
       spellCheck={false}
       role="textbox"
       aria-label="Edit text"
-      className="cursor-text rounded-sm outline-none focus:bg-sky-100/70 focus:ring-1 focus:ring-sky-300"
+      className="cursor-text rounded-sm outline-none focus:outline-hidden focus:bg-sky-100/70 focus:ring-2 focus:ring-sky-600"
       onClick={(e) => e.stopPropagation()}
       onPaste={(e) => {
         e.preventDefault()
@@ -187,7 +187,7 @@ function DraftBullet({
         spellCheck={false}
         role="textbox"
         aria-label="New bullet"
-        className="min-w-[60px] cursor-text rounded-sm outline-none focus:bg-sky-100/70 focus:ring-1 focus:ring-sky-300"
+        className="min-w-[60px] cursor-text rounded-sm outline-none focus:outline-hidden focus:bg-sky-100/70 focus:ring-2 focus:ring-sky-600"
         onClick={(e) => e.stopPropagation()}
         onPaste={(e) => {
           e.preventDefault()
@@ -351,7 +351,7 @@ export function ResumePreview({
         {resume.photo && (
           <img
             src={resume.photo}
-            alt=""
+            alt="Profile photo"
             className="absolute top-0 right-0 h-16 w-16 rounded object-cover"
           />
         )}
@@ -485,7 +485,7 @@ function PaginatedPages({
     ro.observe(frame)
     ro.observe(content)
     return () => ro.disconnect()
-  }, [resume, baseW, windowH])
+  }, [baseW, windowH])
 
   return (
     <div className="space-y-4">
@@ -580,7 +580,7 @@ function FlowPage({
     ro.observe(frame)
     ro.observe(content)
     return () => ro.disconnect()
-  }, [resume, baseW, windowH])
+  }, [baseW, windowH])
 
   const breaks = Math.max(0, Math.ceil((contentH - 1) / windowH) - 1)
   return (

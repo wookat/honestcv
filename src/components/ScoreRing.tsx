@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { useCountUp, prefersReducedMotion } from '@/lib/motion'
+import { useCountUp } from '@/lib/motion'
 
 /** Animated circular score gauge (0-100) with a counting number. */
 export function ScoreRing({ score, size = 84 }: { score: number; size?: number }) {
   const value = useCountUp(score)
-  const [drawn, setDrawn] = useState(prefersReducedMotion())
+  // Always starts undrawn so prerendered HTML hydrates cleanly; under reduced motion the
+  // global 0.01ms transition rule makes the next-frame draw a snap instead of a sweep.
+  const [drawn, setDrawn] = useState(false)
   useEffect(() => {
-    if (prefersReducedMotion()) return
     const id = requestAnimationFrame(() => setDrawn(true))
     return () => cancelAnimationFrame(id)
   }, [score])
@@ -28,7 +29,7 @@ export function ScoreRing({ score, size = 84 }: { score: number; size?: number }
           r={r}
           fill="none"
           stroke="currentColor"
-          className="text-muted"
+          className="text-muted forced-colors:stroke-[CanvasText]"
           strokeWidth={stroke}
         />
         <circle
@@ -37,6 +38,7 @@ export function ScoreRing({ score, size = 84 }: { score: number; size?: number }
           r={r}
           fill="none"
           stroke={color}
+          className="forced-colors:stroke-[Highlight]"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}

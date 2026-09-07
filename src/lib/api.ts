@@ -10,6 +10,15 @@ export class PaymentRequiredError extends Error {
   }
 }
 
+/** The worker rejects /api/ai/* bodies over 60KB, yet its prompts only read
+ * the first few thousand characters of each long-text field. Clamp those
+ * fields client-side (with generous slack over what the prompts consume) so
+ * an oversized pasted input can never push a request past the body cap. */
+const RESUME_TEXT_MAX = 9_000
+const JOB_DESCRIPTION_MAX = 9_000
+const SCORE_SUMMARY_MAX = 3_000
+const TURN_CONTENT_MAX = 2_500
+
 async function post<T>(path: string, body: unknown): Promise<T> {
   let res: Response
   try {
@@ -44,16 +53,24 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return data
 }
 
-/** Remaining free-AI quota for this client, without consuming any. */
-export async function fetchAiQuota(): Promise<number | null> {
-  try {
-    const res = await fetch('/api/ai/quota', { headers: licenseHeaders() })
-    if (!res.ok) return null
-    const data = (await res.json()) as { freeRemaining: number | null }
-    return data.freeRemaining
-  } catch {
-    return null
-  }
+/** Remaining free-AI quota for this client, without consuming any.
+ * Concurrent callers share one request; the promise is dropped once settled
+ * so later calls always fetch a fresh value. */
+let quotaInFlight: Promise<number | null> | null = null
+export function fetchAiQuota(): Promise<number | null> {
+  quotaInFlight ??= (async () => {
+    try {
+      const res = await fetch('/api/ai/quota', { headers: licenseHeaders() })
+      if (!res.ok) return null
+      const data = (await res.json()) as { freeRemaining: number | null }
+      return data.freeRemaining
+    } catch {
+      return null
+    }
+  })().finally(() => {
+    quotaInFlight = null
+  })
+  return quotaInFlight
 }
 
 export type RewriteKind = 'bullets' | 'summary' | 'skills'
@@ -77,6 +94,9 @@ export async function aiRewrite(
     ...(emphasis ? { emphasis } : {}),
     ...(avoid?.length ? { avoid } : {}),
     ...context,
+    ...(context.jobDescription !== undefined
+      ? { jobDescription: context.jobDescription.slice(0, JOB_DESCRIPTION_MAX) }
+      : {}),
   })
   return data
 }
@@ -88,10 +108,10 @@ export async function aiSkillSuggest(input: {
   context?: string
   category?: string
 }): Promise<{ skills: string[]; freeRemaining: number | null }> {
-  return post<{ skills: string[]; freeRemaining: number | null }>(
-    '/api/ai/skill-suggest',
-    input
-  )
+  return post<{ skills: string[]; freeRemaining: number | null }>('/api/ai/skill-suggest', {
+    ...input,
+    jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+  })
 }
 
 export async function aiSummaryDraft(input: {
@@ -104,7 +124,13 @@ export async function aiSummaryDraft(input: {
 }): Promise<{ text: string; texts: string[]; freeRemaining: number | null }> {
   return post<{ text: string; texts: string[]; freeRemaining: number | null }>(
     '/api/ai/summary-draft',
-    input
+    {
+      ...input,
+      resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+      ...(input.jobDescription !== undefined
+        ? { jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX) }
+        : {}),
+    }
   )
 }
 
@@ -122,7 +148,7 @@ export async function aiTailor(input: {
 }): Promise<{ suggestions: { id: string; text: string }[]; freeRemaining: number | null }> {
   return post<{ suggestions: { id: string; text: string }[]; freeRemaining: number | null }>(
     '/api/ai/tailor',
-    input
+    { ...input, jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX) }
   )
 }
 
@@ -133,7 +159,11 @@ export async function aiKeywordBullet(input: {
   role: string
   language?: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/keyword-bullet', input)
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/keyword-bullet', {
+    ...input,
+    resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+    jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+  })
 }
 
 export async function aiSuggestBullet(input: {
@@ -149,7 +179,13 @@ export async function aiSuggestBullet(input: {
   jobDescription?: string
   draft?: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/suggest-bullet', input)
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/suggest-bullet', {
+    ...input,
+    resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+    ...(input.jobDescription !== undefined
+      ? { jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX) }
+      : {}),
+  })
 }
 
 export async function aiCoverLetter(input: {
@@ -162,7 +198,11 @@ export async function aiCoverLetter(input: {
   language?: string
   tone?: 'formal' | 'friendly'
 }): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/cover-letter', input)
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/cover-letter', {
+    ...input,
+    resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+    jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+  })
 }
 
 export async function aiResignationLetter(input: {
@@ -182,7 +222,11 @@ export async function aiInterviewBrief(input: {
   jobDescription: string
   role: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-brief', input)
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-brief', {
+    ...input,
+    resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+    jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+  })
 }
 
 export async function aiInterviewQuestions(input: {
@@ -192,7 +236,11 @@ export async function aiInterviewQuestions(input: {
 }): Promise<{ questions: string[]; freeRemaining: number | null }> {
   return post<{ questions: string[]; freeRemaining: number | null }>(
     '/api/ai/interview-questions',
-    input
+    {
+      ...input,
+      resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+      jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+    }
   )
 }
 
@@ -215,7 +263,13 @@ export async function aiAssistant(input: {
 }): Promise<{ text: string; action: AssistantAction | null; freeRemaining: number | null }> {
   return post<{ text: string; action: AssistantAction | null; freeRemaining: number | null }>(
     '/api/ai/assistant',
-    input
+    {
+      ...input,
+      turns: input.turns.map((t) => ({ ...t, content: t.content.slice(0, TURN_CONTENT_MAX) })),
+      resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+      jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+      scoreSummary: input.scoreSummary.slice(0, SCORE_SUMMARY_MAX),
+    }
   )
 }
 
@@ -226,5 +280,9 @@ export async function aiInterviewFeedback(input: {
   jobDescription: string
   role: string
 }): Promise<{ text: string; freeRemaining: number | null }> {
-  return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-feedback', input)
+  return post<{ text: string; freeRemaining: number | null }>('/api/ai/interview-feedback', {
+    ...input,
+    resumeText: input.resumeText.slice(0, RESUME_TEXT_MAX),
+    jobDescription: input.jobDescription.slice(0, JOB_DESCRIPTION_MAX),
+  })
 }

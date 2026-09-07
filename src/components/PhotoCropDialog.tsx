@@ -82,7 +82,7 @@ export function PhotoCropDialog({ draft, onSave, onCancel }: Props) {
         </DialogHeader>
         <div className="flex flex-col items-center gap-3">
           <div
-            className="focus-visible:ring-ring relative size-48 touch-none overflow-hidden rounded border bg-slate-200 select-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            className="focus-visible:ring-ring relative size-48 touch-none overflow-hidden rounded border bg-slate-200 select-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
             role="application"
             aria-label="Photo crop area — drag or use arrow keys to reposition"
             tabIndex={0}

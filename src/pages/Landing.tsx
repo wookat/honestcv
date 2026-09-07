@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
-import { useFreeMode } from '@/components/Paywall'
+import { useFreeMode } from '@/lib/freeMode'
 import { ResumePreview } from '@/components/ResumePreview'
 import { TemplateThumb } from '@/components/TemplateThumb'
 import { ScoreRing } from '@/components/ScoreRing'
@@ -50,10 +50,10 @@ function ProductMock() {
     <div className="animate-rise mx-auto mt-14 w-full max-w-5xl px-4 [--rise-delay:240ms]">
       <div className="bg-background overflow-hidden rounded-xl border shadow-2xl">
         <div className="bg-muted/60 flex items-center gap-1.5 border-b px-4 py-2.5" aria-hidden>
-          <span className="size-2.5 rounded-full bg-red-400/70" />
-          <span className="size-2.5 rounded-full bg-amber-400/70" />
-          <span className="size-2.5 rounded-full bg-emerald-400/70" />
-          <span className="text-muted-foreground bg-background ml-3 rounded-md border px-3 py-0.5 text-xs">
+          <span className="size-2.5 shrink-0 rounded-full bg-red-400/70" />
+          <span className="size-2.5 shrink-0 rounded-full bg-amber-400/70" />
+          <span className="size-2.5 shrink-0 rounded-full bg-emerald-400/70" />
+          <span className="text-muted-foreground bg-background ml-3 min-w-0 truncate rounded-md border px-3 py-0.5 text-xs">
             cv.zalize.com/builder
           </span>
         </div>
@@ -71,7 +71,7 @@ function ProductMock() {
             </div>
           </div>
           <div
-            className="relative bg-slate-100 p-4 sm:p-8"
+            className="relative min-w-0 bg-slate-100 p-4 sm:p-8"
             style={{
               maskImage: 'linear-gradient(to bottom, black 82%, transparent 100%)',
               WebkitMaskImage: 'linear-gradient(to bottom, black 82%, transparent 100%)',
@@ -284,13 +284,16 @@ function ShowcaseBreakdown() {
         <div key={label}>
           <div className="flex items-center justify-between text-xs">
             <span className="font-medium">{label}</span>
-            <span className={score >= 80 ? 'text-emerald-600' : score >= 50 ? 'text-amber-600' : 'text-red-600'}>
+            <span className={score >= 80 ? 'text-emerald-700' : score >= 50 ? 'text-amber-700' : 'text-red-600'}>
               {score}
             </span>
           </div>
-          <div aria-hidden className="bg-muted mt-1 h-1.5 w-full overflow-hidden rounded-full">
+          <div
+            aria-hidden
+            className="bg-muted mt-1 h-1.5 w-full overflow-hidden rounded-full forced-colors:border forced-colors:border-[CanvasText]"
+          >
             <div
-              className={`h-full rounded-full ${score >= 80 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-400'}`}
+              className={`h-full rounded-full forced-colors:bg-[Highlight] forced-colors:[forced-color-adjust:none] ${score >= 80 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-400'}`}
               style={{ width: `${score}%` }}
             />
           </div>
@@ -349,6 +352,7 @@ function HeroResumeDrop() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [dragOver, setDragOver] = useState(false)
+  const errorId = useId()
 
   const handleFile = (file: File | undefined) => {
     if (!file || busy) return
@@ -374,6 +378,7 @@ function HeroResumeDrop() {
       <button
         type="button"
         disabled={busy}
+        aria-describedby={error ? errorId : undefined}
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault()
@@ -411,7 +416,11 @@ function HeroResumeDrop() {
           e.target.value = ''
         }}
       />
-      {error && <p className="text-destructive mt-2 text-xs">{error}</p>}
+      {error && (
+        <p id={errorId} role="alert" className="text-destructive mt-2 text-xs">
+          {error}
+        </p>
+      )}
       <p className="text-muted-foreground mt-2 text-xs">
         PDF, DOCX or TXT · read entirely in your browser — never uploaded to a server.
       </p>
@@ -440,7 +449,7 @@ export default function Landing() {
         }
       />
 
-      <main className="flex-1">
+      <main id="main" tabIndex={-1} className="flex-1">
         {/* Hero */}
         <section className="relative mx-auto max-w-6xl px-4 pt-16 pb-4 text-center sm:pt-20">
           <div
@@ -452,13 +461,13 @@ export default function Landing() {
             }}
           />
           <div className="mx-auto max-w-3xl">
-          <Badge variant="secondary" className="animate-rise mb-4 gap-1">
+          <Badge variant="secondary" className="animate-rise-slide mb-4 gap-1 whitespace-normal text-center">
             <Sparkles className="size-3" /> AI-powered. ATS-friendly. Free during beta.
           </Badge>
-          <h1 className="animate-rise text-4xl font-semibold tracking-tight [--rise-delay:60ms] sm:text-[3.4rem] sm:leading-[1.1]">
+          <h1 className="animate-rise-slide text-4xl font-semibold tracking-tight [--rise-delay:60ms] sm:text-[3.4rem] sm:leading-[1.1]">
             The AI resume builder that gets you <span className="underline decoration-emerald-500 decoration-4 underline-offset-4">interviews</span>
           </h1>
-          <p className="text-muted-foreground animate-rise mx-auto mt-5 max-w-2xl text-lg [--rise-delay:120ms]">
+          <p className="text-muted-foreground animate-rise-slide mx-auto mt-5 max-w-2xl text-lg [--rise-delay:120ms]">
             {freeMode ? (
               <>
                 Build an ATS-friendly resume in minutes with AI tailoring and a free
@@ -473,13 +482,18 @@ export default function Landing() {
               </>
             )}
           </p>
-          <div className="animate-rise mt-7 flex flex-col items-center justify-center gap-3 [--rise-delay:180ms] sm:flex-row">
+          <div className="animate-rise-slide mt-7 flex flex-col items-center justify-center gap-3 [--rise-delay:180ms] sm:flex-row sm:flex-wrap">
             <Button asChild size="lg">
               <Link to="/builder">
                 Start free — no sign-up <ArrowRight />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="max-sm:h-auto max-sm:min-h-11 max-sm:py-2 max-sm:whitespace-normal"
+            >
               <Link to="/ats-checker">
                 <Target /> Check my resume&apos;s ATS score
               </Link>
@@ -554,7 +568,7 @@ export default function Landing() {
                 ).map(([field, status, ok]) => (
                   <div key={field} className="flex items-center justify-between rounded-md border px-3 py-2">
                     <span className="font-medium">{field}</span>
-                    <span className={ok ? 'text-emerald-600' : 'text-red-600'}>{status}</span>
+                    <span className={ok ? 'text-emerald-700' : 'text-red-600'}>{status}</span>
                   </div>
                 ))}
               </div>
@@ -682,7 +696,7 @@ export default function Landing() {
                   <s.icon className="text-primary mb-2 size-6" />
                   <h3 className="font-semibold">{s.title}</h3>
                   <p className="text-muted-foreground mt-1 text-sm">{s.text}</p>
-                  <div className="mt-auto flex items-center gap-4 pt-3">
+                  <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-3">
                     <Button asChild variant="link" className="h-auto px-0">
                       <Link to={s.to}>
                         {s.cta} <ArrowRight />
@@ -850,7 +864,7 @@ export default function Landing() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Career Bundle</h3>
-                  <Badge className="bg-emerald-700 text-white">Best value</Badge>
+                  <Badge className="bg-emerald-700 text-white dark:text-emerald-950">Best value</Badge>
                 </div>
                 <p className="mt-3 text-[2.75rem] leading-none font-bold tracking-tight">
                   $19.99 <span className="text-sm font-normal text-neutral-400">once, forever</span>

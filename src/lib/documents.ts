@@ -4,6 +4,7 @@
  */
 
 import { newId } from '@/lib/resume'
+import type { PipelineEntry } from '@/lib/jobs'
 
 export type CareerDocKind = 'cover' | 'interview' | 'resignation'
 
@@ -15,6 +16,22 @@ export interface CareerDoc {
   updatedAt: number
   /** Signature image (PNG data URL); absent = unsigned letter */
   signature?: string
+  /** The tracked job this document was written for, kept even after the job links a newer document or is untracked. */
+  forJob?: DocJobRef
+}
+
+export interface DocJobRef {
+  id: string
+  title: string
+  company: string
+}
+
+function sanitizeJobRef(input: unknown): DocJobRef | undefined {
+  if (typeof input !== 'object' || input === null) return undefined
+  const raw = input as Record<string, unknown>
+  if (typeof raw.id !== 'string' || !raw.id) return undefined
+  if (typeof raw.title !== 'string' || typeof raw.company !== 'string') return undefined
+  return { id: raw.id, title: raw.title, company: raw.company }
 }
 
 const CLOSING_RE =
@@ -41,83 +58,188 @@ export function splitAtSignature(text: string): { before: string; after: string 
 }
 
 const DOCS_KEY = 'honestcv.careerDocs'
+const DOCS_BACKUP_KEY = 'honestcv.careerDocs.unreadable'
 
-function persistDocs(docs: CareerDoc[]) {
+/**
+ * When the stored documents list exists but cannot be read at all (corrupted
+ * JSON or not an array), preserve the raw value under a backup key before any
+ * write can overwrite it. Returns true when the stored list is unreadable.
+ */
+export function stashUnreadableDocs(): boolean {
   try {
-    localStorage.setItem(DOCS_KEY, JSON.stringify(docs))
+    const raw = localStorage.getItem(DOCS_KEY)
+    if (raw === null) return false
+    try {
+      if (Array.isArray(JSON.parse(raw))) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    if (localStorage.getItem(DOCS_BACKUP_KEY) === null) {
+      localStorage.setItem(DOCS_BACKUP_KEY, raw)
+    }
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
+}
+
+/** Returns false when nothing was written (storage full / private mode). */
+function persistDocs(docs: CareerDoc[]): boolean {
+  try {
+    stashUnreadableDocs()
+    localStorage.setItem(DOCS_KEY, JSON.stringify(docs))
+    return true
+  } catch {
+    return false
+  }
+}
+
+const DOC_KINDS: CareerDocKind[] = ['cover', 'interview', 'resignation']
+
+/**
+ * Coerce an untrusted stored entry into a valid CareerDoc so one corrupted
+ * element degrades to being dropped instead of hiding every document.
+ * Returns null when the entry is not salvageable.
+ */
+function sanitizeCareerDoc(input: unknown): CareerDoc | null {
+  if (typeof input !== 'object' || input === null) return null
+  const raw = input as Record<string, unknown>
+  if (typeof raw.id !== 'string' || !raw.id) return null
+  if (typeof raw.text !== 'string' || !raw.text) return null
+  const doc: CareerDoc = {
+    id: raw.id,
+    kind: DOC_KINDS.includes(raw.kind as CareerDocKind) ? (raw.kind as CareerDocKind) : 'cover',
+    title: typeof raw.title === 'string' ? raw.title : '',
+    text: raw.text,
+    updatedAt: typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : 0,
+  }
+  if (typeof raw.signature === 'string' && raw.signature) doc.signature = raw.signature
+  const forJob = sanitizeJobRef(raw.forJob)
+  if (forJob) doc.forJob = forJob
+  return doc
 }
 
 export function listCareerDocs(): CareerDoc[] {
   try {
     const raw = localStorage.getItem(DOCS_KEY)
     if (!raw) return []
-    const parsed = JSON.parse(raw) as CareerDoc[]
-    return Array.isArray(parsed) ? parsed.filter((d) => d.id && d.text) : []
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((d) => {
+      const doc = sanitizeCareerDoc(d)
+      return doc ? [doc] : []
+    })
   } catch {
     return []
   }
 }
 
-export function saveCareerDoc(kind: CareerDocKind, title: string, text: string): CareerDoc {
-  const doc: CareerDoc = { id: newId(), kind, title, text, updatedAt: Date.now() }
-  persistDocs([doc, ...listCareerDocs()])
-  return doc
+/** Number a title that is already taken ("base (2)", "base (3)", …). */
+function numberedDocTitle(title: string, docs: CareerDoc[]): string {
+  const taken = new Set(docs.map((d) => d.title))
+  if (!taken.has(title)) return title
+  const base = title.replace(/ \((?:copy|\d+)\)$/, '')
+  for (let n = 2; ; n++) {
+    const candidate = `${base} (${n})`
+    if (!taken.has(candidate)) return candidate
+  }
+}
+
+/** Returns null when the document could not be persisted (storage full). */
+export function saveCareerDoc(
+  kind: CareerDocKind,
+  title: string,
+  text: string,
+  forJob?: DocJobRef
+): CareerDoc | null {
+  const docs = listCareerDocs()
+  const doc: CareerDoc = {
+    id: newId(),
+    kind,
+    title: numberedDocTitle(title, docs),
+    text,
+    updatedAt: Date.now(),
+  }
+  if (forJob) doc.forJob = forJob
+  return persistDocs([doc, ...docs]) ? doc : null
+}
+
+/** Newest document of each kind written for the job. */
+export function latestDocsFor(jobId: string): Partial<Record<CareerDocKind, CareerDoc>> {
+  const latest: Partial<Record<CareerDocKind, CareerDoc>> = {}
+  for (const d of listCareerDocs()) {
+    if (d.forJob?.id !== jobId) continue
+    const cur = latest[d.kind]
+    if (!cur || d.updatedAt > cur.updatedAt) latest[d.kind] = d
+  }
+  return latest
+}
+
+/** Stamp forJob on documents a tracked job links but that never recorded their job (saved before forJob existed). */
+export function rememberLinkedDocJobs(pipeline: readonly PipelineEntry[]): CareerDoc[] {
+  const jobByDoc = new Map<string, DocJobRef>()
+  for (const e of pipeline) {
+    const ref = { id: e.job.id, title: e.job.title, company: e.job.company }
+    for (const id of [e.coverDocId, e.interviewDocId, e.resignationDocId])
+      if (id) jobByDoc.set(id, ref)
+  }
+  const docs = listCareerDocs()
+  let changed = false
+  const next = docs.map((d) => {
+    if (d.forJob) return d
+    const forJob = jobByDoc.get(d.id)
+    if (!forJob) return d
+    changed = true
+    return { ...d, forJob }
+  })
+  if (!changed) return docs
+  return persistDocs(next) ? next : docs
 }
 
 export function updateCareerDoc(
   id: string,
   patch: Partial<Pick<CareerDoc, 'title' | 'text' | 'signature'>>
-): CareerDoc[] {
+): CareerDoc[] | null {
   const docs = listCareerDocs().map((d) => {
     if (d.id !== id) return d
     const next = { ...d, ...patch, updatedAt: Date.now() }
     if ('signature' in patch && !patch.signature) delete next.signature
     return next
   })
-  persistDocs(docs)
-  return docs
+  return persistDocs(docs) ? docs : null
 }
 
 /** Rename a document without touching its edited timestamp (organizational action). */
-export function renameCareerDoc(id: string, title: string): CareerDoc[] {
+export function renameCareerDoc(id: string, title: string): CareerDoc[] | null {
   const docs = listCareerDocs().map((d) => (d.id === id ? { ...d, title } : d))
-  persistDocs(docs)
-  return docs
+  return persistDocs(docs) ? docs : null
 }
 
 /** Copy a document under a numbered name ("base (2)", "base (3)", …). */
-export function duplicateCareerDoc(id: string): CareerDoc[] {
+export function duplicateCareerDoc(id: string): CareerDoc[] | null {
   const docs = listCareerDocs()
   const source = docs.find((d) => d.id === id)
   if (!source) return docs
-  const taken = new Set(docs.map((d) => d.title))
-  const base = source.title.replace(/ \((?:copy|\d+)\)$/, '')
-  let title = ''
-  for (let n = 2; !title; n++) {
-    const candidate = `${base} (${n})`
-    if (!taken.has(candidate)) title = candidate
+  const copy: CareerDoc = {
+    ...source,
+    id: newId(),
+    title: numberedDocTitle(source.title, docs),
+    updatedAt: Date.now(),
   }
-  const copy: CareerDoc = { ...source, id: newId(), title, updatedAt: Date.now() }
   const next = [copy, ...docs]
-  persistDocs(next)
-  return next
+  return persistDocs(next) ? next : null
 }
 
-export function deleteCareerDoc(id: string): CareerDoc[] {
+export function deleteCareerDoc(id: string): CareerDoc[] | null {
   const docs = listCareerDocs().filter((d) => d.id !== id)
-  persistDocs(docs)
-  return docs
+  return persistDocs(docs) ? docs : null
 }
 
 /** Put a just-deleted document back exactly as it was, at its previous position. */
-export function restoreCareerDoc(doc: CareerDoc, index = 0): CareerDoc[] {
+export function restoreCareerDoc(doc: CareerDoc, index = 0): CareerDoc[] | null {
   const docs = listCareerDocs()
   if (docs.some((d) => d.id === doc.id)) return docs
   const at = Math.min(Math.max(index, 0), docs.length)
   const next = [...docs.slice(0, at), doc, ...docs.slice(at)]
-  persistDocs(next)
-  return next
+  return persistDocs(next) ? next : null
 }

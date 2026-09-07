@@ -1,0 +1,47 @@
+{
+  "name": "RezUp — ATS-Friendly Resume Builder",
+  "short_name": "RezUp",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#fbfcfd",
+  "background_color": "#fbfcfd",
+  "description": "Build an ATS-friendly resume with a free ATS match score, honest AI rewrites, and real PDF & DOCX export.",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Build an ATS-friendly resume with a free match score"
+    },
+    {
+      "src": "/screenshot-narrow.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "ATS-friendly resume builder on mobile"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Resume builder",
+      "url": "/builder",
+      "description": "Edit your resume with a live ATS-friendly preview",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "ATS checker",
+      "url": "/ats-checker",
+      "description": "Score your resume against a job description",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

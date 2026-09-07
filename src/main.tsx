@@ -10,6 +10,14 @@ trackVisit()
 applyThemePref(loadThemePref())
 watchSystemTheme()
 
+// Offline app shell (public/sw.js): registered after load so it never
+// competes with startup; production only so the dev server stays uncached.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}
+
 const container = document.getElementById('root')!
 const app = (
   <StrictMode>

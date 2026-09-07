@@ -1,26 +1,39 @@
-/** Tiny motion helpers built on the `motion` animation library. */
+/** Tiny motion helpers (requestAnimationFrame tweens; no animation library). */
 
 import { useEffect, useRef, useState } from 'react'
-import { animate } from 'motion'
 
 export const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** Animated count from 0 to `target` (renders `target` directly under reduced motion). */
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+
+/**
+ * Animated count from 0 to `target` (jumps straight to `target` under reduced motion).
+ * The first render is always 0 so prerendered HTML hydrates cleanly whatever the visitor's
+ * motion preference; the effect then snaps or tweens.
+ */
 export function useCountUp(target: number, durationSec = 0.9): number {
-  const [value, setValue] = useState(prefersReducedMotion() ? target : 0)
+  const [value, setValue] = useState(0)
   const prev = useRef<number | null>(null)
   useEffect(() => {
     const reduced = prefersReducedMotion()
     const from = reduced ? target : (prev.current ?? 0)
     prev.current = target
-    const controls = animate(from, target, {
-      duration: reduced ? 0 : durationSec,
-      ease: 'easeOut',
-      onUpdate: (v) => setValue(Math.round(v)),
-    })
-    return () => controls.stop()
+    if (reduced || durationSec <= 0 || from === target) {
+      setValue(target)
+      return
+    }
+    let raf = 0
+    const start = performance.now()
+    const durationMs = durationSec * 1000
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / durationMs, 1)
+      setValue(Math.round(from + (target - from) * easeOutCubic(t)))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
   }, [target, durationSec])
   return value
 }

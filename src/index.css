@@ -138,7 +138,7 @@
   --ring: oklch(0.68 0.16 265);
 
   /* Advisory tint palettes: utilities compile to var(--color-*), so remapping
-     the steps here converts every light-only amber/emerald/red/blue panel
+     the steps here converts every light-only amber/emerald/green/red/blue panel
      (bg-*-50/100 surfaces, *-200/300 borders, *-600..900 text) app-wide.
      The resume sheet and template thumbs use neutral/template colors and are
      unaffected — the paper stays paper. */
@@ -158,6 +158,14 @@
   --color-emerald-700: oklch(0.82 0.12 162);
   --color-emerald-800: oklch(0.86 0.1 161);
   --color-emerald-900: oklch(0.9 0.08 160);
+  --color-green-50: oklch(0.27 0.04 150);
+  --color-green-100: oklch(0.32 0.06 150);
+  --color-green-200: oklch(0.39 0.08 150);
+  --color-green-300: oklch(0.47 0.09 150);
+  --color-green-600: oklch(0.78 0.13 150);
+  --color-green-700: oklch(0.82 0.12 150);
+  --color-green-800: oklch(0.86 0.1 150);
+  --color-green-900: oklch(0.9 0.08 150);
   --color-red-50: oklch(0.28 0.05 25);
   --color-red-100: oklch(0.33 0.07 25);
   --color-red-200: oklch(0.4 0.09 25);
@@ -204,7 +212,20 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
+  }
+  /* Keep focused/jumped-to elements clear of the sticky site header, the
+     builder's sticky section nav and its fixed mobile pane switcher. */
+  html {
+    scroll-padding-top: 4rem;
+  }
+  html:has([data-sticky-subnav]) {
+    scroll-padding-top: 7rem;
+  }
+  @media (max-width: 63.9375rem) {
+    html:has([data-pane-switcher]) {
+      scroll-padding-bottom: 5rem;
+    }
   }
   body {
     @apply bg-background text-foreground antialiased;
@@ -258,6 +279,22 @@
   animation-delay: var(--rise-delay, 0s);
 }
 
+/* Transform-only rise for LCP-candidate hero elements: never hides the
+   element behind opacity 0, so first paint (and LCP) isn't delayed. */
+@keyframes rise-slide {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.animate-rise-slide {
+  animation: rise-slide 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--rise-delay, 0s);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -266,6 +303,32 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Windows High Contrast: selected / pressed / current controls use the system Highlight pair,
+   since author backgrounds, rings and border colours are all discarded there. */
+@media (forced-colors: active) {
+  [aria-pressed='true'],
+  [aria-current],
+  [aria-selected='true'] {
+    forced-color-adjust: none;
+    background-color: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+  :is([aria-pressed='true'], [aria-current], [aria-selected='true']) * {
+    color: inherit !important;
+  }
+  /* forced-color-adjust: none also stops the UA from recolouring a transparent focus outline */
+  :is([aria-pressed='true'], [aria-current], [aria-selected='true']):focus-visible {
+    outline: 2px solid CanvasText !important;
+    outline-offset: 2px !important;
+  }
+  /* Link-styled buttons rely on text-primary alone at rest; buttons get ButtonText (not LinkText)
+     under forced-colors, so show the hover underline permanently. */
+  :is(button, [role='button'], [data-slot='button'])[class~='hover:underline'] {
+    text-decoration-line: underline;
   }
 }
 

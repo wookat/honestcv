@@ -1032,3 +1032,1851 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 实现：ats.ts 增 roleTokensOf/withoutRoleTokens（与 R356 同分词，多词短语从不排除）；scoreResume 按 resume.targetRole 过滤 extractKeywords 结果（在 ignoredKeywords 拆分前）；matchReport 增可选第三参 targetRole，Builder resumeGaps 与 AssistantPanel 状态行传 resume.targetRole。关键词 % 按过滤后集合重算（分子分母同降，诚实）。
 - 有意不动：Jobs.tsx matchScore/matchReport（对任意职位板 JD 比对，用户自身 targetRole 不是该职位头衔）、/ats-checker scoreResumeText（无 role 概念）、手动 ignoredKeywords 机制。空/空白 role 字节不变。
 - 本地：oracle 19/19（.tmp-smoke/r376_oracle.ts）+ r375 20/20 + r373 11/11 回归、tsc/eslint/build 绿。
+
+## R397 — 编辑历史检查点存储满时不再假成功 (2026-08-31)
+- （R377–R396 各轮详情见对应 PR #598–#617 描述与 docs/plan-r3xx-*.md。）
+- 闭环诚实存储系列收官后残留缺口：persistHistory 吞配额异常、recordResumeSnapshot 恒返回新列表——历史 Restore 承诺"先存当前草稿检查点"，存储满时检查点静默失败仍覆盖草稿（数据丢失级）。
+- 实现：resume.ts persistHistory 返回 boolean；recordResumeSnapshot 返回 ResumeSnapshot[] | null（仅当尝试新写入且失败时为 null，去重/10 分钟间隔早退路径不受影响）；Builder onRestore 检查点为 null 时显示底部 alert、对话框保持打开、不替换草稿；R396 库告警与本告警合并为通用 storageAlert 状态。autosave 路径保持 fire-and-forget。
+- 生产 QA（Builder-DWxMMwN9.js）：零余量 Restore 被拒且 resumeHistory 字节一致、释放后 Restore 写入 pre-restore 检查点并还原、R396 回归、375 光暗无用户可见溢出（scrollWidth 532 为 overflow-hidden 容器内 SVG 所致的量测噪声，以 visualViewport/scrollX 断言为准）、零 console 错误。PR #618。
+
+## R398 — SOP-10 四维审计 + 面试准备文档命名兜底 (2026-08-31)
+- SOP-10 四维生产审计（操作台文件夹/批量/undo/分享 scoping、导入→ATS→Fix→四格式导出→面试准备全链、5 个静态页 375/768/1440 光暗+40 内链、畸形存储/深链/XSS/配额/慢与失败 AI 探针）：零 P0–P2。
+- 撤销一项初报 P2：「AI 失败显示原始服务端错误体」为 mock 伪影非产品缺陷——postJson 优先显示 data.error 属有意设计，worker 所有 {error} 体均为用户措辞（callLlm 已把上游错误映射为友好文案），非 JSON 5xx 体走友好 500 兜底；真实 worker 不可能产出 "mocked failure" 这类体。压掉 5xx 的 data.error 反而会隐藏真实的友好上游不可用文案。
+- 本轮修复确证 P3：面试准备文档 targetRole 为空时命名 "Untitled — Interview prep"。docTitle 面试分支兜底链改为 targetRole → contact.fullName → Untitled（与 R378 副本命名兜底一致），cover/resignation 不动。
+- 银行（待源码/a11y 验证）：dashboard 文件夹分组标题疑似非语义 heading 元素（假设级，无用户可见缺陷）。
+- 本地：tsc/eslint(产品文件)/build 绿（.tmp-smoke 旧 oracle 的 lint error 为历史遗留非本轮）。方案：docs/plan-r398-sop10-audit.md。
+
+## R399 — dashboard 文件夹分组标题成为语义 h2（2026-08-31）
+- 闭环 R398 银行假设（已实证）：/dashboard 文件夹分组的可见标题只是一个样式化的 `<button aria-expanded>`，无任何 heading 元素——读屏用户按标题导航无法发现/跳转文件夹分组；同页 h1 My resumes、h2 Career documents/Sample library 均为语义标题。方案 docs/plan-r399-folder-group-headings.md。
+- 实现（最小）：Dashboard.tsx 将 toggle 按钮包进 `<h2 className="contents">`（标准 disclosure 模式：heading 包 control，aria-expanded 留在按钮上）；`contents` 使按钮仍是行 flex 直接子项，布局字节不变；折叠/改名/删除逻辑零改动。
+- 本地：tsc、eslint(Dashboard.tsx)、build 全绿（仓库全量 lint 的 .tmp-smoke 历史错误依旧、与本轮无关）。
+- 生产 QA（Dashboard-DRg07npx.js / index-C_8_v3CI.js）：AX 树暴露 heading level=2 "Applications (2)"、heading 顺序正常、布局零偏移（h2 computed display:contents、rename/remove 同行 Δy=0）、grid+list、375 光暗、折叠持久/改名/删文件夹回归、零 console 错误、基线还原。QA 种子教训（数值时间戳等）已入测试 skill。
+
+## R400 — 一键全工作区备份/恢复（2026-08-31）
+- 闭环源码实证缺口：产品是纯浏览器本地存储，但编辑器 Backup 只序列化当前加载的 resume 对象——副本、求职文档、job 管道、11 个内容库、分享链接记录（撤销 token）等清浏览器即永久丢失，宣传的安全网只覆盖一小部分数据。方案 docs/plan-r400-workspace-backup.md。
+- 实现：新 src/lib/workspace.ts（exportWorkspace 快照全部 honestcv.* 原始字符串值为 rezup-workspace v1 JSON；parseWorkspaceBackup 严格校验；restoreWorkspace 先快照后替换、配额抛出即字节级回滚返回 false——诚实存储不变量）。设备域键双向排除：clientId（AI 配额身份）/license/subscribed/shared/firstSeen/qa/ev.*。Dashboard 头部 "Back up everything"+"Restore"（确认框 Replace and restore→reload；失败走既有 storage-full alert；无效文件行内 alert）。Builder 单简历备份不动。
+- 本地 tsc/eslint/build 绿。生产 QA 两轮（Dashboard-D5zeDivb.js / index-CvY8w-76.js）全绿零 P0–P3：导出字节级一致且零排除键、恢复字节级还原+清除多余工作区键+设备键不动、Cancel 零写入、无效文件拒绝、零余量恢复回滚字节一致+释放后成功、伪造 clientId 的备份导入侧被剥离、R399 h2/375 光暗回归、零 console 错误。QA 发现 clientId 初版随备份迁移（会转移配额身份），当轮加入 EXCLUDED 并复验。
+
+## R401 — 编辑器备份 Restore 加装护栏（2026-08-31）
+- 闭环源码实证缺口：Builder 备份 Restore 选中合法文件即无确认地替换当前简历并解绑副本，且不做强制前置检查点——recordResumeSnapshot 非 force 在 10 分钟窗口内早退，最近编辑可被不可恢复地丢弃（历史 Restore R397 早有此护栏）。方案 docs/plan-r401-backup-restore-guardrails.md。
+- 实现（仅 Builder.tsx）：文件解析后先 sanitizeResume（QA 发现的 P3：宽松校验放行错误字段类型文件会白屏崩溃，当轮修复）再入 pendingBackupRestore 确认框（Cancel 零写入）；确认时 recordResumeSnapshot(resume, true) 失败即出存储满 alert、对话框保持打开、草稿不动；成功才 linkVersion(null)+替换。
+- 本地 tsc/eslint/build 绿。生产 QA 两轮（Builder-C3EHbdNY.js → Builder-B2taxAOu.js）全绿零 P0–P3：确认框/Cancel 字节级零写入、绑定副本+新鲜编辑确认后强制检查点落盘且副本字节一致、零余量确认被拒且对话框留存、释放后同框重试成功、崩溃复现文件在新 bundle 下正常恢复（skills 强转字符串）、真实导出往返键级一致、无效文件拒绝、R400 工作区恢复回归、375 光暗、零 console 错误。
+
+## R402 — careerDocs 读侧净化（2026-08-31）
+- 闭环源码实证缺陷：listCareerDocs 的 `parsed.filter((d) => d.id && d.text)` 遇单个 null/非对象元素即在 filter 内抛异常被外层吞掉→返回 []（全部求职文档从 UI 消失），且任何 mutator（保存/改名/复制/删除）基于 [] 回写即永久销毁全部文档；错误字段类型也原样放行（非字符串 title 会打崩 UI/文件名代码）。resume/pipeline/libraries 早有读侧 coerce（R374 模式），careerDocs 是最后一个未净化的用户内容存储。方案 docs/plan-r402-careerdocs-sanitize.md。
+- 实现（仅 documents.ts）：sanitizeCareerDoc 逐元素 coerce（id/text 必须非空字符串否则丢弃；kind 限三值默认 cover；title 强转字符串；updatedAt 非有限数→0；signature 仅留非空字符串），listCareerDocs flatMap；读取零写入，修复随下次自然保存落盘。
+- oracle 10/10、tsc/lint/build 绿。生产 QA（index-xQfsXRHE.js / Dashboard-5qQr2lXy.js，零逃逸、基线还原）全绿零 P0–P3：损坏种子下 2 个幸存文档正常渲染（旧行为零文档，delta 已证）、纯读字节零写入、首次改名修复存储且好文档全文保留、R392 存储满/R388 文件名/查看器回归、375 光暗、零 console 错误。P4 观察：updatedAt=0 渲染 "Edited 20701 days ago"（可加 fallback 文案，银行）。
+
+## R403 — SOP-10 四维审计 + 两处原生 confirm 替换守卫改为样式化对话框（2026-08-31）
+- SOP-10 四维生产审计（操作台搜索/文件夹/批量/备份/焦点陷阱、示例→跟踪→targeted copy→ATS→四格式导出→cover/interview 全链、5 静态页 375/768/1440 光暗+内链、畸形深链/ATS 草稿损坏/1MB 草稿/多标签/近配额探针）：零 P0–P2。方案 docs/plan-r403-styled-replace-confirms.md。
+- 本轮修复确证 P3：示例替换的 `window.confirm` 跑在 setResume updater 内部（副作用入 updater，StrictMode 双调用会弹两次；原生框与全站样式化守卫不一致；无对话框处理的嵌入/自动化环境直接硬阻塞渲染进程——QA 实测 100% CPU 钉死）。ATS checker openInBuilder 同款原生 confirm。
+- 实现：Builder applyExample 决策移出 updater——非空草稿（fullName||summary）置 pendingExample 弹样式化 Dialog（Cancel / Replace with example），确认才 linkVersion(null)+setResume（模板保留规则不变）；空草稿即时应用如旧；deep-link 效果照旧先剥离 ?example。AtsChecker openInBuilder 拆为 replaceAndOpen / keepSavedAndOpen（R387 空 JD 不写回语义保留），有存档时弹 Dialog（Keep saved resume / Replace resume 两个显式按钮，Esc/外点=留在原页，严格更安全的超集）。
+- 银行 P4：/jobs?job=<bogus> 静默回退第一条、~1MB ATS 草稿同步加载 ~10s 冻结、updatedAt=0 渲染 "Edited 20701 days ago"。
+- 本地 tsc/eslint(0 errors)/build 绿；生产 QA 见 PR。
+
+## R404 — updatedAt=0 的求职文档不再显示 "Edited 20701 days ago"（2026-08-31）
+- 闭环 R403 银行 P4：R402 净化器把缺失/非法 updatedAt 强转为 0，dashboard editedAgo(0) 渲染 "Edited 20701 days ago"（把 epoch 距离当事实展示）。方案 docs/plan-r404-unknown-edit-date.md。
+- 实现（一行，Dashboard.tsx）：editedAgo 对 falsy ms 返回 "Edited a while ago"；排序不动（0 仍排最旧，未知时间排最后合理）；真实时间戳随下次内容编辑自然落盘（updateCareerDoc）。注意 renameCareerDoc 按 R197 设计不触碰时间戳（组织性操作），rename 不会"治愈"该值——QA 确证此为既定语义。
+- 另实证：~1MB ATS 草稿的计算链（scoreResumeText+parseResumeText+resumeHealth+priorityFixes）Node 实测 <260ms，冻结在渲染侧（1MB 受控 textarea），该 P4 继续银行待浏览器 profile。
+- 本地 tsc/eslint/build 绿。生产 QA（Dashboard-CR_XnwaE.js / index-9L7DV6ZE.js，零逃逸、基线还原）全绿零 P0–P3：updatedAt 为 0/缺失/'nope' 三种种子全部渲染 "Edited a while ago"、真实时间戳文档 "Edited today"、页面零 "20701"、查看器内容编辑后自愈为 "Edited today"、副本卡与排序回归、375 光暗无溢出、零 console 错误。
+## R405 — 剩余四处原生 window.confirm 关闭守卫改为样式化对话框（2026-08-31）
+- 闭环 R403 同族问题：源码扫描（window.confirm|alert|prompt）显示 R403 后仍余四处原生 confirm，全部是既有样式化 Dialog 内的未保存工作关闭守卫：BundleToolDialog（面试会话/未保存生成信两种文案，另有 R355 的 keyword-targeting 跳转桥也走同一守卫）、TailorDialog（请求进行中 / 未审阅建议两分支）、Dashboard 求职文档查看器（未保存编辑）。原生框与全站样式化守卫不一致，且无对话框处理的嵌入/自动化环境会硬阻塞渲染进程（R403 已实测）。方案 docs/plan-r405-styled-close-confirms.md。
+- 实现（同 R403 模式，嵌套 Radix Dialog，决策入本地 state）：BundleToolDialog 增 confirmingClose: false|'close'|'jump'——无未保存工作即时关闭；有则弹样式化确认（interview/letter 两种文案原样保留），Keep working 取消，Discard and close 走原 onClose()（'jump' 分支走 onJumpToTarget()，R355 桥语义保留）。TailorDialog 增 confirmingClose: 'busy'|'pending'|null，busy 优先，pending 文案含"再取建议将消耗一次 AI 请求"原话，Keep reviewing 取消，Discard and close 走原 onClose()。Dashboard 查看器 docText 未变即时关闭，变了弹确认，Discard changes 走原 setOpenDoc(null)+setSignatureError('')。Cancel/Esc/外点均保留父对话框与内容，零写入。
+- 本地 tsc/eslint(0 errors)/build 绿。生产 QA 见 PR。
+
+## R406 — ATS checker 巨型 JD 不再冻结页面（2026-08-31）
+- 闭环 R403/R404 银行 P4（已生产实证）：种子 ~1.03MB JD + checked:true 后 /ats-checker 渲染 220,537 个 DOM 节点（main 内 110,110 个 span）——"Job description with keywords highlighted" 框对整个 JD 跑 segmentJd 并逐段渲染 span/mark，且每次按键重算重挂；单个 3145ms long task + 按键延迟高达 957ms。R404 已证计算链 <260ms（Node），冻结在渲染侧。方案 docs/plan-r406-ats-highlight-cap.md。
+- 测量更正（实事求是）：早前报告的 "load-to-report 133s/120s/240s" 均为测量皮层伪影——轮询字符串 'Match score' 与页面实际文案（"Your ATS match score"）大小写不匹配，循环跑满超时；修正后实测修复版 time-to-report 1.0s。
+- 实现（仅 AtsChecker.tsx）：①高亮框只渲染 JD 前 20,000 字符（HIGHLIGHT_LIMIT，超限显示 muted 说明"评分仍用全文"），segmentJd 结果 useMemo；②评分/analysis 改用 useDeferredValue(resumeText/jd)，1MB 全文重评分（Node 实测 139ms）作为 deferred render 不再阻塞按键紧急更新。评分、关键词、草稿持久化、正常尺寸 JD 行为零改动。
+- 本地 tsc/eslint(AtsChecker.tsx)/build 绿。生产修复后实测：4,812 节点/2,246 span、time-to-report 1.0s、按键 285/327/307ms（残余为 1MB 受控 textarea 布局+草稿持久化，非评分）。
+- 生产 QA（index-DmlNuwxC.js / AtsChecker-CDkHIXI7.js）全绿零 P0–P3：100KB JD（关键词只在 20k 之后）出报告+截断说明+高亮框恰 20,000 字符、关键词出现在 chips 但不在高亮框（全文评分铁证）、20k 后追加 docker 重查即入 chips、1MB 草稿 1.0s 可交互+输入 50ms 往返、示例报告无截断说明、R403 styled dialog/R387 keep-saved 字节一致/R389 文案回归、375 光暗、零 console 错误、零 AI/lead/分享/支付流量、基线还原。
+- 银行：/jobs bogus ?job=<id> 深链回退（源码已读、生产未验，R407 候选）。
+
+## R407 — /jobs?job=<id> 深链在移动端直接打开详情面板（2026-08-31）
+- 闭环 R406 银行候选（生产实证）：R312 让 /jobs 搜索上下文可分享（含 ?job=<id>），R384 又铸 &job= 深链，但 mobileDetail 恒以 false 初始化——375×812 实测详情面板 display:none，手机上收到分享链接/刷新只见列表。bogus id 无需修（fetchJobs 已自动换选 list[0]）。方案 docs/plan-r407-mobile-job-deeplink.md。
+- 实现（一行，Jobs.tsx）：`mobileDetail` 以 `seedParams.get('job') !== null` 播种——深链等价于点击该行，既有 "Back to list" 返回列表；无参 /jobs 与桌面端零变化。
+- 本地 tsc/eslint(Jobs.tsx)/build 绿。生产 QA（Jobs-EGR7DlP0.js / index-BNZr2RzR.js，零 AI/lead/分享/支付逃逸、基线字节还原）全绿零 P0–P3：375 深链详情 block/列表 none+Back to list 还原、无参默认列表、bogus 自动修复选首个、桌面 1440 双面板、R384 cover 行/R394 管道写入/R406 ATS 示例回归、375 光暗零溢出、零 console 错误、零原生对话框。
+
+## R408 — SOP-10 四维审计 + 0% 匹配 next-step 文案（2026-08-31）
+- SOP-10 四维生产审计（R407 bundle）零 P0–P2：操作台（文件夹/批量+Undo/备份恢复/分享 scoping）、功能深度（历史恢复/R403 对话框/提醒/follow-up/targeted copy）、5 静态页 ×3 视口 ×2 主题+24 内链、健壮性（畸形存储/bogus 深链/配额满/失败 AI mock）全通过；全程零原生对话框（R403/R405 成果保持）。方案+triage：docs/plan-r408-sop10-audit.md。
+- 初报 P3「tailor 对话框显示原始错误体」按 R398 先例驳回：worker callLlm 把一切上游失败映射为友好 {error} 文案，真实生产产不出 "internal" 这类体（mock 伪影）。
+- 修复确证 P4（Jobs.tsx nextStep 一处）：targeted copy 关键词匹配为 0 时 next-step 由「Improve your targeted copy — 0% keyword match.」改为可行动文案「Your targeted copy doesn't use any of this job's keywords yet — open it and add a few.」；徽章与详情行的诚实数字不动。
+- 本地 tsc/eslint(Jobs.tsx)/build 绿。生产 QA（Jobs-DxpBX8V4.js，零逃逸、基线字节还原）全绿：0% 场景新句+Open targeted resume 直开副本、注入关键词后 13% 走旧句、R407 移动深链回归、375 光暗零溢出、零 console 错误。
+
+## R409 — 工作区恢复清除悬空 activeVersionId（2026-08-31）
+- 审计（信件生成/面试练习/导入链/跨标签+主题+a11y）零 P0–P2。确证 P3：恢复的备份里 activeVersionId 指向备份中不存在的副本时，恢复成功但悬空键持续存在，/builder 无 "Editing" 归属地静默编辑草稿，无任何修复路径（/jobs 早有 R407 修复先例）。方案：docs/plan-r409-restore-orphan-active-version.md。
+- 修复仅 workspace.ts：restoreWorkspace 成功后若备份的 activeVersionId 在备份 resumeVersions 中无匹配（或 versions 不可解析）即移除该键；有效链接原样、无键备份不动、回滚路径不动。
+- 本地 tsc/eslint/build 绿。生产 QA（Dashboard-DdRJLnef.js / index-BfQzxz0v.js）全绿：悬空/无键/坏 JSON 三种备份键 ABSENT、有效备份键保留+Builder 归属正常、配额满恢复回滚字节一致+R394 alert、Cancel 零写入、R408 回归、零逃逸零 console 错误、基线还原。
+- 银行 P4：损坏 PDF 导入显示原始 pdf.js 文案 "Invalid PDF structure."（行为安全，仅文案）。
+
+## R410 — 损坏导入文件的友好文案（2026-08-31）
+- 闭环 R409 银行 P4：损坏 PDF 导入显示原始 pdf.js "Invalid PDF structure."；姊妹 DOCX 路径同样漏出 fflate 原始错误。五个导入面（Builder/ATS checker/Dashboard 简历+文档导入/Landing 拖放）都直接渲染 err.message，故在源头 extractFile.ts 修复：getDocument promise catch 后抛 "Could not read this PDF — the file may be damaged. Re-export it or paste the text instead."；unzipSync 包 try/catch 抛对应 DOCX 文案。有效文件/扫描件空文本/不支持类型路径全不动。方案：docs/plan-r410-friendly-import-parse-errors.md。
+- 本地 tsc/eslint/build 绿。生产 QA 全绿：Builder 损坏 PDF/DOCX 精确新文案+对话框留存+草稿字节一致、/ats-checker 同文案、reportlab 真 PDF/真 zip DOCX/TXT 正常提取、不支持类型与扫描件文案不变、解析失败也零 console 错误、零逃逸、基线还原。未单测 Dashboard/Landing 两面（同 err.message 渲染链）。
+
+## R411 — TXT 导出保留链接 URL（2026-08-31）
+- 探索性审计（Builder 深编辑/设计工具/分享/四格式导出）零 P0–P3，唯一确证 P4：`[portfolio](https://example.com/qa)` 在 MD/DOCX/PDF 都保留链接，但 TXT 导出把 URL 整个丢掉只剩 label。源头：Builder TXT 下载走 resumeToPlainText，末尾 stripInlineMarks 只保留 run 文本。方案：docs/plan-r411-txt-export-keeps-link-urls.md。
+- 修复：marks.ts 新增 stripInlineMarksKeepLinks（链接渲染为 `label (url)`，label 已是该 URL 时不重复；未完成链接保持字面量）；resumeToPlainText 增可选 {keepLinkUrls}，仅 Builder TXT 下载传 true——ATS 评分/AI 载荷/匹配报告仍走默认（无 URL），字节不变。
+- 本地 oracle 12/12、tsc/eslint/build 绿。生产 QA 全绿：TXT 摘要+经历 bullet 双处 `portfolio (https://example.com/qa)`、无链接简历零杂括号、MD/DOCX/PDF 链接回归（pypdf 注解实证）、mock cover-letter 请求 resumeText 仅 label 无 URL（Tailor 对话框发原始字段含 markdown 源为既定设计非泄漏）、文件名/免费下载门不变、零逃逸零原生对话框、基线字节还原。
+
+## R412 — 分享页失败不再假装"链接已撤销"（2026-08-31）
+- 生产实证（CDP Fetch.failRequest）：/s/<id> 的 /api/share 请求网络失败时，页面永远停在加载骨架且 console 出 Uncaught (in promise)；代码层面 5xx 也被映射为 null → 误显 "This link is no longer available"（把瞬时故障当永久撤销）。方案：docs/plan-r412-shared-resume-error-state.md。
+- 修复：share.ts fetchSharedResume 网络失败/≥500 抛友好 Error（4xx 仍返 null 走原 gone 卡）；SharedResume.tsx 新增 error 状态——role=alert 卡 "Couldn't load this resume" + "Try again" 按钮（重置骨架后重取）。
+- 本地 tsc/eslint/build 绿（eslint 曾报 set-state-in-effect，已把 loading 重置移入重试点击处）。生产 QA 全绿：网络失败→精确文案+零未处理拒绝、Try again→骨架→mock 快照正常渲染（日期+Print）、mock 500→状态码文案且响应体不泄漏、真实 bogus id→gone 卡回归、375 光暗零溢出、/s/ 页零 localStorage 写入、零逃逸、基线字节还原。
+
+## R413 — 其余 API 面离线不再漏出原始 "Failed to fetch"（2026-08-31）
+- 生产实证（CDP Fetch.failRequest /api/jobs/search）：/jobs 错误横幅直接渲染浏览器原始 TypeError "Failed to fetch"。源码扫描确证同族缺口：searchJobs、submitLead、claimTransaction（另有未守卫 res.json() 可抛原始 SyntaxError）、openLemonCheckout、activateLicense（同 json 缺口）、fetchZalizePrimary/fetchResumeProfile 全部无网络失败 catch。方案：docs/plan-r413-friendly-offline-errors.md。
+- 修复：各调用点 try/catch 抛面向用户的 "… — check your connection and try again." 分面文案（对齐 R348/R412 模式）；两处 res.json() 加 .catch(()=>({})) 让非 JSON 体落回既有友好状态码文案。HTTP 错误路径文案字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：jobs/lead 门/激活/Resume Center 四面精确新文案、非 JSON 200 激活落友好文案零 SyntaxError、RC 真实 404 文案回归、R412 分享页回归、375 光暗零溢出、零逃逸（全部 /api/leads 与 activate 均拦截）、基线字节还原。未运行时验证：claimTransaction/openLemonCheckout 文案（无真实 Lemon Squeezy 流程不可达，代码同型）。
+
+## R414 — 文档查看器 Copy text 有了诚实反馈（2026-08-31）
+- 生产实证（CDP 点击 /documents 查看器 Copy text）：按钮点击后无任何反馈，成功失败一律沉默（`void navigator.clipboard.writeText(docText)` 丢弃 promise）；全应用其余复制按钮（R372 follow-up、分享链接、checker 链接）均有 Copied/失败态。方案：docs/plan-r414-copy-text-feedback.md。
+- 修复仅 Dashboard.tsx：docCopied 'idle'|'copied'|'failed' 状态，按 R372 模式 then(copied, failed) 渲染 "Copied"/"Copy failed"，三处打开查看器时重置 idle。
+- tsc/eslint/build 绿。生产 QA 全绿（Dashboard-CCUlK0Kh.js）：真实剪贴板回读字节一致、reject 覆写→"Copy failed" 零 console 错误、重开重置（含失败态后）、Save/下载行与 R413 jobs 横幅回归、375 光暗零溢出、零逃逸、基线字节还原。
+
+## R415 — /samples 加载失败不再白屏（2026-08-31）
+- 生产实证（CDP 强制 /examples/examples.json 网络失败）：/samples 主区完全空白——无标题、无错误、无重试（整块 gated 于 examples.length>0，fetch 错误被吞）。方案：docs/plan-r415-samples-load-failure.md。
+- 修复仅 Dashboard.tsx：examplesState 'loading'|'ready'|'failed'（非 ok HTTP 也算失败）；/samples 专页失败时渲染 h1 + role=alert "Loading the sample library failed — check your connection and try again." + Try again 重取（examplesAttempt）；dashboard 内嵌样本条保持空则隐藏；成功路径字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（Dashboard-CkU4KodD.js）：失败态精确文案+重试恢复全网格、mock 500 同卡不泄漏响应体、happy path/?q=/?sector=/收藏星回归、dashboard 无错误卡、375 光暗零溢出、R414 回归、零逃逸、基线字节还原。
+
+## R416 — /builder?example= 深链失败不再沉默 + 修掉 examples.json 无限重取循环（2026-08-31）
+- 生产实证（CDP 强制 /examples/examples.json 失败）：/builder?example=software-engineer 打开后就是普通空草稿，零提示，?example 参数原地无效（probe_r416.py，截图 r416_builder_example_offline.png）。QA 另实测出既有 P1：fetch effect 依赖未 memoize 的 applyExample，成功路径 setExamples→重渲染→effect 重跑→重取，自持循环实测 ~240 req/s（45s 内 10,192 次请求）。
+- 修复仅 Builder.tsx：examples fetch 非 ok HTTP 也 reject；URL 带 ?example= 时失败置 exampleLoadFailed，渲染固定底部 role=alert 条 "Loading the example resume failed — check your connection and try again." + Try again（bump exampleLoadAttempt 重取）+ X Dismiss；applyExample 入 ref（被动 effect 更新），fetch effect 依赖只剩 [exampleLoadAttempt] —— 每次挂载恰好 1 次请求，循环与"Dismiss 不生效"一并消灭。无 ?example 失败不出条，空态角色选择器保持空则隐藏。
+- tsc/eslint(0 errors)/build 绿。两轮生产 QA（Builder-BeGf0iQu.js → Builder-BVfSkPhs.js）全绿：失败态精确文案/参数保留/草稿不动、Try again 恢复并应用示例（replaceState 去参）、mock 500 不泄漏、Dismiss 持久、/builder 20s 恰 1 次请求、无参无条、happy path、R415 /samples 回归、375 光暗零溢出、零逃逸、基线字节还原。
+
+## R417 — /jobs 加载失败可重试且不再遮蔽本地管道（2026-08-31）
+- 生产实证（probe_r417.py，CDP 强制 /api/jobs/search 失败）：/jobs 显示 R413 友好文案，但只是裸 `<p class="text-destructive">`——无 role=alert（读屏不播报）、无 Try again 按钮（文案让用户"try again"却没有明显重试入口）；R412 以来其余失败面（分享页/samples/?example）均为 alert 卡 + 重试。方案：docs/plan-r417-jobs-error-retry.md。
+- 修复仅 Jobs.tsx：错误分支改为 role=alert 卡（R415 同款 destructive 样式）+ outline "Try again" 按钮（runSearch(query) 重取当前搜索）。QA 首轮揪出既有遮蔽（继承自旧裸 <p>）：错误分支占据所有 tab 的列表槽，离线用户在 ?tab=tracked 看不到本地管道——当轮跟进：error && tab === 'all' 才渲染卡，tracked/status tab 始终从 honestcv.jobPipeline 渲染。
+- tsc/eslint/build 绿。两轮生产 QA（Jobs-ChxwPjcy.js → Jobs-QvadXlzM.js）全绿零 P0–P3：失败→alert 卡精确文案+Try again、重试→清卡渲染列表无整页刷新、mock 500 "Job search failed (500)" 不泄漏原始体、tracked tab 失败下渲染本地管道无卡、All tab 保留卡、happy path 不变、375 光暗零溢出、R407/R416 回归、零逃逸、基线字节还原。
+
+## R418 — SOP-10 节点：Builder 头部在 2xl（1536–1640px）不再横向溢出（2026-09-05）
+- SOP-10 四维生产扫描（11 个页面标题/h1/溢出/无 alt 图/断图）确证唯一 P2：/builder 在 1536–1640px 视口整页横向滚动（scrollWidth 1587@1536 / 1619@1600 / 1629@1620），Print 按钮被裁——2xl 起工具栏把下载下拉换成展开的 PDF/DOCX/TXT/MD/Print 五按钮，头部内容 ~1419px 塞进 max-w-6xl(1152px) 容器右溢；1536 恰是 Windows 125% 缩放下 1920 屏的有效宽度。/resources/ 404 无内链指向（非缺陷）；/jobs 19 个公司 logo 无 alt 银行为 P4 候选。方案：docs/plan-r418-builder-header-overflow.md。
+- 修复仅 Layout.tsx SiteHeader：wideAction（Builder 传入）时头部容器 max-w-6xl → max-w-[1600px]（1536 内容盒 1504 ≥ 1419），其余页面字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-CqEuuk_W.js / Builder-K7xMr_2O.js）：1520–1920 六宽度零横向溢出、≥1536 五按钮全可见（Print 右缘 1505@1536）、1520 紧凑下拉回归可开、非 Builder 页 1536 仍 max-w-6xl、375 光暗、R417 jobs 回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000（既有 token 权限缺口，不影响上线）。
+
+## R419 — Builder 紧凑下载菜单支持外点/Esc 关闭（2026-09-05）
+- 生产实证（probe_r419.py @1280）：打开工具栏紧凑 "Download your resume" 菜单后，外点与 Escape 均不关闭（aria-expanded 保持 true）——全应用唯一不可 dismiss 的浮层（同页 Resources 下拉外点即关，Radix 对话框均支持 Esc/外点）；键盘用户无退出路径（WAI-ARIA menu-button 模式期望 Esc 关闭）。方案：docs/plan-r419-download-menu-dismiss.md。
+- 修复仅 Builder.tsx：镜像 ResourcesDropdown 模式——downloadMenuRef + 打开期间 document 级 pointerdown（ref 外即关）与 Escape keydown 监听；项点击/toggle 行为字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-C3Y5TGU3.js / Builder-qolcHyMH.js）：外点关闭零副作用、Esc 关闭且关闭态 Esc 无操作、popover 内 padding 点击不关、TXT 项点击走既有质检对话框→真实下载、toggle 回归、Resources 下拉回归、R418 1536 回归、375 光暗触摸开关、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R420 — 移动端汉堡导航支持外点/Esc 关闭（2026-09-05）
+- 生产实证（CDP @375×812 /ats-checker）：打开汉堡菜单（近全屏面板，高 673px）后外点与 Escape 均不关闭（aria-expanded 保持 true）——R419 后头部唯一无 dismiss 的 disclosure（Resources 下拉与紧凑下载菜单均已支持）；静态预渲染页（/about/ 等）用独立头部不受影响。方案：docs/plan-r420-mobile-menu-dismiss.md。
+- 修复仅 Layout.tsx SiteHeader：headerRef 挂 <header>（toggle+面板+ThemeToggle 都算"内部"），menuOpen 期间 document 级 pointerdown（header 外即关）与 Escape keydown；Link 项 onClick 关闭、静态 <a> 整页跳转等行为不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-yIR63SNL.js / Builder-CNj6w3ia.js）：外点关闭零副作用（URL/storage 字节不变）、Esc 关闭且关闭态无操作、面板内 padding 点击不关、Link 点击照常跳转并关闭、菜单开着点 ThemeToggle 循环主题菜单不关、Resources/R419 下载菜单/R418 1536 回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R421 — SPA 头部加 Skip to content 跳转链接（2026-09-05）
+- 生产实证（CDP @1600）：全站无 skip link，键盘/读屏用户到达 <main> 前每页需 Tab 过 9–15 个头部控件（/builder 15、/dashboard 9、/jobs 9）——WCAG 2.4.1 Bypass Blocks 缺口。方案：docs/plan-r421-skip-to-content.md。
+- 修复仅 Layout.tsx SiteHeader：<header> 首子元素加 <a href="#main">，sr-only 聚焦时显形（focus:not-sr-only 左上角卡片样式）；onClick preventDefault 后 querySelector('main') 设 tabindex=-1 并 focus+scrollIntoView——免逐页加 id，覆盖现有及未来所有 SPA 页。静态预渲染页（9 个独立头部模板）银行为后续候选。
+- tsc/eslint/build 绿。生产 QA 全绿（index-CMVHCAgE.js）：三页 Tab 一次即显形聚焦、聚焦前零视觉存在零布局偏移（头高 57px 不变）、Enter 后 activeElement=MAIN 且 URL/存储零变化、后续 Tab 落 main 内首控件、1280 光暗+375 移动可见可用、R420 汉堡与 Resources 下拉回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R422 — 静态预渲染页全量 Skip to content（2026-09-05）
+- R421 只覆盖 SPA，静态页银行为本轮。生产实证（CDP @1280 五个静态页）：每页 <main> 前 15 个可聚焦控件、零 skip link。方案：docs/plan-r422-static-skip-links.md。
+- 修复仅 scripts/build-seo.mjs：全部 11 个头部模板前加 <a class="skip" href="#main">、全部 <main> 加 id="main" tabindex="-1"（纯原生 fragment 导航零 JS），CSS a.skip 离屏 -9999px 聚焦回 .5rem；覆盖全部 120 个静态页。
+- tsc/eslint/build 绿（120/120 页含 skip+id）。生产 QA 全绿：五页首 Tab 显形（8,8）、Enter 后 activeElement=MAIN 且 URL 得 #main（原生导航预期行为，与 SPA preventDefault 不同）、后续 Tab 落 main 内、零布局偏移（头 57px 粘性不变）、prefers-color-scheme 暗色可见、头部导航与 /examples/ hub-filter 回归、SPA R421 回归（bundle 不变）、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R423 — SOP-10 审计 + Builder 全部 placeholder-only 字段补可及名称（2026-08-31）
+- SOP-10 四维生产扫描（六页标题/alt/按钮命名/重复 id/lang）唯一缺口：/builder 大量可见表单字段唯一"名称"是 placeholder（WCAG 1.3.1/4.1.2——输入后 placeholder 消失、读屏无名）。方案：docs/plan-r423-builder-field-labels.md。
+- 三轮收敛：①默认态 7 字段+日期对（MonthYearField 新增 ariaLabel prop 透传内层 Input）；②QA 挂载可选 section 后揪出 12 个残留，静态扫描扩到全部——Projects/Involvement/Military/Coursework/Awards/Publications/References/Agents/Certifications/自定义 section 的全部文本域与 textarea、导入粘贴框、生成信结果框（共 ~44 处 aria-label，纯属性零视觉变更）；③Import 对话框 Share link or share ID 输入框。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-Cc_mvfKF.js）：UI 逐个挂载全部可选 section + 打开 Import 对话框后 unlabeled 探针归零、AX 计算名逐项确认（Course name/Certificate name/Reference email/Share link or share ID 等）、placeholder 与视觉零变化、日期 picker 行为不变、R421 skip link 回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route 列举 auth code 10000。
+
+## R424 — Builder 联系方式卡补 input purpose（2026-08-31）
+- 生产实证：联系方式卡七个输入框全无 autocomplete/inputMode（WCAG 1.3.5 AA，浏览器无法自动填充本人姓名/邮箱/电话，移动端弹通用键盘）；References/Paywall 邮箱早已 type=email，唯独最高频的联系卡漏掉。方案：docs/plan-r424-contact-input-purpose.md。
+- 修复仅 Builder.tsx 联系卡：元组扩展 per-field autocomplete/inputMode（name / organization-title / email+email / tel+tel / url+url / linkedin 仅 inputmode=url / location 不动），type 保持 text，纯属性零视觉变更。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-CVVuDPG6.js）：七字段属性逐一精确、输入持久化往返不变、视觉零差异、R423 unlabeled 探针仍归零、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R425 — 死 ?example 深链诚实 not-found 提示（2026-08-31）
+- 生产实证：/builder?example=<bogus-slug> 时 examples.json 拉取成功但 find 落空即静默 return——空草稿零反馈、死参数留在 URL（R416 只把 fetch 失败做诚实，not-found 分支仍哑）。方案：docs/plan-r425-example-notfound.md。
+- 修复仅 Builder.tsx：新增 exampleNotFound 态，slug 无匹配时底部 role=alert 条（"This example resume wasn't found — it may have been renamed or removed." + Browse examples 链 /examples/ + Dismiss），并同 found 路径 replaceState 清死参数；fetch 失败条与有效 slug 路径字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-DTHSDncy.js）：bogus slug 精确文案条+参数剥离+零存储写入、有效 slug 照常应用、无参零条且 examples.json 每挂载恰 1 次（R416 回归）、强制 fetch 失败旧条+Try again 恢复、R424 属性回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R426 — 死 ?template 深链诚实 not-found 提示（2026-08-31）
+- 生产实证：/builder?template=<unknown-id>（落地页画廊+25 个静态 /templates/ 页深链落点）时 TEMPLATES.some 落空即静默保留当前模板——零反馈、死参数留在 URL；R425 的 ?example 姊妹缺口。方案：docs/plan-r426-template-notfound.md。
+- 修复仅 Builder.tsx：新增 templateNotFound 态（同参数在 state initializer 判定），底部 role=alert 条（"That template wasn't found — it may have been renamed or removed." + Browse templates 链 /templates/ + Dismiss），挂载时只剥死 template 参数（其余参数如有效 ?example 保留）；有效 template 路径与 R425 两条字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-B6aYg7pL.js）：bogus id 精确文案条+仅剥 template 参数+存储零写入、bogus template+有效 example 组合双正确（条显示且示例照常应用）、有效 metro 照常应用无条（参数留 URL 为既有行为）、纯 /builder 零条、R425 example 条回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R427 — Builder 底部状态条堆叠不再互相遮盖（2026-08-31）
+- 生产实证：/builder?template=bogus&example=bogus 时 R426 模板条与 R425 示例条渲染在完全相同的 fixed 位置（rect top=687 bottom=745 双双相同）——后渲染的条盖住前者的文案与按钮；Builder 六个底部状态条（存储满、示例拉取失败、模板 not-found、示例 not-found、跨标签更新、下载分享推广）共用同一 `fixed inset-x-4 bottom-16 z-50` 槽位，任意并发即互相遮盖。方案：docs/plan-r427-status-bar-stack.md。
+- 修复仅 Builder.tsx：一个 `pointer-events-none` 的 fixed flex-col 堆叠容器（inset-x-4 bottom-16 z-50 items-center gap-2 lg:bottom-4）承载全部六条；各条去掉自身 fixed/inset/bottom/z/mx-auto，加 `pointer-events-auto`（内容/role/文案/handler 字节不变）；shareOpen 推广块 JSX 移入容器。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-DceEvUzY.js）：双 bogus 参数两条垂直堆叠 8px 间距零重叠、独立 Dismiss、双参数剥离；单条位置与旧行为等价（lg:bottom-4）；容器空白带点击穿透到底层控件；metro/software-engineer/纯 /builder/R416 fetch 失败条+Try again 全回归；375 光暗双条堆叠零溢出；零 console 错误、零原生对话框、零逃逸、基线字节还原。未逐一实渲染存储满/跨标签/分享推广三条（需配额满/多标签/真实下载流），其堆叠由共用容器推定。部署照旧：上传成功、route auth code 10000。
+
+## R428 — SOP-10 审计 + 三个复制按钮失败不再沉默（2026-08-31）
+- SOP-10 四维审计：11 页 1600/375 双视口零横向溢出、零 console 错误；sitemap 123 URL、/templates/ 25 深链全部映射真实模板 id；"sora-latin.woff2 preloaded but not used" 告警经全新浏览器 context 实证为 Chrome 本地启发式伪影（新 context 每字体恰 1 次带 Origin 请求），非站点缺陷，不修。方案：docs/plan-r428-copy-failed-feedback.md。
+- 确证缺陷（生产实证 clipboard 强制 reject）：三个复制按钮只在成功时置 copied 态，失败零反馈+未处理 rejection——/ats-checker "Copy the checker link"、Builder 下载分享推广条 "Copy checker link"、Builder 分享对话框 "Copy"（最重：用户以为分享 URL 已复制实际粘贴为空）。R372/R414 已有 Copied/Copy failed 双 handler 先例。
+- 修复仅 Builder.tsx / AtsChecker.tsx：三个布尔 copied 态改 'idle'|'copied'|'failed'，writeText 双 handler，失败显 "Copy failed"；成功路径与布局字节不变；既有 reset 改 'idle'。
+- tsc/eslint/build 绿。生产 QA 全绿（Builder-BqvGrmLc.js / AtsChecker-Yh81A1H9.js）：三面 reject→"Copy failed" 零 console 错误零未处理 rejection、真实剪贴板成功标签+回读精确（/api/share 全 mock 零真实链接）、R414/R372 回归、推广条居 R427 堆叠容器、375 光暗零溢出、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R429 — SPA 路由原始 HTML 自指 canonical/og:url（2026-08-31）
+- 生产实证：全量爬取 123 个 sitemap 页 + 193 个内链全 200、静态页 canonical/title/desc/main-id 全对；唯 SPA 路由（/builder、/ats-checker 在 sitemap 内）原始 HTML canonical 与 og:url 均硬编码指向主页——等于向爬虫声明"本页是主页副本"，可致 sitemap 页被去重出索引；CanonicalSync（R309）只在 JS 水合后修正。方案：docs/plan-r429-spa-canonical.md。
+- 修复仅 worker/index.ts notFound：SPA_ROUTES 且非 '/' 时把 shell 的 canonical href 与 og:url 重写为 https://cv.zalize.com<path>；/s/（noindex）与未知路由 404 分支不动。
+- tsc/eslint/build 绿。生产 QA 全绿：六 SPA 路由 curl 无 JS 自指 canonical+og:url、主页/静态页不变、/s/bogus 与 /nope-xyz 仍 404+noindex/no-store 且 shell 不重写、真实浏览器 /builder//jobs 零损坏零 console 错误、客户端导航 CanonicalSync 回归、R428 复制回归、375 光暗零溢出、基线字节还原。既有小观察（非本轮回归）：客户端导航后 CanonicalSync 只更新 canonical 不更新 og:url（爬虫读原始 HTML，无实害），银行为候选。部署照旧：上传成功、route auth code 10000。
+
+## R430 — SPA 路由原始 HTML 每路由 title/description（2026-08-31）
+- 生产实证：R429 修好 canonical/og:url 后，六个 SPA 路由原始 HTML 的 <title>/meta description/og:title/og:description 仍全是主页文案（curl 无 JS 实测），/builder、/ats-checker 在 sitemap 内——搜索摘要与链接卡片展示主页标题；usePageMeta 只在水合后修正；120 个静态页早已各有唯一元数据，SPA 路由是唯一缺口。方案：docs/plan-r430-spa-title-description.md。
+- 修复仅 worker/index.ts：SPA_META 映射（文案与各页 usePageMeta 逐字一致），R429 重写块内一并替换 title/description/og:title/og:description；'/'、/s/、未知 404 分支不动。
+- tsc/eslint/build 绿。生产 QA 全绿：/builder、/ats-checker 原始 HTML 每路由元数据+自指 canonical、水合后 document.title 与原始 shell 字节一致零闪变、客户端导航 usePageMeta+CanonicalSync 回归、/nope-xyz 与 /s/bogus 仍 404 主页 shell 不重写、/pricing/ 不变、375 光暗零溢出、零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R431 — 客户端导航后 og:url/og:title/og:description 跟随路由（2026-09-05）
+- 生产实证（CDP）：R430 后原始 HTML 已每路由正确，但客户端导航后 head 自相矛盾——canonical/title/description 跟随当前路由，og:url/og:title/og:description 仍停在入口路由（/builder 进入→导航 /jobs，og:url 仍 /builder）。R429 QA 银行项确证。方案：docs/plan-r431-clientnav-og-meta.md。
+- 修复仅客户端两处：CanonicalSync（App.tsx）同步 og:url；usePageMeta（Layout.tsx）同步 og:title/og:description。worker 原始 shell 重写不动。
+- tsc/eslint/build 绿。生产 QA 全绿：/builder→/jobs→/dashboard→/documents 每步六标签全一致且与 R430 shell 文案字节相同、/ats-checker 直载水合零闪变、主页往返还原、curl 原始 HTML R429/R430 回归、/nope-xyz 仍 404、375 光暗零溢出、零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+## R432 — 分享链接 /s/<id> 原始 HTML 以候选人身份 unfurl（2026-09-05）
+- 生产实证：notFound 里 live 分享页 body 用未改写的 shell——粘到 Slack/微信/LinkedIn 的分享链接 unfurl 成主页营销文案（"RezUp — AI Resume Builder…"、og:url=主页），而快照本来就在 shareLive 检查那次 KV 读里。方案：docs/plan-r432-share-unfurl-meta.md。
+- 修复仅 worker/index.ts notFound：捕获 shareLive 已读的 KV 值，live 时解析 ShareRecord，title/og:title = "<fullName> — <contact.title> | RezUp"（无名回退 "Shared resume"）、description/og:description = "<fullName>'s resume, shared with you via RezUp."、og:url = /s/<id>；HTML 转义 + 120 字截断。revoked/未知 id 与 SPA_ROUTES 分支不动，noindex/no-store/200/404 语义不变。
+- tsc/eslint/build 绿。生产 QA 全绿（本轮特批创建一条真实分享并已删除验证 404）：curl 原始 HTML 五标签精确重写且保留 noindex/no-store、注入 `<b>&"`/`<script>` 全转义零裸标签、水合页正常渲染零 console 错误、R412 失败+重试回归、/s/bogus 仍 404 主页 shell、/builder //jobs R429–R431 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R451 — 内联 pre-paint 主题脚本，消掉最后一个可省 render-blocking 请求（2026-08-31）
+- 生产实证：Lighthouse 12（模拟移动端）主页 perf 88 / BP 100 / SEO 100，render-blocking 仅两项：应用 CSS（165ms，必要）与 /theme.js（1.2KB，465ms 最大浪费项，且未哈希只有 60s 缓存）。该脚本唯一职责是首绘前套暗色 class，当年做成外部文件只因 CSP script-src 'self' 禁内联。方案：docs/plan-r451-inline-theme-script.md。
+- 修复：压缩单行 snippet 内联进 index.html（SPA shell）与 build-seo THEME_SCRIPT（121 静态页），worker CSP 加精确哈希 'sha256-MZ8XjS6YdLL4vJ5M2sqLscENvOD3KriLIkIWJIMgS+Y='（哈希白名单与纯 'self' 同等严格，其他内联仍全禁）；删除 public/theme.js；build-seo 加漂移断言（三处副本任何一处不一致即构建失败，已 tamper 验证会炸）。t.js/hub-filter.js（defer 非阻塞）不动。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：四页零 theme.js 请求（直接 GET 404）、CSP 头含精确哈希且线上内联字节哈希吻合、dark pre-paint 无闪（250ms 探针即已 dark、像素级验证）、五页零 CSP violation 零 console 错误、hub filter/t.js 正常、主题三态循环+持久化回归、R449/R450/375 光暗全回归、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R452 — 移除 motion 依赖，入口包瘦身 21.6KB gzip（2026-08-31）
+- 生产实证：R451 后 Lighthouse 首要余项为 unused-javascript（入口 index-*.js 126.7KB 传输、~61.7KB 未用）。sourcemap 分解入口块：motion-dom 204KB + framer-motion 24KB + motion-utils 10KB + tslib 17KB 源码全部只为 src/lib/motion.ts 里 ScoreRing 计数动画的一个 animate() 调用（全仓唯一引用点）。方案：docs/plan-r452-drop-motion-dep.md。
+- 修复：useCountUp 重写为 rAF cubic ease-out 补间（API/reduced-motion 语义不变，调用方零改动），package.json 删除 motion 依赖。入口块 391→329.9KB（gzip 123.5→101.9KB，省 21.6KB 传输）。银行：fflate 88KB 经 extractFile 静态引入仍在入口（候选后续轮改上传时动态 import）。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：线上入口恰为新 chunk 且字节零 motion 代码（'framer' 命中仅 React 内部符号）、40ms 采样器实证主页 86 分环 0→…→86 约 900ms ease-out 补间、/builder 11 分环同、prefers-reduced-motion 仿真首帧即终值零中间值、四页零 console 错误零 CSP violation、R451（零 theme.js 请求、内联脚本、CSP 哈希、dark pre-paint）全回归、375 光暗零溢出、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R454 — 生产静态页全 404 事故恢复 + verify-dist 部署门禁（2026-09-05）
+- 生产实证：追查 R453 银行项 examples.json 404 发现事故——R453 部署后全部 ~120 个静态预渲染页（/pricing/、/templates/、/examples/*、/guides/* 等）与 examples.json 均 404，仅 SPA shell + assets 在线。根因（推断）：部署时 dist/client 只含 vite 产物（vite build 清空 dist、prerender/build-seo 未生效），wrangler 按 dist 现状整体替换 asset manifest。方案：docs/plan-r454-verify-dist-deploy-gate.md。
+- 恢复：09-05 12:30 完整 `npm run build && wrangler deploy`（299 files），全部路由复验 200/404 正确。
+- 门禁：新增 scripts/verify-dist.mjs（sitemap 驱动：核心文件存在、≥100 URL、每个非 SPA sitemap 页有 index.html），接入 `npm run deploy`（build → verify → wrangler deploy）。已实测负例（vite-only dist 退出码 1）与正例（123 URL OK）。wrangler.jsonc `build.command` 钩子不可行：Cloudflare vite 插件 redirected config 剥掉 `build` 键（负例 dry-run 实证不执行）。铁律：部署只走 `npm run deploy`；部署后 curl 抽查至少一个静态页。
+- tsc/eslint/build 绿；`npm run deploy` 全链成功（route auth code 10000 照旧）。
+
+## R453 — fflate 改为 .docx 上传时懒加载（2026-08-31）
+- 生产实证：R452 后 Lighthouse 主页 perf 88 / TBT 130ms，首要余项仍是 unused-javascript（入口 104.5KB 传输、~47.5KB 未用）。fflate（unzipSync/strFromU8）全仓唯一静态引用在 src/lib/extractFile.ts，只被 extractDocx() 用到——即仅当用户真的上传 .docx 才需要，但因四个页面静态引 extractFile 而被打进每个访客首绘前的入口块。方案：docs/plan-r453-lazy-fflate.md。
+- 修复一行：extractDocx() 内 `await import('fflate')`（与既有 pdfjs 懒加载同款），调用方/API/依赖零改动。入口 329.9→324.4KB（gzip 101.9→99.1KB）；fflate 成独立 browser-*.js 懒块（5.5KB，88KB sourcemap 数字是含注释源码、压缩 tree-shake 后仅此）。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P2：三页面纯加载零 browser-*.js 请求且入口恰为新 chunk、本地构造 .docx 经 DOM.setFileInputFiles 注入 /ats-checker 与 Builder 导入双路径均在上传瞬间恰好拉取 fflate 块并正确解析（file checks 卡 'No tables' 对含表 fixture 正确红失败）、坏 .docx 友好文案零未处理 rejection、TXT 路径不变、断网块失败为已捕获可见错误非白屏（文案偏技术，P4 备案）、R452 计数环/R451 主题/375 光暗全回归、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+- QA 银行（既有非回归）：/builder 挂载请求 /examples/examples.json 返回 404（仅 console 噪音，Builder 正常）——候选后续轮查明（疑似静态资产路径或 build 产物缺失）。
+- 【生产事故复盘（2026-09-05）】追查上条银行项发现：R453 部署后生产丢失了全部 120 个静态预渲染页（/pricing/、/templates/、/examples/* 等全 404，examples.json 同），仅 SPA shell + assets 在线——推断当时 dist/client 只含 vite 产物（vite build 会清空 dist，prerender/build-seo 未跑或跑在部署之后），wrangler 按 dist 现状整体替换 asset manifest。已于 09-05 12:30 用完整 `npm run build && wrangler deploy`（299 files）恢复，全部路由复验 200/404 正确。铁律：部署必须走 `npm run deploy`（完整 build 链），禁止在任何部分构建后直接 `wrangler deploy`；部署后必须 curl 抽查至少一个静态页（如 /pricing/）非仅 SPA 路由。
+
+## R450 — 六个 /examples/ 页修复跳级标题（2026-08-31）
+- 生产实证：axe-core 4.10.2 扫 10 条静态预渲染路由 + SPA 全路由（桌面/375/菜单展开态），唯一违规是六个 /examples/<slug>/ 页的 heading-order（moderate）：H1 "<Role> resume example" 后直接跟示例简历的 H3 Summary/Experience/Skills/Education（跳过 H2），页面真正的 H2 提示区在其后。源头：scripts/build-seo.mjs exdoc 块硬编码 <h3>。方案：docs/plan-r450-example-heading-order.md。
+- 修复仅 build-seo.mjs：exdoc 四个 <h3>→<h2>，CSS 选择器 .exdoc h3→.exdoc h2（声明不变，视觉像素级等价）；pricing FAQ/promo 页 h3（正确跟在 h2 后）与模板卡 h3 不动。
+- tsc/eslint/build 绿。生产 QA 全绿：六页 raw HTML 零 <h3>、axe 全零违规、outline 恰为 H1→全 H2、computed style（.8rem/uppercase/.08em/1px 底边框）与旧 h3 一致、375 光暗零溢出、/examples/ hub 与 R422 静态 skip link 与 /pricing/ 与 R449 全回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R449 — SPA skip link 补上真实 #main 目标（2026-08-31）
+- 生产实证：axe-core 4.10.2 扫 8 条生产路由，所有渲染共享 header 的 SPA 路由（/、/dashboard、/documents、/jobs、/ats-checker、/samples）全报 skip-link（moderate）；CDP 确认 document.querySelector('#main')===null——R421 的 "Skip to content" 链接 href="#main" 全靠 JS onClick，SPA 页面的 <main> 从未有过 id（120 个静态页 R422 早已是 <main id="main" tabindex="-1">）。本轮另驳回两条线索：Builder 对话框缺 aria-modal 是 Radix 1.1.23 有意为之（hideOthers 对外部 65 节点加 aria-hidden，非缺陷）；/builder 页 Cache-Control 缺失是 curl -I（HEAD）探测伪影，GET 正常带 s-maxage=60。方案：docs/plan-r449-skip-link-target.md。
+- 修复：7 个 SPA 页面（Builder/Dashboard/Jobs/AtsChecker/Landing/SharedResume/NotFound）的 <main> 补 id="main" tabIndex={-1}，与静态页同款；Layout 的 onClick 行为不动，href 从此诚实、无 JS 也有原生 fragment 回退。
+- tsc/eslint/build 绿。生产 QA 全绿：6 路由 axe 零违规、golden path（Tab→Enter→activeElement=MAIN#main→下一 Tab 落 main 内）双路由通过、location.hash='#main' :target 命中、无可见焦点外框（与 /pricing/ 像素级一致）、R421/R422/R448 回归、375 暗色零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R448 — 两个 aria-haspopup 菜单补齐 WAI-ARIA menu-button 语义与方向键导航（2026-08-31）
+- 生产实证（CDP）：Resources 下拉与 Builder 紧凑下载菜单的 toggle 都带 aria-haspopup="true"（读屏播报"菜单"）但 aria-controls=null、面板与项全无 role=menu/menuitem；菜单打开后在 toggle 上按 ArrowDown 焦点不进菜单、页面反而滚动（scrollY 0→40）——违反 APG menu button 模式。移动汉堡是 nav disclosure 非菜单，正确地不在范围内。方案：docs/plan-r448-menu-button-semantics.md。
+- 修复 Layout.tsx（ResourcesDropdown）与 Builder.tsx（下载菜单）：toggle aria-haspopup="menu"+aria-controls，面板 role=menu+aria-label+id，项 role=menuitem；打开态 keydown handler 扩展 ArrowDown/ArrowUp/Home/End——仅当焦点在容器内才 preventDefault 并在 menuitem 间移动焦点（环绕）。Esc/外点/R447 焦点归还、Tab 可达性、项激活全不动。
+- tsc/eslint/build 绿。部署照旧：上传成功、route auth code 10000。
+
+## R447 — 三个 disclosure 面板内 Esc 后焦点回到 toggle（2026-09-05）
+- 生产实证（CDP 键盘流）：焦点在面板内时按 Esc，R419 下载菜单（Tab 到 PDF 项）、Resources 下拉（Tab 到 Resume guides）、R420 移动汉堡（Tab 到导航链接）三者关闭后 document.activeElement 全掉 BODY（焦点在 toggle 上时 Esc 正常留在 toggle）——R446 助手面板同族 WCAG 2.4.3 缺口的收尾。方案：docs/plan-r447-disclosure-focus-return.md。
+- 修复 Layout.tsx（ResourcesDropdown btnRef、SiteHeader menuButtonRef+mobileNavRef）与 Builder.tsx（downloadMenuButtonRef）：各 Escape handler 关闭后若 activeElement 在容器/面板内则 focus toggle；焦点在别处（如主题切换钮）不抢焦点，外点关闭路径不动。汉堡的判定范围限定移动 nav 面板而非整个 header。
+- tsc/eslint/build 绿。部署照旧：上传成功、route auth code 10000。
+
+## R446 — 关闭助手面板后焦点回到工具栏按钮（2026-09-05）
+- 生产实证（CDP 键盘流）：Esc（R445）或 X 关闭 Resume assistant 面板后 document.activeElement 掉到 BODY——键盘/读屏用户被丢回文档顶部（WCAG 2.4.3）。基线对照：Copies 对话框（Radix/R340）Esc 后焦点回 opener、R419 下载菜单 Esc 后焦点留在 toggle，助手面板是最后一个丢焦点的浮层。方案：docs/plan-r446-assistant-focus-return.md。
+- 修复仅 src/pages/Builder.tsx：assistantButtonRef 挂工具栏助手按钮，onClose（Esc 与 X 共用的唯一关闭路径）里 setAssistantOpen(false) 后 focus 该按钮；AssistantPanel 组件不动。
+- tsc/eslint/build 绿。部署照旧：上传成功、route auth code 10000。
+
+## R445 — 助手面板响应 Escape（2026-09-05）
+- 生产实证（CDP）：/builder 的 Resume assistant 侧栏面板对 Escape 零响应（aside 保持打开），而全应用其余浮层（Radix dialog、R419 下载菜单、R420 汉堡导航）都收 Escape。外点不关闭是有意设计——面板是 modeless、供用户边改简历边聊，不改。方案：docs/plan-r445-assistant-escape.md。
+- 修复仅 src/components/AssistantPanel.tsx：open 期间 document 级 keydown，Escape 关闭；跳过 e.defaultPrevented 与任何打开的 [role=dialog]（Escape 归上层对话框）。聊天/快捷任务/Apply/Locate/标记字节不变。
+- tsc/eslint/build 绿。部署照旧：上传成功、route auth code 10000。
+
+## R444 — 首跑向导让位深链意图（2026-09-05）
+- 生产实证（CDP，全新档案）：/builder?doc=cover 首跑向导叠在 Cover Letter 对话框之上（双 dialog 同开互相遮盖，两个 X 重叠）；?assistant=1 的助手面板被向导盖住；?jump=<有效anchor> 焦点被向导抢走——而 ?example= 早在 R350/R358 就被排除，证明"带意图的深链应压制向导"是既定模式。方案：docs/plan-r444-wizard-deeplink-clash.md。
+- 修复仅 src/pages/Builder.tsx wizardOpen 挂载初始化器：URL 携带有效 ?doc=（cover/interview/resignation）、?assistant=1 或有效 ?jump= anchor 时向导保持关闭；无效值维持原行为（bogus ?jump= 仍出 R443 not-found 条+向导可开）。向导内容/setupDone 持久化/空草稿护栏不变。
+- tsc/eslint/build 绿。生产 QA 全绿：fresh ?doc=cover 仅一个对话框且关闭后本次挂载不弹向导、?doc=interview 同、?assistant=1 面板可见零对话框、?jump=summary 直达 Summary、bogus jump=R443 条+向导（按规格）、纯 /builder 向导照开（R350 回归）、?example= 回归、setupDone 档案不变、375 光暗单对话框零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R443 — SOP-10 审计 + 死 ?jump= 深链诚实反馈（2026-09-05）
+- SOP-10 四维扫描全净（11 页标题/h1/alt/alert、15 页 375 零溢出、安全响应头 CSP/HSTS/nosniff/XFO 齐备）。唯一确证缺陷（CDP）：/builder?jump=<未知anchor>（/ats-checker 每条 priority fix "Fix →" 深链，anchor 更名/过期后）静默剥参数零提示——R425/R426/R441/R442 死深链同族最后一个静默面。方案：docs/plan-r443-dead-jump-deeplink.md。
+- 修复仅 src/pages/Builder.tsx：jumpNotFound 挂载初始化器一次性校验 ?jump= 是否在 JUMP_ANCHORS（纯本地零 fetch）；不在 ⇒ R427 底部堆叠容器内 role=alert 条 "That fix link points to a section that doesn't exist — it may be out of date." + Dismiss。有效 ?jump= 跳转 effect/参数剥离/其余状态条字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：bogus 精确文案条+Dismiss 只清条+参数照旧剥离、?jump=skills/summary 照常跳转无条、无参无条、?template=bogus/?example=bogus 回归且 jump+template 双条 R427 堆叠零重叠、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R442 — 死 ?doc= 深链诚实反馈（2026-09-05）
+- 生产实证（CDP）：/documents?doc=<失效id>（/jobs 行 "Cover letter: … Open" 深链，文档删除后）静默渲染普通列表并剥掉死参数，零提示——R425/R426/R441 死深链同族最后一个面。方案：docs/plan-r442-dead-doc-deeplink.md。
+- 修复仅 src/pages/Dashboard.tsx：docLinkNotFound 在挂载初始化器一次性校验 ?doc= 是否在 listCareerDocs()（纯本地零 fetch 零 effect）；不在 ⇒ 文档 section 副标题下 role=alert 卡（R441 同款样式）"The document in that link wasn't found — it may have been deleted." + Dismiss。有效 ?doc=/无参/?kind= 过滤/参数清理 effect 不变。
+- tsc/eslint/build 绿。生产 QA 全绿：bogus 精确文案卡+Dismiss 只清卡+死参数照旧剥离、有效 id 照常开 viewer 无卡、无参与 ?kind=cover 回归、375 光暗零溢出、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R441 — 死 ?job= 深链诚实反馈（2026-09-05）
+- 生产实证（CDP）：/jobs?job=<失效id> 静默把详情面板顶替成搜索结果第一条并原地改写 URL，移动端还自动全屏打开顶替职位详情——分享/收藏的职位链接过期后用户零提示看到无关职位（R425/R426 死深链同族）。方案：docs/plan-r441-dead-job-deeplink.md。
+- 修复仅 src/pages/Jobs.tsx：pendingSeedJob 在首次 fetch 成功回调里一次性校验（结果列表 + 本地 pipeline 都不含 ⇒ role=alert 卡（R417 同款样式）"The job in that link wasn't found…" + Dismiss，且不再为顶替职位自动开移动详情面板）；有效深链/无参/重试路径不变。
+- tsc/eslint/build 绿。生产 QA 全绿：bogus 深链精确文案卡+Dismiss、375 光暗不自动开面板零溢出、有效 id 无卡照常选中并开面板、tracked-only id 视为找到无卡、R417 失败卡+重试与 tracked tab 回归、零 console 错误、零逃逸、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R440 — spa.html 剥离主页 FAQPage 结构化数据（2026-09-05）
+- 生产实证（curl）：/builder 等六个可索引 SPA 路由的 raw HTML 带主页 FAQPage JSON-LD，但 FAQ 内容只在 Landing（'/'）可见——违反 Google FAQPage 可见内容要求（R429/R430 shell 诚实化的同族残留）。方案：docs/plan-r440-spa-shell-faq-ldjson.md。
+- 修复仅 scripts/prerender.mjs：生成 spaShell 时按块剥掉含 "FAQPage" 的 ld+json（WebApplication 站点级实体保留），并加构建期防回归断言；index.html（'/'）字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：四路由零 FAQPage 且恰一个 WebApplication、R429/R430 回归、主页双块保留且 FAQ 可见、两条 404 分支零 FAQPage 且 noindex 回归、水合 /builder(/) 零 console 错误且 R439 回归、375 光暗零溢出、基线字节还原、零逃逸。部署照旧：上传成功、route auth code 10000。
+
+## R439 — CanonicalSync 归一化尾斜杠，水合后 canonical 不再指向 /builder/ 变体（2026-09-05）
+- 生产实证：curl /builder/ 200 且 raw shell 自指 /builder（worker 已归一化），但 CDP 直载 /builder/ 水合后 CanonicalSync 用 pathname 原文把 canonical/og:url 改写成带斜杠变体——raw-vs-hydrated 自相矛盾（R429/R431/R436 同族）。方案：docs/plan-r439-trailing-slash-canonical.md。
+- 修复仅 src/App.tsx CanonicalSync 一行：与 worker 相同的 `pathname.replace(/\/+$/, '')`（根路径除外）后再拼 URL；客户端导航从不产生尾斜杠，行为字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（index-COSA535S.js）：/builder/、/jobs/ 水合后 canonical==og:url 无斜杠、/builder 与 / 回归（根斜杠保留）、R431 六标签导航回归、curl raw 回归、/nope-xyz 404+noindex（R438 回归）、375 光暗零溢出零 console 错误、基线字节还原、零逃逸。部署照旧：上传成功、route auth code 10000。
+
+## R438 — 普通未知路由 404 补 X-Robots-Tag: noindex（2026-09-05）
+- 生产实证（curl）：/nope-xyz 404 无 x-robots-tag（/s/ 分支才有），R437 QA 银行项经直接复证后立项。方案：docs/plan-r438-404-noindex.md。
+- 修复仅 worker/index.ts notFound 头块加 else-if：非 SPA、非 /s/ 的 404 补 noindex（不加 no-store，安全头中间件只给 200 设缓存头，维持现状）；body 重写与其余分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：/nope-xyz 404+noindex+R437 body 回归、/s/bogus 404+noindex/no-store 不变、/builder 与 / 200 无 x-robots-tag 且 R429/R430 回归、live share R432/R436 回归（特批分享删净 404）、水合 404 零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R437 — 未知路由 404 的原始 HTML 不再自称主页（2026-08-31）
+- 生产实证（curl）：/nope-xyz 返回 404 但原始 HTML 四标签是主页营销文案、canonical/og:url 指向主页（R429–R436 同族）；/s/bogus 同理。水合后 usePageMeta 才修正。方案：docs/plan-r437-notfound-shell-meta.md。
+- 修复仅 worker/index.ts 新增 404 分支：删除 canonical/og:url 标签，四标签重写为水合后逐字文案（普通未知路由 "Page not found — RezUp"+NotFound 描述；/s/* 用 "Shared resume | RezUp" 回退句）；live share、SPA、'/' 分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：/nope-xyz 404+NotFound 文案+零 canonical/og:url、/s/bogus 404+noindex/no-store+回退文案+gone 卡、水合 CanonicalSync 对缺失标签 no-op 零 console 错误、live share R432/R436 与 /builder R429/R430 与 R435 Back 全回归、375 光暗零溢出、删净分享 404、基线字节还原。QA 观察（非回归、待议）：普通 404 分支无 noindex/no-store 头（/s/ 分支才有），canonical 已删故 SEO 影响趋零。部署照旧：上传成功、route auth code 10000。
+
+## R436 — 分享页原始 HTML 的 canonical 不再指向主页（2026-08-31）
+- 生产实证（curl，特批临时分享、验毕删净 404）：live /s/<id> 原始 HTML 经 R432 重写后 title/og:url 已是候选人/分享 URL，但 canonical 仍是主页——head 自相矛盾（R431/R435 同族），向爬虫声明分享页是主页副本；水合后 CanonicalSync 才修正。方案：docs/plan-r436-share-canonical.md。
+- 修复仅 worker/index.ts share 分支一行：重写链前追加 canonical replace（与 SPA_ROUTES 分支同款写法）；revoked/未知 id、SPA、'/' 分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿：curl live 分享页 canonical==og:url==分享 URL 且 R432 五标签/noindex/no-store/200 回归、水合 R435 行为不变（Back 后四标签复原）、/s/bogus 仍 404 不重写、/builder 原始 HTML R429/R430 回归、PDF/Print 回归、375 光暗零溢出零 console 错误、删净分享 404、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R435 — 分享页客户端导航后 head 不再自相矛盾（2026-09-05）
+- 生产实证（特批临时分享，验毕删净 404）：/s/<id> → /builder → Back 后 title/description/og:title/og:description 停在 "Resume Builder — RezUp"，而 canonical/og:url 已被 CanonicalSync 更新为分享 URL——head 自相矛盾、标签页丢候选人姓名（R431 同族：SharedResume 是唯一不调 usePageMeta 的路由页）。方案：docs/plan-r435-share-client-meta.md。
+- 修复仅 SharedResume.tsx：顶部调用 usePageMeta，文案与 R432 worker shell 重写逐字一致（ready 态 "<fullName> — <contact.title> | RezUp" + "<fullName>'s resume, shared with you via RezUp."，无名/loading/error/gone 回退通用句）。其余分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（SharedResume-yJKVsQg-.js）：冷加载水合后四标签与 shell 字节一致零闪回、Back 后四标签复原且与 canonical/og:url 一致、/s/bogus 回退文案+gone 卡+404/noindex/no-store、R433/R434 happy path 回归、375 光暗零溢出零 console 错误、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R434 — 分享页 PDF 失败提示给出真正可行的恢复路径（2026-09-05）
+- 闭环 R433 银行 P3：Chrome 对失败的动态 import() 做文档级缓存，同文档内 "try again" 永远失败，需刷新才恢复——原文案不诚实。方案：docs/plan-r434-share-pdf-retry.md。
+- 修复仅 SharedResume.tsx：失败 alert 改 flex div，文案 "Preparing the PDF failed — check your connection, then reload and try again." + "Reload page" 按钮（window.location.reload()；分享页无未保存状态，刷新零代价）。其余分支字节不变。
+- tsc/eslint/build 绿。生产 QA 全绿（特批一条分享，验毕删净 404）：冷加载阻断 pdf chunk→新文案+按钮零未捕获错误、解除阻断→Reload→下载成功（恢复路径流内闭环）、happy path 文件名/busy/pypdf、375 光暗 alert 换行零溢出、Print//s/bogus 404 回归、基线字节还原。部署照旧：上传成功、route auth code 10000。
+
+## R433 — 分享页 /s/<id> 一键下载真实 PDF（2026-09-05）
+- 生产实证：分享页 ready 态只有 Print（window.print，浏览器另存 PDF）和 Build-your-own——接收链接的招聘官/内推人拿不到真实导出 PDF（真实字体嵌入/链接注解/分页，与打印渲染不同），移动端 print-to-PDF 更繁琐。方案：docs/plan-r433-share-pdf-download.md。
+- 修复仅 SharedResume.tsx：头部新增 Download PDF（primary，Print 左侧），懒加载 @/lib/pdf downloadResumePdf + professionalFileName([fullName, targetRole, 'resume'], 'pdf')；busy 态禁用显 "Preparing…"，失败在 main 顶部 role=alert "Preparing the PDF failed — try again."。不加下载门（接收者非门对象）。gone/error/loading/Print 全不动。
+- tsc/eslint/build 绿。生产 QA 全绿（特批一条真实分享，验毕删净 404）：真实 PDF 下载且文件名精确、pypdf 校验内容、busy 态、冷加载阻断 pdf chunk→精确 alert 零未捕获错误、Print/R412/R432 unfurl//s/bogus 404/375 光暗三按钮零溢出回归、基线字节还原。QA 银行 P3：同一文档内 Chrome 缓存失败的动态 import，"try again" 需刷新后才真正恢复（如需同会话恢复可 cache-bust 或提示刷新）。部署照旧：上传成功、route auth code 10000。
+
+## R455 — 上传解析引擎懒块加载失败友好文案（2026-09-05）
+- 闭环 R453 银行 P4：断网/弱网时 fflate/pdfjs 懒块 import 失败，四个上传入口（/ats-checker、Builder 导入、Dashboard×2、Landing）原样展示浏览器技术串 "Failed to fetch dynamically imported module…"。
+- 修复仅 src/lib/extractFile.ts：loadEngine() 包装三个动态 import，失败抛 "Could not load the file reader — check your connection and try again, or paste the text instead."；坏文件/扫描件分支文案不变，调用方零改动。方案：docs/plan-r455-friendly-lazy-chunk-import-error.md。
+
+## R456 — 路由懒块加载失败白屏 → 友好错误卡（2026-08-31）
+- 生产实证（CDP 阻断 assets/Builder-*）：五个路由页全 lazy()，App.tsx 只有 Suspense 无 error boundary；客户端导航中路由块 fetch 失败 → 未捕获 "Failed to fetch dynamically imported module…"，React 卸载整棵树（#root 剩 17 字节）——整页白屏零提示。触发场景：弱网导航、旧标签页跨部署导航。方案：docs/plan-r456-route-chunk-error-boundary.md。
+- 修复仅 src/App.tsx：RouteErrorBoundary（class，getDerivedStateFromError）包 <Routes>，key={pathname} 使 Back/前进可脱离错误态。错误卡：main#main + role=alert "This page failed to load" / "Check your connection, then reload and try again." + Reload page 按钮（location.reload()；Chrome 文档级缓存失败 import，R434 同理据）。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：Builder/Jobs 双路由阻断→精确文案卡零未捕获 rejection、直载 /builder 阻断同样出卡（非卡死骨架）、history.back() 同文档脱离错误态、解封后 Reload 恢复、正常导航/水合/375 光暗零溢出、唯一 #main、零逃逸、存储字节级还原。
+- QA 银行（既有非缺陷倾向，待定夺）：SiteHeader/SiteFooter 在各页面组件内部，boundary 错误卡全屏无站点导航（两条恢复路径均可用）；如要卡上方保留 shell 需把 header 提到 <Routes> 外（候选后续轮）。
+- PR #677（基于 #676）。部署照旧：上传成功、route auth code 10000。
+
+## R457 — 路由错误卡带上站点导航壳（2026-08-31）
+- 闭环 R456 银行项：boundary 错误卡替换整个路由元素后无 SiteHeader/SiteFooter（各页内部渲染壳），用户仅剩 Reload/Back 两条出路。方案：docs/plan-r457-error-card-site-shell.md。
+- 修复仅 src/App.tsx：错误分支渲染 flex min-h-screen 列容器 <SiteHeader /> + 原错误卡 main（加 w-full flex-1）+ <SiteFooter />。Layout 是入口静态依赖（modulepreload），路由块失败不影响其可用。文案/role=alert/Reload/key={pathname} 全不变。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P3：阻断 Builder 块→卡带完整 header/footer（body 692 字符 vs R456 的 88）、错误态点 Logo 同文档客户端导航脱离错误、直载阻断同卡+壳、解封 Reload 恢复、back/正常导航/纯加载零 console 错误回归、375 光暗零溢出且汉堡菜单在错误态可开可导航、零逃逸、存储字节级还原。
+- PR #678（基于 #677）。部署照旧：上传成功、route auth code 10000。
+
+## R458 — 导出懒块加载失败友好文案（2026-08-31）
+- SOP-10 四维审计（7 条 SPA 路由 CDP 健康采样零错误零溢出、静态/SPA HTTP 头与 CSP 全净）后确证功能深度缺口：导出侧懒块 import('@/lib/pdf'|'@/lib/docx') 失败时，Builder 工具栏与 Dashboard 泄漏原始 "Failed to fetch dynamically imported module…"，Builder 文档对话框（cover/interview/resignation 结果）PDF/DOCX 按钮更是 void .then() 无 catch——完全静默 + unhandled rejection（R455 上传侧同族的导出侧收尾）。方案：docs/plan-r458-export-chunk-load-error.md。
+- 修复：src/lib/download.ts 新增 loadExporter()（extractFile loadEngine 同款），失败抛 "Could not load the download component — check your connection, then reload and try again."；五个调用面包上：Builder 工具栏 pdf/docx、Builder 文档对话框 pdf/docx（改 async try/catch → setError，复用对话框既有 error 展示位）、Dashboard docDownload 与 runDownload。TXT/MD、SharedResume（R434）、usePdfLength 后台测量不动。
+- tsc/eslint/build 绿。生产 QA 全绿零 P0–P3（chunk 运行时实测 pdf-BX8eQrNH/docx-nRMiABN1）：六个阻断面全部精确友好文案零未捕获 rejection（对话框面从静默变可见）、解封后真实 PDF(%PDF-)/DOCX(PK) 落盘恢复、TXT 零 chunk 请求、375 光暗带 alert 零溢出、纯加载零 console 错误、零逃逸、存储字节级还原。备案：/builder 挂载时 usePdfLength 的 idle import 失败被静默吞掉（无用户动作、非缺陷）。
+- PR 基于 #678。部署照旧：上传成功、route auth code 10000。
+
+## R459 — 暗色主题下预渲染骨架屏不再闪亮灰（2026-08-31）
+- SOP-10 四维审计：7 条 SPA 路由健康采样全净；og:image/缓存头全净；驳回两条线索（Auto-fit "please try again" 文案在 pdf 块失败时不可达——按钮仅在 pdfLength!==null 时渲染；404 shell 带 Builder modulepreload 是 prerender.mjs 既定设计）。确证缺陷（CDP 一手实证）：spa.html 静态骨架块硬编码 background:#e2e8f0，暗色主题（R451 pre-paint 已在首绘前置 html.dark，body 为 oklch(0.16 0.015 260) 近黑）下慢网冷加载出现刺眼亮灰块闪烁；React RouteFallback 用 bg-muted 本就随主题。方案：docs/plan-r459-dark-skeleton.md。
+- 修复：仅 scripts/prerender.mjs——骨架块背景改为 class="hcv-sk"，内联 <style> 增加 `.hcv-sk{background:var(--muted,#e2e8f0)}html.dark .hcv-sk{background:var(--muted,oklch(0.26 0.02 260))}`（样式表 render-blocking，首绘时 var(--muted) 必已解析；字面量仅作 CSS 失败兜底）。index.html（预渲染落地页）与 React 侧不动。
+- tsc/eslint/build/verify-dist 绿；部署仅 /spa.html 一个资产变更。生产 QA 全绿零 P0–P3：阻断 index-*.js 持住预水合态，暗色下 9 个 .hcv-sk 块 computed oklch(0.26 0.02 260)（像素直方图 rgb(22,29,37) on rgb(9,13,20)），/builder、/dashboard、404 路由一致；浅色不变（oklch(0.96 0.01 260)）；解封水合零 console 错误；375 暗色零溢出且 hcv-sk-side 正确隐藏；意外加测证实 CSS 失败字面量兜底也生效；零逃逸、存储字节级还原。QA 教训：阻断 pattern 用 `*assets/index-*.js`，裸 `*assets/index-*` 会连样式表一起杀掉、悄悄切到兜底路径。
+- PR 基于 #679。部署照旧：上传成功、route auth code 10000。
+
+## R460 — 浏览器封锁站点数据时的诚实错误卡（2026-08-31）
+- 审计：r458_audit.py 复扫 7 条 SPA 路由全净（此前一次 /jobs "mains:0" 未复现，为加载态采样伪影非缺陷）。确证缺陷（CDP 一手实证 r460_blockedstorage.py）：模拟 Chrome「阻止所有 Cookie」/企业策略/Safari 封锁——Storage.prototype 五方法抛 SecurityError DOMException 后，/builder 与 /dashboard 首次渲染即崩（Builder/Dashboard useState 初始化器内数十处未包裹的 localStorage.getItem），被 R456 boundary 接住但显示误导文案 "Check your connection, then reload and try again."——网络无恙、刷新永远无效，真正解法是放行站点数据。主页仍正常渲染。r460_stack.py 证实 window 级零错误，boundary 是唯一汇聚点。
+- 驳回替代方案：内存 Storage polyfill（R351 保存指示会谎报 "Saved"，不诚实）；逐处包裹（几十个调用点，大 diff 同终态）。
+- 修复仅 src/App.tsx：getDerivedStateFromError(error) 记录 storageBlocked = error instanceof DOMException && name==='SecurityError'（chunk 失败是 TypeError，零重叠）；命中时错误卡改为 "Your browser is blocking site data" / "RezUp stores your resumes in your browser. Allow cookies and site data for cv.zalize.com in your browser settings, then reload."；其余错误保持 R456/R457 文案与壳。方案：docs/plan-r460-storage-blocked.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3：阻断存储载 /builder //dashboard→新文案严格相等、壳/role=alert/Reload 齐全零未捕获错误；判别回归——存储正常仅阻断 Builder chunk→旧连接文案（无误报）；正常加载三路由零 console 错误；375 光暗零溢出（暗色经 prefers-color-scheme 模拟，存储被封时 localStorage 主题种子不可用——QA 方法论教训）；主页封锁下仍正常；零逃逸、存储字节级还原。
+- PR 基于 #680。部署照旧：上传成功、route auth code 10000。
+
+## R461 — 损坏草稿不再被静默销毁（2026-08-31）
+- 审计：r458_audit.py 复扫 7 条 SPA 路由全净。确证缺陷（CDP 一手实证 r461_corrupt.py/r461_corrupt2.py）：localStorage 'honestcv.resume' 存在但不可解析（截断 JSON/形状非法）时，loadResume() 返回 null → Builder 静默从 emptyResume() 起步且重开首跑向导，零提示；任意一次按键的防抖自动保存即用空简历覆盖原始草稿——用户（可能完全可恢复的）数据被无警告销毁。更糟：?template= 深链在挂载初始化器内就调 saveResume()，用户零动作即销毁。
+- 驳回替代方案：自动修复 JSON（复杂度无界、可能捏造内容）；阻塞 Builder 强制用户抉择（罕见态重 UX，只要不销毁+告知即可）。
+- 修复：src/lib/resume.ts 新增 stashUnreadableDraft()——raw 存在且 loadResume()===null 时把原始字节备份到 'honestcv.resume.unreadable'（绝不覆盖既有备份）并返回 true；src/pages/Builder.tsx draftUnreadable 状态初始化器置于 resume 初始化器之前（备份先于 ?template= 挂载保存路径），R427 堆叠容器渲染可 Dismiss 的 role=alert 条 "Your saved draft couldn't be read, so the builder started fresh. The unreadable copy was kept in your browser storage as a backup."。可读草稿/无草稿路径字节不变。方案：docs/plan-r461-unreadable-draft.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3（Builder-MCyDeIpp.js 运行时确认）：损坏草稿→精确文案条+备份键字节相等；按键后 honestcv.resume 被合法 JSON 覆盖而备份仍持原字节（数据丢失路径闭合）；?template=modern 竞态备份先行；OLD-BACKUP-SENTINEL 既有备份不被覆盖；Dismiss 只清条；可读草稿/无草稿零条零备份；R460 封锁存储卡回归；375 光暗零溢出；零 console 错误零逃逸、存储字节级还原。QA 教训：Builder 联系人字段 id 为 #c-<key>（如 #c-fullName），placeholder 是示例值非标签；新草稿会开向导对话框，Escape 关闭会写 honestcv.setupDone（还原时需清）。
+- PR 基于 #681。部署照旧：上传成功、route auth code 10000。
+
+## R462 — 损坏的保存副本列表不再被静默销毁（2026-08-31）
+- 审计：r458_audit.py 复扫 7 条 SPA 路由全净。确证缺陷（CDP 一手实证 r462_versions.py/r462_destroy.py）：localStorage 'honestcv.resumeVersions'（全部保存副本）存在但不可解析（截断 JSON/非数组）时，listResumeVersions() 返回 [] → Dashboard 呈现空列表零提示；任意一次写入（Builder Copies 对话框 "Save current as copy"、Dashboard 各变更路径、syncActiveVersion 等经 persistVersions 的所有面）即用重建列表覆盖原始字节——全部历史副本被无警告销毁。R461 同族的副本面收尾。注：数组内单条损坏已由 R402 式逐条 sanitize 处理，本轮仅覆盖整值不可读。
+- 修复：src/lib/resume.ts 新增 stashUnreadableVersions()——raw 存在且解析非数组时把原始字节备份到 'honestcv.resumeVersions.unreadable'（绝不覆盖既有备份）并返回 true；persistVersions() 写入前先 stash（所有写路径无论入口一律先保）；src/pages/Dashboard.tsx versionsUnreadable 状态初始化器驱动 My resumes 头下可 Dismiss 的 role=alert 卡 "Your saved copies couldn't be read, so the list started fresh. The unreadable copy was kept in your browser storage as a backup."。可读列表/无列表路径行为不变。方案：docs/plan-r462-unreadable-copies.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3（Dashboard-CbWzBK1E.js/resume-DrFDOcL2.js 运行时确认）：损坏列表→精确文案卡+备份键字节相等；未访问 Dashboard 的全新文档里 Builder "Save current as copy" 写入前备份先行（销毁路径在写入点闭合，非仅读取点）；ORIGINAL 既有备份不被覆盖；Dismiss 只清卡两键不动；合法数组/无键零卡零备份；R461 回归；375 光暗零溢出零 console 错误；零逃逸、存储字节级还原。QA 教训：断言 alert 文案要严格比较内层 <span>（textContent 会串上 Dismiss 按钮文字）；Builder 存副本流程会写 honestcv.activeVersionId（还原时需清）。
+- PR 基于 #682。部署照旧：上传成功、route auth code 10000。
+
+## R463 — 损坏的职业文档列表不再被静默销毁（2026-08-31）
+- 审计：r458_audit.py 复扫 7 条 SPA 路由全净。确证缺陷（CDP 一手实证 r463_docs.py/r463_docs2.py）：localStorage 'honestcv.careerDocs'（cover/interview/resignation 全部保存文档）存在但不可解析（截断 JSON/非数组）时，listCareerDocs() 返回 [] → /documents 呈现空列表零提示；任意一次写入（Letter example "Use this example"、导入 cover letter、Builder 文档保存、rename/duplicate/delete/restore 等经 persistDocs 的所有面）即用重建列表覆盖原始字节——全部文档被无警告销毁。R461/R462 同族的第三面（文档面）收尾。注：数组内单条损坏已由 sanitizeCareerDoc 逐条处理（R402），本轮仅覆盖整值不可读。
+- 修复：src/lib/documents.ts 新增 stashUnreadableDocs()——raw 存在且解析非数组时把原始字节备份到 'honestcv.careerDocs.unreadable'（绝不覆盖既有备份）并返回 true；persistDocs() 写入前先 stash（所有写路径无论入口一律先保）；src/pages/Dashboard.tsx docsUnreadable 状态初始化器驱动 Career documents 头下（/documents 与 /dashboard 均渲染）可 Dismiss 的 role=alert 卡 "Your saved documents couldn't be read, so the list started fresh. The unreadable copy was kept in your browser storage as a backup."。可读列表/无键路径行为不变。方案：docs/plan-r463-unreadable-docs.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3（Dashboard-Bk2oazLp.js 运行时确认）：损坏列表→精确文案卡+备份键字节相等且读取不改写原键；未访问读取面的全新文档里 Letter example "Use this example" 写入前备份先行（销毁路径在写入点闭合）；ORIGINAL-DOCS 既有备份不被覆盖；Dismiss 只清卡两键不动；合法数组/无键零卡零备份；R402 逐条 sanitize 回归（单条非法仅丢该条、零卡零备份）；R461/R462 回归；375 光暗零溢出零 console 错误；零逃逸、存储字节级还原。QA 教训：文档写入路径经 /documents「Letter examples」chip 组（role=group[aria-label="Letter examples"]）→ 预览对话框 → "Use this example"，页面级无直接保存按钮。
+- PR 基于 #683。部署照旧：上传成功、route auth code 10000。
+
+## R464 — 损坏的求职管道不再被静默销毁（2026-08-31）
+- 审计：r458_audit.py 复扫 7 条 SPA 路由全净。确证缺陷（CDP 一手实证 r464_pipeline.py/r464_destroy.py）：localStorage 'honestcv.jobPipeline'（全部跟踪职位、状态时间线、笔记、提醒）存在但不可解析（截断 JSON/非数组）时，listPipeline() 返回 [] → /jobs 各 tab 计数全 0 零提示；任意一次写入（结果列表 "Save"、状态变更、笔记/提醒/版本、批量操作等经 savePipeline 的所有面）即用重建列表覆盖原始字节——全部申请历史被无警告销毁。R461/R462/R463 同族的第四面（管道面）收尾。注：数组内单条损坏已由 sanitizeEntry 逐条处理（R374），本轮仅覆盖整值不可读。
+- 修复：src/lib/jobs.ts 新增 stashUnreadablePipeline()——raw 存在且解析非数组时把原始字节备份到 'honestcv.jobPipeline.unreadable'（绝不覆盖既有备份）并返回 true；savePipeline() 写入前先 stash（所有写路径无论入口一律先保）；src/pages/Jobs.tsx pipelineUnreadable 状态初始化器驱动页首介绍下可 Dismiss 的 role=alert 卡 "Your application pipeline couldn't be read, so tracking started fresh. The unreadable copy was kept in your browser storage as a backup."。可读列表/无键路径行为不变。方案：docs/plan-r464-unreadable-pipeline.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3（Jobs-DMd_XZ0e.js 运行时确认）：损坏值→精确文案卡+备份键字节相等且读取不改写原键；结果列表真实点击 "Save" 写入前备份先行（销毁路径在写入点闭合，/api/jobs/search 以 mock 响应保证确定性、写路径全真）；ORIGINAL-PIPE 既有备份不被覆盖；Dismiss 只清卡两键不动；合法数组/无键/R374 单条非法零卡零备份；R461/R462/R463 回归；375 光暗零溢出零 console 错误；零逃逸、存储字节级还原。
+- PR 基于 #684。部署照旧：上传成功、route auth code 10000。
+
+## R465 — 损坏的分享链接映射不再被静默销毁（2026-08-31）
+- 审计：本地持久化面扫描后确证缺陷（CDP 一手实证 r465_share.py）：localStorage 'honestcv.shareLinks'（各副本分享链接及 token——撤下线上公开链接的唯一凭证）存在但不可解析（截断 JSON/非对象）时，loadShareLinks() 返回 {}；更糟：仅加载 /builder（零点击零网络）loadShareLink() 的 legacy 归因分支即重写整键销毁原始字节（旧 'honestcv.shareLink' 存在时）；publish/revoke 经 persistShareLink() 同样销毁。R461–R464 同族第五面（分享面）收尾，且危害更重：token 丢失后线上简历永久公开无法撤销。注：对象内单条非法已由 isShareLink 逐条过滤，本轮仅覆盖整值不可读（数组按对象处理走逐条过滤）。
+- 修复：src/lib/share.ts 新增 stashUnreadableShareLinks()——raw 存在且解析抛错或非对象/null 时把原始字节备份到 'honestcv.shareLinks.unreadable'（绝不覆盖既有备份）并返回 true；persistShareLink() 与 loadShareLink() legacy 写入前先 stash；src/pages/Builder.tsx shareLinksUnreadable 状态初始化器置于 shareLink 初始化器之前（备份赢下挂载竞态），R427 堆叠容器渲染可 Dismiss 的 role=alert 条 "Your saved share links couldn't be read, so they're not shown here. The unreadable copy was kept in your browser storage as a backup."。可读映射/无键路径行为不变。方案：docs/plan-r465-unreadable-sharelinks.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3：损坏映射+legacy 挂载→精确文案条+备份字节相等+legacy 归因至 draft 并删除旧键（销毁路径闭合）；仅损坏映射挂载只读原键字节不动；SENTINEL 既有备份不被覆盖；合法映射/无键零条零备份；Dismiss 只清条刷新复现；R461 条与 R465 条堆叠不重叠；R462/R463/R464 回归；375 光暗零溢出零 console 错误；零 /api/share* 流量（未动真实链接，persistShareLink 写入点为代码级验证）；零逃逸、存储字节级还原。QA 教训：Builder 状态条探测需挂载后 ≥7s 否则与水合竞态；全新 Builder 桌面截图被首跑向导遮暗，用 375px 截图或预置 honestcv.setupDone。
+- PR 基于 #685。部署照旧：上传成功、route auth code 10000。
+
+## R466 — 损坏的编辑历史不再被静默销毁（2026-09-05）
+- 审计：本地持久化面继续扫描确证缺陷（CDP 一手实证 r466_history.py）：localStorage 'honestcv.resumeHistory'（最多 15 个完整简历快照——编辑历史还原点）存在但不可解析（截断 JSON/非数组）时 listResumeHistory() 返回 []；仅加载 /builder（零点击）R346 挂载基线检查点经 persistHistory() 即重写整键销毁原始字节，零提示零备份。R461–R465 同族第六面，与 R465 同为挂载即销毁路径。
+- 修复：src/lib/resume.ts 新增 stashUnreadableHistory()（备份到 'honestcv.resumeHistory.unreadable'，绝不覆盖既有备份；合法数组含坏条目仍按可读、由逐条 sanitize 过滤）；persistHistory() 写入前先 stash（recordResumeSnapshot 全部入口：挂载基线/自动保存检查点/还原安全检查点共用漏斗）；Builder.tsx historyUnreadable 初始化器先于挂载副作用，R427 堆叠容器出可 Dismiss 的 role=alert 条 "Your edit history couldn't be read, so it's not shown here. The unreadable copy was kept in your browser storage as a backup."。方案：docs/plan-r466-unreadable-history.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3：损坏历史挂载→精确文案条+备份字节相等+主键重写为合法数组；SENTINEL 既有备份不覆盖；合法数组/无键零条零备份；非数组合法 JSON（{"a":1}）按不可读处理；Dismiss 只清条刷新复现；R466+R461 条堆叠不重叠；写入点超出挂载验证（损坏历史下真实键入→自动保存检查点跑通且备份不动，历史对话框正常打开零崩溃）；R461–R465 全回归；375 光暗零溢出零 console 错误；零逃逸、存储字节级还原。注意：挂载本身会写 resumeHistory（基线检查点），"无键→无备份"须在挂载探测中一并断言。
+- PR 基于 #686。部署照旧：上传成功、route auth code 10000。
+
+## R467 — 损坏的内容库列表不再被静默销毁（2026-09-05）
+- 审计：本地持久化面继续扫描确证缺陷（CDP 一手实证 r467_library.py/r467_library2.py）：11 个内容库键 honestcv.{experience,education,project,involvement,coursework,award,reference,cert,publication,skills,summary}Library（各最多 30 条用户精修的可复用条目）存在但不可解析（截断 JSON/非数组）时 listXLibrary() 返回 []；挂载只读不销毁，但任意一次库保存/删除（如工具栏 "Save role to library" 真实点击）经 persistXLibrary() 即重写整键销毁原始字节，零提示零备份。R461–R466 同族第七面（库面）收尾。
+- 修复：src/lib/resume.ts 新增模块内通用 stashUnreadableList(key)（备份到 `${key}.unreadable`，绝不覆盖既有备份；合法数组含坏条目仍按可读、由逐条 sanitize 过滤）；11 个 persistXLibrary() 写入前先 stash；导出 stashUnreadableLibraries() 逐键 stash 全部 11 库并返回是否有不可读（避免短路漏保）；Builder.tsx librariesUnreadable 初始化器驱动 R427 堆叠容器可 Dismiss 的 role=alert 条 "Some of your saved library items couldn't be read, so they're not shown here. The unreadable copies were kept in your browser storage as backups."（11 库共用一条，备份键名可定位受影响库）。方案：docs/plan-r467-unreadable-libraries.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3：损坏 experienceLibrary 挂载→精确文案条；真实点击 "Save role to library" → 主键重写为含所存角色的合法数组而备份仍为原始字节（写入点销毁路径闭合）；SENTINEL 既有备份不覆盖；双库同时损坏（experience+summary）各自字节级备份且只出一条；非数组合法 JSON（{"a":1}）按不可读处理；合法数组/全部无键零条零备份；合法既有库保存追加不丢；Dismiss 只清条刷新复现；R461+R466+R467 三条堆叠不重叠；R462–R465 回归；375 光暗零溢出零 console 错误；零逃逸、存储字节级还原。
+- PR 基于 #687。部署照旧：上传成功、route auth code 10000。
+
+## R468 — Ctrl/Cmd+S 在 Builder 里保存而不是弹浏览器对话框（2026-09-05）
+- 审计（SOP-10 四维）：r468_audit.py 复扫 7 条 SPA 路由桌面+375 全净（零 console 错误/溢出、各一 h1、零无名按钮；/jobs 16 张"无 alt"图为有意 alt="" 装饰 logo，非缺陷）；123 个 sitemap 页与 135 个内链全 200；CSP/HSTS/og 头齐全。确证缺陷（CDP 一手实证 r468_ctrls.py）：/builder 上合成 Ctrl+Z keydown defaultPrevented=true（undo hook）而 Ctrl+S=false——应用完全不处理 Ctrl/Cmd+S，编辑中最根深蒂固的保存习惯键会弹出浏览器"另存页面"对话框打断编辑。
+- 修复：src/pages/Builder.tsx useDebouncedSave 内新增 window keydown 监听——Ctrl/Cmd+S（无 Alt/Shift）一律 preventDefault，若有 400ms 防抖待写内容则立即经既有 saveResume+syncActiveVersion+recordResumeSnapshot 漏斗落盘并更新 R351 保存指示器（saved/error）。无新 UI；随 Builder 卸载移除（其他路由不受影响）。方案：docs/plan-r468-ctrl-s.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3（Builder-BkrtfIkd.js）：Ctrl+S/Cmd+S prevented（修复前基线 false）；键入后 ~100ms Ctrl+S → localStorage 16ms 内落盘（对照组未按 Ctrl+S 时同一时点仍 stale+Saving…，证明是 flush 而非定时器）；空闲 Ctrl+S 零副作用；输入框内/打开的对话框内均拦截；Ctrl+Shift+S 与 Alt+Ctrl+S 不拦截；存储满路径出诚实 "Not saved — storage full"；/dashboard 导航后不再拦截（卸载即除）；Ctrl+Z/Y（body 焦点；输入框内让位原生 undo 为既定设计）与 Ctrl+B/I/U 标记快捷键回归；375 光暗零溢出零 console 错误；零逃逸、存储字节级还原。QA 教训：undo hook 有意跳过 INPUT/TEXTAREA 目标（原生 undo 优先），探测应用级 undo 需 body 焦点；标记快捷键是字段 onKeyDown，需向 textarea 元素派发。
+- PR 基于 #688。部署照旧：上传成功、route auth code 10000。
+
+## R469 — Builder 键盘快捷键帮助弹窗（Ctrl/Cmd+/）（2026-09-05）
+- 审计：R468 后 Builder 已积累 9+ 快捷键（Ctrl+S 保存、Ctrl+Z/Shift+Z/Y 撤销重做、Ctrl+B/I/U/K 标记、Esc 关面板/菜单）但零可发现性——生产 CDP 实证（r469_probe.py）：/builder 无任何 shortcuts 帮助面（aria-label/title 匹配 hortcut 为 null），Ctrl+/ 与 Shift+? defaultPrevented 均 false（对照 Ctrl+S true）；成熟编辑器（Rezi/Docs/Notion/Linear）均有 Ctrl/Cmd+/ 快捷键总览。
+- 修复：仅 src/pages/Builder.tsx——①window keydown：Ctrl/Cmd+/（无 Alt/Shift）preventDefault 并 toggle 弹窗，随 Builder 卸载移除；②工具栏 History 旁新增 lucide Keyboard ghost 按钮（title "Keyboard shortcuts (Ctrl+/)"，lg 以下隐藏防移动端工具栏拥挤——弹窗仍可经 Ctrl+/ 键盘直达）；③ShortcutsDialog（既有 Radix Dialog 组件）9 行 kbd 表，mod 标签按平台（Mac/iPad ⌘，其余 Ctrl）。不新增快捷键、不动既有 handler。方案：docs/plan-r469-shortcuts-help.md。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3（Builder-DMr3yiMN.js 运行时确认）：Ctrl+/ 与 Cmd+/ prevented+开弹窗（9 行文案严格相等，Linux 显 Ctrl）、二次 Ctrl+/ 关、Esc 关（键盘打开无 trigger 元素时 Radix 焦点回 BODY 为其语义，非缺陷）；Ctrl+Shift+/ 与 Alt+Ctrl+/ 不拦截；输入框内敲 '/' 正常输入字符；桌面按钮真实点击可开、375px display:none 但 Ctrl+/ 仍可用；/dashboard 不拦截（Builder-only）；R468 Ctrl+S、Ctrl+Z/Y、Ctrl+B 标记回归；375 光暗零溢出零 console 错误；零逃逸、存储字节级还原。未测项如实备案：助手面板/下载菜单的 Esc 回归本轮未独立复跑（代码零改动，QA 为避免真实 AI/额度流量跳过）。
+- PR 基于 #689。部署照旧：上传成功、route auth code 10000。
+
+## R470 — 首页 LCP 元素不再藏在入场淡入后面（2026-08-31/09-05）
+- 审计：生产 Lighthouse 一手实证（~/audit-r1/r470_home*.json）——移动 perf 0.89（唯一失分项 LCP 3.1s，a11y/BP/SEO 全 1.0）、桌面 perf 1.0 但 element render delay 405ms（移动 557ms）；两端 LCP 元素均为 hero 引导段 `main#main > section.relative > div.mx-auto > p.text-muted-foreground`。根因：首页已预渲染（hero 文本在 raw HTML），但 hero 全套 `.animate-rise` 关键帧从 opacity:0 起步 + fill-mode both + 120ms 级联延迟——LCP 元素在延迟+600ms 淡入完成前完全透明，浏览器无法提前绘制，预渲染的抢跑被动画抵消（web.dev/lcp 标准反模式）。
+- 修复：src/index.css 新增 transform-only `rise-slide` 关键帧 + `.animate-rise-slide`（同时长/缓动/--rise-delay 契约）；src/pages/Landing.tsx 首屏四元素（Badge/h1/引导段/CTA 行）换类，上滑动效保留、首帧即可见；折下产品 mock 与上传按钮保留原淡入。reduced-motion 全局规则自动覆盖新类。方案：docs/plan-r470-lcp-hero-animation.md。
+- tsc/eslint/build/verify-dist 绿。部署后 Lighthouse：移动 LCP 3.1→2.9s、render delay 557→281ms；桌面 405→280ms、perf 1.0。生产 QA 全绿零 P0–P3（rAF document-start 采样器）：h1 从首帧（~83ms）起每帧 computed opacity 均为 '1'（旧行为会有最长 ~660ms 的 0/小数）、transform 沿 0.6s 曲线 14px→0（动效真实运行）、getAnimations 确认 rise-slide 关键帧仅含 transform；恰 4 元素带新类；产品 mock 仍 rise 淡入不动；reduced-motion 下动画收敛 0.01ms 即时呈现；桌面+375 光暗零溢出零 console 错误；/pricing/ 200（部署健全）；零逃逸、存储字节级还原。QA 教训：fill-mode both 结算后 computed transform 是 matrix(1,0,0,1,0,0) 而非字面 'none'，采样窗口需 ≥300 帧防漏动画尾部。
+- PR 基于 #690。部署照旧：上传成功、route auth code 10000。
+
+## R471 — 应用样式表内联进两个 shell，全站零 CSS 请求（2026-08-31）
+- 审计：生产 Lighthouse 一手实证（~/audit-r1/r470_after.json）——R470 后移动 perf 0.90，LCP 2.9s 的剩余成本是 FCP 本身（2.55s）；render-blocking-insight 唯一项为 /assets/index-*.css（75KB raw / ~14KB gzip，估算省 150–165ms，模拟 4G 下是 HTML 到首绘之间整整一个额外往返）。~120 个静态 SEO 页（build-seo.mjs）早已内联 CSS，只有 prerender.mjs 写的 index.html 与 spa.html 还挂阻塞 <link>；CSP style-src 已含 unsafe-inline，字体 url() 全根绝对路径。
+- 修复：scripts/prerender.mjs——定位唯一 style-*.css 资产（缺失/多个/含 </style 即构建失败），把 shell 里的 stylesheet link 替换为 <style>全量 CSS</style>（index.html+spa.html 双 shell，替换后再断言无残留 link）。生产 QA 发现 P2 后追加 vite.config.ts `build.cssCodeSplit: false`：默认切分下 Vite preload-helper 把哈希 CSS 列为动态路由块依赖，/builder 首绘后又把同一份 75KB 重新下载一遍；关掉切分后唯一样式表 style-*.css 只被 shell 引用（并被内联），任意路由冷加载零 .css 网络请求。方案：docs/plan-r471-inline-css-render-blocking.md。
+- tsc/eslint/build/verify-dist 绿。部署后 Lighthouse：移动 perf 0.90→0.91、LCP 2.9→2.7s、FCP ~2.55→2.4s、render-blocking-insight 0→1（桌面 perf 1.0、LCP 0.6s、FCP 0.5s、TBT 0）。生产 QA 两轮全绿零 P0–P3：三路由 raw HTML 零 stylesheet link + 一个内联 style（含 R470 关键帧）；/、/builder、/dashboard 冷加载零 .css 请求（含修复后复验：preload-helper 重复下载已消失）；Sora/Inter 字体正常；dark pre-paint 无闪；/pricing/ 静态页不动；404 页有样式；R469 Ctrl+/ 回归；375 光暗零溢出零 console 错误；零逃逸、存储字节级还原。
+- PR 基于 #691。部署照旧：上传成功、route auth code 10000（Workers Routes 查询权限缺口，上传/上线不受影响）。
+
+## R472 — /builder 冷加载不再抢跑 407KB PDF 引擎（长度计量推迟到 load+idle）（2026-08-31）
+- 审计：生产 Lighthouse 一手实证（~/audit-r1/r472_mobile.json、r472_builder.json）——首页移动 perf 0.92 已近饱和；/builder 移动 perf 0.53（LCP 4.4s、TBT 1330ms、TTI 5.3s），unused-javascript 首项 /assets/pdf-*.js（402,933B 传输、192,400B 未用），network-requests 证实纯冷加载零点击即下载；sourcemap 证实 pdf 块=pdfjs-dist 481KB+fontkit 227KB+standard-fonts 123KB 等，为全站最大 JS 资产。根因：usePdfLength() 挂载后固定 800ms 即 import('@/lib/pdf') 做长度计量，与启动关键窗口竞争。另：首页 CTA CLS 0.039 在独立 CDP 受控实验中未复现（CLS=0），未选。
+- 修复：仅 Builder.tsx——新增 whenIdleForPdfMeasure()（window load 完成 + requestIdleCallback timeout 4000ms，兜底 setTimeout 1500ms，模块级单例 Promise），usePdfLength 首次及每次防抖测量前先 await；lib/pdf 与所有下载路径零改动。方案：docs/plan-r472-defer-pdf-measure.md。
+- 实事求是备案：部署后 Lighthouse /builder 模拟指标统计上无变化（perf 0.51 vs 0.53、TBT 噪声内）——主导成本是入口块脚本执行（~3.2s total / ~2.5s scripting），且 rIC 调度不被 Lighthouse 模拟捕捉；本轮收益是真实设备上的调度行为（PDF 引擎不再与启动竞争）。/builder 入口/Builder 块脚本执行成本（React 渲染整棵 Builder 树）入银行为后续轮候选。
+- tsc/eslint/build/verify-dist 绿。生产 QA 全绿零 P0–P3（限速 1.5Mbps/150ms 下才可判别）：冷加载 pdf 块请求在 load 事件后 1.32s（旧码 800ms 定时器会在 load 前抢跑）、长度表照常出现数值正确（0.27 page）、空闲后编辑重测零额外 pdf 请求（模块已缓存）、工具栏 PDF 下载真实 %PDF- 文件落盘、R468 Ctrl+S 与 R469 Ctrl+/ 回归、375 光暗零溢出零 console 错误、零逃逸、基线字节还原。
+- PR 基于 #692。部署照旧：上传成功、route auth code 10000。
+
+## R473 — 付费墙栈移出入口块：全路由启动关键 JS -50KB raw / -17KB gzip（2026-08-31）
+- 审计（SOP-10 节点）：~/audit-r1/r473_audit.py——7 条 SPA 路由 × 375/1440 双视口零 console 错误零溢出，操作台健康全净。本地 sourcemap 复查入口块（325,767B）：react-dom 179KB 不可动、Landing 36KB（静态引入是预渲染水合设计，lazy 会闪骨架，驳回）之外，Paywall 9.3KB+checkout 2.3KB+license 1.1KB+整个 Dialog/radix/remove-scroll 栈 ~20KB 进入口的唯一原因是 Landing 只用了 `useFreeMode`（20 行、仅依赖 react 的 fetch 标志 hook）。
+- 修复：新建 src/lib/freeMode.ts 原样搬 useFreeMode；Landing 改从 lib 导入；Paywall.tsx 改为 re-export（Builder/Dashboard 导入零改动）。方案：docs/plan-r473-freemode-out-of-entry.md。
+- 效果（本地构建对比）：付费墙全栈（Paywall/checkout/license/radix-dialog/remove-scroll 等 ~30KB）离开入口；rolldown 顺势把原 Layout 共享块（97.6KB raw，每路由都要）并进入口——启动关键 JS 由 index 325.7KB+Layout 97.6KB（gzip 131.5KB、两个请求）变为单个 index 372.7KB（gzip 114.7KB），省 ~50KB raw / 17KB gzip / 一个请求；Paywall 成为 Builder/Dashboard 路由块的并行依赖。
+- 本地 tsc/eslint/build/verify-dist 全绿。
+
+## R474 — 预览测量 effect 去掉 resume 依赖：每次按键不再强制同步 reflow（2026-08-31）
+- 证据：Lighthouse /builder forced-reflow-insight 第一名 = ResumePreview.tsx PaginatedPages.measure()（clientWidth/scrollHeight 读取）；CDP 4x profile 中该帧是应用代码非 idle 第一名。
+- 根因：PaginatedPages/FlowPage 测量 effect deps 带整个 resume（体内未用）——每按键 RO disconnect → 同步 measure（提交后立读 layout = 强制回流）→ re-observe。
+- 修复：两个 deps 改 [baseW, windowH]（pageSize/margins 变化仍覆盖）；内容/框架尺寸变化由既有双 ResizeObserver 异步接管（无强制回流）。
+- 生产 QA（index-Cy07OTKI.js / Builder-DlsU4Wbk.js）：键入越页 1→2 页、删回 1 页（RO 路径正确）、Letter↔A4/边距/桌面 resize 重测、Flow 分页标记 = 页数−1 并实时更新、打字无 layout storm（~2 layout/键）、R468/R469 回归、375 光暗零溢出、零错误零逃逸、基线字节还原。诚实边界：无旧版数值基线，回流"减少量"由删除的代码路径断言。
+- tsc/eslint/build/verify-dist 绿；部署照旧（上传成功、route auth code 10000）。
+
+## R475 — 生产包停止携带 react-router 的 development 构建（2026-08-31）
+- 证据：R474 部署后 Lighthouse /builder（perf 0.60、TBT 740ms）unused-javascript 第二名仍是入口块（118,571B/46,940B 未用）；本地同 commit sourcemap 复查入口第二大模块 = node_modules/react-router/dist/development/chunk-62JRHF6Z.mjs（36,557B）。diff 证实 development 与 production 构建唯一差异是 ENABLE_DEV_WARNINGS = true/false——生产一直在跑带 dev 警告路径的 router。
+- 根因（上游 bug）：react-router ≥7.13 package.json exports 把所有条件都指向 dist/development/*（7.18.2 与最新 7.18.3 均实查如此）；remix-run/react-router#14753 确认，修复 PR #15059 关闭未合并。任何 Vite 消费方生产包默认都是 development 构建。
+- 修复：仅 vite.config.ts——command==='build' 时把 /^react-router$/ 与 /^react-router\/dom$/ 精确别名到 dist/production 对应 mjs（绝对路径，绕过 exports）；dev server 不别名（保留 dev 警告，符合上游本意）。react-router-dom 是薄 re-export，别名对其内部裸导入同样生效。方案：docs/plan-r475-react-router-production-build.md。
+- 效果（本地构建对比）：入口 sourcemap 归因变为 dist/production/chunk-YBLPXYCV.mjs（35,297B），入口 372.7→371.4KB。实事求是：体积收益小（~1.3KB raw），本质收益是生产不再执行 dev-warning 代码路径、与上游生产语义一致。
+- tsc/eslint/build/verify-dist 绿。
+
+## R476 — Landing 路由懒加载（预渲染改用 react-dom/static）（2026-08-31）
+- 证据：R475 部署后 Lighthouse /builder perf 0.52、FCP 3.1s、LCP 4.7s、TBT 1350ms，bootup-time 主因是入口脚本执行 ~2.5s；本地 sourcemap 归因入口 371,132B 中 src/pages/Landing.tsx 占 35,899B——App.tsx 里唯一 eager 的大路由，所有非首页路由都在白付这份代价。
+- 修复：①src/App.tsx：Landing 改 lazy()（与其余五路由同款，NotFound 保持 eager）。②src/entry-server.tsx：renderToString → react-dom/static 的 prerenderToNodeStream——本地负例实证 renderToString 下 lazy(Landing) 服务端 suspend、预渲染 index.html 变成 RouteFallback 骨架（首页 SEO/LCP 直接回退），static prerender 等 lazy 解析后输出完整 HTML；prerender.mjs 加门禁：index.html 含 aria-busy 即构建失败。③prerender.mjs：index.html 注入 Landing chunk modulepreload（与入口并行下载，避免水合瀑布）；spa.html 的 Builder preload 不动。
+- 效果：入口 371,132→288,661B（Landing-*.js 37,456B 独立 chunk，仅首页加载）。本地 CDP 负例：扣住 Landing chunk 3s——预渲染 hero 全程可见零骨架闪烁（dehydrated boundary）；彻底阻断→R456 错误卡。
+- 生产 QA（测试代理独立复验）全绿零 P0–P1：raw / 含真 hero + Landing preload、扣块 5s hero 像素级不变（0.82% 动态像素差）、阻断→R456 卡+Reload 恢复、/builder 冷加载零 Landing 请求、SPA 导航/404/R468/R469/R474/375 光暗全回归、零 console 错误、零逃逸、基线字节还原。Lighthouse：首页 perf 0.98（FCP/LCP 1.2s）；/builder 三跑 0.42/0.42/0.58——TBT 450–960ms（基线 1350ms，方向与入口瘦身一致），但 FCP 4.8–6.0s/LCP 5.0–6.2s 比基线（3.1/4.7s）差，无法排除当日网络/CDN 方差（P2 观察项，下轮复测）。
+- tsc/eslint/build/verify-dist 绿。部署照旧：上传成功、Workers Routes auth code 10000。
+
+## R477 — 移动端隐藏预览列延迟渲染（首次需要才挂载）（2026-08-31）
+- 证据（生产 CDP，~/audit-r1/r477_mobilepane.py）：375px 冷加载 /builder 默认 Edit 态下，#preview 列 display:none 却完整渲染——883 个节点 / 108,375B HTML（约占 main 区 1546 节点的 57%），含模板/ATS/整棵 ResumePreview 的昂贵子树；1440px 同一子树可见（桌面确需渲染）。
+- 修复（仅 src/pages/Builder.tsx）：#preview 外层 div 保留（锚点/布局不变），其子内容由 renderPreviewPane 门控 = useIsLgViewport()（matchMedia min-width:64rem，随 resize 更新）|| printArmed（beforeprint 监听器 flushSync(setPrintArmed(true))——打印 CSS 只保留 [data-resume-preview] 子树，必须在打印快照前同步挂载）|| previewSeen（用户点「Preview & score」切换器时置 true 的首次使用闩，之后 Edit↔Preview 切换不再重挂载/重测量）|| mobilePane==='preview'。关键词高亮 effect 的 deps 追加 renderPreviewPane（延迟挂载后补高亮）。
+- 教训（ESLint react-hooks 双重驳回）：effect 内 setState 闩（cascading render）与 render 期读写 ref（react-hooks/refs）均被规则拒绝；最终用事件处理器内 setPreviewSeen(true)（切换器 onClick）——闩必须落在事件点而非 render/effect。
+- 生产 QA（测试代理独立复验，chunk Builder-DpQVZ3Vo.js/index-nZhCq4fI.js）全绿零 P0–P3：375 冷载 Edit 态 #preview 子元素 0 个/innerHTML 0 字节（原 ~883 节点）；点 Preview & score 完整挂载（简历+ATS 分正确、CSS Custom Highlight kw-match 12 个 range）；从未开过预览的 Edit 态直接 Page.printToPDF（触发 beforeprint）→ 132KB 含完整简历文本的 PDF 非空白页，打印后子树保持挂载；1440 冷载分栏不变、375→1440 resize 即挂载、1440→375 切换器正常；全程零 console 错误/未捕获 rejection；R468 Ctrl+S/R469 Ctrl+/ 回归；375 光暗零溢出；零逃逸、存储字节级还原。
+- tsc/eslint/build/verify-dist 绿。部署照旧：上传成功、Workers Routes auth code 10000。收益边界：减少的是移动端首载渲染工作量（节点数/隐藏 HTML 实测归零）；未做受控 Lighthouse 对比，不宣称具体分数提升。
+
+## R478 — SOP-10 四维审计（docs-only）：R476 方差观察项闭合、入口归因到地板（2026-08-31）
+- 节点轮（上一次 SOP-10：R473）。四维全净零 P0–P2，docs-only 轮（先例 R303/R316/R328/R339）。方案与全部证据：docs/plan-r478-sop10-audit.md。
+- 银行项闭合：生产 Lighthouse 两跑一致（perf 0.54/0.54，FCP 2.8s，LCP 4.7s，TBT 1310/1350ms，CLS 0），FCP 优于 R476 前基线（3.1s）——R476 当日 FCP/LCP 劣化确证为网络/CDN 方差，非回归。
+- 入口块归因（手写 VLQ 脚本 ~/audit-r1/smap_attr.py；source-map-explorer 对 rolldown map 报 generated column Infinity 不可用）：288.7KB 中 react-dom-client 175.1KB（61%）+ react-router 35.3KB + tailwind-merge 27.1KB，应用代码仅 ~25KB——入口瘦身已到地板，/builder TBT 只剩首渲染树规模一条路（长任务 844/287/232/229ms 全在入口块执行）。
+- 定性修订：/builder 干净态 LCP 元素 = R350 first-run 向导描述段（新访客无 localStorage → 向导自动开），是真实新用户首屏而非状态污染（修订 R477 计划文档的推断）。
+- 七路由 CDP 扫描（~/audit-r1/r478_audit.py）零 console 错误零溢出唯一 #main；Rezi 2026-08 changelog 逐条对照无一轮内可落地深度缺口（location autocomplete/job match score/大屏/updated-at 均已有；Auto-Apply/移动 App/Apple 登录在 local-first 边界外）。
+- 银行项：①编辑列 section 卡按需渲染（R477 思路的编辑列版，需先 CDP 计数折叠态节点，单独一轮）；②tailwind-merge 27KB 微收益高风险暂不动。
+- 无源码改动，无部署。
+
+## R479 — 编辑列渲染规模与 sora 字体双下载调查（docs-only）（2026-09-05）
+- 两条候选缺口经一手实证后均不成立，本轮不改源码不部署（先例 R303/R328/R478）。方案与全部证据：docs/plan-r479-editor-column-audit.md。
+- 银行项①关闭：生产 /builder?example=software-engineer 1600×761 逐块测量（~/audit-r1/r479_measure.py）——编辑列 819 节点/15 可见子块/37 控件，最大块 Experience 345 节点，全部子块 offsetParent!==null（无 display:none 大子树），折叠卡展开内容本就条件渲染。与 R477（883 节点隐藏 Preview 完整渲染）不同，不存在"不可见但完整渲染"内容，按需渲染/虚拟化无证据支撑，不做。
+- 新观察项排除：本机老 profile 下生产 sora-latin.woff2 双下载（首个请求 no-cors、无 Origin、initiator 0:0）。归因实验：生产 HTML 原样本地服务→各一次；生产站全新 browser context→各一次且均 cors 匹配 preload；无 Link 头/无 Early Hints。判定为浏览器基于访问历史的推测式字体预取（浏览器侧行为），非站点缺陷，站点侧无合理改动，不改。
+- 无源码改动，无部署。
+
+## R480 — 移动端 Edit/Preview 切换条纳入 landmark（axe region 违规修复）（2026-09-05）
+- 一手证据（~/audit-r1/r480_axe.py，全新 browser context）：生产 4 路由 × 2 视口 axe-core 扫描，唯一违规 = /builder 375px `region`（moderate）——移动端固定底部 Edit / Preview & score 切换条在 `</main>` 之后且 `role="group"` 非 landmark，按 landmark 导航的读屏用户不可达。其余 7 组合 CLEAN。
+- 修复（仅 src/pages/Builder.tsx 一行）：切换条外层 `role="group"` → `role="navigation"`（命名 landmark，保留 aria-label="Switch between editing and preview"），按钮行为/aria 零改动。方案：docs/plan-r480-mobile-switcher-landmark.md。
+- tsc/eslint/build/verify-dist 绿。部署照旧：上传成功、Workers Routes auth code 10000。
+- 生产 QA（~/audit-r1/r480_qa.py，全新 context）：375 /builder axe 违规清零、1280 保持 CLEAN；切换条功能回归——Edit 态 #preview 0 子元素（R477 门控不回归）、点 Preview & score 完整挂载（1005 节点）、切回 Edit 正常、375 零横向溢出。
+
+## R481 — theme-color 元数据随站点主题（浏览器铬件配色）（2026-09-05）
+- 一手证据：`curl https://cv.zalize.com/` 无任何 `theme-color` meta、无 manifest——移动端浏览器铬件（Android Chrome 地址栏、iOS Safari 顶栏）一律回退白色，暗色主题下（R187/R451）是可见断层。其余审计线索（/jobs Lighthouse 0.75 的入口执行成本、Lighthouse 报的 CSP issue 经 CDP Audits 实测为误报、remotive 第三方 logo 不可控）均驳回。方案：docs/plan-r481-theme-color-meta.md。
+- 修复：① index.html + build-seo.mjs 11 处静态页模板加一对带 media 的 theme-color meta（light #fbfcfd / dark #090d14 = --background oklch 精确换算）；② theme.ts applyThemePref() 切主题时改写两个 meta content；③ pre-paint 内联脚本扩展——显式 honestcv.theme 时首绘前改写 meta（静态页无 theme.ts 也正确），CSP sha256 同步为 N/UQmAIyFzhi3Hmx8pQOPRHy6bKhEKOZ7DC6QVyuIpc=（build-seo drift guard 构建期校验三处一致）。
+- tsc/eslint/build/verify-dist 绿；dist 抽查 4 页各含 3 个 theme-color，dist 内联脚本 hash 与 worker CSP 严格相等。部署照旧：上传成功（149 资产+worker）、Workers Routes auth code 10000。
+- 生产 QA（测试代理独立复验，全新 context）全绿零 P0–P3：4 页 raw HTML 双 meta；system light/dark 两态 meta/html.dark 正确；显式 dark+light OS 在 /builder readyState=loading（预水合）即 html.dark+双 meta #090d14（document_start 采样器），/about/ 上内联脚本为唯一脚本且生效 = CSP hash 实证放行；反向显式 light+dark OS 正确；真实 ThemeToggle 循环 system→light→dark→system meta 实时跟随、system 时正确删键；全程零 ContentSecurityPolicyIssue、零 console 错误；375 光暗零溢出；R480 axe landmark 回归 0 违规；零逃逸、存储字节级还原。
+- 备案：静态页在 system（非显式）偏好下 meta 保持构建值、由 media 属性让浏览器自选——设计如此。/builder Audits 报 8 条既有 GenericIssue（表单 autofill 提示），非本轮引入。
+
+## R482 — Web manifest + 主屏图标（apple-touch-icon / 192 / 512 PNG）（2026-09-05）
+- 一手证据：生产 /manifest.webmanifest 与 /apple-touch-icon.png 均 404，全站唯一图标 favicon.svg——iOS「添加到主屏幕」回退页面截图、Android 无法以应用形态安装；竞品 rezi.ai 首页带 apple-touch-icon（curl 实证）。方案：docs/plan-r482-manifest-touch-icons.md。
+- 修复：① 本机 sharp 从 favicon.svg 栅格化 icon-192/icon-512/apple-touch-icon(180) 入库 public/；② public/manifest.webmanifest（RezUp、start_url /、standalone、theme/background #fbfcfd、192+512 icons）；③ index.html + build-seo 11 处模板 favicon 后加 rel=manifest + rel=apple-touch-icon 两条 link。CSP 零改动（default-src 'self' 覆盖）。非目标：无 Service Worker/离线、无 maskable 变体。
+- tsc/eslint/build/verify-dist 绿；dist 含 manifest+3 PNG、抽查页 link 各恰一次。部署照旧：126 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA（测试代理独立复验，全新 context）全绿零 P0–P3：4 页 raw 双 link 恰一次；manifest 200 application/manifest+json 字段严格相等；3 图标 200 image/png 尺寸 PIL 实测正确；CDP Page.getAppManifest errors=[]、getInstallabilityErrors=[]（如实备案：本版 headless Chrome 无 SW 也返回空，正向可安装结论限于此 Chrome，非 Play/Android 保证）；icon-512 白底合成 1522 色非空白；零 console 错误零 CSP issue；R481 theme-color + ThemeToggle 回归、375 光暗零溢出；零逃逸、存储字节级还原。
+
+## R484 — manifest id/scope + app shortcuts（2026-09-05）
+- 一手证据：R484 审计——6 条公共路由（/、/ats-checker、/samples、/pricing/、example、guide）双视口 axe 全净；首页 JSON-LD（WebApplication+FAQPage）生产 raw 实证存在（"缺失"假设诚实驳回）；生产 manifest 无 id/scope/shortcuts（W3C 规范：id 是安装身份标识，缺失时 Chrome 回退 start_url；shortcuts 驱动 Android 长按菜单/桌面 PWA jump list）。rezi app manifest 仅一枚 48px ico、无这些成员——本轮属超越项打磨。方案：docs/plan-r484-manifest-id-shortcuts.md。
+- 修复最小：manifest 加 id:"/"、scope:"/"、shortcuts 两条（Resume builder→/builder、ATS checker→/ats-checker，复用已入库 icon-192，≥96px 规范下限）。HTML/CSP/图标零改动。非目标：无 SW/离线、无 screenshots 成员（需策划截图集，入银行）。
+- tsc/eslint/build/verify-dist 绿。部署照旧：1 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA（本机直验，纯静态资产）：manifest 200 含 id/scope/2 shortcuts/4 icons（边缘缓存 must-revalidate ~45s 收敛后稳定）；/builder、/ats-checker、/icon-192.png 全 200；CDP Page.getAppManifest errors=[] 且解析出两条 shortcuts。
+
+## R483 — maskable 图标变体（Android 自适应遮罩）（2026-09-05）
+- 一手证据（SOP-10 节点）：7 SPA 路由 375/1440 双视口复扫零错误零溢出；像素实测 R482 的 icon-512 有 47.0%（116,668/248,456）不透明像素落在 maskable 安全区（40% 半径圆，W3C manifest 规范）之外、42,564 像素在内切圆之外——Android 自适应遮罩会裁掉圆角卡片四角；且 manifest 零 purpose:maskable 条目，遮罩型启动器按 legacy 模式白圈缩小显示。方案：docs/plan-r483-maskable-icon.md。
+- 修复最小：sharp 生成 icon-maskable-192/512（白底满幅方形画布 + favicon.svg 图稿 64% 居中，实测全部非白像素落在 40% 安全圆内）入库 public/，manifest icons 追加两条 purpose:maskable。HTML/CSP 零改动。非目标：无 SW/离线、无 monochrome、不动 any 图标与 apple-touch-icon。
+- tsc/eslint/build/verify-dist 绿；dist/client manifest 4 icons（2 any + 2 maskable）。部署照旧：3 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA（本机直验，改动纯静态资产）：manifest 200 四条 icons 字段正确；两 PNG 200 image/png 尺寸正确且下载后像素复测安全区零越界；CDP Page.getAppManifest errors=[] 且解析出 2 条 maskable。
+
+## R485 — manifest screenshots 成员（更丰富的安装 UI）（2026-09-05）
+- 一手证据：R485 审计——4 条应用面 SPA 路由（/dashboard、/documents、/jobs、/builder）×1280/375 双视口 axe 全净；manifest content-type、robots/sitemap、404 x-robots-tag: noindex 全部正确。生产 manifest（R484 后）有 id/scope/4 icons/2 shortcuts 但无 screenshots——W3C/Chrome：wide 截图驱动桌面富安装对话框、narrow 驱动 Android 富安装 sheet，缺失时回退最简安装提示（R484 已入银行项）。rezi manifest 亦无 screenshots，属超越项。方案：docs/plan-r485-manifest-screenshots.md。
+- 修复最小：CDP 从生产捕获两张策划截图入库 public/——screenshot-wide.png（1280×800 桌面首页 hero+产品 mock；Builder 捕获因首屏右列为模板选择器而非实时预览被弃用）、screenshot-narrow.png（750×1334，375×667@2x 移动首页 hero）；manifest 追加 screenshots 两条（form_factor wide/narrow、label 如实描述内容）。HTML/CSP/icons/shortcuts 零改动。非目标：无 SW/离线、不加更多截图。
+- tsc/eslint/build/verify-dist 绿；dist manifest 2 screenshots 且 PNG 尺寸 PIL 实测与声明一致、id/scope/4 icons/2 shortcuts 保持。部署照旧：3 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA（本机直验，纯静态资产）：manifest 200 含 2 screenshots（连续 6 次采样稳定）且 id/icons/shortcuts 回归；两 PNG 200 image/png 尺寸正确；CDP Page.getAppManifest errors=[] 且解析出 wide+narrow 两条。
+
+## R486 — 离线 app shell：最小 Service Worker（PWA 收口）（2026-09-05）
+- 一手证据：R486 审计——5 条公开静态页×1280/375 axe+溢出全净；og:image 200 1200×630；4 条 SPA 路由零 console 错误；Lighthouse 移动 / 0.95、/ats-checker 0.84、/jobs 0.78、/dashboard 0.75（a11y/SEO 全 1.0，失分为入口脚本执行成本+第三方 remotive logo，均不可控或已入过账）。生产 `navigator.serviceWorker.getRegistrations()`=0——本地优先应用（17 个 localStorage 键全在端上）冷离线打开是浏览器错误页（探测中离线可开仅因 HTTP 磁盘缓存尚存，SPA shell max-age=60 极易失效）。R478–R482 SOP-04 银行项"PWA 完整体验（SW/离线）"就此闭合。方案：docs/plan-r486-offline-service-worker.md。
+- 修复最小（零新依赖，弃 vite-plugin-pwa 因 Vite8/rolldown 兼容风险且运行时策略无需构建期清单）：public/sw.js——导航（同源、非 /api/*、非 /s/*）network-first→本页缓存→任一 shell 兜底；/assets/* 哈希资产 cache-first；字体/图标/manifest stale-while-revalidate；/api/* 与 /s/*（no-store 撤销即 404）完全不拦截；activate 清理旧版本缓存、双缓存条目数封顶。main.tsx 仅生产注册（load 后）；verify-dist 增查 sw.js。HTML/CSP 零改动（worker-src 'self' 已允许）。
+- tsc/eslint/build/verify-dist 绿。部署照旧：30 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA（CDP 全新 context）：SW activated 且 scope=/、二次导航被控制、三缓存就位；离线 /builder（已访）完整渲染、离线 /jobs（未访）经 shell 兜底 MAIN OK、离线 /s/* 如实浏览器错误页（不拦截，符合设计）；恢复在线 /s/* 走网络出"link no longer available"、/dashboard 正常；SW 控制下 4 路由零 console/exception 错误；localStorage 零改动。
+
+## R487 — SPA 头部诚实离线指示条（2026-09-05）
+- 一手证据：R487 审计——4 条 SPA 路由 375px axe 全净零溢出；SW 已激活受控（R486 回归）；Rezi changelog 无一轮内可落地缺口；生产 CDP 实证：SW 受控页面离线后 `navigator.onLine=false`，但 /builder、/jobs 全 DOM 零任何"offline"提示——/jobs 照常呈现可搜索 UI，失败只在用户尝试后暴露（R348/R413 的错误是被动的）。R486 让应用刻意可离线使用，但用户对"什么还能用（本地编辑）/什么不能（AI、搜索、分享）"零感知。方案：docs/plan-r487-offline-indicator.md。
+- 修复仅 src/components/Layout.tsx：OfflineBar 组件（useSyncExternalStore 订阅 window online/offline，server snapshot true 保水合一致），SiteHeader 底部渲染 role="status" 琥珀色细条（WifiOff 图标 + 诚实文案：编辑仍可用并保存在本设备，AI/搜索/分享需要网络），恢复在线自动消失。零依赖、静态 SEO 页不动。
+- tsc/eslint/build/verify-dist 绿（Layout.tsx 仅既有 react-refresh warning）。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（测试代理独立复验，全新 context，entry index-vBMh4rZF.js）全绿零 P0–P2：SW 受控 /builder 离线→恰一条 role=status 精确文案+WifiOff、紧贴 header 下方；SPA 导航 /jobs、/dashboard 条保持；重连 1s 内消失；离线编辑照常保存（R351 "Saved"）条与工具栏零重叠；375 光暗零溢出、带条 axe /builder 0 违规；在线冷载 raw HTML 与水合后均无该文案、零 console 错误零 #418；R486 SW 离线整页加载、R468 Ctrl+S、R469 Ctrl+/、R481 主题回归全过；零逃逸、存储字节级还原、QA 后 SW/缓存清理。
+- 备案：既有 P3——Jobs.tsx:581 用普通 `<a href="/dashboard">` 触发整页刷新（非本轮引入，入银行）；CDP offline 仿真跨文档导航后 navigator.onLine 复位为 true 系仿真局限非产品缺陷。
+
+## R488 — /jobs 头部 "My resumes" 改为真 SPA Link（2026-09-05，SOP-10 节点）
+- 一手证据：SOP-10 四维复扫 7 路由×2 视口零水平溢出；生产 CDP 实证 /jobs 头部 action 是普通 `<a href="/dashboard">`——点击前设置的 window.__probe 哨兵点击后丢失（整文档重载），全站其余 SPA 路由导航（Landing/Dashboard header action、WorkspaceNav）均已用 router `<Link>`；指向静态预渲染页的普通锚（/templates/、/examples/、/privacy/）为有意整页加载不改。R487 QA 备案的 P3 就此闭合。方案：docs/plan-r488-jobs-spa-link.md。
+- 修复仅 src/pages/Jobs.tsx 两行：导入 `Link`（文件已用 react-router-dom），`<a href="/dashboard">` → `<Link to="/dashboard">`，Button asChild 样式不变（与 Dashboard.tsx:848 同款）。
+- tsc/eslint/build/verify-dist 绿（Jobs.tsx 仅既有 exhaustive-deps warning）。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 银行项（未选，证据在 R478/R487）：/builder 启动 JS 执行成本（perf 0.53、TBT 1.3s，入口 61% 为 react-dom 已到地板，树级拆分需新证据支撑）。
+
+## R489 — SPA push 导航重置滚动位置（2026-09-05）
+- 一手证据（生产 CDP）：首页滚到 8000px 点 footer /jobs → 落地 scrollY=544；/jobs 底部点 "My resumes" → /dashboard 停在 544；/samples → /builder 停在 819。React Router library 模式不重置 push/replace 滚动，App.tsx 无任何处理；history.back() 的浏览器原生恢复（POP）今天是正确的。方案：docs/plan-r489-scroll-reset.md。
+- 修复仅 App.tsx：新增 ScrollReset（useLocation+useNavigationType），pathname 变化且非 POP 且无 hash 时 scrollTo(0,0)；POP 不动（保浏览器原生恢复）、hash 不动（Dashboard 自己 scrollIntoView）、同路由 query 变化不滚顶（deps 仅 pathname，带 eslint disable 注释）。
+- tsc/eslint/build/verify-dist 绿。
+
+## R490 — 冷加载 /dashboard#samples 深链滚动到目标区（2026-09-05）
+- 一手证据（生产 CDP，全新 tab 冷加载）：/dashboard#samples 落地后 scrollY 恒为 0（250ms 采样 7s），#samples 目标在 901px 且存在；~300ms 注入的 scrollIntoView 拦截器记录到零调用——滚动从未发生而非被撤销。同文档 hash 切换一直正常（R489 QA 已证）。
+- 根因：Dashboard.tsx 的 hash 滚动 effect deps 仅 [hash]，而 `<h2 id="samples">` 只在异步 examples.json 加载完成（examples.length > 0）后才挂载；冷载时 effect 先跑、querySelector 得 null、hash 不再变化故永不重试；浏览器原生 hash 滚动也因锚点当时不存在而失效。方案：docs/plan-r490-dashboard-hash-coldload.md。
+- 修复仅 Dashboard.tsx：hash effect 移到 examplesState 声明之后，deps 改为 [hash, examplesState]——'loading'→'ready' 转换重跑 effect 补上滚动；目标已存在的路径（同文档切换、#documents）行为不变；无 hash 不滚动。
+- tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（全新 tab）：冷载 #samples 落 821（901−80 scroll-mt-20）、冷载 #documents 落 445、无 hash 停 0；同文档 #documents/#samples 切换 445/821；R489 回归——滚 600 后 push 到 /jobs 落 0、POP back 恢复 /dashboard#samples 821；375 光暗零溢出；零 console 错误/警告/未捕获 rejection。
+
+## R491 — 程序化 smooth 滚动尊重 prefers-reduced-motion（2026-09-05）
+- 一手证据（生产 CDP，Emulation 强制 prefers-reduced-motion: reduce，matchMedia 在页内确认为 true）：/builder?example=software-engineer 点 "Skills" 章节导航 chip，scrollY 40ms 采样 0→4→66→…→3669，~800ms 长动画——违背用户减少动效偏好。index.css 的全局 reduce 规则（scroll-behavior: auto !important）按 CSSOM View 规范不覆盖显式 `scrollIntoView({ behavior: 'smooth' })`——只有 behavior:'auto' 才咨询 CSS 属性。
+- 根因：三处调用点硬编码 behavior:'smooth'——Dashboard.tsx hash effect、Builder.tsx 章节跳转（JUMP_EVENT）、Builder.tsx jumpToEntry。方案：docs/plan-r491-reduced-motion-scroll.md。
+- 修复最小：三处改 `behavior: prefersReducedMotion() ? 'auto' : 'smooth'`（复用 src/lib/motion.ts 既有 helper，调用时求值，偏好中途变化也生效）；App.tsx ScrollReset、CSS 动画规则、其余滚动语义零改动。
+- tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（全新 tab，新 bundle Builder-KVTTlf2O.js）：reduce 下章节 chip 跳转即时（0→3669 单步）、Score "Fix →" 条目跳转即时（0→1535 单步）且 ring-2 闪烁环照常出现、冷载 /dashboard#samples 即时落 857；非 reduce 下滚动保持 smooth 动画（0→16→103→…采样确认）；R490 冷载 hash 回归正常；375 光暗零溢出；四次探测全程零 console 错误零未捕获 rejection。
+
+## R498 — 超长职位描述词边界收口 + 诚实截断提示（2026-08-31）
+- 一手证据（生产）：`/api/jobs/search` 五个查询每批 15 条均有 1 条 description 恰为 8000 字符（= worker `JOBS_MAX_DESCRIPTION` 纯 slice 上限），样本（garden3d Head of Marketing & Communications）结尾 `…experimental media bran` 词中间硬切；客户端无任何截断元数据，Jobs 详情面板就此戛然而止，同一 description 还喂 matchScore/matchReport/tailoring。Rezi 2026-08 changelog 当期方向即「Improved Job Description Visibility」。方案：docs/plan-r498-truncated-jd.md。
+- 修复最小：worker/index.ts `truncateDescription()`（超限时在上限内最后一个空白处收口 + `descriptionTruncated: true`，缓存键 jobs:v4→v5 因响应形状变化）；src/lib/jobs.ts `JobListing` 加可选 `descriptionTruncated`（旧本地 pipeline 条目兼容）；Jobs.tsx 详情描述末尾在截断时显示「Description shortened — read the full posting on the original site」外链（复用 selected.url + noopener）。非目标：不提高/取消 8000 上限、不改匹配/裁剪算法、不代理原站全文。
+- tsc/eslint（改动三文件单查绿，仅既有 Jobs.tsx useEffect 警告）/build/verify-dist 绿；全仓 lint 红全在历史 .tmp-smoke/ 草稿（未跟踪、未改动）。部署照旧：worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：API 实测 engineer 批次唯一超长条目 description 7995 字符、结尾整词 `…experimental media`、flag 恰该条 true 其余 false；/jobs?q=engineer&job=2091068 详情面板出提示 + 外链正确指向 remotive 原帖（target=_blank rel=noopener noreferrer）；普通职位无提示；375 零溢出；零 console 错误。
+
+## R497 — 示例库 JSON 进入 SW 离线缓存（SWR）（2026-08-31）
+- 一手证据：public/sw.js fetch 分派逐条核对——/examples/examples.json 不落任何缓存分支（导航/assets/STATIC_PATH/api 均不匹配），纯网络；生产 CDP 实证 SW 受控离线打开 /samples，shell 正常（R486）但样本列表须走网络。R482–R486 已把产品定位为可离线 PWA，示例库是唯一被排除在外的构建期静态内容（仅随部署变化）。方案：docs/plan-r497-examples-offline.md。另本轮 Lighthouse 复测：/samples perf 0.76→0.81（R496 生效，CLS 0、TBT 160ms），/builder 维持 0.51（TBT 1450ms 全在入口 react-dom 渲染，R478 已定为地板）。
+- 修复仅 public/sw.js：新增 `EXAMPLES_JSON = /^\/examples\/[^/]+\.json$/`，与 STATIC_PATH 同走既有 staleWhileRevalidate()（STATIC_CACHE）——在线命中回缓存+后台刷新（部署后下次访问收敛），离线已访问直接回缓存；fetch effect、R415 重试卡、R496 preload、页面/资产策略零改动。
+- tsc/eslint（public/sw.js 单查绿）/build/verify-dist 绿。部署照旧：1 资产（sw.js）上传成功、Workers Routes auth code 10000。
+- 生产 QA（CDP 全新 SW/缓存/存储）：在线访问后 hcv-static-v1 实证 HIT 200 缓存了 examples.json；离线重载 /samples 出 9 真卡零重试卡、R487 离线条照常；恢复在线 9 卡照常、零 console 错误；QA 后 SW/缓存/存储全清理。如实备案：负例（缓存逐出后离线）因 HTTP 磁盘缓存兜底仍出 9 卡，未能在生产直接观测重试卡路径——该路径代码零改动且 R415 已验证过。
+
+## R496 — 从 HTML 预加载 examples.json，摘掉 JS 执行关键链（2026-08-31）
+- 一手证据（生产 Lighthouse network-dependency-tree，/dashboard 冷载）：/examples/examples.json（16.7KB）要等 entry(172ms)→api 块(339ms) 执行完 mount effect 才被发现，~653ms 才发请求；它在 /samples 上直接门控 R493 骨架→9 真卡的替换，属用户可见延迟。源码：Dashboard.tsx（服务 /dashboard、/documents、/samples）与 Builder.tsx（示例选择器 + ?example= 深链）挂载即 fetch；首页 Landing 硬编码 slug 不 fetch。方案：docs/plan-r496-examples-preload.md。
+- 修复仅 worker/index.ts：applyRoutePreload() 追加——对 /builder、/dashboard、/documents、/samples 四路由往 </head> 注入 `<link rel="preload" href="/examples/examples.json" as="fetch" crossorigin="anonymous" />`（crossorigin 匹配 window.fetch 的 cors/same-origin 语义，否则 Chrome 双下载）；其余路由/404/s/* 不注入。prerender、SW、fetch effect 零改动。
+- tsc/eslint（worker/index.ts 单查绿；仓库 lint 仅 .tmp-smoke 既有报错）/build/verify-dist 绿。部署照旧：worker 上传成功（0 新资产）、Workers Routes auth code 10000。
+- 生产 QA（CDP 全新缓存/SW/存储清理冷载 /samples）：raw HTML 四路由各恰 1 条 preload、/jobs //ats-checker / /404 为 0；examples.json 请求从 ~653ms 提前到 39ms（与 entry 同波），且全程仅 1 次下载（preload 与 fetch 匹配、无双下载）；9 样本卡照常、quota 仍 1 个请求（R495 回归）、零 console 错误；/builder?example=software-engineer 深链照常应用并清 URL。
+
+## R495 — 去重每个工作台路由的重复 /api/ai/quota 请求（2026-08-31）
+- 一手证据（生产 Lighthouse 网络日志 + 源码）：/samples 冷加载发出两个 /api/ai/quota 请求（~699ms 与 ~717ms）；/dashboard、/documents、/jobs 同样。根因：PlanCard 在每个工作台路由挂载两次——桌面侧栏 WorkspaceNav 内一次（hidden md:block）+ 移动版 `<PlanCard className="mt-8 md:hidden" />`（Dashboard.tsx/Jobs.tsx）一次；可见性纯 CSS，两实例都挂载并各自跑 fetchAiQuota() effect。方案：docs/plan-r495-quota-dedupe.md。
+- 修复仅 src/lib/api.ts：fetchAiQuota() 共享 in-flight promise（settle 后立刻清空缓存）——并发调用共用一个网络请求，后续重取（如消耗 AI 配额后）仍走网络，不引入陈旧值；不做 TTL/响应缓存、不动组件结构。
+- tsc/eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（全新缓存/SW/存储清理后冷载，entry index-rPYDlg2J.js）：/samples、/dashboard、/jobs quota 请求各恰 1 个（原 2 个）、billing/status 仍 1 个；两个 PlanCard 均照常显示 "Free AI credits left"；9 样本卡照常；顺序两次 raw fetch 仍各自走网络（1→3 资源条目，无过度缓存）；全程零 console 错误。如实备案：顺序重取用原生 fetch 验证网络可达性，dedupe 清空语义由代码路径断言（模块内部 promise 无法在生产页面直接观测）。
+
+## R521 — 浏览器级离开（刷新/关标签）前警示未保存的文档/信件编辑（2026-08-31）
+- 一手证据（生产 CDP）：/documents 打开职业文档编辑器追加文本后硬刷新，编辑直接丢失（edit survived refresh: False）；应用内 Escape/关闭有 R364 确认弹窗，但 beforeunload 在 src 全仓零匹配——刷新、关标签、外链跳转绕过全部既有护栏。Builder 信件/面试弹窗（R333/R508–R511 护栏链）同样只覆盖应用内路径。
+- 修复最小两处：Dashboard.tsx 文档编辑器在 `openDoc && docText !== openDoc.text`（与 R364 应用内守卫同判定）时挂 beforeunload 监听（e.preventDefault() 触发浏览器通用提示，脏态解除即卸载）；Builder.tsx ToolDialog 复用既有 `unsavedWork` 判定挂同款监听。不加自动保存/sessionStorage 持久化、干净态零提示、不替换既有应用内确认弹窗。方案：docs/plan-r521-beforeunload-unsaved-edits.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（CDP Page.javascriptDialogOpening 实测）：/documents 干净重载零弹窗；编辑后重载弹 beforeunload、取消后编辑保留、确认离开后存储如实无该编辑；/builder?doc=cover 干净重载零弹窗、Start from a template 生成 619 字符草稿后重载弹 beforeunload、取消后草稿保留；375px 零溢出；QA 后合成存储全清。如实备案：beforeunload 弹窗需 Chrome sticky user activation（真实点击后才出提示，纯程序化导航不出），QA 用 CDP Input 真点击复现；interview 分支共用同一 unsavedWork 判定，由代码路径断言未单独生产复测。
+
+## R520 — ATS 报告不再因编辑输入而整块消失（2026-08-31）
+- 一手证据（生产 CDP，全新存储）：粘贴简历+JD 检查得完整报告后，在简历 textarea 追加一行（模拟照着 Priority fixes 修改），第一个 input 事件即让整块报告（含 Priority fixes 清单）unmount，零提示零恢复引导。根因：两个 textarea 与上传路径的 onChange 都 `setChecked(false)`，报告由 checked 门控。
+- 修复仅 AtsChecker.tsx：报告冻结在最近一次 Check 的输入快照 `scan {resumeText, jd}` 上；result/jdSegments/analysis/isExample 全改用快照；输入编辑不再清报告，`stale`（当前文本≠快照）时报告上方渲染 role=status 琥珀条「You've edited your inputs since this check…」+ Re-check now 按钮。useDeferredValue 与 R518 瞬态守卫随快照化自然移除（评分只在 Check 点击执行一次，按键零重评分，防卡键保证强于 R406 的 defer）；sessionStorage 草稿结构不变（checked === scan!==null，刷新按当前文本重建快照）。方案：docs/plan-r520-ats-report-survives-edits.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：检查（57 分）→ 编辑简历 → 报告与 Priority fixes 仍在 + stale 条出现；Re-check now → 条消失、分数更新 67、missing 8→6；刷新后报告在（按当前文本重建）；fixed 徽章语义回归（首查 0 枚、补电话后重查恰 1 枚挂在 Phone number found）；375px 零溢出；QA 后存储清理。
+
+## R519 — Priority fixes 标题从「通过态」改为祈使句（2026-08-31）
+- 一手证据（生产 CDP，全新存储）：短简历+JD 检查后 Priority fixes 出现「Word count in recommended range — Your resume is 54 words…」「Enough content to parse — Very short resumes…」——标题宣称通过态、正文却指出问题，自相矛盾；「Phone number found」类同。根因：priorityFixes 直接拼 `${check.label} — ${check.hint}`，check.label 全是给 pass/fail 清单用的通过态措辞。
+- 修复仅 src/lib/guidance.ts：FIX_TITLES 映射 30 个检查 label → 祈使句修复标题，priorityFixes 用 `FIX_TITLES[label] ?? label`；检查清单/fixedChecks 徽章键/health 维度/评分零改动；Builder 侧 Priority fixes 与 improveScoreReply 同函数自动受益。方案：docs/plan-r519-priority-fix-imperative-titles.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：同短简历重查，三条 MED 全部祈使句（Add more resume content / Bring the word count into the recommended range / Give each role 3–6 bullet points），关键词与 Completeness 项照常，「Fix in builder →」深链在位，375px 零溢出，QA 后存储清理。
+
+## R518 — /ats-checker 首次检查假「Fixed since last check」徽章（2026-08-31，SOP-10 节点）
+- 四维复扫：7 路由双视口零溢出；Rezi changelog（rezi.ai/rezi-changelog）无新可落地缺口；生产 /ats-checker 真实报告链实测中发现缺口。
+- 一手证据（生产 CDP，全新存储）：粘贴简历+JD 后首次点 Check，「Punctuated bullet points」旁即出现「Fixed since last check」——用户从未做过上一次检查。根因：评分输入走 useDeferredValue（R406 防卡键），点击后第一帧用过期 deferred 文本算出瞬态报告，effect 无条件把它写入 prevScanRef 基线；deferred 追平后真实报告与假基线对比，「部分文本 fail→完整文本 pass」的检查项全被误标已修复。
+- 修复仅 AtsChecker.tsx：fixedChecks effect 加瞬态守卫——scored 值与当前输入不一致时直接 return（不更新基线/徽章），deps 补齐四值。方案：docs/plan-r518-ats-checker-false-fixed-chips.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：全新存储首次检查 0 徽章（原稳定复现 1 枚）；真实修复（两 bullet 补句号+首字母）后重查恰 1 枚徽章挂在 Punctuated bullet points（语义回归）；375px 零溢出；QA 后存储清理。
+
+## R517 — 工作台路由 raw shell 静态渲染真实页头（2026-08-31）
+- 一手证据（生产 Lighthouse）：R513–R516 后主要路由 CLS 全 0；/jobs、/dashboard、/samples、/documents 的 LCP 元素均为路由副标题段落（TTFB ~34–50ms、element render delay ~0.54–0.74s）——静态文案却要等 JS 水合才首绘。/builder TBT ~1540ms 为更大架构项，本轮明确不做（入银行）。方案：docs/plan-r517-route-header-first-paint-lcp.md。
+- 修复两处：scripts/prerender.mjs 往 spa.html 注入 `meta name="route-headers"`（4 路由 h1+sub 映射，含 /jobs 的 Remotive 外链原样保留；' 与 < 实体转义保证属性安全，构建期校验 h1 与 src/pages 一致、占位注释存在）；worker applyRouteHeader() 对已知路由把骨架顶部灰条替换为真实 h1+副标题（内联样式匹配水合几何），未知路由/404/builder 保持通用骨架。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：1 资产（spa.html）+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：4 路由 raw HTML 各含正确静态页头（/jobs 副标题含 remotive.com 外链 noopener）；/builder 与 404 保持灰条；禁 JS 截图确证页头在水合前真实渲染（375px 零溢出，字体 font-display:optional 回退即显）；水合后 h1 照常、零 console 错误；Lighthouse 复测 4 路由 CLS 全 0。
+- 如实备案：Lighthouse LCP 数值未见可辩护的改善（复测 /jobs 3.7s、/dashboard 4.0s、/samples 4.1s、/documents 4.0s，与改动前同一区间；LCP 节点仍判给水合后段落）——本轮可证收益是「首绘即真实内容」（禁 JS 直接观测），指标层收益未证实。/builder TBT 架构项仍在银行。
+
+## R516 — /builder 简历长度计量行首帧渲染，消灭桌面 1280px 位移（2026-08-31）
+- 一手证据（生产限速 CDP 1280px）：R515 备案的 0.0272 位移复现 @~1.8s，DOM 探针确认位移根源是长度计量行（meter+文案+Auto-fit）——`pdfLength !== null` 门控整行，R472 故意把 usePdfLength 推迟到 load+idle，测量完成后整行插入把样式 chips 行与预览列推下 ~82px。方案：docs/plan-r516-builder-length-meter-cls.md。
+- 修复仅 Builder.tsx：该行首帧即渲染；pdfLength===null 时 meter 空且中性色、文案为 measuring 占位、Auto-fit disabled；测量到达仅换内容不改行几何。首版占位文案偏短（28px vs 终态 66px，行内换行数不同）导致位移反而变 0.1662，已实测加长占位文案至与 sparse 终态同折行（66px 恒定）。
+- 备案：占位文案折行匹配为当前文案/视口的 best-effort（同 R513 先例），未来文案改动需复验；不改 R472 延迟测量策略本身。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Builder-IrJZKshI.js）：限速 1280px buffered layout-shift 0（原 0.0272）、行高全程恒 66px/top 81px；412px CLS 0、零溢出（R515 回归）；Lighthouse /builder CLS 0；测量完成后 meter/文案/Auto-fit 照常；QA 后存储清理回基线键。
+
+## R515 — /builder 空态角色选择行首帧渲染，消灭 examples.json 到达时的位移（2026-08-31）
+- 一手证据（生产限速 CDP 412px + Lighthouse）：/builder CLS 0.064（Lighthouse）/单次 0.0601 位移 @~849ms（CDP，sources 为 Getting started 卡 `div.bg-card` 与按钮区 `div.flex flex-wrap justify-end gap-2`）；对照实验 Network.setBlockedURLs 阻断 `*examples.json*` 后同条件 CLS=0——位移不是 skeleton→挂载，而是 examples.json 异步到达后 `examples.length > 0` 门控的「Or start from your role:」label+select 一整行插入，把下方内容推下。方案：docs/plan-r515-builder-role-picker-cls.md。
+- 修复仅 Builder.tsx：角色行门控 `examples.length > 0`→`!examplesFailed`（首帧即渲染）；select 加固定宽 w-48、`disabled={examples.length===0}`、首选项 "Loading roles…"→"Choose a role…"，数据到达仅换 option 内容不改几何；新增 examplesFailed（fetch 失败置 true 隐藏该行——罕见失败路径接受一次位移，与 ?example 深链失败的 exampleLoadFailed 警示条互不干扰）。不改 skeleton、不内联 16.7KB examples 数据（R496 preload 保留）。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：限速 412px buffered layout-shift 0（原 0.0601）、Lighthouse /builder CLS 0.064→0；select 加载后启用（31 options、192px 宽）、选 Software Engineer 照常填充 Alex Rivera；阻断 examples.json 时该行按设计隐藏（examplesFailed 路径）；412/1280 零溢出；QA 后存储清理回基线键。
+- 备案：桌面 1280px 冷载观测到一次与本轮无关的 0.0272 位移（sources 为章节 chip 条/工具栏区 `div.flex flex-wrap items-center gap-1.5` 等，非角色行节点），入银行待后续轮。
+
+## R514 — 首页 hydration 布局位移：freeMode 英雄文案在构建期定型（2026-08-31）
+- 一手证据（生产 Lighthouse + 限速 CDP 412px）：/ 是主要路由中唯一非零 CLS（0.041）；英雄段落水合时 140px→112px（少一行）、CTA 上移 42px、layout-shift 0.056。诊断探针实证段落文本本身在变：付费文案 172 字符（"Pay $9.99 one time…"）→ 免费文案 161 字符（"Every plan is free during beta…"）——useFreeMode() 初始 false，/api/billing/status 返回后才翻 true。
+- 如实驳回首个假设：曾归因 font-display:optional 字体度量差并加 next/font 式 metric fallback，但字体已 resolve 时位移照旧，纯文案交换所致；CSS 改动已回退。方案：docs/plan-r514-freemode-hero-cls.md。
+- 修复：FREE_MODE 是 wrangler.jsonc 里的部署期变量——vite.config.ts 与 vite.ssr.config.ts 构建期读取并 define __FREE_MODE__（声明在 src/vite-env.d.ts）；freeMode.ts 用它作 useState 初值，使 prerender shell 与首次水合同为免费文案；/api/billing/status 响应仍权威（双向 set，运行期改 flag 不重建也能在加载后纠正）。
+- tsc/单查 eslint/build/verify-dist 绿；prerender 的 index.html 含免费文案、零 "$9.99 one time"。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：限速 412px 段落 8 秒采样恒 112px/161 字符/免费文案、buffered layout-shift 观测 0、副标题免费文案同步、412/1280 零溢出、/builder 回归正常、存储仅基线键；Lighthouse / CLS 0.041→0（perf 本次 0.81，headless 环境与前次 0.93 非同条件，CLS 为本轮目标指标）。
+
+## R513 — 消灭 /jobs 加载期布局位移（2026-08-31）
+- 证据（一手生产）：Lighthouse 移动端 /jobs perf 0.77、CLS 0.012——主要路由中唯一非零 CLS；layout-shifts 审计归因 jobs 网格容器。限速 CDP 探针（412px）：loading 态 Locations 骨架行高 178px、真 chips 行 132px，数据到达后 gridTop 681→635 上移 46px；另 R502「{n} jobs found」计数行（29px）仅 !loading 渲染，加载完成后在容器内插入。
+- 根因：facet 骨架仍按 R512 之前的复合地点标签尺寸（7 枚 112–168px），R512 后真 chips 是 8 枚窄单一地区标签（实测 70–100px），骨架多折一行；计数行 post-load 插入。
+- 修复仅 src/pages/Jobs.tsx：骨架改 8 枚 [86,70,89,78,86,100,77,94]；计数行条件 !loading&&!error→!error，loading 时显示「Loading jobs…」（同类名同高度），移除骨架内 sr-only 加载文案避免双播报。
+- 备案：骨架宽度为当前 feed 的 best-effort 匹配，任意未来 facet 标签下无法保证严格零 CLS；目标是生产数据实测 0。
+- 本地验证：tsc/eslint（仅既有 fetchJobs 依赖 warning）/build/verify-dist 全绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：限速探针 gridTop 恒 635、locH 恒 132（loading→loaded 零移动）、CLS 探针 0、状态行「Loading jobs…」→「15 jobs found」；Lighthouse /jobs CLS 0.012→0、perf 0.77→0.81；375/1280 零溢出零 console 错误；localStorage 仅基线键。
+
+## R512 — /jobs 地点自动补全与 facet chips 拆成单一地区（2026-08-31）
+- 一手证据：Rezi changelog 已迁移到 rezi.ai/rezi-changelog（旧 /changelog 404），2026-08 Week4 有「Faster Job Location Entry: location autocomplete」；生产 CDP 实证 /jobs 地点输入的 datalist 选项与「Locations:」chips 都是上游原样复合串（如「LATAM, Europe, USA, Canada, APAC」）——找 Canada 的用户拿不到 Canada 建议/chip（3/15 条职位实际可招 Canada），而过滤本身是子串匹配、输入 Canada 早就正确工作，坏的只是建议层。
+- 根因 src/lib/jobs.ts locationFacets() 以整串为 facet key。修复仅此函数：按逗号拆分逐段计数（跳过空段与 location-agnostic 段），datalist/chips/过滤语义零改动。方案：docs/plan-r512-location-facet-regions.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA 全对：datalist 变 11 个单一地区（Americas/APAC/Australia/Canada/Europe/Israel/LATAM/Singapore/UK/USA/USA timezones）；chips 变按地区真实计数（Europe (7)/USA (7)/Canada (5)…）；点 Canada chip→?loc=Canada、输入框填充、「10 jobs found」（5 直接命中+5 worldwide，R195 分层语义完好）；再点清除回 15 条；375px 零溢出；QA 未写入任何合成存储。
+
+## R511 — 面试弹窗：Finish session/End early 不再静默覆盖已编辑 brief（2026-08-31）
+- 一手证据（生产 CDP）：模板生成 906 字符 brief→编辑→Practice all 2→Finish session：零确认，textarea 被替换为练习报告，编辑被静默销毁；同状态下模板/Regenerate 均会弹 R508 确认——finishSession 是唯一绕过护栏的 result 覆盖路径（End early 同）。审计还复验并驳回多条伪缺口：未保存 brief 的 PDF 导出已受 R507 占位符护栏、模板/Regenerate 已受 R508 护栏、本地练习计分/计时正常、7 路由双视口零溢出；rezi.ai/changelog 现返回 404（研究路线失效，非产品缺口）。
+- 修复仅 Builder.tsx ToolDialog：overwriteWarn 加 'finish'；End early 与 advanceSession 最后一题分支改走 requestOverwrite('finish')（确认时以当前 session/answer/feedback 重算 entries）；finishSession 改用 applyResult 使报告成为 autoResult 基线；确认弹窗 finish 文案「Finishing the practice session will replace your edits with the session report.」。未编辑路径零弹窗直达报告。方案：docs/plan-r511-finish-session-overwrite-guard.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA 全对：编辑后 Finish session 弹确认（新文案）+Keep my draft 保留编辑与会话；End early 同弹；Replace draft 出报告且会话结束；报告未编辑时再插模板零弹窗（applyResult 基线回归 R508 语义）；未编辑 brief End early 零弹窗直达报告；375px 弹确认零溢出；QA 后存储清理。
+
+## R510 — 面试弹窗：关闭保护覆盖 Prep Brief（2026-08-31）
+- 一手证据（生产 CDP）：/builder?doc=interview「Start from a template」生成 906 字符 brief→再编辑→Close：零确认直接关闭，brief（无论未保存还是保存后再编辑）被静默销毁。根因：unsavedWork 的 interview 分支只查 `session !== null || answer.trim() !== ''`，result（brief）只在信件分支受保护——R333/R509 的护栏从未覆盖面试 brief，而面试弹窗有同样的 Generate/模板/Save to My resumes 流程。
+- 修复仅 Builder.tsx ToolDialog：抽出 `resultAtRisk = result !== '' && (savedId === null || result !== savedText)`；interview 分支 unsavedWork 加入 resultAtRisk；确认弹窗 interview 文案在 brief 有风险时改为「Your current session, typed answer and unsaved prep brief will be lost.」（否则维持原文案）。信件分支/R507/R508 零改动。方案：docs/plan-r510-interview-brief-close-guard.md。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA 六场景全对：模板 brief→Close 弹确认（新文案）+Keep working 保留；保存后干净关闭零弹窗；保存→编辑→Close 弹确认；仅键入答案 Close 弹确认（原文案，回归）；cover 未保存关闭仍弹（R509/R333 回归）；375px 弹确认零溢出；QA 后存储清理。
+
+## R509 — Builder 信件弹窗：关闭保护覆盖保存后的再编辑（2026-08-31）
+- 审计先如实驳回一条伪缺口：早前探针读 `d.content` 报"保存文档内容为空"，实为字段名错误（文档模型字段是 `text`），纠正后复测保存内容完整（619 字符）且 Dashboard/Documents 双面均显示。
+- 一手证据（生产 CDP）：/builder?doc=cover 模板→「Save to My resumes」→再编辑 textarea→Close：零确认直接关闭，已存文档仍是保存前旧文本，保存后的编辑被静默销毁。根因：unsavedWork 判定 `savedId === null`，一旦保存过就永远视为"已保存"。
+- 修复仅 Builder.tsx ToolDialog：新增 savedText 跟踪最近成功保存/更新的文本（saveCareerDoc 与 updateCareerDoc 成功路径都设置，kind 切换清空）；unsavedWork 信件分支改为 `result !== '' && (savedId === null || result !== savedText)`；已保存场景确认弹窗文案改为「Your edits since the last save will be lost.」（未保存场景文案不变）。方案：docs/plan-r509-close-guard-post-save-edits.md。
+- 非目标：不做自动保存、不改「Saved — update」按钮行为、interview 分支/R507 占位符/R508 覆盖 guard 零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-8A4VdwQ4.js + 文案轮复验）：模板→保存→关闭零弹窗；保存→编辑→Close 弹确认（文案「Your edits since the last save will be lost.」）、Keep working 保留编辑器；「Saved — update」后关闭零弹窗且存储含编辑；从未保存关闭仍弹（R333 回归，文案「The generated letter will be lost.」）；375px 弹窗零溢出；全程零 console 错误/unhandledrejection；QA 后存储清理。
+
+## R508 — Builder 信件弹窗：覆盖已编辑草稿前先确认（2026-08-31）
+- SOP-10 节点：7 路由×2 视口零溢出、7 路由 console/unhandledrejection 全空、Rezi changelog 无新可落地缺口。
+- 一手证据（生产 CDP）：/builder?doc=cover「Start from a template」→ 编辑 textarea →再点模板/Regenerate，编辑内容被静默覆盖零确认零撤销；dialog 关闭已有 R333 confirmingClose 保护，但弹窗内两个最具破坏性按钮绕过了它；Regenerate 还会额外消耗 AI 请求。
+- 修复仅 Builder.tsx ToolDialog：autoResult 跟踪最近一次程序化输出（applyResult 辅助统一 generate/insertTemplate 的 setResult）；resultEdited = result 非空且 ≠ autoResult；Generate/模板按钮经 requestOverwrite——已编辑先弹「Replace your edited draft?」（destructive Replace draft / 默认 Keep my draft），未编辑直接执行；kind 切换清空。方案：docs/plan-r508-builder-letter-overwrite-guard.md。
+- 非目标：不做草稿历史/undo、不改生成与模板内容、不动 R507 占位符 guard、不改 Dashboard。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-CjCDyHfB.js）：未编辑重插模板零弹窗；编辑后模板/Regenerate 均弹确认；Keep my draft 保留编辑、Regenerate 确认前零 /api/ai/ 请求；Replace draft 照常替换；375px 弹窗零溢出零 console 错误；QA 后 localStorage 无残留。
+
+## R507 — Builder 信件弹窗补齐占位符警告与定位器（2026-08-31）
+- 审计先行：面试模板/即时问题实证已用 targetRole/当前公司/角色，其余开放式提示需用户判断或 JD 信息，自动编造不诚实——如实驳回"面试模板个性化"候选。
+- 一手证据（生产 CDP）：/builder?doc=cover「Start from a template」后结果含 5 个 `[bracketed]` 占位符，textarea 上方零计数零定位辅助；PDF/DOCX/TXT 三按钮静默下载——R504/R505 的保护只覆盖了 /documents 出口，Builder 弹窗出口一键放行。
+- 修复仅 Builder.tsx ToolDialog：countLetterPlaceholders（与 Dashboard 同一正则）；result 上方琥珀 role=status 状态条 +「Next placeholder」定位（光标起、回绕、滚动进视口）；下载体抽为 runLetterDownload(fmt)，count>0 先弹「Unfilled placeholders」——Download anyway 照常下载、Fill them in 关弹窗并选中下一个占位符；kind 切换清空警告态。方案：docs/plan-r507-builder-letter-placeholder-guard.md。
+- 非目标：不改 Dashboard 已有实现、不做 textarea 高亮、不阻断下载。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-qJaYKdyZ.js）：cover 状态条报 5、Next placeholder 依次选中且回绕；TXT/PDF 前弹确认、Download anyway 照常、Fill them in 焦点落 textarea 且选中下一槽位；resignation 报 2 同套保护；占位符清零后状态条消失且直接下载零弹窗；375px 弹窗零溢出零 console 错误；QA 后 honestcv.resume 移除（原值即空）。
+
+## R506 — 信件模板自动填充当前职位（2026-08-31）
+- 一手证据（生产 CDP）：/builder?doc=cover 自述 "Tailored to your resume"，简历含进行中职位（endDate 空）时模板仍输出 `In my current role at [current company]`；resignation 两输入留空时输出 `[Company]`/`[your role]`——这些值就在简历里（targetRole/fullName 已被正确使用，属遗漏非设计）。
+- 修复仅 Builder.tsx insertTemplate：取第一个未 hidden、company 非空、endDate 空或匹配 ONGOING_RE 的 experience 条目；cover 的 `[current company]` 与 resignation 空输入回退该条目的 company/role，无当前职位保留原占位符；显式输入仍优先；interview/AI 路径零改动。
+- 本地：tsc/eslint（Builder 单查）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-DC_9b4n0.js）：种进行中职位后 cover 出 "In my current role at ACME Corp"、resignation 空输入出 "Software Engineer at ACME Corp"、显式填 Globex/Staff Engineer 时优先、全部职位有 endDate 时保留占位符、375px 零溢出零 console 错误、QA 后 honestcv.resume 移除（原值即空）。
+
+## R505 — 文档编辑器占位符定位器（2026-08-31）
+- 一手证据（生产 CDP）：R504「Fill them in」落地的编辑器是裸 textarea（内容 288px>视口 240px 需滚动），15 个占位符零计数零定位辅助，用户须肉眼逐个找。
+- 修复仅 Dashboard.tsx edit 视图：占位符>0 时 textarea 上方琥珀状态条（role=status 报 "N placeholders left…"）+「Next placeholder」按钮——从光标处找下一个括号槽位（到底回绕），focus+setSelectionRange 选中并按行高滚动进视口；清零即消失。方案：docs/plan-r505-placeholder-locator.md。
+- 备案：嵌套占位符（`[… [X] …]`）外层在内层被替换后才可数——正则本就不匹配含内层括号的外层，属既有语义非本轮引入。
+- 非目标：textarea 内彩色高亮（需 overlay 重构，入银行）、自动替换。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：状态条报 15、Next placeholder 依次选中 [Hiring manager's name]/[Company]/[Current company] 且 16 次后回绕、替换后计数实时降、清零消失；关闭走 Discard changes 存储未污染（15 槽位原样）；375px 弹窗零溢出、Next placeholder 正常；零 console 错误/未捕获 rejection。
+
+## R504 — 导出带 [占位符] 的信件前诚实警示（SOP-10 节点）（2026-08-31）
+- 审计先行：生产复现 Documents 信件示例流全链路，此前疑似"Use this example 后弹窗未关"实证为预期行为（saveCareerDoc 保存成功→关预览→开已存文档编辑器，honestcv.careerDocs 落库、TXT 导出成功），如实驳回。
+- 一手证据（生产 CDP）：产品自己播种的角色示例信全文是 [Hiring manager's name]/[Company] 等括号占位符，示例弹窗明示"replace the [placeholders] with your details"，但卡片/编辑器 6 个下载按钮（PDF/DOCX/TXT×2处）一键静默导出——用户拿到写给 [Company] 的信，零提示零确认（anchor-click 钩子实证直接下载、零 alert/status 节点）。
+- 修复仅 Dashboard.tsx：countLetterPlaceholders（/\[[^\][\n]{1,60}\]/g）；docDownload onClick 命中>0 时弹「Unfilled placeholders」确认弹窗（报数量+示例），主按钮 Fill them in 打开该文档编辑视图、次按钮 Download anyway 照常导出（不阻断）；下载体抽为 runDocDownload 复用。方案：docs/plan-r504-letter-placeholder-export-warning.md。
+- 非目标：不改示例内容/简历导出/Builder 工具弹窗、不做占位符文本内高亮（入银行）。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：占位符信 TXT→弹窗报"15 bracketed placeholders"零下载；Download anyway→正常下载 software-engineer-cover-letter.txt 弹窗关闭；PDF→Fill them in→打开编辑器（textarea 就位）；编辑器内清空占位符后 TXT 直接下载零弹窗；375px 编辑器内 TXT→双弹窗叠加正常、Fill them in 收敛回编辑器、零溢出；零 console 错误。
+
+## R503 — /jobs URL 不再携带自动选中的职位（SOP-10 节点）（2026-08-31）
+- 四维审计先行：核心 7 路由 1280/375 零溢出、/jobs /documents /ats-checker /samples 生产 axe 零违规、Lighthouse 四页 CLS 全 0（/jobs 0.82 /documents 0.81 /dashboard 0.78 /ats-checker 0.88）、123 sitemap URL + 194 内部链接全 200、源码零 confirm/alert/空 catch——均无缺口，如实驳回。
+- 一手证据（生产 CDP）：零交互冷载 /jobs，加载完成后 URL 被 replaceState 改写为 /jobs?job=1749306（第一条职位 id，用户从未点击）；仅改排序后 /jobs?sort=newest&job=1749306。根因：fetch 回调回落 setSelectedId(list[0]?.id) 喂桌面详情栏，URL 同步 effect 对 selectedId 无差别写 job 参数。后果：分享/收藏的"列表"URL 永远带一个没选过的瞬态职位 id；该 URL 在移动端（R407 深链语义）强行打开发送者从没点过的详情浮层；职位过期后 R441 dead-link 警示对用户从未构造的 URL 触发。
+- 修复仅 Jobs.tsx：explicitSelection ref（?job= 深链 seed true、行点击 true、自动回落 false），URL effect 改为 selectedId && explicitSelection.current 才写 job；详情栏自动选中行为零改动。方案：docs/plan-r503-url-autoselect-job-param.md。
+- tsc/单查 eslint（仅既有 exhaustive-deps 警告）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：零交互冷载 URL 保持 /jobs；改排序后仅 ?sort=newest；点击行后 ?sort=newest&job=2091100；?job=1749306 深链回归（桌面选中 Freelance Copywriter、375 详情浮层打开）；搜索提交后 URL 收敛为 ?q=engineer（自动选中不再回写）；375 零溢出。
+
+## R502 — /jobs 结果计数状态行（WCAG 4.1.3）（2026-08-31）
+- 一手证据：生产 /jobs?q=engineer 结果列 9 条但界面任何位置零结果计数（main 内 `\d+ jobs?` 零命中）、结果呈现路径零 role=status/aria-live——搜索/筛选完成后读屏用户收不到任何"结果已更新、共 N 条"状态消息（WCAG 4.1.3），明眼用户也无从确认筛选是否生效。
+- 修复仅 Jobs.tsx：all 标签非 loading/error 时列表上方渲染一行 `role="status"` 页眉 "{n} job(s) found"（0 条同样渲染保证零结果也有播报，空态文案与 R501 按钮仍在其下）；tracked/status 标签不加（tab 标签已带计数）。方案：docs/plan-r502-results-count-status.md。
+- 非目标：不做 "of N total"（上游总量不可知，虚构不诚实）、不改 worker/匹配语义、不动骨架与错误卡。
+- tsc/单查 eslint（仅既有 exhaustive-deps 警告）/build/verify-dist 绿。部署照旧：29 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA：?q=engineer→"9 jobs found"、空查询→15、zzz 查询→"0 jobs found"+R501 按钮共存、点按钮后状态行更新为 15、tracked 标签零状态行、375px 零溢出、零 console 错误零未捕获 rejection。
+
+## R501 — /jobs 零结果空态一键恢复（2026-08-31）
+- 一手证据：/jobs 默认用简历 targetRole 播种搜索框；R500 生效后多数常见职位在当前 15 条上游列表下诚实归零（生产实测 Registered Nurse/Data Analyst/Accountant→0、Marketing Manager/Product Manager→1），空态只有一句文案，用户须手动清空搜索框与四个筛选器才能看到任何职位。
+- 修复仅 Jobs.tsx：all 标签空态在 query/category/loc/type/skills 任一激活时渲染 "Clear search & filters" 按钮——重置五个状态并 runSearch('','')，落回完整列表；无激活条件（上游真空）保持原文案；tracked/status 标签空态零改动。方案：docs/plan-r501-empty-results-recovery.md。
+- 非目标：不改 worker/R500 匹配语义、不自动放宽查询（静默显示不匹配职位会反噬 R500 的诚实性）、不加分页/替代源。
+- tsc/单查 eslint（仅既有 exhaustive-deps 警告）/build/verify-dist 绿。部署照旧：29 资产上传成功、Workers Routes auth code 10000。
+- 生产 QA：?q=zzzunfindablequery&loc=Berlin&type=full time 出按钮，点击后 15 条全列表、搜索框清空、URL 仅剩 ?job=；375px 有按钮零横向溢出；tracked 空态无按钮文案不变；零 console 错误零未捕获 rejection。
+
+## R500 — /jobs 搜索词本地强制生效：不匹配即诚实零结果（2026-08-31）
+- 一手证据：直连 Remotive API 实测 `search`/`category`/`limit` 参数全部被忽略（search=kubernetes/qqqqqq/胡乱短语、limit=3、无参均返回同一 15 条列表）；生产 `/api/jobs/search?q=zzzunfindablequery` 因此返回 15 条不相关职位——搜索框静默失效，无诚实空态。category 已有本地 matchesCategory() 兜底，搜索词无对应本地强制。
+- 修复仅 worker/index.ts：新增 matchesQuery(tokens, haystack)——查询按空白分词、全小写、AND 语义、子串匹配，作用于 title/company/category/location/tags/完整描述；空查询保持原行为；缓存键 jobs:v5→v6 防旧未过滤 payload。上游参数保留（若恢复支持自动受益）。客户端零改动（Jobs.tsx 已有 "No jobs found — try another search term." 空态）。方案：docs/plan-r500-enforce-search-query.md。
+- 非目标：不加付费/替代 jobs API、不抓取外站、不做分页绕 15 条上限、不改 8000 字符截断、不改匹配/裁剪算法。
+- tsc/单查 eslint/build/verify-dist 绿（全仓 lint 红仅历史 .tmp-smoke 草稿）。部署照旧：worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：?q=zzzunfindablequery API 返回 0 条、UI 显示 "No jobs found" 空态；?q=engineer 返回 9 条且逐条验证 searchable text 含 engineer；多词 "senior react" AND 语义（5 条，react 命中于描述全文）；空查询照常 15 条；category=software-dev 回归正常（6 条全 Software Development）；R499 截断披露回归不受影响；零 console 错误。
+
+## R499 — 保存/跟踪职位后诚实截断提示不再丢失（2026-08-31）
+- 一手证据（生产 CDP，job 2091068）：API 返回 descriptionTruncated:true、详情面板显示 R498 截断提示；点 Save 后 localStorage['honestcv.jobPipeline'] 条目里该键 MISSING（保存流程 upsertPipeline→prepareTargetedCopy→setPipelineVersion 立即经 listPipeline() 重写全表）；刷新后从 tracked 打开详情提示消失。Rezi 2026-08 changelog 恰有 "Improved Job Description Visibility … for tracked roles"。
+- 根因：src/lib/jobs.ts sanitizeEntry() 重建 JobListing 时复制 logo/tags 但不复制可选 descriptionTruncated，任何 pipeline 写路径都会剥掉该标志。
+- 修复一行：`if (j.descriptionTruncated === true) job.descriptionTruncated = true`（仅严格 true 保留；旧条目无键维持 undefined，兼容不变）。方案：docs/plan-r499-pipeline-truncation-flag.md。
+- tsc/单查 eslint/build/verify-dist 绿（全仓 lint 红仅历史 .tmp-smoke 草稿）。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Jobs-COqkbubZ.js）：保存 2091068 后 stored flag true（len 7995）；用不命中该职位的搜索（q=zzzunfindable&job=2091068）强制详情走 pipeline 数据——截断提示照常显示、外链指向 remotive 原帖（target=_blank rel="noopener noreferrer"）；pipeline 中其余职位无标志；375 零溢出；QA 后 pipeline 清理。
+
+## R494 — 按路由 modulepreload：非 Builder 路由不再白拉 72KB Builder 块（2026-09-05）
+- 一手证据（生产 Lighthouse 网络日志）：/samples 冷加载在 ~247ms 抢先下载 Builder 块（72KB 传输、全站最大路由块，从不执行），本路由 Dashboard 块反而 ~435ms 才到——根因是 prerender.mjs 往 spa.html 注入固定 Builder modulepreload，Worker 对所有 SPA 路由/分享页/404 都发同一 shell。
+- 修复两处：prerender.mjs 在 spa.html 注入 route→chunk map（meta name=route-chunks，Builder/Dashboard×3/Jobs/AtsChecker/SharedResume，缺块即 build 失败）；worker applyRoutePreload() 按路径把 preload 改写成本路由真实水合的块（/builder 字节不变、未知路由删除 preload），三个 shell 文本分支全部套用。
+- tsc/eslint/build/verify-dist 绿。部署照旧：1 资产（spa.html）+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：8 路由 raw HTML preload 逐一正确（/samples|/dashboard|/documents→Dashboard、/jobs→Jobs、/ats-checker→AtsChecker、/builder→Builder、404→无、/s/*→SharedResume）；CDP 冷载 /samples 零 Builder 请求、9 卡、375 零溢出零 console 错误；/builder 照常拉 Builder；Lighthouse /samples perf 0.68→0.76、LCP 4.9→4.1s、CLS 保持 0。
+
+## R493 — /samples 加载骨架消灭 0.777 CLS（2026-09-05）
+- 一手证据（生产 Lighthouse 移动端）：/samples perf 0.47、CLS 0.777 为全站最差（/dashboard 0.73、/documents 0.79、/ats-checker 0.83 且 CLS 均 0）；layout-shifts 审计把全部 0.777 归因 footer——examplesState==='loading' 时 samples 路由标题与 footer 之间零内容，examples.json 到达后 9 卡网格一次性把 footer 推下 ~3000px。先例：R309 用骨架修复 /jobs 同款问题。
+- 修复最小（仅 Dashboard.tsx）：section==='samples' && loading 时渲染 h1 + sr-only role=status + aria-hidden animate-pulse 9 卡骨架（h-44 缩略图 + 标题/行业/CTA 占位，镜像真卡结构）；fetch/状态机/failed 卡/R490 hash deps/jobs 骨架零改动。方案：docs/plan-r493-samples-cls.md。
+- tsc/eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：Lighthouse /samples CLS 0.777→0、perf 0.47→0.68（LCP 4.9s 为剩余主项）；限速下骨架可见→9 真卡替换（footer 残移仅 ~152px，来自骨架未含的过滤行+计数行，Lighthouse CLS 仍 0）；阻断 examples.json→retry 卡照常（骨架消失）、Try again 恢复 9 卡；/dashboard#samples 冷载滚动回归正常；375 光暗零溢出零 console 错误。
+
+## R492 — Builder 程序化跳转把键盘焦点移到目标（2026-09-05）
+- 一手证据（生产 CDP，Builder-KVTTlf2O.js）：/builder?example=software-engineer 点 Score 面板 "Fix →"，视口跳到 scrollY 1535 + ring 闪烁，但 document.activeElement 仍是原 "Fix →" 按钮（activeIsFix:true）；章节导航 chip 同样（activeIsChip:true，y 3669）——下一次 Tab 从数千像素外的出发点继续，键盘/读屏用户完全得不到位置迁移（WCAG 2.4.3 焦点顺序；成熟编辑器 jump-to-error 均移焦点）。目标卡片无 tabindex 不可编程聚焦。
+- 修复最小（仅 Builder.tsx 两处跳转路径，滚动/闪烁/R489–R491 语义零改动）：scrollIntoView 后 `el.tabIndex = -1; el.focus({ preventScroll: true })`——tabindex=-1 不进自然 Tab 序，preventScroll 防与既有滚动打架。方案：docs/plan-r492-jump-focus.md。
+- tsc/eslint/build/verify-dist 绿（lint 7 errors 全在未跟踪 .tmp-smoke/ 草稿，src 零）。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（新 bundle Builder-BgCRr3Eo.js）：章节 chip 跳转后 activeElement=目标 section 卡（data-section-anchor=skills，tabindex -1）；"Fix →" 跳转后 activeElement=目标卡（tabindex -1，ring 照常）；reduce 下跳转即时单步且焦点同样落卡（focus=experience）；375 光暗零溢出；全程零 console 错误。
+- 如实备案：本例简历的全部 health findings 均映射到 section 跳转（jumpToSection），jumpToEntry（条目级 finding，R157/R359 路径）代码改动与 section 路径逐行同构但本轮无真实条目级 finding 可在生产触发，未独立复验。
+
+## R522 — 浏览器返回键（SPA popstate）不再静默丢弃未保存编辑（2026-08-31）
+- 一手证据（生产 CDP，真实点击建立 SPA 历史）：/dashboard → SPA 链接进 /documents → Open → Edit → 追加文本 → history.back()：URL 直接回 /dashboard、编辑器 unmount、零确认、存储只剩原文——同文档 popstate 导航不触发 beforeunload，R521 护栏对该路径无效；Builder 信件/面试弹窗同架构同缺口。
+- 修复：新增 src/lib/useHistoryGuard.ts——脏态时 push 一条 `hcv-history-guard` 哨兵历史条目并监听 popstate，Back 弹出既有样式化确认（不换原生 confirm）、哨兵即刻补回；脏态解除时若当前仍在哨兵条目则 history.back() 清除。Dashboard 文档编辑器复用 docDirty→confirmingDocClose、Builder ToolDialog 复用 unsavedWork→confirmingClose('close')；R521 beforeunload 原样保留。方案：docs/plan-r522-history-guard-unsaved-edits.md。
+- 已知限界（方案已备案）：确认 Discard 后停留当前路由，用户需再按一次 Back 完成原意图。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000；useHistoryGuard-PieajzdZ.js 生产 200 且含哨兵键。
+- 生产 QA：文档编辑器——干净 Back 正常回 /dashboard、脏 Back 弹「Discard unsaved changes?」且 URL 停留、Keep editing 保留编辑、Discard 诚实关闭且存储无该编辑；Builder cover 模板 619 字符草稿 Back 弹「Close without saving?」、Keep working 保留、375px 弹窗零溢出、Discard and close 照常；零 console 错误、QA 后合成存储全清。
+
+## R523 — 应用内 SPA 链接点击不再静默丢弃未保存编辑（2026-08-31）
+- SOP-10 复扫：7 路由 ×1280/375 双视口零溢出零 console 错误；Rezi changelog 无新可落地缺口。一手证据（生产 CDP）：/documents 脏文档编辑器点页头「Jobs」SPA 链接——URL 直接到 /jobs、编辑器 unmount、零确认、存储只剩原文。路径矩阵最后一条缺口：应用内 Link 走 pushState，既不触发 beforeunload（R521）也不触发 popstate（R522）。
+- 修复仅 src/lib/useHistoryGuard.ts：active 时加 capture 阶段 document click 监听——同源站内 a[href]（无 target/download、非修饰键、主键、目标≠当前 path+search）preventDefault+stopPropagation 并弹既有样式化确认；外链/新标签/下载不拦截；Dashboard/Builder 零改动自动受益。方案：docs/plan-r523-link-guard-unsaved-edits.md。
+- 已知限界（与 R522 同款备案）：Discard 后停留当前路由，用户需再次点击链接完成导航。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：干净编辑器点 Jobs 链接正常到 /jobs；脏编辑器点链接 URL 停留 /documents 弹「Discard unsaved changes?」、Keep editing 保留编辑、Discard changes 诚实关闭且存储无该编辑；Builder cover 619 字符草稿点 Dashboard 链接弹「Close without saving?」、Keep working 保留、375px 零溢出；零 console 错误、QA 后合成存储全清。
+
+## R524 — 空工作区不再生成空的定向简历副本（2026-08-31）
+- 一手证据（生产 CDP，全新存储）：/jobs 选中职位 →「Target my resume」→「Create copy and open editor」——在用户简历为空时也创建命名定向版本（filed under Job applications），Builder 落在「Starting fresh?」空态；弹窗自述"saves a copy of your resume"，对空工作区属误导。对照 Rezi：自动定向简历流程以已有简历为前提。方案：docs/plan-r524-empty-draft-targeted-copy.md。
+- 修复：src/lib/resume.ts 新增 resumeHasContent()（resumeToPlainText(r).trim() !== ''）；src/pages/Jobs.tsx——targetResume 空草稿分支只把 target 元数据写入当前草稿并开 /builder（不建副本）、弹窗文案与按钮改为诚实的「Start my resume for this job」；setStatus 的 Saved 自动建副本同样加内容判定（仍照常跟踪职位）；有内容草稿与已链接副本路径零改动；cover/interview 分支零改动。
+- tsc/单查 eslint（仅既有 fetchJobs 依赖 warning）/build/verify-dist 绿。部署照旧：31 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Jobs-BzYGDUnB.js）：空草稿 Target→弹窗诚实文案+「Start my resume for this job」→/builder、0 副本、草稿 targetRole/targetCompany 就位；空草稿 Saved→pipeline 1 条 saved、无 resumeVersionId、0 副本；种子含内容草稿 Target→原「Create copy and open editor」流程照常、版本含 QA Person 内容+target 元数据；已链接副本→「Open targeted copy」照常开 /builder；375px 弹窗正常零溢出；零 console 错误、QA 后合成存储全清。
+
+## R525 — 加载角色示例不再清空定向职位（2026-08-31）
+- 一手证据（生产 CDP，全新存储）：/jobs Target 空草稿（R524 流程）→ /builder 首跑向导选角色示例——targetCompany 与 jobDescription 被静默清空（Freelance Copywriter|Coalition Technologies|2783 → Freelance Copywriter||0），targetRole 仅因向导单独写入才幸存；ATS/tailoring 上下文不再对准用户选的职位。方案：docs/plan-r525-example-keeps-target-job.md。
+- 根因：Builder.tsx replaceWithExample() 用 exampleToResume(person)（基于 emptyResume()）整体替换，未保留 target 三元组；所有示例入口（首跑向导、空态角色选择、?example 深链、确认替换）都经此函数。
+- 修复：replaceWithExample() 在替换时保留 cur.targetRole / targetCompany / jobDescription（存在才保留，与既有 templateId 保留同款写法）；exampleToResume、导入、替换确认规则零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-D743uEua.js）：全新存储 /jobs Target 空草稿→向导选 Software Engineer 示例→target 三元组完整保留（Freelance Copywriter|Coalition Technologies|2783）+示例内容就位；无 target 时 ?example=software-engineer 深链→target 保持空；375px 种子 target + ?example=data-analyst 深链→QA Role|QA Co|12 保留、零溢出；零 console 错误、QA 后合成存储全清。
+
+## R527 — 批量操作只作用于可见行（2026-08-31）
+- 审计先驳回两条候选（notes 失焦保存路径实测导航即持久化，非缺陷；7 主要路由 axe 零违规）。一手证据（生产 CDP）：种 4 条 tracked、bulk 全选 4 后用 R526 filter 输入 globex 只剩 1 可见行，工具栏仍显「4 selected / Untrack 4」，确认后 pipeline 清空——3 条被隐藏的行被静默删除；Move to… 与 pre-R526 的 Needs follow-up 过滤同理。方案：docs/plan-r527-bulk-acts-on-visible-rows.md。
+- 修复仅 src/pages/Jobs.tsx：派生 visibleBulkIds（bulkIds ∩ 当前 shown 行）；计数/Move to…/Untrack N/确认弹窗全部改用可见选集；操作后仅从选集移除已作用的 id，被过滤隐藏的选择保留并在清除过滤后恢复可操作（复选框本就只渲染可见行，UI 一致）。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-C0He1bWY.js）：桌面全选 4→filter globex→「1 selected / Untrack 1」、弹窗「Stop tracking 1 job?」、仅 Globex 被移除余 3；Clear filter 后「3 selected」且 3 复选框仍勾选；filter acme→「2 selected」、Move to… applied 仅改 2 条 Acme，Initech 保持 saved；375px「1 selected / Untrack 1」、零水平溢出；零 console 错误、QA 后合成存储全清。
+
+## R526 — 跟踪队列按职位/公司即时过滤（2026-08-31）
+- 审计先如实驳回一条伪缺口（空态角色选择疑似丢 target，纠正探针后确认 target 三元组完整保留，非缺陷）。一手证据（生产 CDP）：种 25 条 pipeline 后 ?tab=tracked 无任何可见搜索/过滤输入（rows 25 / inputs visible NONE），All 标签的搜索与筛选不作用于 Tracked。对照 Rezi：其近期公开更新强调 tracked 职位的可见性。方案：docs/plan-r526-tracked-queue-filter.md。
+- 修复仅 src/pages/Jobs.tsx：trackedFilter 瞬态状态 + bulk 操作行内 type=search 输入，大小写不敏感匹配 job.title/job.company，与 followUpOnly 组合；分组保持状态排序与组内新→旧；新增 shownCounts 使组头计数如实反映可见行；无命中出诚实空态「No tracked jobs match "…"」+ Clear filter；不入 URL、不动 All 标签/bulk/详情栏/存储。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：桌面 10 条种子——全量 5 组各 (2)、filter acme→2 行仅 Saved (2)、"data analyst"→2 行 Applied (2)、zzznothing→0 行+空态+Clear filter 恢复 10 行；375px 输入可见、globex→2 行、双状态零水平溢出；零 console 错误、QA 后合成存储全清。
+
+## R528 — ?job= 深链回退全量查找，不再谎报「已过期」（2026-08-31）
+- SOP-10 四维复扫：7 路由×1280/375 零溢出零 console 错误；对照 Rezi 2026-08 Week4「Improved Job Description Visibility」。一手证据（生产 CDP）：/jobs 首次搜索被简历 targetRole（Senior React Developer）播种只剩 5 条；冷载 ?job=<过滤外在售 id> 弹「The job in that link wasn't found — it may have expired or been removed」且详情栏落在无关职位——职位明明在 /api/jobs/search 全量 15 条中在售。分享链接/换简历重开收藏必现。方案：docs/plan-r528-job-deep-link-fallback-lookup.md。
+- 修复仅 src/pages/Jobs.tsx：pendingSeedJob 未命中首抓 list/pipeline 且首抓带 q/cat 过滤时，先 searchJobs('') 全量回查；命中则存入 linkedJob 保持选中（移动端照常开详情浮层），并出 role=status 信息条「Showing <title> at <company> from your link — it doesn't match your current search.」+ Dismiss；仍未命中才走原 R441 dead-link 警示。selected 解析链与自动回落均纳入 linkedJob。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：桌面冷载 ?job=1749306（过滤外在售）→零 alert、信息条在位、详情栏 h2=Freelance Copywriter、URL 保留 job=；?job=999999999 死链仍弹原警示（R441 回归）；375px 同场景详情浮层正确、零水平溢出；三场景零 console 错误、存储仅基线键（本轮零合成写入）。
+
+## R529 — linkedJob 信息条只在该职位仍被选中时显示（2026-08-31）
+- 一手证据（生产 CDP，R528 上线后）：冷载 ?job=1749306（过滤外在售）信息条正确；随后提交新搜索 python——详情栏自动回落到 list[0]（Senior React Full-stack Developer），但信息条原样保留仍宣称「Showing Freelance Copywriter …」，状态条与详情自相矛盾（点击其他行同理）。详情栏对 linkedJob 的 Target/Cover letter/Apply/状态操作经查全部在位，非缺口。方案：docs/plan-r529-linked-job-notice-staleness.md。
+- 修复仅 src/pages/Jobs.tsx 一行：渲染条件加 `selectedId === linkedJob.id`——选中移走即消失、重选恢复、Dismiss 语义不变；不新增状态、不动 fetch/URL/R441/R528 回查逻辑。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：冷载深链信息条在（R528 回归）；新搜索后信息条消失、无矛盾文案；?job=999999999 死链警示回归；375px 冷载信息条+详情正确；全场景零溢出零 console 错误、存储仅基线键。
+
+## R530 — 从 Tracked 返回 All jobs 后详情栏不再空置（2026-08-31）
+- 一手证据（生产 CDP）：冷载 /jobs 详情栏自动选中 list[0]；点 Tracked 再点回 All jobs，列表 5 行在但详情栏只剩「Select a job to see the details.」空占位（main h2 为空）——与首载/搜索/换类目后自动选中 list[0] 的行为不一致。根因：自动选中只在 fetchJobs 内发生，标签切换清空 selectedId 而返回 All 不重新 fetch。方案：docs/plan-r530-detail-pane-empty-after-tab-roundtrip.md。
+- 修复仅 src/pages/Jobs.tsx：selected 派生加渲染期回退 `selectedId === null ? shown[0] ?? null : null`——不写状态、不入 URL（explicitSelection 语义不变），fetch/URL/R528/R529 逻辑零改动。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：Tracked→All 往返后详情栏显示 list[0]（原空置）；空 Tracked 列表仍诚实显示「Select a job」占位；?job= 深链信息条+详情正确（R528/R529 回归）、新搜索后信息条消失、死链警示回归；375px 详情按设计隐藏、零溢出零 console 错误、存储仅基线键。
+
+## R531 — 移动端浏览器 Back 先关闭职位详情浮层再离开 /jobs（2026-08-31）
+- 一手证据（生产 CDP，375px 真实坐标点击）：/dashboard→SPA 进 /jobs→点职位行开详情浮层→浏览器 Back：直接回 /dashboard，浮层未先关闭——mobileDetail 只是 React 状态，不产生历史条目，Back 语义与移动端浮层预期（先关浮层再离开）不符。方案：docs/plan-r531-mobile-detail-back-closes-overlay.md。
+- 修复仅 src/pages/Jobs.tsx：新增 effect——mobileDetail 为真且视口 <768px 时 push `hcv-mobile-detail` 哨兵历史条目，popstate 时 setMobileDetail(false)（留在 /jobs）；浮层经应用内「Back to list」等路径关闭时清理哨兵（history.back() 消掉哨兵条目）。桌面端不建哨兵；URL 查询语义、深链、R528/R529/R530 逻辑零改动。架构先例：src/lib/useHistoryGuard.ts 哨兵模式的无确认简化版。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375px 点行开详情→Back 回列表且 URL 仍 /jobs→再 Back 回 /dashboard；?job= 深链开详情→Back 回列表；「Back to list」关闭后 Back 直接离开 /jobs（哨兵已清）；1280px 点行→Back 直接回 /dashboard（桌面无哨兵）；R528 过滤外深链信息条、R529 换选后信息条消失、R530 Tracked→All 往返详情在位全部回归；全场景零溢出零 console 错误、QA 后存储回基线键。
+
+## R532 — 移动端职位详情浮层从顶部打开，返回列表恢复原滚动位置（2026-08-31）
+- 一手证据（生产 CDP，375×812）：/jobs 列表滚到 scrollY=900 点行开详情，scrollY 仍 900——标题 h2 在视口外（y=-148）、「Back to list」按钮也在视口外（y=-202），用户落在描述中段需手动上滑。对照 Rezi Week4「Seamless Messaging Navigation…without losing your place」。方案：docs/plan-r532-mobile-detail-opens-at-top.md。
+- 修复仅 src/pages/Jobs.tsx：新增 effect——视口 <768px 且 mobileDetail 变真时记录 scrollY 到 listScrollRef 并 scrollTo(0,0)；变假且此前开过浮层（mobileDetailWasOpen 守卫，避免首挂载/刷新时干扰浏览器滚动恢复）时恢复原 scrollY。桌面端零改动；R531 哨兵、URL/深链、R528–R530 逻辑零改动。
+- tsc/单查 eslint（仅既有 fetchJobs warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375px 滚到 900 点行→详情 scrollY=0 标题可见→浏览器 Back 回列表 scrollY 恢复 900；「Back to list」路径同样恢复 900；?job= 深链冷载详情从顶部显示；1280px 点行 scrollY 保持 300 不动（桌面无干预）；R530 Tracked→All 往返详情在位；全场景零溢出零 console 错误、存储仅基线键。
+
+## R533 — SOP-10 节点：移动端 Builder 切换 pane 恢复各自滚动位置（2026-08-31）
+- SOP-10 四维复扫：7 路由×1280/375 零溢出零 console 错误；Rezi changelog（2026-08 Week4）复核，Tracked 详情描述可见性候选实测未证实、驳回。一手证据（生产 CDP，375×812）：/builder 文档高 5840，Edit 滚到 scrollY=1200 → 点「Preview & score」→ 回顶（合理）→ 点回「Edit」→ scrollY=0，编辑位置丢失——pane switcher onClick 无条件 window.scrollTo({top:0})，两 pane 共用同一页面滚动上下文（与 R532 /jobs 同类缺陷）。方案：docs/plan-r533-mobile-pane-scroll-restore.md。
+- 修复仅 src/pages/Builder.tsx：新增 paneScrollRef 记录每个 pane 的滚动 offset；切换时先存当前 pane 的 scrollY，effect 在换 pane 提交后恢复目标 pane 上次 offset（首次为 0，保持「预览首开回顶」既有语义）；同 pane 点击不再滚动。lg+ 桌面端 switcher 隐藏、双栏并排，零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375px Edit@1200→Preview 首开=0→Edit 恢复 1200→Preview 恢复 800（往返稳定）；?jump=skills 深链照常滚到 skills 卡（回归）；1280px switcher 隐藏、零 console 错误；全场景零溢出、存储仅基线键。
+
+## R534 — Score 卡 ATS 结构检查「Fix →」直达违规条目卡（2026-08-31）
+- 审计：Rezi changelog（2026-08 Week4）复核无新可落地项；/documents 移动端长列表开关文档滚动保持（900→900）、/ats-checker 移动端 Check 后报告自动入视口、Builder 底部 switcher 无遮挡——三条候选实测非缺陷、驳回。一手证据（生产 CDP，375×812）：/builder?example=software-engineer 预览 pane Score 卡「✗ 3–6 bullet points per role — "Software Engineer at Cardinal Apps"…」点 Fix → 落在 Experience 区顶（Role 1 Brightpath），Cardinal Apps 卡在视口外——检查已知道违规条目（bulletsPerEntryCheck 写入 entryId，R359 健康报告已用 jumpEntry），checks 列表 onClick 却只走 jumpToSection(c.anchor)。方案：docs/plan-r534-checks-fix-jumps-to-offending-entry.md。
+- 修复仅 src/pages/Builder.tsx checks 列表一处：`c.entryId ? jumpToEntry(c.entryId) : c.anchor && jumpToSection(c.anchor)`（渲染条件同步接受 entryId）。ats.ts、深链、健康报告、/ats-checker（贴文无条目 id，区锚点仍正确）零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Builder-YfHVehQD.js）：375px 点 bullet-count Fix → 聚焦 Role 2 Cardinal Apps 卡且 Edit pane 激活；区级检查（Punctuated bullet points）Fix → 照常跳 Experience 区；?jump=skills 深链回归；1280px 同样直达 Cardinal Apps 卡；全场景零溢出零 console 错误、存储仅基线键。
+
+## R543 — 泛用动作动词不再被提取为 JD 关键词（2026-08-31）
+- SOP-10 审计：7 路由×1280/375 复扫零溢出零 console 错误；Rezi /changelog 404、经 sitemap 改用 /rezi-changelog（有效一手源）；两条探针纠偏后驳回（首个 Builder seed 用错 Resume 结构触发的「draft couldn't be read」为探针错误非缺陷；移动端 Tailor 弹窗流程完好）。一手证据（生产 CDP，全新存储）：/ats-checker 粘贴简历+JD「…to build scalable distributed systems…」→ High 项「Add missing job keywords — 2 of 10 posting keywords are absent ("build", "scalable")」；Fix in builder → 后 R542 Target 面板渲染「+ build」chip，一键把裸动词 build 追加进 Skills——JD 套话动词被当技能关键词，Rezi keyword scanner 只对技能词。R181/R331/R357 先例未覆盖常见动作动词。方案：docs/plan-r543-generic-verb-keywords.md。
+- 修复仅 src/lib/ats.ts STOPWORDS：加入九个泛用动作动词全变位（build/create/deliver/ensure/improve/provide/maintain/develop/manage 及 -s/-ing/-ed/不规则形）；名词技能形（development/management/delivery/maintenance…）与 KNOWN_PHRASES 照旧可提取。评分公式/匹配逻辑/UI 零改动，matched/absent 计数随提取诚实重算。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375px /ats-checker 同输入 finding 变「1 of 9 … ("scalable")」（build 消失）；Builder Target 面板 Missing keywords (1) 仅「+ scalable」；1280px 同款；双视口零溢出、QA 后存储清理。
+
+## R542 — Target job 面板就地点名缺失关键词并一键加入 Skills（2026-08-31）
+- 一手证据（生产 CDP，375×812，R541 上线后）：R541/ats-checker 的 keyword Fix → 深链落 Target job 面板，但面板只有 role/company/level 输入、JD textarea 和 Tailor 按钮——**缺失关键词在目的地从未被点名**，用户必须记住 finding 里的词并去预览 pane（移动端需切 pane）找分诊卡。Rezi 的 keyword targeting 面把缺失关键词直接列在 JD 旁。方案：docs/plan-r542-target-panel-missing-keywords.md。
+- 修复仅 src/pages/Builder.tsx：Target 面板 JD 行下方，当 `resume.jobDescription.trim()` 且 `ats.missing.length>0` 时渲染紧凑块——「Missing keywords (N) — …tap to add to Skills:」+ RovingChipGroup chips（highKw 高优先在前），每个 chip 是按钮，点按追加进 resume.skills（与 Score 卡 Add to Skills 同款 append）；加入后 ats 重算、chip 立即消失（诚实反馈）；全部匹配时不渲染任何新空态。评分/Score 卡分诊/anchor 零改动。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375px chip「+ scalable」inView、点击后 skills 追加 scalable 且 chip 消失；1280px chip 在位；弹窗 keyword Fix → 落地后缺失关键词块 inView（R541 回归增强）；双视口零溢出零 console 错误、QA 后存储回五键基线。
+
+## R541 — 最高优先级 keyword 修复项在 Builder 弹窗获得 Fix →（2026-08-31）
+- 一手证据（生产 CDP，375×812，R540 上线后）：Builder「See full score breakdown」弹窗内，High 级「Add missing job keywords — 1 of 7 posting keywords are absent ("scalable")」是唯一没有 Fix → 的优先修复项，旁边所有 Med 项都有；而 /ats-checker 早已用 `f.text.startsWith('Add missing job keywords') ? 'target' : …` 文本前缀 hack 把同一项深链到 Target 面板。方案：docs/plan-r541-keyword-fix-target-anchor.md。
+- 根因：guidance.ts priorityFixes() 的 keyword 项不带 anchor（PriorityFix.anchor 类型是 SectionAnchor，没有 Target 面板的值）；弹窗只在 f.anchor 存在时渲染 Fix →。Builder 早已支持 jumpToSection('target')（JUMP_ANCHORS 含 'target'）。
+- 修复三文件：guidance.ts `PriorityFix.anchor` 拓宽为 `SectionAnchor | 'target'` 并给 keyword 项设 `anchor:'target'`；Builder.tsx 弹窗 onJump/jump 同步拓宽（entry 级 jumpEntry 仍限 SectionAnchor，'target' 永不进 entry 路径）；AtsChecker.tsx 删除文本前缀 hack，改为 `openInBuilder(f.anchor)`——共享数据即权威。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 弹窗 keyword Fix → 直达 Target job 面板（heading inView）；entry 级定位钮（→ Software Engineer I, Brightpath）回归直达聚焦；区级 Fix → 回归；/ats-checker「Fix in builder →」经 Keep saved resume 落 /builder Target 面板 inView；零溢出零 console 错误、QA 后存储回五键基线。
+
+## R540 — 程序化条目跳转不再被 pane 滚动恢复取消（2026-08-31）
+- 一手证据（生产 CDP，375×812，R539 上线后）：Preview pane 开 score breakdown，点 experience 条目定位钮——正确卡聚焦但页面不滚动（+2/4/7s 均 top 2977、scrollY 3，3/3 复现；同跑 Projects 案例正常，说明是竞态非 R539 anchor 问题）。
+- 根因：jumpToEntry/jumpToSection setMobilePane('edit') 后，R533 pane 恢复 effect 的即时 scrollTo(edit 旧 offset≈0) 若落在跳转 rAF 的 smooth scrollIntoView 之后，就取消平滑滚动、停在过期 offset；effect 与 rAF 先后依时序而定，故 Projects（多一次 JUMP_OPEN_EVENT 渲染）常胜、Experience 常败。
+- 修复仅 Builder.tsx：新增 skipPaneRestoreRef，两个 jump helper 切 pane 时置 true，恢复 effect 见标志即清除并跳过 scrollTo；switcher 按钮路径的 R533/R535 恢复行为零改动。方案：docs/plan-r540-jump-skips-pane-scroll-restore.md。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375 experience 定位 3/3 直达 inView（原 3/3 失败）、Projects 回归 inView、switcher 往返恢复 1200/600（R533/R535 回归）、1280 照常、双视口零溢出、存储回五键基线。
+
+## R539 — Score breakdown 弹窗的条目级 Fix 透传来源 anchor（2026-08-31）
+- 一手证据（生产 CDP，1280）：Projects 条目被动语态时，「See full score breakdown」弹窗内 ATS structure 的「Active voice…」Fix → 点击后 activeEntryId=null、scrollY=0——R538 只修了 Score 卡路径，弹窗的 `jumpEntry(id)` 包装（及 `onJumpEntry:(id)=>void` prop）从不透传 finding 的 anchor，折叠 Projects 区条目卡未挂载即查询、静默 no-op。
+- 修复仅 Builder.tsx 弹窗组件：`onJumpEntry`/`jumpEntry` 签名加 `anchor?: SectionAnchor`（父级 jumpToEntry 已支持），弹窗内四处条目级调用（priority fixes Fix →/→ entryLabel、维度 richFindings Fix →/→ entryLabel）均透传 f.anchor。方案：docs/plan-r539-score-dialog-entry-anchor.md。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 弹窗 Projects 被动语态 Fix → 直达 Projects 卡（折叠区自动展开、inView）、experience entryLabel 定位钮回归聚焦正确卡；零溢出、QA 后存储回五键基线。
+- 备案入银行：375px 弹窗跳 experience 条目时正确聚焦但 scrollIntoView 未生效（top 2977 / scrollY 3，疑与 R533 pane 滚动恢复竞态，R538 前即存在，Projects 案例不复现）——R540 候选。
+
+## R538 — 五个 bullet 内容检查的 Fix 直达违规来源条目（2026-08-31）
+- SOP-10 审计：7 路由×1280/375 复扫零溢出零 console 错误；Rezi changelog（Content Analysis/Entry Experience 等）无新可落地项。一手证据（生产 CDP）：Projects 条目含被动语态 bullet 时，「Active voice in bullet points」如实引用 Projects 文本，点 Fix → 却落在 Experience 区顶（Projects 在视口下方 2.5k px，activeEntryId=null）。根因：五个 bullet 级检查（active voice/strong openers/quantified/punctuated/length）收到的是 experience+projects+involvement+custom 扁平化 `string[]`，来源区与条目 id 全部丢弃、anchor 写死 'experience'。方案：docs/plan-r538-bullet-check-source-anchor.md。
+- 修复两文件：src/lib/ats.ts 新增 `BulletSource {text, anchor, id?}`、builder 路径共享 `bulletSources` 映射（experience bullets/projects description/involvement description/custom bullets 各带源 anchor+id），五检查改收 BulletSource[]，违规项返回 `entryId`+真实 anchor（quantified 保持聚合区级）；SectionAnchor 加 'projects'/'custom'；文本路径 textBulletSources 无结构 id 照旧 experience 区级。src/pages/Builder.tsx：Projects/custom 卡补 `data-entry-id`+flash-ring；新增 JUMP_OPEN_EVENT（Section 只展开不滚动），jumpToEntry(id, anchor?) 先派发展开事件——修复 Projects 区 defaultOpen=false 时条目卡未挂载、jumpToEntry 查不到的问题。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 四类检查 Fix → 均直达并聚焦精确违规卡（Projects 被动语态→Projects 卡[折叠区自动展开]、Involvement 弱开头→Code Club 卡、custom 标点→Volunteering 卡、Experience 2词短句→Brightpath 卡）；R537 locations 回归精确直达；/ats-checker 文本路径照常出报告；两视口零溢出、QA 后存储回五键基线。
+
+## R537 — Locations 检查的 Fix 直达违规条目卡（2026-08-31）
+- 审计：Rezi changelog（Week4 2026）无新可落地项。一手证据（生产 CDP，375×812）：「Locations on each entry」如实点名第二条 Experience（"Software Engineer II at Cardinal Apps"）缺 location，点 Fix → 只跳 Experience 区顶、聚焦首条，违规条目仍需人肉找；Involvement/Education 同理只到区级。根因：R534 已让 Fix 优先 `c.entryId`，但 entryLocationsCheck 的中间对象把源条目 id 丢弃、检查从不返回 entryId；且 Education/Involvement 卡片缺 `data-entry-id`（jumpToEntry 查不到）。方案：docs/plan-r537-locations-check-entry-id.md。
+- 修复两文件：src/lib/ats.ts entryLocationsCheck 条目对象带可选 `id`、返回 `entryId: offender?.id`，builder 路径 experience/involvement/education 映射各带源 id（文本路径 /ats-checker 无结构 id，照旧区级锚点）；src/pages/Builder.tsx Education/Involvement 卡补 `data-entry-id` + flash-ring（与 Experience 同款）。jumpToEntry/Fix 优先级零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-C5WeTOJw.js）：375px Experience 违规 Fix → 聚焦 Cardinal Apps 卡（卡高 1096px>视口，block:center 顶出 -142px 属预期，卡片充满视口）；Involvement 违规 Fix → 聚焦 Code Club 卡 inView；Education 违规 Fix → 聚焦 Rice University 卡 inView；1280px Experience 同款直达 inView；R535 回归（Fix 后回预览恢复 scrollY 600）；/ats-checker 文本路径照旧区级「Fix in builder →」；两视口零溢出零 console 错误、QA 后存储回基线键。QA 备注：seed 需含 contact（loadResume 无 contact 返回 null）。
+
+## R536 — Locations 检查的 Fix 对 involvement 条目跳错区（2026-08-31）
+- 审计：Rezi changelog 无新项。一手证据（生产 CDP，375×812）：仅 involvement 条目缺 location 时，「Locations on each entry」如实点名 "Volunteer Mentor at Code Club"，点 Fix → 却聚焦 **Experience 区首条 role**，Involvement 区不在视口。根因：ats.ts builder 路径 involvement 条目写死 `anchor: 'experience'`（SectionAnchor 联合类型无 'involvement'），而 Builder 的 JUMP_ANCHORS/OPTIONAL_SECTION_KEYS 早已支持 involvement。方案：docs/plan-r536-involvement-location-fix-anchor.md。
+- 修复仅 src/lib/ats.ts 两处：SectionAnchor 加 `'involvement'`；involvement 条目 anchor 改 `'involvement' as const`。文本路径（/ats-checker 粘贴）只解析 experience 块，零改动；education/experience 条目零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-D3b4DDoC.js）：375px involvement 违规 Fix → 聚焦 Involvement 区；experience 违规 Fix → 照常 Experience；education 违规 Fix → 照常 Education；?jump=involvement 深链 inView（scrollY 4825）；1280px involvement Fix → 同款直达；两视口零溢出零 console 错误、QA 后存储回基线键。
+
+## R535 — Score 卡跳转保留预览 pane 滚动位置（2026-08-31）
+- 审计：Rezi changelog 无新项。一手证据（生产 CDP，375×812）：预览 pane 滚到 600 看 checks 列表 → 点 Fix →（R534 正确直达条目）→ 点回「Preview & score」→ scrollY=0，用户在 checks 列表中的位置每次修复往返必丢。根因：jumpToSection/jumpToEntry 直接 setMobilePane('edit')，R533 的 paneScrollRef 只在 switcher onClick 里写入，程序化切 pane 从不保存预览 pane 当前 offset，恢复 effect 回到过期的 0。方案：docs/plan-r535-jump-preserves-preview-scroll.md。
+- 修复仅 src/pages/Builder.tsx：两个 jump helper 切 pane 前补一行 `if (mobilePane !== 'edit') paneScrollRef.current[mobilePane] = window.scrollY`。switcher、R533 恢复 effect、?jump= 深链、R534 entryId 优先级、桌面端零改动。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Builder-CkoTRN0P.js）：375px 预览@600 → entry 级 Fix →（聚焦 Cardinal Apps 卡）→ 回预览恢复 600；预览@900 → 区级 Fix →（Punctuated bullet points）→ 回预览恢复 900；?jump=skills 回归 inView；1280px Fix → 照常直达；全场景零溢出零 console 错误、存储仅基线键。
+
+## R544 — Target 面板缺失关键词 chip 支持「不相关」排除（2026-08-31）
+- 审计：7 路由×1280/375 复扫零溢出零 console 错误。一手证据（生产 CDP，375×812，全新存储）：R541 keyword Fix → 的落点 Target 面板，chips 仅有单一动作 `Add "…" to Skills`，面板内无任何 not relevant/exclude 路径（对照 Score 卡分诊三态早已有 × → ignoredKeywords + Excluded 恢复列表）——不相关关键词（如 oracle）在落点只能被诱导写进 Skills。方案：docs/plan-r544-target-panel-keyword-dismiss.md。
+- 修复仅 src/pages/Builder.tsx R542 块：chip 改 Score 卡同款分裂式 span（+ kw 加 Skills / × 写入 ignoredKeywords），文案如实描述两个动作；ats.ts、评分、Excluded 恢复零改动。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Builder-D4bqOw1I.js）：375/1280 chips 均带 ×；点 × oracle → chip 消失且 ignoredKeywords=['oracle'] 持久化；点 + kubernetes → skills 追加且 chip 消失；恢复入口（Excluded 列表）1280 在位、375 位于预览 pane（按既有设计需切 pane）；零溢出零 console 错误、QA 后存储回基线键。
+
+## R545 — 一键 Add-to-Skills 尊重分类技能结构（mergeSkills）（2026-08-31）
+- 一手证据（生产 CDP，375×812，全新存储）：分类技能 `Languages: python, golang\nTools: docker` 下点 Target 面板「+ kubernetes」，裸字符串追加把关键词写进最后一行分类（`Tools: docker, kubernetes`），任意分类结尾都会被污染；同种子下角色建议 chips 仍显示「+ Python」「+ Docker」（dedupe 用 split(/[,\n]/)，带标签首项 `tools: docker` 永不匹配）。R373 早有类目感知 mergeSkills，仅 assistant @@APPLY 在用。方案：docs/plan-r545-merge-skills-chips.md。
+- 修复仅 src/pages/Builder.tsx：五处裸追加（Target 面板 chips、Score 卡分诊「Add to Skills」、两个分层 chips、proven chips、角色建议 chips）全部改 mergeSkills(resume.skills,[kw])；角色建议 dedupe 改为按行剥离 `label:` 前缀后再按逗号拆分。resume.ts/ats.ts 零改动。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 分类种子点「+ kubernetes」→ skills 新增独立行（不再污染 Tools 行）；单行明文技能仍就地生长（`python, golang, kubernetes`）；「+ Python」「+ Docker」不再出现在建议 chips；零溢出、QA 后存储回基线键。
+
+## R546 — mergeSkills 在未标注尾行就地生长，不再一键一行（2026-08-31）
+- 一手证据（生产 CDP，1280×900，全新存储）：R545 上线后分类技能种子连点「+ kubernetes」「+ scalable」→ skills 变四行 `Languages…\nTools…\nkubernetes\nscalable`——mergeSkills 对多行块永远新起一行，N 次点按产生 N 条孤行；「Skills grouped into categories」检查仍 ✓（有标注行即通过），非误报但块面凌乱。方案：docs/plan-r546-merge-skills-tail-line.md。
+- 修复仅 src/lib/resume.ts mergeSkills：多行块末行为无标注明文时就地追加（`last, fresh…`），末行带标注仍新起一行（永不污染分类）；五个 chip 路径与 assistant @@APPLY 零改动受益。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：31 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 连点两 chip → `…\nkubernetes, scalable` 单行共享；末行带标注（`Languages: python`）添加 → 新起 `kubernetes` 行；单行明文照旧就地生长；零溢出、QA 后存储回基线键。
+
+## R547 — 「File uncategorized skills」把已分类块的明文尾行归档入类（2026-08-31）
+- 一手证据（生产 CDP，1280×900，全新存储）：R545/R546 后分类技能块可长成 `Languages: python, golang\nTools: docker\nkubernetes, scalable`——kubernetes 在 SKILL_CATEGORIES（Cloud & DevOps）里可识别，但 UI 无任何归档路径：「Group into categories」对含标注行的块隐藏、categorizeSkills 对混合块按设计返回 null。方案：docs/plan-r547-file-tail-skills.md。
+- 修复两文件：src/lib/resume.ts 新增 `fileTailSkills()`（仅对混合块生效：已识别尾项并入标签匹配的既有分类行——大小写不敏感、双向子串匹配，否则按 SKILL_CATEGORIES 顺序新建分类行；未识别项如 scalable 保留在明文尾行；不可归档时返回 null）；src/pages/Builder.tsx Skills 编辑器混合块条件下渲染「File uncategorized skills」按钮（用户主动触发，chip 自动追加行为零改动）。categorizeSkills/mergeSkills/ats.ts 零改动。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署照旧：31 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 混合种子按钮在位 → 点击后 `Cloud & DevOps: kubernetes` 新行、scalable 留尾行、按钮消失；`Cloud: aws\nkubernetes…` 种子 → kubernetes 并入既有 Cloud 行（标签匹配）；纯平铺列表仍显示「Group into categories」且不显示新按钮；零溢出零 console 错误、QA 后存储回基线键。
+
+## R548 — 刷新页面恢复滚动位置（2026-08-31，SOP-10 节点）
+- 四维复扫：7 路由×1280/375 零溢出零 console 错误；对照 Rezi 8 月 changelog「refresh the page without losing your place」。一手证据（生产 CDP）：/builder、/jobs、/documents、/dashboard、/ats-checker 任何视口刷新后 scrollY 全部归 0（history.scrollRestoration=auto 但 SPA 懒加载 chunk 替换 DOM 后浏览器原生恢复失败）。方案：docs/plan-r548-reload-scroll-restore.md。
+- 修复仅 src/App.tsx：新增 ReloadScrollRestore——pagehide 时按 `honestcv.scroll:<pathname>` 写 sessionStorage；仅 navigation type=reload 且无 hash 时 rAF 重试（≤3s）等页面高度足够后 scrollTo 恢复，用户先滚动（wheel/touchstart/keydown）即放弃；用后删键。ScrollReset/R531/R532/R533 滚动语义零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375+1280 /builder 滚 1200 → reload → 恢复 1200；/jobs 恢复（1280 恢复到夹紧后的 464 属预期）；#samples hash 深链照常自滚（857）；SPA push 导航照常回顶；零溢出、无页面错误；sessionStorage 键随会话生命周期自清。
+
+## R549 — 工具弹窗未生成前的输入获得关闭护栏（2026-08-31）
+- 一手证据（生产 CDP，375×812）：/builder?doc=cover 打开 Cover Letter 弹窗，三个输入框全部键入后按 Escape → 弹窗静默关闭、输入全丢、无任何确认；刷新同样无 beforeunload 提示。根因：BundleToolDialog 的 unsavedWork 只统计已生成 result（interview 另含 session/answer），生成前的 setup 输入完全无护栏。方案：docs/plan-r549-tool-dialog-input-guard.md。
+- 修复仅 src/pages/Builder.tsx：新增 inputsDirty（cover: company≠initialCompany/addressee/highlights；resignation: currentRole/lastDay/reason；interview: 手输 question；已生成或已保存后不计）并入 unsavedWork——既有关闭确认、useHistoryGuard、beforeunload 全部自动覆盖；确认文案在无生成结果时如实改为「Your typed details will be lost.」/「Your typed question will be lost.」。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 空白弹窗 Escape 照常直接关闭；键入后 Escape → 确认弹窗文案「Your typed details will be lost.」，Keep working 保留输入、Discard and close 正常关闭；零溢出零 console 错误。
+
+## R550 — 信件示例预览/载入自动填充已知事实（2026-08-31）
+- 一手证据（生产 CDP）：/documents 打开 Software Engineer 覆盖信示例，预览与「Use this example」保存的文本均保留 [Company]/[Current company]/[Your name]，而本地简历已有 targetCompany、在职经历与姓名；Builder 自身的信件生成器早已播种同类事实。方案：docs/plan-r550-letter-example-seeding.md。
+- 修复两文件：src/lib/letterExamples.ts 新增 seedLetterExample(text, kind, resume)——cover 播种 [Company]/[Facility]←targetCompany、[Current company]/[Current facility]←首个未隐藏在职经历公司、[Your name]←姓名；resignation 播种 [Company]/[Job title]←在职经历、[Your name]；无对应事实的槽位保持 [placeholder]，日期等槽位从不播种。src/pages/Dashboard.tsx 预览与保存共用同一播种文本；SEO 静态示例页与 Builder 工具模板零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：375/1280 预览显示 Acme/Globex/Ava Chen 且保存文本一致；辞职示例播种 role/company/name、[date, two weeks from today] 保留；空草稿全部占位符保留；零溢出零 console 错误；QA 存储清理回基线。
+
+## R551 — 占位符导出警示引用文档里真实存在的占位符（2026-08-31）
+- 一手证据（生产 CDP）：种本地简历（Ava Chen/Acme/Globex 在职）后 /documents「Use this example」的 Software Engineer 覆盖信（R550 已播种，全篇不含 [Company]），点 PDF 弹窗仍说 "...11 bracketed placeholders like [Company]..."，而首个真实占位符是 [Hiring manager's name]。根因：Dashboard.tsx/Builder.tsx 两个警示弹窗把示例硬编码为 [Company]。方案：docs/plan-r551-placeholder-warn-example.md。
+- 修复两文件：各自 countLetterPlaceholders 旁新增 firstLetterPlaceholder(text)=text.match(/\[[^\][\n]{1,60}\]/)?.[0] ?? '[Company]'；Dashboard 弹窗用 firstLetterPlaceholder(placeholderWarn?.text ?? '')、Builder 弹窗用 firstLetterPlaceholder(result)。计数/locator/导出/R504/R505/R507/R550 零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280 播种示例 PDF 警示引用 [Hiring manager's name]；Builder ?doc=cover 模板路径警示引用其文本首个占位符 [second relevant achievement or responsibility]；375 同款正确、零溢出零 console 错误；QA 存储清理回基线。
+
+## R552 — Dashboard「Fill them in」直达首个占位符（2026-08-31）
+- 一手证据（生产 CDP）：/documents 导出警示点「Fill them in」只打开编辑视图，textarea 选区 {start:0,end:0}、未聚焦，用户须自己找占位符；Builder 同名按钮早已 requestAnimationFrame(jumpToNextPlaceholder)（R507）选中首个占位符。根因：Dashboard 警示弹窗 handler 只 setOpenDoc/setDocText/setDocView('edit')，从不调用既有 R505 locator。方案：docs/plan-r552-fill-them-in-locates.md。
+- 修复仅 Dashboard.tsx「Fill them in」onClick：rAF 重试（≤20 帧）等 docTextRef 挂载后调用既有 jumpToNextPlaceholder（列表路径 viewer 弹窗需先挂载）；locator/计数/警示/导出/R504/R505/R507/R550/R551 零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000（Dashboard-DVqZynAx.js 已上线 200）。
+- 生产 QA：1280/375 列表路径「Fill them in」→ 选中 [Hiring manager's name]（start 5–28）；1280 viewer 路径（先 Open 再 PDF）同样选中；零溢出零 console 错误、QA 存储清理回六键基线。
+
+## R553 — 信件占位符计数覆盖长模板占位符（2026-08-31，SOP-10 节点）
+- 四维复扫：7 路由×1280/375 零溢出零 console 错误。一手证据（生产 CDP）：/builder?doc=cover「Start from a template」生成文本含 5 个 [占位符]，弹窗却报「3 placeholders left」；resignation 模板同病（报 1 实 2）。「Next placeholder」永远跳过两个长槽（[One sentence on why this company…] 内 96 字、[your strongest…] 内 80 字），短槽填完计数归 0、R504/R507 导出警示失效，用户可导出仍带明显 [方括号] 的信。根因：信件占位符正则 /\[[^\][\n]{1,60}\]/ 内长上限 60，而自家模板槽最长 96。方案：docs/plan-r553-long-placeholder-count.md。
+- 修复仅六处信件正则上限 60→120（Dashboard.tsx countLetterPlaceholders/firstLetterPlaceholder/jumpToNextPlaceholder + Builder.tsx BundleToolDialog 同名三处）；简历侧扫描（Builder 下载检查、guidance.ts 一致性扫描）保持 60 不动；模板文本/导出/计数 UI 零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 cover 模板报「5 placeholders left」且 Next placeholder 依次选中全部 5 个（含两个长槽）；resignation（未填 last day）报 3 与实际一致；零溢出；QA 存储清理回六键基线。
+
+## R554 — 信件 Preview 高亮未填占位符（2026-08-31）
+- 一手证据（生产 CDP）：/documents 自家文案承诺「placeholders show exactly what to fill in」，但保存的 cover 信 viewer Preview 页把 [role]/[Company]/[One sentence…] 等 10 个占位符渲染为普通正文（<p class="whitespace-pre-wrap"> 纯文本），信头排版下与正文完全融合；Preview 页同时隐藏计数条与「Next placeholder」，预览面完全无「还差什么」信号。Rezi 模板流程对填空槽有视觉标记。方案：docs/plan-r554-preview-placeholder-highlight.md。
+- 修复仅 Dashboard.tsx LetterPreview：新增 highlightPlaceholders(text)（按 R553 同款 /(\[[^\][\n]{1,120}\])/ 分割，命中段包 <mark> 琥珀高亮，信纸恒白底故固定 amber-100/amber-900），签名前后两处段落 map 均套用；示例预览（同组件）自动受益。导出/计数/Edit 页/Builder 弹窗零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 viewer Preview 各渲染 10 个 <mark> 占位符高亮（含长槽）、零溢出零 console 错误；QA 存储清理回六键基线。
+
+## R555 — 文档卡片显示未填占位符数（2026-08-31）
+- 一手证据（生产 CDP）：/documents 保存含 15 个 [占位符] 的 cover 示例后，列表卡片仅显示「Cover letter · Edited today」——列表面无任何未完成信号，用户只有进 Edit 页或点导出才知道信没填完；Rezi dashboard 文档卡带完成状态。方案：docs/plan-r555-doc-card-placeholder-badge.md。
+- 修复仅 Dashboard.tsx 文档卡 meta 行：cover/resignation 且 countLetterPlaceholders(d.text)>0 时追加琥珀「· N to fill」（dark 模式 amber-400）；interview 不适用；复用 R553 同款计数函数，与 Edit 页计数条恒一致。导出/警示/Preview 高亮/评分零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 含占位符 cover 卡显示「15 to fill」、改动文本后徽标随计数变化、interview 文档不显示徽标、零溢出；QA 存储清理回六键基线。
+
+## R556 — 保存文档重名时自动编号（2026-08-31）
+- 一手证据（生产 CDP）：/documents 对同一份「Software Engineer」信件示例点两次「Use this example」，出现两张标题、meta、徽标完全相同的「Software Engineer cover letter」卡片，无法区分；代码实证 saveCareerDoc 从不查重，示例/Builder「Save to My resumes」/「Import a cover letter」三条保存路径全撞。简历副本（R358/R369）与文档 Duplicate 早已编号，唯独新保存路径缺失。方案：docs/plan-r556-numbered-doc-save-titles.md。
+- 修复仅 src/lib/documents.ts：提取 numberedDocTitle(title, docs)（被占用时剥 " (copy|N)" 尾缀从 (2) 起找空位），saveCareerDoc 落库前套用；duplicateCareerDoc 改用同一 helper（行为不变）。Rename 不查重（尊重用户命名）；调用方零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：30 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280 连用三次示例 → 「…」「… (2)」「… (3)」，Duplicate 回归 → 「… (4)」；375 再保存 → 「… (5)」；零溢出；QA 存储清理回六键基线。
+
+## R557 — 已保存文档按标题搜索（2026-08-31）
+- 一手证据（生产 CDP，1280×900）：/documents 播种 12 份混合文档后页面无任何搜索框（input[type=search] 为空），只有 kind chips；对比 My resumes 副本早有「Search copies」（R360），文档列表是唯一不可检索的长列表面。R556 编号标题落地后同名多版本更多，按标题查找需求更真实。方案：docs/plan-r557-doc-title-search.md。
+- 修复仅 src/pages/Dashboard.tsx：docQuery state + kind chips 行左侧 R360 同款「Search documents」搜索框（docs.length>0 时渲染），列表 filter 叠加标题子串匹配（大小写不敏感、与 kind 过滤组合），零匹配时「No documents match “…”.」诚实提示；查询不入 URL（与 copies 一致）；?kind/卡片操作/导出/R555 徽标零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280 键入 acme → 只剩 3 张匹配卡、+Cover letters chip 组合 → 2 张、zzz → 零卡+诚实提示、清空恢复；375 键入 globex → 1 张；两端零溢出；QA 存储清理回六键基线。
+
+## SOP-04 阶段汇报 · R553–R557（5 轮）
+- 结论：R553 信件占位符计数覆盖长模板槽（#774）、R554 预览高亮未填占位符（#775）、R555 文档卡「N to fill」徽标（#776）、R556 保存文档重名自动编号（#777）、R557 文档列表按标题搜索（本轮）。主题：/documents 文档面「占位符可见性 → 命名可区分 → 列表可检索」闭环。
+- 质量：每轮方案先入库 docs/plan-r55x-*.md（一手生产 CDP 实证），本地 tsc/单查 eslint/build/verify-dist 全绿，独立生产复验；5 轮零逃逸、零 AI 配额、零真实分享/支付/leads。
+- 待办：#599–#778 级联待合并；R390 测试 lead qa-r390@example.com 待从 KV 删除；Cloudflare token Routes code 10000、GitHub Actions 按规禁用维持现状。
+
+## R558 — SPA Back/Forward 恢复滚动位置（2026-08-31，SOP-10 节点）
+- 一手证据（生产 CDP）：1280×900 /dashboard 滚到 1432 → 点「Career documents」SPA 链接 → 浏览器 Back 落在 330（2/2 复现）——懒加载路由块+异步内容让 POP 时刻文档还矮，原生恢复被 clamp；R548 只修了 reload。对照 Rezi 8 月 Week4「navigate to messages or refresh the page without losing your place」。方案：docs/plan-r558-pop-scroll-restore.md。
+- 修复一：src/App.tsx——`history.scrollRestoration='manual'`；ScrollReset 用 sessionStorage（honestcv.scrollByEntry）按 location.key 存每个历史条目 scrollY，POP 且无 hash 时用共享 scrollOnceTall（R548 同款 rAF ≤3s 等高度足够、用户先滚动即放弃）恢复；PUSH/REPLACE 换 pathname 才回顶；ReloadScrollRestore 复用同一 helper。
+- 修复二（QA 发现的第二根因）：Dashboard/Builder/Jobs 八处 URL 同步 `replaceState(null,…)` 抹掉 React Router entry state，key 塌缩回 "default" 导致 forward 恢复错位——全部改为 `replaceState(window.history.state,…)`；/jobs 哨兵与 useHistoryGuard 的 pushState 零改动。
+- tsc/单查 eslint（仅两条既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280 两次完整往返 back→1432/fwd→0/back→1432；375 back→1500/fwd→0/back→1500；R548 reload 恢复 1200；#samples hash 深链 821；/jobs 移动端哨兵回归（点行→state hcv-mobile-detail、Back 关详情留 /jobs、列表滚动 600 恢复）；?jump=skills 深链 4283；Builder pane 切换恢复 1200（R533 回归）；12 路由×1280/375 零溢出、零 console 错误；QA 存储清理回六键基线。
+
+## R559 — 职位 Tailoring report「+N more」可展开（2026-08-31）
+- 一手证据（生产 CDP）：/jobs?q=react 选 Lemon.io Senior React 职位开 Tailoring report——「covered 4 of 30 job keywords」，High priority missing 只列 10 个后跟死文本「+14 more」（span 不可点），24 个高优先缺失关键词中 14 个永远不可见；「Also missing」同病。同一详情面板下方 Skills 标签的「+14 more」却是可展开按钮（R244 模式 tagsExpandedId）。对照 Rezi 关键词 targeting 全量列出缺失关键词。方案：docs/plan-r559-report-keyword-overflow.md。
+- 修复仅 src/pages/Jobs.tsx：新增 reportKwExpandedId（按 job id 键控，换职位自动折叠回 10 个），报告内两处「+N more」span 改为展开按钮（Skills 展开器同款样式），点击展示该职位全部缺失关键词；评分/worker/存储零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。
+
+## R560 — /jobs 空草稿时诚实提示「Add your resume」（2026-08-31）
+- 一手证据（生产 CDP，六键干净基线）：/jobs?q=react 选中职位后详情面板既无「N% keyword match」也无「Tailoring report」入口，整个匹配面静默消失，新用户完全不知道功能存在；代码确认 matchOf 空草稿返回空 map、selectedReport 空文本返回 null、报告开关仅在 selectedReport 存在时渲染。对照 Rezi 8 月「Instant Job Match Scores」。方案：docs/plan-r560-empty-draft-match-hint.md。
+- 修复仅 src/pages/Jobs.tsx：当选中职位且草稿为空且该职位无 targeted copy 时，在报告开关位置渲染 muted 提示「Add your resume（链接 /builder）to see how it matches this job's keywords.」；评分/报告/持久化零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿；生产复验：1280/375 干净基线提示在位且链到 /builder、播种草稿后提示消失且 match%+报告恢复（R559 回归正常）、零溢出零 console 错误、存储回六键基线。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+
+## R562 — Builder Target 面板回链到被跟踪的职位（2026-09-06）
+- 一手证据（生产 CDP，1280×900，播种 1 角色草稿）：经 /jobs 目标化流程落入 /builder 打开 targeted copy 后，页面上指向 /jobs 的链接只有头部导航（Jobs / Job search）；用户在 Target 面板处理完缺失关键词后没有任何回到该职位复查 match%/Tailoring report 的路径，须手动重找。代码证实 Builder.tsx 零处 /jobs?job= 链接，而 pipeline entry 早存 resumeVersionId、/jobs 早支持 ?job= 深链（R407/R528）。对照 Rezi 8 月 Week2 tailoring 流职位上下文双向保持。方案：docs/plan-r562-target-panel-job-link.md。
+- 修复仅 src/pages/Builder.tsx：memo 计算 linkedJob（listPipeline 中 resumeVersionId===activeVersionId 的 entry.job）；Target 面板顶部有 linkedJob 时渲染 muted 行「This copy is tailored to "…" at … · View it on the jobs board →」（SPA Link 到 /jobs?job=<id>）；评分/chips/linkVersion/深链语义零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（生产实测已服务新 bundle index-s4SDlH2t.js）。
+- 生产 QA：1280/375 targeted copy 打开后回链行在位且 inView、点击落 /jobs?job=2091101 详情面板可见（match/report 在位）；普通草稿（无 activeVersionId）零渲染；零溢出；QA 存储清理回六键基线。
+
+## R561 — Tailoring report 缺失关键词获得直达编辑器的行动路径（2026-08-31）
+- 一手证据（生产 CDP，1280×900，播种 1 角色草稿）：/jobs?q=react 选 Senior React 职位开 Tailoring report——报告点名 28 个缺失关键词（10 高优先 + 「+16 more」 + Also missing），但报告内唯一可交互元素是「Hide tailoring report」和「+16 more」；关键词没有任何行动路径，用户须自行发现别处的「Target my resume」再在 Builder 里找到 Target 面板的 R542/R544 chips。对照 Rezi 8 月 tailoring 流从 match 报告直达编辑器。方案：docs/plan-r561-report-keywords-action.md。
+- 修复仅 src/pages/Jobs.tsx：confirmTarget intent 联合加 'keywords'（对话框文案/标签按 target 同款处理）；targetResume 对 keywords intent 导航到 /builder?jump=target（普通 target 仍 /builder、cover 零改动）；报告有缺失关键词时尾部渲染「Add these keywords in the editor →」按钮，复用既有确认对话框，落地 Target 面板（R542/R544 chips 可加 Skills/可排除）。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署照旧：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 报告尾部按钮在位 → 确认对话框（Create copy and open editor）→ 落 /builder 且「Missing keywords (N)」块 inView、chips 可操作；二次进入走「Open targeted copy」路径同样落位；R560 空草稿提示回归（无报告无按钮）、R559 展开回归；零溢出零 console 错误；QA 存储清理回六键基线。
+
+## R563 — Cover letter 流程自动跟踪职位，信件与职位保持关联（2026-09-06）
+- 一手证据（生产 CDP，播种 1 角色草稿）：/jobs 未跟踪职位点「Cover letter」→ 确认 → 生成 → 「Save to My resumes」后，honestcv.jobPipeline 仍为 []，careerDocs 保存的 cover doc 无任何职位关联；职位面板的 Cover letter 行（R384，读 entry.coverDocId）永远无法显示，Tracked 计数也不增加。代码证实根因：setPipelineCoverDoc（jobs.ts:447）只 map 既有 entry，对未跟踪职位是静默 no-op；Jobs.tsx cover 分支不像 target 流（prepareTargetedCopy 532–536 upsert 'saved'）那样先跟踪职位。方案：docs/plan-r563-cover-flow-tracks-job.md。
+- 修复仅 src/pages/Jobs.tsx：targetResume cover 分支导航前，未跟踪则 upsertPipeline(job,'saved')（applyPipeline 处理存储错误）；未跟踪确认对话框文案追加「The job is saved to your tracked applications so the letter stays linked to it.」；setPipelineCoverDoc/Builder 保存钩子/interview 流零改动。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA：1280/375 未跟踪职位 cover 流 → 对话框新文案在位 → pipeline 出现 saved entry → 模板路径保存后 coverDocId 已链 → /jobs?job= 详情面板显示「Cover letter: Lemon.io — Cover letter · Open」；零溢出；QA 存储清理回六键基线。本轮早期探针曾消耗一次生产 AI 生成（后续改用 Start from a template 模板路径避免配额）。
+
+## R564 — Interview prep 文档与被跟踪职位建立关联（2026-09-06）
+- 一手证据（生产 CDP，applied:2091101）：职位面板「Open interview prep」→ /builder（无 job 参数）→ 模板路径保存 interview 文档后，pipeline entry keys 仅 job,status,updatedAt,history,resumeVersionId——无任何 interview 文档关联，职位面板也无处显示已写的 prep brief；cover 早在 R384/R563 已闭环。方案：docs/plan-r564-interview-brief-links-job.md。
+- 修复三文件：src/lib/jobs.ts（PipelineEntry.interviewDocId?、sanitize/upsert 保留、setPipelineInterviewDoc helper）；src/pages/Jobs.tsx（openInterviewPrep 导航带 &job=<id>；详情面板新增 Interview prep: 标题 · Open 行，与 cover 行同款，链 /documents?doc=）；src/pages/Builder.tsx（interview 工具透传 toolJobId，保存钩子对 interview 调 setPipelineInterviewDoc）。
+- tsc/单查 eslint（仅既有 2 warning）/build/verify-dist 绿。部署：资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA：1280/375 applied 职位 → Open interview prep → /builder 打开 Interview Prep Brief → Start from a template → Save to My resumes → pipeline entry 带 interviewDocId → /jobs?job= 面板显示「Interview prep: … — Interview prep · Open」且 Open 落 /documents；零溢出；QA 存储清理回六键基线；零 AI 配额消耗。
+
+## R565 — Resignation letter 与 offer 阶段职位建立关联（2026-09-06）
+- 一手证据（生产 CDP，offer:2091101）：offer 状态下一步「Open resignation letter」→ /builder?doc=resignation（无 job 参数）→ 模板路径保存 resignation 文档后 entry keys 仍无任何文档关联，职位面板无处显示已写的辞职信；targeted/cover/interview 三类文档均已闭环（R183/R384+R563/R564）。方案：docs/plan-r565-resignation-letter-links-job.md。
+- 修复三文件（与 R564 同款模式）：src/lib/jobs.ts（PipelineEntry.resignationDocId?、sanitize/upsert 保留、setPipelineResignationDoc）；src/pages/Jobs.tsx（offer 分支导航带 &job=<id>；详情面板新增 Resignation letter: 标题 · Open 行）；src/pages/Builder.tsx（jobId 透传条件简化为 toolOpen !== null，保存钩子对 resignation 调 setPipelineResignationDoc）。
+- tsc/单查 eslint（仅既有 2 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-kVkULu1c.js）：1280/375 offer 职位 → Open resignation letter → 模板路径保存 → entry 带 resignationDocId → /jobs?job= 面板显示「Resignation letter: … · Open」且 Open 落 /documents；零溢出；QA 存储清理回六键基线；零 AI 配额消耗。备案：模板路径保存的辞职信标题为「Untitled — Resignation letter」（联系人姓名未播种，R398 只兜底了 interview，候选后续轮）。
+
+## R566 — 辞职信标题点名雇主（2026-09-06）
+- 一手证据（生产 CDP，R565 备案跟进）：模板路径保存的辞职信正文已写明「my position as Software Engineer at Globex」，标题却是「Untitled — Resignation letter」——保存 docTitle 只用弹窗 company 输入，忽略 insertTemplate 早已使用的在职雇主兜底；cover/interview 标题早有兜底（R398）。方案：docs/plan-r566-resignation-title-names-employer.md。
+- 修复仅 src/pages/Builder.tsx：把 insertTemplate 内的 currentJob 查找提升为弹窗级 ongoingJob（首个非隐藏、在职的经历条目），模板播种与保存标题共用；resignation docTitle 改为 company || ongoingJob?.company || 'Untitled'。
+- tsc/单查 eslint（仅既有 1 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-CO-GGYDA.js）：1280 模板保存 →「Globex — Resignation letter」；键入 Initech →「Initech — …」（键入优先）；375 无在职经历且未键入 →「Untitled — …」兜底保留；零溢出；QA 存储清理回六键基线；零 AI 配额消耗。
+
+## R567 — /documents 卡片回链被跟踪职位（2026-09-06）
+- 一手证据（生产 CDP，index-CO-GGYDA.js）：种子 pipeline entry（Senior Engineer at Globex，coverDocId/resignationDocId 已链）后，/documents 卡片 meta 只有「Cover letter · Edited today」——职位 → 文档方向 R384/R564/R565 早已闭环，文档 → 职位完全不可见。方案：docs/plan-r567-documents-link-back-to-job.md。对照 Rezi 8 月「Improved Application Tracking」。
+- 修复仅 src/pages/Dashboard.tsx：import listPipeline，useMemo（依赖 docs）建 docId → PipelineEntry 映射（扫 coverDocId/interviewDocId/resignationDocId 三字段），文档卡 meta 行追加「· for <Link to=/jobs?job=id>Senior Engineer at Globex</Link>」（SPA Link，无关联零渲染）。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-CHNPPW6-.js）：1280 cover/resignation 卡各显示「· for Senior Engineer at Globex」，点击落 /jobs?job=j1 详情面板（offer 状态、Resignation letter 行在位）；无关联文档零渲染；375 同款且零溢出；QA 存储清理回六键基线；零 AI 配额消耗。
+
+## R568 — 文档查看器回链被跟踪职位（2026-09-06）
+- SOP-10 节点。先证伪一个候选：删除已链接文档后 pipeline 留 dangling coverDocId，但 /jobs 面板查不到文档即隐藏该行——无用户可见症状，不立案。一手证据（生产 CDP）：/documents?doc=d1 查看器弹窗描述只有「Cover letter — edits are saved to this browser.」，零职位链接；而 /jobs Open（R384/R564/R565）落点正是该弹窗。方案：docs/plan-r568-viewer-links-back-to-job.md。
+- 修复仅 src/pages/Dashboard.tsx 查看器 DialogDescription：openDoc 命中 jobByDoc（R567 同款映射）时追加「Written for <Link to=/jobs?job=id>Senior Engineer at Globex</Link>.」；无关联零渲染；useHistoryGuard 链接拦截天然覆盖未保存编辑。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-7_UaM6dz.js）：1280/375 查看器链接在位、点击落 /jobs?job=j1 详情面板（Cover letter 行在位）、无关联文档零渲染、脏编辑点链接 → 确认弹窗且留在 /documents、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R569 — /jobs 关联信件行显示未填占位符计数（2026-09-06）
+- 一手证据（生产 CDP）：/documents 卡片（R555）显示「· 4 to fill」，但 /jobs 详情面板同一文档的「Cover letter: … Open」行零未完成信号——决定「能否投递」的正是这个面板。对照 Rezi 8 月 Improved Application Tracking（追踪器内呈现材料状态）。方案：docs/plan-r569-jobs-rows-show-placeholder-count.md。
+- 修复仅 src/pages/Jobs.tsx：新增同款 countLetterPlaceholders（1–120 字正则，与 R553 对齐），cover/resignation 行在标题后追加琥珀「N to fill」（amber-700/dark amber-400，与 R555 同色）；interview 行不适用；填完（0 占位符）零渲染。
+- tsc/单查 eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-B6_DyRtL.js）：1280/375 cover「4 to fill」+resignation「1 to fill」在位且与 /documents 卡计数一致、填完信件零徽标、interview 行不变、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R570 — /dashboard 简历副本卡回链被跟踪职位（2026-08-31）
+- 一手证据（生产 CDP）：pipeline entry 早存 resumeVersionId（targeted copy），/documents 卡片（R567）已有「· for Senior Engineer at Globex」回链，但 /dashboard 同一份 targeted copy 卡片只显示「Edited today · ATS 11/100」，副本面零跟踪信号、无路径回到职位的 match%/报告。对照 Rezi 8 月 Improved Application Tracking。方案：docs/plan-r570-resume-copy-cards-link-tracked-job.md。
+- 修复仅 src/pages/Dashboard.tsx：新增 jobByVersion memo（扫 listPipeline 的 resumeVersionId），versionCard 与 versionRow meta 行追加「· for <SPA Link>title at company</Link>」（R567 同款样式，落 /jobs?job=<id>）；无关联副本零渲染。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-5MBmJ8Ho.js）：1280/375 linked 副本卡回链在位、点击落 /jobs?job=j1 详情面板、无关联副本零渲染、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R571 — /dashboard「Job search」卡显示实时管线状态（2026-08-31）
+- 一手证据（生产 CDP，375）：管线有 1 条 applied+过期提醒时，/jobs 显示「Needs follow-up (1)」、行内「Follow up due」，但 /dashboard 的 Job search 快捷卡副标题恒为静态「Remote jobs + your application pipeline」，主工作台对被跟踪申请与到期跟进零信号。先证伪多个候选（descriptionTruncated 提示、dangling resumeVersionId、空副本空态均已诚实）。对照 Rezi 8 月 Improved Application Tracking（tracker interface for clearer visibility）。方案：docs/plan-r571-dashboard-jobs-card-live-pipeline-status.md。
+- 修复仅 src/pages/Dashboard.tsx：mount 时读 listPipeline().length 与 attentionCount()（既有 helper），卡片副标题在 tracked>0 时改为「N tracked application(s)」+ attention>0 时琥珀「· M need(s) follow-up」（amber-700/dark amber-400，R555 同色）；空管线保持原文案；导航/存储/评分零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（Dashboard-_5vEa70r.js，375）：2 tracked+1 到期 →「2 tracked applications · 1 needs follow-up」（琥珀）、1 tracked 无到期 →「1 tracked application」无琥珀、空管线恢复静态文案、卡片仍链 /jobs、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R572 — /jobs 跨年日期显示年份（2026-08-31）
+- 一手证据（生产 CDP）：pipeline 条目 remindOn=2020-01-01 时，/jobs 详情面板显示「Reminder due Jan 1 — consider following up.」——过期六年的提醒与即将到来的 Jan 1 无法区分；同一 shortDate/shortDay 还格式化时间线（Applied · Sep 6）与 Tracked 行提醒 chip，任何跨年日期同样歧义。方案：docs/plan-r572-cross-year-dates-show-year.md。
+- 修复仅 src/pages/Jobs.tsx：提取 shortDateOf(date)，当日期年份 ≠ 当前年时追加 year:'numeric'，同年保持「Mon D」紧凑格式；shortDate/shortDay 共用；存储/提醒逻辑/评分零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000（既有 token 权限缺口）。
+- 生产 QA（index-CNGI6V6y.js）：1280/375 详情面板「Reminder due Jan 1, 2020」、Tracked tab 行 chip 同样带年、同年时间线仍「Applied · Sep 6」无年、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R573（SOP-10 节点）— Tracked 行显示未到期跟进提醒（2026-08-31）
+- 四维复扫：7 路由 ×（1280/375）零横向溢出、存储基线完好。一手证据（生产 CDP）：remindOn=2027-03-15（未到期）时，详情面板只有 date input 里能看到日期，页面文本零提及；Tracked 行只有 stale「No update · Nd」与到期「Follow up due」两种 chip——已排程未到期的提醒在队列面零信号。方案：docs/plan-r573-upcoming-reminder-chip.md。
+- 修复仅 src/pages/Jobs.tsx：行 chip 块新增未到期分支——muted 边框 chip「Follow-up {shortDay(remindOn)}」（复用 R572 年份感知格式），琥珀仍专属需关注状态；存储/提醒逻辑/评分零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-DqvSD9zj.js）：1280/375 Tracked 行「Follow-up Mar 15, 2027」chip 在位、到期行仍琥珀「Follow up due」、无提醒行零 chip、零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R574 — Dashboard 跟进状态深链到已筛选队列（2026-08-31）
+- 一手证据（生产 CDP）：播种 j1（applied，remindOn=2020-01-01 已到期）+ j2（无提醒），/dashboard Job search 卡显示「2 tracked applications · 1 needs follow-up」（R571），但 href 是裸 /jobs——用户落在默认 feed，须自己找 Tracked tab 和 needs-follow-up 筛选；而 /jobs?attention=1（R254）在生产可用且过滤正确。方案：docs/plan-r574-dashboard-attention-deeplink.md。
+- 修复仅 src/pages/Dashboard.tsx：Job search 快捷卡 to 在 trackedAttention>0 时改为 /jobs?attention=1，否则保持 /jobs；文案/存储/管线零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Dashboard-DdVIcGz-.js）：1280/375 有到期跟进时卡 href=/jobs?attention=1、点击落 /jobs?tab=tracked&attention=1 且只显示需关注行（Globex 在、Initech 被滤）、零溢出；无到期时 href 回 /jobs；QA 存储清理回六键基线；零 AI 配额。
+
+## R575 — /jobs?attention=1 直接选中需跟进的申请（2026-08-31）
+- 一手证据（生产 CDP）：播种 j1（Globex，applied，remindOn=2020-01-01 到期），开 /jobs?attention=1（R574 dashboard 深链落点）：队列过滤正确，但桌面详情面板自动选中 feed 第一个无关职位（Coalition Technologies），跟进操作面（Draft follow-up、提醒控件）显示的是用户从未跟踪的职位。根因：fetchJobs 选中兜底恒为 list[0]。方案：docs/plan-r575-attention-deeplink-selects-followup-job.md。
+- 修复仅 src/pages/Jobs.tsx：一次性 ref seedAttentionSelect（seedAttention 且无 ?job= 时为真），fetchJobs 兜底命中时选中首个 staleDays!==null||reminderDue 的 pipeline entry（与队列过滤同谓词），消费后恢复原行为；?job= 深链与后续搜索不受影响。
+- tsc/单查 eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（Jobs-DVrkVPQm.js）：1280/375 attention 深链详情面板显示 Globex（Follow up due 在位）、无 Copywriter；裸 /jobs 仍选中 feed 首个职位；零溢出；QA 存储清理回六键基线；零 AI 配额。
+
+## R576 — 跟进后可一键关闭关注状态（2026-08-31）
+- 一手证据（生产 CDP）：到期+stale 的 Globex 申请，打开 Draft follow-up email 复制并关闭后，「Follow up due」「No update in 10 days」「Needs follow-up (1)」全部原样保留——跟进循环无法闭合，唯一手动出口 Clear reminder 也不影响 staleness（基于最后一次状态变更）。方案：docs/plan-r576-mark-followed-up.md。
+- 修复两文件：jobs.ts 增 PipelineEntry.followedUpAt?（sanitize/upsert 保留）、staleDays 改从 max(最后状态变更, followedUpAt) 计、新增 markFollowedUp(jobId)（置 now 并清 remindOn）；Jobs.tsx followUpDraft 携带 jobId、弹窗 footer 新增「Mark as followed up」按钮（applyPipeline + 关弹窗）。过滤谓词/存储键/文案零改动。
+- tsc/eslint（仅既有 exhaustive-deps warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280 到期+stale → 弹窗四按钮（Close/Open in email app/Mark as followed up/Copy email）→ 点击后琥珀信号全消、Needs follow-up (0)、followedUpAt 写入、remindOn 清除、reminder input 空；375 stale-only interviewing 同样闭环；零溢出；存储清理回六键基线；零 AI 配额。
+
+## R577 — 跟进事件写入申请时间线（2026-08-31）
+- 一手证据（生产 CDP）：种入 followedUpAt=3 天前的 applied 条目，/jobs 详情面板全文无「Followed up」——时间线只渲染状态变更（Applied · 日期），R576 记录的跟进事实用户无处可见。方案：docs/plan-r577-followed-up-in-timeline.md。
+- 修复仅 Jobs.tsx 时间线 <ol>：状态步与可选 { label:'Followed up', at:followedUpAt } 事件合并按时间排序渲染，末项高亮逻辑不变；存储/过滤/文案零改动。
+- tsc/eslint（仅既有 warning）/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280「Applied · Aug 27 → Followed up · Sep 3」按序在线、无 followedUpAt 条目零渲染回归、375 同样在位、零溢出、存储回六键基线、零 AI 配额。
+
+## R578 — 二次跟进邮件如实点名首次跟进（2026-08-31，SOP-10 节点）
+- 四维复扫：7 路由 × 1280/375 零溢出零 console 错误。一手证据（生产 CDP）：种入 applied 10 天前 + followedUpAt 2 天前，「Draft follow-up email」正文仍是首触措辞「I applied … and wanted to follow up」，已记录的跟进被忽略，用户会发出装作从未跟进过的重复邮件。方案：docs/plan-r578-second-followup-email.md。
+- 修复仅 src/lib/jobs.ts followUpEmail：followedUpAt 晚于最后状态变更时，applied/interviewing 开场白改为点名跟进日期的 check-in（「…and followed up on Sep 4; I wanted to check in again…」）；offer 感谢流与无跟进条目措辞零改动。
+- tsc/eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 跟进后草稿点名「followed up on Sep 4」、无 followedUpAt 条目保持原措辞、interviewing 变体同样在位、零溢出、存储回六键基线、零 AI 配额。
+
+## R579 — Tracked 队列行显示已完成的跟进（2026-08-31）
+- 一手证据（生产 CDP）：标记跟进后（R576/R577），详情面板时间线有「Followed up」，但 Tracked 队列行零信号——行 chip 只覆盖 stale/到期/未到期提醒三态，已完成跟进不可见，扫队列无法区分「3 天前跟进过」与「从未动过」。方案：docs/plan-r579-followed-up-row-chip.md。
+- 修复仅 src/pages/Jobs.tsx 行 chip 块：followedUpAt 晚于最后状态事件且行未显示 stale/due 琥珀 chip 时，渲染 muted 边框 chip「Followed up <shortDate>」（R572 年份感知格式）；存储/attention/面板零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 跟进行 chip 在位、无跟进行零渲染、再度 stale 行只显琥珀「No update」、零溢出、存储回六键基线、零 AI 配额。
+
+## R580 — 详情面板直接「Mark as followed up」（2026-08-31）
+- 一手证据（生产 CDP）：stale/到期提醒的详情面板只有「Draft follow-up email」与提醒日期输入，「Mark as followed up」唯一入口在跟进邮件弹窗 footer（R576）——电话/LinkedIn/当面跟进的用户必须打开一个不需要的邮件编辑弹窗才能清除关注状态。方案：docs/plan-r580-mark-followed-up-in-pane.md。
+- 修复仅 src/pages/Jobs.tsx canDraft 块：Draft 按钮旁新增同款「Mark as followed up」按钮，调 applyPipeline(markFollowedUp(entry.job.id))；弹窗 footer 按钮保留，存储/队列零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 stale+到期条目点面板按钮 → 琥珀信号全消、Needs follow-up 过滤钮隐藏（计数归零即隐藏，既有行为）、时间线出现「Followed up」、R579 行 chip 在位、remindOn 清除、零溢出、存储回六键基线、零 AI 配额。
+
+## R581 — Tracked 行状态时间用真实状态变更时刻（2026-08-31）
+- 一手证据（生产 CDP）：播种 history 显示 applied 10 天前、updatedAt=now 的条目（同状态 upsertPipeline——如已跟踪职位再走 cover/target 流——即产生此形态），Tracked 行同时显示「Applied today」与「No update · 10d」，状态时间与 stale chip、详情时间线互相矛盾。方案：docs/plan-r581-row-status-recency.md。
+- 修复仅 src/pages/Jobs.tsx：updatedAtOf map 改为 statusChangedAtOf（取 timelineOf 末步 at），行标签「Applied N days ago」与 staleDays/时间线同源；队列排序仍按 updatedAt，存储/面板零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA：1280/375 分歧条目显示「Applied 10 days ago」且「Applied today」消失、新状态变更仍「Interviewing today」、stale chip 一致、零溢出、存储回六键基线、零 AI 配额。
+
+## R582 — 取消跟踪前确认已链接文档（2026-09-06）
+- 一手证据（生产 CDP）：播种带 coverDocId、单状态事件、无笔记的条目，状态选「No status」→ 零确认直接删除，pipeline 变 []，R563–R567 建立的职位↔文档关联（面板行、卡片/查看器回链）静默消失。守卫只查 notes/timeline>1。方案：docs/plan-r582-untrack-linked-docs-guard.md。
+- 修复仅 src/pages/Jobs.tsx：新增 linkedDocCount（cover/interview/resignation 三 id 计数），setStatus('none') 守卫追加 linkedDocCount>0，确认弹窗文案如实列出「its link(s) to N saved documents」并说明文档保留但失去职位关联；bulk untrack/存储零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-D4i0-5V1.js）：1280 双文档条目弹窗列「2 saved documents」、Cancel 保留、确认后删除；无关联条目仍静默取消跟踪；375 单文档条目「1 saved document」单数正确、零溢出、存储回六键基线、零 AI 配额。
+
+## R583 — 批量取消跟踪弹窗如实披露文档关联损失（2026-09-06）
+- 一手证据（生产 CDP）：播种 2 条跟踪条目（1 条带 coverDocId+interviewDocId），bulk 选择 →「Untrack 2」→ 弹窗只提 timelines/notes，零字未提已链文档，确认后关联静默消失；R582 只修了单行路径，bulk 文案是静态字符串。方案：docs/plan-r583-bulk-untrack-linked-docs.md。
+- 修复仅 src/pages/Jobs.tsx：bulk 确认弹窗 description 汇总 visibleBulkIds 命中条目的 linkedDocCount，>0 时追加「their link(s) to N saved documents」+ 文档保留但失去关联说明；0 时原文案不变，流程/存储零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-BaygWKhQ.js）：1280 混合选择弹「links to 2 saved documents」、确认后 pipeline 清空且 2 份文档保留；无关联选择保持原文案；375 同文案、零溢出；存储回六键基线、零 AI 配额。
+
+## R584 — 删除文档弹窗如实披露职位关联（2026-09-06）
+- 一手证据（生产 CDP）：已链 coverDocId 的文档在 /documents 点 Delete，弹窗只说「removes the document from this browser permanently」，零字未提这是某跟踪申请的求职信、确认后 /jobs 面板行消失；R582/R583 修了 untrack 方向，删除文档是最后一个静默销毁职位↔文档关联的路径。方案：docs/plan-r584-delete-doc-job-link.md。
+- 修复仅 src/pages/Dashboard.tsx：confirmDeleteDoc 弹窗 description 命中 jobByDoc 时追加「It's linked to your tracked <title> application at <company>; that application loses this document.」；无关联原文案不变，删除/Undo 流程零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-GapHqH9P.js）：1280 已链文档弹披露文案、确认删除后 Undo 恢复且关联回归、无关联文档保持原文案；375 同文案零溢出；存储回六键基线、零 AI 配额。
+
+## R585 — 删除简历副本弹窗如实披露职位关联（2026-08-31）
+- 一手证据（生产 CDP）：已链 resumeVersionId 的 targeted copy 在 /dashboard 点 Delete，弹窗只说「removes the copy from this browser permanently」，零字未提这是某跟踪申请的目标简历，确认后申请静默失去简历/match%/报告基础；R584 修了文档方向，副本是最后一个静默删除的已链工件。方案：docs/plan-r585-delete-copy-job-link.md。
+- 修复仅 src/pages/Dashboard.tsx：confirmDelete 弹窗 description 命中 jobByVersion 时追加「It's the targeted resume for your tracked <title> application at <company>; that application loses this resume.」，share-link 句保留在后；无关联原文案不变，删除/Undo 流程零改动。
+- tsc/单查 eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-BmZm-ZJL.js）：1280 已链副本弹披露、无关联副本原文案；375 同文案零溢出；存储回六键基线、零 AI 配额。
+
+## R586 — 批量删除副本弹窗如实披露职位关联（2026-09-06）
+- 一手证据（生产 CDP）：播种 2 份副本（1 份被 applied 条目 resumeVersionId 引用），/dashboard Select… → Select all → Delete 2，弹窗只说「removes the selected copies…permanently」（仅 share-link 特例），确认后 pipeline 留下悬空 resumeVersionId；R585 只修了单副本 confirmDelete，confirmBulkDelete 是最后一个未查 jobByVersion 的副本删除路径。方案：docs/plan-r586-bulk-delete-copies-job-links.md。
+- 修复仅 src/pages/Dashboard.tsx：bulk 弹窗统计 bulkSelected 命中 jobByVersion 数，1→「One of them is the targeted resume for a tracked application, which loses this resume.」，n→「n of them are targeted resumes…」，share-link 句保留在后；0 命中原文案不变，删除/Undo/存储零改动。
+- 备注：崩溃的前会话已把同款代码部署上线（index-DMbVIuI_.js / Dashboard-cAN39G-7.js，本地构建 chunk 与线上 sha256 逐字节一致）但未推分支/PR，本轮补齐仓库；PR #807（基于 R585 分支链）。
+- tsc/单查 eslint/build/verify-dist 绿。生产 QA：1280 单链/双链/无链三态文案正确、375 双链零溢出、零 console 错误、存储回基线、零 AI 配额。
+
+## R587 — 取消跟踪确认并披露目标简历副本（2026-09-06）
+- 一手证据（生产 CDP，index-CcGhXt2r.js）：仅带 resumeVersionId（无笔记/文档/多步时间线）的 saved 条目点掉「Saved」→ 零确认直接删除，副本留下但职位↔副本链断；代码上重新 Save 会走 `!linkedVersion → prepareTargetedCopy` 再造一份「… (2)」重复副本。R582/R583 守卫与两处弹窗只查 linkedDocCount（三 doc id），第四种链接 resumeVersionId 从未披露。方案：docs/plan-r587-untrack-discloses-targeted-copy.md。
+- 修复仅 src/pages/Jobs.tsx：setStatus('none') 守卫追加 `linkedVersion(job.id)`（副本仍存在才算）；单条弹窗新增「its link to the targeted copy "<name>"」并把尾句改为「The copy stays on your dashboard, but loses its link to this job; saving it again starts a new targeted copy.」（带文档时「The copy and saved documents stay, but lose their link…」）；bulk 弹窗统计有活副本的条目数，追加「plus their link(s) to N targeted resume cop(y|ies)」，尾句单复数自适应；无链接原文案不变，取消跟踪本身零改动（副本永不删除）。
+- tsc/单查 eslint（0 错误，L258 既有 exhaustive-deps 警告未动）/build/verify-dist 绿。部署：29 资产+worker 上传成功（index-AZ1YhpkC.js / Jobs-CYddL7y0.js）、Workers Routes auth code 10000。PR #808（基于 R586 分支链）。
+- 生产 QA（~/qa/r587-evidence.cjs）：1280/375 单条带副本弹窗含副本名、Cancel 保留链；1280/375 bulk「Untrack 2」（1 条带副本）文案「plus their link to 1 targeted resume copy. The copy stays…」；无任何关联条目仍静默取消跟踪；零溢出、零 console 错误、存储回基线、零 AI 配额。
+- QA 工具：~/qa/lib.cjs（CDP 连 Chrome、honestcv.qa=1 标记、shot/seed/keys/overflow）+ r586-evidence.cjs / r587-evidence.cjs，非仓库文件。
+## R588 — SOP-10 四维审计节点 + /dashboard 移动端快捷链横向溢出（2026-09-06）
+- 审计（生产 index-AZ1YhpkC.js，零 AI/分享/支付）：7 路由 × 1280/375 CDP 复扫零 console 错误；/ 与 /builder 的超出元素均为有意 overflow-x-auto 内滚；唯一真实页面溢出为 /dashboard 375：`md:hidden` 两张快捷链卡（AI assistant / Job search）scrollWidth 367 > clientWidth 360（360 视口下溢出 22px），副标题 `truncate` 失效。rezi.ai 公开页（首页/features/pricing）三支柱 Build/Score/Target 已对齐，社会证明差距沿 R298 缓议。方案：docs/plan-r588-sop10-audit-dashboard-quicklinks-overflow.md。
+- 根因：grid 隐式 auto 轨道按子项 min-content 定尺，`<Link class="flex">` 作为 grid item 缺 `min-width:0`，nowrap 副标题的整行宽度撑大轨道；内层 `span.min-w-0` 拦不住 min-content 传播（skill 第 52 条）。现场注入 `style.minWidth='0'` 先验证有效再改代码。
+- 修复仅 src/pages/Dashboard.tsx：两张快捷链 `<Link>` 增加 `min-w-0`。tsc/eslint/build/verify-dist 绿。部署：29 资产+worker 上传成功、Workers Routes auth code 10000。
+- 生产 QA（index-CjPZ6zOd.js / Dashboard-W88Lr8Rr.js）：375 → scrollWidth 360 = clientWidth，卡右缘 344，第一张卡副标题真实省略号；360 → 345 = 345；1280 卡不渲染无回归；7 路由复扫零溢出零 console 错误；QA 存储清理回二键基线（含删除扫描时 /builder 产生的 honestcv.resumeHistory）。PR #809（基于 #808 链式分支）。
+- QA 教训：部署后紧接的第一次 CDP 测量仍命中旧 bundle（Chrome 同标签复用），先用 `fetch(url,{cache:'reload'})` + `document.scripts` 确认 index 哈希再判定。
+
+## R589 — 重新保存职位时重连已有目标副本，不再造重复（2026-09-06）
+- 证据（生产 index-CjPZ6zOd.js，真实职位 2091088，零 AI）：取消跟踪后 qa-v1 留在 dashboard；再 Saved 同一职位 → 由通用草稿新建「Sales Jedi — Creative Force (2)」并链上，定制过的 qa-v1 成孤儿、Target my resume 打开的是未定制副本。方案：docs/plan-r589-resave-reconnects-targeted-copy.md。
+- 修复仅 src/pages/Jobs.tsx：新增 `orphanTargetedCopy(job)`（未被任何 pipeline 条目链接、且 data.targetRole/targetCompany 与职位精确相等的副本）；`prepareTargetedCopy` 先复用它再 `createResumeVersion`；Saved/Target/Keywords 三入口在草稿为空但存在孤儿副本时同样重连。R587/R583 弹窗尾句改为「…reconnects if you save this job again / saving a job again reconnects its copy」。tsc/eslint/build/verify-dist 绿；部署 29 资产+worker，Workers Routes code 10000 依旧。
+- 生产 QA（index-BY6J6j0c.js / Jobs-B6vJpE3B.js）1280+375：匹配组 → versions 仍 1 份、pipeline 重指 qa-v1、详情面板显示 Targeted copy / Open targeted resume；对照组（副本 targetCompany=Other Corp）→ 仍新建「(2)」；375 scrollWidth 360 无溢出；弹窗新文案落地；存储回二键基线；零 console 错误。
+- QA 教训：种草稿必须含 `experience: []`，否则 `loadResume()` 判为不可读返回 null，Saved 不会生成副本，误判为「无重复」。
+
+## R590 — 孤儿目标副本在 Cover letter / Interview prep / 任意状态入口与确认弹窗一致重连（2026-09-06）
+- 证据（生产 index-BY6J6j0c.js，真实职位 2091088，零 AI）：孤儿副本存在时点 Cover letter，弹窗仍称「sets … on your current draft … replaces the draft's current target job」，确认后草稿被改写、职位 saved 但 resumeVersionId 空，定制副本继续孤儿；R589 遗漏：Target my resume 弹窗在孤儿场景仍显示「This saves a copy … / Create copy and open editor」与实际重连行为不符；Applied 等非 saved 状态直接入库不重连。方案：docs/plan-r590-orphan-copy-cover-interview-status-paths.md。
+- 修复仅 src/pages/Jobs.tsx：新增 `targetedCopyOf(job)=linkedVersion??orphanTargetedCopy`；cover/interview 路径改用它并在入库后 `setPipelineVersion` 重连；`setStatus` 任何状态在存在孤儿副本时重连（新建仍仅 saved+有内容）；confirmTarget 弹窗新增孤儿分支文案（cover：「opens the resume copy you already targeted … links it to this job again」；target：「You already saved a copy … links it to this job again」，按钮「Reconnect targeted copy」）。tsc/eslint/build/verify-dist 绿；部署 index-CRU121oZ.js / Jobs-D-JmhQZ_.js，Workers Routes code 10000 依旧。
+- 生产 QA 1280+375（qa/r590-verify.cjs 四场景）：cover → 新文案、草稿=副本内容、active=qa-v1、pipeline saved→qa-v1、进入 /builder；target → Reconnect 文案同结果；applied → pipeline applied→qa-v1 不新建；nocopy 对照 → 文案/行为同现状（saved、无副本）；375 弹窗 scrollWidth 375 无溢出；存储回基线；零 console 错误。PR 链：#810（R589）→ R590。
+
+## R591 — Cover letter / Interview prep 不再就地改写草稿，避免静默把正在编辑的目标副本 A 改指向职位 B（2026-09-06）
+- 证据（生产 index-CRU121oZ.js，真实职位 A=2091088 / B=1185979，零 AI）：草稿=副本 qa-vA 内容且 activeVersionId=qa-vA（用户正在编辑 A 的目标副本）时，在职位 B 点 Cover letter 并确认 → `saveResume(next); syncActiveVersion(next)` 把改写后的草稿回写进 qa-vA：qa-vA.targetCompany 由 Creative Force 变 IAPWE，而 pipeline 仍显示 A→qa-vA；用户无感知。对照 Target my resume 路径新建副本 B、A 完好。方案：docs/plan-r591-cover-letter-no-longer-retargets-active-copy.md。
+- 修复仅 src/pages/Jobs.tsx：cover/interview 入口 `version = targetedCopyOf(job) ?? (resumeHasContent(draft) ? prepareTargetedCopy(job) : null)`；有内容 → 与 Target 一致新建副本 B 并激活；仅空草稿才沿用就地设目标。confirmTarget cover 分支新增「有内容且无副本」文案（saves a copy … opens it in the editor, then opens the cover letter tool … Your other resumes keep their own target jobs）。tsc/eslint/build/verify-dist 绿；部署 index-D7KLdISK.js / Jobs-BdWcdwSH.js，Workers Routes code 10000 依旧。
+- 生产 QA 1280+375（qa/r591-evidence.cjs）：cover → 新文案；确认后 versions 新增「Freelance Writer — IAPWE」(targetCompany=IAPWE) 且 qa-vA.targetCompany 仍 Creative Force；pipeline B→新副本、A→qa-vA；active=新副本；空草稿对照 → 原文案/原行为（saved、无副本）；存储回基线；零 console 错误。PR 链：#811（R590）→ R591。
+
+## R592 — 孤儿副本匹配放宽：同公司 +（同职位名 或 同 JD）（2026-09-06）
+- 证据（生产 index-D7KLdISK.js，真实职位 2091088，零 AI，qa/r592-evidence.cjs editedrole）：编辑器允许改 Target role；孤儿副本 targetRole=「Sales Jedi (SaaS, EU)」同公司同 JD，再点 Saved → R589 精确匹配失败，重新造「(2)」副本并改链，定制副本继续孤儿。方案 docs/plan-r592-orphan-copy-match-by-description.md。
+- 修复仅 `orphanTargetedCopy`：公司名精确一致 &&（职位名一致 || 非空 JD 逐字一致）。部署 index-C2sZMszZ.js / Jobs-D-Beg0Mb.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：editedrole → 无「(2)」、pipeline→qa-v1；match 同；control（Other Corp）仍新建「(2)」；375 scrollWidth 360<375；存储回基线；零 console 错误。PR 链：#812（R591）→ R592。
+
+## R593 — Dashboard 标注「目标职位已不再跟踪」的副本并给回路（2026-09-06）
+- 证据（生产 index-C2sZMszZ.js，qa/r593-evidence.cjs）：孤儿目标副本在 Job applications 分组里与通用副本无任何区别（`Edited today · ATS 8/100 · Job applications`，无链接），看不出它针对哪个职位、职位已不再跟踪、也无回路；ATS 分仍按已不跟踪的 JD 计算。方案 docs/plan-r593-dashboard-discloses-orphaned-targeted-copies.md。
+- 修复仅 src/pages/Dashboard.tsx：卡片/列表共用 `targetNote(v)`：有链接 → 原「for <Title at Company>」；无链接且 targetRole 非空 → 「targeted at role[ at company]」，jobDescription 非空再加「job no longer tracked — find it again」→ `/jobs?q=role`（/jobs 已支持 ?q 种入搜索）。部署 index-3R7pVACX.js / Dashboard-B4Q3Zp0-.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：孤儿行显示新注记与链接，点击落 /jobs?q=Sales+Jedi 且搜索框=Sales Jedi；已链接/通用副本文案不变；375 文案自然换行、无页面溢出（/jobs 360<375）；存储回基线；零 console 错误。PR 链：#813（R592）→ R593。
+
+## R594 — 复制已链接副本后不得标成「job no longer tracked」（2026-09-06）
+- 证据（生产 index-3R7pVACX.js 含 R593，真实职位 1185979，qa/r594-evidence.cjs）：Duplicate 已链接副本 → (2) 行显示「job no longer tracked — find it again」，但该职位仍在跟踪（原副本链接）；假陈述 + 错误回路。方案 docs/plan-r594-duplicate-of-linked-copy-not-labelled-untracked.md。
+- 修复：lib/jobs.ts 新增共享 `copyTargetsJob(data, job)`（同公司 &&（同职位名 || 非空同 JD）），Jobs.tsx `orphanTargetedCopy` 改为复用；Dashboard `targetNote` 无链接分支先查 pipeline 是否有匹配的已跟踪职位 → 「targeted at … · tracked job uses another copy」→ `/jobs?job=id`；无则保留 R593 注记。Dashboard 新增 `pipeline` memo（随 versions 重读）供 jobByVersion 与 targetNote 共用。部署 index-DW8pJ9nt.js / Dashboard--PH4LYFu.js / Jobs-B9eVb9CM.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：Duplicate 场景显示新注记与 /jobs?job=1185979；R593 孤儿场景与 R592 editedrole 重连均不回归；375 无页面溢出；存储回基线；零 console 错误。PR 链：#814（R593）→ R594。
+
+## R595 — Jobs 入口覆盖未保存独立草稿前如实披露并可先存副本（2026-09-06）
+- 证据（生产 index-DW8pJ9nt.js，真实职位 2091088，qa/r595-evidence.cjs）：编辑器为独立草稿（activeVersionId=null、有内容），职位已有目标副本时，「Open targeted resume」「Cover letter」弹窗只说 "the editor opens that copy"，「Open interview prep」无弹窗；三者均直接用副本覆盖草稿，草稿无处可寻（resumeHistory 只按 10 分钟检查点，不是找回路径）。/dashboard 的 Open 早已对同一情形做「Save draft as copy, then open」确认，jobs 页缺位。方案 docs/plan-r595-jobs-actions-replace-standalone-draft-without-warning.md。
+- 修复（Jobs.tsx）：`draftAtRisk(job)` = 无 active copy && 草稿有内容 && 职位已有（链接或孤儿）副本；confirmTarget intent 增 'interview'，Next step 的 Open interview prep 仅在 at-risk 时经弹窗；弹窗 at-risk 时追加 "Your current draft isn't saved as a copy, so opening that copy replaces it." 并加「Save draft as copy, then open」（saveResumeVersion，命名同 dashboard）。部署 index-zmgvaTzh.js / Jobs-DJEAOQVN.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：target/cover/interview 三路弹窗均带警示；Save-then-open 后新副本「Product Designer」保留独立草稿内容并打开目标副本；直接 Open 仍覆盖（已明示）；synced 草稿的 interview prep 无弹窗、行为不变；375 无页面溢出；存储回基线；零 console 错误。PR 链：#815（R594）→ R595。
+
+## R596 — Builder「Resume copies」Delete 改为确认并披露职位链接（2026-09-06）
+- 证据（生产 index-zmgvaTzh.js，真实职位 2091088，qa/r596-evidence.cjs）：/builder → Copies → Delete 已链接副本：无确认、无披露、无撤销，副本即刻消失，pipeline 仍留 resumeVersionId=qa-linked 悬空；/dashboard 同一操作（R586）有确认+披露+撤销。方案 docs/plan-r596-builder-copy-delete-confirms-and-discloses-job-link.md。
+- 修复（Builder.tsx）：`confirmDeleteCopy` 状态 + 叠加 Dialog，文案与 dashboard 同源（permanently；tracked 职位句；share link 句；正在编辑该副本句），确认后走原 deleteResumeVersion → revokeShareLinksFor → linkVersion(null)。撤销仍仅 dashboard 具备（builder 无 toast 基建）。部署 index-CFFK4vtn.js / Builder-Dwg_wVz8.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：linked 副本弹窗含 tracked 句；Cancel 不改动；Delete 移除副本；plain 副本弹窗无职位句；375 无页面溢出；存储回基线；零 console 错误。PR 链：#816（R595）→ R596。
+
+## R597 — Builder「Resume copies」Open 保护未保存的独立草稿（2026-09-06）
+- 证据（生产 index-CFFK4vtn.js，qa/r597-evidence.cjs）：activeVersionId=null + 有内容草稿，/builder → Copies → Open 任一副本：无确认，草稿被副本内容覆盖，仅有弹窗底部被动脚注。/dashboard 卡片 Open 与 /jobs（R595）同场景均确认并提供「Save draft as copy, then open」。方案 docs/plan-r597-builder-open-copy-guards-standalone-draft.md。
+- 修复（Builder.tsx）：`confirmOpenCopy` + `openCopy(v)`；仅在 activeVersionId===null && resumeHasContent(resume)（lib 匹配器，与 R595 同源）时弹叠加确认：Cancel / Save draft as copy, then open（saveResumeVersion 经 applyVersions，存储满则告警不打开）/ Open and replace draft。已同步草稿与空草稿仍一键直开。部署 index-CUHZrqF-.js / Builder-DtY2gvIL.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：独立草稿→弹窗；直开替换；先存再开生成「Product Designer」副本（内容=原草稿）后打开目标副本；已同步草稿对照组无弹窗直开；375 无页面溢出；存储回基线；零 console 错误。PR 链：#817（R596）→ R597。
+
+## R598 — SOP-10 四维审计节点 + Builder 删除副本补齐 10s Undo（2026-09-06）
+- 审计（生产 index-CUHZrqF-.js，零 AI）：7 路由 × 1280/375 无页面级溢出（仅首页表格 / builder chip 条两处有意内滚）；历史悬空 pipeline 指针（resumeVersionId 指向已删副本，qa/r598-dangling.cjs 真实职位 1185979）在 /jobs 优雅回落为「Target my resume」、/dashboard 正常，无需迁移；Rezi 公开页新增 MCP 服务器 / 真人审阅 / 教学视频，均依赖账号+云端数据，与 RezUp「免注册本地数据」定位冲突，列为需老板决策的战略候选（是否引入账号体系）。可即修缺口：/builder Copies→Delete 有确认披露但无 Undo（dashboard 有）。方案 docs/plan-r598-sop10-audit-builder-copy-delete-undo.md。
+- 修复（Builder.tsx）：`undoDeleteCopy {version,index,wasActive}` 10s 自动消失；Undo = `restoreResumeVersion(version,index)`（原 id 原位，pipeline 链接随之恢复有效）+ 删除时正在编辑且此后未打开别的副本则 `linkVersion` 恢复同步；Undo 条在 copies 弹窗打开时渲染于弹窗内（w-full，避免 375 撑宽弹窗），关闭后落底部状态栈。部署 index-BvSP89EA.js / Builder-BkjDcX6n.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（qa/r596-evidence.cjs undo / undo-closed / undo-active / cancel）：删除已链接副本→弹窗内 Undo 条→Undo 后 versions 回 [qa-linked, qa-plain]、pipeline→qa-linked 有效；Esc 关闭弹窗后底部 toast 仍可 Undo；正在编辑的副本删除后 active=null，Undo 后 active=qa-linked；Cancel 不改动；375 弹窗不撑宽、无页面溢出；存储回基线；零 console 错误。PR 链：#818（R597）→ R598。
+
+## R599 — Builder「Resume copies」行显示目标职位/链接状态（与 dashboard 同源）（2026-09-06）
+- 证据（生产 index-BvSP89EA.js，真实职位 2091088，qa/r599-evidence.cjs rows）：seed 链接副本 / 同职位复制品 / 职位已不跟踪的孤儿 / 通用副本四行，Copies 弹窗 meta 完全同质「日期 · Job applications · ATS 8/100」，无法区分哪份被 tracked 职位使用、哪份重复、哪份职位已不跟踪，也无回到职位的链接；/dashboard 同批副本自 R593/R594 起已有三态注记。方案 docs/plan-r599-builder-copies-dialog-shows-tracked-job.md。
+- 修复：Dashboard 内联 `targetNote` 提为共享组件 `src/components/CopyTargetNote.tsx`（`<CopyTargetNote version pipeline />`，逻辑不变，Dashboard 改用）；Builder 弹窗打开时 `copiesPipeline = listPipeline()`（memo on versions/versionsOpen），每行 meta 追加该组件；meta 行去掉 `truncate` 改为换行，行布局在 <sm 改为上下堆叠（原 375 名称列被四个按钮挤到 ~60px 是既有问题）。部署 index-aTQIbJNA.js / Builder-DQfld2Md.js / Dashboard-DE-2A_M-.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：Copy A 行「for Sales Jedi at Creative Force」→ /jobs?job=2091088（点击落地详情 h2=Sales Jedi）；Copy A (2)「tracked job uses another copy」；Copy B「job no longer tracked — find it again」；General resume 无追加；375 行堆叠、弹窗不撑宽、无页面溢出；/dashboard r593/r594 脚本文案与链接零回归；存储回基线；零 console 错误；零 AI。PR 链：#819（R598）→ R599。
+
+## R600 — Stop-tracking 弹窗只统计仍存在的文档（2026-09-06）
+- 证据（生产 index-aTQIbJNA.js，qa/r600-evidence.cjs single/bulk/control）：pipeline 条目带 `coverDocId` 但该文档已在 /dashboard 删除（id 保留供 Undo 重连）时，Untrack 仍弹确认并称「deletes its link to 1 saved document … saved documents stay」；批量 2 职位 3 个悬空 id 称「links to 3 saved documents」；而 /jobs 详情已正确不显示 Cover letter 行。根因 Jobs.tsx `linkedDocCount` 只数 id，未像 `linkedVersion`（R587）那样核对存在性。方案 docs/plan-r600-untrack-dialog-counts-only-existing-documents.md。
+- 修复：`linkedDocCount` 以 `listCareerDocs()` 现存 id 过滤；untrack 门控、单个/批量 Stop tracking 文案三处同源受益；悬空 id 仍保留（文档 Undo 依赖）。部署 index-DkJtB7HB.js / Jobs-D8oK_Y0o.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：悬空单个 → 无确认直接移除、pipeline 空；悬空批量 → 文案仅「timelines and notes … Targeted resume copies stay」；对照（文档真实存在）→ 文案与之前完全一致；375 无页面溢出；存储回基线；零 console 错误；零 AI。PR 链：#820（R599）→ R600。
+
+## R601 — 已有已链接 cover letter / interview brief 被新保存内容替换链接时如实披露（2026-09-06）
+- 证据（生产 index-DkJtB7HB.js，qa/r601-evidence.cjs）：职位已链接 `coverDocId=qa-doc1` 时，/jobs「Cover letter」弹窗与 /builder 工具均不提已有信；Start from a template → Save 生成「Globex — Cover letter (2)」并把 pipeline 链接静默切到新 id，旧信保留但在 dashboard/documents 失去「for … at Globex」标注。interviewDocId/resignationDocId 同路径。newest-wins 本身合理，问题是不告知（R591/R594 立场：不静默移动链接）。方案 docs/plan-r601-second-cover-letter-discloses-existing-linked-letter.md。
+- 修复（不改保存逻辑）：Jobs.tsx `linkedDoc(jobId, kind)`（按 `listCareerDocs()` 核对存在性，悬空 id 不触发）→ cover/interview 确认弹窗开头追加「This job already has the saved cover letter “<title>” — a letter you save from the tool becomes its cover letter instead; the current one stays in your documents.」+ 次级按钮「Open saved letter / Open saved brief」→ `/documents?doc=<id>`；Builder.tsx `BundleToolDialog` 新增 `existingDoc`，有结果且未保存时在 Save 行下显示「This job already has “<title>” saved — Save makes this one the cover letter/interview brief/resignation letter linked to the job; the earlier one stays in My resumes.」，Save 后消失。部署 index-DJjbFGDT.js / Jobs-C2F2bXRa.js / Builder-BDtG7fZ5.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（flow / open-saved / interview / control）：弹窗含标题与新按钮；Open saved letter 落 /documents 并打开该信 viewer；模板生成后工具显示 note，Save 后 note 消失、pipeline → 新 id、qa-doc1 保留；interview 经 at-risk 弹窗「Open saved brief」同样成立；对照组文案不变；375 无页面溢出（builder 360<375）；存储回基线；零 console 错误；网络仅 quota/search/billing 读取、零 AI 生成。PR 链：#821（R600）→ R601。
+
+## R602 — 文档记住自己为哪份职位而写（superseded / untracked 不再退化为通用文档）（2026-09-06）
+- 证据（生产 index-DJjbFGDT.js，qa/r602-evidence.cjs）：pipeline `coverDocId=qa-doc2` 时 /documents 仅 qa-doc2 显示「for Site Reliability Engineer at Globex」，旧信 qa-doc1（同为该职位所写）与「General cover letter」文案完全相同；取消跟踪后三者全部无职位标注。根因：`CareerDoc` 不持久化来源职位，dashboard 只从 pipeline 活链反推（`jobByDoc`）。方案 docs/plan-r602-documents-remember-the-job-they-were-written-for.md。
+- 修复：documents.ts 新增 `DocJobRef {id,title,company}` 与 `CareerDoc.forJob?`（sanitize 保留合法值，非法丢弃；rename/update/duplicate 经 spread 保留）；`saveCareerDoc(kind,title,text,forJob?)`；Builder.tsx `BundleToolDialog` Save 时从 `listPipeline()` 取该 `jobId` 的职位快照传入（dashboard 导入/示例信两处调用不带职位，不变）。Dashboard.tsx 新增 `trackedJobIds` + `docTargetNote(doc, sentence)`：活链 → 「for <Title at Company>」（链到 /jobs?job=）；有 forJob 且职位仍跟踪但链的是别的文档 → 「written for <Title at Company> · job uses another cover letter/interview brief/resignation letter」（链到 /jobs?job=）；有 forJob 但职位已不跟踪 → 「… · job no longer tracked — find it again」（链到 /jobs?q=<title>，与 R593 副本口径一致）；无 forJob → 不加注。列表行与 viewer 头部同源。不迁移旧文档（R602 前保存的活链文档仍显示「for …」，取消跟踪后仍无标注——如实）。部署 index-CYkh35We.js / Dashboard-Ctr_I7pN.js / Builder-BoIwAfgE.js / Jobs-bZN5KsX8.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（superseded / untracked / control / save）：四态文案与链接均如上；点击「job uses another …」落 /jobs?job=qa-j1 且职位卡打开；「find it again」落 /jobs?q=Site+Reliability+Engineer；save 模式经 /builder?doc=cover&job=qa-j1 → Start from a template → Save，存储中新文档带 `forJob{id,title,company}`、pipeline 指向新 id，随后清空 pipeline 该文档即显示 untracked 文案；对照组无变化；375 无页面溢出（360<375）；存储回基线（builder 访问遗留的 honestcv.resumeHistory 已清）；零 console 错误；网络仅 quota/billing/search 读取、零 AI 生成。PR 链：#822（R601）→ R602。
+
+## R603 — 职位卡显示为该职位所写的其他文档；链接失效时可一键「Use for this job」（2026-09-06）
+- 证据（生产 index-CYkh35We.js，qa/r603-evidence.cjs）：`coverDocId=qa-doc2` 已被删除（悬空 id 为 Undo 刻意保留）而 qa-doc1（forJob=该职位）仍在时，/jobs?job=qa-j1 跟踪面板与对照组完全相同——没有任何 cover letter 行；已链 qa-doc2 且 qa-doc1 也存在时只显示 qa-doc2。方案 docs/plan-r603-job-card-shows-earlier-documents-written-for-the-job.md。
+- 修复（Jobs.tsx）：`earlierDocsFor(entry, kind)` = 该 kind 且 `forJob.id === job.id` 且非当前链接的文档（按 updatedAt 降序）；`earlierDocRows(entry, kind, hasLinked)`：有活链 → 「Earlier cover letter: <title> · Open」；无活链（悬空或未设）→ 「Cover letter (not linked): <title> · Open · Use for this job」，后者经 `applyPipeline(setPipelineCoverDoc/InterviewDoc/ResignationDoc)` 显式重链（不自动改链，R591 立场）。三种 kind 对称；无 forJob 的旧文档不受影响。部署 index-C6BOe8aU.js / Jobs-BEP6KRmZ.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（dangling / extra / control / interview）：dangling 显示 not-linked 行，点 Use for this job 后 pipeline→qa-doc1、行变为普通「Cover letter:」；Open 落 /documents viewer 且显示「Written for …」；extra 显示已链行 + Earlier 行、无 Use 按钮；control 不变；interview 对称；375 无页面溢出；存储回基线；零 console 错误；网络仅 quota/search/billing 读取、零 AI 生成。PR 链：#823（R602）→ R603。
+
+## R604 — 职位卡在孤儿目标副本存在时如实说「Reconnect targeted copy」（2026-09-06）
+- 证据（生产 index-C6BOe8aU.js，qa/r604-evidence.cjs）：`resumeVersionId` 悬空（副本已删）但仍有一份 `copyTargetsJob` 匹配的孤儿副本时，/jobs 跟踪面板与「完全没有副本」的对照组一字不差：「Next step: Create a resume targeted at this job. / Target my resume」；点开弹窗才说「You already saved a copy … links it to this job again / Reconnect targeted copy」（R589/R590）。卡片声称会新建、且不透露副本已存在。方案 docs/plan-r604-job-card-says-reconnect-when-orphan-copy-exists.md。
+- 修复（Jobs.tsx）：`nextStep()` 在无活链时先查 `orphanTargetedCopy(job)`——有则「Reconnect the copy you already targeted at this job — “<name>”.」/「Reconnect targeted copy」；主按钮同理三态（Open targeted resume / Reconnect targeted copy / Target my resume）。点击行为不变（仍走确认弹窗显式重链）。部署 index-DRUZwNMy.js / Jobs-BokqBt2q.js。
+- 生产 QA 1280+375（orphan / none / linked）：orphan 卡片与主按钮均改为 Reconnect 文案、弹窗不变；none/linked 不变；无页面溢出；存储回基线；零 console 错误；零 AI 调用。QA 助手 lib.cjs 新增 CDP `Network.setCacheDisabled`，避免复验时读到浏览器缓存的旧 HTML（本轮首跑曾误读 C6BOe8aU）。PR 链：#824（R603）→ R604。
+
+## R605 — Builder「Target job」区披露孤儿目标副本（职位用的是别的副本 / 职位已不跟踪）（2026-09-06）
+- 证据（生产 index-DRUZwNMy.js，qa/r605-evidence.cjs）：编辑副本 A（目标 SRE @ Globex）时，仅当 pipeline 正链 A 才显示「This copy is tailored to … View it on the jobs board →」；职位链的是副本 B、或职位已取消跟踪时，Target job 区与普通草稿完全相同（无任何提示），而 dashboard（R593/R594）与 builder Copies 弹窗（R599）早已区分这两态。方案 docs/plan-r605-builder-target-section-discloses-orphaned-copy.md。
+- 修复（Builder.tsx）：`targetedTrackedJob` = 有 activeVersionId、无活链、`copyTargetsJob({targetRole,targetCompany,jobDescription}, e.job)` 命中的跟踪职位 → 「This copy is targeted at “<title>” at <company>, but that tracked job uses another copy. View it on the jobs board →」（/jobs?job=）；`targetJobUntracked`（编辑副本、无活链、无命中、targetRole+jobDescription 非空）→ 「This copy is targeted at “<role>” at <company> — that job is no longer tracked. Find it again →」（/jobs?q=<role>）。只披露不改链（显式重链仍走 /jobs 弹窗）；独立草稿不变。部署 index-QCaHi5o9.js / Builder--qcXTlrZ.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（linked / other / untracked / draft）：linked 文案不变；other/untracked 显示新文案，链接分别落 /jobs?job=qa-j1 与 /jobs（q 已喂入搜索框后被清理，与 R593 一致）；draft 无提示；无页面溢出（1265<1280、360<375）；存储回基线；零 console 错误；网络仅 billing/quota/search 读取、零 AI 生成。PR 链：#825（R604）→ R605。
+
+## R606 — 取消跟踪职位补齐 10s Undo（原位恢复状态/时间线/备注/提醒/四条链接）（2026-09-06）
+- 证据（生产 index-QCaHi5o9.js，qa/r606-evidence.cjs）：applied 职位含 2 步时间线、备注、resumeVersionId、coverDocId、提醒；状态芯片 → 弹窗如实披露「deletes its application timeline (2 status changes), your notes, its link to 1 saved document, its link to the targeted copy …」→ Stop tracking 后 `honestcv.jobPipeline=[]`，页面唯一 role=status 为「18 jobs found」，无任何 Undo；plain（无弹窗）路径同样。对照：删除副本（dashboard/builder R598）与删除文档均有 10s Undo 原位恢复——取消跟踪是关系图中唯一一键不可逆、且销毁最多（时间线+备注+提醒+4 链）的动作；「saving it again reconnects the copy」仅在职位仍在搜索结果时成立，且不恢复时间线/备注/文档链接。方案 docs/plan-r606-untrack-gets-undo.md。
+- 修复：jobs.ts 新增 `RemovedPipelineEntry {entry,index}` 与 `restorePipelineEntries(removed)`（按原 index 插回，期间已重新跟踪的职位跳过）。Jobs.tsx 新增 `untrack(ids)`：先从当前 `pipeline` 快照 {entry,index}，再 `removeManyFromPipeline`，再 `setUndoUntrack`；三条路径（无弹窗芯片切换 / 单职位确认弹窗 / 批量 Untrack N 弹窗）统一走它；底部 role=status 条「Stopped tracking “<title>” / Stopped tracking N jobs · Undo · ✕」，10s 自动消失，与 storage alert 同容器堆叠。弹窗文案不变（链接确实被删，Undo 10s 内可还原）。部署 index-B8dU4zi8.js / Jobs-BUa8Ler2.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（untrack / plain / bulk / expire）：三路径 Undo 后 pipeline 逐字段恢复（status/notes/resumeVersionId/coverDocId/remindOn/2 步 history；bulk 两条按原序）、芯片重新 pressed / 两行重现、Undo 条消失；expire 11s 后 Undo 不再可见；无页面溢出（1265<1280、360<375，375 下标题截断显示）；存储回基线；零 console 错误；网络仅 quota/search 读取、零 AI 生成。PR 链：#826（R605）→ R606。
+
+## R607 — /documents 文档备注：职位链接已失效/不存在时不再谎称「job uses another cover letter」（2026-09-06）
+- 证据（生产 index-B8dU4zi8.js，qa/r607-evidence.cjs）：文档 forJob=跟踪职位 SRE@Globex，pipeline.coverDocId 分别为「另一份存在的信」「指向已删文档的悬空 id」「未设置」三种状态，/documents 行备注三者完全相同：「job uses another cover letter」——后两者职位实际没有任何 cover letter，断言为假；而 /jobs 同一状态（R603）如实显示「Cover letter (not linked) · Use for this job」。方案 docs/plan-r607-dashboard-doc-note-when-job-link-is-gone.md。
+- 修复：Dashboard.tsx `trackedJobIds`(Set) → `trackedEntries`(Map id→entry)，新增 `jobLinksLiveDoc(entry, kind)`（按 kind 取 coverDocId/interviewDocId/resignationDocId 且该 id 仍存在于 docs）；`docTargetNote` 对已跟踪职位：链接活着 → 「job uses another <noun>」（不变），链接缺失/悬空 → 「job has no <noun> linked — use this one」，两者均链到 /jobs?job=<id>（R603 的 Use for this job 所在）；未跟踪分支不变。列表行与查看器头部共用同一函数。部署 index-DN5ikuFR.js / Dashboard-Ca_eX-F4.js（首次 deploy 上传成功但边缘仍旧 index，二次 deploy 后生效；Routes code 10000 依旧）。
+- 生产 QA 1280+375：dangling/unset 显示新备注，other 保持旧备注；375 点击备注链接 → /jobs?job=qa-j1，面板出现「Cover letter (not linked): Globex — Cover letter · Open · Use for this job」；无溢出（1265<1280、360<375）；存储回基线；零 console 错误；网络仅 quota/billing/search 读取、零 AI 生成。PR 链：#827（R606）→ R607。
+
+## R608 — SOP-10 审计节点 + Builder 内打开的 Cover letter / Interview prep 链接当前副本所属职位（2026-09-06）
+- 审计（生产 index-DN5ikuFR.js）：7 路由 × 1280/375 无页面级溢出（仅两个已知有意内滚容器）；rezi.ai 公开页无新增能力、无职位跟踪产品面（RezUp 闭环为差异化）；备份/恢复覆盖全部工作区键。方案 docs/plan-r608-sop10-audit-builder-tools-link-active-copy-job.md。
+- 证据（qa/r608-evidence.cjs）：当前编辑副本 qa-v1 被跟踪职位 qa-j1 链接；在 /builder 内点「Cover letter」→ 模板 → Save：doc.forJob=null、pipeline.coverDocId=null——信件正文写着「apply for the Site Reliability Engineer position at Globex」却存成普通文档，/jobs 职位卡仍显示未写 cover letter；而从 /jobs 卡片进入（`?job=`）同一动作会链接。根因：`BundleToolDialog.jobId` 只取 URL `?job=`。
+- 修复（仅 Builder.tsx）：cover/interview 打开时 `jobId = toolJobId || linkedJob?.id`（只认 live 链接，不用 R605 的 targetedTrackedJob；resignation 不绑定目标职位）；新增 `linkJob` 与保存前披露「Saving links this cover letter to “<title>” at <company> on your jobs board.」（已有同类文档时 R601 替换披露优先）。部署 index-Bk6_OyyT.js / Builder-WhVdWm36.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：linked → 披露出现，Save 后 forJob=qa-j1、coverDocId=doc、/jobs 显示「Cover letter: Globex — Cover letter」；standalone 行为不变（forJob null、无披露）；existing → R601 披露仍在，Save 后新 doc 成为链接、旧 doc 列为「Earlier cover letter」；无溢出；存储回基线；零 console 错误；零 AI 调用。PR 链：#828（R607）→ R608。
+
+## R609 — 副本标注在职位副本链接悬空/缺失时不再谎称「tracked job uses another copy」（2026-09-06）
+- 证据（生产 index-Bk6_OyyT.js，qa/r609-evidence.cjs）：跟踪职位 qa-j1 的 resumeVersionId 悬空（副本已删）或未设（Track 芯片直接跟踪），另有一份目标匹配的孤儿副本：/dashboard 副本行与 /builder Target job 均写「tracked job uses another copy」，而点进 /jobs 卡片却是「Reconnect targeted copy」——同一关系两页矛盾（R607 的副本侧同款缺陷）。方案 docs/plan-r609-copy-note-when-job-copy-link-is-gone.md。
+- 修复：`jobLinksLiveCopy(entry, versions)` 入 lib/jobs.ts；`CopyTargetNote` 新增 `versions` 属性，链接不活时改写「tracked job has no copy linked — reconnect it」；Builder 由 `targetedTrackedEntry` 判定，文案「…but that tracked job has no copy linked. Reconnect it on the jobs board →」。不自动重连。部署 index-DAnmDytG.js / Dashboard-oYesgffm.js / Builder-C2Cwrw16.js。
+- 生产 QA 1280+375：other（活链接）文案不变；dangling/unset 两页均改口且链接落到 /jobs?job=qa-j1 显示「Reconnect targeted copy」；无溢出；存储回基线；零 console 错误；零 AI 调用。PR 链：#829（R608）→ R609。
+
+## R610 — R602 之前保存、仍被职位链接的文档在链接消失前补记 forJob（2026-09-06）
+- 证据（生产 index-DAnmDytG.js，qa/r610-evidence.cjs + r608-evidence.cjs legacy）：职位 qa-j1 的 coverDocId 指向无 forJob 的旧信（R602 前保存的任何文档）：Stop tracking 后（弹窗自己说「documents lose their link to this job」）/documents 该信变成普通「Cover letter · Edited today」，R602/R607 的「job no longer tracked — find it again」等标注与 R603 的「Earlier cover letter · Use for this job」都永远不会出现；在 builder 为同一职位再存一封新信替换链接亦然。链接存在期间应用明知职位却从未写下——R602 说的「无法补」只对链接已断的文档成立。方案 docs/plan-r610-linked-docs-remember-their-job.md。
+- 修复：lib/documents.ts 新增 `rememberLinkedDocJobs(pipeline)`（对 cover/interview/resignationDocId 指向且缺 forJob 的文档盖章，有变化才写回，返回文档列表）；在 /jobs 与 /dashboard 初始 state 读取时调用，BundleToolDialog 保存新文档前（`setPipeline*Doc` 替换链接前）调用。无 UI 变化；已有 forJob 的文档不动；链接已断的旧文档如实不补。部署 index-DW_PgMqc.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：legacy → /jobs 加载后 qa-doc1.forJob=qa-j1，Stop tracking 后 /documents 显示「written for Site Reliability Engineer at Globex · job no longer tracked — find it again」；builder 替换路径 → 旧信 forJob=qa-j1，/jobs 卡片列出「Earlier cover letter: Globex — Cover letter」；对照（链接早已换到新信的旧信）保持无标注；无溢出（1265<1280、360<375）；存储回基线；零 console 错误；零 AI 调用。PR 链：#830（R609）→ R610。
+
+## R611 — 重新保存职位时文档随副本一起重连（2026-09-06）
+- 证据（生产 index-DW_PgMqc.js，qa/r611-evidence.cjs，真实搜索职位 2091088 Sales Jedi @ Creative Force）：跟踪 → 职位链接一封 cover letter → Stop tracking → 从结果列表再 Save：副本会重连（R589），文档 **不会**——coverDocId 为空，卡片主按钮「Cover letter」邀请再写一封，旧信只在小字「Cover letter (not linked): … · Use for this job」；取消跟踪弹窗也只承诺「saving it again reconnects the copy」。方案 docs/plan-r611-retrack-reconnects-documents.md。
+- 修复：lib/documents.ts 新增 `latestDocsFor(jobId)`（每类最新一份 forJob 为该职位的文档）；lib/jobs.ts `upsertPipeline` 在职位**此前未跟踪**时用其填 cover/interview/resignationDocId（三条跟踪入口全覆盖；已有条目不动）。Jobs.tsx 单/批量取消跟踪弹窗改为「…stay and reconnect if you save this job again」（R610 保证弹窗出现时所有已链文档都带 forJob，承诺为真）。更早的同职位文档仍按 R603 列为「Earlier …」。部署 index-4GyVkSqq.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：re-track 后 pipeline coverDocId=qa-doc1，卡片「Cover letter: Creative Force — Cover letter」无「(not linked)」行；弹窗文案已改；无溢出（1265<1280、360<375）；存储回基线；零 console 错误；零 AI 调用。PR 链：R610（#831）→ R611。
+
+## R612 — 未跟踪职位的面板与 Cover letter 弹窗披露已为其写过的文档（2026-09-06）
+- 证据（生产 index-4GyVkSqq.js，qa/r612-evidence.cjs copy，真实职位 2091088）：职位未跟踪、有孤儿目标副本 + forJob 为该职位的 cover letter 与 interview brief：面板按钮写「Reconnect targeted copy」（副本有披露），文档**零披露**；「Write a cover letter…?」弹窗对已有信件沉默（已跟踪职位同弹窗会说「This job already has the saved cover letter …」并给「Open saved letter」）。/documents「job no longer tracked — find it again」正好把用户带到这里。方案 docs/plan-r612-untracked-job-discloses-its-documents.md。
+- 修复（仅 Jobs.tsx）：`writtenDoc(jobId, kind)`（无 pipeline 条目时取 `latestDocsFor`）；cover 弹窗「You already wrote the cover letter “X” for this job — saving the job links it again, and a letter you save from the tool becomes its cover letter instead…」，interview 弹窗只陈述「You already wrote the interview brief “X” for this job.」（interview 路径不跟踪职位，不许诺重连）；两者均显示 Open saved letter/brief；面板状态芯片下新增「Written for this job earlier: Cover letter “X” Open, Interview prep “Y” Open — saving this job links them again.」；`docNoun` 抽出复用。部署 index-nQcfF4AA.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：copy/none 两态面板均列两份文档、弹窗披露 + Open saved letter；control（无文档）面板/弹窗不变；无溢出（1280=1280、375=375）；存储回基线；零 console 错误；零 AI 调用。PR 链：R611（#832）→ R612。
+
+## R613 — /documents「job no longer tracked — find it again」改为按 id 打开该职位（2026-09-06）
+- 证据（生产 index-nQcfF4AA.js，qa/r613-evidence.cjs）：文档 forJob 指向已不跟踪职位时，链接是 `/jobs?q=<title>`。live：`Sales Jedi` 搜索返回 2 条（2091088 + 2091087 SaaS Product Support Jedi），选中正确职位纯靠排序运气；gone（forJob.id=1 已过期）：落到另一条同名在线职位、零提示，Save 会追踪错的职位且信件不重连。方案 docs/plan-r613-untracked-doc-link-opens-the-exact-job.md。
+- 修复（Dashboard.tsx `docTargetNote` 一处）：链接改 `/jobs?q=<title>&job=<forJob.id>`，文案「open it to save it again」。既有 `?job=` 深链按 id 精确选中（→ R612 披露 + R611 Save 重连），过期时弹既有「The job in that link wasn't found — it may have expired or been removed.」。副本侧（Builder Target job / dashboard 孤儿副本）只有 role/company 无 id，保持 `?q=`。部署 index-QpwmKZEB.js。
+- 生产 QA 1280+375：live → URL 带 job=2091088、精确选中、R612 note 出现；gone → 过期 alert 出现；无溢出；存储回基线；零 console 错误；零 AI 调用。PR 链：R612（#833）→ R613。
+
+## R614 — 目标简历副本记住所属职位（forJob），孤儿副本的「find it again」按 id 打开（2026-09-06）
+- 证据（生产 index-QpwmKZEB.js，qa/r614-evidence.cjs exact/edited）：副本只有可编辑的 targetRole/targetCompany/jobDescription，无职位 id。职位取消跟踪后 dashboard/builder 的「job no longer tracked — find it again」= `/jobs?q=<targetRole>`：role 未改 → 2 条结果靠排序运气（R613 文档侧同款）；用户在 builder 把 role 改成「Sales Jedi (EMEA)」→ `0 jobs found`，死路。R613 已把文档侧改成按 id，副本侧因无 id 无法做。方案 docs/plan-r614-copies-remember-their-job.md。
+- 修复：lib/resume.ts `ResumeVersion.forJob?: VersionJobRef {id,title,company}`（listResumeVersions 只保留三字段皆为字符串的值）、`createResumeVersion(name, data, folder?, forJob?)`、`rememberVersionJobs(map)`；lib/jobs.ts `rememberLinkedCopyJobs(pipeline)`（同 R610 规则：只给仍被跟踪职位链接、缺 forJob 的副本盖章，链接已断的不猜），在 /jobs 初始化、/dashboard 与 /builder 读副本时调用；Jobs.tsx `prepareTargetedCopy` 建副本时传 forJob，`orphanTargetedCopy` 先按 forJob.id 再按 copyTargetsJob 匹配（生产 QA 发现：盖章副本 role 改过时链接能落到精确职位，面板却写「Target my resume」会造重复副本）；CopyTargetNote 与 Builder Target job 有 forJob 时链接 `/jobs?q=<title>&job=<id>` 文案「open it to save it again」，tracked 查找先按 forJob.id；无 forJob 的旧副本保持 `?q=` 与原文案。部署 index-B1ZMZ9qG.js（Routes code 10000 依旧；首次 deploy 边缘 HTML 仍指旧 bundle，二次 deploy 后生效）。
+- 生产 QA 1280+375：stamped / stamped-edited → href 带 job=2091088、精确选中、「Reconnect targeted copy」；linked（旧副本仍被链接）→ /dashboard 加载后副本 forJob=2091088、pipeline 字节不变、行仍「for Sales Jedi at Creative Force」；create（真实「Target my resume」→「Create copy and open editor」）→ 新副本带 forJob、pipeline 链接它；exact/edited（旧副本已断链）→ 保持 `?q=` 回退如实不补；无溢出（1265<1280、360<375）；存储回基线；零 console 错误；零 AI 调用。PR 链：R613（#834）→ R614。
+
+## R615 — 副本在被链接的那一刻盖上 forJob，不等下次页面加载（2026-09-06）
+- 证据（生产 index-B1ZMZ9qG.js，qa/r615-evidence.cjs relink vs reload）：旧副本（无 forJob）在 /jobs 上 Save → R589 重连；不刷新直接 Stop tracking → 副本 forJob 仍为 null（R614 只在 /jobs、/dashboard、/builder 初始化时盖章；链接消失后按 R610 规则不再补），dashboard 回退到 `?q=<role>` 标题搜索；中间刷新一次 → forJob=2091088。是否记住职位取决于用户有没有恰好导航过。方案 docs/plan-r615-relinked-copy-stamped-at-link-time.md。
+- 修复：lib/jobs.ts `setPipelineVersion` 在 pipeline 写入成功后用该 entry 的 job 调 `rememberVersionJobs`（只补缺，不覆盖已有 forJob；四个调用点全覆盖）。部署 index-DeDNpgVO.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：relink → Save 后副本立即 forJob=2091088，Stop tracking（不刷新）后仍在，dashboard 行「job no longer tracked — open it to save it again」href `/jobs?q=Sales%20Jedi&job=2091088`；reload 对照组不变；无溢出；存储回基线；零 console 错误；零 AI 调用。PR 链：R614（#835）→ R615。
+
+## R616 — 在 dashboard「Resume settings」里改指被跟踪职位链接的副本时，两侧都沉默（2026-09-06）
+- 证据（生产 index-DeDNpgVO.js，qa/r616-evidence.cjs）：被跟踪职位 SRE@Globex 链接的副本，在 Resume settings 把 Target role/Company/JD 改成 Platform Engineer@Initech 后 Save：无任何披露；dashboard 行仍写「for Site Reliability Engineer at Globex」（ATS 61→8，按 Initech 打分）；/jobs 面板仍「Targeted copy: 75% keyword match · Open targeted resume」，打开后 builder 的 Target job 字段却是 Initech，而其上方文案（源码）仍「This copy is tailored to "SRE" at Globex」。R591 的 dashboard 侧同类问题：动作改了副本的指向，pipeline 链接原地不动，所有标签继续报告旧关系。方案 docs/plan-r616-retargeting-a-linked-copy-discloses-its-job.md。
+- 修复（判定统一用 `copyTargetsJob`：同公司 + 同标题或同 JD，改措辞不触发）：Dashboard.tsx Resume settings 在副本被跟踪职位链接且编辑后的目标不再匹配时显示琥珀提示「This copy is the targeted resume for tracked job "…" at …. Saving keeps that link, so the job would open a copy aimed at another posting. To leave the job's copy as it is, save these changes as a new copy instead.」并新增「Save as new copy」（`createResumeVersion`，名字取改过的 Name，否则 `role — company`；带编辑后的目标/level/folder，不带 forJob；原副本与链接不动），Save 仍原地改指；CopyTargetNote 已链接分支在目标不匹配时追加「· now aimed at {role} at {company}」；Builder Target job 已链接文案追加「, but its target fields now point at …」。顺带纠正一处旧误报：无 forJob 且无跟踪职位匹配的副本，CopyTargetNote 由「job no longer tracked — find it again」改为「no tracked job — find it on the jobs board」，Builder 同句改为「no tracked job matches it」（有 forJob 的仍说 no longer tracked）——「Save as new copy」造出的副本从未被跟踪，不该被说成 no longer tracked。部署 index-D8wIjRq_.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：newcopy → 弹窗出现提示 + 按钮，点后原副本字节不变、pipeline 仍链接它，新副本「Platform Engineer — Initech」无 forJob，行注「no tracked job — find it on the jobs board」；inplace → 行注「for Site Reliability Engineer at Globex · now aimed at Platform Engineer at Initech」，builder 注「…at Globex, but its target fields now point at Platform Engineer at Initech.」；control（未链接副本同样编辑）→ 弹窗无提示无额外按钮；375 弹窗按钮纵向堆叠无溢出（360<375、1265<1280）；存储回基线（builder 访问会写 honestcv.resumeHistory，脚本已清）；零 console 错误；零 AI 调用。PR 链：R615（#836）→ R616。
+
+## R617 — dashboard「Resume settings」改正在编辑器中打开的副本，下一次击键就被静默还原（2026-09-06）
+- 证据（生产 index-D8wIjRq_.js，qa/r617-evidence.cjs active）：副本 qa-v1 为 activeVersionId（行注「Open in the editor」），draft = 副本数据。Resume settings 改 role/company/JD → Save：副本已更新（行注 R616「now aimed at …」，ATS 61→8），但 draft `honestcv.resume` 未动；进 /builder，Target role 字段仍是旧值；在 Summary 敲一个字 → `syncActiveVersion(draft)` 把旧目标字段写回副本，dashboard 行回到「for SRE at Globex」、ATS 回 61。无任何提示，用户只会觉得「没保存上」。对照组 inactive（副本非 active）编辑正常保留。方案 docs/plan-r617-dashboard-edit-of-the-open-copy-survives-the-next-keystroke.md。
+- 修复（仅 Dashboard.tsx Save 处理器）：`updateResumeVersion` 成功后，若 `editing.id === activeId`，把同一组目标字段（targetRole/targetCompany/experienceLevel/jobDescription）patch 到 draft：`saveResume({ ...(loadResume() ?? current.data), ...target })`（只改四字段，不整体替换；saveResume 失败走 setStorageError）。不做 builder 侧双向同步 watcher——dashboard 是 data 的唯一另一写者，在源头修。「Save as new copy」不写 active 副本，不受影响。部署 index-Db0SDsvd.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：active → Save 后 draft 已带新目标，builder 字段显示 Platform Engineer/Initech，击键后副本保留新目标并多出所敲文字，builder 注 R616「…but its target fields now point at Platform Engineer at Initech」，dashboard 行保持「now aimed at …」；inactive → 行为不变（draft null，副本保留编辑）；无溢出（1265<1280、360<375）；存储回基线；零 console 错误；零 AI 调用。PR 链：R616（#837）→ R617。
+
+## R618 — SOP-10 审计节点 + 改指别处的重复副本仍被旧 forJob 当作当前目标（2026-09-06）
+- 审计：7 路由 × 1280/375 扫描（qa/r588-sweep.cjs）无页面级溢出（首页表格、builder 章节芯片条为已知的容器内滚动）、零 console 错误、存储回基线；Rezi 公开页（features / ai-resume-builder / pricing / tools/job-search / rezi-docs/job-search）取证：Job Search 130 万+职位、Saved/Applied/Interviewing/Rejected 阶段、排除已跟踪职位、结构化职位详情段（Responsibilities/Requirements/Skills/…）、Target Resume、Apply Now 跳公司官网、Chrome 扩展——RezUp 关系图/状态/历史/备注/提醒/目标副本/文档链接已齐，结构化职位详情为下一批候选（本轮未做）。方案 docs/plan-r618-sop10-audit-reaimed-duplicate-keeps-stale-provenance.md。
+- 证据（生产 index-Db0SDsvd.js，qa/r618-evidence.cjs labels/reconnect）：副本 A 被职位 J（SRE@Globex）链接；Duplicate 得到 B（`duplicateResumeVersion` 复制 forJob=J）；在 Resume settings 把 B 改指 K（Platform Engineer@Initech，K 已跟踪但无副本）。labels：dashboard B 行写「targeted at Platform Engineer at Initech · tracked job uses another copy」——链接与说明都指向 J（forJob 优先），而 K 明明没有副本；reconnect（J 的链接悬空、A 不存在）：J 的职位卡对 B 说「Reconnect targeted copy」，点了就把一份明明指向 Initech 的副本重新链到 Globex。三处调用点（CopyTargetNote、Jobs.orphanTargetedCopy、Builder.targetedTrackedEntry）都在按 `forJob.id` 匹配前不检查可编辑目标字段是否仍指向那个职位。
+- 修复：lib/jobs.ts 新增 `copyKeepsProvenance(copy, pipeline)`（forJob 仍有效 ⇔ 目标字段仍匹配该职位，或只是在同公司内改了 role/JD 且不匹配任何其他跟踪职位；改到别的公司或匹配到别的跟踪职位即失效）与 `trackedJobOfCopy(copy, pipeline)`（有效时按 forJob.id，否则按 `copyTargetsJob` 找当前匹配的跟踪职位）。CopyTargetNote 用 `trackedJobOfCopy` 找 tracked、只在 provenance 有效时说「job no longer tracked — open it to save it again」（失效则「no tracked job — find it on the jobs board」）；Jobs.orphanTargetedCopy 的 forJob.id 匹配加 `copyKeepsProvenance` 门槛（B 不再被 J 认领，K 按目标字段认领）；Builder Target job 同源（`copyOrigin` 决定「no longer tracked」措辞与 `?job=` 精确链接）。forJob 本体不动、不静默改链。部署 index-BHDQBYdG.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（qa/r618-evidence.cjs labels/reconnect/control + qa/r618-builder.cjs reaimed/kept）：labels → B 行「targeted at Platform Engineer at Initech · tracked job has no copy linked — reconnect it」（指向 K），K 卡「Reconnect targeted copy」、J 卡「Open targeted resume」（A）；reconnect → K 卡「Reconnect targeted copy」、J 卡「Target my resume」（不再认领 B）；control（B 为未改指的普通重复、J 链接悬空）→ J 卡「Reconnect targeted copy」+ 原弹窗文案、K 卡「Target my resume」（R594/R604 行为保留）；builder reaimed → 「…at Initech — no tracked job matches it. Find it again →」`?q=`；kept → 「…at Globex — that job is no longer tracked. Open it to save it again →」`?q=…&job=qa-j1`；无溢出（1265<1280、360<375）；存储回基线；零 console 错误；零 AI 调用。PR 链：R617（#838）→ R618。
+
+## R619 — 把副本链接到另一职位时 forJob 仍停在被复制自的职位（2026-09-06）
+- 证据（生产 index-BHDQBYdG.js，qa/r619-evidence.cjs）：B（Duplicate 自 A，forJob=J，Resume settings 改指 K）在 K 卡点「Reconnect targeted copy」→ K.resumeVersionId=B，但 B.forJob 仍 = J；随后取消跟踪 K，dashboard B 行说「no tracked job — find it on the jobs board」`/jobs?q=Platform%20Engineer`（标题搜索），而非「job no longer tracked — open it to save it again」`&job=qa-j2`。原因：`setPipelineVersion` 调 `rememberVersionJobs`（R614 补录语义 `if (v.forJob) return v`），对继承了别的 forJob 的副本无效。方案 docs/plan-r619-linking-a-copy-restamps-forjob.md。
+- 修复：lib/resume.ts 新增 `setVersionJob(id, forJob)`（缺失或 id 不同才写）；`setPipelineVersion` 改用它——链接是用户显式动作，记录它不算静默改链。页面加载的补录 `rememberLinkedCopyJobs` 仍只补缺失；Resume settings 改目标字段（R616）不动 forJob；Duplicate 仍继承 forJob（R618 已使失效来源不主导匹配）。部署 index-DAMIUQTC.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（reaimed）：Reconnect 后 B.forJob = {qa-j2, Platform Engineer, Initech}；K 取消跟踪后 B 行「targeted at Platform Engineer at Initech · job no longer tracked — open it to save it again」链接 `/jobs?q=Platform%20Engineer&job=qa-j2`。control（B 为未改指的重复、J 链接悬空、经 J 重连）：forJob 保持 J 不变。无溢出（1265<1280、360<375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R618（#839）→ R619。
+
+## R620 — Resume settings 把副本改指到已跟踪职位时不说、不给一键链接；375px 弹窗超出视口不可滚动（2026-09-06）
+- 证据（生产 index-DAMIUQTC.js，qa/r620-evidence.cjs）：J、K 都在跟踪、K 无副本；把副本改指 K（role/company/JD 与 K 一致）：未链接副本 → 弹窗无提示、Save 后行说「tracked job has no copy linked — reconnect it」，需去 /jobs 四步重连；J 的副本 → 只有 R616 提示（只说 J），「Save as new copy」造出的新副本也不链 K。同时发现（375×800）Resume settings 弹窗带两条提示时高 1026px、top=-113px、不可滚动，Cancel/Save 不可达；无提示时 758px（667 高屏同样溢出）。方案 docs/plan-r620-resume-settings-offers-link-to-matching-tracked-job.md。
+- 修复（Dashboard.tsx）：`editingMatchesTrackedJob`（排除当前链接职位后 `copyTargetsJob` 匹配的跟踪职位 + `jobLinksLiveCopy`）；amber 提示三态：K 已有活副本「already uses another copy — this one stays unlinked」（无按钮）/ 未链接副本「link this copy to it」+ 按钮 **Save and link to that job**（`updateResumeVersion` + `setPipelineVersion`，R619 顺带 forJob=K）/ J 的副本时「Save as new copy」改为 **Save as new copy for that job**（`createResumeVersion` + `setPipelineVersion(K, new)`，J 副本原样）。普通 Save 行为不变（不移动链接）。两处 Save 逻辑抽成 `saveEditing(linkTo?)` / `saveEditingAsNewCopy(linkTo?)`。弹窗 `max-h-[90vh] overflow-y-auto`。部署 index-BLgPPDev.js（Routes code 10000 依旧；首次上传后边缘仍指旧 bundle，约 1 分钟后生效）。
+- 生产 QA 1280+375：unlinked → K→v1、forJob=K、行「for Platform Engineer at Initech」；linked → 新副本链 K + forJob=K、原副本仍链 J 且文案不变（ATS 55 不动）；control（目标不匹配任何跟踪职位）→ 无新提示/按钮。375 弹窗 720px、scrollable=true、按钮可点；无溢出（1265<1280、360<375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R619（#840）→ R620。
+
+## R621 — Builder「Target job」区知道瞄准的跟踪职位没有副本，却只给「去 jobs 板重连」链接（2026-09-06）
+- 证据（生产 index-BLgPPDev.js，qa/r621-evidence.cjs）：未链接副本 A 目标与跟踪职位 K（无副本）一致，builder 只显示「…has no copy linked. Reconnect it on the jobs board →」，需 /jobs → 卡片 Reconnect → 确认 → 回 builder；R620 已让 dashboard 同判定下一步完成，builder 是唯一还把用户送走的入口。方案 docs/plan-r621-builder-target-job-links-copy-in-place.md。
+- 修复（Builder.tsx）：`linkedJob` memo 加 `pipelineTick` 依赖（此前只依赖 activeVersionId，页内改链接不刷新）；「has no copy linked」分支加按钮 **Link this copy to it**（`setPipelineVersion(K, activeVersionId)` → R619 顺带 forJob=K；失败 `setCopyStorageError`），成功后段落切换为既有「This copy is tailored to …」；保留「View it on the jobs board →」。「uses another copy」分支不变（抢链接须在 /jobs 带披露完成）。部署 index-DsrxsPYE.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：nocopy → 点击后 K→A、A.forJob=K、文案 tailored to、无弹窗；other → 无按钮、文案不变。无溢出（1265<1280、360<375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R620（#841）→ R621。
+
+## R622 — Builder 里 J 链接的副本改指跟踪职位 K 时不披露 K、不给动作（2026-09-06）
+- 证据（生产 index-DsrxsPYE.js，qa/r622-evidence.cjs，三组对照）：K 无副本 / K 用另一副本 / K 未跟踪，builder Target job 区 R616 文案完全相同「…but its target fields now point at Platform Engineer at Initech.」，与 dashboard R620 不对称。方案 docs/plan-r622-builder-retargeted-linked-copy-discloses-matching-job.md。
+- 修复（Builder.tsx）：`retargetedTrackedJob` memo（linkedJob 存在且 target 不匹配时找另一匹配跟踪职位 + hasCopy）；追加段落「That target is tracked job "K" at …, which has no copy yet. **Save as new copy for it** · View it →」/「…already uses another copy. View it →」。动作 `saveDraftAsCopyFor(K)`：`createResumeVersion(K.title — K.company, resume, folder)` → `setPipelineVersion(K, new)`（forJob=K）→ `linkVersion(new)`（继续编辑新副本；A 仍归 J、字段不动）。R621 的失败提示由只在 Copies 弹窗显示的 `setCopyStorageError` 改为 `setStorageAlert(COPY_STORAGE_FULL_MSG)`。部署 index-CtWD6ZVq.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：nocopy → 点击后 J→A、K→new、new.forJob=K、active=new、文案「tailored to "Platform Engineer" at Initech」、无弹窗；other → 无按钮 +「already uses another copy」；untracked → 与现状一致。无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R621（#842）→ R622。
+
+## R623 — /jobs 职位卡对「已链接副本改指别的跟踪职位」两侧零披露（2026-09-06）
+- 证据（生产 index-CtWD6ZVq.js，qa/r623-evidence.cjs）：A 由 J 链接、目标已改为跟踪职位 K（无副本）。J 卡 Next step 用 J 的 JD 给 A 算关键词「doesn't use any of this job's keywords」（失真）；K 卡「Create a resume targeted at this job」（不知已有瞄准 K 的 A）。方案 docs/plan-r623-jobs-card-discloses-retargeted-linked-copy.md。
+- 修复（Jobs.tsx `nextStep`）：helper `copyAimedFromOtherJob(job)`（别的跟踪职位的链接副本且 `copyTargetsJob(copy.data, job)`）。J 侧（链接副本 targetRole 非空且不匹配 J）→「Your targeted copy “A” now points at Platform Engineer at Initech.」/ Open targeted resume；K 侧（无链接、无 orphan、命中 aimed）→「“A” is aimed at this job but is linked to “J” at Globex.」/ Open it to save a copy for this job。两者经 `draftAtRisk` 守卫后 `targetResume(J,'keywords')` 打开 A 到 builder Target job 区（R622「Save as new copy for it」）。不移动链接；K 卡主按钮「Target my resume」不变。部署 index-B1vM4Z8p.js。
+- 生产 QA 1280+375：J/K 卡文案与按钮如上，点击后 /builder active=A、Target job 区出现「Save as new copy for it」；对照（A 仍瞄准 J）两卡文案不变。无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R622（#843）→ R623。
+
+## R624 — 从 J 卡打开 Cover letter / Interview prep，副本已改指 K：内容是 K 的、链接却给 J（2026-09-06）
+- 证据（生产 index-B1vM4Z8p.js，qa/r624-evidence.cjs）：A 由 J 链接、目标已改为跟踪职位 K。J 卡 Cover letter → 工具公司字段 Globex（J），模板信「apply for the Platform Engineer position at Globex」（角色取自 K、公司取自 J），AI 路径同样用 K 的 JD；Save 提示「links this cover letter to SRE at Globex」，存储 forJob=J、J.coverDocId。Interview prep（J applied 后 Next step）同形。方案 docs/plan-r624-letter-tools-follow-the-copys-real-target.md。
+- 修复（Builder.tsx）：父级 `toolJobs` 由副本实时 target 字段解析：打开时的职位（`?job=` 或链接职位）仍被副本瞄准 → 行为不变；否则 `openedFor`=该职位、`linkJob`=副本目标匹配的跟踪职位（或无）。传给 BundleToolDialog 的 `jobId`=linkJob、cover 公司字段改用副本 targetCompany、新增 `openedFor` prop 在生成前披露「This copy's Target job is Platform Engineer at Initech, not “SRE” at Globex — the cover letter is written for that job and Save links it to “Platform Engineer” at Initech instead. Change the copy's target →」（K 未跟踪则「doesn't link it to a tracked job」）。不移动任何既有链接。部署 index-Bf8ZlToz.js。
+- 生产 QA 1280+375：cover/interview 均披露、公司 Initech、模板「Platform Engineer position at Initech」、Save 后 forJob=qa-j2 且 qa-j2 链接文档、J 无链接；对照（A 仍瞄准 J）无披露、Globex、链接到 J 不变。无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R623（#844）→ R624。
+
+## R625 — /jobs 确认弹窗仍把改指别处的链接副本说成「the resume copy targeted at this job」，且无路可得 J 的副本（2026-09-06）
+- 证据（生产 index-B1vM4Z8p.js / index-Bf8ZlToz.js，qa/r624-evidence.cjs 弹窗输出）：A 由 J 链接、目标已改为跟踪职位 K。J 卡 Cover letter 弹窗「This opens the resume copy targeted at this job in the editor, then opens the cover letter tool pre-filled for this company」；Open targeted resume 弹窗「This job already has a targeted copy of your resume — the editor opens that copy」——两句在 R624 后均不成立（工具会为 K 写信并链接到 K），且用户没有任何一键为 J 得到真正瞄准 J 的副本的途径。方案 docs/plan-r625-jobs-confirm-dialog-discloses-retargeted-linked-copy.md。
+- 修复（Jobs.tsx）：helper `retargetedLinkedCopy(job)`（链接副本 targetRole 非空且 `!copyTargetsJob`）、`copyTargetText`（R623 文案复用）、`retargetedLinkedText`。`confirmTarget` 弹窗（target/cover/keywords）描述改为「The copy linked to this job, “A”, now targets Platform Engineer at Initech — the editor opens that copy」（cover 追加「and the cover letter tool then writes for that job and links the letter to it, not to this one」）；主按钮 target 态改「Open that copy」。target/cover 新增 outline 按钮 **New copy for this job**（`newCopyFromRetargeted`：以 A 的内容 + J 的 title/company/JD `createResumeVersion`（forJob=J、沿用 A 的 folder）→ `setPipelineVersion(J,new)` → 打开 /builder 或 `/builder?doc=cover&company&job`；draftAtRisk 时先 `keepDraftAsCopy`，描述如实说明）。J 的链接由 A 移到新副本是按钮的明示目的；A 内容/目标不动，成为瞄准 K 的孤儿（K 卡 R604「Reconnect targeted copy」）。部署 index-jJDnduxS.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：target/cover 弹窗披露与按钮如上；New copy → 新副本「Site Reliability Engineer — Globex」target=J、forJob=qa-j1、qa-j1→new、A 未链接且字段保留、active=new；cover 路径落到工具、公司 Globex、无改指提示；Open that copy → active=A、builder 显示 R622「Save as new copy for it」。对照（A 仍瞄准 J）弹窗文案不变、无新按钮。无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R624（#845）→ R625。
+
+## R626 — K 卡「Target my resume / Cover letter」弹窗不知道已有瞄准 K 的副本，仍从（空）草稿造新副本（2026-09-06）
+- 证据（生产 index-jJDnduxS.js，qa/r626-evidence.cjs）：A 由 J 链接、目标已改为 K。K 卡 Next step（R623）已说「“A” is aimed at this job but is linked to “J”」，但主按钮弹窗仍是：空编辑器 →「Your resume is still empty, so there's nothing to copy yet… Start my resume for this job」；未保存草稿 →「This saves a copy of your resume targeted at this posting… Create copy and open editor」（用别的简历给 K 再造一份）；Cover letter → 用空草稿写信。R625 修了 J 侧，K 侧仍不知情。方案 docs/plan-r626-jobs-confirm-dialog-discloses-copy-aimed-from-other-job.md。
+- 修复（Jobs.tsx）：`aimedCopyFor(job, intent)`（target/cover 且 `!targetedCopyOf(job)` 时取 `copyAimedFromOtherJob`）、`standaloneDraftAtRisk()`、`openAimedCopy(job, copy, intent)`（必要时先 `keepDraftAsCopy`；`saveResume(A.data)`+`setActiveVersionId(A)`；target → `/builder?jump=target`（R622「Save as new copy for it」），cover → `/builder?doc=cover&company=K&job=K`（R624 因 A 瞄准 K 解析 linkJob=K））。弹窗描述前置「“A” is aimed at this job but is linked to “J” at Globex — “Open that copy” opens it so you can save a copy for this job from its Target job section[, saving your draft as a copy first]. Otherwise: <原句>」，新增 outline 按钮 **Open that copy**；主按钮与行为不变；不移动任何链接。部署 index-DZGv7gC9.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：target/cover 弹窗披露 + 按钮；Open that copy → active=A、J→A 不变、K 无链接，target 路径 builder 显示「Save as new copy for it」，cover 路径工具公司 Initech、「Saving links this cover letter to “Platform Engineer” at Initech」、无改指提示；draft 变体先存草稿为副本「Draft Person」。对照（A 仍瞄准 J）弹窗文案不变、无新按钮。无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R625（#846）→ R626。
+
+## R627 — K 卡「Open interview prep」不知道瞄准 K 的副本 A：空草稿直接开面试准备、有草稿则静默造副本并链接 K（2026-09-06）
+- 证据（生产 index-DZGv7gC9.js，qa/r627-evidence.cjs）：A 由 J 链接、目标为 K（K 状态 applied）。K 卡 Next step「Open interview prep」无任何弹窗：空编辑器 → 把空草稿指向 K 并打开面试准备（简历无内容）；未保存独立草稿 → 用该草稿新建「Platform Engineer — Initech」并链接 K（qa-j2→NEW，forJob=qa-j2），此后 `copyAimedFromOtherJob(K)` 因 K 已有副本而沉默，A 瞄准 K 的事实从所有披露中消失（静默重复副本遮蔽真实副本）。另：面试确认弹窗（仅 draft-at-risk 时出现）在无孤儿副本时仍说「opens the resume copy you already targeted」。方案 docs/plan-r627-interview-prep-discloses-copy-aimed-from-other-job.md。
+- 修复（Jobs.tsx）：`aimedCopyFor` 覆盖 interview；Next step 面试动作在 `draftAtRisk || aimedCopyFor` 时进确认弹窗；弹窗前置「“A” is aimed at this job but is linked to “J” at Globex — “Open that copy” opens it and runs interview prep for this job from that copy[, saving your draft as a copy first]. Otherwise: …」，新增 **Open that copy** → `openAimedCopy(job, A, 'interview')` → `/builder?doc=interview&job=K`（R624 解析 linkJob=K）；面试描述补齐无副本两态（空草稿「aims your draft… the brief has no resume to draw on」/有草稿「saves a copy… links this job to it」）。主按钮行为不变。部署 index-BD4BDcUA.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：弹窗披露+按钮；Open that copy → active=A、J→A 不变、K 无链接、面试工具「Saving links this interview brief to “Platform Engineer” at Initech」；draft 变体先存草稿为副本。Open interview prep 主路径行为与修前一致。对照（A 瞄准 J）无弹窗直达工具。无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R626（#847）→ R627。
+
+## R628 — SOP-10 审计节点 + K 卡「Target my resume / Cover letter」不说、也不让选新副本从哪份简历派生（2026-09-06）
+- 审计（qa/r588-sweep.cjs 1280/375）：7 路由零页面级溢出，仅 `/` 对比表与 `/builder` 分区标签条两处既有意向内滚动容器，零 console 错误，存储回基线；Rezi 公开 Job Search 指南取证：「Target Resume 让你从 dashboard 选一份简历再为该职位定制」。方案 docs/plan-r628-sop10-audit-target-copy-source-picker.md。
+- 证据（生产 index-BD4BDcUA.js，qa/r628-evidence.cjs）：编辑器中打开的是 J 的副本 A（Globex 定制摘要），另有通用「Master resume」；K 卡 Target my resume / Cover letter 弹窗只说「a copy of your resume」，无选择器；Create copy 后 K 的新副本摘要是 A 的 Globex 内容、Master 从未被提供。
+- 修复（Jobs.tsx）：`newCopyPending`（target/cover 且无 `targetedCopyOf` 且编辑器有内容）时描述改为「a copy of “SRE — Globex” (the copy open in the editor, your copy for “SRE” at Globex)」/「your current draft」/ 所选副本名；新增 **Copy from** 原生 select（编辑器内容 + 其他有内容副本，`copySourceOptions`），`copySourceId` 由 `setConfirmTarget` 包装器重置；`prepareTargetedCopy(job, source?)`、`targetResume` 两路传 `pickedSource()`。新副本仍写 K 的 title/company/JD 与 forJob=K 并 `setPipelineVersion(K,new)`；不动草稿、A、J→A。部署 index-D7ibJk8A.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：target/cover pick → 描述改为 Master、新副本 summary=General summary、forJob=qa-j2、qa-j2→NEW、qa-j1→A 不变；不选时行为与修前一致但弹窗如实点名 A。无溢出（弹窗打开 375/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R627（#848）→ R628。
+
+## R629 — 职位卡「Save」静默用编辑器中别的职位的副本给新职位造目标副本（2026-09-06）
+- 证据（生产 index-D7ibJk8A.js，qa/r629-evidence.cjs，真实职位 2091101）：编辑器打开的是 J 的副本 A；列表卡点 Save → 无弹窗无提示，新建「Senior React Full-stack Developer — Lemon.io」摘要为 A 的 Globex 定制内容、forJob=2091101 并链接；Next step 随即说「Your targeted copy doesn't use any of this job's keywords」。R183（Rezi「保存职位自动准备定制版」）设计时编辑器只有一份简历，现在通常是别的职位的副本。对照：编辑器为独立草稿 → 从草稿造副本（保留）。方案 docs/plan-r629-save-job-no-silent-copy-from-other-jobs-copy.md。
+- 修复（Jobs.tsx）：`editorCopyAimedElsewhere(job)`（活动副本 targetRole 非空且 `!copyTargetsJob`）；`setStatus` saved 自动造副本条件加 `!editorCopyAimedElsewhere`（孤儿重连不变）；Next step 无副本分支文案追加「— the editor holds “A”, your copy for J at Globex（或 aimed at …）, so choose what to copy from.」→ Target my resume 进 R628 带 Copy from 选择器的弹窗。不移动任何链接；不在 Save 上加弹窗、不猜「master」。部署 index-Bw8A5wnj.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：save → 职位 saved 但 copy=-、版本不变、A 仍归 J、Next step 文案如上、Target 弹窗点名 A 并列出 Master；control → 仍从草稿造副本。无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R628（#849）→ R629。
+
+## R630 — 「Open interview prep」对无副本职位静默从编辑器中别的职位副本造副本（2026-09-06）
+- 证据（生产 index-Bw8A5wnj.js，qa/r630-evidence.cjs）：编辑器打开 J 的副本 A；K 已跟踪 applied 无副本；点 K 的 Next step「Open interview prep」→ 无弹窗直达 /builder 面试工具，新建「Platform Engineer — Initech」摘要为 A 的 Globex 定制内容、forJob=qa-j2 并链接 K。这是 R628（Target/Cover）、R629（Save）之后第三条造副本路径，弹窗仅在草稿有风险（R595）或有瞄准副本（R627）时出现。方案 docs/plan-r630-interview-prep-confirms-and-names-copy-source.md。
+- 修复（Jobs.tsx）：`newCopyPending` 纳入 interview；Next step 在将新造副本时走确认弹窗；弹窗文案改为「This saves a copy of ${copySourceText()} …」并复用 R628 的 Copy from 选择器；`openInterviewPrep(job, source?)`、`targetResume(...,'interview')` 传 `pickedSource()`。已有副本（链接/孤儿）仍一键直开。部署 index-Cb1orKyu.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：interview → 弹窗点名 A（your copy for J）+ Copy from 列 Master；pick Master → 新副本 summary=General summary、forJob=qa-j2、K 链接新副本、A 仍归 J；control（独立草稿）→ 文案「your current draft」，选项含 Master、A。无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R629（#850）→ R630。
+
+## R631 — 「Save」在别的跟踪职位的副本已瞄准该职位时仍自动造重复副本（2026-09-06）
+- 证据（生产 index-Cb1orKyu.js，qa/r629-evidence.cjs 1280 aimed，真实职位 2091088）：A 链接 J 但目标字段已改为 2091088（R616/R622/R623 错位态）；点 Save → 无弹窗，从 A 字节复制出 NEW 并链接 2091088，Next step 说「Your targeted copy doesn't use any of this job's keywords」；R623 的「A is aimed at this job but linked to J → Open it to save a copy for this job」与 R626 弹窗披露因 Save 先造副本而永不出现；同一目标两份副本 + J 侧错位依旧。R629 守卫不触发（编辑器副本瞄准的正是该职位）。方案 docs/plan-r631-save-job-no-auto-copy-when-another-jobs-copy-is-aimed-at-it.md。
+- 修复（Jobs.tsx 一行）：`setStatus` saved 自动造副本再加 `!copyAimedFromOtherJob(job)`；无新增文案，复用 R623 Next step 与 R626 弹窗。部署 index-BI4omvgf.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：aimed → 职位 saved 但 copy=-、版本不变、A 仍归 J 且瞄准 2091088、Next step 为 R623 披露 +「Open it to save a copy for this job」；control 不变。无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R630（#851）→ R631。
+
+## R632 — Next step 对已保存并链接的面试简报/辞职信仍叫用户「再写一份」（2026-09-06）
+- 证据（生产 index-BI4omvgf.js，qa/r632-evidence.cjs offer，真实职位 2091088 置 Offer）：Next step「Open resignation letter」→ 写信弹窗如实披露「Saving links this resignation letter to Sales Jedi」→ 模板→Save：pipeline resignation=doc、doc.forJob=2091088、卡片行「Resignation letter: … 3 to fill · Open」全部正确（第三类文档 R602/R603 链路首次生产实证）。但回到卡片 Next step 原样「Open resignation letter」，再点开是空白写信器（R601 的「already has …」提示只在生成内容后才出现在底部），顺手 Save 即造出「(2)」并把链接换到新信。applied/interviewing 分支同构（interviewDocId 不影响 Next step）。方案 docs/plan-r632-next-step-acknowledges-saved-interview-brief-and-resignation-letter.md。
+- 修复（Jobs.tsx）：`linkedDoc` 扩展到 resignation；`nextStep` 在 offer 有链接辞职信 / applied·interviewing 有链接简报时改为「Your resignation letter “X” is saved — N placeholders to fill → Open saved letter」/「Your interview brief “X” is saved — review it before the interview|next round → Open saved brief」，打开 /documents?doc=id；无文档时文案不变。部署 index-EEApB8_Z.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：offer/applied 双模式均符合预期，链接与文档不变，无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R631（#852）→ R632。
+
+## R633 — 写信/面试准备弹窗在生成前不披露职位已有链接文档（2026-09-06）
+- 证据（生产 index-EEApB8_Z.js，R632 evidence reopen 段）：Offer 职位已链接辞职信，重开 `/builder?doc=resignation&job=2091088`：`reopen hints: []`——R601 的「already has …」只在 `{result && …}` 块内，用户必须先 Generate（花 AI 配额）或模板化才知道已有信；cover/interview 共用同一组件、同一条件。方案 docs/plan-r633-writer-discloses-existing-linked-doc-before-generating.md。
+- 修复（Builder.tsx）：把已有文档提示移到 Generate/模板按钮上方、内容为空时即显示，并附「Open the saved cover letter/interview brief/resignation letter」链接到 /documents?doc=id；结果块内删除重复段落，「Saving links this … to job」提示不变；新增 `docKindNoun`。部署 index-Dr0tcODM.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（qa/r633-evidence.cjs）：预内容即显示提示+链接，链接打开对应文档，链接/文档不变；无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R632（#853）→ R633。
+
+## R634 — 跟踪职位卡在 saved 以外的状态对链接副本一无所知（不点名、不披露改指）（2026-09-06）
+- 证据（生产 index-Dr0tcODM.js，qa/r634-evidence.cjs，真实职位 2091088 置 Applied）：副本 A 链接该职位但目标字段已改为 Globex（mismatch）与 A 仍瞄准该职位（match）两组输出完全相同——头部「Targeted copy: 0% keyword match」、Next step「Prepare for the interview…」、tracked 区只有 Cover letter/Interview prep/Resignation letter 行，无任何一行说副本叫什么。R623 的「now points at …」披露只在 `nextStep()` 的 saved 分支，rejected/offer/applied/interviewing 先返回。方案 docs/plan-r634-tracked-card-names-linked-copy-and-mismatch-at-every-status.md。
+- 修复（Jobs.tsx）：tracked 区首行新增「Targeted resume: {copy.name} [now targets {copyTargetText}] Open」，与文档行同形；Open 走既有 `setConfirmTarget({intent:'target'})`（草稿守卫 + R625 New copy）；无链接副本时不渲染（主按钮已说 Target/Reconnect）。复用 `retargetedLinkedCopy/copyTargetText`。部署 index-Cq_vOAZH.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：mismatch → 行含琥珀色「now targets Site Reliability Engineer at Globex」；match → 无琥珀注；orphan → 无行；无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R633（#854）→ R634。
+
+## R635 — 被替换的早期文档无法非破坏性地换回链接（2026-09-06）
+- 证据（生产 index-Cq_vOAZH.js，qa/r635-evidence.cjs，真实职位 2091088 Applied，两封 cover letter、新的一封链接）：卡片「Earlier cover letter: … Open」只有 Open；/documents 对旧信只说「job uses another cover letter」（链接到职位）；唯一换回路径是删掉新信（删后才出现 R603 的 Use for this job）。方案 docs/plan-r635-earlier-document-can-be-swapped-back-in.md。
+- 修复（Jobs.tsx `earlierDocRows`）：早期文档行在职位已有链接时也提供动作，文案「Use this one instead」（无链接时仍为「Use for this job」），走同一 `setPipeline{Cover,Interview,Resignation}Doc`；不删任何文档，原链接文档因已有 forJob（R610 页面加载盖章）立即变为「Earlier …」行并同样可换回——对称可逆。部署 index-CSKiwVKd.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：点击后 cover=qa-cover1、两文档俱在、行互换；无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R634（#855）→ R635。
+
+## R636 — 职位卡对「为该职位保存的其他副本」一无所知，换回副本只能删（2026-09-06）
+- 证据（生产 index-CSKiwVKd.js，qa/r634-evidence.cjs twocopies，真实职位 2091088 Applied，A 链接、B 同为该职位所建且未链接）：卡片只有「Targeted resume: A · Open」，B 不出现；dashboard（R594）/builder（R605）仅说「uses another copy」无动作；唯一换回路径是删 A。与 R635 修前的文档侧完全同构。方案 docs/plan-r636-job-card-lists-earlier-targeted-copies-and-swaps-them-in.md。
+- 修复（Jobs.tsx）：新增 `orphanTargetedCopies(job)`（forJob=job 且保留来源、或目标字段匹配，未被任何职位链接，新→旧）；R634 行下逐条渲染「Earlier targeted copy: B · Use this one instead」（无链接副本时「Targeted copy (not linked): B · Use for this job」，多孤儿时可选）；动作为既有 `setPipelineVersion`（R619 盖 forJob），不删不开，原链接副本随即变为 Earlier 行可换回。行上不放 Open（打开副本会替换草稿，走主按钮的确认弹窗）。部署 index-Cj5uxiAF.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：点击后 copy=qa-copyB、两副本俱在 forJob=2091088、行互换；单副本对照无多余行；无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R635（#856）→ R636。
+
+## R637 — builder Target job 区对「目标职位用另一副本」只有链接、无动作（2026-09-06）
+- 证据（生产 index-Cj5uxiAF.js，qa/r637-evidence.cjs，真实职位 2091088 Applied，职位链接 A，编辑器打开同职位副本 B）：文案「…but that tracked job uses another copy. View it on the jobs board →」，按钮仅有链接；R621 的「Link this copy to it」只在职位无副本时出现。dashboard（R620）与 jobs 板（R636）均可原地链接，builder 是最后一个「有事实无动作」的面。方案 docs/plan-r637-builder-target-job-use-this-copy-instead.md。
+- 修复（Builder.tsx）：按钮常驻，文案随状态「Use this copy instead」/「Link this copy to it」，同一 `linkCopyToTargetedJob`（setPipelineVersion，R619 盖 forJob）；不删原副本，原副本在职位卡变为 Earlier 行（R636）可换回。部署 index-Ck2L9KYw.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：点击后 copy=qa-copyB、两副本俱在 forJob=2091088、active 不变、文案变为「This copy is tailored to …」；无溢出（375：360/375）、零 console 错误、零 AI 调用、存储回基线。PR 链：R636（#857）→ R637。
+
+## R638 — SOP-10 审计节点 + Resume settings「Save and use this copy for that job instead」（2026-09-06）
+- 审计（方案 docs/plan-r638-audit-node-and-resume-settings-use-this-copy-instead.md）：7 路由 × 1280/375 页面无溢出（仅既有两处有意横滚容器）；Rezi 公开页（job-search 指南 2026-07-16 版、features）能力项——按状态排除、Best match/Newest 排序、五状态、Apply on site、选择来源简历——RezUp 均已具备，无新公开能力缺口；关系 sweep（r616 375）R634–R637 新行无回归。
+- 剩余缺口（生产 index-Ck2L9KYw.js，qa/r638-evidence.cjs unlinked）：dashboard Resume settings 把未链接副本 B 改指跟踪职位 K（K 已链接 A）时只说「already uses another copy — this one stays unlinked」，按钮仅 Cancel/Save；R620 的「Save and link to that job」仅 K 无副本时出现。R636/R637 后这是最后一个只能去别处换的面。
+- 修复（Dashboard.tsx）：该按钮在 B 未被其他职位链接时常驻，文案随状态「Save and use this copy for that job instead」/「Save and link to that job」，文案补「unless you use it for that job instead」；同一 `saveEditing(linkTo)`（setPipelineVersion，R619 盖 forJob）；K 原副本不删，保留 forJob=K，在 K 卡片成为 Earlier 行可换回。B 本身是 J 链接副本时弹窗不变（仍为 Save as new copy）。部署 index-DR9zDq6k.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：点击后 qa-j2→qa-v1、v1.forJob=qa-j2、vA 保留；linked 对照不变；375 弹窗可滚动、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R637（#858）→ R638。
+
+## R639 — /documents「use this one」原地重连（2026-09-06）
+- 生产实证（index-DR9zDq6k.js，qa/r639-evidence.cjs）：/documents 文档行「job has no cover letter linked — use this one」整句是一个 Link，点击只跳 /jobs?job=…，pipeline 不变（cover=-）；「job uses another cover letter」只有链接、无任何动作。措辞承诺了动作但只导航；R603/R635 之后卡片可换，文档面仍是最后一个无原地 setter 的关系面。
+- 修复（Dashboard.tsx `docTargetNote` + `linkDocToJob`，/documents 行与打开文档弹窗共用）：状态短语保留为职位链接，后接按钮「use this one」/「use this one instead」，按 kind 调 setPipelineCover/Interview/ResignationDoc，setDocs 触发 jobByDoc/trackedEntries 重读。原链接文档不删、保留 forJob，其行翻转为「uses another — use this one instead」，可从任一行换回。方案 docs/plan-r639-documents-note-relinks-in-place.md。
+- 注意：首次命名 `useDocForJob` 触发 rules-of-hooks（eslint 把 use* 前缀当 Hook），改名 `linkDocToJob`。部署 index-Bn3Gx10U.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375 × unset/other：点击后 URL 仍 /documents、qa-j1→cover=qa-doc1、行互换、双文档保留、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R638（#859）→ R639。
+
+## R640 — dashboard / builder 副本备注「reconnect it」原地重连（2026-09-06）
+- 生产实证（index-Bn3Gx10U.js，qa/r640-evidence.cjs，dashboard + builder Copies）：「tracked job has no copy linked — reconnect it」整句是一个 Link，点击只跳 /jobs?job=…，pipeline 不变；「tracked job uses another copy」只有链接、无动作。与 R639 修前的 /documents 行同构，是副本关系图上最后一个只导航、不操作的面。方案 docs/plan-r640-copy-note-relinks-in-place.md。
+- 修复（CopyTargetNote 必填 `onLinkToJob`；Dashboard/Builder 各加 `linkCopyToJob`）：状态短语保留为职位链接，后接按钮「reconnect it」/「use this one instead」，走既有 setPipelineVersion（R619 盖 forJob），随后重读 versions/pipeline。原链接副本不删、保留 forJob，其行翻转可换回；不离开当前页。部署 index-DlbgP9dn.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375 × dashboard/builder × unset/other：点击后 URL 不变、qa-j1→qa-vB、两副本 forJob 俱在、行互换、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R639（#860）→ R640。
+
+## R641 — builder Target job：链接副本改指已有副本的职位 K 时补新副本替换动作（2026-09-06）
+- 生产实证（index-DlbgP9dn.js，qa/r622-evidence.cjs other）：J 链接副本 A 改指跟踪职位 K、K 已链接 B 时，文案「which already uses another copy. View it on the jobs board →」无任何动作；R622 的「Save as new copy for it」只在 K 无副本时出现。builder 侧最后一个「有事实无动作」分支。方案 docs/plan-r641-builder-retargeted-linked-copy-new-copy-replaces.md。
+- 修复（Builder.tsx）：按钮常驻，K 有副本时文案「Save as new copy and use it for that job instead」，同一 `saveDraftAsCopyFor`（createResumeVersion + setPipelineVersion，R619 盖 forJob，编辑器切到新副本）；A 仍链接 J，B 不删、保留 forJob=K，可在 K 卡片 Earlier 行 / 副本行换回。部署 index-BjgGSr5Z.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375 × other/nocopy：other 点击后 qa-j2→new、三副本俱在、active=new；nocopy 对照不变；无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R640（#861）→ R641。
+
+## R642 — dashboard Resume settings：链接副本改指已有副本的职位 K 时新副本直接链接 K（2026-09-06）
+- 生产实证（index-BjgGSr5Z.js，qa/r638-evidence.cjs linked）：文案「which already uses another copy — this one stays unlinked」，按钮「Save as new copy」不链接 K（R620 只在 K 无副本时传 linkTo），新副本落为孤儿、需再走 R640 第二步；与 builder R641 不对称。方案 docs/plan-r642-resume-settings-new-copy-uses-it-for-that-job.md。
+- 修复（Dashboard.tsx）：`saveEditingAsNewCopy(editingMatchesTrackedJob?.job.id)`，文案三态「Save as new copy」/「Save as new copy for that job」/「Save as new copy and use it for that job instead」；v1 仍链接 J、字段不动，vA 不删、保留 forJob=K 可换回。部署 index-C7F0W7hU.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375：linked 点击后 qa-j2→new、new.forJob=qa-j2、vA 保留、v1 行未改写；unlinked 对照（R638）不变；375 弹窗可滚动、无溢出、零 console 错误、零 AI 调用、存储回基线。PR 链：R641（#862）→ R642。
+
+## R643 — 未跟踪职位面板「Written for this job earlier」点名孤儿目标副本（2026-09-06）
+- 生产实证（qa/r612-evidence.cjs copy）：文档被点名可 Open，孤儿副本只在按钮上以「Reconnect targeted copy」出现，名字不出现；保存职位/任一状态芯片会重连它（R589/R590）却无处告知。方案 docs/plan-r643-untracked-panel-names-orphan-copy.md。
+- 修复（Jobs.tsx `writtenDocsNote`）：句首加「targeted resume “<name>”」（无 Open，避开替换草稿），them/it 计数含副本；仅有副本无文档也显示。部署 index-C-RldWYT.js。
+- 生产 QA 1280+375：copy / copyonly / docs / control 四态如预期，无溢出、零 console 错误、零 AI 调用、存储回基线。
+- QA 基建：生产有 service worker，QA 浏览器曾在 curl 已返回新 bundle 时仍拿到旧 shell（疑与 R607「需二次部署」同因，推断；加 bypass 后即拿到新 bundle）；qa/lib.cjs 加 `Network.setBypassServiceWorker`。PR 链：R642（#863）→ R643。
+
+## R644 — 无障碍审计节点（axe-core）+ 关系图各行 Open/Delete/Use 按钮补可访问名称（2026-09-06）
+- 生产实证（index-C-RldWYT.js，qa/r644-axe.cjs、r644-axe2.cjs；axe-core 4.13.0，wcag2a/aa/2.1 + best-practice，经 CDP `Page.setBypassCSP` 注入）：/jobs 跟踪面板、/dashboard、/documents、/builder 及三个弹窗（Open targeted copy 确认、Stop tracking、Resume settings）1280/375 均 0 violations。按钮清单暴露一致性缺口：/jobs 卡片四行文档/副本按钮全叫「Open」，dashboard 副本/文档行兄弟按钮有 sr-only 主语唯独 Open 没有，builder Copies 行「Duplicate copy X」有 aria-label 而 Open/Delete 没有。方案 docs/plan-r644-a11y-audit-labelled-open-buttons.md。
+- 修复（Jobs/Dashboard/Builder.tsx，只加 aria-label，可见文字不变，满足 Label in Name）：`Open targeted resume X` / `Open cover letter X` / `Open resignation letter X` / `Open interview prep X`、`Use this one instead: <kind> X`、dashboard `Open X`、builder `Open copy X` / `Delete copy X`。不改逻辑/样式/CSP。部署 index-Dpid_6jw.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（qa/r644-verify.cjs）：按钮名如预期成对出现，axe 三页面仍 0 violations，无溢出、零 console 错误、零 AI 调用、存储回基线。未做：键盘走查/读屏实听。QA 基建：qa/lib.cjs 把 `cdp` 暴露给脚本。PR 链：R643（#864）→ R644。
+
+## R645 — 键盘走查：原地换链接后焦点不掉回 body（2026-09-06）
+- 生产实证（index-Dpid_6jw.js，qa/r645-evidence.cjs、r645b.cjs）：/jobs 卡片早期副本/早期文档「Use this one instead」、/dashboard 副本行与文档行「use this one instead」四处，键盘 Enter 后 pipeline 写入正确但 `activeElement` 掉回 BODY（按钮所在行互换后卸载）；/builder Copies 弹窗同动作由 Radix FocusScope 兜底到弹窗容器。方案 docs/plan-r645-keyboard-focus-after-relink.md。
+- 修复：新增 `src/lib/useFocusAfterRender.ts`（登记 id → 下次 render 后 focus）；Jobs 链接行 Open 加 id `job-<jobId>-<kind>-open`，Dashboard 副本/文档行 Open 加 id `copy-<id>-open`/`doc-<id>-open`；换链接动作先登记再写 pipeline；文档弹窗内不登记（焦点留在弹窗）。不改数据逻辑/文字/布局。部署 index-CF7J0Qo1.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（qa/r645-verify.cjs）：四处 Enter 后焦点落在新链接对象的 Open 按钮（`:focus-visible` 为真）、换回亦然；弹窗内焦点仍在弹窗；axe 0 violations；无溢出、零 console 错误、仅 /api/ai/quota 读取无生成调用、存储回基线。未做：真实读屏实听。PR 链：R644（#865）→ R645。
+
+## R646 — 键盘走查：取消跟踪 / 删除后的 Undo 键盘可达（2026-09-06）
+- 生产实证（index-CF7J0Qo1.js，qa/r646-evidence.cjs，纯键盘）：/jobs 面板芯片→Stop tracking 弹窗→确认后焦点回到芯片，但到 Undo 需 29 次 Tab；/dashboard 副本行/文档行 Delete→确认后焦点掉回 BODY（行卸载），40 次 Tab 内到不了 Undo；toast 10s 自动消失——R598/R606 的 Undo 对键盘用户实际不可达。axe 无对应规则、0 violations。方案 docs/plan-r646-undo-toast-keyboard-reach.md。
+- 修复：`useFocusAfterRender.ts` 新增 `focusOnClose(id)`（弹窗 `onCloseAutoFocus`：Undo 存在则聚焦它，Cancel 路径不干预既有 opener 恢复）；Undo 按钮 id `undo-delete`（dashboard 三个删除弹窗）/`undo-untrack`（jobs 两个取消跟踪弹窗 + 无弹窗芯片路径）；toast 内有焦点时 10s 计时暂停、焦点离开后恢复；按 Undo 后焦点落到恢复对象的 Open（dashboard，R645 id）/所选职位的状态芯片 `track-chip-<status>`（jobs）。不改 toast 结构/文案/计时长度。部署 index-DgKcqXK4.js（Routes code 10000 依旧）。
+- 生产 QA 1280+375（qa/r646-verify.cjs）：Stop tracking / 删副本 / 删文档 / 批量删副本后 activeElement 均为 Undo（`:focus-visible` 真），聚焦 10.5s 后 toast 仍在，Tab 离开后 10.5s 消失；Undo 后 pipeline/versions/docs 精确恢复、焦点落在 Applied 芯片 / Open X；Cancel 路径焦点仍回 opener；axe 0 violations、无溢出、零 console 错误、无 AI 生成调用、存储回基线。未做：真实读屏实听；Dismiss（×）后焦点仍掉 body（低价值，未改）。builder Copies 弹窗内 undo bar 未测（在弹窗焦点域内）。PR 链：R645（#866）→ R646。
+- 顺手：R645 新文件曾用默认 prettier 风格（分号/双引号，仓库无 prettier 配置），已在 #866 追加提交改回仓库风格。
+
+## R647 — 键盘走查：builder「Resume copies」弹窗删除后键盘被锁在弹窗外（2026-09-06）
+- 生产实证（index-DgKcqXK4.js，qa/r647c-evidence.cjs，纯键盘）：Copies 弹窗内「Delete copy X」→确认「Delete」后，Resume copies 弹窗仍以 modal 打开，但 `activeElement`=BODY，后续 12 次 Tab 全部走弹窗**后面**的页面（Skip to content→顶部导航→主题按钮），到不了弹窗内的 Undo/关闭；toast 10s 后消失。Cancel/Escape 路径正常回到该行 Delete。另 R647 前置核查：取消跟踪后重新 Save/Applied 会完整重连四条链接（副本+cover+interview+resignation，qa/r647-evidence.cjs），非缺口。方案 docs/plan-r647-builder-copies-undo-focus.md。
+- 修复：确认弹窗 `onCloseAutoFocus={focusOnClose('undo-copy')}`；Undo 按钮 id `undo-copy`，toast 内有焦点时 10s 计时暂停；Undo 后焦点落到恢复行 `builder-copy-<id>-open`（若恢复为正在编辑的副本、Open 被 disabled 则落 `builder-copy-<id>-rename`）；行内 Open/Rename 加 id。不改数据/文案/布局。部署 index-Bl-ci03x.js。
+- 生产 QA 1280+375（qa/r647-verify.cjs）：Delete 后焦点=Undo（弹窗内、`:focus-visible` 真），聚焦 10.5s toast 仍在，Tab 离开后 10.5s 消失；Undo 后 versions 精确恢复、焦点落 Open copy X；正在编辑副本分支 Undo 后 active 恢复、焦点落 Rename copy X；Cancel 焦点回该行 Delete；axe 0 violations、无溢出、零 console 错误、仅 quota/billing 读取、存储回基线。未做：真实读屏实听。PR 链：R646（#867）→ R647。
+
+## R648 — SOP-10 审计节点 + builder「Target job」区原地换链接后焦点掉回 body（2026-09-06）
+- 审计（index-Bl-ci03x.js，qa/r648-audit.cjs）：7 路由 × 1280/375 axe 0、无溢出、0 无名可聚焦元素、零 console 错误、存储回基线；Rezi 公开页（features / ai-resume-builder / cover-letter / rezi-docs/job-search / tools/job-search）无新公开能力缺口、无键盘/无障碍/撤销承诺。
+- 生产纯键盘实证（qa/r648-evidence.cjs）：Target job 区「Link this copy to it」「Use this copy instead」「Save as new copy for it」Enter 后 pipeline 写入正确但 activeElement 全部=BODY（段落条件卸载，与 R645 同构）。方案 docs/plan-r648-audit-node-and-builder-target-job-focus.md。
+- 修复：linkedJob 段「View it on the jobs board →」加 id `builder-target-linked-job`；`linkCopyToTargetedJob`/`saveDraftAsCopyFor` 写成功后 `focusAfterRender` 到它，失败路径不登记。审计补遗：验收对照组暴露 ATS 卡「×70% / ×30%」`text-muted-foreground/70` 对白底 2.97:1（axe color-contrast，之前 fixture JD 抽不出关键词未渲染），去掉 `/70`。部署 index-C9Is68an.js。
+- 生产 QA 1280+375（qa/r648-verify.cjs）：A/B/C 焦点均落该 Link、`:focus-visible` 真、href 指目标职位 id、在视口内；pipeline/activeVersionId 与修复前一致；对照组无行内按钮、Link 唯一；axe 0、无溢出、零 console 错误、仅 billing/quota 读取、存储回基线。未做：真实读屏实听；行内按钮 target-size 列候选轮。PR 链：R647（#868）→ R648。
+
+## R649 — 键盘走查：builder「Resume copies」弹窗内备注换链接后焦点落到弹窗容器（2026-09-06）
+- 生产实证（index-C9Is68an.js，qa/r649-evidence.cjs，纯键盘）：弹窗内副本行备注「reconnect it」/「use this one instead」Enter 后 pipeline 正确，但 activeElement=弹窗容器 div[role=dialog]（Radix 兜底，R645 曾接受），下一次 Tab 从弹窗头部重来。同脚本实证 dashboard/jobs Undo toast「Dismiss ×」后焦点掉 BODY → R650。方案 docs/plan-r649-builder-copies-note-relink-focus.md。
+- 修复：`linkCopyToJob` 写成功后 `focusAfterRender('builder-copy-<id>-open')`，正在编辑副本（Open disabled）落 `-rename`（与 R647 Undo 同规则）；失败路径不登记。不改数据/文案/布局。部署 index-HMHLZ_ql.js。
+- 生产 QA 1280+375（qa/r649-verify.cjs）：三场景焦点均落该行 Open/Rename（弹窗内、`:focus-visible` 真）、备注变「for Platform Engineer at Initech」Link、pipeline 精确；弹窗打开态 axe 0、无溢出、零 console 错误、仅 billing/quota 读取、存储回基线。未做：真实读屏实听。PR 链：R648（#869）→ R649。
+
+## R650 — 键盘走查：Undo toast「Dismiss ×」后焦点掉回 body（2026-09-06）
+- 生产实证（index-C9Is68an.js，qa/r649-evidence.cjs，纯键盘）：dashboard 删副本 / jobs 取消跟踪 → Undo → Tab → Dismiss → Enter 后 activeElement=BODY，下一次 Tab 从页首重来；builder Copies 弹窗内 Undo 条同构。方案 docs/plan-r650-undo-toast-dismiss-focus.md。
+- 修复：`useFocusAfterRender` 接受有序候选 id；新增 `neighbourFocusId(removedIds, selector)` 在删之前按 DOM 顺序取相邻未删行控件（后→前→`main`）。dashboard `undoDelete`/builder `undoDeleteCopy` 带 `dismissFocusId`；jobs 存 `[状态芯片(仅当职位仍可显示), 相邻职位卡 job-card-<id>(新增稳定 id), main]`。生产实测推翻首版「芯片→main」：tracked 标签页取消选中职位后面板整块卸载、芯片消失。375 附带修：移动端详情面板里取消跟踪后面板只剩「Select a job…」、列表隐藏且无 Back to list，现职位从面板消失时 `setMobileDetail(false)` 回列表。不改数据/文案/布局/计时。部署 index-DJH3qdhb.js。
+- 生产 QA 1280+375（qa/r650-verify.cjs，ALL PASS 各≥2 次）：dashboard 首/末/唯一副本（→相邻 Open / →`main`）、文档 → 相邻 Open、jobs 两职位 → `job-card-qa-j3`、唯一职位 → `main`、builder 弹窗内 → 相邻行 Open（弹窗内）；均 `:focus-visible` 真、toast 消失、pipeline 精确；axe 0（含弹窗态）、无溢出、零 console 错误、存储回基线、无 AI 调用。375 部署后首跑 5a 一次落 `main` 后未再复现（推断边缘 chunk 传播延迟）。未做：真实读屏实听。PR 链：R649（#870）→ R650。
+
+## R651 — 关系图行内动作触控热区 15–16px（2026-09-06）
+- 生产实证（index-DJH3qdhb.js，qa/r651-evidence.cjs，1280+375）：axe `wcag22aa`（含 target-size）四路由 0——WCAG 2.5.8 豁免句内行内目标，自动审计看不到；直接量 dashboard/documents「use this one (instead)」「reconnect it」按钮 16px、CopyTargetNote 三个 Link 15px、/jobs 卡片「Open」（copy/cover/interview/resignation，31×16）「Use this one instead / Use for this job」16px、未跟踪面板文档 Open 16px、builder Copies 弹窗行同构。这些是 R635–R650 反复收口的换链接/打开工件的唯一入口。方案 docs/plan-r651-inline-relationship-actions-touch-target.md。
+- 修复：`src/lib/utils.ts` 新增 `INLINE_ACTION`（按钮：`relative -my-3 inline-flex items-center py-3 sm:my-0 sm:py-0`，与 AtsChecker/builder 空态既有惯例逐字一致）与 `INLINE_LINK`（可折行 Link：`relative py-3 sm:py-0`，行内盒的竖向 padding 只扩热区不改行盒）。套用 CopyTargetNote（4 Link + 1 button）、dashboard docTargetNote（3 Link + 1 button）、/jobs 8 处按钮。只改 className。首版 Link 也用 inline-flex 被生产实测推翻：原子行内盒使「tracked job uses another copy」「job has no cover letter linked」整体换行，375 行高 +16px——改 INLINE_LINK 后行高全部回到基线。部署 index-Bn1MCp03.js。
+- 生产 QA 1280+375（qa/r651-verify.cjs before/after 对比，ALL PASS）：375 上全部 30 个控件 ≥39px（按钮 40、Link 39=15+24），中心点 elementFromPoint 命中自身，`main` 高度与每行行高与修复前逐一相等；1280 控件高度/行高/`main` 高度与修复前逐一相等（`sm:` 重置生效）；dashboard「use this one instead」Enter 后 pipeline→qa-vK2、焦点落 `copy-qa-vK2-open`（R645 行为不变）；axe（2a/2aa/21a/21aa/22aa/best-practice）0、无溢出、零 console 错误、存储回基线、无 AI 调用。未做：真实读屏实听、真机触控。PR 链：R650（#871）→ R651。
+
+### R652 — 所有弹窗「Close ×」热区 16×16 → 小屏 40×40（PR #873，链 #872 → #873）
+- 生产实证（index-Bn1MCp03.js，qa/r652-evidence.cjs，375）：`ui/dialog.tsx` 的 `DialogContent` 给每个弹窗渲染的 `DialogPrimitive.Close`（shadcn 上游默认 `absolute top-4 right-4` + `size-4` 图标，无 padding）实测 16×16——builder Copies、/jobs Stop tracking 确认、/dashboard Delete 确认三处相同；60px 内无其他控件，故 axe target-size 靠间距豁免通过。
+- 修复：仅 dialog.tsx 一处 className 加 `-m-3 p-3 sm:m-0 sm:p-0`——<640px 盒子 40×40、负外边距让图标停在原位；≥640px 等于现状。不改 Radix/焦点归还/任何弹窗内容。
+- 生产 QA 1280+375（qa/r652-verify.cjs，ALL PASS）：375 三弹窗 Close 40×40、图标 16×16 @17/17 不变、四角 elementFromPoint 命中、背景透明；点 Close 关闭且焦点回打开按钮；1280 仍 16×16。弹窗打开态 axe 0、无溢出、零 console 错误、存储回基线。部署 index-rBI4qE4w.js；Workers Routes code 10000 依旧。未做：真实读屏实听、真机触控。
+
+### R653 — builder Target job 动作、/jobs Tailoring report、dashboard LinkedIn 导入热区 16px → 小屏 40px（PR 待填，链 #873 → 本 PR）
+- 生产实证（index-rBI4qE4w.js，qa/r653-sweep.cjs / r653-verify.cjs before，375）：R651 未覆盖的关系图行内动作——builder Target job 区 `Link this copy to it`/`Use this copy instead`/`Save as new copy…`/`View it on the jobs board →`（换行时 31px 且中心不命中）、/jobs `Tailoring report`、dashboard 空态 `Import your LinkedIn profile →`——全部 15–16px；axe target-size 因 2.5.8 行内豁免仍绿。
+- 修复：按钮套 `INLINE_ACTION`、换行链接套 `INLINE_LINK`（Builder.tsx 9 处、Jobs.tsx 2 处）；dashboard LinkedIn 按钮是 flex 子项非句内文本，用专用 `-mt-1 -mb-3 py-3 sm:mt-2 sm:mb-0 sm:py-0` 以免与 `mt-2` 冲突推低 12px。不改文案/数据/焦点策略。
+- 生产 QA 1280+375（qa/r653-verify.cjs before/after，ALL PASS）：375 十个控件 40px 或 +24px、中心命中，行高与 main 高度逐一等于修复前；1280 全等于修复前；Enter 触发 `Use this copy instead` 仍改指 + 焦点落 jobs 板链接；axe 0、无溢出、零 console 错误、存储回基线。部署 index-DoQxTL4K.js；Workers Routes code 10000 依旧。
+- 顺带发现（候选）：1280 页面滚到 dashboard 空态渐变区时粘性页头 `by Zalize` 对比度 4.3 < 4.5（axe color-contrast），页顶通过。未做：真实读屏实听、真机触控。
+
+### R654 — 粘性半透明页头滚过着色区块时导航文字对比度 3.87–4.3 → ≥4.84（PR 待填，链 #874 → 本 PR）
+- 生产实证（index-DoQxTL4K.js，qa/r654-evidence.cjs 全路由逐 300px 滚动跑 axe color-contrast 只查 header）：SPA `Layout.tsx` 与静态页 `build-seo.mjs header.site` 都是 85% 背景 + blur；1280 `/pricing/` y=300/600 导航 `ATS Checker`/`Pricing` 3.87:1、`/dashboard` 空态叠渐变时 `by Zalize` 4.3:1；页顶 6.0 通过，故 R648 页顶 axe 未发现。
+- 修复：两处 85% → 95%（推算任意下层含纯黑均 ≥5.0）；builder 内区段导航同 85% 但未见失败，未改。
+- 生产 QA（qa/r654-verify.cjs before/after，ALL PASS）：最低对比 3.87→4.84、4.3→5.02，375/页顶/暗色全 ≥4.5，alpha 0.95 仍半透明，无溢出、零 console 错误。部署 index-BooZ5OSm.js；Workers Routes code 10000 依旧。
+
+### R655 — 示例卡片角色名按钮 302×20 → 小屏 40px（PR 待填，链 #875 → 本 PR）
+- 生产实证（index-BooZ5OSm.js，qa/r655-sweep.cjs 逐 400px 滚动累计 axe）：`/samples`、`/dashboard` Samples 区角色名按钮 302×20 是本仓首个 axe 真 fail 的 target-size（非句内文本无豁免），R648 页顶单次 axe 看不到。Star 已 40×40；sweep 的「partially obscured」为粘性页头步长伪影。
+- 修复：Dashboard.tsx 一处 `-my-2.5 py-2.5 sm:my-0 sm:py-0`。生产 QA before/after（qa/r655-verify.cjs，ALL PASS）：375 40px 命中、文字/行业行/卡片高度不变；1280 不变；Samples 区 axe 0；预览弹窗打开/Esc 焦点归还正常。部署 index-DaRDVKBP.js；Workers Routes code 10000 依旧。
+- 后续候选：`/ats-checker` FAQ `<summary>` 294×20；builder「+ 关键词」芯片 22px（axe 间距豁免通过）。审计方法升级：SOP-10 节点应改为逐屏滚动累计 axe，而非仅页顶。
+
+### R656 — `<summary>` 折叠标题 20px/16px → 小屏 40px（PR 待填，链 #876 → 本 PR）
+- 生产实证（qa/r655-sweep.cjs 逐屏 axe；qa/r656-verify.cjs before）：`/ats-checker` FAQ 四个 summary 294×20 axe target-size 真 fail；同类「What do these scores mean?」与 builder「How this score is calculated」(16px) 同型修。静态页 mnav/rnav summary 不在范围。
+- 修复：AtsChecker.tsx 2 处 `-my-2.5 py-2.5 sm:my-0 sm:py-0`，Builder.tsx 1 处 `-my-3 py-3 sm:my-0 sm:py-0`。生产 QA（375 FAQ 40px 命中、文字/details/展开答案位置不变、axe 0；1280 不变）。部署 index-CH8uqO1t.js；Workers Routes code 10000 依旧。
+- 如实：另两个 summary 在 375 未实测（需分数/默认不渲染），仅同型推断。
+
+### R657 — builder 关键词芯片 20–22px → 小屏 32px（PR 待填，链 #877 → 本 PR）
+- 生产实证（qa/r657-evidence.cjs before）：Missing keywords 胶囊 `+ kw` 65×20 / `×` 21×20 零间距并排、行距 4，axe 仅靠间距豁免通过；同款 Skills 建议芯片、分类面板三键胶囊、Restore 芯片。
+- 修复：Builder.tsx 13 处 `min-h-8 sm:min-h-0` / `px-2 sm:px-1.5` / `gap-1.5 sm:gap-1`（有意采用 32px 密集芯片标准，非 40px）。生产 QA：375 32px 命中、+/× 行为不变、axe 0、无溢出；1280 逐项不变。部署 index-H5mVtm7t.js；Workers Routes code 10000 依旧。
+- 至此 R651–R657 触控热区专题：关系图行内动作、弹窗 Close、Target job 动作、示例卡标题、summary、芯片全部 ≥32px（多为 40px）。下一步 R658 四维差距审计——SOP-10 节点应升级为逐屏滚动累计 axe（R655 证明页顶单次 axe 漏报）。
+
+### R658 — SOP-10 审计节点 + 键盘焦点/锚点跳转不再落在粘性页头、builder section nav、移动底栏之下（PR 待填，链 #878 → 本 PR）
+- 审计（qa/r658-audit.cjs 逐屏累计 axe，7 路由 × 1280/375；Rezi 公开页 qa/rezi-r658*.cjs）：真实 axe 违规 1280 全 0、375 仅 builder 3 条 target-size——复核（qa/r658-chips.cjs）生产芯片实为 32px 含 `min-h-8`，审计抓到的是 R657 刚部署时的旧 Builder 分块，边缘缓存伪影非缺口。Rezi 公开能力面无新增。
+- 生产实证（qa/r658-verify.cjs before）：Shift+Tab 时浏览器把焦点滚到视口顶端、落在 57px 粘性页头下（dashboard 375 40 处/1280 36 处，documents 2 处，builder 375 26 处含 section nav 双层）；builder 375 正向 Tab 时 section nav 按钮被 61px 固定底栏遮 26 处；builder 375 页脚末行 HonestQR/HonestPDF/SubSleuth 永久位于底栏之下、触控不可达。WCAG 2.4.11，axe 无规则。
+- 修复：index.css `html{scroll-padding-top:4rem}` / `html:has([data-sticky-subnav]){7rem}` / `<1024px html:has([data-pane-switcher]){scroll-padding-bottom:5rem}`；Builder/Dashboard 既有 scroll-mt 减去同量（区段 112、#documents 80 落点不变）；builder 底部留白由 main pb-20 移到页脚外层 pb-14（页高不变）。方案 docs/plan-r658-focus-not-obscured-sticky-bars.md。
+- 生产 QA（qa/r658-verify.cjs after，index-CplAcj51.js）：375/1280 三路由 Shift+Tab / Tab 被遮焦点 0；jump 落点 112、#documents 80 不变；页脚 24/24 可达；scrollHeight 逐一不变；axe 0、无溢出、零 console 错误、存储回基线。Workers Routes code 10000 依旧。
+- 未处理：1280 builder 正向 Tab 进入预览列「Edit text」span 时其在视口外（`lg:sticky` 预览列高于视口，浏览器无法滚入）——R659 候选。
+
+### R659 — builder 桌面预览列改为自滚动容器（链 #879 → 本 PR）
+- 生产实证（index-CplAcj51.js，qa/r659-scroll.cjs / r659-verify.cjs before）：1280×812 与 1440×900 下 `#preview`（lg:sticky top-20）列高 2744 > 视口；scrollY 0–~1700 期间粘性固定，ATS「See full score breakdown」停在 y=930、缺失关键词卡 2008–2774 全程视口外不动——编辑时看不到 ATS 细节与关键词面板；滚轮悬停预览列只滚页面（scrollY 900 / 列 scrollTop 0）；Tab 走完预览列 139 站有 3 站焦点在视口外（粘性元素不随窗口滚动移动，WCAG 2.4.11/2.4.12，R658 遗留）。
+- 修复：`#preview` 加 `lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:[scrollbar-width:thin]` + `print:max-h-none print:overflow-visible`（`#preview` 是 `[data-resume-preview]` 祖先，print 不得裁剪）。375 与左列不变。方案 docs/plan-r659-builder-preview-column-own-scroll.md。
+- 生产 QA（qa/r659-verify.cjs after，index-Dx3_79Ar.js）：1280 列底 797≤812、overflow auto、滚轮 600 → scrollY 0 / scrollTop 600、score 按钮 y=331 命中；Tab 139 站视口外 0；print 媒体 max-height none/overflow visible；列内无绝对定位后代越界；375 预览面板 static/none/visible 不变；1280/375/1440 axe 0、无溢出、零 console 错误、存储回基线。Workers Routes code 10000 依旧。
+
+### R660 — 暗色主题审计节点：/pricing 对比表 + builder「Matched」绿字对比度（链 #880 → 本 PR）
+- R658 遗留 sweep 复核（qa/r660-sweep.cjs / r660-skip.cjs / r660-ats.cjs）：`/pricing` skip link（y=8–50 可见、命中）、`/ats-checker` 258px textarea（y=496–754 全可见）、pricing 大容器均为「焦点元素超出视口」启发式的误报，未改代码。
+- 首次暗色主题审计（qa/r660-dark-audit.cjs = r658-audit + `honestcv.theme='dark'`，7 路由 × 1280/375 逐屏累计 axe，index-Dx3_79Ar.js）：`/pricing` 静态页两张对比表高亮列 8 个 `<td>` 硬编码 `#047857` 在 `#0d121d` 上 3.41:1；builder ATS「Matched (N)」`text-green-700` 在卡片 `#12161d` 上 3.66:1（1280，375 预览面板隐藏）。其余 6 路由暗色 0 真违规。R644 以来所有 axe 节点只跑过亮色。
+- 排除：`/dashboard` 375 暗色 2 条 contrast（bg #ffffff）——glyph 盒下无白色元素，文字在卡片 oklch(0.2) 上 ≈5.8:1；axe relatedNodes 指向白色简历缩略图 `[data-resume-preview].bg-white`，R651 小屏 `py-3` 热区盒触及缩略图致 axe 取错背景；1280 同链接通过。axe 伪影非缺口。
+- 修复：build-seo.mjs `html.dark table.cmp:not(.plans) td:nth-child(2), html.dark table.cmp.plans td:nth-child(4){color:#34d399}`（9.74:1）；Builder.tsx / Landing.tsx「Matched」加 `dark:text-green-400`（10.19:1）。亮色不变。方案 docs/plan-r660-dark-mode-contrast-audit.md。
+- 生产 QA（qa/r660-dark-audit.cjs / r660-verify.cjs after，index-DxwM4NBG.js）：暗色 1280/375 `/pricing`、`/builder` axe 0；pricing 19 个高亮格 rgb(52,211,153)、非高亮格 inherit 不变；builder/landing 标签暗 oklch(0.792…) 亮 oklch(0.527…)；无溢出、零 console 错误、存储回基线。Workers Routes code 10000 依旧。
+- 后续候选：其余 `text-emerald-600/700`、`text-green-600` 无 `dark:` 变体处（AtsChecker 493/702/759、Builder 多处 Check 图标、Jobs 1864）暗色下未在 7 路由 fixture 中触发（多为图标/条件态），若后续 fixture 覆盖再实测。
+
+### R661 — 暗色 `green-*` 调色板 + Landing「Best value」徽章白字（链 #881 → 本 PR）
+- 取证（qa/r661-dark-scan.cjs 自研计算式对比度扫描 + r661-badge.cjs 直查 DOM，index-DxwM4NBG.js）：Landing 定价卡「Best value」`Badge bg-emerald-700 text-white`——暗色下 `--color-emerald-700` 已被 R6xx 调色板重映射为薄荷 `oklch(0.82 0.12 162)`（为深底上的浅字设计），白字压其上 1.67:1；`elementsFromPoint` 命中徽章本体、非装饰、无 aria-hidden，真缺口。同时 `.dark` 只重映射 amber/emerald/red/blue，`green-*` 未映射：Landing/Builder 匹配关键词芯片 `bg-green-50 border-green-200 text-green-800`、`text-green-600` ✓ 与 Check 图标、Paywall 三处成功面板 `bg-green-50` 在暗色下仍是亮色值。Paywall 激活面板（qa/r661-paywall.cjs，`/api/billing/status`→`{freeMode:false}`、`/api/license/activate`→假 token 全部拦截、未发真实请求）实测 `oklch(0.93 0.01 260)` 字压 `oklch(0.982 0.018 155.826)` 底 1.17:1，截图肉眼几乎不可见。
+- 修复（docs/plan-r661-dark-green-palette.md）：`src/index.css` `.dark` 补 `--color-green-50/100/200/300/600/700/800/900`（与 emerald 同亮度阶、hue 150）；Landing 徽章加 `dark:text-emerald-950`；两处「Matched」的 R660 `dark:text-green-400` 覆盖改回依赖共享调色板。build-seo.mjs 不动。亮色零变化。
+- 生产 QA（qa/r661-verify.cjs 1280+375 × 暗/亮，index-Cves4und.js）：暗色 Best value 9.1:1（fg oklch(0.262…) on 0.82）；Matched 标签 10.85:1；芯片字 10.06、✓ 7.83；Paywall 激活面板 12.09:1（1.17→）。亮色逐项与修复前一致（Best value 5.36、Matched 4.95、芯片 6.81、✓ 3.08——✓ 为 aria-hidden 装饰、既有值未改）。7 路由暗色逐屏 axe 1280/375 真违规 0（/dashboard 375 两条仍是 R660 已记录的白色缩略图伪影，本轮再次 elementsFromPoint 复核：背景链 bg-card oklch(0.2) → body，实算 ≈6.3/6.15:1）；无溢出、零 console 错误、存储回基线、假 license 未残留。Workers Routes code 10000 依旧。
+- 如实未验证：builder ATS 面板在 375 预览面板隐藏，未在 375 直接量 Matched/芯片（同一 CSS 变量，1280 已量）；未做真实读屏与真机。
+
+### R662 — 亮色主题：builder ATS 检查清单 ✓/✗ 字形 3.22/3.81:1，axe 结构性看不到（链 #882 → 本 PR）
+- 取证（qa/r662-scan.cjs = R661 计算式扫描 `THEME=light`，7 路由 × 1280/375；qa/r662-evidence.cjs 直查，index-Cves4und.js）：Builder.tsx ATS 清单 21 个 `<span className={c.pass ? 'text-green-600' : 'text-red-500'}>✓/✗</span>`，12px、非 aria-hidden、通过行的状态只靠字形+颜色承载；白卡上 ✓ rgb(0,166,62) 3.22:1、✗ rgb(251,44,54) 3.81:1。axe `color-contrast` 把全部 22 个字形放进 `incomplete`（"Element content contains only non-text characters"），违规 0——R644 以来所有 axe 节点对此类符号态字形按设计免检；且清单位于 R659 预览自滚动容器内（h=716 / scrollHeight 2847），整页滚动 axe 也只见第一屏。暗色不受影响（green-600 走 R661 阶、red-500 在暗卡 ≈4.7）。同源条件态 AtsChecker.tsx:493「No priority fixes」`text-xs text-emerald-600` 白底 3.65:1（fixture 触发不到，按 token 算）。
+- 排除：Landing aria-hidden ATS 演示卡内 `text-emerald-600` "Detected"/Score breakdown 数字（装饰性产品插图，列候选未改）；Builder `Check` SVG 图标 3.22 ≥ 非文字 3:1；芯片 `✓` aria-hidden 装饰重复。
+- 修复（docs/plan-r662-ats-checklist-glyph-contrast.md）：`text-green-600→text-green-700`（4.95）、`text-red-500→text-red-600`（4.77）、AtsChecker `text-emerald-600→text-emerald-700`（5.3）。无 `dark:`、无布局/文案变化。
+- 生产 QA（qa/r662-evidence.cjs 亮/暗 1280，index-K2E7xJLD.js）：✓ 4.95（暗 10.85）、✗ 4.77（暗 7.96），21 字形数量/rect 逐一不变、无 aria-hidden；计算式扫描亮/暗 × 1280/375 七路由零命中；逐屏 axe 真违规 0、无溢出、零 console 错误、存储回基线。Workers Routes code 10000 依旧。
+- 如实未验证：AtsChecker「No priority fixes」未渲染实测；375 下 ATS 面板隐藏未直接量（同 token）；未做真实读屏与真机。SOP-10 方法注记：符号态字形须读 axe `incomplete`；R659 滚动容器内内容只有计算式扫描覆盖。
+
+### R663 — Landing 展示用 mock 卡 12px 状态文本 3.2–3.65:1（链 #883 → 本 PR）
+- 取证（qa/r663-scan.cjs = r662-scan + `INCLUDE_HIDDEN=1`，亮色 7 路由 1280，index-K2E7xJLD.js）：aria-hidden 子树内全部命中仅在 Landing 展示 mock：ATS 演示卡「Detected」×2 /「3 positions detected」`text-emerald-600` rgb(0,153,102) 白底 3.65；Score breakdown「72」`text-amber-600` 3.2、「83」`text-emerald-600` 3.65；另 Landing/Builder 芯片 `✓ text-green-600` 3.08（aria-hidden、紧邻标签、装饰重复，维持不改）。判定：mock 虽 aria-hidden，但是给视觉用户阅读的产品插图（"Skills — Parsed as body text"、"Missing keyword: kubernetes"），不是 1.4.3 意义的纯装饰，按真缺口处理。
+- 复核非缺口：`ScoreRing` 数字 20px/700 属大文本按 3:1——emerald 3.65、#d97706 ≈3.18、#dc2626 ≈4.83（暗卡 9.55/≈5.6/≈3.7）均达标，未改。
+- 修复（docs/plan-r663-landing-showcase-mock-text-contrast.md）：Landing.tsx 287 `emerald-600→700`、`amber-600→700`；557 `emerald-600→700`；red-600 不动。无布局/文案/`dark:` 变化。
+- 生产 QA（qa/r663-verify.cjs 亮/暗 × 1280/375，index-C_rL1zCr.js）：Detected/3 positions 5.36（暗 10.87）、72 amber 5.03（暗 11.36）、83 5.36、Parsed as body text / 40 red-600 4.77（暗 7.96）；零 console 错误、存储回基线。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧。
+- 如实：装饰 vs 信息是记录在案的判断而非测量；芯片 ✓ 反向判断为装饰；未做真实读屏。
+
+### R664 — 纯文本滚动区不可键盘聚焦/无名称：ATS JD 高亮框、信件预览（链 #884 → 本 PR）
+- 覆盖缺口先补：7 路由 SOP-10 fixture 从未渲染过 /ats-checker **结果态**。qa/r664-ats.cjs 点「See an example score first」后跑逐屏 axe + 计算式对比度（亮/暗 × 1280/375，index-C_rL1zCr.js）：对比度四组 0 命中；axe 在 375 报 1 个真违规 `scrollable-region-focusable`（serious）：「Job description with keywords highlighted」框 `max-h-56 overflow-y-auto`，375 下 scrollHeight 304 > clientHeight 222，tabIndex −1、内无可聚焦元素；1280 下不溢出（184/184）所以桌面 sweep 从未见过。同构：/dashboard Letter examples 弹窗与文档 Preview 视图共用的 `LetterPreview`（maxHeight 55vh）375 下 716 > 445、同样不可聚焦无名称。
+- 如实：审计浏览器 Chrome 137 默认把无可聚焦子元素的滚动容器纳入 Tab 序（实测第 11 个 Tab 停在框上、ArrowDown 滚 80px、UA `outline auto`）；WebKit 未实现属推断未实测（本机无 WebKit）。无名称是各引擎都存在的问题。
+- 修复（docs/plan-r664-keyboard-scrollable-regions.md）：沿用仓内既有约定（Landing 定价对比表 `tabIndex={0} role="region" aria-label`）——AtsChecker.tsx JD 框 + Dashboard.tsx `LetterPreview` 根元素加 `tabIndex={0} role="region" aria-label`（"Job description with keywords highlighted" / "<title> preview"）。无布局/文案/颜色变化。
+- 排除：builder Copies `ul`、jobs 两栏、示例弹窗外层 wrapper 均含可聚焦内容（axe 通过）；AssistantPanel 消息区需真实 AI 对话才溢出，零配额未测，列候选。
+- 生产 QA（index-DHP4Xevh.js）：r664-ats 亮/暗 375 + 亮 1280 axe real 0（原 375 为 1）、对比度 0、无溢出、零 console 错误、atsDraft 回基线；r664-evidence 375 两框 tabIndex 0/role region/有名，Tab 可达；r664-dialog-axe 375 弹窗 axe 0，第 4 个 Tab 到达 preview region，ArrowDown 滚 40px。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧。
+- 如实未验证：R662「No priority fixes」态示例数据不触发，仍只按 token；桌面多出 1 个 Tab 停（与定价表同取舍）；未做真实读屏。
+
+### R665 — builder Health 弹窗亮色对比度：维度分数 + 白话解释 + 全通过提示（链 #885 → 本 PR）
+- 覆盖缺口先补：此前所有 SOP-10 节点从未打开过任何弹窗。qa/r665-dialogs.cjs 打开 dashboard 5 个 + builder 4 个弹窗（亮/暗 × 375/1280，index-DHP4Xevh.js）跑 axe + 计算式对比度：8/9 弹窗 axe 真违规 0、对比度 0、不超视口、焦点在弹窗内、零 console 错误（Keyboard shortcuts 为桌面专属 `hidden lg:inline-flex`，375 不测非缺口）。
+- 缺口（Health 弹窗，仅亮色）：维度分数 12px/600 `text-amber-600` 3.11（axe serious）、`text-emerald-600` 3.56 ×7；白话解释 `text-muted-foreground/80 italic` 12px 3.57 ×8（前景带 0.8 alpha）；「No priority fixes」同 emerald-600 token（示例数据不触发，按 token 算 3.56，是 R662 AtsChecker 同句的 builder 孪生）。暗色全部通过（11.09/10.25/4.64），不改。
+- 方法学发现（入 SOP-10）：① axe 在可滚动弹窗内只报**视口内**节点——375 只报了在视口内的「75」，1280 多报了第一条解释；下折的 7 个分数/7 条解释两宽度均未报。弹窗审计必须滚弹窗本体，R655 的整页滚动累计够不到。② R661/R662 自研扫描器 `px4(cs.color).slice(0,3)` 丢了前景 alpha，把 `/80` 按 100% 算成 5.38 放过；qa/r665-health.cjs 已改为前景先合成到背景。仓内其余 alpha 前景：拖拽把手 `/60`（aria-hidden 图标）、AtsChecker `text-foreground/70`、Jobs `text-foreground/80` 标题——按 --foreground 近黑推断远超 4.5，本轮未用新扫描器复测，列 R666 候选。
+- 修复（docs/plan-r665-health-dialog-contrast.md）：Builder.tsx `HealthDialog` 内 emerald-600→700、amber-600→700、解释去 `/80`（保留 italic）。排除：`text-red-600` 4.77 通过；Final check `⚠` amber-600 为装饰（每行都是问题、文字承载语义）；下载成功 Check 图标与完成清单 aria-hidden 图标不改。
+- 生产 QA（index-BLTPcaBg.js）：r665-health 亮/暗 × 375/1280 全部节点 ≥4.5（amber-700 4.9、emerald-700 5.22、解释 5.38；暗 12.19/11.66/6.77），弹窗几何逐一不变（top 41/bottom 771、scrollHeight 2396/1736）；r665-dialogs ONLY=health 亮 375/1280 axe 真违规 0（原 1/2）、零 console 错误、存储回基线。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧（上传上线不受影响）。
+- 如实未验证：「No priority fixes」仍只按 token；解释从 80% 到 100% muted 层级略弱（italic 仍区分）；未做真实读屏。
+
+### R666 — builder 拖拽把手图标非文本对比度 2.47→5.53（WCAG 1.4.11，链 #886 → 本 PR）
+- 起因：R665 发现自研扫描器丢前景 alpha。R666 用 alpha 感知版重跑 8 路由（qa/r666-scan.cjs，文本 0 低于阈值），并对仓内仅剩三处 alpha 前景直接实测（qa/r666-alpha-probe.cjs 亮/暗）：AtsChecker `text-foreground/70` 7.07/7.69、Jobs JD 小标题 `text-foreground/80` 10.24/9.70 均通过；builder 拖拽把手 `GripVertical` `text-muted-foreground/60` **亮 2.47** / 暗 3.08。
+- 新审计维度：qa/r666-icons.cjs 量所有「只有 svg 的控件」（button/role=button/a/summary/tab/switch）图标对 3:1（1.4.11 非文本对比度，axe 无此规则）：/builder 64、/dashboard 10、/samples 10、其余 ≤1；唯一低于 3:1 的就是亮色拖拽把手（3 个 role 把手实渲染，education/section 把手同 className）。把手 `role=button` + aria-label，图标是控件唯一视觉标识，不豁免；键盘另有 Move up/down，非唯一路径。
+- 修复（docs/plan-r666-drag-handle-icon-contrast.md）：Builder.tsx 三处 `text-muted-foreground/60` → `text-muted-foreground`（hover 仍 text-foreground，只改色）。生产（index-D1HFeIO9.js）：5.53 亮 / 6.31 暗；icon-only 1280×64、375×38 全部 ≥3；零 console 错误；tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧。
+- 如实未验证：section-order 把手只按同 className 推断；未真机拖拽、未读屏。
+
+### R667 — 键盘焦点环 2.2–2.5:1（`ring-ring/50` / `outline-ring/50` 半透明）→ ≥5.9（WCAG 2.4.13/1.4.11，链 #887 → 本 PR）
+- 取证（index-D1HFeIO9.js）：qa/r667-graphics.cjs（信息性 svg/进度条/输入框边框/勾选指示）亮 1280 8 路由 0 低于阈值；qa/r667-focus.cjs 首跑「weak/none 0」是**假阴性**——解析色无 alpha 通道时 `l[3]` 为 undefined → NaN 被当通过。修正后 dashboard 106/106、builder 97/275 可聚焦控件弱环；qa/r667-focus-pixels*.cjs 截图逐像素实测：搜索框 2.28/2.47（亮/暗）、builder input/textarea 2.30/2.48、outline/卡片按钮 2.21–2.61、Templates 链接 2.89、预览行内 textbox `ring-sky-300` 1.6；主按钮 6.1（`ring-ring/50` 压在 primary 上）。根因：shadcn 默认 `focus-visible:ring-ring/50` + 全局 `outline-ring/50`，`--ring` 本身亮 6.1/暗 6.6 但 50% alpha 压页面底后掉到 ~2.3。
+- 修复（docs/plan-r667-focus-ring-contrast.md）：index.css `outline-ring/50→outline-ring`；ui/button|input|textarea `ring-ring/50→ring-ring`；ResumePreview 两个行内 textbox `ring-1 ring-sky-300→ring-2 ring-sky-600`（预览列在 `transform: scale(<1)` 下 1px 环渲染为亚像素抗锯齿线，首次部署 ring-1 实测最蓝像素仅 2.42，改 2px 后有整像素 `rgb(0,132,209)` 4.02）。box-shadow 环不影响布局。
+- 生产 QA（index-DE-3CXPP.js；首次 deploy 边缘仍指旧 bundle，二次 deploy 生效）：计算式 sweep（测量期禁用 transition——150ms box-shadow 过渡使即时读取拿到透明层）亮/暗 × 1280 dashboard/builder/jobs/ats-checker + 亮/暗 × 375 dashboard/builder/jobs → weak/none 0、nofocus 0，全部组真实比值 6.1/6.27（亮）6.16/6.61（暗）；像素实测 8 个代表控件亮 5.94–6.27、暗 6.16–6.64（链接/卡片暗色为 Chrome 白色 auto outline 19.5）、预览 textbox 4.02；零 console 错误；存储回基线。
+- 如实未验证：预览 textbox 在 375 默认隐藏（编辑面板优先）未直接量；弹窗内焦点环仅在路由默认态计入 sweep；未做真实读屏与真机键盘。SOP-10 方法注记：焦点审计必须 ① 前景 alpha 合成、② 禁用/等待 transition 后再采样、③ 以渲染像素复核计算值（缩放容器下 1px 环会被抗锯齿稀释）。
+
+### R668 — SOP-10 审计节点（首次纳入 114 个预渲染 SEO 静态页）+ 静态页锚点跳转 / Shift+Tab 焦点落在粘性页头之下（WCAG 2.4.11，链 #888 → 本 PR）
+- 节点（index-DE-3CXPP.js；qa/r666-scan.cjs 逐屏累计 axe、qa/r666-icons.cjs 非文本、qa/r667-focus.cjs 焦点环、qa/r668-rezi.cjs 竞品）：应用 8 路由 × 1280/375 × 亮/暗 axe 真违规 0、无名可聚焦 0、图标非文本 <3:1 0（64 控件）、焦点环弱/无 0、console 错误 0；obscured-only 候选全为粘性页头/固定底栏 400px 步长伪影。/pricing 暗色 39 处「焦点环 1.02:1」为计算值假阳性（`color-scheme:dark` 下 UA outline 实渲染白色，qa/r668-focus-pixels.cjs 像素实测 19.56 亮 18.52）；5 处 nofocus 是关闭 `<details>` 内链接，正确。Rezi 公开页（首页/ai-resume-builder/pricing/resume-checker）无新功能维度缺口；其 DOM 无 skip link、地标 0。
+- 静态页抽样 12 页 × 1280/375 × 亮/暗：axe 真违规 2 条 target-size（/cover-letter-examples/ 1280 y=400 目录「Registered Nurse」117.5×17；/examples/software-engineer/ 375 y=2800 相关链接 259.7×20）——qa/r668-ts.cjs 同页其他滚动位置 0、related node 为页头 `summary[aria-label=Menu]`，是粘性页头滚到该链接上的步长伪影，不改；计算式对比度 0、console 0。
+- 生产实证（qa/r668-anchor.cjs、qa/r668-focusobs.cjs）：目录锚点跳转后 `h2[id]` 顶边 16px < 页头底 57px，`elementsFromPoint` 命中页头 DIV/IMG，标题被整段盖住（1280/375 同）；Shift+Tab 反向走查 375 /guides/best-resume-fonts/ 4 处、/cover-letter-examples/ 1 处、1280 /examples/software-engineer/ 1 处焦点元素中线落在页头之下。根因：build-seo.mjs 静态 CSS 无 `scroll-padding-top`，只有 `h2[id]{scroll-margin-top:1rem}`；R658 只修了 React 应用侧 index.css。
+- 修复（docs/plan-r668-static-pages-scroll-padding.md）：scripts/build-seo.mjs CSS 加 `html{scroll-padding-top:4rem}`、`h2[id]` scroll-margin 1rem→.5rem（落点 72px = 页头下 15px）。不改页面内容/结构、不改应用侧。dist 121 个 HTML 全部含新规则（含 spa.html 由应用 CSS 自带）。
+- 生产 QA（HTML 内联 CSS 已含 `scroll-padding-top:4rem`；应用 bundle 仍 index-DE-3CXPP.js，未改应用源）：3 条目录跳转 1280/375 h2Top 71.6–72.3、`elementsFromPoint` 命中 H2；Shift+Tab 三页 × 1280/375 各 200 次焦点被页头盖住 0（`a.skip` z-index 30 在页头之上，排除）；7 静态路由 × 1280/375 × 亮/暗 axe 真违规仍只有上述 2 条伪影、console 0、存储回基线。tsc/eslint/build/verify-dist 绿；Workers Routes code 10000 依旧。
+- 如实未验证：114 页只抽样 12 页跑 axe（CSS 同源，其余按同模板推断）；未做真实读屏与真机。
+
+### R669 — /examples/ 搜索框把 30 张缩略图里同一份样例简历文字算作匹配（「engineer」= 30/30）；筛选无状态通报（WCAG 4.1.3）；空态暗色 3.91:1（链 #889 → 本 PR）
+- 取证（qa/r669-hub.cjs、qa/r669-probe.cjs，375/1280 × 亮/暗）：每张卡 `<li>` 含 `<svg role="img">` 缩略图，`<text>` 全是同一份 mock（Jordan Reyes / Senior Software Engineer / Nimbus Cloud…），`public/hub-filter.js` 用 `item.textContent` 匹配 → 「engineer」30/30 保留、「nurse」1；页面 `[aria-live]/[role=status]` 0；空态 `color:#667085` 亮 4.84 / 暗 3.91。/guides/ 无 svg，「engineer」3/37 正常。
+- 修复（docs/plan-r669-hub-filter-svg-text-status.md）：hub-filter.js 改为 TreeWalker 只取非 `svg` 内文本节点；新增 `<p id="hub-filter-status" role="status" class="vh">` 写「N of M shown」/「No matches」（空查询清空）；空态色改 `var(--muted)`；新增 `.vh` 视觉隐藏类。仍是外链脚本，CSP 不变。
+- 生产 QA（qa/r669-verify.cjs；HTML/hub-filter.js 已含新代码，应用 bundle 仍 index-DE-3CXPP.js）：/examples/「engineer」3/30（Software / DevOps / Mechanical Engineer）、「nurse」1/30、「zzqq」No matches + 空态可见、清空后 status 为空；/guides/ 3/37；status 文本随输入更新；空态对比度亮 5.38 / 暗 6.76；筛选态 axe 违规 0；console 0；375 与 1280 一致。tsc/eslint/build/verify-dist 绿。
+- 如实未验证：未用真实读屏听 `role=status` 播报（仅 DOM 断言）；`.vh` 未在 /templates/ 使用（该页无筛选框）。
+
+### R670 — 320px 回流（WCAG 1.4.10）：builder 页头把「Menu」推出视口、角色操作行 / 首页 CTA 溢出整页（链 #890 → 本 PR）
+- 取证（qa/r670-reflow.cjs、qa/r670-builder320.cjs、qa/shots/r670-builder-320.png，index-DE-3CXPP.js）：320 宽（= 1.4.10 规定宽度 = 1280 桌面 400% 缩放）16 条路由只有两条整页横向滚动——/builder `scrollWidth` 356 > 305（页头右组 left 98 → right 348，主题切换 + 移动端唯一导航「Menu」整段在视口外，`elementFromPoint` 命不中；角色 1 操作行 7×38 `shrink-0` right 312）；/ 306 > 305（首屏 CTA「Check my resume's ATS score」`whitespace-nowrap` 307px，父容器 273px）。/pricing 与首页定价表在自己的 `overflow-x-auto` 内属允许的二维内容；R670 首轮 51 条静态页 axe target-size 经 /vs/jobscan/ 定向复核为 axe 滚动/遮挡伪影（同 R657 注记），未当缺口。
+- 修复（docs/plan-r670-reflow-320.md，仓内首次用 Tailwind v4 任意断点 `max-[359px]:`）：Layout.tsx 品牌字样 `<span className="max-[359px]:sr-only">RezUp</span>`（logo 保留、链接可访问名不变）；Builder.tsx 角色操作行 `shrink-0` → `max-sm:basis-full max-sm:flex-wrap max-sm:justify-end sm:shrink-0`；Landing.tsx 第二个 CTA `max-[359px]:h-auto min-h-10 py-2 whitespace-normal`。
+- 生产 QA（index-Dgh_olyg.js，qa/r670-verify.cjs before/after 48 组 = 8 路由 × 320/375/1280 × 亮/暗）：320 全部 `scrollWidth === clientWidth`（原 4 组 fail → 0），/builder「Menu」right 298 ≤ 305 且 `elementFromPoint` 命中，操作行换成 2 行（5+2，右缘 259）、CTA 两行 66px；375/1280 32 组几何逐项比对，唯一差异是 375 操作行容器盒 `48,266` → `46,268`（basis-full 填满卡片内宽）而 7 个按钮右缘 [86…314] 逐像素不变；320 axe（target-size/contrast/name）/ 与 /builder 0；零 console 错误；存储回基线。
+- 如实未验证：真机 320 设备与真实桌面 400% 缩放（CDP 视口模拟）；`max-[359px]` 编译为 `not all and (width>=359px)`，358.99 以下生效——359px 整数宽度不在任何常见设备。
+
+### R671 — 文字间距（WCAG 1.4.12）：加大字距/行距/词距后首页徽章与 CTA 溢出整页、builder 页头把「Menu」推出视口（链 #891 → 本 PR）
+- 取证（qa/r671-textspacing.cjs、qa/r671-hdr.cjs、qa/r671-roots.cjs，index-Dgh_olyg.js）：用 `addStyleTag` 注入 1.4.12 用户覆盖（`line-height:1.5; letter-spacing:.12em; word-spacing:.16em; p{margin-bottom:2em}`）后 375 宽 10 条路由中 2 条整页横向滚动——/ 370 > 360（hero 徽章「AI-powered. ATS-friendly. Free during beta.」`whitespace-nowrap` right 370；CTA「Check my resume's ATS score」right 365）、/builder 366 > 360（品牌字样 50 → 60 把右组推到 358、Menu 326–366）；1280 无整页溢出，唯一新裁切是 hero 装饰预览（`max-h-[420px] overflow-hidden` + 渐隐遮罩，有意）。定价表 `overflow-x-auto`、builder `w-max` 段落导航为允许的内部滚动，未当缺口。
+- 修复（docs/plan-r671-text-spacing.md）：Layout.tsx 品牌 `Link` 加 `min-w-0`、字样 span 加 `truncate`、右组 `shrink-0`，负外边距从 Menu 移到右组并在 `<sm` 收紧（`-mr-3 gap-0.5 sm:-mr-2 sm:gap-1 {md|lg}:mr-0`）；Landing.tsx 徽章 `whitespace-normal text-center`，第二个 CTA 的 R670 `max-[359px]:*` 放宽为 `max-sm:*`（`min-h-11` 保持默认 44px）。
+- 首版（index-C1s9V2L_.js）生产实测推翻方案假设——/builder 375 **默认**排版品牌字样被截成「Rez…」：R670 页头内容 82.22 + 258 − 8 = 332.2 > 328 容器内宽，此前靠右组溢出 4px 藏在内边距里，`min-w-0` 后由品牌承担。二版（index-BjDh0t2L.js，负边距移到右组）仍 332.2；三版收紧 `<sm` gap 与 `-mr-3` → 324.2 才通过。教训：改 `min-w-0`/`shrink` 前先量默认排版是否已经靠溢出撑着。
+- 生产 QA（index-DMBnqyNn.js）：`r671-textspacing.cjs` 375 全部 360/360、新裁切 0；1280 全部 1265/1265、新裁切仅 hero 装饰预览；`r671-hdr.cjs` 默认 brand 16–98 / Menu 316–356，加间距后 brand 16–102（省略）/ Menu 仍 316–356；`r670-verify.cjs` 48 组对 R670 after 快照 50 处差异全部为有意：`<sm` 各路由 Menu/右组右移 4px（Menu 右缘统一为视口 −4px，即 R670 时 /builder 的位置）46 处 + 首页 320 徽章两行使 CTA 下移 15px 4 处；零 console 错误；存储键回基线。
+- 如实未验证：真实浏览器扩展/用户样式表（等价 CSS 注入）；真机；加间距后品牌字样以省略号收缩是有意取舍（Menu 可达优先，链接可访问名仍为 RezUp）。
+
+### R672 — 页头副标「by Zalize」在桌面 nav 出现的那一档让位：修 R671 在 768–≈800 引入的默认「Rez…」回归 + 既有「ATS Checker」折行（链 #892 → 本 PR）
+
+- 生产取证（index-DMBnqyNn.js，`qa/r672-hdr.cjs`/`r672-hdr768.cjs`/`r672-hdr768b.cjs`）：768 默认排版 `/` 品牌 16–149、nav 149–605、右组 605–737 首尾相接（容器内宽 721 被占满）；字样 span clientWidth 46 < scrollWidth 50 → 「Rez…」，副标两行，nav「ATS Checker」两行（/jobs 字样 43）。页内去掉 `min-w-0`/`truncate` 复现 R670 版：字样完整、副标与「ATS Checker」仍两行 → R671 的回归是字样被一起压缩；副标/nav 折行为既有问题。800 默认刚好（49.8/50），900 起宽松。/builder（navAt=lg）1024 同构：品牌 16–155 与 nav 155–633 相接。整页无横向滚动，是页头内部挤压。
+- 方案 docs/plan-r672-header-tagline.md：Layout.tsx 副标 `hidden sm:inline` 追加 `${navAt==='lg' ? 'lg:hidden xl:inline' : 'md:hidden lg:inline'}`——在桌面 nav 出现的第一档隐藏、下一档恢复。nav gap/字号、右组不动。
+- 生产 QA（index-Bhsgxnfj.js）：768/800/900 `/`、/jobs 字样 50.2/50 完整、副标 display none、nav 自然宽 484 一行（768 `/`：brand 16–98 / nav 110–593 / grp 605–737）；1024 /builder brand 16–98 / nav 124–608；1280 全部与 R671 一致（副标恢复）。加 1.4.12 间距后 768：brand 16–67（省略）、nav 67–595、grp 595–737，三段不重叠，nav 全部可见。`r670-verify.cjs` 48 组对 R671 快照 **0 差异**；`r671-textspacing.cjs` 375 十路由 360/360、新裁切 0；零 console 错误；存储回基线。
+- 如实未验证：真机；768–1023（builder 1024–1279）副标隐藏是取舍；加间距后 768 字样省略仍是 R671 的兜底。
+
+### R673 — 首页 hero 双 CTA 行在 `sm`（640–767）加大文字间距后溢出整页（链 #893 → 本 PR）
+
+- 取证（index-Bhsgxnfj.js，`qa/r671-textspacing.cjs 640/1024`、`qa/r673-root.cjs`）：640 是 R671 未量过的 `sm` 首档（亦为 1280 窗口 200% 缩放的等效 CSS 视口）。加 1.4.12 间距后 `/` 656 > 625 整页横滚，溢出根为「Check my resume's ATS score」CTA（right 656，`whitespace-nowrap`，R671 的 `max-sm:whitespace-normal` 在 ≥sm 不生效），父级 `sm:flex-row` 双 CTA 并排超宽；其余 9 路由与 1024 十路由无整页溢出。
+- 方案 docs/plan-r673-hero-ctas-wrap-sm.md：Landing.tsx CTA 行 `sm:flex-row` → `sm:flex-row sm:flex-wrap`，放得下时几何不变、放不下时第二颗换行居中。
+- 生产 QA（index-Be73VzZf.js）：640 十路由 625/625、溢出根 0；375 十路由 360/360；默认排版 640/700/768/1280 两颗 CTA 几何逐项不变；`r670-verify.cjs` 48 组对 R672 快照 0 差异；零 console 错误；应用存储键不变。
+- 如实未验证：真实浏览器 200% 缩放（以 640 视口等效）；真机。
+
+### R674 — 弹窗在矮视口（横屏手机 667×375）顶部 Close × 与底部按钮同时被截且不可滚动（链 #894 → 本 PR）
+
+- 取证（index-Be73VzZf.js，`qa/r674-dialogs-landscape.cjs 667` H=375）：R665 起弹窗审计只跑过 812 高。667×375 下 dashboard「Start a new resume」默认即 −43..419（视口 375）、无滚动；加 1.4.12 间距后 LinkedIn 导入 −5..381、builder Copies −55..431 同样截断。Radix 锁 body 滚动 + `fixed` 居中 + 无 `max-h` → Close × 与操作按钮都到不了（触控无 Esc）。R620 只单独修过 Resume settings；51 个 DialogContent 有 36 个无 max-h。同批先量了 375/1280（812 高）9 弹窗在 1.4.12 间距下：无新溢出/裁切/重叠，非缺口。
+- 方案 docs/plan-r674-dialog-max-height.md：`ui/dialog.tsx` DialogContent 默认加 `max-h-[calc(100dvh-2rem)] overflow-y-auto`，一处覆盖全部弹窗；已有 `max-h-[85/90vh]` 者经 tailwind-merge 覆盖不变。
+- 生产 QA（index-DeqeoDPH.js）：667×375 九弹窗全部在视口内、超高者自身可滚、Close 与末按钮 elementFromPoint 命中；812 高 375/1280 九弹窗几何逐项不变；`r670-verify.cjs` 48 组对 R673 快照 0 差异；零 console 错误；存储回基线。
+- 如实未验证：真机横屏（软键盘弹出后的 dvh）；需数据才能打开的其余 27 个弹窗仅同原语推断。
+
+### R675 — 25 个 /templates/<slug>/ 静态页 hero 缩略图在 320 强制整页横滚（WCAG 1.4.10）（链 #895 → 本 PR）
+
+- 取证（`qa/r675-static-sweep.cjs` 全 120 条 sitemap URL × 320 默认 / 375+1.4.12 间距；`qa/r675-tpl.cjs`）：375+间距 0 页溢出；320 默认 **25/120** 溢出、恰为全部 /templates/ 页，均 316/305——`templateThumbSvg(slug, 300)` 输出 `<svg width="300">` 固定宽，主栏 320 时仅 273 宽，凸出 11px。其余静态路由（guides/examples/vs/信件页）均已反流。
+- 方案 docs/plan-r675-template-page-thumb-reflow.md：build-seo.mjs 该页样式加 `.tpl-hero svg{max-width:100%;height:auto}`，包裹 div 改 class；≥332 宽渲染与原先相同。
+- 生产 QA（静态 HTML 已带 `.tpl-hero svg`，app bundle 仍 index-DeqeoDPH.js）：120 URL 320/375+间距 0 溢出；/templates/classic/ 320 svg 273×352 且 305/305，375/1280 svg 300×387 与修复前一致；console 0；存储键不变。
+- 顺带量到但未改（需老板拍板）：全站输入框/下拉边框对背景仅 1.23–1.53:1（shadcn `border-input` 既定值，亮/暗同），占位符文字 5.2–6.8:1 达标。1.4.11 对文本框边框是否强制 3:1 存争议（有可见标签/占位符时可豁免），且改深会改变整站视觉，故记录不动。
+
+### R676 — 手机头部「Menu」展开后高于视口，末尾链接不可达；静态页菜单面板左缘出界（链 #896 → 本 PR）
+
+- 取证（index-DeqeoDPH.js，`qa/r676-mobile-menu.cjs`、`qa/r676-hit.cjs`、`qa/r676-static-panel.cjs`）：SPA 菜单 16 行×40px 在 `sticky` 页头内把页头撑到 730 高；375×667（iPhone SE/8 CSS 视口）与 667×375 下末链接「About」681–721 不可见，只有把整页滚到底（`/` 为 16 443px）粘性页头被容器末端顶起时才露出；静态页 `details.mnav .panel` 是绝对定位、无高度上限，末尾 8/14 条链接永远不可达。另：静态面板锚在页头中部的汉堡按钮上（`right:0`+`min-width:11rem`），375 面板 x −25…151、链接文字从 −8 起（"Templates" 被裁），320 为 −38/−21（负左缘不增加 scrollWidth，历次 sweep 均量不到）；/builder 375×667 末行还被固定底部 pane 切换条（z-30）盖住（页头 z-20）。
+- 方案 docs/plan-r676-mobile-menu-max-height.md：Layout.tsx 移动 nav 加 `max-h-[calc(100dvh-3.5rem)] overflow-y-auto`，页头在菜单打开时 `z-20 → z-40`；build-seo.mjs 面板改为页头下方整宽条（`details.mnav{position:static}`，`.panel{left:0;right:0;top:100%}`）并加同一高度上限。放得下（812 高）几何不变。
+- 生产 QA（index-DubLXy8S.js，`qa/r676-verify.cjs 667/375/812`）：375×667 与 667×375 五路由（/、/builder、/dashboard、/templates/、/examples/）默认+间距：菜单底 ≤ 视口、菜单内滚动后末链接可见且 `elementFromPoint` 命中、页面 scrollY 保持 0；/builder 末行命中对象由 pane 按钮变为链接；静态 320/375/414/767 面板 left 0、首链接文字从 28px 起；375×812 SPA 菜单 56→729 与修复前逐项相同、无内滚；120 URL 320/375+间距 0 溢出；console 0；存储 keys 不变。
+- 如实未验证：真机（浏览器工具栏进一步压缩 dvh，只会更需要此上限）；/builder 键盘聚焦末链接时页面自身滚 290px（R658 scroll-padding 行为，链接仍在视口内且命中，未改）。
+
+### R677 — 首页「套件」四卡动作行在 320+1.4.12 间距下把网格撑出整页；产品 mock 圆点被压成 0、ATS 徽章被截；3 个静态 example 页 h1 长词溢出（链 #897 → 本 PR）
+
+- 取证（index-DubLXy8S.js，`qa/r671-textspacing.cjs 320`、`qa/r677-root.cjs 320`、`qa/r677-mock.cjs`、`qa/r677-static-sweep320.cjs`、`qa/r677-ex.cjs`/`r677-ex2.cjs`）：320 是 R671/R673 之后唯一还没跑过 1.4.12 的档。`/` 305/305 → **328/305**，唯一溢出根是 `div.bg-card`（四张套件卡 16→328，宽 312）：卡尾 `flex items-center gap-4` 不折行，`buttonVariants` 带 `whitespace-nowrap`，「Write a cover letter →」+16 +「How it works」的 min-content 312 > 网格列 288，grid item `min-width:auto` 把整条 track 撑宽。同一页 mock：三颗浏览器圆点无 `shrink-0` 被地址 pill（min-content 175）压成 0/0/0；预览列（grid item）随简历预览 min-content 长到 294 > 卡右缘 273，`right-4` 锚在该列的 ATS 徽章右缘 278，被卡 `overflow-hidden` 截 5px。静态：全 120 条 sitemap URL 320+间距，3 页溢出（customer-service/sales-representative 323/305、administrative-assistant 318/305）——无任何元素盒超宽，是 2rem `<h1>` 里「Representative」「Administrative」单词 307px 以 ink 形式溢出 273 列（R675 sweep 只跑了 320 默认 / 375+间距，漏此组合）。非缺口：`/` 对比表 `min-w-[560px]` 在自己的 `overflow-x-auto` 里（默认亦然）；667×375 固定/粘性元素扫描（`qa/r677-fixed-scan.cjs`）在 R674/R676 后无越界控件（/pricing 命中为闭合 `<details>` 几何，`qa/r677-pricing.cjs` 打开菜单后面板 [0,56,652,375]、末项「About」命中）。
+- 方案 docs/plan-r677-landing-suite-card-actions-wrap.md：Landing.tsx 卡尾 `flex items-center gap-4` → `flex flex-wrap items-center gap-x-4 gap-y-1`；mock 圆点 `shrink-0`、pill `min-w-0 truncate`、预览列 `min-w-0`；build-seo.mjs `h1,h2,h3` 加 `overflow-wrap:anywhere`（放得下时零变化）。有意接受的默认排版变化：320 与 sm 双列（卡 ≈289）时「How it works」由被拆成「How it / works」两行（行 52px）改为整体落到 CTA 下一行（72px）；375/1280 仍 48px 一行。
+- 生产 QA（index-DTRG8VKz.js，`qa/r677-verify.cjs` before/after 存 `qa/r677-before.txt`/`r677-after.txt`）：`/` 320+间距 328/305 → 305/305，四卡右缘 328 → 289；圆点 0/0/0 → 10/10/10，pill 省略号，预览列右缘 294 → 272 = 卡内缘，徽章 [33,278] → [33,256]，卡内 overflow 22 → 0；375/640/1280 默认 + 间距 mock 几何逐项与修前相同。`r671-textspacing.cjs 320` 十路由 305/305、新增裁切 0；`r677-root.cjs 320` 溢出根仅剩对比表滚动容器（有意）。静态 3 页 320+间距 305/305，h1 默认行数 320/375/1280 逐页与修前相同（4/3/3/4、3/3/3/4、2/1/1/2）。零 console 错误，存储键回基线。
+- 如实未验证：真实浏览器扩展注入的文字间距（以 addStyleTag 等价 CSS 模拟）；真机；`overflow-wrap:anywhere` 对其余 117 静态页 h1/h2/h3 只由「放得下即不生效」的规范推断 + `qa/r675-static-sweep.cjs`（120 URL × 320 默认 / 375+间距）与 `qa/r677-static-sweep320.cjs`（120 URL × 320+间距）复跑均 0 溢出，未逐页比对行数。
+
+### R678 — SOP-10 审计节点（首次纳入 forced-colors 高对比度模式）+ 全站 shadcn Button/Input/Textarea 在 forced-colors 下键盘焦点零像素变化（WCAG 2.4.7，链 #898 → 本 PR）
+
+- 节点（index-DTRG8VKz.js；qa/r666-scan.cjs 逐屏 axe、qa/r667-focus.cjs、qa/r666-icons.cjs、qa/r671-textspacing.cjs 375/768/1280、qa/r668-rezi.cjs → qa/r678-rezi.json）：8 路由 × 1280/375 × 亮/暗 axe 真违规 0（唯一例外暗色 375 /dashboard 2 处 color-contrast，qa/r678-probe.cjs 像素实测为 axe 把副本卡 `scale(0.35)` 白色缩略图的未裁切变换盒当背景的假阳性，行内实渲染 #9199a5 on #12161d ≈6.4:1，不改）；焦点环弱/无 0（/pricing 暗色为 R668 已知计算值假阳性）；图标非文本 <3:1 0；1.4.12 间距十路由 0 页溢出，唯一新增裁切为首页 hero mock 缩略图（有意 `max-h-[420px] overflow-hidden`+渐隐遮罩的装饰）；120 静态页 320/375+间距 0 溢出（R677 同 HTML）；Rezi 公开页功能面同 R668，导航新列「Chrome Extension」「Rezi Resume MCP」（分发渠道，非应用内功能）。
+- 取证（`qa/r678-forced.cjs 1280`：CDP `Emulation.setEmulatedMedia forced-colors:active`；`qa/r678-forced-fix.cjs` 像素对比）：此前从未审计过 forced-colors。8 路由前 40 个可聚焦控件中 `outline-style:none` 者 / 11、builder 19、dashboard 13、jobs 6、documents 6、ats-checker 5、samples 10、/pricing（静态）0。首页 CTA `<a>` 与 /ats-checker 「See an example score first」`<button>` 失焦→聚焦像素 diff bbox = **None**：键盘聚焦时一个像素都不变。根因：`buttonVariants`/`Input`/`Textarea` 用 Tailwind `outline-none` 关掉 UA outline、只靠 `focus-visible:ring-*`（box-shadow），而 forced-colors 丢弃 box-shadow；R667 只量了普通渲染。
+- 方案 docs/plan-r678-sop10-audit-forced-colors-focus.md：改用 Tailwind v4 `outline-hidden`（普通渲染仍是 `outline-style:none`，forced-colors 下 `outline:2px solid transparent`→系统焦点色）。生产实测（`qa/r678-forced-rest.cjs`）无条件 `outline-hidden` 会让**未聚焦**按钮也画 2px 白圈（rest 与 focus 只差颜色），故限定 `focus-visible:outline-hidden`（ResumePreview 行内编辑框用 `focus:outline-hidden` 与其既有 `focus:` 一致）：ui/button.tsx、ui/input.tsx、ui/textarea.tsx、Dashboard 样例卡按钮、PhotoCropDialog 裁切面、ResumePreview ×2，共 7 处 className；dialog.tsx 已有的无条件 `outline-hidden` 保留（弹窗静态外框在 forced-colors 下是想要的）。
+- 生产 QA（index-uSMKYuvU.js）：`r678-forced.cjs` 1280/375 八路由聚焦无 outline 0/0（builder 用 CLEAR_DRAFT=1 避开「Load this example?」弹窗 inert）；CTA `<a>`/`<button>`/`Textarea` 失焦→聚焦像素 diff 为 2px 环、rest 无环；普通渲染 `r667-focus.cjs` 亮/暗 × 1280/375 弱/无 0（唯一额外命中是「Load this example?」弹窗 Close × 的 `ring-offset` 背景层被扫描器当环读成 1:1，`qa/r678-dialogclose.cjs` 像素实测真环 `oklch(0.5 0.18 265) 4px` 有渲染，非缺口）；`r670-verify.cjs` 48 组对 R674 快照 42 组相同、6 组仅 builder 角色行 top 随草稿内容变化（x/宽/高相同）；console 0；存储回基线。
+- 如实未验证：真实 Windows 高对比度（仅 CDP 媒体模拟，系统色/焦点色取自 Chrome 模拟调色板）；真实读屏；真机。
+- 顺带量到但未改（R679 候选）：`Button asChild` 的 `<a>`（首页全部 CTA）`border:0`，forced-colors 去掉背景后只剩黄色文字、无按钮外框，而真 `<button>` 有 UA `ButtonBorder`；需单独取证设计。
+
+### R679 — forced-colors 下 Button 的 default/destructive/secondary/ghost 变体补 1px 外框（Windows 高对比度主按钮不再是裸文字，链 #899 → 本 PR）
+
+- 取证（`qa/r679-evidence.cjs 1280`，CDP forced-colors:active，index-uSMKYuvU.js）：R678 注记的「`<a>` 无框」实为**所有靠背景表意的变体**——forced-colors 抹掉 background/box-shadow 后 `default/destructive/secondary/ghost` 均 `border-width:0`，渲染为与正文无异的裸文字；`outline` 变体有 `border` 保留外框。8 路由 `data-slot=button` 无框数：/ 9、builder 34、dashboard 12、jobs 3、documents 2、ats 2、samples 11。像素证据 `qa/shots/r679-combo.png`：dashboard「Create new resume」（主按钮）白字无框，旁边「Back up everything」（outline）有框——视觉层级倒置，主动作是唯一看起来不像按钮的。真 `<button>` 也没有 UA 边框（Tailwind preflight 已归零），R678 注记中「真 button 有 ButtonBorder」的推断不成立，已更正。
+- 方案 docs/plan-r679-forced-colors-button-frame.md：`ui/button.tsx` 四个变体前缀 `forced-colors:border`（Tailwind 4.3.3 内建变体 → `@media (forced-colors:active){border-style:solid;border-width:1px}`，颜色由系统调色板强制），`link` 变体保持链接外观不加。普通亮/暗渲染 CSS 惰性、字节不变。
+- 生产 QA（index-CdsS47gU.js）：`r679-evidence.cjs` 1280 八路由 + 375 四路由，`data-slot=button` 无框仅剩首页 5 个 `variant="link"`（有意）；「Create new resume」bw 0→1px，hero CTA `<a>` 截图有 LinkText 色外框。普通渲染 `qa/r679-normal.cjs before/after` 三控件（dashboard 主按钮 / hero CTA / builder ghost 图标键）像素 diff 均 None、盒几何不变。`r678-forced.cjs` 1280 聚焦无 outline 仍 0；console 0；存储回基线。
+- 如实未验证：真实 Windows 高对比度；未改的还有非 `Button` 的裸 `<button>`（分段控件/芯片/pane switcher，每路由 11–44 个）与静态 /pricing 的 `<a>` CTA——R680 候选。
+
+### R680 — forced-colors 下选中/按下/当前态控件用系统 `Highlight` 对（此前与未选中同胞逐像素相同，链 #900 → 本 PR）
+
+- 取证（`qa/r680-state.cjs 1280`，CDP forced-colors:active，index-CdsS47gU.js）：全站分段控件/切换/导航的选中态只靠颜色（`bg-primary`/`border-primary`/`ring-primary/40`/`bg-secondary`），forced-colors 抹掉背景与 box-shadow、边框统一系统色后，选中项与同胞逐像素相同：`/` 1/1、builder Design 页 12 个选中控件 11 个不可分辨（模板筛选/模板卡/强调色/文字色/Letter-A4/字体/分隔线/缩进×3/分页）、`/jobs` 3/1；dashboard/documents/samples 仅靠 font-weight 500 区分。ARIA 状态本身正确（R644），只有视觉丢失 → WCAG 1.4.1。
+- 方案 docs/plan-r680-forced-colors-selected-state.md：`src/index.css` 一条全局规则，键在已真实的 ARIA 状态上：`[aria-pressed=true],[aria-current],[aria-selected=true]{forced-color-adjust:none;background:Highlight;color:HighlightText;border-color:Highlight}` + 后代 `color:inherit` + `:focus-visible{outline:2px solid CanvasText;outline-offset:2px}`（均 `!important`）。三处「为什么」都是生产 addStyleTag 实测出来的：无 `forced-color-adjust:none` 时 Chrome 文字 backplate 把 HighlightText 压成黑块不可读；`none` 后作者边框会残留故显式 `border-color`；`none` 同时关掉 UA 对焦点环的重着色——首次部署 `qa/r680-focus.cjs` 量到选中控件聚焦时裸 `<button>` 只剩作者 `oklch` 1px auto 环、shadcn `Button` 切换键（`outline-hidden`=2px transparent）**无环**，故补系统色 `CanvasText` 环，二次部署。
+- 生产 QA（二次部署后，`qa/r680-state.cjs 1280/375` 六路由不可分辨 0/0；`qa/r680-focus2.cjs` 隐藏角色切换键与 WorkspaceNav 当前链接聚焦环 `rgb(255,255,255) solid 2px` offset 2px；`qa/r678-forced.cjs` 八路由 noOutline 0；`qa/r680-normal.cjs` 普通模式 Letter/section nav/WorkspaceNav/jobs 筛选/首页 gallery 五处像素 diff None；零 console 错误、存储回基线）。
+- 如实未验证：真实 Windows 高对比度调色板（CDP 模拟 Highlight=rgba(0,230,255,.8)、CanvasText=白）；`[aria-selected]` 当前无实例（无 tab/listbox）；`r680-normal.cjs` 首两次「after」对比全图有差，实为 builder 未清草稿时「Load this example?」弹窗遮罩变暗，清 `honestcv.resume` 后重跑为 None——builder 类脚本必须先清草稿。R679 注记的裸 `<button>`/静态 /pricing `<a>` 无框问题仍未改（R681 候选，需先取证哪些在 forced-colors 下真的无框且非有意 link 样式）。
+
+### R681 — forced-colors 下链接样式的 `<button>` 常态加下划线（此前与正文逐像素相同，链 #901 → 本 PR）
+
+- 取证（`qa/r681-evidence.cjs 1280` 全量无框可操作元素清单 → `qa/r681-proof.cjs 1280` 纯文字 `<button>` 与父级正文 `color` 相同且无下划线 = 不可分辨，R651 关系 fixture 播种，index-CdsS47gU.js）：R679 注记的「裸 `<button>`」里真正的缺口是 **链接样式按钮**——`text-primary … underline-offset-2 hover:underline`（R639–R651 的 `INLINE_ACTION` Open / use this one instead / reconnect it / Use for this job、jobs「Tailoring report」、dashboard「Import your LinkedIn profile」、样例卡标题、`Button variant="link"`）。它们常态唯一线索是主色；forced-colors 把 `<button>` 着 **ButtonText**（四套 Windows 主题里 = CanvasText 正文色），而真 `<a>` 着 **LinkText**（模拟暗色为黄，`qa/r681-shots.cjs`：页头 nav 链接 rgb(255,255,0) vs「Resources」按钮 rgb(255,255,255)），所以链接活、按钮死。不可分辨数：dashboard 22、jobs（跟踪职位）7、documents 2、builder 15、samples 18，合计 64。截图 `qa/shots/r681-combo.png`：「Tailoring report」是白句子里的白词。
+- 方案 docs/plan-r681-forced-colors-link-styled-buttons.md：`src/index.css` forced-colors 块内一条规则 `:is(button,[role=button],[data-slot=button])[class~='hover:underline']{text-decoration-line:underline}`——键在已表达「这是链接样式控件」的 Tailwind 字面 class 上，覆盖 ~24 处调用点与 `Button variant=link`，新增链接样式按钮自动纳入；限定按钮（真 `<a>` 已有 LinkText）；普通渲染惰性。
+- 生产 QA（index-CdsS47gU.js + 新内联 CSS，`qa/r681-proof.cjs 1280/375` 不用 proto）：jobs 7→0、documents 2→0、dashboard 22→9、samples 18→9，合计 64→33（375：24）；余下 33 为有意/另一类：18 个样例卡缩略图按钮（275×176 图片，卡有边框）、6 个 builder section nav 未选中芯片（在带边框 nav 内、旁有 R680 Highlight 芯片）、9 个 builder 颜色色板（作者背景就是信息本身，forced-colors 抹成空——**R682 候选**）。`qa/r681-normal.cjs` 普通模式三控件 `text-decoration-line: none` 不变；`r680-state.cjs` 六路由 0、`r678-forced.cjs` 八路由 noOutline 0；零 console 错误、存储回基线。served HTML 已含 `[class~=hover\:underline]{text-decoration-line:underline}`。
+- 如实未验证：真实 Windows 高对比度；ButtonText≠CanvasText 的主题（按 CSS Color 4 系统色映射推断四套自带主题相等，未实测）；`r681-proof.cjs` 的截图命名按 proto 标志走，部署后重跑覆盖了 1280「before」图——修前证据以 `qa/shots/r681-combo.png` 为准。
+
+### R682 — forced-colors 下 builder 强调色/文字色色板保留作者颜色 + CanvasText 外圈（此前 9 个未选中色板全被抹成同一黑色，链 #902 → 本 PR）
+
+- 取证（`qa/r682-evidence.cjs 1280/375`，CDP forced-colors:active，index-CdsS47gU.js + R681 CSS）：R681 余下的 9 个 builder 色板是「颜色本身就是内容」的控件——`/builder?example=accountant` Design 页 8 个 Accent + 3 个 Text color 圆点，forced-colors 把 `style={{background}}` 抹掉后 9 个未选中色板渲染背景只剩 **1 种**（黑），`border-transparent` 也不可见；只有选中的那个因 R680 `[aria-pressed=true]` 的 Highlight 才有区别。视力用户只能靠 `aria-label` 里的 hex/名字选色。截图 `qa/shots/r682-combo.png` 上排为修前（空/黑圆）、下排为原型。`qa/r682-probe.cjs`：模拟暗色调色板下 `CanvasText` = 白；`forced-color-adjust:none` 后作者 `transparent` 边框保持透明，必须显式 `border-color:CanvasText` 才有圈。
+- 方案 docs/plan-r682-forced-colors-color-swatches.md：只在 Builder.tsx 两处色板 `<span>` 加 `forced-colors:[forced-color-adjust:none] forced-colors:border-[CanvasText]`（Tailwind 4 内建 `forced-colors:` 变体），外层 `<button>` 不动（R680 Highlight / R678 焦点环照旧）；普通渲染为媒体查询惰性。
+- 生产 QA（index-8Az81lmn.js，served CSS 含 `forced-colors\:border-\[CanvasText\]{border-color:canvastext}`；首次 deploy 上传成功但边缘 HTML 仍指旧 bundle，二次 deploy 后生效——同 R607/R667）：`r682-evidence.cjs` 1280/375 未选中 9 → 9 种渲染背景、边框 `rgb(255,255,255) 2px`、选中键仍 Highlight；`qa/r682-normal.cjs` 1280/375 普通模式 `forced-color-adjust:auto`、边框 transparent / `oklch(0.5 0.18 265)`、20/22px 不变；`r680-state.cjs` builder 12 选中 0 不可分辨；`r678-forced.cjs` builder noOutline 0；`r681-proof.cjs` 1280 七路由 79/33 与 R681 后相同；零 console 错误、存储回基线。
+- 如实说明：`r681-proof.cjs` 的启发式只比按钮自身文字色/外框、不看子元素背景，所以仍把 9 个色板按钮计为「不可分辨」——R682 计划里「15→6」的预期不成立，已在方案文档更正，以 `r682-evidence.cjs` 为本轮度量；余下有意不改：18 个样例卡缩略图按钮、6 个 builder section nav 未选中芯片。未验证：真实 Windows 高对比度（CDP 模拟）、真实读屏、真机；选择高对比度是为了逃离作者色的用户是否接受 11 个 20px 圆点保留作者色，按规范/MS 指南对 picker 的例外推断为可接受。
+
+### R683 — 120 个预渲染静态页 `<a class="btn">` CTA 在 forced-colors 下补 1px 外框（此前是裸 LinkText 文字，链 #903 → 本 PR）
+
+- 取证（`qa/r683-evidence.cjs 1280`，CDP forced-colors:active，生产静态 HTML）：R679 只框了 SPA `Button`，`scripts/build-seo.mjs` 生成的 120 页用自己的 `.btn{background:var(--primary);border:0}`，forced-colors 抹掉背景后 /pricing 4 个、/templates/ 与 /examples/ 各 2 个主 CTA `border-width:0`、`rgb(255,255,0)` 裸文字（`qa/shots/r683/01-static-btn-pricing-1280.png` 修前），唯一有框的是内联 `border:1px solid` 的次级「Check my ATS score」——与 R679 相同的层级倒置。同跑排除：`ScoreRing` SVG stroke 不被强制、圆环与数字可见；静态 `<a>` 焦点用 UA outline。顺带量到并留给 R684：builder Health 弹窗 7 条 `role=progressbar` track 与 fill 都是 `rgb(0,0,0)`，整条不可见（`05-builder-progress-1280.png`）。
+- 方案 docs/plan-r683-forced-colors-static-btn-frame.md：静态 CSS 串加一行 `@media (forced-colors:active){.btn{border:1px solid}}`，颜色交给系统调色板（同 R679 `forced-colors:border`）；普通渲染零字节变化。
+- 生产 QA（二次 deploy 后 /pricing/ /templates/ served HTML 含该规则；`r683-evidence.cjs 1280/375` 三路由全部 `a.btn` bw 1px、截图有框；`qa/r683-normal.cjs` 1280/375 普通模式 before/after 文本文件 diff 为空——bw 0px、`oklch(0.5 0.18 265)`、44px 高不变；`r678-forced.cjs /pricing` noOutline 0；`r681-proof.cjs` 七路由 79/33 不变；零 console 错误）。
+- 如实未验证：真实 Windows 高对比度；其余 117 静态页只由 `grep` dist 120/120 含规则 + 同一 CSS 串推断，未逐页量。
+
+### R684 — 11 条量值条（Health 弹窗 7 条 `role=progressbar`、预览「Resume fills N%」长度条、首页 Score breakdown 3 条）在 forced-colors 下从整条不可见改为 CanvasText 框 + Highlight 填充（链 #904 → 本 PR）
+
+- 取证（`qa/r684-evidence.cjs 1280/375`，CDP forced-colors:active，生产 index-8Az81lmn.js）：三处都是 `h-1.5` `bg-muted` 轨 + `bg-emerald/amber/red` 填充按 `width:%`，UA 抹掉作者背景后轨与填充都是 `rgb(0,0,0)`、无边框，11/11 `distinct:false`（`qa/shots/r684/03-health-bars-forced-1280-1280.png`：标签与分数在、条那一行全黑）。分数数字仍在，信息未丢，但 1.4.11 非文本组件整条为零；长度条的百分比只在 `aria-label` 里。原型（`… proto`，注入等价 CSS）11/11 `distinct:true`。排除：ScoreRing / 强度表盘是 SVG stroke，不受影响。
+- 方案 docs/plan-r684-forced-colors-meter-bars.md：仿 Windows 原生进度条——轨 `forced-colors:border forced-colors:border-[CanvasText]`，填充 `forced-colors:bg-[Highlight] forced-colors:[forced-color-adjust:none]`（`forced-color-adjust:none` 只落在填充，同 R682）；Builder.tsx 两处 + Landing.tsx 一处 className，无 ARIA/阈值/普通模式改动。
+- 生产 QA（二次 deploy，index-fDVUOzVR.js；1280/375 三面 11/11 `trackBorder 1px CanvasText`、`fillBg Highlight`、`distinct:true`；`… normal` 1280/375 before/after 文本 diff 为空——0px 轨、oklch 作者色、6px 高不变；回归 `r678-forced.cjs` 8 路由 noOutline 0、`r680-state.cjs` 六路由 indistinguishable 0、`r682-evidence.cjs` 9/9；零 console 错误；存储回基线）。
+- 如实未验证：真实 Windows 高对比度（模拟调色板 Highlight=青、CanvasText=白）；首页 3 条仍 `aria-hidden`（同 R663 视为「装饰但会被看」）。
+
+### R685 — /ats-checker「Job description with keywords highlighted」matched/missing 只靠色相区分（WCAG 1.4.1），forced-colors 下 16/16 `<mark>` 逐像素相同（链 #905 → 本 PR）
+
+- 取证（`qa/r685-evidence.cjs 1280/375`，生产 index-fDVUOzVR.js，示例分数态）：matched `bg-emerald-100` / missing `bg-amber-100` 两类 `<mark>` 在 forced-colors 下都被 UA 映射为系统 `Mark`/`MarkText`（模拟调色板黄底黑字），`matchedEqualsMissing:true`；图例「green = already on your resume, amber = missing」两个 `<span>` 变成 Canvas 底正文——给用户看不见的颜色命名（`qa/shots/r685/01-ats-marks-forced-1280-1280.png` 修前对照见 git 历史前一版截图同名）。普通模式两类也仅色相差。排除：dashboard 搜索 `<mark>` 单类、High/Med 与 Application-ready 芯片、jobs matchTone 都带文字标签。前置扫描（chip/pill 有意义背景 123 个、8 路由）0 个在 forced-colors 下失框；disabled 控件 GrayText+opacity 可辨——均非缺口。
+- 方案 docs/plan-r685-forced-colors-jd-marks.md：`JD_MARK` 常量——missing 加 `underline decoration-dashed underline-offset-2`（**有意在普通模式也可见**，1.4.1 非色彩线索），图例改为按例示意 `Highlighted <mark>like this</mark> = already on your resume, <mark dashed>like this</mark> = missing`，图例元素改 `<mark>` 与正文同款。不改分词/评分/ARIA。
+- 生产 QA（二次 deploy，index-pR3LCzHj.js；1280/375 forced `matchedEqualsMissing:false`、missing `deco:underline`，图例两 `<mark>` 与正文样本逐字段相同；普通模式 matched 样本与修前相同、missing 仅 `deco` 变化；`r678-forced.cjs` /ats-checker noOutline 0；`r664` region Tab 第 9 次可达；零 console 错误；localStorage 回基线，sessionStorage 草稿键由页面自身清理）。
+- 如实未验证：真实 Windows 高对比度；Prettier 对 AtsChecker.tsx 的告警为既有（stash 对照同样报），未整文件重排。
+
+### R686 — ScoreRing 轨道在 forced-colors 下几乎不可见（弧悬空），修为 CanvasText 轨道 + Highlight 弧（链 #906 → 本 PR）
+
+- 取证（`qa/r686-evidence.cjs 1280/375`，生产 index-pR3LCzHj.js）：`ScoreRing` 轨道 `stroke=currentColor class=text-muted` → forced-colors 下取 `--muted` token 值 `oklch(0.26 0.02 260)`，对 Canvas 黑约 1.6:1（真实白底 HC 会是 `oklch(0.96)` ≈1.1:1）；弧 `stroke={authorColor}` 保持琥珀/翠绿——Chrome **不**强制 SVG `stroke` 表现属性（计算值原样、`forced-color-adjust: preserve-parent-color`）；数字 inline color 被强制为 CanvasText。结果：只剩一段悬空弧，「满分 100」的余量消失（`qa/shots/r686/01-ring-atschecker-forced-1280-1280.png`）。涉及 /ats-checker 结果、首页 2 处 mock、builder 分数环（同组件）。
+- 方案 docs/plan-r686-forced-colors-score-ring.md：与 R684 条形一致——轨道 `forced-colors:stroke-[CanvasText]`、弧 `forced-colors:stroke-[Highlight]`；CSS `stroke` 仅在媒体查询内覆盖表现属性，普通模式逐字段不变；不需要 `forced-color-adjust`。
+- 生产 QA（二次 deploy，index-Bp2TguoI.js；CSS 产出 `stroke:canvastext`/`stroke:highlight`）：1280/375 × /ats-checker + / 共 3 环 forced 轨道 `rgb(255,255,255)`、弧 `rgba(0,230,255,0.8)`、dashoffset 不变；普通模式与修前相同；`r684-evidence.cjs` 11/11 distinct 无回归；零 console 错误；存储回基线。
+- 如实未验证：builder 环仅同组件推断（需 seed 简历才渲染）；真实 Windows 高对比度未测；Prettier 对 ScoreRing.tsx 告警为既有格式。
+
+### R687 — 静态 /pricing 在 forced-colors 下「Best value」药丸变裸文字、推荐列色带消失（链 #907 → 本 PR）
+
+- 取证（`qa/r687-pricing.cjs 1280/375`，生产静态页 `pricingPage()`）：R679–R686 全在 SPA/Tailwind，而 /pricing/ 是 `scripts/build-seo.mjs` 预渲染页。「One-time」药丸有 `border:1px solid var(--border)` → forced 下 CanvasText 框仍在；「Best value」只有 `background:#047857` 无边框 → bg 被压成 Canvas、只剩裸文字，两张卡角标不对称。两张对比表推荐列（plans `td:nth-child(4)` / cmp `td:nth-child(2)`）靠 `oklch(... / 0.06)` 色带 + `#047857` + weight 500 —— forced 下 bg 变 `rgba(0,0,0,0.06)`（Chrome 保留 alpha、颜色强制为 Canvas → Canvas 叠 Canvas 不可见）、颜色变 CanvasText，`plansOnlyWeight/cmpOnlyWeight = true`，✓/— 行与邻列逐像素相同。SPA 首页同款 UI 无此问题（Badge 自带 `border`、RezUp 列有 BadgeCheck 图标）。
+- 方案 docs/plan-r687-forced-colors-static-pricing.md：药丸加 `border:1px solid transparent` 并 padding 各减 1px（普通模式几何逐像素不变 79×25，forced 下透明边框→CanvasText，与 Badge 组件同机制）；`@media (forced-colors:active)` 内给推荐列 th/td 加左右 1px 边框成「框住的列」；普通模式零变化。
+- 生产 QA（二次 deploy，`curl /pricing/` 含新规则）：1280/375 普通模式药丸 rect/bg/color 与修前相同、表格 bg/color/weight 相同；forced 下药丸 `1px solid rgb(255,255,255)`、推荐列 `border-left 1px solid rgb(255,255,255)`、`*OnlyWeight=false`；R683 四个 `a.btn` 框仍为 `1px solid`；零 console 错误。
+- 如实未验证：真实 Windows 高对比度；QA 脚本 `same()` 首版把 `rgba(0,0,0,0.06)` 与透明判为不同，修正为「alpha-only bg 视为无」后才得 OnlyWeight 结论。
+
+### R688 — SOP-10 审计节点 + builder 要点 textarea 的 lint 镜层：forced-colors 下盖住真实字段/选区，且各模式下折行与滚动都与 textarea 不同步（链 #908 → 本 PR）
+
+- 审计（生产 index-Bp2TguoI.js；`qa/r666-scan.cjs` 8 路由 × 1280/375 × 亮/暗逐屏 axe + 计算式对比度、`qa/r678-forced.cjs` forced 焦点、`qa/r677-static-sweep320.cjs` 120 静态页、`qa/r668-rezi.cjs` Rezi 公开页、`qa/r688-disabled.cjs` 禁用控件；日志 `qa/r688-*.log`/`r688-rezi.json`）：axe 真违规 0，仅暗色 375 /dashboard 报 2 条——`qa/r688-probe.cjs` 证明是 axe 背景解析伪影（职位链接真实祖先 `bg-card oklch(0.2)`→body，axe 却配到白色 `[data-resume-preview]` 卡，截图 `qa/shots/r688/02-dash-dark-note-375-375.png` 链接明明在暗卡上），非缺口；320 静态 120/120 无溢出；forced 焦点 0 无环；禁用控件系统色 + opacity .5 可辨；零 console 错误。
+- 取证（`qa/r688-linted{,2,3}.cjs`，`/builder?example=accountant` 经历要点 textarea）：`LintedTextarea` 用 `aria-hidden text-transparent` 镜层叠在 `<textarea>` 上画琥珀波浪线。forced-colors 下镜层 `color` 被强制为 CanvasText 且 Chrome 给强制色文字加 Canvas 底板 → 镜层文字盖住 textarea 真字、光标与选区，Ctrl+A **完全看不到选区**（`qa/shots/r688/linted-forced-selected-1280.png`），边框还与 textarea 重叠成双框。各模式：textarea 溢出后有 15px 经典滚动条而镜层 `inset-0` 无 → 镜层宽 15px（528/543、251/266）折行错位；`scrollTop` 只在 onScroll 同步，打字新增一行时 textarea 先滚、镜层还没渲染新行被夹在旧上限（71/60、191/160）→ 标记 span 落在框外（1280 y 503–520 vs 框 413–511）波浪线不可见或错行。
+- 方案 docs/plan-r688-linted-textarea-backdrop.md：只改 `src/components/LintedTextarea.tsx`——镜层 `forced-colors:[forced-color-adjust:none]`（保住透明色/透明边框、无底板），波浪线 `forced-colors:decoration-[CanvasText]`，悬停高亮 `forced-colors:bg-transparent forced-colors:outline-2 outline-[Highlight]`；几何：`useLayoutEffect([value, highlightLine])` + `ResizeObserver` 把镜层 `right` 设为 textarea 滚动条宽（`offsetWidth − clientWidth − borders`）并复制 `scrollTop`；textarea 自身布局零变化。
+- 生产 QA（index-BXnG3COl.js / Builder-Cr1BH6cG.js；`qa/r688-verify.cjs 1280/375` + `r688-verify2.cjs`）：clientWidth 528/528、251/251；scrollHeight 与 scrollTop 打字后 71/71、191/191、滚到底 80/80 全部相等；标记 span 在框内；textarea rect/边框与修前逐字段相同；forced 下镜层 `color rgba(0,0,0,0)`、边框透明、`forced-color-adjust none`、Ctrl+A 选区可见（`qa/shots/r688/verify-forced-selected-1280.png`）、波浪线 `wavy rgb(255,255,255)` 可见（`verify2-forced-firstline-1280.png`）；回归 `r678-forced.cjs` 8 路由 noOutline 0、`r684`/`r686`/`r687-evidence.cjs` 结论不变；零 console 错误；存储回基线。
+- 如实未验证：真实 Windows 高对比度；macOS/移动端 overlay 滚动条（gutter 0 → `right:0`，与旧行为等价，未实机）；已知边界：光标行在框底时 Chrome 只把行盒滚入视口，`underline-offset-4` 的波浪线仍可能被底边裁掉 1–2px（`verify-normal-rest-1280.png`），再滚一格即完整——属 textarea 原生滚动行为，未改。
+
+### R689 — builder 要点 textarea：悬停/聚焦「Line N」建议时的琥珀高亮盖在文字上，文字对比度掉到 2.78/3.51（链 #909 → 本 PR）
+
+- 取证（`qa/r689-evidence.cjs 1280|375 dark|light [focus|proto]`，生产 index-BXnG3COl.js，`/builder?example=accountant`）：`BulletGuidance` 在「⚠ Line N」行 hover 或「Fix line N with AI」按钮聚焦时设 `highlightLine`，`LintedTextarea` 镜层给该行 span 上 `bg-amber-200/60`——镜层在 textarea **之上**，色块盖住字形而非只盖底。渲染像素：亮色 静态 `#fff`/`rgb(12,18,27)` 18.78 → 悬停 `rgb(254,240,182)`/`rgb(156,145,90)` **2.78**；暗色 `rgb(18,22,29)`/`rgb(228,232,239)` 14.75 → `rgb(65,47,11)`/`rgb(149,132,96)` **3.51**（`.dark` 把 `--color-amber-200` 重映射为 `oklch(0.4 0.09 80)`）。14px 正文需 4.5（1.4.3），两主题悬停/键盘聚焦态均不达标；axe 看不到（瞬态 + 色块在 `aria-hidden` 元素上）。截图 `qa/shots/r689/hl-{light,dark}-1280.png`。
+- 方案 docs/plan-r689-linted-highlight-contrast.md：高亮 span 加 `mix-blend-multiply dark:mix-blend-screen`——亮色 multiply 保白底→amber-200、深字更深；暗色 screen 保黑底→亮琥珀棕、白字仍白；forced-colors 路径不变（R688 已换成 Highlight 描边、透明底混合无效）。只改 `src/components/LintedTextarea.tsx` 一处 className，不改布局/ARIA/静态态。
+- 生产 QA（index-CJvoJ6UC.js；1280/375 × 亮/暗，hover 与 Tab 聚焦「Fix line 1 with AI」两种触发）：悬停像素亮色 `rgb(254,240,182)`/`rgb(12,17,20)` 16.60、暗色 `rgb(72,58,29)`/`rgb(234,236,239)` 9.35，聚焦触发与悬停逐值相同；静态态 18.78/14.75 与修前相同；高亮底色仍与静态底不同（可见）；`r688-verify.cjs` 宽度/滚动/forced 结论不变；零 console 错误；存储回基线。
+- 如实未验证：真实 Windows 高对比度（forced 路径未改）；Safari/Firefox 的 mix-blend-mode 渲染（仅 Chrome CDP）。
+
+### R690 — 首页对 `prefers-reduced-motion: reduce` 访客抛 React #418 并整树丢弃预渲染 DOM（链 #910 → 本 PR）
+
+- 取证（`qa/r690-evidence2.cjs reduce|none [origin] [width]`、`qa/r690-hydration2.cjs`，生产 index-CJvoJ6UC.js，`/`）：`/` 是唯一预渲染并 `hydrateRoot` 的 SPA 路由，两只 `ScoreRing`（86/72）由 `useCountUp` 渲出，其初值 `useState(prefersReducedMotion() ? target : 0)` 在服务端恒为 0（无 `window`），减动效访客客户端首渲即 86/72 → 文本节点不一致 → React 19 走 `reportError`（生产为 `pageerror`，此前所有节点只收 `console.error` 且从未模拟过该媒体，故一直漏报）并整根重新客户端渲染。生产实测：none 1280 → 0 错误、DCL 时标记的预渲染 `<h1>` 存活、`#root` 子树 0 删 0 增；reduce 1280/375 → **1 个 #418、`<h1>` 被替换、3 删 1 增**，5 次运行一致；`/samples /ats-checker /builder /dashboard /pricing /privacy` 同模拟下 0 错误（客户端渲染，无 hydration）。并排查出同源潜伏项：`ScoreRing` 的 `drawn` 初值也取 `prefersReducedMotion()`，`stroke-dashoffset` 属性同样与服务端不一致——React 不修补属性差异、effect 在 reduce 下直接 return，单修文本后弧将永远停在服务端值（空环）。
+- 方案 docs/plan-r690-landing-hydration-reduced-motion.md：首渲与服务端一致再在 effect 里跳到目标——`useCountUp` 初值恒 0（effect 原有 reduce 分支 `setValue(target)` 不变）；`ScoreRing` 的 `drawn` 初值恒 false，去掉 reduce 提前 return，统一走 rAF `setDrawn(true)`（effect 内同步 setState 被 `react-hooks/set-state-in-effect` 拒绝），reduce 下全局 `transition-duration: 0.01ms !important` 使下一帧直接落位。只改 `src/lib/motion.ts`、`src/components/ScoreRing.tsx`；非 reduce 路径行为不变，R686 forced-colors 类名不动。
+- 生产 QA（index-BmzslGsc.js）：reduce 1280/375 → 0 错误、`<h1>` 存活、0 删 0 增、环文字 86/72；none 1280 与修前相同；`qa/r690-ring.cjs` reduce/none 两弧 `stroke-dashoffset` 均 = c·(1−score/100)（21.6/43.1，drawn）；`r690-hydration2.cjs` 7 路由 reduce 0 错误；`r686-evidence.cjs` forced-colors 环结论不变；零 console 错误；存储回基线。
+- 顺带排除（`qa/r690-hover.cjs`、`r690-thumb.cjs`、`r690-motion.cjs`）：8 路由 × 亮/暗 1280 悬停态对比度扫描 0 真失败——暗色 25 条「缩略图」报警为扫描器把 SVG `<text>` 的 `color` 当作 `fill` 并把 svg 自身白底当文字底所致，截图实渲正常；reduce 下 8 路由无限动画 0、transform 过渡 0（`index.css` 全局规则已覆盖）。
+- 如实未验证：真实 OS 级减动效设置（仅 CDP 媒体模拟）；Safari/Firefox hydration 行为。
+
+### R691 — builder 条目审计芯片（✓ / ⚠ N）的悬停/聚焦说明面板盖住卡片自身的输入框且无法关闭（WCAG 1.4.13，链 #911 → 本 PR）
+
+- 取证（`qa/r691-evidence.cjs 1280|375`，生产 index-BmzslGsc.js，`/builder?example=accountant`）：每张经历/教育卡头部的 `EntryAuditChip` 悬停或键盘聚焦（`tabIndex=0` span；卡片折叠时是 expand `<button>`）时靠 `group-hover:block group-focus-within:block` 纯 CSS 展开一块 `aria-hidden` 面板。1280：absolute 256×143，中心之下是 `DIV.space-y-1.5 "Your role at Piedmont Building Products"`（卡片自己的输入）；375：fixed 底部抽屉 328×128，之下是「Where was … based」字段。两种触发下按 Escape 面板**仍开着**——1.4.13 三条里 hoverable/persistent 成立、dismissible 不成立：键盘用户 Tab 到芯片后卡片头几个输入被盖住直到 Tab 走；鼠标停在芯片上想看底下内容只能移开指针。axe 看不到（瞬态 + `aria-hidden`）。
+- 方案 docs/plan-r691-audit-chip-hover-panel-dismissible.md：可见性改由 `EntryAuditChip` 局部 state 驱动——`shown`（onMouseEnter/onFocus 置 true，onMouseLeave/onBlur 置 false，React onFocus/onBlur 冒泡 = focus-within）+ `dismissed`（面板打开期间挂 `document` keydown 监听，Escape 置 true；进入/聚焦时重置）；面板 `shown && !dismissed ? 'block' : 'hidden'`。监听只在面板开着时存在、不 `preventDefault`/`stopPropagation`，弹窗/toast 的 Escape 不受影响；面板内容、`aria-hidden`、桌面 absolute / `<sm` fixed 抽屉几何、折叠卡 `onPointerDown/onClick` 展开逻辑全部不动。只改 `src/pages/Builder.tsx` 的 `EntryAuditChip`（外层 span 的 `group` 类已无消费者，顺手去掉）。
+- 生产 QA（index-CDfcCDdV.js；1280/375）：rest `none`；hover `block`，几何 1280 [167,475,256,143] / 375 [16,604,328,128] 与修前逐值相同；hover+Escape `none` 且 activeElement 仍是 body；focus `block`；focus+Escape `none` 且焦点仍在「Role 1: 3 suggestions」；离开再悬停 / 失焦再聚焦均重新 `block`；失焦 `none`。折叠卡变体（`qa/r691-collapsed.cjs`）：hover `block`、Escape `none`、指针点击仍展开卡片、聚焦 `block`、Enter 仍展开。零 console 错误；存储回基线。QA 脚本首版选择器依赖 `span.group`，去掉该类后匹配 0 个，属选择器伪影，改为 `span.relative.flex.shrink-0` 后才下结论。
+- 如实未验证：真机触控（CDP 上下文无 `hasTouch`，375 几何是鼠标悬停量的，不是 tap）；真实读屏（面板 `aria-hidden`，读屏依赖的是芯片 `aria-label` 计数，未改）。
+
+### R692 — 邮箱 / 许可证密钥 / 文件上传的报错只有视觉：无播报、字段未标 invalid、Enter 不提交（WCAG 3.3.1 / 4.1.3，链 #912 → 本 PR）
+
+- 取证（`qa/r692-evidence.cjs 1280|375`，生产 index-CDfcCDdV.js；MutationObserver 记录 `[aria-live]/[role=alert|status|log]` 内的一切变化 = 读屏不移焦点就能听到的内容）：builder → Download → 「Downloads are free during the beta」弹窗（`FreeDownloadDialog`）里输入 `not-an-email` 按 Enter → 什么都不发生（三个 Paywall 表单是 `<div>` 不是 `<form>`）；点「Unlock downloads」（空/坏邮箱）→ 红字「Please enter a valid email address.」出现但 `role`/`aria-live` 为 null、`#free-email` 无 `aria-invalid`/`aria-describedby`、live 记录为空、焦点仍在按钮；/ats-checker 与 /dashboard 用 `.png` 触发「Unsupported file type…」→ 同样无播报、文件选择器关闭后焦点在 body。1280/375 完全相同，0 console 错误。同一代码形态在 `LeadDialog`/`FreeDownloadDialog`/`ActivateForm`/`BuyButton`（Paywall.tsx）、AtsChecker `fileError`、Dashboard `importError`/`docImportError` 共 7 处；`rg aria-invalid src` 全仓 0 命中；仓内其它错误（Dashboard `dlError`/`workspaceError`/`versionsUnreadable`/`docsUnreadable`/`docLinkNotFound`）都已是 `role="alert"`，这 7 处是例外。axe 对「报错出现但没有 live region 变化」没有规则。
+- 方案 docs/plan-r692-form-errors-announced.md：Paywall 三表单 `<div>` → `<form noValidate onSubmit={preventDefault; submit()}>`，按钮 `type="submit"`，`Input` 加 `aria-invalid={error ? true : undefined}` + `aria-describedby={error ? errorId : undefined}`（`useId`），报错 `<p id={errorId} role="alert">`；BuyButton / AtsChecker / Dashboard 两处报错加 `role="alert"`，AtsChecker 的 textarea 报错期间 `aria-describedby="resume-file-error"`。不改文案、颜色、布局（`Input` 组件无 `aria-invalid:` 样式，标 invalid 不多一个像素）、校验逻辑、busy 守卫。`noValidate` 是第二版：首版没加，`type=email` 的浏览器原生约束校验拦下了 `not-an-email` 的提交（自定义报错不出现、焦点被拉回字段），空提交又走自定义报错——两套机制混用，加 `noValidate` 后统一为应用自有的校验与文案（与修前一致）。
+- 生产 QA（index-DFnmvdKb.js；1280/375）：Enter in field（坏邮箱）→ 报错出现、`role=alert`、`id=_r_17_`、`#free-email` `aria-invalid="true"` + `aria-describedby=_r_17_`、live 记录 `added: alert "Please enter a valid email address."`，焦点仍在字段；点按钮提交（坏/空）→ 同上、焦点仍在按钮；/ats-checker `.png` → alert 记录、`#resume-text` `aria-describedby=resume-file-error`；/dashboard `.png` → alert 记录；0 console 错误；`honestcv.subscribed` 未残留。
+- 如实未验证：真实读屏实听（live 记录证明 DOM 以 AT 期待的方式暴露了消息，不等于听到）；同一文案连续两次提交失败时 alert 已挂载、文本不变，不会再播报一次（`aria-invalid` 与红字仍在，未加 key 强制重挂）；几何未做修前/修后逐像素 diff（改动是 `div`→`form` 同为 block、无 CSS 变化，属推断）；`ActivateForm`/`LeadDialog` 在 free mode 生产不可达，仅同代码形态推断。
+
+### R693 — R692 没覆盖到的其余报错：首页拖放区、builder 导入弹窗（文件 + Share ID）、builder 照片上传仍是纯视觉（WCAG 3.3.1 / 4.1.3，链 #913 → 本 PR）
+
+- 取证（`qa/r693-evidence.cjs 1280|375`，生产 index-DFnmvdKb.js，同 R692 的 MutationObserver live-region 记录仪）：`/` 英雄区拖放 `.png` → 红字「Unsupported file type…」`<p>` 无 role、拖放按钮无 `aria-describedby`、live 空、焦点 body；`/builder` →「Import resume (PDF/DOCX/text)」上传 `.png` → 同样静默、textarea 无 `aria-describedby`；同弹窗「Share link or share ID」是裸 `<input>` 无 `<form>`，输入 `ab` 按 Enter 什么都不发生；输入 `not a share id!` 按钮仍可用 → 点后「Paste a Resume Center share link or share ID.」无 role、input 无 `aria-invalid`；Personal details「Add photo」上传坏图 → `<span>`「Could not read that image…」静默、焦点 body。1280/375 相同，0 console 错误。`rg "error && <p|Error && <p|Error && <span" src` 去掉 `role=` 后 9 命中：以上 4 处 + `BundleToolDialog`×2/`TailorDialog`/`KeywordBulletDialog`/`AssistantPanel` 5 处 AI 报错（同形态，生产不花 AI 调用无法触发，仅推断）。
+- 方案 docs/plan-r693-remaining-silent-errors.md：全部 9 处报错加 `role="alert"`；首页拖放按钮、builder 照片按钮在报错期间 `aria-describedby` 指向报错；导入弹窗 Share ID 行 `<div>`→`<form noValidate onSubmit>`（原 onClick 逻辑原样搬入，前置 `rcBusy || !rcInput.trim()` 守卫），按钮 `type="submit"`，input `aria-invalid`/`aria-describedby="import-error"`，粘贴 textarea 报错期间也 `aria-describedby`。不改文案/颜色/布局/校验/busy 守卫。
+- 生产 QA（index-CxxlgsAW.js，`qa/r693-evidence.cjs` + `r693-check.cjs`，1280/375）：首页 `.png` → alert 记录、按钮 `aria-describedby` 指向报错 id；导入 `.png` → alert 记录、textarea `aria-describedby=import-error`；`ab`+Enter → 报错出现（记录为 `changed: alert`，因为上一条报错已挂载、文本替换）、input `aria-invalid=true`、焦点仍在 input；无效 id 点按钮 → 同上、焦点在按钮；照片坏图 → alert 记录、按钮 `aria-describedby=photo-error`；0 console 错误。curl `/builder` HTML 边缘仍指旧 bundle 数十秒，浏览器实际加载已是新 bundle（同 R667，以实际加载为准）。
+- 如实未验证：真实读屏实听；5 处 AI 报错仅同形态推断；同文案连续失败不重播报（同 R692）；Share ID 按钮 `disabled={!rcInput.trim()}` 与 `parseShareId` 不一致（无效文本按钮仍可用）——有意保留，报错现在能被听到即是本轮目标，是否改为按 `parseShareId` 禁用留作后续；有效 id 的 Enter 路径会真实请求 Resume Center，未演练。
+
+### R694 — /ats-checker 报告出现是静默的；「Re-check now」后焦点掉 body（WCAG 4.1.3 / 2.4.3，链 #914 → 本 PR）
+
+- 取证（`qa/r694-evidence.cjs 1280|375`，生产 index-CxxlgsAW.js，MutationObserver live-region 记录仪 + activeElement + 卡片几何）：填简历+JD 点「Check my ATS score」→ 结果卡渲染（1280 下 top 728/812，只露 84px；375 top 492），焦点仍在按钮，live 记录**空**，卡片无 role/名称；改 JD → 过期横幅 →「Re-check now」→ 横幅连同按钮卸载 → `activeElement=body`，live 仍空。页面上已有的 `role=status` 是过期横幅而非结果。0 console 错误。
+- 方案 docs/plan-r694-ats-result-focus.md：四个显式扫描入口（Check / See an example score first / 行内 see an example score / Re-check now）在 `setScan` 后 `focusAfterRender('ats-result-heading')`（R645 helper）；结果 `<h2 id="ats-result-heading" tabIndex={-1} className="… outline-none">` 加 `sr-only`「— N out of 100」，聚焦即播报标题+分数。不改评分/过期逻辑/带草稿加载（加载不调 setter，不移焦点）。
+- 生产 QA（index-BVZDsw52.js，`qa/r694-verify.cjs`，1280/375）：三种入口点击后 activeElement 均为 `ats-result-heading`，可访问文本「Your/Example ATS match score — 37/33/63 out of 100」，标题 top ≥ 页头底 57 且在视口内；reload 带已检草稿 → 结果仍渲染、焦点 body（无主动夺焦）；0 console 错误。
+- 如实：未做真实读屏实听（标题聚焦播报按焦点管理模式推断）；1280 下焦点最小滚动使标题落在视口底部（top 781/812），卡片主体仍需再滚——与修前 84px 可见相当，未额外加 scroll-margin。
+
+### R695 —「Copied」剪贴板反馈只是按钮换字，没有 status 消息（WCAG 4.1.3，链 #915 → 本 PR）
+
+- 取证（`qa/r695-evidence.cjs 1280|375`，生产 index-BVZDsw52.js，MutationObserver live-region 记录仪 + 键盘 Enter）：/ats-checker「Copy the checker link」→「Link copied!」、/jobs 跟进邮件弹窗「Copy email」→「Copied」、/dashboard 文档查看器「Copy text」→「Copied」，三处 live 记录**全空**，按钮不在任何 live region 内、无 aria-live。唯一反馈是聚焦按钮的可访问名变了——AT 是否播报焦点控件改名因实现而异（未实听）。builder「Resume downloaded」toast 内的「Copy checker link」本就在 `role=status` 容器内，不在本轮。builder Share-link 弹窗「Copy」同型（需真实分享链接，未实测）。
+- 方案 docs/plan-r695-copy-feedback-status.md：新增 `src/components/CopyStatus.tsx`（常驻 `role=status sr-only`，idle 为空、copied/failed 填文案），四处按钮旁各放一个；按钮文案/handler/布局/状态机不变。
+- 生产 QA（index-smApJyJU.js，同脚本 1280/375）：三处点击后各得一条 `childList:status:… copied to clipboard.`，焦点仍在按钮，可见文案与修前逐字相同，0 console 错误。
+- 如实：未真实读屏实听；Share-link 弹窗仅同组件推断；失败态复用同一 polite 区（按钮可见文案已写 Copy failed），未另加 alert。
+
+### R696 — 应用内四个筛选框（copies / documents / samples / tracked jobs）缩小列表时没有任何播报（WCAG 4.1.3，链 #916 → 本 PR）
+
+- 取证（`qa/r696-evidence.cjs 1280|375`，生产 index-smApJyJU.js，MutationObserver live-region 记录仪）：/dashboard「Search copies」输入 engineer（4→2）live 记录 none、输入 zzz 得 `added:status:No saved copies match`（仅空态有 role）；/documents「Search documents」、/samples「Search samples」、/jobs Tracked「Filter by title or company」有结果/无结果 live 记录均 none，空态段落可见但无 role。/jobs All 页既有「N jobs found」与 R669 给静态 /examples/ 加的「N of M shown」是本仓正确先例。
+- 方案 docs/plan-r696-filter-result-status.md：新增 `src/components/FilterResultStatus.tsx`（常驻 `role=status sr-only`，query 为空时空串，否则「N of M {noun} match “q”」/「No {noun} match “q”」），四个输入框旁各放一个；copies 空态 `<p>` 去掉 `role=status` 避免双报；documents 把列表与空态各算一次的内联 filter 提成 `filteredDocs` useMemo；可见文案/过滤谓词/排序不变。
+- 生产 QA（index-Dy36HEk7.js，同脚本 1280/375）：copies engineer → `2 of 4 saved copies match`，zzz → 单条 `No saved copies match`（无双报），清空 → 区域清空；documents `1 of 2 documents match` / `No documents match`；samples `1 of 30 samples match` / `No samples match`；tracked `1 of 1 tracked jobs match` / `No tracked jobs match`；焦点始终留在输入框；0 console 错误；存储回基线。
+- 如实：未真实读屏实听（逐字输入时 polite 区域的合并/打断行为因读屏而异，未验证）；tracked 的 total 是整个 pipeline，开着「follow-up only」时分母不随之缩小。
+
+### R697 — builder 导出：下载进行中/完成没有 status 消息，且菜单/终检弹窗/直接按钮三条路径下载后焦点全部掉 body（WCAG 4.1.3 / 2.4.3，链 #917 → 本 PR）
+
+- 取证（`qa/r697-evidence.cjs 1280`，生产 index-Dy36HEk7.js，MutationObserver live-region 记录仪 + 100ms activeElement 轮询，`honestcv.shared=1` 绕过 free 邮箱门）：Download ▾ → PDF：菜单关闭、菜单项卸载 → 焦点 body，整个下载与完成后仍 body，live 记录**空**；终检弹窗「Download anyway」→ 弹窗关闭 → body，live 空；1600 直接「PDF」按钮下载期间 `disabled` → 焦点 body，恢复可用后仍 body，live 空。唯一反馈是按钮内 spinner→✓ 图标。0 console 错误。
+- 方案 docs/plan-r697-download-status-focus.md：页头导出区常驻 `<p role=status sr-only>`（`downloading` →「Preparing your PDF…」，`downloaded` →「PDF downloaded.」，其余空；`downloaded` 本就 1.8s 自清）；`download()` 记录调用时的 activeElement id，`finally` 里 `focusAfterDownload(opener, 'dl-menu', 'dl-<fmt>')`——`useFocusAfterRender` 新增可选 `{ onlyIfLost: true }`（activeElement 不是 body 就不动，避免抢首次下载打开的 Share 弹窗焦点；既有调用方不变）；`if (downloading) return` 守卫；直接按钮加 id `dl-pdf|docx|txt|md`、菜单按钮 `dl-menu`。
+- 生产复验推翻首版一处并补修：终检弹窗路径仍掉 body——Radix 把焦点还给已卸载的菜单项 → body，而 `finally` 的 effect 在弹窗退出动画期间执行、焦点还在弹窗内，`onlyIfLost` 如实跳过。补 `DialogContent onCloseAutoFocus`：能聚焦 `dl-menu`/`dl-<fmt>` 就 preventDefault；导出仍在进行（按钮 disabled）则置 `refocusExportWhenIdle`，由 `[downloading]` effect 在按钮恢复后接手。「Keep editing」同样受益。
+- 生产 QA（index-DWZqs8iU.js，`qa/r697-verify.cjs` 1280/375）：菜单 PDF / Download anyway PDF / Download anyway TXT（同步导出）/ 1600 直接 PDF 四路 live 各得 `Preparing your PDF…`→`PDF downloaded.`→空（TXT 只有 `TXT downloaded.`→空：两次 setState 同批，Preparing 不渲染，如实）；焦点分别终于 `#dl-menu`（1280/375）或 `#dl-pdf`（1600）；Keep editing → `#dl-menu`；菜单 Escape 仍 → `#dl-menu`（回归守卫）；首次下载 free 邮箱门弹窗焦点在 `#free-email` 未被抢；0 console 错误；存储回基线。
+- 如实：未真实读屏实听；Share 弹窗路径以 free 邮箱门弹窗代验（同为 Radix Dialog 夺焦，真实分享弹窗需真实分享链接）；DOCX/MD 路径仅同代码推断；R698 候选：dashboard 文档/副本导出按钮、`/s/:id`「Download PDF」同为 disabled-while-busy 形态且无 status。
+
+### R698 — SOP-10 审计节点 + dashboard 副本/文档导出与 `/s/:id`「Download PDF」下载进行中/完成没有 status 消息、完成后焦点掉 body（WCAG 4.1.3 / 2.4.3，链 #918 → 本 PR）
+
+- 审计（生产 index-DWZqs8iU.js，`qa/r666-scan.cjs` 8 路由 × 1280/375 × 亮/暗逐屏 axe + `r678-forced.cjs` + `r677-static-sweep320.cjs` 120 静态页 + `r666-icons.cjs` 亮/暗 + `r671-textspacing.cjs` 375/320 + `r668-rezi.cjs`）：axe 真违规 0（仅粘性页头 obscured 伪影，同 R655+）；forced 无焦点环控件 0；静态页 320 溢出 0；88 个图标控件 <3:1 0；文字间距新增裁切 0；Rezi 四公开页 h1/价格与 R688 快照相同。新增维度 **live-region 静默扫描**（`qa/r698-evidence.cjs 1280`，MutationObserver + 100ms activeElement 轮询，`honestcv.shared=1` 绕过 free 门；文档 fixture 需 `id/text` 非空、`/api/share` 需 `x-client-id`）：dashboard 副本 PDF、/documents 文档 PDF、`/s/:id` Download PDF 三处 live 记录**全空**，下载后焦点全部落 `BODY`（按钮 disabled-while-busy 让浏览器把焦点丢掉）。
+- 方案 docs/plan-r698-dashboard-shared-download-status.md：Dashboard `downloading` 改为 `{ key, fmt }`、新增 `downloaded`（1.8s 自清）、页头常驻 `<p role=status sr-only>`（「Preparing your PDF…」/「PDF downloaded.」）、导出按钮 `id="dl-<key>"`、`finally` 里 `useFocusAfterRender({ onlyIfLost: true })` 把焦点还给发起按钮、free 门 `pendingDl` 带 key、按钮完成态短暂显示 ✓；SharedResume `dl` 加 `'done'`、`id="share-dl-pdf"`、同款 status、成败都 `focusAfterDownload`。不改导出格式/门控/可见布局。
+- 生产 QA（index-xp_sG4wv.js，`qa/r698-verify.cjs` 1280/375）：dashboard 副本 PDF/DOCX、文档 PDF 三路 live 各得 `Preparing your PDF|DOCX…`→`… downloaded.`→空，焦点由 body 回到 `#dl-qa-v1-pdf` / `#dl-qa-v1-docx` / `#dl-qa-cover-pdf`；文档 TXT（同步）只有 `TXT downloaded.`→空、焦点未离开按钮（同 R697）；`/s/:id` 成功路径 `Preparing your PDF…`→`PDF downloaded.`→空、焦点留在 `#share-dl-pdf`；失败路径（`URL.createObjectURL` 抛错）status 回空 + 既有 `role=alert` 出现、焦点回 `#share-dl-pdf`；临时分享链接已 revoke（200）、存储回基线、0 console 错误。
+- 如实：未真实读屏实听（「live 记录到」≠「听到」）；free 邮箱门后的续传路径（`pendingDl.key`）与 placeholder 警告弹窗路径仅同代码推断；Dashboard 文档查看器内导出按钮同一 helper 未单独跑；真机触控/真实 Windows 高对比度/OS 减动效仍未做。
+
+### R699 — dashboard「Duplicate」副本 / /documents「Duplicate」文档：动作完全静默，新对象插在列表最顶端、视口之外（WCAG 4.1.3 / 2.4.3，链 #919 → 本 PR）
+
+- 取证（`qa/r699-evidence.cjs 1280|375`，生产 index-xp_sG4wv.js，MutationObserver live-region 记录仪 + 100ms activeElement 轮询，键盘 Enter）：dashboard 第 4 张副本 Duplicate → live none、焦点仍在原行 Duplicate 按钮、新副本「Delta role (2)」被 `duplicateResumeVersion` 前置到第 1 位，375 下其 Open 在 top −974（视口上方三行）；/documents 第 3 份 Duplicate 同为 live none + 焦点不动 + 新文档前置。顺带量到：Move to folder「Create & move」后焦点掉 **body**（行重挂到新文件夹组，Radix 无触发器可回）→ R700；Edit name / Rename 的 Save 焦点回触发器、原地改，不算缺口。
+- 方案 docs/plan-r699-duplicate-announce-focus.md：Dashboard 新增 `actionNote` + `announce()`（1.8s 自清）与第二个常驻 `<p role=status sr-only>`（独立于下载 status 区，避免覆盖进行中的下载播报）；`duplicateCopy` / `duplicateDoc` 复制成功后播「Duplicated as “X (2)”.」并 `focusAfterRender('copy-<newId>-open' | 'doc-<newId>-open')`（沿用 R645 的 hook 与既有行 id，浏览器聚焦时自动把新行滚进视口）。命名 / 排序 / 存储 / 可见布局不变。
+- 生产 QA（index-BqdrLUVG.js，`qa/r699-verify.cjs` 1280/375）：两面各得一条 `childList:status:Duplicated as “Delta role (2)|Cover three (2)”.`，焦点终点 `#copy-<newId>-open` / `#doc-<newId>-open` 且 inView=true（375 副本 top 418、文档 top 86），1.5s 后 status 区回空，存储回基线，0 console 错误。
+- 如实：未真实读屏实听；list 视图与 bulk 模式同一行 helper，仅同代码推断；storage-full 分支（`applyVersions` 返回 false）不播报不移焦，沿用既有 `storageError` alert。
+
+### R700 — dashboard 文件夹动作（单移 / 批量移 / 移出 / 重命名 / 删文件夹）：数据变了但 live region 零播报、焦点全掉 body（WCAG 4.1.3 / 2.4.3，链 #920 → 本 PR）
+
+- 取证（`qa/r700-evidence.cjs 1280|375`，生产 index-BqdrLUVG.js，MutationObserver live-region 记录仪 + 100ms activeElement 轮询）：六个动作——单副本 Move to folder「Create & move」/ 移到已有文件夹 / Remove from folder / Rename folder Save / 批量 Move selected / Remove folder 确认——每个都把列表重排（行重挂到别的文件夹组或回顶层），但 live 记录全为 none，`document.activeElement` 终点全为 `BODY`（Radix 弹窗关闭时触发器已随行卸载、无处可回；文件夹标题 `<button>` 无 id 不可定位）。
+- 方案 docs/plan-r700-folder-actions-focus-status.md：复用 R699 的 `announce()` + `focusAfterRender()`；新增 `folderId(f) = folder-${encodeURIComponent(f)}` 挂到文件夹标题按钮。`moveVersionTo`：单副本播「“X” moved to “F”. / removed from its folder.」，批量播「N copies moved to “F”. / removed from their folders.」，焦点顺序 `copy-<id>-open` → `folderId(F)` → `main`；重命名播「Folder “A” renamed to “B”.」焦点到 `folderId(B)`；删文件夹播「Folder “F” removed — N copies are no longer in a folder.」焦点到首个成员 Open。`applyVersions` 返回 false（storage-full）时既不播报也不移焦，沿用既有 `storageError` alert。数据变更 / 存储键 / 弹窗文案 / 布局不变。
+- 生产 QA（index-D4Ovm76k.js，`qa/r700-verify.cjs 1280/375`，QA fixture 4 副本 + Sales 文件夹，finally 回基线）：六动作各恰好一条实质 status（`“Alpha role” moved to “QA folder”.` / `“Beta role” moved to “Sales”.` / `“Beta role” removed from its folder.` / `Folder “Sales” renamed to “Sales 2”.` / `2 copies moved to “Sales 2”.` / `Folder “Sales 2” removed — 4 copies are no longer in a folder.`），焦点终点 `#copy-qa-a-open` / `#copy-qa-b-open` / `#folder-Sales%202` 且 inView=true（两档一致），文件夹标题计数随之正确，0 console 错误。375 另记录到空白 status 清空突变与 `characterData:status:0 selected`（既有批量计数器），非新增噪音。
+- 如实：未真实读屏实听；verify 脚本首版在批量移入 Sales 2 后仍去删「QA folder」而超时，是脚本序列错误（改删 Sales 2 后两档通过），非产品缺口；Workers Routes code 10000 依旧（上传上线不受影响）；Prettier --check 对 Dashboard.tsx 报既有格式警告，未整文件重排。
+
+### R701 — /jobs 跟踪面板「Mark as followed up / 提醒设置与清除 / Notes 失焦自动保存」零播报，「Clear reminder」焦点掉 body（WCAG 4.1.3 / 2.4.3，链 #921 → 本 PR）
+
+- 取证（`qa/r701-evidence.cjs 1280`，生产 index-D4Ovm76k.js，MutationObserver live-region 记录仪 + 100ms activeElement 轮询，pipeline 空 + 无简历 fixture）：列表卡 Save 与面板状态芯片自身带 `aria-pressed`，读屏在焦点控件上能听到 pressed，**非缺口**；「Mark as followed up」只在焦点之外的时间线多一行、live 为 none；日期 `#job-remind` 设 2026-12-01 后只有输入框自身的值、无「已设置」播报；「Clear reminder」按钮随即卸载，live none 且 activeElement 终点 `BODY`；Notes 失焦持久化到 `honestcv.jobPipeline` 无任何「saved」反馈（builder 自动保存有 role=status「Saved」，jobs 是漏网）。
+- 方案 docs/plan-r701-jobs-panel-actions-status.md（仅 Jobs.tsx）：引入 Dashboard R699 同款 `actionNote` + `announce()`（1.8s 自清），常驻 `<p role="status" class="sr-only">` 放进底部固定状态栏容器；followed up 播「Marked as followed up — added to the timeline.」；日期 onChange 有值播「Reminder set for <shortDay>.」、清空播「Reminder cleared.」；「Clear reminder」播「Reminder cleared.」并 `focusAfterRender('job-remind')` 回到日期框；Notes onBlur 成功写入后播「Notes saved.」。`applyPipeline` 返回 false（storage-full）仍只走既有 alert、不播报。数据 / 存储键 / 可见文案 / 布局不变。
+- 生产 QA（index-BJXYImy_.js，`qa/r701-verify.cjs 1280/375`，finally 回基线）：步骤 2–5 各恰好一条实质 status（文本同上），Clear reminder 后焦点终点 `INPUT#job-remind` inView=true（原 BODY），Save / 芯片行为与 aria-pressed 不变，时间线与 pipeline 状态逐项正确，两档 0 console 错误。
+- 如实：未真实读屏实听；Prettier --check 对 Jobs.tsx 报既有格式警告（stash 后对未改文件同样报），未整文件重排；Workers Routes code 10000 依旧（上传上线不受影响）。
+
+### R702 — builder「Move up / Move down」箭头（12 个列表 × 2）零播报，移到列表两端时焦点掉 body（WCAG 4.1.3 / 2.4.3，链 #922 → 本 PR）
+
+- 取证（`qa/r702-evidence.cjs 1280`，生产 index-BJXYImy_.js，示例简历，live-region 记录仪 + 100ms activeElement 轮询）：Section order「Summary」下移（13 项）live none、焦点留在箭头；同项再上移回第 1 位 → 箭头 `disabled` → Chrome 立即 blur，activeElement 终点 `BODY`；Experience 2 条角色：role 1 下移 → 末位 Move down 禁用 → BODY，role 2 上移 → 首位 Move up 禁用 → BODY。即两条目列表（Education / Certifications / Projects 常态）每次移动都丢焦点；12 处站点同一内联写法（experience / education / projects / involvement / coursework / awards / publications / references / military / agents / certItems / sectionOrder），全部无播报。
+- 方案 docs/plan-r702-builder-move-arrows-status.md（仅 Builder.tsx）：`moveId(list, idx, dir)` 给 24 个箭头挂 id；引入 `actionNote` + `announce()`（同 Dashboard/Jobs），常驻 sr-only `role=status` 放在页头导出状态旁；`movedEntry(list, noun, idx, delta, len)` 在每个 `setResume(... moveItem ...)` 之后播「<Noun> moved up/down — now K of N.」（sections 用 `<sectionLabel> section`），焦点 `focusAfterRender(同向箭头, 反向箭头)`——同向被禁用时 `focus()` 无效即落到同条目的反向箭头。`moveItem` / disabled 逻辑 / 拖拽 / 可见文案 / 布局不变。
+- 生产 QA（index-CvWx9zag.js，`qa/r702-verify.cjs 1280/375`，finally 回基线）：四步各恰好一条实质 status（`Summary section moved down — now 2 of 13.` / `Summary section moved up — now 1 of 13.` / `Role moved down — now 2 of 2.` / `Role moved up — now 1 of 2.`），焦点终点 `#move-sectionOrder-1-down` / `#move-sectionOrder-0-down` / `#move-experience-1-up` / `#move-experience-0-down` 且 inView=true（两档一致），列表顺序正确，0 console 错误。
+- 如实：未真实读屏实听；其余 10 个列表仅同一脚本改写（24 处均由同一变换生成、tsc/eslint 绿）未逐一在生产点击；「Sort by date」开启时手动移动在焦点离开卡片后会被重排（既有 `releaseAutoSort` 行为，未改，播报描述的是即时结果）；取证脚本首版把 Section order 列表误当 Experience（DOM 顺序 Experience 在前），改按「祖先 li 是否含 Drag 把手」区分后才下结论；Workers Routes code 10000 依旧。
+
+### R703 — 面向功能的 SOP-10 四维对标复审（Rezi 实体工作台 / 核心 AI 功能 / 落地页 / 架构）+ P1：PDF 导入把每条折行要点拆成两条（链 #923 → 本 PR #924）
+
+- 统筹者纠偏：近 30 轮全在无障碍细扫，边际价值低。本轮改为功能对标：Rezi 公开页取证（`qa/r698-rezi.json`）+ 生产 golden-path 全流程（testing agent，真实一页 PDF `qa/alex-morgan-resume.pdf`，7 次真实 AI 调用，1280/375，`qa/golden-plan.md`、`qa/golden-shots/*.png`、`qa/golden-diagnostics.json`）。
+- 差距清单（docs/plan-r703-function-benchmark.md）：**P0** 职位搜索只剩 Remotive 18 条、任何查询/分类同一集合（→ R704）；**P1** PDF 导入折行要点 6→12 条、GitHub URL 丢失（本轮修）；**P1** 面试 brief 编造简历外事实、任期算错（→ R705）；**P1** AI 首次请求 502（→ R706）；**P1** 面试准备是静态 brief 而非逐题练习闭环（→ R707，视预算）；P2 落地页社会证明/模板廊、架构 localStorage-first 为有意选择，不排轮。
+- 修复（`src/lib/importText.ts`）：`continuesPrevious()` 把小写/货币符开头、无终止标点、非日期段的无标记行并回上一条要点（experience + 自定义节）；`contact.website` ← 页头首个 GitHub URL / 非 LinkedIn URL。LinkedIn 分支、education、skills、ATS 评分不变。
+- 生产 QA（index-MCZ4b8OR.js，`qa/r703-import-verify.cjs 1280|375`）：上传 → 91/100 → Fix in builder → 6 条要点逐句等于源文、website 已填、builder 95/100，0 console 错误。
+- 如实：testing agent 后续报告（导出/分享/移动端/文档）在本轮 PR 之后到达，结论与差距清单一致（keyword 100% 假阳性另记为候选：realistic JD 4/4 keyword 全中而漏 GraphQL/Next.js「desirable」项，P1 候选，未排轮）。
+
+### R704 — 职位搜索聚合三路免钥 feed（Remotive + Jobicy + Arbeitnow），本地强制查询/分类相关性、去重、按 feed 交错（P0，链 #924 → 本 PR）
+
+- 取证（R703 表 #3 + 本轮直连 API）：Remotive `/api/remote-jobs` 对 `?search=` / `?category=` 只回同一 18 条；Jobicy `/api/v2/remote-jobs`（`count/tag/geo`，实际字段 `salaryMin/Max/Currency/Period`、`jobGeo`、`jobIndustry[]`，公司 logo 在 jobicy.com）与 Arbeitnow `/api/job-board-api?page=N`（~250/页，欧洲在岗 + 远程，含大量德语帖）均可免钥拉取。
+- 方案（`worker/index.ts`，`src/pages/Jobs.tsx` 仅文案）：四路并发拉取（Remotive、Jobicy、Arbeitnow p1、p2），`AbortSignal.timeout(8s)`；各 feed 归一为 `NormalizedJob`（Jobicy 实体解码、薪资拼接、`Anywhere→Worldwide`；Arbeitnow 标签映射到既有 14 个 canonical 分类、`isNonEnglishText` 德/法停用词密度 ≥6 过滤）；查询 token 全含匹配 + 分类本地过滤（上游查询不可靠）；`title|company` 去重；每 feed 内按发布时间倒序，再按相关性 tier（标题全含 2 / 标题部分 1 / 仅正文 0）逐 feed 轮转交错（否则 Arbeitnow 日更数百条会把远程 feed 全部挤出前 150）；上限 150；响应含 `source`/`sources`；全部 feed 失败才 502，部分成功返回部分数据；缓存键 `jobs:v9:<q>|<category>` 1h。CSP `img-src` 加 `https://jobicy.com`。
+- 本地（wrangler dev 8787）：空查询 150 = remotive 18 / jobicy 50 / arbeitnow 82；`frontend engineer` 69（top10 标题相关 10/10）；`product manager` 150；`react`+software-dev 47；不可能查询 0；tsc / eslint / build / verify-dist 绿。
+- 生产 QA（index-ikhfC5mn.js，`qa/r704-verify.cjs 1280|375` + `qa/r704-flows.cjs 1280|375`）：归属文案三源；默认 150 三源交错；`frontend engineer` 69、top10 标题全相关、地点 facets 8 个（USA/Europe/UK/London/…）；+software-dev 54；facet USA(20) → 24（20 直配 + 4 Worldwide/Remote「open anywhere」既有设计）；Jobicy logo 全部经 CSP 加载、0 隐藏；`?job=jobicy-152644` 深链打开面板 → Target my resume 建副本并 forJob 落 `jobicy-…` id → Cover letter 弹窗 → Interviewing 芯片 → Interview Prep Brief 弹窗，pipeline/versions 正确；Saved 芯片 → Tracked 标签可见；1280 scrollWidth 1265、375 为 360（滚动条保留），0 failed request、0 4xx/5xx/CSP、0 console 错误；存储回基线；`/pricing/`、`/examples/examples.json` 200。
+- 如实：非英语过滤是停用词密度启发式，可能误删双语帖、也可能漏掉短德语帖，未做完整语言分类；地点值仍是各 feed 自由文本（`USA`/`EMEA`/`München`/多国串），未归一化；Remotive 空查询只回 18 条属上游限制；QA 脚本首版 `waitForFunction` 触 CSP `unsafe-eval` 改为轮询、Save 选择器改 `#track-chip-saved`——均为脚本问题非产品缺口；Workers Routes code 10000 依旧（上传上线不受影响）；R705–R707 待做。
+
+### R705 — 面试 brief / 面试题 / 答题反馈 / 求职信全部以简历为据，任期由服务端计算而非模型估算（P1，链 #925 → 本 PR）
+
+- 取证（`qa/golden-diagnostics.json` 生产 R703 golden run）：brief 对 Alex Morgan fixture 编造「I use AI tools to scaffold…」「I already work remote-style」「applied code-splitting … coordinated with backend on payload changes」（简历均无），且「starts July 2020 (~4 years)」——2026-09 应为 6 年 3 个月，模型没有时钟。
+- 方案 docs/plan-r705-interview-grounding.md（仅 `worker/prompts.ts`）：`tenureFacts()` 对 `resumeToPlainText` 的 `Title at Company (Jul 2020 – Present)` 标题行做确定性任期计算（支持 `Mon YYYY` / `YYYY-MM` / `MM/YYYY` / `YYYY`）；`groundingRules()` 把「今天日期 + 预算任期 + 不得把简历未写的工具/方法/雇主/团队规模/远程/指标/职责归给候选人（JD 要求而简历没有 = gap 不是经验）+ 未知用方括号占位」追加到 brief / questions / feedback 三个 system prompt；brief 每个问题角度须引用雇主/要点或写「no direct evidence — position it as a gap」，STAR 故事须引用一条原文要点；求职信 prompt 同样加「每个技能/工具/雇主/指标必须出现在简历或用户 highlights」。所有 builder 加 `today = new Date()` 参数便于测试。端点、客户端、配额不变。
+- 验证：tsx 单测（钟定 2026-09-07）四种日期格式任期正确；tsc / eslint / build / verify-dist 绿；部署后生产同一请求体（`qa/r705-brief.cjs`，新 `x-client-id`，1 次 AI 调用，输出 `qa/r705-brief-after.txt`）：AI 工具 / 远程均改为「no direct evidence — position it as a gap」，Story 1 原文引用 + `[add details on profiling tools used, team size, …]` 占位，任期「Northstar Digital ongoing for 4 years 9 months」正确，Node/Next/AWS/AI 全部入 GAPS。
+- 如实：仅 1 个生产样本（配额纪律），prompt 级改进无确定性后置校验；questions / feedback / cover letter 同规则但本轮未在生产重跑（各需 1 次 AI 调用）；`tenureFacts` 只识别 `(start – end)` 标题形；brief 延迟 65s 为模型侧；Workers Routes code 10000 依旧（上传上线不受影响）；R706 / R707 待做。

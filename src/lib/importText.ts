@@ -56,6 +56,19 @@ const stripBullet = (line: string) => line.replace(/^[-–—•*·▪◦]\s+/, 
 // too long to be an entry header.
 const looksLikeBodyLine = (line: string) => /[.!?;]$/.test(line) || line.length > 60
 
+// PDF text extraction yields one line per visual line, so a bullet that wraps
+// arrives as "Reduced load time from 3.2" + "seconds to 1.8 seconds.": a
+// marker-less line starting in lowercase (or with a currency amount) after a
+// line with no terminal punctuation continues that line.
+const continuesPrevious = (prev: string | undefined, line: string) =>
+  !!prev &&
+  !/[.!?:;]$/.test(prev) &&
+  !isBullet(line) &&
+  /^[a-zà-ÿ$€£]/.test(line) &&
+  !DATE_RANGE_RE.test(line)
+
+const GITHUB_RE = /(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s|,;)]+/i
+
 // LinkedIn "Profile → More → Save to PDF" export markers: a `handle (LinkedIn)`
 // contact line, the sidebar's "Top Skills" heading, or page footers.
 const LI_PAGE_RE = /^page \d+ of \d+$/i
@@ -183,6 +196,21 @@ export function parseResumeText(raw: string): Resume {
   resume.contact.email = email
   resume.contact.phone = phone
   resume.contact.linkedin = linkedin
+  // Header URL that is not LinkedIn (GitHub / portfolio) → website
+  const headerText = nonEmpty
+    .slice(0, 6)
+    .join('\n')
+    .replace(new RegExp(EMAIL_RE.source, 'gi'), ' ')
+  resume.contact.website =
+    headerText.match(GITHUB_RE)?.[0] ??
+    [...headerText.matchAll(new RegExp(URL_RE.source, 'gi'))]
+      .map((m) => m[0])
+      .find(
+        (u) =>
+          !LINKEDIN_RE.test(u) &&
+          (/^(https?:\/\/|www\.)/i.test(u) || /\.(com|dev|io|me|net|org|co|ai|design|xyz)(\/|$)/i.test(u))
+      ) ??
+    ''
 
   // Name: first short non-empty line without contact info or a heading
   for (const line of nonEmpty.slice(0, 5)) {
@@ -262,7 +290,10 @@ export function parseResumeText(raw: string): Resume {
         certLines.push(line)
         break
       case 'custom':
-        if (currentCustom) currentCustom.bullets.push(stripBullet(line))
+        if (!currentCustom) break
+        if (continuesPrevious(currentCustom.bullets[currentCustom.bullets.length - 1], line))
+          currentCustom.bullets[currentCustom.bullets.length - 1] += ` ${line}`
+        else currentCustom.bullets.push(stripBullet(line))
         break
       case 'experience': {
         if (isBullet(line)) {
@@ -271,6 +302,11 @@ export function parseResumeText(raw: string): Resume {
             resume.experience.push(currentExp)
           }
           currentExp.bullets.push(stripBullet(line))
+        } else if (
+          currentExp &&
+          continuesPrevious(currentExp.bullets[currentExp.bullets.length - 1], line)
+        ) {
+          currentExp.bullets[currentExp.bullets.length - 1] += ` ${line}`
         } else {
           const { rest, start, end } = extractDates(line)
           if (!rest && start && currentExp && !currentExp.startDate) {

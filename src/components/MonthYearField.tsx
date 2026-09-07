@@ -32,12 +32,14 @@ export function MonthYearField({
   placeholder,
   allowPresent = false,
   id,
+  ariaLabel,
 }: {
   value: string
   onChange: (value: string) => void
   placeholder?: string
   allowPresent?: boolean
   id?: string
+  ariaLabel?: string
 }) {
   const [open, setOpen] = useState(false)
   const [year, setYear] = useState(() => yearOf(value))
@@ -68,6 +70,7 @@ export function MonthYearField({
     <div ref={ref} className="relative">
       <Input
         id={id}
+        aria-label={ariaLabel}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}

@@ -4,6 +4,7 @@ import { licenseHeaders } from '@/lib/license'
 import { type Resume, sanitizeResume } from '@/lib/resume'
 
 const SHARE_LINKS_KEY = 'honestcv.shareLinks'
+const SHARE_LINKS_BACKUP_KEY = 'honestcv.shareLinks.unreadable'
 const LEGACY_SHARE_LINK_KEY = 'honestcv.shareLink'
 
 /** A resume copy id, or 'draft' for the unlinked working draft. */
@@ -22,6 +23,30 @@ function isShareLink(v: unknown): v is ShareLink {
   return (
     typeof link.id === 'string' && typeof link.token === 'string' && typeof link.url === 'string'
   )
+}
+
+/** When the stored share-link map is unreadable (corrupted JSON / not an
+ *  object), keep its exact bytes under a backup key so a later write can't
+ *  destroy the tokens — they are the only way to take live links down.
+ *  Returns whether the current stored value is unreadable. An existing
+ *  backup is never overwritten. */
+export function stashUnreadableShareLinks(): boolean {
+  try {
+    const raw = localStorage.getItem(SHARE_LINKS_KEY)
+    if (raw === null) return false
+    try {
+      const parsed = JSON.parse(raw) as unknown
+      if (typeof parsed === 'object' && parsed !== null) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    if (localStorage.getItem(SHARE_LINKS_BACKUP_KEY) === null) {
+      localStorage.setItem(SHARE_LINKS_BACKUP_KEY, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
 }
 
 function loadShareLinks(): Record<ShareScope, ShareLink> {
@@ -51,6 +76,7 @@ export function loadShareLink(scope: ShareScope): ShareLink | null {
       const legacy = JSON.parse(legacyRaw) as unknown
       if (isShareLink(legacy) && !links[scope]) {
         links[scope] = { ...legacy, sharedAt: typeof legacy.sharedAt === 'number' ? legacy.sharedAt : Date.now() }
+        stashUnreadableShareLinks()
         localStorage.setItem(SHARE_LINKS_KEY, JSON.stringify(links))
       }
     } catch {
@@ -61,14 +87,17 @@ export function loadShareLink(scope: ShareScope): ShareLink | null {
   return links[scope] ?? null
 }
 
-function persistShareLink(scope: ShareScope, link: ShareLink | null) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistShareLink(scope: ShareScope, link: ShareLink | null): boolean {
   const links = loadShareLinks()
   if (link) links[scope] = link
   else delete links[scope]
   try {
+    stashUnreadableShareLinks()
     localStorage.setItem(SHARE_LINKS_KEY, JSON.stringify(links))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
@@ -109,7 +138,13 @@ export async function createShareLink(
     throw new Error(clientMessage || `Creating the link failed (${res.status}). Try again.`)
   }
   const link: ShareLink = { id: data.id, token: data.token, url: data.url, sharedAt: Date.now() }
-  persistShareLink(scope, link)
+  if (!persistShareLink(scope, link) && !prev) {
+    // Without a local record the link could never be revoked — take it back down.
+    void revokeRemote(link.id, link.token).catch(() => {})
+    throw new Error(
+      'Saving the link in this browser failed — your storage is full. The link was turned off; free up space and try again.'
+    )
+  }
   return link
 }
 
@@ -157,11 +192,20 @@ export function revokeShareLinksFor(scopes: readonly ShareScope[]): void {
   }
 }
 
-/** Fetch a shared resume snapshot; null when the link is gone. */
+/** Fetch a shared resume snapshot; null when the link is gone. Network
+ *  failures and server errors throw — they are not evidence of revocation. */
 export async function fetchSharedResume(
   id: string
 ): Promise<{ resume: Resume; createdAt: number } | null> {
-  const res = await fetch(`/api/share/${encodeURIComponent(id)}`)
+  let res: Response
+  try {
+    res = await fetch(`/api/share/${encodeURIComponent(id)}`)
+  } catch {
+    throw new Error('Loading the resume failed — check your connection and try again.')
+  }
+  if (res.status >= 500) {
+    throw new Error(`Loading the resume failed (${res.status}). Try again.`)
+  }
   if (!res.ok) return null
   const data = (await res.json().catch(() => null)) as {
     resume?: unknown

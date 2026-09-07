@@ -4,6 +4,14 @@
  * lives in localStorage only, like resumes and career documents.
  */
 
+import { latestDocsFor } from '@/lib/documents'
+import {
+  rememberVersionJobs,
+  setVersionJob,
+  type ResumeVersion,
+  type VersionJobRef,
+} from '@/lib/resume'
+
 export interface JobListing {
   id: string
   title: string
@@ -17,6 +25,8 @@ export interface JobListing {
   salary: string
   url: string
   description: string
+  /** True when the description was cut to the server-side length cap */
+  descriptionTruncated?: boolean
   /** Upstream skill tags (may be missing on entries saved before it existed) */
   tags?: string[]
 }
@@ -45,12 +55,29 @@ export interface PipelineEntry {
   updatedAt: number
   /** Saved resume copy targeted at this job, prepared when the job is saved */
   resumeVersionId?: string
+  /** Saved cover letter written for this job (career document id) */
+  coverDocId?: string
+  /** Saved interview prep brief written for this job (career document id) */
+  interviewDocId?: string
+  /** Saved resignation letter written when this job reached the offer stage (career document id) */
+  resignationDocId?: string
   /** Status changes in chronological order (entries saved before R190 have none) */
   history?: StatusChange[]
   /** Free-form notes: recruiter names, interview dates, follow-ups */
   notes?: string
-  /** User-set follow-up reminder (ms epoch, local midnight of the chosen day) */
-  remindAt?: number
+  /** User-set follow-up reminder as a calendar day (yyyy-mm-dd, no timezone) */
+  remindOn?: string
+  /** When the user last marked this application as followed up (ms epoch) */
+  followedUpAt?: number
+}
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** ms epoch → yyyy-mm-dd in the user's local calendar. */
+export function localDayOf(ms: number): string {
+  const d = new Date(ms)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
 /** The entry's status timeline, synthesizing one step for pre-history entries. */
@@ -64,13 +91,14 @@ export function timelineOf(entry: PipelineEntry): StatusChange[] {
 export function staleDays(entry: PipelineEntry): number | null {
   if (entry.status !== 'applied' && entry.status !== 'interviewing') return null
   const steps = timelineOf(entry)
-  const days = Math.floor((Date.now() - steps[steps.length - 1].at) / 86_400_000)
+  const last = Math.max(steps[steps.length - 1].at, entry.followedUpAt ?? 0)
+  const days = Math.floor((Date.now() - last) / 86_400_000)
   return days >= 7 ? days : null
 }
 
-/** True when the entry's user-set follow-up reminder date has arrived. */
+/** True when the entry's user-set follow-up reminder day has arrived (local calendar). */
 export function reminderDue(entry: PipelineEntry): boolean {
-  return entry.remindAt !== undefined && Date.now() >= entry.remindAt
+  return entry.remindOn !== undefined && localDayOf(Date.now()) >= entry.remindOn
 }
 
 /** Tracked applications gone quiet for 7+ days or with a due follow-up reminder. */
@@ -115,13 +143,21 @@ export function followUpEmail(
     day: 'numeric',
   })
   const when = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`
+  const followedUpOn =
+    entry.followedUpAt !== undefined && entry.followedUpAt > steps[steps.length - 1].at
+      ? new Date(entry.followedUpAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : null
   const opener = offer
     ? `Thank you again for the offer for the ${title} position. I wanted to follow up on the next steps and the timeline for my decision.`
     : interviewing
-      ? days < 2
-        ? `We spoke about the ${title} position on ${spokeOn}, and I wanted to follow up on where things stand.`
-        : `It has been ${days} days since we last spoke about the ${title} position on ${spokeOn}, and I wanted to follow up on where things stand.`
-      : `I applied for the ${title} position ${when} and wanted to follow up on the status of my application.`
+      ? followedUpOn
+        ? `We last spoke about the ${title} position on ${spokeOn} and I followed up on ${followedUpOn}; I wanted to check in again on where things stand.`
+        : days < 2
+          ? `We spoke about the ${title} position on ${spokeOn}, and I wanted to follow up on where things stand.`
+          : `It has been ${days} days since we last spoke about the ${title} position on ${spokeOn}, and I wanted to follow up on where things stand.`
+      : followedUpOn
+        ? `I applied for the ${title} position ${when} and followed up on ${followedUpOn}; I wanted to check in again on the status of my application.`
+        : `I applied for the ${title} position ${when} and wanted to follow up on the status of my application.`
   const recruiter = recruiterNameFromNotes(entry.notes)
   const body = [
     recruiter ? `Hi ${recruiter.split(' ')[0]},` : `Hi ${company} hiring team,`,
@@ -149,9 +185,10 @@ export function isLocationAgnostic(location: string): boolean {
 }
 
 /**
- * Distinct candidate locations across listings with posting counts, most
- * common first (ties alphabetical). Location-agnostic postings are skipped —
- * they match any location filter anyway.
+ * Distinct candidate regions across listings with posting counts, most
+ * common first (ties alphabetical). Compound locations ("LATAM, Europe, USA")
+ * count once toward each listed region. Location-agnostic postings are
+ * skipped — they match any location filter anyway.
  */
 export function locationFacets(
   locations: readonly string[],
@@ -159,12 +196,15 @@ export function locationFacets(
 ): { label: string; count: number }[] {
   const byKey = new Map<string, { label: string; count: number }>()
   for (const raw of locations) {
-    const label = raw.trim()
-    if (isLocationAgnostic(label)) continue
-    const key = label.toLowerCase()
-    const entry = byKey.get(key)
-    if (entry) entry.count++
-    else byKey.set(key, { label, count: 1 })
+    if (isLocationAgnostic(raw)) continue
+    for (const part of raw.split(',')) {
+      const label = part.trim()
+      if (label === '' || isLocationAgnostic(label)) continue
+      const key = label.toLowerCase()
+      const entry = byKey.get(key)
+      if (entry) entry.count++
+      else byKey.set(key, { label, count: 1 })
+    }
   }
   return [...byKey.values()]
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
@@ -172,6 +212,30 @@ export function locationFacets(
 }
 
 const PIPELINE_KEY = 'honestcv.jobPipeline'
+const PIPELINE_BACKUP_KEY = 'honestcv.jobPipeline.unreadable'
+
+/**
+ * When the stored pipeline exists but cannot be read at all (corrupted JSON or
+ * not an array), preserve the raw value under a backup key before any write
+ * can overwrite it. Returns true when the stored pipeline is unreadable.
+ */
+export function stashUnreadablePipeline(): boolean {
+  try {
+    const raw = localStorage.getItem(PIPELINE_KEY)
+    if (raw === null) return false
+    try {
+      if (Array.isArray(JSON.parse(raw))) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    if (localStorage.getItem(PIPELINE_BACKUP_KEY) === null) {
+      localStorage.setItem(PIPELINE_BACKUP_KEY, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** Category slugs accepted by the jobs API (Remotive's fixed list). */
 export const JOB_CATEGORIES: [slug: string, label: string][] = [
@@ -194,7 +258,12 @@ export const JOB_CATEGORIES: [slug: string, label: string][] = [
 export async function searchJobs(q: string, category = ''): Promise<JobListing[]> {
   const params = new URLSearchParams({ q })
   if (category) params.set('category', category)
-  const res = await fetch(`/api/jobs/search?${params}`)
+  let res: Response
+  try {
+    res = await fetch(`/api/jobs/search?${params}`)
+  } catch {
+    throw new Error('Loading jobs failed — check your connection and try again.')
+  }
   const data = (await res.json().catch(() => ({}))) as {
     jobs?: JobListing[]
     error?: string
@@ -276,6 +345,7 @@ function sanitizeEntry(raw: unknown): PipelineEntry | null {
     url: asStr(j.url),
     description: asStr(j.description),
   }
+  if (j.descriptionTruncated === true) job.descriptionTruncated = true
   if (typeof j.logo === 'string') job.logo = j.logo
   if (Array.isArray(j.tags)) job.tags = j.tags.filter((t): t is string => typeof t === 'string')
   const status = JOB_STATUSES.includes(e.status as JobStatus)
@@ -296,8 +366,16 @@ function sanitizeEntry(raw: unknown): PipelineEntry | null {
     if (steps.length > 0) entry.history = steps
   }
   if (typeof e.resumeVersionId === 'string') entry.resumeVersionId = e.resumeVersionId
+  if (typeof e.coverDocId === 'string') entry.coverDocId = e.coverDocId
+  if (typeof e.interviewDocId === 'string') entry.interviewDocId = e.interviewDocId
+    if (typeof e.resignationDocId === 'string') entry.resignationDocId = e.resignationDocId
   if (typeof e.notes === 'string') entry.notes = e.notes
-  if (typeof e.remindAt === 'number' && Number.isFinite(e.remindAt)) entry.remindAt = e.remindAt
+  if (typeof e.followedUpAt === 'number' && Number.isFinite(e.followedUpAt))
+    entry.followedUpAt = e.followedUpAt
+  if (typeof e.remindOn === 'string' && DAY_RE.test(e.remindOn)) entry.remindOn = e.remindOn
+  // Entries saved before reminders became calendar days stored a local-midnight epoch
+  else if (typeof e.remindAt === 'number' && Number.isFinite(e.remindAt))
+    entry.remindOn = localDayOf(e.remindAt)
   return entry
 }
 
@@ -315,12 +393,18 @@ export function listPipeline(): PipelineEntry[] {
   }
 }
 
-function savePipeline(entries: PipelineEntry[]): PipelineEntry[] {
-  localStorage.setItem(PIPELINE_KEY, JSON.stringify(entries))
-  return entries
+/** Returns null when nothing was written (storage full / private mode). */
+function savePipeline(entries: PipelineEntry[]): PipelineEntry[] | null {
+  try {
+    stashUnreadablePipeline()
+    localStorage.setItem(PIPELINE_KEY, JSON.stringify(entries))
+    return entries
+  } catch {
+    return null
+  }
 }
 
-export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntry[] {
+export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntry[] | null {
   const all = listPipeline()
   const prev = all.find((e) => e.job.id === job.id)
   const rest = all.filter((e) => e.job.id !== job.id)
@@ -330,6 +414,8 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
     base.length > 0 && base[base.length - 1].status === status
       ? base
       : [...base, { status, at: now }]
+  // A job tracked again picks its documents back up, like its targeted copy.
+  const written = prev ? {} : latestDocsFor(job.id)
   return savePipeline([
     {
       job,
@@ -337,15 +423,34 @@ export function upsertPipeline(job: JobListing, status: JobStatus): PipelineEntr
       updatedAt: now,
       history,
       ...(prev?.resumeVersionId ? { resumeVersionId: prev.resumeVersionId } : {}),
+      ...(prev?.coverDocId
+        ? { coverDocId: prev.coverDocId }
+        : written.cover
+          ? { coverDocId: written.cover.id }
+          : {}),
+      ...(prev?.interviewDocId
+        ? { interviewDocId: prev.interviewDocId }
+        : written.interview
+          ? { interviewDocId: written.interview.id }
+          : {}),
+      ...(prev?.resignationDocId
+        ? { resignationDocId: prev.resignationDocId }
+        : written.resignation
+          ? { resignationDocId: written.resignation.id }
+          : {}),
       ...(prev?.notes ? { notes: prev.notes } : {}),
-      ...(prev?.remindAt !== undefined ? { remindAt: prev.remindAt } : {}),
+      ...(prev?.remindOn !== undefined ? { remindOn: prev.remindOn } : {}),
+      ...(prev?.followedUpAt !== undefined ? { followedUpAt: prev.followedUpAt } : {}),
     },
     ...rest,
   ])
 }
 
 /** Move several tracked jobs to a status in one write, appending to each timeline. */
-export function updateStatuses(ids: readonly string[], status: JobStatus): PipelineEntry[] {
+export function updateStatuses(
+  ids: readonly string[],
+  status: JobStatus
+): PipelineEntry[] | null {
   const set = new Set(ids)
   const now = Date.now()
   return savePipeline(
@@ -357,13 +462,13 @@ export function updateStatuses(ids: readonly string[], status: JobStatus): Pipel
 }
 
 /** Untrack several jobs in one write. */
-export function removeManyFromPipeline(ids: readonly string[]): PipelineEntry[] {
+export function removeManyFromPipeline(ids: readonly string[]): PipelineEntry[] | null {
   const set = new Set(ids)
   return savePipeline(listPipeline().filter((e) => !set.has(e.job.id)))
 }
 
 /** Save free-form notes on the pipeline entry for a job. */
-export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] {
+export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] | null {
   return savePipeline(
     listPipeline().map((e) =>
       e.job.id === jobId ? { ...e, notes: notes.trim() ? notes : undefined } : e
@@ -371,22 +476,155 @@ export function setPipelineNotes(jobId: string, notes: string): PipelineEntry[] 
   )
 }
 
-/** Set or clear (null) the follow-up reminder on the pipeline entry for a job. */
-export function setPipelineReminder(jobId: string, remindAt: number | null): PipelineEntry[] {
+/** Set or clear (null) the follow-up reminder day (yyyy-mm-dd) on the entry for a job. */
+export function setPipelineReminder(
+  jobId: string,
+  remindOn: string | null
+): PipelineEntry[] | null {
+  const day = remindOn !== null && DAY_RE.test(remindOn) ? remindOn : undefined
+  return savePipeline(
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, remindOn: day } : e))
+  )
+}
+
+/** Record that the user followed up on a job now: resets staleness and clears the reminder. */
+export function markFollowedUp(jobId: string): PipelineEntry[] | null {
   return savePipeline(
     listPipeline().map((e) =>
-      e.job.id === jobId ? { ...e, remindAt: remindAt ?? undefined } : e
+      e.job.id === jobId ? { ...e, followedUpAt: Date.now(), remindOn: undefined } : e
     )
   )
 }
 
-/** Link the pipeline entry for a job to its targeted resume copy. */
-export function setPipelineVersion(jobId: string, resumeVersionId: string): PipelineEntry[] {
+/** Link the pipeline entry for a job to the cover letter written for it. */
+export function setPipelineCoverDoc(jobId: string, coverDocId: string): PipelineEntry[] | null {
   return savePipeline(
-    listPipeline().map((e) => (e.job.id === jobId ? { ...e, resumeVersionId } : e))
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, coverDocId } : e))
   )
 }
 
-export function removeFromPipeline(id: string): PipelineEntry[] {
+/** Link the pipeline entry for a job to the resignation letter written at its offer stage. */
+export function setPipelineResignationDoc(
+  jobId: string,
+  resignationDocId: string
+): PipelineEntry[] | null {
+  return savePipeline(
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, resignationDocId } : e))
+  )
+}
+
+/** Link the pipeline entry for a job to the interview prep brief written for it. */
+export function setPipelineInterviewDoc(
+  jobId: string,
+  interviewDocId: string
+): PipelineEntry[] | null {
+  return savePipeline(
+    listPipeline().map((e) => (e.job.id === jobId ? { ...e, interviewDocId } : e))
+  )
+}
+
+/** Whether a resume's target (as written by Save / Target my resume) is this job: same company,
+ * and the same title or the same posting text (the title may have been edited in the builder). */
+export function copyTargetsJob(
+  data: { targetRole: string; targetCompany?: string; jobDescription: string },
+  job: JobListing
+): boolean {
+  const description = job.description.trim()
+  return (
+    (data.targetCompany ?? '').trim() === job.company.trim() &&
+    (data.targetRole.trim() === job.title.trim() ||
+      (description !== '' && data.jobDescription.trim() === description))
+  )
+}
+
+interface CopyAim {
+  data: { targetRole: string; targetCompany?: string; jobDescription: string }
+  forJob?: VersionJobRef
+}
+
+/** Whether the job a copy was created for (forJob) still describes where it is aimed: yes while its
+ * target matches that job, or when only the role/description changed within the same company and no
+ * other tracked job matches; no once it was re-aimed at another company or another tracked job. */
+export function copyKeepsProvenance(copy: CopyAim, pipeline: readonly PipelineEntry[]): boolean {
+  const ref = copy.forJob
+  if (!ref) return false
+  const own = pipeline.find((e) => e.job.id === ref.id)
+  if (own && copyTargetsJob(copy.data, own.job)) return true
+  const company = (copy.data.targetCompany ?? '').trim()
+  if (company !== '' && company !== ref.company.trim()) return false
+  return !pipeline.some((e) => e.job.id !== ref.id && copyTargetsJob(copy.data, e.job))
+}
+
+/** The tracked job a copy is aimed at: the job it was created for while it still targets it, else the
+ * job its target fields match. */
+export function trackedJobOfCopy(
+  copy: CopyAim,
+  pipeline: readonly PipelineEntry[]
+): PipelineEntry | undefined {
+  const ref = copy.forJob
+  return (
+    (ref && copyKeepsProvenance(copy, pipeline)
+      ? pipeline.find((e) => e.job.id === ref.id)
+      : undefined) ?? pipeline.find((e) => copyTargetsJob(copy.data, e.job))
+  )
+}
+
+/** Stamp forJob on copies a tracked job links but that never recorded their job (saved before forJob existed). */
+export function rememberLinkedCopyJobs(pipeline: readonly PipelineEntry[]): ResumeVersion[] {
+  const jobByVersion = new Map<string, VersionJobRef>()
+  for (const e of pipeline)
+    if (e.resumeVersionId)
+      jobByVersion.set(e.resumeVersionId, {
+        id: e.job.id,
+        title: e.job.title,
+        company: e.job.company,
+      })
+  return rememberVersionJobs(jobByVersion)
+}
+
+/** Whether the tracked job's copy link still points at an existing copy. */
+export function jobLinksLiveCopy(
+  entry: PipelineEntry,
+  versions: readonly { id: string }[]
+): boolean {
+  return (
+    entry.resumeVersionId !== undefined && versions.some((v) => v.id === entry.resumeVersionId)
+  )
+}
+
+/** Link the pipeline entry for a job to its targeted resume copy; the copy records that job as its own. */
+export function setPipelineVersion(
+  jobId: string,
+  resumeVersionId: string
+): PipelineEntry[] | null {
+  const all = listPipeline()
+  const saved = savePipeline(
+    all.map((e) => (e.job.id === jobId ? { ...e, resumeVersionId } : e))
+  )
+  const job = saved ? all.find((e) => e.job.id === jobId)?.job : undefined
+  if (job) setVersionJob(resumeVersionId, { id: job.id, title: job.title, company: job.company })
+  return saved
+}
+
+export function removeFromPipeline(id: string): PipelineEntry[] | null {
   return savePipeline(listPipeline().filter((e) => e.job.id !== id))
+}
+
+export interface RemovedPipelineEntry {
+  entry: PipelineEntry
+  index: number
+}
+
+/** Put untracked entries back where they were (Undo); a job tracked again meanwhile is skipped. */
+export function restorePipelineEntries(
+  removed: readonly RemovedPipelineEntry[]
+): PipelineEntry[] | null {
+  const next = listPipeline()
+  const present = new Set(next.map((e) => e.job.id))
+  for (const { entry, index } of [...removed].sort((a, b) => a.index - b.index)) {
+    if (present.has(entry.job.id)) continue
+    next.splice(Math.min(index, next.length), 0, entry)
+    present.add(entry.job.id)
+  }
+  return savePipeline(next)
 }

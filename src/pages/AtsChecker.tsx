@@ -4,11 +4,20 @@ import { ArrowRight, BadgeCheck, CircleAlert, FileUp, Target } from 'lucide-reac
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { ScanIllustration } from '@/components/Illustrations'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { ScoreRing } from '@/components/ScoreRing'
+import { CopyStatus } from '@/components/CopyStatus'
 import {
   CHECK_CATEGORIES,
   applicationReadiness,
@@ -19,6 +28,7 @@ import { IMPORT_ACCEPT, extractResumeFile, type FileCheck } from '@/lib/extractF
 import { priorityFixes, resumeHealth } from '@/lib/guidance'
 import { parseResumeText } from '@/lib/importText'
 import { loadResume, saveResume, setActiveVersionId } from '@/lib/resume'
+import { useFocusAfterRender } from '@/lib/useFocusAfterRender'
 
 const EXAMPLE_RESUME = `Jordan Reyes
 Software Engineer
@@ -73,6 +83,14 @@ function segmentJd(jd: string, matched: string[], missing: string[]): JdSegment[
   return out
 }
 
+/** Longest JD prefix rendered in the inline highlight view — the score always uses the full text. */
+const HIGHLIGHT_LIMIT = 20_000
+/** Missing keywords also get a dashed underline so the two kinds are not told apart by hue alone. */
+const JD_MARK = {
+  matched: 'rounded bg-emerald-100 px-0.5 text-emerald-900',
+  missing: 'rounded bg-amber-100 px-0.5 text-amber-900 underline decoration-dashed underline-offset-2',
+}
+
 const DRAFT_KEY = 'honestcv.atsCheckerDraft'
 
 interface CheckerDraft {
@@ -105,8 +123,15 @@ export default function AtsChecker() {
   const [draft] = useState(() => (state?.resumeText ? null : loadDraft()))
   const [resumeText, setResumeText] = useState(state?.resumeText ?? draft?.resumeText ?? '')
   const [jd, setJd] = useState(draft?.jd ?? '')
-  const [checked, setChecked] = useState(Boolean(state?.resumeText) || (draft?.checked ?? false))
-  const [linkCopied, setLinkCopied] = useState(false)
+  const [scan, setScan] = useState<{ resumeText: string; jd: string } | null>(() =>
+    state?.resumeText
+      ? { resumeText: state.resumeText, jd: '' }
+      : draft?.checked
+        ? { resumeText: draft.resumeText, jd: draft.jd }
+        : null
+  )
+  const [linkCopied, setLinkCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const focusAfterRender = useFocusAfterRender()
   const [fileBusy, setFileBusy] = useState(false)
   const [fileError, setFileError] = useState('')
   const [fileChecks, setFileChecks] = useState<{ name: string; checks: FileCheck[] } | null>(
@@ -128,7 +153,6 @@ export default function AtsChecker() {
           )
         setResumeText(text)
         setFileChecks({ name: file.name, checks })
-        setChecked(false)
       })
       .catch((err: unknown) =>
         setFileError(err instanceof Error ? err.message : 'Could not read this file.')
@@ -136,42 +160,55 @@ export default function AtsChecker() {
       .finally(() => setFileBusy(false))
   }
 
+  const [pendingBuilderJump, setPendingBuilderJump] = useState<{ anchor?: string } | null>(null)
+  const goToBuilder = (anchor?: string) => {
+    void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
+  }
+  const replaceAndOpen = (anchor?: string) => {
+    const parsed = parseResumeText(resumeText)
+    parsed.jobDescription = jd
+    setActiveVersionId(null)
+    saveResume(parsed)
+    goToBuilder(anchor)
+  }
+  const keepSavedAndOpen = (anchor?: string) => {
+    const existing = loadResume()
+    if (existing && jd.trim()) {
+      existing.jobDescription = jd
+      saveResume(existing)
+    }
+    goToBuilder(anchor)
+  }
   const openInBuilder = (anchor?: string) => {
     const existing = loadResume()
     const hasContent = Boolean(
       existing && (existing.contact.fullName || existing.experience.length)
     )
-    if (
-      !hasContent ||
-      window.confirm(
-        'Replace the resume currently saved in the builder with this pasted one? (Cancel keeps your saved resume; the job description still carries over.)'
-      )
-    ) {
-      const parsed = parseResumeText(resumeText)
-      parsed.jobDescription = jd
-      setActiveVersionId(null)
-      saveResume(parsed)
-    } else if (existing) {
-      existing.jobDescription = jd
-      saveResume(existing)
-    }
-    void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
+    if (!hasContent) replaceAndOpen(anchor)
+    else setPendingBuilderJump({ anchor })
   }
 
   useEffect(() => {
     try {
       if (!resumeText && !jd) sessionStorage.removeItem(DRAFT_KEY)
-      else sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ resumeText, jd, checked }))
+      else
+        sessionStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({ resumeText, jd, checked: scan !== null })
+        )
     } catch {
       // storage unavailable (e.g. disabled) — the page still works, just without refresh safety
     }
-  }, [resumeText, jd, checked])
+  }, [resumeText, jd, scan])
 
+  // The report is frozen at the inputs of the last explicit check, so typing
+  // never rescores (or hides) it. Edits surface an honest stale notice instead.
   const result = useMemo(
-    () => (checked ? scoreResumeText(resumeText, jd) : null),
-    [checked, resumeText, jd]
+    () => (scan ? scoreResumeText(scan.resumeText, scan.jd) : null),
+    [scan]
   )
-  const isExample = resumeText === EXAMPLE_RESUME && jd === EXAMPLE_JD
+  const stale = scan !== null && (resumeText !== scan.resumeText || jd !== scan.jd)
+  const isExample = scan?.resumeText === EXAMPLE_RESUME && scan?.jd === EXAMPLE_JD
 
   const prevScanRef = useRef<Map<string, boolean> | null>(null)
   const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
@@ -190,13 +227,21 @@ export default function AtsChecker() {
     )
   }, [result])
 
+  const jdSegments = useMemo(
+    () =>
+      result && scan
+        ? segmentJd(scan.jd.slice(0, HIGHLIGHT_LIMIT), result.matched, result.missing)
+        : [],
+    [scan, result]
+  )
+
   const analysis = useMemo(() => {
-    if (!result) return null
-    const parsed = parseResumeText(resumeText)
-    parsed.jobDescription = jd
+    if (!result || !scan) return null
+    const parsed = parseResumeText(scan.resumeText)
+    parsed.jobDescription = scan.jd
     const health = resumeHealth(parsed)
     return { health, fixes: priorityFixes(result, health) }
-  }, [result, resumeText, jd])
+  }, [result, scan])
 
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">
@@ -211,7 +256,7 @@ export default function AtsChecker() {
         }
       />
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
         <div className="text-center">
           <Badge variant="secondary" className="mb-3 gap-1">
             <Target className="size-3" /> Free ATS resume checker
@@ -232,7 +277,8 @@ export default function AtsChecker() {
               onClick={() => {
                 setResumeText(EXAMPLE_RESUME)
                 setJd(EXAMPLE_JD)
-                setChecked(true)
+                setScan({ resumeText: EXAMPLE_RESUME, jd: EXAMPLE_JD })
+                focusAfterRender('ats-result-heading')
               }}
             >
               <Target /> See an example score first
@@ -280,16 +326,18 @@ export default function AtsChecker() {
                 }}
               />
             </div>
-            {fileError && <p className="text-destructive text-xs">{fileError}</p>}
+            {fileError && (
+              <p id="resume-file-error" role="alert" className="text-destructive text-xs">
+                {fileError}
+              </p>
+            )}
             <Textarea
               id="resume-text"
               rows={12}
               placeholder="Paste your full resume text here — or drop a PDF / DOCX file on this box…"
               value={resumeText}
-              onChange={(e) => {
-                setResumeText(e.target.value)
-                setChecked(false)
-              }}
+              onChange={(e) => setResumeText(e.target.value)}
+              aria-describedby={fileError ? 'resume-file-error' : undefined}
             />
           </div>
           <div className="space-y-1.5">
@@ -299,10 +347,7 @@ export default function AtsChecker() {
               rows={12}
               placeholder="Paste the job posting you're applying to…"
               value={jd}
-              onChange={(e) => {
-                setJd(e.target.value)
-                setChecked(false)
-              }}
+              onChange={(e) => setJd(e.target.value)}
             />
           </div>
         </div>
@@ -311,7 +356,10 @@ export default function AtsChecker() {
           <Button
             size="lg"
             disabled={resumeText.trim().length < 30}
-            onClick={() => setChecked(true)}
+            onClick={() => {
+              setScan({ resumeText, jd })
+              focusAfterRender('ats-result-heading')
+            }}
           >
             Check my ATS score <ArrowRight />
           </Button>
@@ -327,7 +375,8 @@ export default function AtsChecker() {
                 onClick={() => {
                   setResumeText(EXAMPLE_RESUME)
                   setJd(EXAMPLE_JD)
-                  setChecked(true)
+                  setScan({ resumeText: EXAMPLE_RESUME, jd: EXAMPLE_JD })
+                  focusAfterRender('ats-result-heading')
                 }}
               >
                 see an example score
@@ -337,13 +386,41 @@ export default function AtsChecker() {
           )}
         </div>
 
+        {result && stale && (
+          <div
+            role="status"
+            className="mt-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+          >
+            <span>
+              You&apos;ve edited your inputs since this check — the report below is from
+              your last check.
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setScan({ resumeText, jd })
+                focusAfterRender('ats-result-heading')
+              }}
+            >
+              Re-check now
+            </Button>
+          </div>
+        )}
+
         {result && (
-          <Card className="mt-8 py-0">
+          <Card className={`${stale ? 'mt-3' : 'mt-8'} py-0`}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold">
+                  <h2
+                    id="ats-result-heading"
+                    tabIndex={-1}
+                    className="text-lg font-semibold outline-none"
+                  >
                     {isExample ? 'Example ATS match score' : 'Your ATS match score'}
+                    <span className="sr-only"> — {result.score} out of 100</span>
                   </h2>
                   {isExample && (
                     <Badge
@@ -393,7 +470,7 @@ export default function AtsChecker() {
               </div>
 
               <details className="text-muted-foreground mt-3 rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                <summary className="text-foreground cursor-pointer text-sm font-medium">
+                <summary className="text-foreground -my-2.5 cursor-pointer py-2.5 text-sm font-medium sm:my-0 sm:py-0">
                   What do these scores mean?
                 </summary>
                 <ul className="mt-2 space-y-1.5">
@@ -416,6 +493,13 @@ export default function AtsChecker() {
                     decision.
                   </li>
                   <li>
+                    <strong className="text-foreground">In the builder</strong> — this
+                    page can only check the pasted text. After you carry your resume
+                    over, the builder re-checks the imported version with deeper
+                    structured checks (contact fields, grouped skills, locations on
+                    each entry), so its score can differ from this one.
+                  </li>
+                  <li>
                     <strong className="text-foreground">What to do</strong> — add the
                     missing keywords below <em>only where they&apos;re true of you</em>, keep
                     the layout simple, then re-check. Aim for 70+.
@@ -432,7 +516,7 @@ export default function AtsChecker() {
                     in the ATS score.
                   </p>
                   {analysis.fixes.length === 0 ? (
-                    <p className="mt-1.5 text-xs text-emerald-600">
+                    <p className="mt-1.5 text-xs text-emerald-700">
                       No priority fixes — every check passes and all writing
                       dimensions score 80+.
                     </p>
@@ -457,14 +541,7 @@ export default function AtsChecker() {
                             <button
                               type="button"
                               className="text-primary ml-1.5 inline-flex min-h-10 items-center underline sm:min-h-0"
-                              onClick={() =>
-                                openInBuilder(
-                                  f.anchor ??
-                                    (f.text.startsWith('Add missing job keywords')
-                                      ? 'target'
-                                      : undefined)
-                                )
-                              }
+                              onClick={() => openInBuilder(f.anchor)}
                             >
                               Fix in builder →
                             </button>
@@ -562,29 +639,34 @@ export default function AtsChecker() {
                 <div className="mt-5">
                   <p className="text-sm font-medium">Job description with keywords highlighted</p>
                   <p className="text-muted-foreground mt-1 text-xs">
-                    <span className="rounded bg-emerald-100 px-1 text-emerald-900">green</span>{' '}
-                    = already on your resume,{' '}
-                    <span className="rounded bg-amber-100 px-1 text-amber-900">amber</span> =
-                    missing.
+                    Highlighted <mark className={JD_MARK.matched}>like this</mark> = already on
+                    your resume, <mark className={JD_MARK.missing}>like this</mark> = missing.
                   </p>
-                  <div className="bg-muted/40 mt-2 max-h-56 overflow-y-auto rounded-md border p-3 text-sm whitespace-pre-wrap">
-                    {segmentJd(jd, result.matched, result.missing).map((s, i) =>
+                  <div
+                    className="bg-muted/40 mt-2 max-h-56 overflow-y-auto rounded-md border p-3 text-sm whitespace-pre-wrap"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Job description with keywords highlighted"
+                  >
+                    {jdSegments.map((s, i) =>
                       s.kind === 'plain' ? (
                         <span key={i}>{s.text}</span>
                       ) : (
                         <mark
                           key={i}
-                          className={`rounded px-0.5 ${
-                            s.kind === 'matched'
-                              ? 'bg-emerald-100 text-emerald-900'
-                              : 'bg-amber-100 text-amber-900'
-                          }`}
+                          className={s.kind === 'matched' ? JD_MARK.matched : JD_MARK.missing}
                         >
                           {s.text}
                         </mark>
                       )
                     )}
                   </div>
+                  {jd.length > HIGHLIGHT_LIMIT && (
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Highlighting the first {HIGHLIGHT_LIMIT.toLocaleString()} characters of
+                      this long job description — the score uses the full text.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -732,6 +814,10 @@ export default function AtsChecker() {
                 <Button className="mt-3 h-auto max-w-full whitespace-normal" onClick={() => openInBuilder()}>
                   Fix it in the builder — resume &amp; job carried over <ArrowRight />
                 </Button>
+                <p className="text-muted-foreground mt-2 text-xs">
+                  The builder re-checks the imported resume with deeper structured
+                  checks, so its score can differ from the one above.
+                </p>
               </div>
 
               <p className="text-muted-foreground mt-4 text-center text-xs">
@@ -742,11 +828,19 @@ export default function AtsChecker() {
                   onClick={() => {
                     void navigator.clipboard
                       .writeText('https://cv.zalize.com/ats-checker')
-                      .then(() => setLinkCopied(true))
+                      .then(
+                        () => setLinkCopied('copied'),
+                        () => setLinkCopied('failed')
+                      )
                   }}
                 >
-                  {linkCopied ? 'Link copied!' : 'Copy the checker link'}
-                </button>{' '}
+                  {linkCopied === 'copied'
+                    ? 'Link copied!'
+                    : linkCopied === 'failed'
+                      ? 'Copy failed'
+                      : 'Copy the checker link'}
+                </button>
+                <CopyStatus state={linkCopied} copied="Checker link copied to clipboard." />{' '}
                 — free, no sign-up, nothing leaves the browser.
               </p>
             </CardContent>
@@ -806,13 +900,44 @@ export default function AtsChecker() {
               },
             ].map((f) => (
               <details key={f.q} className="bg-card rounded-lg border px-4 py-3">
-                <summary className="cursor-pointer text-sm font-medium">{f.q}</summary>
+                <summary className="-my-2.5 cursor-pointer py-2.5 text-sm font-medium sm:my-0 sm:py-0">{f.q}</summary>
                 <p className="text-muted-foreground mt-2 text-sm">{f.a}</p>
               </details>
             ))}
           </div>
         </section>
       </main>
+
+      <Dialog
+        open={pendingBuilderJump !== null}
+        onOpenChange={(o) => !o && setPendingBuilderJump(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Replace the saved resume?</DialogTitle>
+            <DialogDescription>
+              The builder already has a saved resume. Replace it with this pasted one, or keep it —
+              a pasted job description carries over either way.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => keepSavedAndOpen(pendingBuilderJump?.anchor)}
+            >
+              Keep saved resume
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => replaceAndOpen(pendingBuilderJump?.anchor)}
+            >
+              Replace resume
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <SiteFooter />
     </div>

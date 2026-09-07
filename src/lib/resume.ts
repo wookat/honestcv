@@ -3,7 +3,7 @@
  * the browser — nothing is stored on our servers.
  */
 
-import { marksToMarkdown, stripInlineMarks } from '@/lib/marks'
+import { marksToMarkdown, stripInlineMarks, stripInlineMarksKeepLinks } from '@/lib/marks'
 
 /** Contact fields that can be hidden without deleting the data */
 export type HideableContactField = 'email' | 'phone' | 'location' | 'website' | 'linkedin'
@@ -1175,6 +1175,26 @@ export function loadResume(): Resume | null {
   }
 }
 
+const CORRUPT_BACKUP_KEY = 'honestcv.resume.unreadable'
+
+/**
+ * When a stored draft exists but cannot be read (corrupted JSON or an invalid
+ * shape), preserve the raw value under a backup key before any save can
+ * overwrite it. Returns true when the stored draft is unreadable.
+ */
+export function stashUnreadableDraft(): boolean {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw === null || loadResume() !== null) return false
+    if (localStorage.getItem(CORRUPT_BACKUP_KEY) === null) {
+      localStorage.setItem(CORRUPT_BACKUP_KEY, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function saveResume(resume: Resume): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(resume))
@@ -1193,10 +1213,50 @@ export interface ResumeVersion {
   /** When the copy was first saved; older copies may lack it */
   createdAt?: number
   folder?: string
+  /** Job the copy was saved for from the jobs board; the data's target fields may be edited later. */
+  forJob?: VersionJobRef
   data: Resume
 }
 
+export interface VersionJobRef {
+  id: string
+  title: string
+  company: string
+}
+
+function sanitizeJobRef(ref: unknown): VersionJobRef | undefined {
+  if (!ref || typeof ref !== 'object') return undefined
+  const { id, title, company } = ref as Record<string, unknown>
+  return typeof id === 'string' && typeof title === 'string' && typeof company === 'string'
+    ? { id, title, company }
+    : undefined
+}
+
 const VERSIONS_KEY = 'honestcv.resumeVersions'
+const VERSIONS_BACKUP_KEY = 'honestcv.resumeVersions.unreadable'
+
+/**
+ * When the stored copies list exists but cannot be read at all (corrupted
+ * JSON or not an array), preserve the raw value under a backup key before any
+ * write can overwrite it. Returns true when the stored list is unreadable.
+ */
+export function stashUnreadableVersions(): boolean {
+  try {
+    const raw = localStorage.getItem(VERSIONS_KEY)
+    if (raw === null) return false
+    try {
+      if (Array.isArray(JSON.parse(raw))) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    if (localStorage.getItem(VERSIONS_BACKUP_KEY) === null) {
+      localStorage.setItem(VERSIONS_BACKUP_KEY, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
 
 export function listResumeVersions(): ResumeVersion[] {
   try {
@@ -1213,22 +1273,27 @@ export function listResumeVersions(): ResumeVersion[] {
         typeof v.createdAt === 'number' && Number.isFinite(v.createdAt) && v.createdAt > 0
           ? v.createdAt
           : undefined
-      return [{ ...v, folder, createdAt, data }]
+      const forJob = sanitizeJobRef(v.forJob)
+      return [{ ...v, folder, createdAt, ...(forJob ? { forJob } : {}), data }]
     })
   } catch {
     return []
   }
 }
 
-function persistVersions(versions: ResumeVersion[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistVersions(versions: ResumeVersion[]): boolean {
   try {
+    stashUnreadableVersions()
     localStorage.setItem(VERSIONS_KEY, JSON.stringify(versions))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
+/** Returns null when the copy could not be persisted (storage full). */
+export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] | null {
   const existing = listResumeVersions()
   const versions = [
     {
@@ -1240,35 +1305,65 @@ export function saveResumeVersion(name: string, data: Resume): ResumeVersion[] {
     },
     ...existing,
   ]
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
 /** Save a new copy and return it (unlike saveResumeVersion, which returns the list). */
-export function createResumeVersion(name: string, data: Resume, folder?: string): ResumeVersion {
+export function createResumeVersion(
+  name: string,
+  data: Resume,
+  folder?: string,
+  forJob?: VersionJobRef
+): ResumeVersion | null {
   const version: ResumeVersion = {
     id: newId(),
     name: uniqueVersionName(name, listResumeVersions()),
     updatedAt: Date.now(),
     createdAt: Date.now(),
     ...(folder?.trim() ? { folder: folder.trim() } : {}),
+    ...(forJob ? { forJob } : {}),
     data,
   }
-  persistVersions([version, ...listResumeVersions()])
-  return version
+  return persistVersions([version, ...listResumeVersions()]) ? version : null
 }
 
-export function renameResumeVersion(id: string, name: string): ResumeVersion[] {
+/** Stamp forJob on the given copies that never recorded their job; writes only when something changed. */
+export function rememberVersionJobs(
+  jobByVersion: ReadonlyMap<string, VersionJobRef>
+): ResumeVersion[] {
+  const versions = listResumeVersions()
+  let changed = false
+  const next = versions.map((v) => {
+    if (v.forJob) return v
+    const forJob = jobByVersion.get(v.id)
+    if (!forJob) return v
+    changed = true
+    return { ...v, forJob }
+  })
+  if (!changed) return versions
+  return persistVersions(next) ? next : versions
+}
+
+/** Record the job a copy has just been linked to, replacing the job it was copied for (a duplicate
+ * inherits its source's forJob until it is linked elsewhere). Writes only when the job changes. */
+export function setVersionJob(id: string, forJob: VersionJobRef): ResumeVersion[] {
+  const versions = listResumeVersions()
+  const current = versions.find((v) => v.id === id)
+  if (!current || current.forJob?.id === forJob.id) return versions
+  const next = versions.map((v) => (v.id === id ? { ...v, forJob } : v))
+  return persistVersions(next) ? next : versions
+}
+
+export function renameResumeVersion(id: string, name: string): ResumeVersion[] | null {
   const versions = listResumeVersions().map((v) => (v.id === id ? { ...v, name } : v))
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
 /** Organizational changes (name/folder) keep the edit timestamp; only content changes bump it. */
 export function updateResumeVersion(
   id: string,
   patch: { name?: string; folder?: string; data?: Resume }
-): ResumeVersion[] {
+): ResumeVersion[] | null {
   const versions = listResumeVersions().map((v) => {
     if (v.id !== id) return v
     const contentChanged =
@@ -1276,8 +1371,7 @@ export function updateResumeVersion(
       JSON.stringify(sanitizeResume(patch.data)) !== JSON.stringify(sanitizeResume(v.data))
     return { ...v, ...patch, ...(contentChanged ? { updatedAt: Date.now() } : {}) }
   })
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
 /** Copies need distinct names; number a new copy when its name is already taken. */
@@ -1294,7 +1388,7 @@ function duplicateName(source: string, taken: Set<string>): string {
   }
 }
 
-export function duplicateResumeVersion(id: string): ResumeVersion[] {
+export function duplicateResumeVersion(id: string): ResumeVersion[] | null {
   const existing = listResumeVersions()
   const source = existing.find((v) => v.id === id)
   if (!source) return existing
@@ -1303,31 +1397,27 @@ export function duplicateResumeVersion(id: string): ResumeVersion[] {
     { ...source, id: newId(), name, updatedAt: Date.now(), createdAt: Date.now() },
     ...existing,
   ]
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
-export function deleteResumeVersion(id: string): ResumeVersion[] {
+export function deleteResumeVersion(id: string): ResumeVersion[] | null {
   const versions = listResumeVersions().filter((v) => v.id !== id)
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
-export function deleteResumeVersions(ids: readonly string[]): ResumeVersion[] {
+export function deleteResumeVersions(ids: readonly string[]): ResumeVersion[] | null {
   const drop = new Set(ids)
   const versions = listResumeVersions().filter((v) => !drop.has(v.id))
-  persistVersions(versions)
-  return versions
+  return persistVersions(versions) ? versions : null
 }
 
 /** Put a just-deleted copy back exactly as it was, at its previous position. */
-export function restoreResumeVersion(version: ResumeVersion, index = 0): ResumeVersion[] {
+export function restoreResumeVersion(version: ResumeVersion, index = 0): ResumeVersion[] | null {
   const versions = listResumeVersions()
   if (versions.some((v) => v.id === version.id)) return versions
   const at = Math.min(Math.max(index, 0), versions.length)
   const next = [...versions.slice(0, at), version, ...versions.slice(at)]
-  persistVersions(next)
-  return next
+  return persistVersions(next) ? next : null
 }
 
 /**
@@ -1354,16 +1444,17 @@ export function setActiveVersionId(id: string | null) {
   }
 }
 
-/** Write the draft back into its linked copy; unlink if the copy is gone. */
-export function syncActiveVersion(data: Resume) {
+/** Write the draft back into its linked copy; unlink if the copy is gone.
+ * Returns false when the copy write failed (storage full). */
+export function syncActiveVersion(data: Resume): boolean {
   const id = getActiveVersionId()
-  if (!id) return
+  if (!id) return true
   const versions = listResumeVersions()
   if (!versions.some((v) => v.id === id)) {
     setActiveVersionId(null)
-    return
+    return true
   }
-  persistVersions(
+  return persistVersions(
     versions.map((v) => (v.id === id ? { ...v, data, updatedAt: Date.now() } : v))
   )
 }
@@ -1378,8 +1469,32 @@ export interface ResumeSnapshot {
 }
 
 const HISTORY_KEY = 'honestcv.resumeHistory'
+const HISTORY_BACKUP_KEY = 'honestcv.resumeHistory.unreadable'
 const HISTORY_MAX = 15
 const HISTORY_MIN_GAP_MS = 10 * 60 * 1000
+
+/**
+ * When the stored edit history exists but cannot be read at all (corrupted
+ * JSON or not an array), preserve the raw value under a backup key before any
+ * write can overwrite it. Returns true when the stored history is unreadable.
+ */
+export function stashUnreadableHistory(): boolean {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    if (raw === null) return false
+    try {
+      if (Array.isArray(JSON.parse(raw))) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    if (localStorage.getItem(HISTORY_BACKUP_KEY) === null) {
+      localStorage.setItem(HISTORY_BACKUP_KEY, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
 
 export function listResumeHistory(): ResumeSnapshot[] {
   try {
@@ -1397,20 +1512,23 @@ export function listResumeHistory(): ResumeSnapshot[] {
   }
 }
 
-function persistHistory(snapshots: ResumeSnapshot[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistHistory(snapshots: ResumeSnapshot[]): boolean {
   try {
+    stashUnreadableHistory()
     localStorage.setItem(HISTORY_KEY, JSON.stringify(snapshots.slice(0, HISTORY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
 /**
  * Records a checkpoint of the draft. Skipped when the newest checkpoint is
  * identical, or (unless `force`) younger than the 10-minute gap.
- * Returns the updated list.
+ * Returns the updated list, or null when the write failed.
  */
-export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapshot[] {
+export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapshot[] | null {
   const history = listResumeHistory()
   const versionId = getActiveVersionId()
   const newest = history.find((s) => (s.versionId ?? null) === versionId)
@@ -1423,8 +1541,52 @@ export function recordResumeSnapshot(data: Resume, force = false): ResumeSnapsho
     { id: newId(), at: Date.now(), versionId, data: JSON.parse(json) as Resume },
     ...history,
   ]
-  persistHistory(next)
-  return next.slice(0, HISTORY_MAX)
+  return persistHistory(next) ? next.slice(0, HISTORY_MAX) : null
+}
+
+/**
+ * When a stored list exists but cannot be read at all (corrupted JSON or not
+ * an array), preserve the raw value under `<key>.unreadable` before any write
+ * can overwrite it. Never overwrites an existing backup. Returns true when
+ * the stored value is unreadable.
+ */
+function stashUnreadableList(key: string): boolean {
+  try {
+    const raw = localStorage.getItem(key)
+    if (raw === null) return false
+    try {
+      if (Array.isArray(JSON.parse(raw))) return false
+    } catch {
+      // fall through — raw is unreadable
+    }
+    const backupKey = `${key}.unreadable`
+    if (localStorage.getItem(backupKey) === null) {
+      localStorage.setItem(backupKey, raw)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Backs up every unreadable content-library list. Returns true when at least
+ * one library is unreadable.
+ */
+export function stashUnreadableLibraries(): boolean {
+  return [
+    EXPERIENCE_LIBRARY_KEY,
+    EDUCATION_LIBRARY_KEY,
+    PROJECT_LIBRARY_KEY,
+    INVOLVEMENT_LIBRARY_KEY,
+    COURSEWORK_LIBRARY_KEY,
+    AWARD_LIBRARY_KEY,
+    REFERENCE_LIBRARY_KEY,
+    CERT_LIBRARY_KEY,
+    PUBLICATION_LIBRARY_KEY,
+    SKILLS_LIBRARY_KEY,
+    SUMMARY_LIBRARY_KEY,
+  ].reduce((any, key) => stashUnreadableList(key) || any, false)
 }
 
 /** A single polished role saved for reuse across resume copies. */
@@ -1472,26 +1634,28 @@ export function listExperienceLibrary(): SavedExperience[] {
   }
 }
 
-function persistExperienceLibrary(items: SavedExperience[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistExperienceLibrary(items: SavedExperience[]): boolean {
   try {
+    stashUnreadableList(EXPERIENCE_LIBRARY_KEY)
     localStorage.setItem(
       EXPERIENCE_LIBRARY_KEY,
       JSON.stringify(items.slice(0, EXPERIENCE_LIBRARY_MAX))
     )
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveExperienceToLibrary(entry: ExperienceItem): SavedExperience[] {
+export function saveExperienceToLibrary(entry: ExperienceItem): SavedExperience[] | null {
   const data = sanitizeExperienceItem(entry)
   if (!data) return listExperienceLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listExperienceLibrary(),
   ].slice(0, EXPERIENCE_LIBRARY_MAX)
-  persistExperienceLibrary(items)
-  return items
+  return persistExperienceLibrary(items) ? items : null
 }
 
 export function deleteLibraryExperience(id: string): SavedExperience[] {
@@ -1545,23 +1709,25 @@ export function listEducationLibrary(): SavedEducation[] {
   }
 }
 
-function persistEducationLibrary(items: SavedEducation[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistEducationLibrary(items: SavedEducation[]): boolean {
   try {
+    stashUnreadableList(EDUCATION_LIBRARY_KEY)
     localStorage.setItem(EDUCATION_LIBRARY_KEY, JSON.stringify(items.slice(0, EDUCATION_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveEducationToLibrary(entry: EducationItem): SavedEducation[] {
+export function saveEducationToLibrary(entry: EducationItem): SavedEducation[] | null {
   const data = sanitizeEducationItem(entry)
   if (!data) return listEducationLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listEducationLibrary(),
   ].slice(0, EDUCATION_LIBRARY_MAX)
-  persistEducationLibrary(items)
-  return items
+  return persistEducationLibrary(items) ? items : null
 }
 
 export function deleteLibraryEducation(id: string): SavedEducation[] {
@@ -1614,23 +1780,25 @@ export function listProjectLibrary(): SavedProject[] {
   }
 }
 
-function persistProjectLibrary(items: SavedProject[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistProjectLibrary(items: SavedProject[]): boolean {
   try {
+    stashUnreadableList(PROJECT_LIBRARY_KEY)
     localStorage.setItem(PROJECT_LIBRARY_KEY, JSON.stringify(items.slice(0, PROJECT_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveProjectToLibrary(entry: ProjectItem): SavedProject[] {
+export function saveProjectToLibrary(entry: ProjectItem): SavedProject[] | null {
   const data = sanitizeProjectItem(entry)
   if (!data) return listProjectLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listProjectLibrary(),
   ].slice(0, PROJECT_LIBRARY_MAX)
-  persistProjectLibrary(items)
-  return items
+  return persistProjectLibrary(items) ? items : null
 }
 
 export function deleteLibraryProject(id: string): SavedProject[] {
@@ -1680,26 +1848,28 @@ export function listInvolvementLibrary(): SavedInvolvement[] {
   }
 }
 
-function persistInvolvementLibrary(items: SavedInvolvement[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistInvolvementLibrary(items: SavedInvolvement[]): boolean {
   try {
+    stashUnreadableList(INVOLVEMENT_LIBRARY_KEY)
     localStorage.setItem(
       INVOLVEMENT_LIBRARY_KEY,
       JSON.stringify(items.slice(0, INVOLVEMENT_LIBRARY_MAX))
     )
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveInvolvementToLibrary(entry: InvolvementItem): SavedInvolvement[] {
+export function saveInvolvementToLibrary(entry: InvolvementItem): SavedInvolvement[] | null {
   const data = sanitizeInvolvementItem(entry)
   if (!data) return listInvolvementLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listInvolvementLibrary(),
   ].slice(0, INVOLVEMENT_LIBRARY_MAX)
-  persistInvolvementLibrary(items)
-  return items
+  return persistInvolvementLibrary(items) ? items : null
 }
 
 export function deleteLibraryInvolvement(id: string): SavedInvolvement[] {
@@ -1748,26 +1918,28 @@ export function listCourseworkLibrary(): SavedCoursework[] {
   }
 }
 
-function persistCourseworkLibrary(items: SavedCoursework[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistCourseworkLibrary(items: SavedCoursework[]): boolean {
   try {
+    stashUnreadableList(COURSEWORK_LIBRARY_KEY)
     localStorage.setItem(
       COURSEWORK_LIBRARY_KEY,
       JSON.stringify(items.slice(0, COURSEWORK_LIBRARY_MAX))
     )
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveCourseworkToLibrary(entry: CourseworkItem): SavedCoursework[] {
+export function saveCourseworkToLibrary(entry: CourseworkItem): SavedCoursework[] | null {
   const data = sanitizeCourseworkItem(entry)
   if (!data) return listCourseworkLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listCourseworkLibrary(),
   ].slice(0, COURSEWORK_LIBRARY_MAX)
-  persistCourseworkLibrary(items)
-  return items
+  return persistCourseworkLibrary(items) ? items : null
 }
 
 export function deleteLibraryCoursework(id: string): SavedCoursework[] {
@@ -1815,23 +1987,25 @@ export function listAwardLibrary(): SavedAward[] {
   }
 }
 
-function persistAwardLibrary(items: SavedAward[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistAwardLibrary(items: SavedAward[]): boolean {
   try {
+    stashUnreadableList(AWARD_LIBRARY_KEY)
     localStorage.setItem(AWARD_LIBRARY_KEY, JSON.stringify(items.slice(0, AWARD_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveAwardToLibrary(entry: AwardItem): SavedAward[] {
+export function saveAwardToLibrary(entry: AwardItem): SavedAward[] | null {
   const data = sanitizeAwardItem(entry)
   if (!data) return listAwardLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listAwardLibrary(),
   ].slice(0, AWARD_LIBRARY_MAX)
-  persistAwardLibrary(items)
-  return items
+  return persistAwardLibrary(items) ? items : null
 }
 
 export function deleteLibraryAward(id: string): SavedAward[] {
@@ -1881,26 +2055,28 @@ export function listReferenceLibrary(): SavedReference[] {
   }
 }
 
-function persistReferenceLibrary(items: SavedReference[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistReferenceLibrary(items: SavedReference[]): boolean {
   try {
+    stashUnreadableList(REFERENCE_LIBRARY_KEY)
     localStorage.setItem(
       REFERENCE_LIBRARY_KEY,
       JSON.stringify(items.slice(0, REFERENCE_LIBRARY_MAX))
     )
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveReferenceToLibrary(entry: ReferenceItem): SavedReference[] {
+export function saveReferenceToLibrary(entry: ReferenceItem): SavedReference[] | null {
   const data = sanitizeReferenceItem(entry)
   if (!data) return listReferenceLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listReferenceLibrary(),
   ].slice(0, REFERENCE_LIBRARY_MAX)
-  persistReferenceLibrary(items)
-  return items
+  return persistReferenceLibrary(items) ? items : null
 }
 
 export function deleteLibraryReference(id: string): SavedReference[] {
@@ -1948,23 +2124,25 @@ export function listCertLibrary(): SavedCertification[] {
   }
 }
 
-function persistCertLibrary(items: SavedCertification[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistCertLibrary(items: SavedCertification[]): boolean {
   try {
+    stashUnreadableList(CERT_LIBRARY_KEY)
     localStorage.setItem(CERT_LIBRARY_KEY, JSON.stringify(items.slice(0, CERT_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveCertToLibrary(entry: CertificationItem): SavedCertification[] {
+export function saveCertToLibrary(entry: CertificationItem): SavedCertification[] | null {
   const data = sanitizeCertificationItem(entry)
   if (!data) return listCertLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listCertLibrary(),
   ].slice(0, CERT_LIBRARY_MAX)
-  persistCertLibrary(items)
-  return items
+  return persistCertLibrary(items) ? items : null
 }
 
 export function deleteLibraryCert(id: string): SavedCertification[] {
@@ -2015,26 +2193,28 @@ export function listPublicationLibrary(): SavedPublication[] {
   }
 }
 
-function persistPublicationLibrary(items: SavedPublication[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistPublicationLibrary(items: SavedPublication[]): boolean {
   try {
+    stashUnreadableList(PUBLICATION_LIBRARY_KEY)
     localStorage.setItem(
       PUBLICATION_LIBRARY_KEY,
       JSON.stringify(items.slice(0, PUBLICATION_LIBRARY_MAX))
     )
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function savePublicationToLibrary(entry: PublicationItem): SavedPublication[] {
+export function savePublicationToLibrary(entry: PublicationItem): SavedPublication[] | null {
   const data = sanitizePublicationItem(entry)
   if (!data) return listPublicationLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), data: { ...data, id: newId() } },
     ...listPublicationLibrary(),
   ].slice(0, PUBLICATION_LIBRARY_MAX)
-  persistPublicationLibrary(items)
-  return items
+  return persistPublicationLibrary(items) ? items : null
 }
 
 export function deleteLibraryPublication(id: string): SavedPublication[] {
@@ -2069,22 +2249,24 @@ export function listSkillsLibrary(): SavedSkills[] {
   }
 }
 
-function persistSkillsLibrary(items: SavedSkills[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistSkillsLibrary(items: SavedSkills[]): boolean {
   try {
+    stashUnreadableList(SKILLS_LIBRARY_KEY)
     localStorage.setItem(SKILLS_LIBRARY_KEY, JSON.stringify(items.slice(0, SKILLS_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveSkillsToLibrary(skills: string): SavedSkills[] {
+export function saveSkillsToLibrary(skills: string): SavedSkills[] | null {
   if (!skills.trim()) return listSkillsLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), skills },
     ...listSkillsLibrary(),
   ].slice(0, SKILLS_LIBRARY_MAX)
-  persistSkillsLibrary(items)
-  return items
+  return persistSkillsLibrary(items) ? items : null
 }
 
 export function deleteLibrarySkills(id: string): SavedSkills[] {
@@ -2119,22 +2301,24 @@ export function listSummaryLibrary(): SavedSummary[] {
   }
 }
 
-function persistSummaryLibrary(items: SavedSummary[]) {
+/** Returns false when nothing was written (storage full / private mode). */
+function persistSummaryLibrary(items: SavedSummary[]): boolean {
   try {
+    stashUnreadableList(SUMMARY_LIBRARY_KEY)
     localStorage.setItem(SUMMARY_LIBRARY_KEY, JSON.stringify(items.slice(0, SUMMARY_LIBRARY_MAX)))
+    return true
   } catch {
-    // storage full / private mode — ignore
+    return false
   }
 }
 
-export function saveSummaryToLibrary(summary: string): SavedSummary[] {
+export function saveSummaryToLibrary(summary: string): SavedSummary[] | null {
   if (!summary.trim()) return listSummaryLibrary()
   const items = [
     { id: newId(), savedAt: Date.now(), summary },
     ...listSummaryLibrary(),
   ].slice(0, SUMMARY_LIBRARY_MAX)
-  persistSummaryLibrary(items)
-  return items
+  return persistSummaryLibrary(items) ? items : null
 }
 
 export function deleteLibrarySummary(id: string): SavedSummary[] {
@@ -2373,10 +2557,65 @@ export function categorizeSkills(skills: string): string | null {
 }
 
 /**
+ * File the plain (unlabeled) tail items of a mixed skills block into category
+ * lines using SKILL_CATEGORIES. Recognized items join an existing line whose
+ * label matches their category (case-insensitive, substring either way) or
+ * start a new labeled line; unrecognized items stay on the tail line. Returns
+ * null when the block isn't mixed or no item can be filed.
+ */
+export function fileTailSkills(skills: string): string | null {
+  const lines = skills.split('\n').map((l) => l.trim()).filter(Boolean)
+  const isLabeled = (l: string) => /^[^:]{1,40}:\s*.+$/.test(l)
+  const labeled = lines.filter(isLabeled)
+  const tail = lines.filter((l) => !isLabeled(l))
+  if (labeled.length === 0 || tail.length === 0) return null
+  const have = new Set(
+    labeled.flatMap((l) =>
+      l.slice(l.indexOf(':') + 1).split(',').map((s) => s.trim().toLowerCase())
+    )
+  )
+  const tailItems = tail
+    .flatMap((l) => l.split(',').map((s) => s.trim()).filter(Boolean))
+    .filter((s) => !have.has(s.toLowerCase()))
+  const additions = new Map<string, string[]>()
+  const leftover: string[] = []
+  for (const item of tailItems) {
+    const cat = SKILL_CATEGORIES.find((c) => c.terms.includes(item.toLowerCase()))
+    if (!cat) {
+      leftover.push(item)
+      continue
+    }
+    const list = additions.get(cat.label) ?? []
+    if (!list.some((t) => t.toLowerCase() === item.toLowerCase())) list.push(item)
+    additions.set(cat.label, list)
+  }
+  if (additions.size === 0) return null
+  const matchesLabel = (lineLabel: string, catLabel: string) => {
+    const a = lineLabel.toLowerCase()
+    const b = catLabel.toLowerCase()
+    return a === b || a.includes(b) || b.includes(a)
+  }
+  const out = labeled.map((line) => {
+    const label = line.slice(0, line.indexOf(':')).trim()
+    const filed = [...additions.entries()].filter(([cat]) => matchesLabel(label, cat))
+    if (filed.length === 0) return line
+    for (const [cat] of filed) additions.delete(cat)
+    return `${line}, ${filed.flatMap(([, items]) => items).join(', ')}`
+  })
+  for (const cat of SKILL_CATEGORIES.map((c) => c.label)) {
+    const items = additions.get(cat)
+    if (items) out.push(`${cat}: ${items.join(', ')}`)
+  }
+  if (leftover.length > 0) out.push(leftover.join(', '))
+  return out.join('\n')
+}
+
+/**
  * Merge new skills into a skills text block without destroying its line/category
  * structure. Dedupes case-insensitively against every existing item (category
- * labels excluded). Multi-line or labeled blocks keep their lines and get the
- * additions on a new line; a single plain line grows in place.
+ * labels excluded). Multi-line or labeled blocks keep their lines; additions grow
+ * an existing plain (unlabeled) tail line, or start one when the last line is
+ * labeled. A single plain line grows in place.
  */
 export function mergeSkills(existing: string, added: string[]): string {
   const lines = existing.split('\n').map((l) => l.trim()).filter(Boolean)
@@ -2396,6 +2635,9 @@ export function mergeSkills(existing: string, added: string[]): string {
   if (lines.length === 0) return fresh.join(', ')
   if (lines.length === 1 && !/^[^:]{1,40}:\s*.+$/.test(lines[0]))
     return `${lines[0]}, ${fresh.join(', ')}`
+  const last = lines[lines.length - 1]
+  if (!/^[^:]{1,40}:\s*.+$/.test(last))
+    return [...lines.slice(0, -1), `${last}, ${fresh.join(', ')}`].join('\n')
   return [...lines, fresh.join(', ')].join('\n')
 }
 
@@ -2480,8 +2722,11 @@ export const agentBullets = (a: AgentItem): string[] => [
   ...a.description.split('\n').map((l) => l.trim()).filter(Boolean),
 ]
 
+/** Whether the resume carries any user-entered content, as opposed to a blank draft that only has settings and a target job. */
+export const resumeHasContent = (r: Resume): boolean => resumeToPlainText(r).trim() !== ''
+
 /** Flatten to plain text (for AI context + ATS scoring) */
-export function resumeToPlainText(r: Resume): string {
+export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }): string {
   const lines: string[] = []
   const c = r.contact
   lines.push([c.fullName, c.title].filter(Boolean).join(' — '))
@@ -2593,7 +2838,8 @@ export function resumeToPlainText(r: Resume): string {
       for (const b of s.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
     }
   }
-  return lines.map((l) => stripInlineMarks(l)).join('\n')
+  const strip = opts?.keepLinkUrls ? stripInlineMarksKeepLinks : stripInlineMarks
+  return lines.map((l) => strip(l)).join('\n')
 }
 
 /** Flatten to Markdown (for AI tools, GitHub profiles and quick edits) */

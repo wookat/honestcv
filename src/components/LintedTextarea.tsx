@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 import { checkBullet, type BulletIssue } from '@/lib/guidance'
 import { markShortcutKeyDown } from '@/lib/markShortcuts'
@@ -24,12 +24,31 @@ export function LintedTextarea({
   highlightLine,
   ...props
 }: React.ComponentProps<'textarea'> & { value: string; highlightLine?: number | null }) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
   const lines = useMemo(() => value.split('\n'), [value])
   const flagged = useMemo(
     () => lines.map((l) => checkBullet(l).some((i) => UNDERLINED_KINDS.has(i.kind))),
     [lines]
   )
+  /** Keep the mirror's wrap width (minus the textarea's scrollbar) and scroll offset in step with the field. */
+  const syncBackdrop = () => {
+    const ta = textareaRef.current
+    const bd = backdropRef.current
+    if (!ta || !bd) return
+    const cs = getComputedStyle(ta)
+    const borders = parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth)
+    bd.style.right = `${Math.max(0, ta.offsetWidth - ta.clientWidth - borders)}px`
+    bd.scrollTop = ta.scrollTop
+  }
+  useLayoutEffect(syncBackdrop, [value, highlightLine])
+  useLayoutEffect(() => {
+    const ta = textareaRef.current
+    if (!ta || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(syncBackdrop)
+    ro.observe(ta)
+    return () => ro.disconnect()
+  }, [])
   return (
     <div className="relative w-full">
       <Textarea
@@ -38,6 +57,7 @@ export function LintedTextarea({
           if (backdropRef.current) backdropRef.current.scrollTop = ev.currentTarget.scrollTop
         }}
         {...props}
+        ref={textareaRef}
         onKeyDown={(ev) => {
           if (markShortcutKeyDown(ev)) return
           props.onKeyDown?.(ev)
@@ -46,15 +66,18 @@ export function LintedTextarea({
       <div
         ref={backdropRef}
         aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-hidden rounded-md border border-transparent px-3 py-2 text-sm whitespace-pre-wrap [overflow-wrap:break-word] text-transparent"
+        data-slot="linted-backdrop"
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-md border border-transparent px-3 py-2 text-sm whitespace-pre-wrap [overflow-wrap:break-word] text-transparent forced-colors:[forced-color-adjust:none]"
       >
         {lines.map((l, i) => (
           <span
             key={i}
             className={
               [
-                flagged[i] && 'underline decoration-amber-500 decoration-wavy underline-offset-4',
-                i === highlightLine && 'rounded-sm bg-amber-200/60',
+                flagged[i] &&
+                  'underline decoration-amber-500 decoration-wavy underline-offset-4 forced-colors:decoration-[CanvasText]',
+                i === highlightLine &&
+                  'rounded-sm bg-amber-200/60 mix-blend-multiply dark:mix-blend-screen forced-colors:bg-transparent forced-colors:outline forced-colors:outline-2 forced-colors:outline-[Highlight]',
               ]
                 .filter(Boolean)
                 .join(' ') || undefined

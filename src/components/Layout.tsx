@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, Menu, Monitor, Moon, Sun, X } from 'lucide-react'
+import { ChevronDown, Menu, Monitor, Moon, Sun, WifiOff, X } from 'lucide-react'
 import { LogoMark } from '@/components/Logo'
 import { attentionCount } from '@/lib/jobs'
 import { type ThemePref, loadThemePref, saveThemePref, subscribeThemePref } from '@/lib/theme'
 
-/** Sets the document title and meta description for the current route. */
+/** Sets the document title, meta description and og:title/og:description for the current route. */
 export function usePageMeta(title: string, description: string) {
   useEffect(() => {
     document.title = title
     document.querySelector('meta[name="description"]')?.setAttribute('content', description)
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', title)
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', description)
   }, [title, description])
 }
 
@@ -26,13 +28,28 @@ const RESOURCE_LINKS: [string, string][] = [
 function ResourcesDropdown() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!open) return
     const onDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') {
+        setOpen(false)
+        if (ref.current?.contains(document.activeElement)) btnRef.current?.focus()
+        return
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
+      if (!ref.current?.contains(document.activeElement)) return
+      const items = [...(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
+      if (items.length === 0) return
+      e.preventDefault()
+      const idx = items.indexOf(document.activeElement as HTMLElement)
+      if (e.key === 'Home') items[0].focus()
+      else if (e.key === 'End') items[items.length - 1].focus()
+      else if (e.key === 'ArrowDown') items[idx < 0 ? 0 : (idx + 1) % items.length].focus()
+      else items[idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length].focus()
     }
     document.addEventListener('pointerdown', onDown)
     document.addEventListener('keydown', onKey)
@@ -44,8 +61,10 @@ function ResourcesDropdown() {
   return (
     <div ref={ref} className="relative">
       <button
+        ref={btnRef}
         type="button"
-        aria-haspopup="true"
+        aria-haspopup="menu"
+        aria-controls="resources-menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="hover:text-foreground inline-flex items-center gap-1"
@@ -53,9 +72,9 @@ function ResourcesDropdown() {
         Resources <ChevronDown className={`size-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="bg-background absolute left-0 top-full z-30 mt-2 min-w-56 rounded-md border p-1 shadow-lg">
+        <div id="resources-menu" role="menu" aria-label="Resources" className="bg-background absolute left-0 top-full z-30 mt-2 min-w-56 rounded-md border p-1 shadow-lg">
           {RESOURCE_LINKS.map(([label, href]) => (
-            <a key={href} className="text-foreground hover:bg-accent flex min-h-10 items-center rounded-sm px-3 text-sm" href={href}>
+            <a key={href} role="menuitem" className="text-foreground hover:bg-accent flex min-h-10 items-center rounded-sm px-3 text-sm" href={href}>
               {label}
             </a>
           ))}
@@ -100,6 +119,35 @@ function ThemeToggle() {
   )
 }
 
+const subscribeOnline = (onChange: () => void) => {
+  window.addEventListener('online', onChange)
+  window.addEventListener('offline', onChange)
+  return () => {
+    window.removeEventListener('online', onChange)
+    window.removeEventListener('offline', onChange)
+  }
+}
+
+/** Slim status bar shown while the browser is offline. The app keeps working
+ * (everything saves to this device); only network features are unavailable. */
+function OfflineBar() {
+  // Prerendered HTML must assume online so hydration matches.
+  const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true)
+  if (online) return null
+  return (
+    <div
+      role="status"
+      className="flex items-center justify-center gap-2 border-t border-amber-300/60 bg-amber-50 px-4 py-1.5 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-950 dark:text-amber-200"
+    >
+      <WifiOff aria-hidden className="size-3.5 shrink-0" />
+      <span>
+        You&rsquo;re offline — editing still works and saves to this device. AI features, job
+        search and share links need a connection.
+      </span>
+    </div>
+  )
+}
+
 /** Static store subscription for mount-once browser reads (badge count). */
 const subscribeNever = () => () => {}
 
@@ -119,17 +167,57 @@ function JobsAttentionBadge({ count }: { count: number }) {
 
 export function SiteHeader({ action, wideAction = false }: { action?: React.ReactNode; wideAction?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const headerRef = useRef<HTMLElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const mobileNavRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (!headerRef.current?.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setMenuOpen(false)
+      if (mobileNavRef.current?.contains(document.activeElement)) menuButtonRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
   const attention = useSyncExternalStore(subscribeNever, attentionCount, () => 0)
   // Pages with a wide action cluster (Builder) keep the hamburger up to lg so
   // the inline nav and the actions never fight for the same header width.
   const navAt = wideAction ? 'lg' : 'md'
   return (
-    <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link to="/" className="flex items-center gap-2 font-semibold">
-          <LogoMark className="size-6" />
-          RezUp
-          <span className="text-muted-foreground hidden text-xs font-normal sm:inline">by Zalize</span>
+    <header ref={headerRef} className={`bg-background/95 sticky top-0 border-b backdrop-blur ${menuOpen ? 'z-40' : 'z-20'}`}>
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:bg-background focus:absolute focus:left-2 focus:top-2 focus:z-30 focus:rounded-md focus:border focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg"
+        onClick={(e) => {
+          e.preventDefault()
+          const main = document.querySelector('main')
+          if (!main) return
+          main.setAttribute('tabindex', '-1')
+          main.focus({ preventScroll: true })
+          main.scrollIntoView()
+        }}
+      >
+        Skip to content
+      </a>
+      <div
+        className={`mx-auto flex h-14 items-center justify-between px-4 ${wideAction ? 'max-w-[1600px]' : 'max-w-6xl'}`}
+      >
+        <Link to="/" className="flex min-w-0 items-center gap-2 font-semibold">
+          <LogoMark className="size-6 shrink-0" />
+          <span className="truncate max-[359px]:sr-only">RezUp</span>
+          <span
+            className={`text-muted-foreground hidden text-xs font-normal sm:inline ${navAt === 'lg' ? 'lg:hidden xl:inline' : 'md:hidden lg:inline'}`}
+          >
+            by Zalize
+          </span>
         </Link>
         <nav
           aria-label="Main"
@@ -144,15 +232,18 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
           </Link>
           <a className="hover:text-foreground" href="/pricing/">Pricing</a>
         </nav>
-        <div className="flex items-center gap-1">
+        <div
+          className={`-mr-3 flex shrink-0 items-center gap-0.5 sm:-mr-2 sm:gap-1 ${navAt === 'lg' ? 'lg:mr-0' : 'md:mr-0'}`}
+        >
           <ThemeToggle />
           {action}
           <button
+            ref={menuButtonRef}
             type="button"
             aria-label="Menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
-            className={`hover:bg-accent -mr-2 inline-flex size-10 items-center justify-center rounded-md ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
+            className={`hover:bg-accent inline-flex size-10 items-center justify-center rounded-md ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
@@ -160,8 +251,9 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
       </div>
       {menuOpen && (
         <nav
+          ref={mobileNavRef}
           aria-label="Main"
-          className={`bg-background border-t px-4 pb-2 ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
+          className={`bg-background max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-t px-4 pb-2 ${navAt === 'lg' ? 'lg:hidden' : 'md:hidden'}`}
         >
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/templates/">Templates</a>
           <a className="hover:bg-accent flex min-h-10 items-center rounded-md px-2 text-sm" href="/examples/">Examples</a>
@@ -180,6 +272,7 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
           ))}
         </nav>
       )}
+      <OfflineBar />
     </header>
   )
 }

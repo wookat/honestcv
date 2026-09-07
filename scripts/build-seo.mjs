@@ -16,9 +16,27 @@ const FREE_MODE = process.env.VITE_FREE_MODE !== 'false'
 // First-party pageview beacon (the sole pageview source; path only, no PII).
 // External file so the strict CSP (script-src 'self') needs no inline scripts.
 // Apply the app's device theme preference (honestcv.theme) before first paint
-// so static pages match the SPA's light/dark scheme (external file per CSP).
-const THEME_SCRIPT = '<script src="/theme.js"></script>'
+// so static pages match the SPA's light/dark scheme. Inlined (render-blocking
+// external request avoided) and allowed by an exact CSP sha256 hash.
+const THEME_INLINE =
+  ";(function(){try{var v=localStorage.getItem('honestcv.theme');var d=v==='dark'||(v!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');if(v==='dark'||v==='light'){var c=d?'#090d14':'#fbfcfd';var m=document.querySelectorAll('meta[name=theme-color]');for(var i=0;i<m.length;i++)m[i].setAttribute('content',c)}}catch(e){}})()"
+const THEME_SCRIPT = `<script>${THEME_INLINE}</script>`
 const FP_BEACON = THEME_SCRIPT + '<script defer src="/t.js"></script>'
+
+// Drift guard: the snippet is duplicated in index.html and its hash lives in
+// the worker CSP. Fail the build if any of the three copies diverges.
+{
+  const { createHash } = await import('node:crypto')
+  const hash = createHash('sha256').update(THEME_INLINE).digest('base64')
+  const shell = readFileSync(path.resolve(import.meta.dirname, '../index.html'), 'utf8')
+  if (!shell.includes(THEME_SCRIPT)) {
+    throw new Error('index.html inline theme script differs from THEME_INLINE in build-seo.mjs')
+  }
+  const worker = readFileSync(path.resolve(import.meta.dirname, '../worker/index.ts'), 'utf8')
+  if (!worker.includes(`'sha256-${hash}'`)) {
+    throw new Error(`worker CSP is missing 'sha256-${hash}' for the inline theme script`)
+  }
+}
 
 const PAGES = [
   {
@@ -1423,18 +1441,24 @@ html.dark .toc{background:var(--card)}
 html.dark .exdoc{background:var(--card)}
 html.dark .ai-art{background:var(--card)}
 #hub-filter{background:var(--card);color:var(--fg)}
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 *{box-sizing:border-box;border-color:var(--border)}
+html{scroll-padding-top:4rem}
 body{margin:0;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.7}
 a{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
 a.btn,a.brand{text-decoration:none}
-header.site{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--border);background:color-mix(in oklch,var(--bg) 85%,transparent);backdrop-filter:blur(8px)}
+a.skip{position:absolute;left:-9999px;top:.5rem;z-index:30;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:.375rem;padding:.5rem .75rem;font-size:.875rem;font-weight:500;text-decoration:none;box-shadow:0 10px 15px -3px rgb(0 0 0/.1)}
+a.skip:focus{left:.5rem}
+main{outline:none}
+header.site{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--border);background:color-mix(in oklch,var(--bg) 95%,transparent);backdrop-filter:blur(8px)}
 header.site .in{max-width:72rem;margin:0 auto;height:3.5rem;display:flex;align-items:center;justify-content:space-between;padding:0 1rem}
 header.site .brand{display:flex;align-items:center;gap:.5rem;font-weight:600;color:var(--fg)}
 header.site .brand img{width:1.5rem;height:1.5rem}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border-radius:calc(var(--radius) - 2px);background:var(--primary);color:var(--primary-fg);padding:.55rem 1.1rem;font-size:.9rem;font-weight:500;border:0;cursor:pointer;min-height:44px}
 .btn:hover{opacity:.9;text-decoration:none}
+@media (forced-colors:active){.btn{border:1px solid}}
 main{max-width:46rem;margin:0 auto;padding:2.5rem 1rem 4rem}
-h1,h2,h3{font-family:'Sora','Inter',system-ui,sans-serif;letter-spacing:-.015em}
+h1,h2,h3{font-family:'Sora','Inter',system-ui,sans-serif;letter-spacing:-.015em;overflow-wrap:anywhere}
 h1{font-size:2rem;line-height:1.25;margin:.25rem 0 .75rem}
 .lede{color:var(--muted);font-size:1.05rem}
 ul.features{padding-left:1.3em}
@@ -1449,7 +1473,7 @@ ul.features li{margin:.4rem 0}
 .toc li{margin:.15rem 0;break-inside:avoid}
 .toc a{text-decoration:underline}
 @media (max-width:640px){.toc ol{columns:1}}
-h2[id]{scroll-margin-top:1rem}
+h2[id]{scroll-margin-top:.5rem}
 .related ul{list-style:none;padding:0;margin:0;display:grid;gap:.5rem}
 footer.site{border-top:1px solid var(--border)}
 footer.site .in{max-width:72rem;margin:0 auto;padding:1.5rem 1rem;text-align:center;font-size:.75rem;color:var(--muted)}
@@ -1464,13 +1488,13 @@ nav.main{display:none}
 @media (min-width:768px){nav.main{display:flex;align-items:center;gap:1.25rem;font-size:.875rem}}
 nav.main a{color:var(--muted);text-decoration:none}
 nav.main a:hover{color:var(--fg)}
-details.mnav{position:relative}
+details.mnav{position:static}
 @media (min-width:768px){details.mnav{display:none}}
 details.mnav summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;border-radius:calc(var(--radius) - 2px);color:var(--fg)}
 details.mnav summary::-webkit-details-marker{display:none}
 details.mnav summary:hover{background:var(--border)}
 details.mnav[open] summary{background:var(--border)}
-details.mnav .panel{position:absolute;right:0;top:calc(100% + .5rem);min-width:11rem;background:var(--bg);border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);box-shadow:0 8px 24px rgb(0 0 0 / .08);padding:.25rem}
+details.mnav .panel{position:absolute;left:0;right:0;top:100%;background:var(--bg);border-bottom:1px solid var(--border);box-shadow:0 8px 24px rgb(0 0 0 / .08);padding:.25rem 1rem .5rem;max-height:calc(100dvh - 3.5rem);overflow-y:auto}
 details.mnav .panel a{display:flex;align-items:center;min-height:2.5rem;padding:0 .75rem;font-size:.875rem;color:var(--fg);text-decoration:none;border-radius:calc(var(--radius) - 4px)}
 details.mnav .panel a:hover{background:var(--border)}
 details.mnav .panel p{margin:.5rem 0 0;padding:0 .75rem;font-size:.6875rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
@@ -1570,7 +1594,11 @@ function page(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -1588,12 +1616,13 @@ function page(p) {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.h1)}</h1>
 <p class="lede">${esc(p.intro)}</p>
 <ul class="features">
@@ -1650,7 +1679,11 @@ function legalPage(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.sections[0][1])}" />
 <link rel="canonical" href="${canonical}" />
@@ -1665,12 +1698,13 @@ function legalPage(p) {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.h1)}</h1>
 ${p.sections.map(([h, t]) => `<h2 style="margin-top:1.5rem;font-size:1.125rem">${esc(h)}</h2>\n<p class="lede" style="font-size:1rem">${esc(t)}</p>`).join('\n')}
 </main>
@@ -1712,7 +1746,11 @@ function aboutPage() {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -1728,12 +1766,13 @@ function aboutPage() {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>About RezUp</h1>
 <p class="lede">The resume-builder category monetizes desperation: a ~$2 “trial” that quietly converts into a ~$25/month subscription, free tiers that watermark exports or lock the useful report behind a paywall, and AI writers that invent metrics a candidate never achieved. “Zety charged me” is one of the most-searched complaints in the category. RezUp is built as the counter-example.</p>
 <h2 style="margin-top:1.5rem;font-size:1.125rem">What we promise</h2>
@@ -1796,7 +1835,11 @@ function guidePage(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -1813,12 +1856,13 @@ function guidePage(p) {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.h1)}</h1>
 <nav class="toc" aria-label="On this page">
 <strong>On this page</strong>
@@ -1851,7 +1895,11 @@ function templatePage(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -1864,6 +1912,8 @@ function templatePage(p) {
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd([{ name: 'Templates', path: '/templates/' }, { name: `${p.name} resume template`, path: p.path }]))}</script>
 <style>${CSS}
+.tpl-hero{margin:1rem 0}
+.tpl-hero svg{max-width:100%;height:auto}
 .tpl-others{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr));gap:1rem;margin-top:1rem}
 .tpl-others a{display:block;text-decoration:none;color:inherit}
 .tpl-others a:hover svg{border-color:var(--primary)}
@@ -1872,14 +1922,15 @@ function templatePage(p) {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder?template=${p.path.split('/').pop()}">Use this template free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.name)} — ATS-friendly resume template</h1>
-<div style="margin:1rem 0">${templateThumbSvg(p.path.split('/').pop(), 300)}</div>
+<div class="tpl-hero">${templateThumbSvg(p.path.split('/').pop(), 300)}</div>
 <p class="lede">${esc(p.blurb)}</p>
 <ul class="features">
 <li>Strictly single-column — the layout ATS parsers read most reliably</li>
@@ -1958,7 +2009,11 @@ function hubPage({
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -1975,15 +2030,16 @@ ${FP_BEACON}
 ${filterPlaceholder ? '<script defer src="/hub-filter.js"></script>' : ''}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main${mainStyle ? ` style="${mainStyle}"` : ''}>
+<main id="main" tabindex="-1"${mainStyle ? ` style="${mainStyle}"` : ''}>
 <h1>${esc(h1)}</h1>
 <p class="lede">${esc(intro)}</p>
-${filterPlaceholder ? `<input id="hub-filter" type="search" hidden placeholder="${esc(filterPlaceholder)}" aria-label="Filter the list below" autocomplete="off" style="width:100%;max-width:26rem;min-height:2.75rem;margin-top:1rem;padding:0 .875rem;border:1px solid var(--border);border-radius:.5rem;font:inherit" />\n<p id="hub-filter-empty" hidden style="margin-top:1.5rem;color:#667085">${esc(filterEmpty ?? 'No examples match that search \u2014 try a broader word like \u201cengineer\u201d or \u201cmanager\u201d.')}</p>` : ''}
+${filterPlaceholder ? `<input id="hub-filter" type="search" hidden placeholder="${esc(filterPlaceholder)}" aria-label="Filter the list below" autocomplete="off" style="width:100%;max-width:26rem;min-height:2.75rem;margin-top:1rem;padding:0 .875rem;border:1px solid var(--border);border-radius:.5rem;font:inherit" />\n<p id="hub-filter-status" role="status" class="vh"></p>\n<p id="hub-filter-empty" hidden style="margin-top:1.5rem;color:var(--muted)">${esc(filterEmpty ?? 'No examples match that search \u2014 try a broader word like \u201cengineer\u201d or \u201cmanager\u201d.')}</p>` : ''}
 ${bodyHtml ?? renderHubItems(items)}
 <div class="cta">
 <p>${FREE_MODE ? 'RezUp is free during beta: templates, AI rewrites, ATS score and PDF/DOCX downloads, all included ($9.99 one-time when billing opens, never a subscription).' : 'The RezUp builder is free to try, with a one-time $9.99 download and no subscription.'}</p>
@@ -3263,18 +3319,18 @@ function examplePage(p) {
 <div class="exdoc" aria-label="Example resume">
 <p class="exname">${esc(per.name)}</p>
 <p class="exmeta">${esc(per.title)} · ${esc(per.location)}</p>
-<h3>Summary</h3>
+<h2>Summary</h2>
 <p>${esc(per.summary)}</p>
-<h3>Experience</h3>
+<h2>Experience</h2>
 ${per.experience
   .map(
     (x) => `<p class="exrole">${esc(x.role)} — ${esc(x.company)} <span>${esc(x.dates)}</span></p>
 <ul>${x.bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>`
   )
   .join('\n')}
-<h3>Skills</h3>
+<h2>Skills</h2>
 <p>${per.skills.map(esc).join(' · ')}</p>
-<h3>Education</h3>
+<h2>Education</h2>
 <p>${esc(per.education)}</p>
 </div>`
   return `<!doctype html>
@@ -3282,7 +3338,11 @@ ${per.experience
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.role)} Resume Example (2026) — RezUp</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -3299,7 +3359,7 @@ ${per.experience
 .exdoc{border:1px solid var(--border);border-radius:10px;padding:1.5rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);margin:1.5rem 0}
 .exdoc .exname{font-size:1.3rem;font-weight:700;margin:0}
 .exdoc .exmeta{color:var(--muted);margin:.15rem 0 1rem;font-size:.9rem}
-.exdoc h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--primary);border-bottom:1px solid var(--border);padding-bottom:.25rem;margin:1.25rem 0 .5rem}
+.exdoc h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--primary);border-bottom:1px solid var(--border);padding-bottom:.25rem;margin:1.25rem 0 .5rem}
 .exdoc .exrole{font-weight:600;margin:.75rem 0 .25rem;display:flex;flex-wrap:wrap;gap:.25rem .75rem;justify-content:space-between}
 .exdoc .exrole span{color:var(--muted);font-weight:400;font-size:.85rem}
 .exdoc ul{margin:.25rem 0 .5rem 1.1rem;padding:0}
@@ -3308,12 +3368,13 @@ ${per.experience
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.role)} resume example</h1>
 <p class="lede">${esc(p.description)}</p>
 ${doc}
@@ -3658,7 +3719,7 @@ function pricingPage() {
   }
   const planCard = (name, price, tagline, features, dark) => `
 <div style="border:1px solid ${dark ? 'transparent' : 'var(--border)'};border-radius:var(--radius);padding:1.5rem;${dark ? 'background:#0a0a0a;color:#fff;box-shadow:0 12px 32px rgb(0 0 0/.18)' : 'background:var(--card)'}">
-<p style="margin:0;display:flex;justify-content:space-between;align-items:center"><strong>${name}</strong>${dark ? '<span style="background:#047857;color:#fff;border-radius:999px;padding:.15rem .6rem;font-size:.75rem;font-weight:600">Best value</span>' : '<span style="border:1px solid var(--border);border-radius:999px;padding:.15rem .6rem;font-size:.75rem">One-time</span>'}</p>
+<p style="margin:0;display:flex;justify-content:space-between;align-items:center"><strong>${name}</strong>${dark ? '<span style="background:#047857;color:#fff;border:1px solid transparent;border-radius:999px;padding:calc(.15rem - 1px) calc(.6rem - 1px);font-size:.75rem;font-weight:600">Best value</span>' : '<span style="border:1px solid var(--border);border-radius:999px;padding:.15rem .6rem;font-size:.75rem">One-time</span>'}</p>
 <p style="margin:.75rem 0 0;font-size:2.75rem;font-weight:700;letter-spacing:-.02em;line-height:1">${price} <span style="font-size:.85rem;font-weight:400;${dark ? 'color:#a3a3a3' : 'color:var(--muted)'}">once, forever</span></p>
 <ul style="margin:1rem 0 0;padding:0;list-style:none;${dark ? 'color:#d4d4d4' : 'color:var(--muted)'};font-size:.9rem">
 ${features.map((f) => `<li style="margin:.4rem 0">· ${esc(f)}</li>`).join('\n')}
@@ -3671,7 +3732,11 @@ ${features.map((f) => `<li style="margin:.4rem 0">· ${esc(f)}</li>`).join('\n')
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>RezUp Pricing — $9.99 Once, Never a Subscription</title>
 <meta name="description" content="RezUp pricing: everything free during beta. When billing opens: Single Resume $9.99 one-time, Career Bundle $19.99 one-time. No subscription, no stored card, nothing to cancel." />
 <link rel="canonical" href="${canonical}" />
@@ -3696,18 +3761,21 @@ table.cmp.plans th:nth-child(2),table.cmp.plans td:nth-child(2){background:none}
 table.cmp.plans td:nth-child(2),table.cmp.plans td:nth-child(3){color:inherit;font-weight:400}
 table.cmp.plans th:nth-child(4),table.cmp.plans td:nth-child(4){background:oklch(0.5 0.18 265 / 0.06)}
 table.cmp.plans td:nth-child(4){color:#047857;font-weight:500}
+html.dark table.cmp:not(.plans) td:nth-child(2),html.dark table.cmp.plans td:nth-child(4){color:#34d399}
+@media (forced-colors:active){table.cmp:not(.plans) th:nth-child(2),table.cmp:not(.plans) td:nth-child(2),table.cmp.plans th:nth-child(4),table.cmp.plans td:nth-child(4){border-left:1px solid;border-right:1px solid}}
 .faq h3{margin:1.25rem 0 .25rem;font-size:1rem}
 .faq p{margin:0;color:var(--muted);font-size:.9375rem}
 </style>
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>Simple pricing: pay once, or pay nothing</h1>
 <p class="lede">${FREE_MODE ? 'Every plan is free during beta — no card, no auto-renewal, nothing that renews. When billing opens, prices below are one-time.' : 'Everything is free to try. Pay exactly once to download — never a subscription.'}</p>
 <div class="price-grid">
@@ -3808,7 +3876,11 @@ function aiPage() {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>AI Resume Tools — Tailoring, Scoring, Rewriting | RezUp</title>
 <meta name="description" content="RezUp's AI toolkit: job-targeted tailoring, a free in-browser ATS match score, honest bullet rewriting that never invents facts, and AI cover letters with interview prep." />
 <link rel="canonical" href="${canonical}" />
@@ -3833,12 +3905,13 @@ function aiPage() {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main style="max-width:56rem">
+<main id="main" tabindex="-1" style="max-width:56rem">
 <h1>AI that gets you the interview — honestly</h1>
 <p class="lede">Four AI abilities built into the RezUp builder. All of them work on your real experience: the AI sharpens what you did, and refuses to invent what you didn't.</p>
 ${AI_SECTIONS.map(
@@ -3947,7 +4020,11 @@ function toolPage(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -3972,12 +4049,13 @@ function toolPage(p) {
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.h1)}</h1>
 <p class="lede">${esc(p.lede)}</p>
 <p style="margin-top:1.25rem"><a class="btn" href="${p.cta}">${esc(p.ctaLabel)}</a></p>
@@ -4050,7 +4128,11 @@ function letterExamplesPage(p) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d14" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>${esc(p.title)}</title>
 <meta name="description" content="${esc(p.description)}" />
 <link rel="canonical" href="${canonical}" />
@@ -4072,12 +4154,13 @@ h2[id]{margin-top:2.5rem}
 ${FP_BEACON}
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="in">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" />RezUp</a>
 ${NAV_HTML}
 <a class="btn" href="/builder">Build my resume free</a>
 </div></header>
-<main>
+<main id="main" tabindex="-1">
 <h1>${esc(p.h1)}</h1>
 <p class="lede">${esc(p.lede)}</p>
 <nav class="toc" aria-label="Examples on this page"><strong>On this page</strong><ol>
