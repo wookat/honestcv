@@ -44,7 +44,11 @@ against comfort comfortable hands-on welcome fundamentals own owns owning owned
 expect expects expected fluency fluent solid grasp expertise
 ideally highly strongly closely actively effectively successfully independently
 proactively especially particularly primarily typically regularly currently
-previously additionally directly record track`.split(/\s+/)
+previously additionally directly record track
+like one come get sure real together please notice believe think keep without
+rather something way ways everyone actually even less see hear stay feel life
+hours time part every world around possible future outside meet e.g i.e u.s
+sponsorship visa`.split(/\s+/)
 )
 
 /** Multi-word tech/business phrases worth matching as units */
@@ -943,16 +947,103 @@ function tokenize(text: string): string[] {
 /** Fewest keywords worth scoring against; short ads are topped up to this many. */
 const MIN_KEYWORDS = 15
 
-/** Extract ranked keywords (words + known phrases) from a job description */
-export function extractKeywords(jd: string, limit = 30): string[] {
+const EMPLOYER_NAME = String.raw`([A-Z][\w&.'-]*(?: [A-Z][\w&.'-]*){0,2})`
+const EMPLOYER_NAME_RES = [
+  new RegExp(`^\\W*About ${EMPLOYER_NAME}\\W*$`, 'm'),
+  new RegExp(`\\bAt ${EMPLOYER_NAME},`),
+  new RegExp(`^${EMPLOYER_NAME} is (?:a|an|the|one|on a mission|building|looking|hiring)\\b`, 'm'),
+  new RegExp(`\\b(?:Join|Life at|Working at|Why) ${EMPLOYER_NAME}\\b`),
+]
+const NOT_AN_EMPLOYER = new Set(
+  'us this the opportunity role job position team company our you'.split(' ')
+)
+
+/**
+ * Tokens that name the employer — the company passed in, plus the name the ad
+ * itself introduces ("About Acme", "At Acme, we…", "Acme is a…"). Inferred
+ * names never take a known skill or a common word with them.
+ */
+function employerTokens(jd: string, company: string | undefined): Set<string> {
+  const out = new Set<string>()
+  for (const tok of tokenize(company ?? '')) {
+    for (const part of [tok, ...tok.split(/[./-]/)]) if (part.length >= 3) out.add(part)
+  }
+  for (const re of EMPLOYER_NAME_RES) {
+    const m = re.exec(jd)
+    if (!m) continue
+    const toks = tokenize(m[1])
+    if (toks.some((t) => NOT_AN_EMPLOYER.has(t) || STOPWORDS.has(t))) continue
+    for (const t of toks) if (t.length >= 3 && !looksLikeSkill(t)) out.add(t)
+    break
+  }
+  return out
+}
+
+/** "www.acme.com", "acme.co.uk", "careers.acme.io" — never a skill (".net" / "next.js" are). */
+const URL_TOKEN_RE = /^www\.|\.(?:com|co|io|org|ai|de|uk|us|fr|eu|nl|es|it)$/
+
+const BOILERPLATE_HEADING_RE =
+  /^(?:(?:a bit |more )?about (?!(?:the |this )?(?:role|job|position|opportunity|team)\b|you\b).+|who we are|our (?:story|mission|values|culture|benefits|perks|commitment.*|hiring process|interview process|offer|way of working)|how we work|what we offer|what.s in it for you|what you.ll get|you.ll get|we offer|in return|rewards?|your benefits|why (?:join|work|you.ll love|us).*|the (?:perks|benefits|package)|(?:perks|benefits)(?: (?:&|and) (?:perks|benefits))?|compensation.*|salary.*|equal (?:employment )?opportunity.*|diversity.*|inclusion.*|how to apply|application process|interview process|hiring process|the process|next steps|what to expect|.*recruitment scams?.*|life at .*|the company|company (?:overview|description)|working at .*|what we do|join us)$/i
+
+const LIST_ITEM_LINE_RE = /^\s*(?:[-–—•*▪◦·]|\d+[.)])\s/
+
+/** A short, non-bullet, non-sentence line — how sections are titled in job ads. */
+function isHeadingLine(line: string): boolean {
+  const t = line.trim()
+  return (
+    t.length > 0 &&
+    t.length <= 60 &&
+    !LIST_ITEM_LINE_RE.test(line) &&
+    !/[.,;!?]$/.test(t) &&
+    t.split(/\s+/).length <= 6
+  )
+}
+
+/**
+ * Splits the ad into the text that describes the job and its "About us" /
+ * "Benefits" / "Equal opportunity" / "How to apply" sections, whose repeated
+ * words describe the employer. Nothing is split off when the ad has no such
+ * section or what would be left is too short to score on its own.
+ */
+function splitBoilerplate(jd: string): { job: string; boilerplate: string } {
+  const lines = jd.split(/\n/)
+  const job: string[] = []
+  const boilerplate: string[] = []
+  let inBoiler = false
+  for (const line of lines) {
+    if (isHeadingLine(line)) {
+      inBoiler = BOILERPLATE_HEADING_RE.test(line.trim().replace(/[:\s]+$/, ''))
+      if (inBoiler) continue
+    }
+    ;(inBoiler ? boilerplate : job).push(line)
+  }
+  const text = job.join('\n')
+  if (boilerplate.length === 0 || tokenize(text).length < 40) return { job: jd, boilerplate: '' }
+  return { job: text, boilerplate: boilerplate.join('\n') }
+}
+
+/**
+ * Extract ranked keywords (words + known phrases) from a job description.
+ * `company` is the employer the ad is for, when known — its name is never a
+ * keyword, however often the ad repeats it.
+ */
+export function extractKeywords(jd: string, limit = 30, company?: string): string[] {
   const lower = jd.toLowerCase()
   const found = new Map<string, number>()
   for (const phrase of KNOWN_PHRASES) {
     if (lower.includes(phrase)) found.set(phrase, 5)
   }
+  const employer = employerTokens(jd, company)
+  const isEmployer = (tok: string) =>
+    employer.has(tok) || tok.split(/[./-]/).some((part) => part.length >= 3 && employer.has(part))
   const counts = new Map<string, number>()
-  for (const tok of tokenize(jd)) {
+  const { job, boilerplate } = splitBoilerplate(jd)
+  // Ordinary words count only where the ad describes the job; a skill named in
+  // "About us" ("we build Next.js") still counts.
+  for (const tok of [...tokenize(job), ...tokenize(boilerplate).filter(looksLikeSkill)]) {
     if (tok.length < 2 || STOPWORDS.has(tok) || !/[a-z]/.test(tok)) continue
+    if (isEmployer(tok)) continue
+    if (URL_TOKEN_RE.test(tok) && !KNOWN_SKILLS.has(tok)) continue
     counts.set(tok, (counts.get(tok) ?? 0) + 1)
   }
   const reqTokens = new Set(tokenize(requirementsBlock(lower)))
@@ -1061,8 +1152,8 @@ export function highPriorityKeywords(jd: string, keywords: string[]): Set<string
 }
 
 /** Percentage of a job description's keywords found in the resume text */
-export function matchScore(resumeTextRaw: string, jd: string): number | null {
-  const keywords = jd.trim() ? extractKeywords(jd) : []
+export function matchScore(resumeTextRaw: string, jd: string, company?: string): number | null {
+  const keywords = jd.trim() ? extractKeywords(jd, 30, company) : []
   if (keywords.length === 0) return null
   const idx = indexResumeText(resumeTextRaw)
   let matched = 0
@@ -1083,9 +1174,10 @@ export interface MatchReport {
 export function matchReport(
   resumeTextRaw: string,
   jd: string,
-  targetRole = ''
+  targetRole = '',
+  company?: string
 ): MatchReport | null {
-  const keywords = withoutRoleTokens(jd.trim() ? extractKeywords(jd) : [], targetRole)
+  const keywords = withoutRoleTokens(jd.trim() ? extractKeywords(jd, 30, company) : [], targetRole)
   if (keywords.length === 0) return null
   const idx = indexResumeText(resumeTextRaw)
   const covered: string[] = []
@@ -1274,7 +1366,10 @@ export function scoreResume(
   const resumeText = idx.text
 
   const ignoredSet = new Set((resume.ignoredKeywords ?? []).map((k) => k.toLowerCase()))
-  const allKeywords = withoutRoleTokens(jd.trim() ? extractKeywords(jd) : [], resume.targetRole)
+  const allKeywords = withoutRoleTokens(
+    jd.trim() ? extractKeywords(jd, 30, resume.targetCompany) : [],
+    resume.targetRole
+  )
   const ignored = allKeywords.filter((kw) => ignoredSet.has(kw))
   const keywords = allKeywords.filter((kw) => !ignoredSet.has(kw))
   const { matched, missing, variants } = splitKeywords(keywords, idx)
