@@ -473,7 +473,7 @@ export default function Landing() {
               </>
             )}
           </p>
-          <div className="animate-rise-slide mt-7 flex flex-col items-center justify-center gap-3 [--rise-delay:180ms] sm:flex-row">
+          <div className="animate-rise-slide mt-7 flex flex-col items-center justify-center gap-3 [--rise-delay:180ms] sm:flex-row sm:flex-wrap">
             <Button asChild size="lg">
               <Link to="/builder">
                 Start free — no sign-up <ArrowRight />

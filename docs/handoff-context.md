@@ -2642,3 +2642,10 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - 方案 docs/plan-r672-header-tagline.md：Layout.tsx 副标 `hidden sm:inline` 追加 `${navAt==='lg' ? 'lg:hidden xl:inline' : 'md:hidden lg:inline'}`——在桌面 nav 出现的第一档隐藏、下一档恢复。nav gap/字号、右组不动。
 - 生产 QA（index-Bhsgxnfj.js）：768/800/900 `/`、/jobs 字样 50.2/50 完整、副标 display none、nav 自然宽 484 一行（768 `/`：brand 16–98 / nav 110–593 / grp 605–737）；1024 /builder brand 16–98 / nav 124–608；1280 全部与 R671 一致（副标恢复）。加 1.4.12 间距后 768：brand 16–67（省略）、nav 67–595、grp 595–737，三段不重叠，nav 全部可见。`r670-verify.cjs` 48 组对 R671 快照 **0 差异**；`r671-textspacing.cjs` 375 十路由 360/360、新裁切 0；零 console 错误；存储回基线。
 - 如实未验证：真机；768–1023（builder 1024–1279）副标隐藏是取舍；加间距后 768 字样省略仍是 R671 的兜底。
+
+### R673 — 首页 hero 双 CTA 行在 `sm`（640–767）加大文字间距后溢出整页（链 #893 → 本 PR）
+
+- 取证（index-Bhsgxnfj.js，`qa/r671-textspacing.cjs 640/1024`、`qa/r673-root.cjs`）：640 是 R671 未量过的 `sm` 首档（亦为 1280 窗口 200% 缩放的等效 CSS 视口）。加 1.4.12 间距后 `/` 656 > 625 整页横滚，溢出根为「Check my resume's ATS score」CTA（right 656，`whitespace-nowrap`，R671 的 `max-sm:whitespace-normal` 在 ≥sm 不生效），父级 `sm:flex-row` 双 CTA 并排超宽；其余 9 路由与 1024 十路由无整页溢出。
+- 方案 docs/plan-r673-hero-ctas-wrap-sm.md：Landing.tsx CTA 行 `sm:flex-row` → `sm:flex-row sm:flex-wrap`，放得下时几何不变、放不下时第二颗换行居中。
+- 生产 QA（index-Be73VzZf.js）：640 十路由 625/625、溢出根 0；375 十路由 360/360；默认排版 640/700/768/1280 两颗 CTA 几何逐项不变；`r670-verify.cjs` 48 组对 R672 快照 0 差异；零 console 错误；应用存储键不变。
+- 如实未验证：真实浏览器 200% 缩放（以 640 视口等效）；真机。
