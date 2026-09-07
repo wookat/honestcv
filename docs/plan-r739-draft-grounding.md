@@ -32,18 +32,24 @@ R738 noted the contradiction "describe a typical, checkable achievement for that
 | R738 suggest key-numbers | Authored technical design documents for a multi-sided booking experience across [number] internal teams… | mirrored `design documents, multi-sided, booking` | `technical, multi-sided, booking, internal, teams, aligning` |
 | R738 suggest plain | Authored frontend design documents for [project name], aligning product, design, and backend teams on a multi-sided experience… | mirrored `design documents, multi-sided` | `aligning, teams, multi-sided, spanning` |
 | R738 rewrite plain ×9 | faithful paraphrases | all clean | `Built`, `updates`, `using` |
-| R738 rewrite key-numbers ×9 | "…by leading code reviews…" / "…by architecting React…" / "Maintained technical quality…" | scope `leading` / scope `architecting` / mirrored `technical quality`; other 6 clean | `building`, `platform`, `using`, `Supported`, `applying`, `technical`, `quality`, `leading`, `architecting` |
+| R738 rewrite key-numbers ×9 | "…by leading code reviews…" / "…by architecting React…" / "Maintained technical quality…" | scope `leading`† / scope `architecting` / mirrored `technical quality`; other 6 clean | `building`, `platform`, `using`, `Supported`, `applying`, `technical`, `quality`, `leading`, `architecting` |
 | R712 Tailor (5 lines) | "shipping production React…" / "cut page load latency by 44%" / "Owned the product design system" | mirrored `shipping production` / figures `44%` / scope `Owned`; 2 clean | `shipping, latency, conversion` / `cut, latency` / `Owned` |
 | R726 Tailor (4) | | all clean | `team, ship` |
 | R727 Tailor (3) | "Owned a React and TypeScript checkout redesign…" | scope `Owned`; 2 clean | `Owned`, `team, ship` |
 | R703 golden truthful rewrite | "Developed customer-facing analytics dashboards in React…" from "Developed customer reporting dashboards…" | **clean** (was `customer-facing analytics` before the hyphen-part rule) | — |
 | No job description | "Migrated 40 services to Kubernetes, cutting infra spend by 22%." | figures `40, 22%`, mirrored `[]` | — |
 
+† Probe artefact: for rewrite calls the probe used the request's `text` (the three Harbor bullets) as the resume. In the product the whole resume is the reference and its Northstar entry says "Led a React and TypeScript checkout redesign", so `leading` is *not* flagged live — 1 of the 3 key-number candidates is marked (`architecting` + `technical quality`), which is the intended reading (the resume does state a lead remit).
+
 Lost vs the old rule: `conversion` on R712 line 1 (single JD mention, not hyphenated / capitalised / skill) — the same line is still flagged via `shipping production`. `technical quality` on one R738 rewrite is a real JD phrase added to a collaboration bullet; kept as advisory.
 
 ## Limits (as before, stated in the UI)
 
 Word-level, English, advisory: it cannot prove a draft true or false, an invented duty written in resume words passes, and "nothing flagged" is not a guarantee. The scope list and `GENERIC_AD_WORDS` are hand-curated; no labelled precision/recall set (the fixtures above are the 22 + 12 + 2 kept production lines). The prompt change is prompt-level only until a later production sample.
+
+## Production QA (`qa/r739-verify.cjs`, route mock replaying the R738 outputs, 0 real AI calls, 1280 + 375)
+
+Deployed `index-DRl6OsVc.js` / `Builder-DuwWAO7A.js` (first deploy; Routes listing `code 10000` as always). Plain rewrite picker → "…nothing flagged", no lists; key-numbers picker → conditional copy, one candidate "Keyword-focused · check before using" with `aria-describedby=variant-flags-2` resolving to the amber list `technical quality` / `architecting`; Suggest a bullet with the Perk duty → "Marked below…", list `design documents, multi-sided, booking`, button **Apply anyway**; editing the textarea to resume facts → "…nothing flagged", button **Apply to entry**; Apply anyway appends the line as written (5 bullets); Complete line 4 on fragment "Wrote customer-facing analytics" → grounded completion clean + **Replace line**, JD-borrowing completion → `multi-sided, booking` + **Replace line anyway**, which replaces line 4 only. 0 horizontal overflow at 375, 0 console errors, storage back to baseline. Shots `qa/shots/r739/`.
 
 ## Gates
 
