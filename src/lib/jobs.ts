@@ -281,6 +281,8 @@ const CITY_COUNTRY: Record<string, string> = {
 /** Other spellings of a city the feeds use (Remotive publishes French city labels). */
 const CITY_SYNONYMS: string[][] = [
   ['london', 'londres'],
+  ['new york', 'nyc'],
+  ['washington', 'washington dc', 'dc'],
   ['munich', 'münchen'],
   ['cologne', 'köln'],
   ['zurich', 'zürich'],
@@ -427,9 +429,11 @@ export const JOB_CATEGORIES: [slug: string, label: string][] = [
   ['all-others', 'All others'],
 ]
 
-export async function searchJobs(q: string, category = ''): Promise<JobListing[]> {
+/** `location` lets the API add on-site postings for that place (The Muse) to the remote feeds. */
+export async function searchJobs(q: string, category = '', location = ''): Promise<JobListing[]> {
   const params = new URLSearchParams({ q })
   if (category) params.set('category', category)
+  if (location.trim()) params.set('location', location.trim())
   let res: Response
   try {
     res = await fetch(`/api/jobs/search?${params}`)

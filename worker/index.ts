@@ -396,13 +396,15 @@ app.get('/api/ai/quota', async (c) => {
   return c.json({ freeRemaining: Math.max(limit - used, 0) })
 })
 
-// Job search: aggregate the keyless public feeds (Remotive, Jobicy, Arbeitnow)
-// behind a KV cache so each upstream sees at most one request per query per
-// hour. Descriptions are flattened to plain text so the client can feed them
+// Job search: aggregate the keyless public feeds (Remotive, Jobicy, Arbeitnow,
+// plus The Muse's on-site postings once the user names a place) behind a KV
+// cache so each upstream sees at most one request per query per hour.
+// Descriptions are flattened to plain text so the client can feed them
 // straight into the JD tailoring flow (and the CSP never has to allow
 // third-party origins).
 const JOBS_CACHE_TTL = 60 * 60
 const JOBS_MAX_QUERY = 80
+const JOBS_MAX_LOCATION = 60
 const JOBS_MAX_DESCRIPTION = 8_000
 const JOBS_MAX_RESULTS = 150
 
@@ -708,6 +710,251 @@ async function fetchArbeitnow(): Promise<NormalizedJob[] | null> {
     .filter((j) => !isNonEnglishText(`${j.title} ${j.description}`))
 }
 
+// The Muse (themuse.com/api/public/jobs, keyless, 500 req/h): the only feed
+// here with on-site postings, so it is consulted once the user names a place.
+// Its `location` filter only understands its own exact labels ("New York, NY",
+// "London, United Kingdom") and silently answers anything else with the
+// remote-only set, so typed places are mapped onto verified labels and only
+// postings that carry the label are kept.
+const MUSE_PAGES = 5
+const MUSE_MAX_AGE_DAYS = 120
+// The Muse lists one employer's postings back to back, so a page of results can
+// be a single company; cap each so the location tier stays a mix.
+const MUSE_MAX_PER_COMPANY = 8
+
+const MUSE_US: [string, string][] = [
+  ['new york', 'New York, NY'],
+  ['nyc', 'New York, NY'],
+  ['san francisco', 'San Francisco, CA'],
+  ['los angeles', 'Los Angeles, CA'],
+  ['chicago', 'Chicago, IL'],
+  ['boston', 'Boston, MA'],
+  ['seattle', 'Seattle, WA'],
+  ['austin', 'Austin, TX'],
+  ['denver', 'Denver, CO'],
+  ['atlanta', 'Atlanta, GA'],
+  ['dallas', 'Dallas, TX'],
+  ['houston', 'Houston, TX'],
+  ['miami', 'Miami, FL'],
+  ['washington', 'Washington, DC'],
+  ['washington dc', 'Washington, DC'],
+  ['dc', 'Washington, DC'],
+  ['philadelphia', 'Philadelphia, PA'],
+  ['phoenix', 'Phoenix, AZ'],
+  ['san diego', 'San Diego, CA'],
+  ['minneapolis', 'Minneapolis, MN'],
+  ['portland', 'Portland, OR'],
+  ['charlotte', 'Charlotte, NC'],
+  ['nashville', 'Nashville, TN'],
+  ['detroit', 'Detroit, MI'],
+  ['salt lake city', 'Salt Lake City, UT'],
+  ['pittsburgh', 'Pittsburgh, PA'],
+  ['raleigh', 'Raleigh, NC'],
+  ['san jose', 'San Jose, CA'],
+  ['columbus', 'Columbus, OH'],
+  ['indianapolis', 'Indianapolis, IN'],
+  ['kansas city', 'Kansas City, MO'],
+  ['st. louis', 'St. Louis, MO'],
+  ['st louis', 'St. Louis, MO'],
+  ['tampa', 'Tampa, FL'],
+  ['orlando', 'Orlando, FL'],
+  ['las vegas', 'Las Vegas, NV'],
+  ['baltimore', 'Baltimore, MD'],
+  ['sacramento', 'Sacramento, CA'],
+  ['cincinnati', 'Cincinnati, OH'],
+  ['cleveland', 'Cleveland, OH'],
+  ['milwaukee', 'Milwaukee, WI'],
+  ['san antonio', 'San Antonio, TX'],
+]
+const MUSE_WORLD: [string, string][] = [
+  ['london', 'London, United Kingdom'],
+  ['manchester', 'Manchester, United Kingdom'],
+  ['edinburgh', 'Edinburgh, United Kingdom'],
+  ['birmingham', 'Birmingham, United Kingdom'],
+  ['bristol', 'Bristol, United Kingdom'],
+  ['cambridge', 'Cambridge, United Kingdom'],
+  ['leeds', 'Leeds, United Kingdom'],
+  ['glasgow', 'Glasgow, United Kingdom'],
+  ['paris', 'Paris, France'],
+  ['lyon', 'Lyon, France'],
+  ['berlin', 'Berlin, Germany'],
+  ['munich', 'Munich, Germany'],
+  ['münchen', 'Munich, Germany'],
+  ['hamburg', 'Hamburg, Germany'],
+  ['frankfurt', 'Frankfurt, Germany'],
+  ['madrid', 'Madrid, Spain'],
+  ['barcelona', 'Barcelona, Spain'],
+  ['amsterdam', 'Amsterdam, Netherlands'],
+  ['zurich', 'Zurich, Switzerland'],
+  ['zürich', 'Zurich, Switzerland'],
+  ['geneva', 'Geneva, Switzerland'],
+  ['dublin', 'Dublin, Ireland'],
+  ['milan', 'Milan, Italy'],
+  ['rome', 'Rome, Italy'],
+  ['warsaw', 'Warsaw, Poland'],
+  ['lisbon', 'Lisbon, Portugal'],
+  ['stockholm', 'Stockholm, Sweden'],
+  ['vienna', 'Vienna, Austria'],
+  ['prague', 'Prague, Czech Republic'],
+  ['budapest', 'Budapest, Hungary'],
+  ['tel aviv', 'Tel Aviv, Israel'],
+  ['dubai', 'Dubai, United Arab Emirates'],
+  ['toronto', 'Toronto, Canada'],
+  ['vancouver', 'Vancouver, Canada'],
+  ['montreal', 'Montreal, Canada'],
+  ['mexico city', 'Mexico City, Mexico'],
+  ['são paulo', 'São Paulo, Brazil'],
+  ['sao paulo', 'São Paulo, Brazil'],
+  ['buenos aires', 'Buenos Aires, Argentina'],
+  ['sydney', 'Sydney, Australia'],
+  ['melbourne', 'Melbourne, Australia'],
+  ['tokyo', 'Tokyo, Japan'],
+  ['bangalore', 'Bangalore, India'],
+  ['bengaluru', 'Bangalore, India'],
+  ['mumbai', 'Mumbai, India'],
+  ['singapore', 'Singapore'],
+  ['hong kong', 'Hong Kong'],
+]
+const MUSE_LOCATIONS = new Map<string, string>([...MUSE_US, ...MUSE_WORLD])
+for (const label of [...MUSE_LOCATIONS.values()]) MUSE_LOCATIONS.set(label.toLowerCase(), label)
+
+/** The Muse label for a typed place ("london", "NYC", "Austin, TX"), or null when it has none. */
+function museLocation(raw: string): string | null {
+  const key = raw.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\s*,\s*/g, ', ')
+  return MUSE_LOCATIONS.get(key) ?? null
+}
+
+// The Muse has no free-text search, only its fixed categories; a category
+// filter narrows the sample it hands back so the local token match has
+// something to bite on. Verified category names only (unknown ones return 0).
+const MUSE_CATEGORIES: Record<string, string[]> = {
+  'software-dev': ['Software Engineering', 'Computer and IT'],
+  'customer-support': ['Customer Service', 'Account Management'],
+  design: ['Design and UX'],
+  marketing: ['Advertising and Marketing'],
+  'sales-business': ['Sales', 'Business Operations'],
+  product: ['Product Management'],
+  'project-management': ['Project Management'],
+  data: ['Data and Analytics'],
+  devops: ['Computer and IT', 'Software Engineering'],
+  'finance-legal': ['Accounting and Finance', 'Legal Services'],
+  hr: ['Human Resources and Recruitment'],
+  qa: ['Software Engineering'],
+  writing: ['Writing and Editing', 'Media, PR, and Communications'],
+  'all-others': [
+    'Healthcare',
+    'Retail',
+    'Education',
+    'Food and Hospitality Services',
+    'Administration and Office',
+    'Science and Engineering',
+    'Transportation and Logistics',
+    'Manufacturing and Warehouse',
+  ],
+}
+// Without a category filter, the query itself picks the Muse categories to
+// sample ("registered nurse" → Healthcare). Order matters: first hit wins.
+const MUSE_QUERY_HINTS: [RegExp, string[]][] = [
+  [/nurs|\brn\b|health|medic|clinic|pharma|physician|therap|dental|caregiver|hospital/, ['Healthcare']],
+  [/retail|store|cashier|merchandis|barista|shop/, ['Retail', 'Food and Hospitality Services']],
+  [/teach|tutor|school|educat|instructor|professor/, ['Education']],
+  [/chef|cook|hotel|hospitality|restaurant|server|kitchen/, ['Food and Hospitality Services']],
+  [/warehouse|driver|logistic|forklift|delivery|supply chain/, ['Transportation and Logistics', 'Manufacturing and Warehouse']],
+  [/receptionist|office manager|administrative|clerk/, ['Administration and Office']],
+  [/data|analy/, ['Data and Analytics']],
+  [/scien|research|laborator|chemist|biolog|mechanical|electrical|civil/, ['Science and Engineering']],
+  [/engineer|developer|software|programm|frontend|backend|devops|\bsre\b|cloud|\bit\b/, ['Software Engineering', 'Computer and IT']],
+  [/design|\bux\b|\bui\b/, ['Design and UX']],
+  [/market|\bseo\b|growth|brand/, ['Advertising and Marketing']],
+  [/sales|account exec|business develop/, ['Sales']],
+  [/product/, ['Product Management']],
+  [/project|program manag|scrum/, ['Project Management']],
+  [/financ|account|legal|lawyer|paralegal|compliance/, ['Accounting and Finance', 'Legal Services']],
+  [/\bhr\b|recruit|talent|people/, ['Human Resources and Recruitment']],
+  [/writ|content|editor|journal|communications|\bpr\b/, ['Writing and Editing', 'Media, PR, and Communications']],
+  [/customer|support/, ['Customer Service']],
+]
+function museCategories(slug: string, q: string): string[] {
+  if (slug) return MUSE_CATEGORIES[slug] ?? []
+  const lower = q.toLowerCase()
+  for (const [re, cats] of MUSE_QUERY_HINTS) if (re.test(lower)) return cats
+  return []
+}
+
+interface MuseJob {
+  id?: number | string
+  name?: string
+  contents?: string
+  publication_date?: string
+  locations?: { name?: string }[]
+  categories?: { name?: string }[]
+  levels?: { name?: string }[]
+  refs?: { landing_page?: string }
+  company?: { name?: string }
+}
+interface MusePage {
+  page_count?: number
+  results?: MuseJob[]
+}
+
+async function fetchMuse(label: string, categories: string[]): Promise<NormalizedJob[] | null> {
+  const pageUrl = (p: number) => {
+    const url = new URL('https://www.themuse.com/api/public/jobs')
+    url.searchParams.set('page', String(p))
+    url.searchParams.set('location', label)
+    for (const cat of categories) url.searchParams.append('category', cat)
+    return url
+  }
+  const first = await fetchJson<MusePage>(pageUrl(1))
+  if (!first) return null
+  const lastPage = Math.min(first.page_count ?? 1, MUSE_PAGES)
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(lastPage - 1, 0) }, (_, i) => fetchJson<MusePage>(pageUrl(i + 2)))
+  )
+  const cutoff = Date.now() - MUSE_MAX_AGE_DAYS * 86_400_000
+  const perCompany = new Map<string, number>()
+  return [first, ...rest]
+    .flatMap((p) => p?.results ?? [])
+    .filter(
+      (j) =>
+        j.id &&
+        j.name &&
+        j.refs?.landing_page &&
+        (j.locations ?? []).some((l) => l.name === label) &&
+        Date.parse(j.publication_date ?? '') >= cutoff
+    )
+    .filter((j) => {
+      const key = (j.company?.name ?? '').trim().toLowerCase()
+      const n = (perCompany.get(key) ?? 0) + 1
+      perCompany.set(key, n)
+      return n <= MUSE_MAX_PER_COMPANY
+    })
+    .map((j) => {
+      const cats = (j.categories ?? []).map((c) => c.name ?? '').filter(Boolean)
+      // canonicalCategory falls back to its first label, which here would be the title
+      const category = canonicalCategory(...cats, j.name ?? '')
+      const title = (j.name ?? '').trim()
+      const levels = (j.levels ?? []).map((l) => l.name ?? '').filter(Boolean)
+      const locations = (j.locations ?? [])
+        .map((l) => (l.name === 'Flexible / Remote' ? 'Remote' : (l.name ?? '')))
+        .filter(Boolean)
+      return {
+        id: `muse-${j.id}`,
+        title,
+        company: (j.company?.name ?? '').trim(),
+        logo: '',
+        category: category === title ? (cats[0] ?? '') : category,
+        type: '',
+        location: locations.join(', '),
+        postedAt: toIso(j.publication_date),
+        salary: '',
+        url: j.refs?.landing_page ?? '',
+        tags: normalizeTags([...cats, ...levels]),
+        ...truncateDescription(htmlToText(j.contents ?? '')),
+      }
+    })
+}
+
 // Relevance tiers for a query: every token in the title beats some tokens in
 // the title, which beats a match found only in the body text.
 function queryRank(tokens: string[], job: NormalizedJob): number {
@@ -721,18 +968,21 @@ app.get('/api/jobs/search', async (c) => {
   const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
   const rawCategory = (c.req.query('category') ?? '').trim()
   const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
-  const cacheKey = `jobs:v9:${q.toLowerCase()}|${category}`
+  const museLabel = museLocation((c.req.query('location') ?? '').slice(0, JOBS_MAX_LOCATION))
+  const cacheKey = `jobs:v11:${q.toLowerCase()}|${category}|${museLabel ?? ''}`
   const cached = await c.env.KV.get(cacheKey)
   if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
-  const [remotive, jobicy, arbeitnow] = await Promise.all([
+  const [remotive, jobicy, arbeitnow, muse] = await Promise.all([
     fetchRemotive(q, category),
     fetchJobicy(q),
     fetchArbeitnow(),
+    museLabel ? fetchMuse(museLabel, museCategories(category, q)) : Promise.resolve(null),
   ])
   const feeds: [string, NormalizedJob[] | null][] = [
     ['remotive', remotive],
     ['jobicy', jobicy],
     ['arbeitnow', arbeitnow],
+    ...(museLabel ? ([['themuse', muse]] as [string, NormalizedJob[] | null][]) : []),
   ]
   const sources = feeds.filter(([, jobs]) => jobs).map(([name]) => name)
   if (sources.length === 0) {
