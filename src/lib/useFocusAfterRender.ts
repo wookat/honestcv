@@ -5,13 +5,18 @@ import { useEffect, useRef } from 'react'
  * (e.g. swapping which copy a job links to re-renders the rows). Call the
  * returned function with the ids of the elements that should hold focus once
  * the next render has committed; the first one present and focusable wins.
+ *
+ * `onlyIfLost`: skip when something else already took focus by then (e.g. a
+ * dialog the action opened), and only rescue focus that fell to `<body>`.
  */
-export function useFocusAfterRender(): (...ids: string[]) => void {
+export function useFocusAfterRender(opts?: { onlyIfLost?: boolean }): (...ids: string[]) => void {
   const pending = useRef<readonly string[]>([])
+  const onlyIfLost = opts?.onlyIfLost ?? false
   useEffect(() => {
     if (pending.current.length === 0) return
     const ids = pending.current
     pending.current = []
+    if (onlyIfLost && document.activeElement && document.activeElement !== document.body) return
     for (const id of ids) {
       const el = document.getElementById(id)
       if (!(el instanceof HTMLElement)) continue

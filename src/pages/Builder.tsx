@@ -1265,6 +1265,16 @@ export default function Builder() {
   )
   const targetedTrackedJob = targetedTrackedEntry?.job ?? null
   const focusAfterRender = useFocusAfterRender()
+  const focusAfterDownload = useFocusAfterRender({ onlyIfLost: true })
+  const focusExportControl = (fmt: string) => {
+    for (const id of ['dl-menu', `dl-${fmt}`]) {
+      const el = document.getElementById(id)
+      if (!(el instanceof HTMLElement)) continue
+      el.focus()
+      if (document.activeElement === el) return true
+    }
+    return false
+  }
   /** Make a saved copy the tracked job's linked one (the job's current copy stays saved). */
   const linkCopyToJob = (versionId: string, jobId: string) => {
     if (setPipelineVersion(jobId, versionId) === null) {
@@ -1416,6 +1426,13 @@ export default function Builder() {
   }
   const [finalCheckOpen, setFinalCheckOpen] = useState(false)
   const finalCheckFmt = useRef<'pdf' | 'docx' | 'txt' | 'md' | null>(null)
+  const refocusExportWhenIdle = useRef(false)
+  useEffect(() => {
+    if (downloading || !refocusExportWhenIdle.current) return
+    refocusExportWhenIdle.current = false
+    if (document.activeElement && document.activeElement !== document.body) return
+    focusExportControl(finalCheckFmt.current ?? 'pdf')
+  }, [downloading])
   const finalCheckAcked = useRef<string | null>(null)
   const freeMode = useFreeMode()
   const { license, refresh } = useLicense()
@@ -2266,6 +2283,7 @@ export default function Builder() {
   }, [ats, shown])
 
   const download = async (fmt: 'pdf' | 'docx' | 'txt' | 'md', skipFinalCheck = false) => {
+    if (downloading) return
     if (!unlocked) {
       if (!freeMode) {
         requireUnlock(
@@ -2290,6 +2308,7 @@ export default function Builder() {
       setFinalCheckOpen(true)
       return
     }
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement.id : ''
     setDownloading(fmt)
     setDlError(null)
     try {
@@ -2318,6 +2337,7 @@ export default function Builder() {
       )
     } finally {
       setDownloading(null)
+      focusAfterDownload(opener, 'dl-menu', `dl-${fmt}`)
     }
   }
 
@@ -2457,7 +2477,15 @@ export default function Builder() {
             >
               <MessagesSquare className="size-3.5" />
             </Button>
+            <p role="status" className="sr-only">
+              {downloading
+                ? `Preparing your ${downloading.toUpperCase()}…`
+                : downloaded
+                  ? `${downloaded.toUpperCase()} downloaded.`
+                  : ''}
+            </p>
             <Button
+              id="dl-pdf"
               size="sm"
               onClick={() => void download('pdf')}
               disabled={Boolean(downloading)}
@@ -2475,6 +2503,7 @@ export default function Builder() {
             <div ref={downloadMenuRef} className="relative 2xl:hidden">
               <Button
                 ref={downloadMenuButtonRef}
+                id="dl-menu"
                 size="sm"
                 variant="outline"
                 aria-haspopup="menu"
@@ -2519,6 +2548,7 @@ export default function Builder() {
               )}
             </div>
             <Button
+              id="dl-docx"
               size="sm"
               variant="outline"
               onClick={() => void download('docx')}
@@ -2535,6 +2565,7 @@ export default function Builder() {
               DOCX
             </Button>
             <Button
+              id="dl-txt"
               size="sm"
               variant="ghost"
               onClick={() => void download('txt')}
@@ -2545,6 +2576,7 @@ export default function Builder() {
               {downloaded === 'txt' ? <Check className="animate-pop text-emerald-600" /> : <Download />} TXT
             </Button>
             <Button
+              id="dl-md"
               size="sm"
               variant="ghost"
               onClick={() => void download('md')}
@@ -10199,7 +10231,14 @@ export default function Builder() {
         </DialogContent>
       </Dialog>
       <Dialog open={finalCheckOpen} onOpenChange={setFinalCheckOpen}>
-        <DialogContent>
+        <DialogContent
+          onCloseAutoFocus={(e) => {
+            // Opened from a Download menu item that is gone by now: land on the export control instead of
+            // <body>. While "Download anyway" is still exporting the controls are disabled, so wait for it.
+            if (focusExportControl(finalCheckFmt.current ?? 'pdf')) e.preventDefault()
+            else refocusExportWhenIdle.current = true
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Final check before download</DialogTitle>
             <DialogDescription>
@@ -10221,7 +10260,6 @@ export default function Builder() {
             <Button
               onClick={() => {
                 const fmt = finalCheckFmt.current
-                finalCheckFmt.current = null
                 finalCheckAcked.current = finalCheckIssues.join('\n')
                 setFinalCheckOpen(false)
                 if (fmt) void download(fmt, true)
