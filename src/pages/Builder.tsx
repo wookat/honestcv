@@ -8189,7 +8189,7 @@ export default function Builder() {
                 <div className="text-muted-foreground mt-1.5 space-y-1.5 rounded-md border p-2.5">
                   <p>
                     {ats.keywordScore !== null
-                      ? `Score = keyword coverage ×70% + structure checks ×30%. Keyword coverage is the share of the job posting\u2019s top keywords (extracted by frequency, stop-words removed) that appear in your resume${ats.ignored.length > 0 ? ` — ${ats.ignored.length} keyword${ats.ignored.length === 1 ? '' : 's'} you marked not relevant ${ats.ignored.length === 1 ? 'is' : 'are'} excluded` : ''}. Structure is the ${ats.checks.length}-point checklist below — each check has equal weight.`
+                      ? `Score = keyword coverage ×70% + structure checks ×30%. Keyword coverage is the share of the job posting\u2019s top keywords (named skills and tools plus the most frequent terms, stop-words removed) that appear in your resume${ats.ignored.length > 0 ? ` — ${ats.ignored.length} keyword${ats.ignored.length === 1 ? '' : 's'} you marked not relevant ${ats.ignored.length === 1 ? 'is' : 'are'} excluded` : ''}. Structure is the ${ats.checks.length}-point checklist below — each check has equal weight.`
                       : `Without a job description the score is the ${ats.checks.length}-point structure checklist below — each check has equal weight (${ats.checks.filter((c) => c.pass).length} of ${ats.checks.length} passing). Paste a job description above to add the stricter keyword-coverage half.`}
                   </p>
                   <p>

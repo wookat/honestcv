@@ -53,6 +53,47 @@ const KNOWN_PHRASES = [
   'risk management', 'change management', 'human resources', 'product sense',
 ]
 
+/**
+ * Hard skills, tools and methods that matter even when a job ad names them
+ * only once ("GraphQL and Next.js experience is a plus"). Lower-case tokens
+ * as produced by `tokenize`.
+ */
+const KNOWN_SKILLS = new Set(
+  `javascript typescript python java kotlin objective-c golang rust ruby php c++
+c# scala elixir erlang haskell clojure dart lua perl matlab sql nosql plsql
+t-sql graphql html html5 css css3 sass scss tailwind react react.js reactjs
+next.js nextjs vue vue.js nuxt angular svelte sveltekit gatsby astro backbone
+jquery redux mobx zustand rxjs node node.js nodejs deno nestjs fastify koa
+django flask fastapi rails laravel symfony hibernate .net asp.net dotnet
+blazor android ios flutter react-native xamarin ionic electron webpack vite
+rollup esbuild babel eslint prettier storybook jest vitest mocha cypress
+playwright selenium puppeteer testing-library junit pytest rspec xunit nunit
+postman aws azure gcp ec2 s3 rds dynamodb cloudfront route53 iam eks ecs
+kubernetes k8s docker helm terraform pulumi ansible vagrant linux unix bash
+powershell nginx apache jenkins circleci gitlab github bitbucket git svn ci/cd
+devops sre observability prometheus grafana datadog splunk sentry newrelic elk
+kibana logstash opentelemetry kafka rabbitmq sqs redis memcached elasticsearch
+solr postgresql postgres mysql mariadb sqlite mongodb cassandra couchdb neo4j
+oracle mssql snowflake bigquery redshift databricks spark hadoop airflow dbt
+pandas numpy scipy scikit-learn sklearn tensorflow pytorch keras mlops llm
+llms openai langchain huggingface nlp opencv tableau powerbi looker vba sas
+spss stata restful soap grpc websockets oauth oauth2 jwt saml sso openid
+microservices serverless monorepo agile scrum kanban jira confluence trello
+asana figma adobe photoshop illustrator indesign xd invision zeplin wcag
+accessibility a11y i18n l10n localization seo salesforce hubspot marketo
+zendesk servicenow sap netsuite workday analytics ga4 mixpanel optimizely
+shopify magento woocommerce stripe paypal autocad solidworks revit sketchup
+labview cpa cfa pmp csm cissp ccna aws-certified hipaa gdpr soc2 pci iso27001
+profiling caching cdn graphql-federation lightroom after-effects blender`.split(/\s+/)
+)
+
+/** Tokens shaped like a technology name: "next.js", "c++", "c#", "html5", "asp.net". */
+const TECH_SHAPE_RE = /\.(js|ts|net|py|rb)$|^[a-z]+[+#]+$|^[a-z]{2,}\d{1,2}$/
+
+function looksLikeSkill(tok: string): boolean {
+  return KNOWN_SKILLS.has(tok) || TECH_SHAPE_RE.test(tok)
+}
+
 /** Builder editor section that fixes a failing structural check */
 export type SectionAnchor =
   | 'contact'
@@ -761,7 +802,8 @@ export function extractKeywords(jd: string, limit = 30): string[] {
     counts.set(tok, (counts.get(tok) ?? 0) + 1)
   }
   const ranked = [...counts.entries()]
-    .filter(([, n]) => n >= 2 || counts.size < 40)
+    .filter(([tok, n]) => n >= 2 || counts.size < 40 || looksLikeSkill(tok))
+    .map(([tok, n]) => [tok, looksLikeSkill(tok) ? n + 2 : n] as const)
     .sort((a, b) => b[1] - a[1])
   for (const [word, n] of ranked) {
     if ([...found.keys()].some((p) => p.includes(word))) continue
