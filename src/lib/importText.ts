@@ -69,6 +69,44 @@ const continuesPrevious = (prev: string | undefined, line: string) =>
 
 const GITHUB_RE = /(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s|,;)]+/i
 
+// "Languages: TypeScript, Go" — a category label (no comma, no URL scheme) before its items.
+const SKILL_LABEL_RE = /^([A-Za-z][^:,]{0,39}):\s+(.+)$/
+const tidySkillItems = (items: string) =>
+  items.split(',').map((s) => s.trim()).filter(Boolean).join(', ')
+
+// A skills block written as one "Category: a, b" line per category keeps one
+// line per category (the format skillLines() renders with bold labels). A
+// marker-less line under a labelled line is that line's PDF wrap when it starts
+// in lowercase or the label line ends in a comma or is long enough to have
+// wrapped; a short labelled line followed by a plain one is a mixed block and
+// the plain line stays its own row. Blocks without labels stay a flat list.
+function joinSkillLines(lines: string[]): string {
+  const cleaned = lines
+    .map((l) => stripBullet(l).replace(/[•·▪◦|]/g, ',').trim())
+    .filter(Boolean)
+  if (!cleaned.some((l) => SKILL_LABEL_RE.test(l))) return tidySkillItems(cleaned.join(','))
+  const out: string[] = []
+  let prevRaw = ''
+  for (const line of cleaned) {
+    const m = SKILL_LABEL_RE.exec(line)
+    const wraps =
+      !m &&
+      SKILL_LABEL_RE.test(prevRaw) &&
+      (/^[a-zà-ÿ]/.test(line) || /,$/.test(prevRaw) || prevRaw.length >= 45)
+    if (wraps) {
+      prevRaw = `${prevRaw} ${line}`
+    } else {
+      out.push('')
+      prevRaw = line
+    }
+    const lm = SKILL_LABEL_RE.exec(prevRaw)
+    out[out.length - 1] = lm
+      ? `${lm[1].trim()}: ${tidySkillItems(lm[2])}`
+      : tidySkillItems(prevRaw)
+  }
+  return out.join('\n')
+}
+
 // LinkedIn "Profile → More → Save to PDF" export markers: a `handle (LinkedIn)`
 // contact line, the sidebar's "Top Skills" heading, or page footers.
 const LI_PAGE_RE = /^page \d+ of \d+$/i
@@ -386,13 +424,7 @@ export function parseResumeText(raw: string): Resume {
   }
 
   resume.summary = summaryLines.join(' ')
-  resume.skills = skillLines
-    .join(', ')
-    .replace(/[•·▪◦|]/g, ',')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .join(', ')
+  resume.skills = joinSkillLines(skillLines)
   resume.certifications = certLines.join('; ')
 
   if (resume.experience.length === 0) resume.experience = [emptyExperience()]
