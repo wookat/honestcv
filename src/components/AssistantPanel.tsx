@@ -1,11 +1,13 @@
 /**
  * Resume assistant — a chat side panel inside the builder, grounded in the
  * current draft. Advises and points at in-editor tools; it can propose a
- * summary or skills edit, which is only written after the user clicks Apply.
- * History is kept locally per browser.
+ * summary, bullet or skills edit, which is only written after the user clicks
+ * Apply. Summary / bullet proposals are checked word by word against the
+ * resume first and their notes shown on the card. History is kept locally per
+ * browser.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BriefcaseBusiness, Check, Loader2, MapPin, Send, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -19,6 +21,8 @@ import {
 } from '@/lib/api'
 import { aiTargetRole, resumeToPlainText, type Resume } from '@/lib/resume'
 import { matchReport, type AtsResult } from '@/lib/ats'
+import { draftClaims } from '@/lib/grounding'
+import { DraftFlagList, draftFlagGroups, type DraftFlagGroup } from '@/components/DraftFlagList'
 import { improveScoreReply, targetJobReply, type PriorityFix } from '@/lib/guidance'
 
 const CHAT_KEY = 'honestcv.assistantChat'
@@ -168,10 +172,22 @@ export function AssistantPanel({
   onApply: (action: AssistantAction) => void
   onLocate?: (action: AssistantAction) => void
 }) {
+  const resumeText = useMemo(() => resumeToPlainText(resume), [resume])
   // Live tailoring status — same helper as the Target job panel and /jobs report
-  const report = matchReport(resumeToPlainText(resume), jobDescription, resume.targetRole, resume.targetCompany)
+  const report = matchReport(resumeText, jobDescription, resume.targetRole, resume.targetCompany)
 
   const [turns, setTurns] = useState<ChatMsg[]>(loadChat)
+  /** What each unapplied summary / bullet proposal says that the resume does not — by turn index */
+  const proposalFlags = useMemo(() => {
+    const out = new Map<number, DraftFlagGroup[]>()
+    turns.forEach((t, i) => {
+      if (!t.action || t.applied || t.action.type === 'skills') return
+      const own = t.action.type === 'summary' ? [resume.summary] : t.action.replace ? [t.action.replace] : []
+      const groups = draftFlagGroups(draftClaims(t.action.value, resumeText, jobDescription, own))
+      if (groups.length > 0) out.set(i, groups)
+    })
+    return out
+  }, [turns, resumeText, jobDescription, resume.summary])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -447,19 +463,35 @@ export function AssistantPanel({
                 <p className="mt-1 text-sm whitespace-pre-wrap">
                   {t.action.type === 'skills' ? t.action.value.join(', ') : t.action.value}
                 </p>
+                {proposalFlags.has(i) && (
+                  <div className="mt-2">
+                    <DraftFlagList id={`assistant-flags-${i}`} groups={proposalFlags.get(i) ?? []} />
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {t.applied ? (
                     <p className="text-muted-foreground flex items-center gap-1 text-xs">
                       <Check className="size-3.5" /> Applied to your resume
                     </p>
                   ) : (
-                    <Button size="sm" className="min-h-10 sm:min-h-8" onClick={() => apply(i)}>
+                    <Button
+                      size="sm"
+                      className="min-h-10 sm:min-h-8"
+                      aria-describedby={proposalFlags.has(i) ? `assistant-flags-${i}` : undefined}
+                      onClick={() => apply(i)}
+                    >
                       {t.action.type === 'summary'
-                        ? 'Apply to summary'
+                        ? proposalFlags.has(i)
+                          ? 'Apply anyway'
+                          : 'Apply to summary'
                         : t.action.type === 'bullet'
                           ? t.action.replace
-                            ? 'Replace bullet'
-                            : 'Add bullet'
+                            ? proposalFlags.has(i)
+                              ? 'Replace anyway'
+                              : 'Replace bullet'
+                            : proposalFlags.has(i)
+                              ? 'Add anyway'
+                              : 'Add bullet'
                           : 'Add to skills'}
                     </Button>
                   )}

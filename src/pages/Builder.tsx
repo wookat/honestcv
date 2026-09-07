@@ -82,8 +82,8 @@ import {
   preferenceClaims,
   tailorClaims,
   unsupportedClaims,
-  type DraftClaims,
 } from '@/lib/grounding'
+import { DraftFlagList, draftFlagGroups, type DraftFlagGroup } from '@/components/DraftFlagList'
 import { prefersReducedMotion } from '@/lib/motion'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
@@ -684,43 +684,6 @@ function applyAutoSort(r: Resume, isHeld?: (key: AutoSortSection) => boolean): R
     if (sorted.some((it, i) => it !== r.education[i])) next = { ...next, education: sorted }
   }
   return next
-}
-
-interface DraftFlagGroup {
-  label: string
-  items: string[]
-}
-
-/** Word-level checks an AI draft failed against the resume — advisory, never proof */
-function draftFlagGroups(c: DraftClaims): DraftFlagGroup[] {
-  return [
-    { label: 'Figures your resume never states', items: c.figures },
-    { label: 'Names / tools your resume never mentions', items: c.terms },
-    { label: 'Wording from the job ad that your resume never uses', items: c.mirrored },
-    { label: 'Claims a remit your resume never states', items: c.scope },
-  ].filter((g) => g.items.length > 0)
-}
-
-function DraftFlagList({ id, groups }: { id?: string; groups: DraftFlagGroup[] }) {
-  return (
-    <ul
-      id={id}
-      className="space-y-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900"
-      aria-label="Check before accepting"
-    >
-      {groups.map((g) => (
-        <li key={g.label}>
-          <span className="font-medium">{g.label}:</span>{' '}
-          {g.items.map((it, i) => (
-            <span key={it}>
-              {i > 0 && ', '}
-              <mark className="rounded bg-amber-200/70 px-0.5 text-inherit">{it}</mark>
-            </span>
-          ))}
-        </li>
-      ))}
-    </ul>
-  )
 }
 
 function Section({
