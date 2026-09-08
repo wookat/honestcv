@@ -272,6 +272,29 @@ function matchInlineHeading(line: string): { heading: SectionName; rest: string 
   return null
 }
 
+// Gutter layouts print the section label beside the section's first line, and
+// layout-preserving extraction (Chrome's PDF copy, pdftotext -layout) keeps them
+// on one line: "EXPERIENCE Senior Software Engineer · Northstar Digital, London".
+// The leading ALL-CAPS run (longest first) must be a known section name and
+// the remainder must be content: not a template aside "(for early-career …)"
+// and not another heading "OBJECTIVE or PROFESSIONAL SUMMARY".
+const CAPS_TOKEN_RE = /^(?:[A-Z][A-Z&/]*|&)$/
+type GutterLabel = { heading: SectionName; rest: string } | { custom: string; rest: string }
+function matchGutterLabel(line: string): GutterLabel | null {
+  const words = line.trim().split(/\s+/)
+  let caps = 0
+  while (caps < words.length - 1 && CAPS_TOKEN_RE.test(words[caps])) caps++
+  for (let k = caps; k >= 1; k--) {
+    const label = words.slice(0, k).join(' ')
+    const rest = words.slice(k).join(' ')
+    if (!/^[A-Za-z0-9•·\-–]/.test(rest) || !/[a-z]/.test(rest.replace(/^(?:or|and)\s+/i, ''))) return null
+    if (JOB_TITLE_NOUN_RE.test(label) || CREDENTIAL_TITLE_RE.test(label)) return null
+    for (const [re, name] of SECTION_HEADINGS) if (label.replace(re, '') === '') return { heading: name, rest }
+    if (label.replace(CUSTOM_HEADING_RE, '') === '') return { custom: label, rest }
+  }
+  return null
+}
+
 // "Languages: English, German" / "Leadership, Negotiation" — a custom section
 // word that carries its own list is a labelled line, not a heading.
 const CUSTOM_LIST_RE = /^([A-Za-z][A-Za-z &/'’-]{0,30}?)\s*[:：]\s+(\S.*)$/
@@ -507,7 +530,7 @@ export function parseResumeText(raw: string): Resume {
   // Header URL that is not LinkedIn (GitHub / portfolio) → website. The
   // header runs to the first section heading (an unheaded summary can push
   // the contact block down), capped at 20 lines.
-  const firstHeading = nonEmpty.findIndex((l, i) => i > 0 && !!matchHeading(l))
+  const firstHeading = nonEmpty.findIndex((l, i) => i > 0 && (!!matchHeading(l) || !!matchGutterLabel(l)))
   const headerLines = Math.max(6, Math.min(20, firstHeading < 0 ? 6 : firstHeading))
   const headerText = nonEmpty
     .slice(0, headerLines)
@@ -573,7 +596,16 @@ export function parseResumeText(raw: string): Resume {
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i]
     if (!line) continue
-    const inline = matchInlineHeading(line)
+    const gutter = matchGutterLabel(line)
+    if (gutter && 'custom' in gutter) {
+      section = 'custom'
+      currentExp = null
+      currentEdu = null
+      currentCustom = { id: newId(), title: gutter.custom, bullets: [stripBullet(gutter.rest)] }
+      resume.customSections.push(currentCustom)
+      continue
+    }
+    const inline = gutter ?? matchInlineHeading(line)
     const heading = inline?.heading ?? matchHeading(line)
     if (heading) {
       section = heading

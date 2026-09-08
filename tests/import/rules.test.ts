@@ -160,6 +160,61 @@ Google UX Design Certificate
     ])
   })
 
+  it('R781: a gutter label at the start of a line opens the section and keeps the line', () => {
+    // Chrome's PDF copy of the Sidebar template: label + one space + content
+    const r = cv(`SUMMARY Software engineer with six years of experience building web applications.
+Focused on React and TypeScript.
+EXPERIENCE Senior Software Engineer · Northstar Digital, London, UK Jan 2022 – Present
+• Led a checkout redesign
+Software Engineer · Harbor Analytics, London, UK Jul 2020 – Dec 2021
+• Built dashboards
+EDUCATION BSc Computer Science · University of Bristol, Bristol, UK Sep 2017 – Jun 2020
+SKILLS Languages: TypeScript, JavaScript
+Frontend: React, Redux
+LANGUAGES English (native), Spanish (B2)
+`)
+    expect(r.summary).toBe(
+      'Software engineer with six years of experience building web applications. Focused on React and TypeScript.'
+    )
+    expect(r.experience).toMatchObject([
+      { role: 'Senior Software Engineer', company: 'Northstar Digital', location: 'London, UK', startDate: 'Jan 2022', endDate: 'Present', bullets: ['Led a checkout redesign'] },
+      { role: 'Software Engineer', company: 'Harbor Analytics', startDate: 'Jul 2020', endDate: 'Dec 2021', bullets: ['Built dashboards'] },
+    ])
+    expect(r.education).toMatchObject([
+      { degree: 'BSc Computer Science', school: 'University of Bristol', location: 'Bristol, UK', startDate: 'Sep 2017', endDate: 'Jun 2020' },
+    ])
+    expect(r.skills).toBe('Languages: TypeScript, JavaScript\nFrontend: React, Redux')
+    expect(r.customSections).toMatchObject([{ title: 'LANGUAGES', bullets: ['English (native), Spanish (B2)'] }])
+    // pdftotext -layout: wide gaps instead of one space
+    const layout = cv(`SUMMARY        Software engineer with six years of experience.
+EXPERIENCE     Senior Software Engineer · Northstar Digital, London, UK        Jan 2022 – Present
+               • Led a checkout redesign
+`)
+    expect(layout.summary).toBe('Software engineer with six years of experience.')
+    expect(layout.experience).toMatchObject([
+      { role: 'Senior Software Engineer', company: 'Northstar Digital', startDate: 'Jan 2022', endDate: 'Present', bullets: ['Led a checkout redesign'] },
+    ])
+  })
+
+  it('R781: a caps heading with an aside, an alternative or a role after it is not a gutter label', () => {
+    const r = cv(`WORK EXPERIENCE (Your most impressive items – school and work – need to be first.)
+Co-Founder · SheetsResume.com
+Aug 2023 – Present
+OBJECTIVE or PROFESSIONAL SUMMARY
+Write two lines here.
+`)
+    expect(r.experience).toMatchObject([{ role: 'Co-Founder', company: 'SheetsResume.com', startDate: 'Aug 2023' }])
+    expect(r.summary).toBe('Write two lines here.')
+    const exp = cv(`EXPERIENCE
+PROJECT MANAGER Acme Corp
+Jan 2020 – Present
+• CISSP certified since 2019
+`)
+    expect(exp.projects).toEqual([])
+    expect(exp.experience).toHaveLength(1)
+    expect(exp.experience[0].bullets).toEqual(['CISSP certified since 2019'])
+  })
+
   it('keeps compound headings that name one section', () => {
     const r = cv(`RESEARCH EXPERIENCE
 Research Assistant · Leeds Lab
