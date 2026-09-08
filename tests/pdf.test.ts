@@ -5,7 +5,7 @@ import { buildResumePdf } from '../src/lib/pdf'
 import { sampleResume, type Resume } from '../src/lib/resume'
 import { TEMPLATES } from '../src/lib/templates'
 import { pdfTextOf } from './import/helpers'
-import { ownSections, withOwnSections } from './import/ownSections'
+import { PRINTED_ORDER, ownSections, printedOrder, reorderedOwnSections, withOwnSections } from './import/ownSections'
 
 const contactRow = (text: string, c: Resume['contact']) =>
   text.split('\n').find((l) => l.includes(c.email) && l.includes(c.location)) ?? ''
@@ -178,6 +178,14 @@ describe('our own structured sections re-import from every template (R797)', () 
       const back = parseResumeText((await pdfTextOf(await buildResumePdf({ ...src, templateId: t.id }))).text)
       expect(ownSections(back), t.id).toEqual(ownSections(src))
       expect(back.customSections, t.id).toEqual([])
+    }
+  })
+
+  it('R799: the section order the template prints comes back from every template', async () => {
+    const ordered = reorderedOwnSections(sampleResume())
+    for (const t of FULL_WIDTH) {
+      const back = parseResumeText((await pdfTextOf(await buildResumePdf({ ...ordered, templateId: t.id }))).text)
+      expect(printedOrder(back), t.id).toEqual(PRINTED_ORDER)
     }
   })
 })

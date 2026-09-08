@@ -6,8 +6,16 @@ import {
   looksLikeLinkedInExport,
   parseResumeText,
 } from '../../src/lib/importText'
-import { emptyEducation, resumeToMarkdown, resumeToPlainText, sampleResume, type Resume } from '../../src/lib/resume'
-import { ownSections, withOwnSections } from './ownSections'
+import {
+  emptyEducation,
+  emptyResume,
+  orderedSectionKeys,
+  resumeToMarkdown,
+  resumeToPlainText,
+  sampleResume,
+  type Resume,
+} from '../../src/lib/resume'
+import { PRINTED_ORDER, ownSections, printedOrder, reorderedOwnSections, withOwnSections } from './ownSections'
 
 /**
  * One case per import behaviour fixed since R763, each traced to the real
@@ -1104,5 +1112,68 @@ Sergeant · US Army, Fort Hood, TX
     const got = ownSections(r) as Record<string, unknown>
     for (const k of ['certItems', 'references', 'military']) expect(got[k], k).toEqual(want[k])
     expect(r.customSections).toEqual([])
+  })
+})
+
+describe('the section order an export prints survives re-import (R799)', () => {
+  const byTitle = (r: Resume) =>
+    orderedSectionKeys(r).map((k) =>
+      k.startsWith('custom:') ? `custom:${(r.customSections.find((s) => `custom:${s.id}` === k)?.title ?? '?').toLowerCase()}` : k
+    )
+  const src = reorderedOwnSections(sampleResume())
+
+  it.each([
+    ['TXT', resumeToPlainText(src, { keepLinkUrls: true })],
+    ['MD', resumeToMarkdown(src)],
+  ])('%s: a skills-first export with a custom section before Involvement and a late Summary reads back in print order, lifted sections included', (_fmt, text) => {
+    const back = parseResumeText(text)
+    expect(printedOrder(back)).toEqual(PRINTED_ORDER)
+    expect(ownSections(back)).toEqual(ownSections(src))
+    expect(back.customSections.map((s) => s.title.toLowerCase())).toEqual(['volunteering'])
+  })
+
+  it('renamed headings (R796 hint) keep their document position too', () => {
+    const renamed = { ...src, sectionHeadings: { ...src.sectionHeadings, skills: 'Tools & Technologies', experience: 'Where I have worked' } }
+    const back = parseResumeText(resumeToPlainText(renamed, { keepLinkUrls: true }), { sectionHeadings: renamed.sectionHeadings })
+    expect(printedOrder(back)).toEqual(PRINTED_ORDER)
+  })
+
+  it('an education-first resume with an inline skills label and a custom section keeps that order; absent sections follow their canonical neighbour', () => {
+    const r = cv(`EDUCATION
+BSc Computer Science · State University
+2013 – 2017
+Technical Skills: Java, SQL, Python
+VOLUNTEER EXPERIENCE
+- Coached a youth robotics team.
+EXPERIENCE
+Engineer · Acme Corp
+Jan 2020 – Present
+- Shipped things.
+`)
+    expect(byTitle(r)).toEqual([
+      'summary',
+      'education',
+      'coursework',
+      'skills',
+      'certifications',
+      'awards',
+      'publications',
+      'references',
+      'military',
+      'agents',
+      'custom:volunteer experience',
+      'experience',
+      'projects',
+      'involvement',
+    ])
+  })
+
+  it('a resume with no recognised heading keeps the default order', () => {
+    const r = cv(`Engineer · Acme Corp
+Jan 2020 – Present
+- Shipped things.
+`)
+    expect(r.sectionOrder).toEqual(emptyResume().sectionOrder)
+    expect(cv('Just a paragraph about me.').sectionOrder).toEqual(emptyResume().sectionOrder)
   })
 })

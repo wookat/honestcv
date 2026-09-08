@@ -1,4 +1,4 @@
-import type { Resume } from '../../src/lib/resume'
+import { orderedSectionKeys, type Resume } from '../../src/lib/resume'
 
 /**
  * A resume carrying one entry in every structured optional section the Builder
@@ -128,3 +128,43 @@ export const ownSections = (r: Resume) =>
       )
     )
   )
+
+/**
+ * The R797 fixture with a user's own section order and a custom section
+ * (R799): Skills first, Summary late, Volunteering between Certifications and
+ * Involvement. `PRINTED_ORDER` is the heading sequence every export prints for
+ * it (sections the order leaves out fall in behind their canonical neighbour;
+ * the empty Projects section is not printed).
+ */
+export function reorderedOwnSections(r: Resume): Resume {
+  return {
+    ...withOwnSections(r),
+    customSections: [{ id: 'cs1', title: 'Volunteering', bullets: ['Food bank shift lead, 2021–present'] }],
+    sectionOrder: ['skills', 'education', 'certifications', 'custom:cs1', 'projects', 'involvement', 'summary', 'experience', 'awards'],
+  }
+}
+
+export const PRINTED_ORDER = [
+  'skills',
+  'education',
+  'coursework',
+  'certifications',
+  'custom:volunteering',
+  'involvement',
+  'summary',
+  'experience',
+  'awards',
+  'publications',
+  'references',
+  'military',
+]
+
+/** The parsed resume's section order restricted to the printed headings, custom sections by lower-cased title. */
+export const printedOrder = (r: Resume) =>
+  orderedSectionKeys(r)
+    .map((k) =>
+      k.startsWith('custom:')
+        ? `custom:${(r.customSections.find((s) => `custom:${s.id}` === k)?.title ?? '?').toLowerCase()}`
+        : k
+    )
+    .filter((k) => PRINTED_ORDER.includes(k))

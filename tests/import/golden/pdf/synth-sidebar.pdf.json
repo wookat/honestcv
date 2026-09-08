@@ -86,13 +86,16 @@
   "involvement",
   "education",
   "coursework",
+  "custom:CONTACT",
   "skills",
+  "custom:LANGUAGES",
   "certifications",
   "awards",
   "publications",
   "references",
   "military",
-  "agents"
+  "agents",
+  "custom:INTERESTS"
  ],
  "templateId": "classic",
  "accentColor": "",
