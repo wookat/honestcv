@@ -427,9 +427,29 @@ function reverseChronCheck(
   }
 }
 
-const EXPERIENCE_HEADING_RE = /^\s*(work |professional |employment )?experience\s*:?\s*$/im
-const NEXT_SECTION_RE =
-  /^\s*(education|(technical |core |key )?skills|projects|certifications?|awards|publications|languages|interests|volunteer(ing)?|involvement)\s*:?\s*$/im
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** Alternation of every default heading the product prints (all languages) for the given section keys */
+function ownHeadingAlternation(keys: readonly string[]): string {
+  const labels = new Set<string>()
+  for (const { key, label } of defaultSectionLabels())
+    if (keys.includes(key)) labels.add(escapeRe(label.toLowerCase()))
+  return [...labels].join('|')
+}
+const headingLineRe = (alternation: string) => new RegExp(`^\\s*(?:${alternation})\\s*:?\\s*$`, 'im')
+
+const EXPERIENCE_HEADING_RE = headingLineRe(
+  `(?:work |professional |employment )?experience|${ownHeadingAlternation(['experience'])}`
+)
+const EDUCATION_HEADING_RE = headingLineRe(ownHeadingAlternation(['education']))
+const SKILLS_HEADING_RE = headingLineRe(
+  `(?:technical |core |key )?skills|${ownHeadingAlternation(['skills'])}`
+)
+const SKILLS_INLINE_RE = new RegExp(`(?:${ownHeadingAlternation(['skills'])}):`, 'i')
+const NEXT_SECTION_RE = headingLineRe(
+  `education|(?:technical |core |key )?skills|projects|certifications?|awards|publications|languages|interests|volunteer(?:ing)?|involvement|${ownHeadingAlternation(
+    SECTION_KEYS.filter((k) => k !== 'summary' && k !== 'experience')
+  )}`
+)
 const DATE_RANGE_RE =
   /((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2})\s*(?:[–—-]|to)\s*((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2}|present|current|now|ongoing)/gi
 
@@ -1658,16 +1678,14 @@ export function scoreResumeText(input: string, jd: string): AtsResult {
     },
     {
       label: 'Standard section headings',
-      pass:
-        /^\s*(work |professional |employment )?experience\s*:?\s*$/m.test(resumeText) &&
-        /^\s*education\s*:?\s*$/m.test(resumeText),
-      hint: 'Use standard headings like "Experience" and "Education" so parsers find them.',
+      pass: EXPERIENCE_HEADING_RE.test(resumeText) && EDUCATION_HEADING_RE.test(resumeText),
+      hint: 'Use standard headings like "Experience" and "Education" (or their equivalents in your resume\'s language) so parsers find them.',
       anchor: 'experience',
       category: 'format',
     },
     {
       label: 'Skills section present',
-      pass: /^\s*(technical |core |key )?skills\s*:?\s*$/m.test(resumeText) || /skills:/.test(resumeText),
+      pass: SKILLS_HEADING_RE.test(resumeText) || SKILLS_INLINE_RE.test(resumeText),
       hint: 'A dedicated skills list is the easiest keyword match for ATS.',
       anchor: 'skills',
       category: 'bestPractices',
@@ -1786,7 +1804,15 @@ export function bestExperienceForKeyword(
 }
 
 import type { Resume } from './resume'
-import { ONGOING_RE, dateSortValue, educationEntries, resumeToPlainText, skillLines } from './resume'
+import {
+  ONGOING_RE,
+  SECTION_KEYS,
+  dateSortValue,
+  defaultSectionLabels,
+  educationEntries,
+  resumeToPlainText,
+  skillLines,
+} from './resume'
 import { stripInlineMarks } from './marks'
 
 export function scoreResume(
