@@ -613,14 +613,26 @@ export function parseResumeText(input: string): Resume {
   }
 
   // Location: a "City, ST" segment on one of the header contact lines
-  // (comma optional when the trailing token is a real USPS state code)
+  // (comma optional when the trailing token is a real USPS state code). A
+  // row without separators (icon-led contact rows) is read with its e-mail /
+  // phone / URL tokens removed.
+  const contactPlace = (seg: string) => {
+    const m = seg.match(/^([A-Za-z .'-]+?)(?:,\s*|\s+)([A-Z]{2})$/)
+    return m && (seg.includes(',') || US_STATES.has(m[2])) ? seg : ''
+  }
+  const contactTokens = new RegExp(
+    `${EMAIL_RE.source}|${LINKEDIN_RE.source}|${URL_RE.source}|${PHONE_RE.source}`,
+    'gi'
+  )
   for (const line of nonEmpty.slice(0, 5)) {
     if (matchHeading(line)) break
     for (const raw of line.split(/\s*[|•·]\s*/)) {
       const seg = raw.trim()
-      const m = seg.match(/^([A-Za-z .'-]+?)(?:,\s*|\s+)([A-Z]{2})$/)
-      if (m && (seg.includes(',') || US_STATES.has(m[2]))) {
-        resume.contact.location = seg
+      const place =
+        contactPlace(seg) ||
+        contactPlace(seg.replace(contactTokens, ' ').replace(/\s+/g, ' ').trim())
+      if (place) {
+        resume.contact.location = place
         break
       }
     }

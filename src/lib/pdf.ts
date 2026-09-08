@@ -405,8 +405,13 @@ class PdfWriter {
         this.page.node.addAnnot(annot)
       }
       x += textW
-      if (i < segments.length - 1)
-        x += useIcons ? segGap : drawnWidth(font, sep, size)
+      if (i < segments.length - 1) {
+        if (useIcons) x += segGap
+        else {
+          this.page.drawText(sep, { x, y: this.y, size, font, color: opts.color ?? this.ink })
+          x += drawnWidth(font, sep, size)
+        }
+      }
     })
   }
 
