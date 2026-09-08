@@ -5,6 +5,8 @@
  */
 
 import {
+  MONTH_WORD_ALTERNATION,
+  ONGOING_WORD_ALTERNATION,
   type CustomSection,
   type EducationItem,
   type ExperienceItem,
@@ -26,13 +28,17 @@ const US_STATES = new Set(
 )
 const LINKEDIN_RE = /linkedin\.com\/[^\s|,;)]+/i
 const URL_RE = /(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s|,;)]*)?/i
-const DATE_RANGE_RE =
-  /((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{4}|\d{4})\s*(?:[–—-]|to)\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{4}|\d{4}|present|current|now)/i
+// A month word in any resume language: English stems take a suffix ("Sept", "January"), the rest match whole.
+const MONTH = String.raw`(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*|${MONTH_WORD_ALTERNATION})`
+const DATE_RANGE_RE = new RegExp(
+  String.raw`(${MONTH}\.?\s*\d{4}|\d{4})\s*(?:[–—-]|to)\s*(${MONTH}\.?\s*\d{4}|\d{4}|${ONGOING_WORD_ALTERNATION})`,
+  'i'
+)
 // "Skin Bliss, Micro-Intern (1 week); Dec 2023" — a one-off engagement dated
 // with a single month after a separator at the end of the header.
-const SINGLE_DATE_RE = /[;|,(–—-]\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4})\)?\s*$/i
+const SINGLE_DATE_RE = new RegExp(String.raw`[;|,(–—-]\s*(${MONTH}\.?\s+\d{4})\)?\s*$`, 'i')
 // "Dec 2023" alone on the line under a header: the one-off's date.
-const BARE_MONTH_RE = /^\(?((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4})\)?$/i
+const BARE_MONTH_RE = new RegExp(String.raw`^\(?(${MONTH}\.?\s+\d{4})\)?$`, 'i')
 // "Senior Scrum Master at Adobe, San Jose, CA (2019)" — a year alone in
 // parentheses closing a header (our own TXT / MD exports print a same-year
 // tenure this way); a bare year elsewhere on the line is not a date.

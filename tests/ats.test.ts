@@ -60,3 +60,41 @@ describe('ATS check on pasted text in the product languages (R790)', () => {
     expect(counts?.hint).toMatch(/2 bullet/)
   })
 })
+
+describe('dates written in the product languages (R791)', () => {
+  const DATES = {
+    es: ['feb. 2021', 'oct. 2022', 'ago. 2023', 'Actualidad'],
+    fr: ['févr. 2021', 'oct. 2022', 'août 2023', "Aujourd'hui"],
+    de: ['Feb. 2021', 'Okt. 2022', 'Aug. 2023', 'Heute'],
+    pt: ['fev. 2021', 'out. 2022', 'ago. 2023', 'Atual'],
+  } as const
+  const withDates = (language: keyof typeof DATES, olderFirst: boolean) => {
+    const [s1, e1, s2, e2] = DATES[language]
+    const r = { ...sampleResume(), language }
+    const [older, ongoing] = [{ startDate: s1, endDate: e1 }, { startDate: s2, endDate: e2 }]
+    Object.assign(r.experience[0], olderFirst ? older : ongoing)
+    Object.assign(r.experience[1], olderFirst ? ongoing : older)
+    return resumeToPlainText(r, { keepLinkUrls: true })
+  }
+  const check = (text: string, label: string) => scoreResumeText(text, '').checks.find((c) => c.label === label)
+
+  it.each(['es', 'fr', 'de', 'pt'] as const)('%s month words and the ongoing word are dates: every experience check runs', (language) => {
+    const text = withDates(language, false)
+    expect(scoreResumeText(text, '').checks).toHaveLength(22)
+    expect(check(text, 'Experience in reverse-chronological order')?.pass).toBe(true)
+    expect(check(text, 'Consistent date formatting')?.pass).toBe(true)
+    expect(check(text, 'Dates use a written month')?.pass).toBe(true)
+  })
+
+  it.each(['es', 'fr', 'de', 'pt'] as const)('%s: an ongoing role listed after an older one fails reverse-chronological order, like in English', (language) => {
+    expect(check(withDates(language, true), 'Experience in reverse-chronological order')?.pass).toBe(false)
+    expect(check(withDates('es', true).replace(/ago\. 2023 – Actualidad/, 'Aug 2023 – Present'), 'Experience in reverse-chronological order')?.pass).toBe(false)
+  })
+
+  it('a numeric date is still the one flagged, and a month word in a bullet is not a date', () => {
+    const text =
+      'Ana López\nana@example.com\n\nEXPERIENCIA\nIngeniera · Acme (ene. 2021 – 03/2023)\n- Cerré el proyecto de agosto con 20% de ahorro\n- Lideré 3 personas\n- Shipped\n\nEDUCACIÓN\nGrado, Universidad (2014 – 2018)\n\nHabilidades: TypeScript'
+    expect(check(text, 'Consistent date formatting')?.pass).toBe(false)
+    expect(check(text, 'Dates use a written month')?.hint).toMatch(/"03\/2023" is numeric/)
+  })
+})

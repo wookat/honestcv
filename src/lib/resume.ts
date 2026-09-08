@@ -671,6 +671,87 @@ export function defaultSectionLabels(): { key: string; label: string }[] {
   return out
 }
 
+/** Month abbreviations the date picker inserts and the word an ongoing role ends with, per resume language. */
+export const DATE_WORDS: Record<ResumeLanguage, { months: readonly string[]; present: string }> = {
+  en: {
+    months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    present: 'Present',
+  },
+  es: {
+    months: ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sept.', 'oct.', 'nov.', 'dic.'],
+    present: 'Actualidad',
+  },
+  fr: {
+    months: ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
+    present: "Aujourd'hui",
+  },
+  de: {
+    months: ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'],
+    present: 'Heute',
+  },
+  pt: {
+    months: ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'],
+    present: 'Atual',
+  },
+}
+
+const MONTH_NAMES_I18N: Record<ResumeLanguage, readonly string[]> = {
+  en: ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'],
+  es: ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
+  fr: ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'],
+  de: ['januar', 'februar', 'märz', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'dezember'],
+  pt: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'],
+}
+
+/** Other abbreviations browsers print for these languages (Intl `month: 'short'`). */
+const MONTH_VARIANTS: Record<string, number> = { sep: 9, set: 9, setiembre: 9, mär: 3 }
+
+const stripAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+/** Lower-cased month word (no trailing period, with and without accents) → month 1–12, every language. */
+const MONTH_INDEX: Map<string, number> = (() => {
+  const map = new Map<string, number>()
+  const add = (word: string, month: number) => {
+    const w = word.toLowerCase().replace(/\.$/, '')
+    map.set(w, month)
+    map.set(stripAccents(w), month)
+  }
+  for (const lang of Object.keys(DATE_WORDS) as ResumeLanguage[])
+    for (let i = 0; i < 12; i++) {
+      add(DATE_WORDS[lang].months[i], i + 1)
+      add(MONTH_NAMES_I18N[lang][i], i + 1)
+    }
+  for (const [w, m] of Object.entries(MONTH_VARIANTS)) add(w, m)
+  return map
+})()
+
+/** Month 1–12 named by a word such as "Sept", "ene.", "März" or "outubro"; null for anything else. */
+export const monthIndexOf = (word: string): number | null =>
+  MONTH_INDEX.get(word.toLowerCase().replace(/\.$/, '')) ?? null
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Regex alternation (longest first, case-insensitive use) of every month word the product knows. */
+export const MONTH_WORD_ALTERNATION = [...MONTH_INDEX.keys()]
+  .sort((a, b) => b.length - a.length || a.localeCompare(b))
+  .map(escapeRe)
+  .join('|')
+
+/** Words that end an ongoing role's date range, in every resume language. */
+export const ONGOING_WORDS = [
+  'present', 'current', 'now', 'ongoing',
+  'actualidad', 'actual', 'presente', 'hoy',
+  "aujourd'hui", 'aujourd’hui', 'présent', 'actuel', 'actuellement',
+  'heute', 'aktuell', 'derzeit',
+  'atual', 'atualmente',
+] as const
+
+/** Regex alternation of {@link ONGOING_WORDS} (longest first) — for date-range patterns with the `i` flag. */
+export const ONGOING_WORD_ALTERNATION = [...ONGOING_WORDS]
+  .sort((a, b) => b.length - a.length)
+  .map(escapeRe)
+  .join('|')
+
 const CUSTOM_SECTION_FALLBACK: Record<ResumeLanguage, string> = {
   en: 'Custom section',
   es: 'Sección personalizada',
@@ -772,7 +853,7 @@ export function sectionHeading(r: Resume, key: string): string {
 }
 
 const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-export const ONGOING_RE = /\b(present|current|now|ongoing)\b/i
+export const ONGOING_RE = new RegExp(`(?:^|[^\\p{L}])(${ONGOING_WORD_ALTERNATION})(?![\\p{L}])`, 'iu')
 
 /**
  * Ordinal (year*12 + month) for a free-text date like "Jun 2023", "08/2021" or
@@ -783,8 +864,10 @@ export function dateSortValue(text: string): number | null {
   const year = /(?:19|20)\d{2}/.exec(t)
   if (!year) return null
   let month = 6
+  const word = (t.match(/\p{L}+\.?/gu) ?? []).map(monthIndexOf).find((m) => m !== null)
   const named = MONTH_NAMES.findIndex((m) => t.includes(m))
-  if (named >= 0) month = named + 1
+  if (word) month = word
+  else if (named >= 0) month = named + 1
   else {
     const numeric = /\b(0?[1-9]|1[0-2])\s*[/.-]/.exec(t)
     if (numeric) month = Number(numeric[1])
@@ -2357,11 +2440,11 @@ export function educationDetailSuffix(e: EducationItem): string {
   return tail ? ` · ${tail}` : ''
 }
 
-/** Date range for an experience entry — a blank end date on an ongoing role reads "start – Present" */
-export function experienceDateRange(startDate: string, endDate: string): string {
+/** Date range for an experience entry — a blank end date on an ongoing role reads "start – Present" (in the resume's language) */
+export function experienceDateRange(startDate: string, endDate: string, language: ResumeLanguage = 'en'): string {
   const start = startDate.trim()
   const end = endDate.trim()
-  if (start && !end) return `${start} – Present`
+  if (start && !end) return `${start} – ${DATE_WORDS[language].present}`
   if (start === end) return start
   return [start, end].filter(Boolean).join(' – ')
 }
@@ -2792,7 +2875,7 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
               : [e.role, e.company].filter(Boolean).join(' at ')) +
               (e.location?.trim() ? `, ${e.location.trim()}` : '') +
               (e.startDate || e.endDate
-                ? ` (${experienceDateRange(e.startDate, e.endDate)})`
+                ? ` (${experienceDateRange(e.startDate, e.endDate, resumeLanguageOf(r))})`
                 : '')
           )
           if (e.companyInfo?.trim()) lines.push(e.companyInfo.trim())
@@ -2910,7 +2993,7 @@ export function resumeToMarkdown(r: Resume): string {
         for (const e of g.entries) {
           const dates =
             e.startDate || e.endDate
-              ? ` *(${experienceDateRange(e.startDate, e.endDate)})*`
+              ? ` *(${experienceDateRange(e.startDate, e.endDate, resumeLanguageOf(r))})*`
               : ''
           const title =
             (g.grouped ? e.role.trim() : [e.role, e.company].filter(Boolean).join(' — ')) +

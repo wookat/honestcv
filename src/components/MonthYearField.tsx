@@ -1,21 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Calendar } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-
-const MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const
+import { DATE_WORDS, type ResumeLanguage } from '@/lib/resume'
 
 function yearOf(value: string): number {
   const m = /\b(19|20)\d{2}\b/.exec(value)
@@ -24,13 +10,15 @@ function yearOf(value: string): number {
 
 /**
  * Free-text date input with a month + year picker popover.
- * Values stay plain strings ("Jun 2023", "Present"), typing always works.
+ * Values stay plain strings ("Jun 2023", "Present" — month and ongoing words in the
+ * resume's language), typing always works.
  */
 export function MonthYearField({
   value,
   onChange,
   placeholder,
   allowPresent = false,
+  language = 'en',
   id,
   ariaLabel,
 }: {
@@ -38,15 +26,19 @@ export function MonthYearField({
   onChange: (value: string) => void
   placeholder?: string
   allowPresent?: boolean
+  language?: ResumeLanguage
   id?: string
   ariaLabel?: string
 }) {
+  const { months, present } = DATE_WORDS[language]
   const [open, setOpen] = useState(false)
   const [year, setYear] = useState(() => yearOf(value))
   const ref = useRef<HTMLDivElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
+    popoverRef.current?.scrollIntoView({ block: 'nearest' })
     const onDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false)
     }
@@ -89,7 +81,10 @@ export function MonthYearField({
         <Calendar aria-hidden className="size-4" />
       </button>
       {open && (
-        <div className="bg-background absolute right-0 top-full z-30 mt-1 w-56 rounded-md border p-2 shadow-lg">
+        <div
+          ref={popoverRef}
+          className="bg-background absolute right-0 top-full z-30 mt-1 w-56 rounded-md border p-2 shadow-lg"
+        >
           <div className="flex items-center justify-between px-1 pb-1.5">
             <button
               type="button"
@@ -110,7 +105,7 @@ export function MonthYearField({
             </button>
           </div>
           <div className="grid grid-cols-3 gap-1">
-            {MONTHS.map((m) => (
+            {months.map((m) => (
               <button
                 key={m}
                 type="button"
@@ -133,9 +128,9 @@ export function MonthYearField({
               <button
                 type="button"
                 className="hover:bg-accent min-h-9 rounded-sm text-xs font-medium"
-                onClick={() => pick('Present')}
+                onClick={() => pick(present)}
               >
-                Present
+                {present}
               </button>
             ) : (
               <button

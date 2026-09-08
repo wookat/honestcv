@@ -723,3 +723,53 @@ Engagement Manager · Acme Corp (2020 – Present)
     expect(r.customSections).toEqual([])
   })
 })
+
+describe('dates written in the product languages (R791)', () => {
+  it.each([
+    ['es', 'ago. 2023', 'Actualidad', 'ene. 2021', 'abr. 2023'],
+    ['fr', 'août 2023', "Aujourd'hui", 'févr. 2021', 'déc. 2022'],
+    ['de', 'Aug. 2023', 'Heute', 'März 2021', 'Okt. 2022'],
+    ['pt', 'set. 2023', 'Atual', 'fev. 2021', 'out. 2022'],
+  ] as const)('%s: our own export with dates typed in the language re-imports both roles with their dates', (language, s1, e1, s2, e2) => {
+    const src = { ...sampleResume(), language }
+    Object.assign(src.experience[0], { startDate: s1, endDate: e1 })
+    Object.assign(src.experience[1], { startDate: s2, endDate: e2 })
+    for (const text of [resumeToPlainText(src, { keepLinkUrls: true }), resumeToMarkdown(src)]) {
+      const r = parseResumeText(text)
+      expect(r.experience.map((e) => [e.role, e.company, e.location, e.startDate, e.endDate])).toEqual(
+        src.experience.map((e) => [e.role, e.company, e.location, e.startDate, e.endDate])
+      )
+    }
+  })
+
+  it('full month names, "to" ranges, a single dated one-off and a bare month line read in Spanish, French, German and Portuguese', () => {
+    const r = cv(`EXPERIENCE
+Ingeniera · Acme
+enero 2020 – actualidad
+• Shipped
+Développeuse · Beta (juillet 2018 to décembre 2019)
+• Shipped
+Skin Bliss, Micro-Intern (1 week); Dez. 2023
+• Ran the launch
+Consultora · Gamma
+setembro 2017
+• Advised
+`)
+    expect(r.experience.map((e) => [e.startDate, e.endDate])).toEqual([
+      ['enero 2020', 'actualidad'],
+      ['juillet 2018', 'décembre 2019'],
+      ['Dez. 2023', 'Dez. 2023'],
+      ['setembro 2017', 'setembro 2017'],
+    ])
+  })
+
+  it('a month word inside a bullet or a header is not a date', () => {
+    const r = cv(`EXPERIENCE
+Analista de Mercado · Acme (2019 – 2021)
+• Presupuesto de agosto cerrado con 20% de ahorro
+• Informe "Mai 2020" entregado a dirección
+`)
+    expect(r.experience).toMatchObject([{ role: 'Analista de Mercado', company: 'Acme', startDate: '2019', endDate: '2021' }])
+    expect(r.experience[0].bullets).toHaveLength(2)
+  })
+})

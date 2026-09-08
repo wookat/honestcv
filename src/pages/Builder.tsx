@@ -3800,12 +3800,14 @@ export default function Builder() {
                     </Label>
                     <div className="grid grid-cols-2 gap-2">
                       <MonthYearField
+                        language={resumeLanguageOf(resume)}
                         id={`exp-${e.id}-start`}
                         placeholder="Start (Jun 2023)"
                         value={e.startDate}
                         onChange={(v) => setExp(e.id, { startDate: v })}
                       />
                       <MonthYearField
+                        language={resumeLanguageOf(resume)}
                         allowPresent
                         ariaLabel="End date"
                         placeholder="End (Present)"
@@ -4204,6 +4206,7 @@ export default function Builder() {
                     <Label htmlFor={`edu-${e.id}-start`}>When did you study?</Label>
                     <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       id={`edu-${e.id}-start`}
                       placeholder="Start (2017)"
                       value={e.startDate}
@@ -4217,6 +4220,7 @@ export default function Builder() {
                       }
                     />
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       allowPresent
                       ariaLabel="End date"
                       placeholder="End (2021)"
@@ -4648,6 +4652,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       ariaLabel="Start date"
                       placeholder="Start (2024)"
                       value={p.startDate ?? ''}
@@ -4661,6 +4666,7 @@ export default function Builder() {
                       }
                     />
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       allowPresent
                       ariaLabel="End date"
                       placeholder="End"
@@ -4990,6 +4996,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       ariaLabel="Start date"
                       placeholder="Start (2024)"
                       value={inv.startDate}
@@ -5003,6 +5010,7 @@ export default function Builder() {
                       }
                     />
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       allowPresent
                       ariaLabel="End date"
                       placeholder="End"
@@ -6578,6 +6586,7 @@ export default function Builder() {
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       ariaLabel="Start date"
                       placeholder="Start (2020)"
                       value={m.startDate}
@@ -6591,6 +6600,7 @@ export default function Builder() {
                       }
                     />
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       allowPresent
                       ariaLabel="End date"
                       placeholder="End"
