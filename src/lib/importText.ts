@@ -9,6 +9,7 @@ import {
   type EducationItem,
   type ExperienceItem,
   type Resume,
+  defaultSectionLabels,
   emptyEducation,
   emptyExperience,
   emptyResume,
@@ -69,6 +70,27 @@ const SECTION_WORDS: [RegExp, SectionName][] = [
   [/certifications?|certificates|licen[cs]es/i, 'certifications'],
   [/summary|profile|objective|about\s?me/i, 'summary'],
 ]
+// The headings our own previews / PDF / DOCX / TXT / MD print (SECTION_LABELS in
+// every language) read back as the section they were printed for: the six core
+// sections by field, the rest (Involvement, Coursework, Military service, …) as a
+// custom section titled with the canonical label. Keyed lower-cased and, for
+// letter-spaced headings, with the spaces removed.
+const CORE_SECTION_KEYS: Record<string, SectionName> = {
+  summary: 'summary',
+  experience: 'experience',
+  education: 'education',
+  skills: 'skills',
+  projects: 'projects',
+  certifications: 'certifications',
+}
+type OwnHeading = { section: SectionName } | { custom: string }
+const OWN_HEADINGS = new Map<string, OwnHeading>()
+for (const { key, label } of defaultSectionLabels()) {
+  const own: OwnHeading = key in CORE_SECTION_KEYS ? { section: CORE_SECTION_KEYS[key] } : { custom: label }
+  OWN_HEADINGS.set(label.toLowerCase(), own)
+  OWN_HEADINGS.set(label.toLowerCase().replace(/\s+/g, ''), own)
+}
+const ownHeading = (t: string) => OWN_HEADINGS.get(t.trim().replace(/\s+/g, ' ').toLowerCase())
 // "P R O F E S S I O N A L E X P E R I E N C E" — tracked (letter-spaced) headings
 // reach text extraction with a space after every letter.
 const LETTER_SPACED_RE = /^(?:[A-Za-z&/] ){3,}[A-Za-z&/]$/
@@ -258,8 +280,12 @@ function findPhone(text: string): string {
 
 function matchHeading(line: string): SectionName | null {
   let t = line.trim().replace(/[:：]$/, '')
+  const own = ownHeading(t)
+  if (own) return 'section' in own ? own.section : null
   if (LETTER_SPACED_RE.test(t)) {
     const word = t.replace(/ /g, '')
+    const spaced = ownHeading(word)
+    if (spaced) return 'section' in spaced ? spaced.section : null
     for (const [re, name] of SECTION_WORDS) if (re.test(word)) return name
     return null
   }
@@ -281,6 +307,8 @@ const INLINE_HEADING_RE = /^([^:：]{1,40})[:：]\s+(\S.*)$/
 function matchInlineHeading(line: string): { heading: SectionName; rest: string } | null {
   const m = INLINE_HEADING_RE.exec(line)
   if (!m || JOB_TITLE_NOUN_RE.test(m[1])) return null
+  const own = ownHeading(m[1])
+  if (own) return 'section' in own ? { heading: own.section, rest: m[2] } : null
   for (const [re, name] of SECTION_HEADINGS) if (re.test(m[1].trim())) return { heading: name, rest: m[2] }
   return null
 }
@@ -317,7 +345,7 @@ export function humanNameCase(name: string): string {
 // The leading ALL-CAPS run (longest first) must be a known section name and
 // the remainder must be content: not a template aside "(for early-career …)"
 // and not another heading "OBJECTIVE or PROFESSIONAL SUMMARY".
-const CAPS_TOKEN_RE = /^(?:[A-Z][A-Z&/]*|&)$/
+const CAPS_TOKEN_RE = /^(?:\p{Lu}[\p{Lu}&/]*|&)$/u
 type GutterLabel = { heading: SectionName; rest: string } | { custom: string; rest: string }
 function matchGutterLabel(line: string): GutterLabel | null {
   const words = line.trim().split(/\s+/)
@@ -326,8 +354,10 @@ function matchGutterLabel(line: string): GutterLabel | null {
   for (let k = caps; k >= 1; k--) {
     const label = words.slice(0, k).join(' ')
     const rest = words.slice(k).join(' ')
-    if (!/^[A-Za-z0-9•·\-–]/.test(rest) || !/[a-z]/.test(rest.replace(/^(?:or|and)\s+/i, ''))) return null
+    if (!/^[\p{L}0-9•·\-–]/u.test(rest) || !/\p{Ll}/u.test(rest.replace(/^(?:or|and)\s+/i, ''))) return null
     if (JOB_TITLE_NOUN_RE.test(label) || CREDENTIAL_TITLE_RE.test(label)) return null
+    const own = ownHeading(label)
+    if (own) return 'section' in own ? { heading: own.section, rest } : { custom: own.custom, rest }
     for (const [re, name] of SECTION_HEADINGS) if (label.replace(re, '') === '') return { heading: name, rest }
     if (label.replace(CUSTOM_HEADING_RE, '') === '') return { custom: label, rest }
   }
@@ -347,6 +377,8 @@ function matchInlineCustomHeading(line: string): { title: string; rest: string }
 function matchCustomHeading(line: string): string | null {
   const t = line.trim().replace(/[:：]$/, '')
   if (/[:：,;]\s*\S/.test(t)) return null
+  const own = ownHeading(LETTER_SPACED_RE.test(t) ? t.replace(/ /g, '') : t)
+  if (own) return 'custom' in own ? own.custom : null
   if (LETTER_SPACED_RE.test(t)) {
     // Tracked heading of a section we have no field for; the last word is
     // recoverable when it is a known section word ("EXTRACURRICULAR ACTIVITIES").

@@ -624,3 +624,102 @@ Bay Area
     }
   })
 })
+
+describe('every heading the product prints is a heading to the importer (R789)', () => {
+  const withEverySection = (language?: Resume['language']): Resume => {
+    const r = sampleResume()
+    if (language) r.language = language
+    r.involvement = [{ id: 'i1', role: 'Mentor', organization: 'Women Who Code Austin', location: 'Austin, TX', startDate: 'Jan 2022', endDate: 'Present', description: 'Mentored 12 early-career engineers.' }]
+    r.coursework = [{ id: 'k1', name: 'Distributed Systems', institution: 'University of Texas at Austin', date: '2020', skill: '', description: '' }]
+    r.awards = [{ id: 'a1', name: "Dean's List", organization: 'University of Texas at Austin', date: '2019', description: 'Top 5% of the class.' }]
+    r.publications = [{ id: 'p1', title: 'Streaming resume parsing at the edge', venue: 'JSConf', kind: 'Talk', date: '2024', description: '' }]
+    r.military = [{ id: 'm1', branch: 'US Army', rank: 'Sergeant', location: 'Fort Hood, TX', startDate: '2010', endDate: '2014', description: 'Led a 12-person logistics team.' }]
+    return r
+  }
+  const shape = (r: Resume) => ({
+    summary: r.summary,
+    skills: r.skills,
+    experience: r.experience.map((x) => [x.role, x.company]),
+    education: r.education.map((e) => [e.degree, e.school]),
+    customTitles: r.customSections.map((c) => c.title),
+  })
+  const labels: Record<string, string[]> = {
+    en: ['Involvement', 'Coursework', 'Awards & Honors', 'Publications', 'Military service'],
+    es: ['Actividades', 'Cursos', 'Premios y reconocimientos', 'Publicaciones', 'Servicio militar'],
+    fr: ['Engagements', 'Cours', 'Prix et distinctions', 'Publications', 'Service militaire'],
+    de: ['Engagement', 'Kurse', 'Auszeichnungen', 'Publikationen', 'Militärdienst'],
+    pt: ['Atividades', 'Cursos', 'Prêmios e distinções', 'Publicações', 'Serviço militar'],
+  }
+
+  it('TXT (capitals) and Markdown (title case) exports of every section, in all five languages, read back as their sections', () => {
+    for (const lang of ['en', 'es', 'fr', 'de', 'pt'] as const) {
+      const src = withEverySection(lang === 'en' ? undefined : lang)
+      const want = { ...shape(src), customTitles: labels[lang] }
+      for (const [name, text] of [
+        ['txt', resumeToPlainText(src, { keepLinkUrls: true })],
+        ['md', resumeToMarkdown(src)],
+      ] as const) {
+        const back = parseResumeText(text)
+        expect(shape(back), `${lang} ${name}`).toEqual(want)
+        // the section content is kept, under its own heading, not read as a role or a school
+        expect(back.customSections[0].bullets.join('\n'), `${lang} ${name}`).toContain('Mentor')
+        expect(back.customSections[4].bullets.join('\n'), `${lang} ${name}`).toContain('Sergeant')
+      }
+    }
+  })
+
+  it('a title-case heading with no English section word ("Involvement", "Military service") opens a custom section instead of becoming a role or a school', () => {
+    const r = cv(`
+Experience
+Software Engineer — Brightlane, Austin, TX (Jun 2023 – Present)
+- Led the checkout migration.
+Involvement
+Mentor · Women Who Code Austin (Jan 2022 – Present)
+- Mentored 12 engineers.
+Education
+B.S. Computer Science, University of Texas at Austin (2017 – 2021)
+Coursework
+Distributed Systems — University of Texas at Austin (2020)
+Military service
+Sergeant — US Army (2010 – 2014)
+`)
+    expect(r.experience.map((x) => x.role)).toEqual(['Software Engineer'])
+    expect(r.education.map((e) => e.degree)).toEqual(['B.S. Computer Science'])
+    expect(r.customSections.map((c) => [c.title, c.bullets.length])).toEqual([
+      ['Involvement', 2],
+      ['Coursework', 1],
+      ['Military service', 1],
+    ])
+  })
+
+  it('a localized core heading opens its section as a gutter label, an inline label and a letter-spaced heading', () => {
+    const gutter = cv(`RESUMEN Ingeniera de software con ocho años de experiencia.
+EXPERIENCIA Ingeniera Senior · Northstar Digital, Madrid (Jan 2022 – Present)
+- Lideró la migración.
+EDUCACIÓN Grado en Informática, Universidad de Madrid (2014 – 2018)
+HABILIDADES TypeScript, React
+`)
+    expect(gutter.summary).toBe('Ingeniera de software con ocho años de experiencia.')
+    expect(gutter.experience.map((x) => [x.role, x.company])).toEqual([['Ingeniera Senior', 'Northstar Digital']])
+    expect(gutter.education.map((e) => [e.degree, e.school])).toEqual([['Grado en Informática', 'Universidad de Madrid']])
+    expect(gutter.skills).toBe('TypeScript, React')
+
+    const inline = cv(`Berufserfahrung\nEntwicklerin · Acme GmbH (2020 – Present)\nKenntnisse: TypeScript, React\n`)
+    expect(inline.experience.map((x) => x.role)).toEqual(['Entwicklerin'])
+    expect(inline.skills).toBe('TypeScript, React')
+
+    const spaced = cv(`E X P E R I E N C I A\nIngeniera · Acme (2020 – Present)\nS E R V I C I O M I L I T A R\nSargento — Ejército (2010 – 2014)\n`)
+    expect(spaced.experience.map((x) => x.role)).toEqual(['Ingeniera'])
+    expect(spaced.customSections.map((c) => c.title)).toEqual(['Servicio militar'])
+  })
+
+  it('the label has to be the whole line — an entry header or a bullet that contains a label word is still content', () => {
+    const r = cv(`Experience
+Engagement Manager · Acme Corp (2020 – Present)
+- Ran the engagement for the Cursos account.
+- Publications review for the Kurse team.
+`)
+    expect(r.experience.map((x) => [x.role, x.company, x.bullets.length])).toEqual([['Engagement Manager', 'Acme Corp', 2]])
+    expect(r.customSections).toEqual([])
+  })
+})
