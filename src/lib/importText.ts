@@ -599,6 +599,31 @@ const nextNonEmptyIndex = (lines: string[], i: number) => {
   for (let n = i + 1; n < lines.length; n++) if (lines[n]) return n
   return lines.length
 }
+// A long "Role · Company, Location" header wraps at a space in a narrow
+// column, so PDF text delivers it as two lines that break either right after
+// the binder ("… Transformation & Coaching ·" + "Ivanti, San Francisco Bay Area")
+// or just before it ("… Agile Transformation &" + "Coaching · AT&T"). Neither
+// half is prose: the first ends mid-phrase with no sentence punctuation and the
+// pair reads as one header. A bare date line is never the second half.
+const HEADER_OPEN_END_RE = /(?:[&/,]|\s(?:and|or))$/i
+const joinWrappedHeader = (line: string, next: string | undefined): string | null => {
+  if (!next || isBullet(line) || isBullet(next)) return null
+  const nextDates = extractDates(next)
+  if (nextDates.start && !nextDates.rest) return null
+  const joined = `${line} ${next}`
+  if (/\s·$/.test(line)) return looksLikeDotHeader(joined) ? joined : null
+  if (
+    HEADER_OPEN_END_RE.test(line) &&
+    !/\s·\s/.test(line) &&
+    !/^[a-z]/.test(line) &&
+    line.split(/\s+/).length <= 14 &&
+    !extractDates(line).start &&
+    looksLikeDotHeader(next) &&
+    looksLikeDotHeader(joined)
+  )
+    return joined
+  return null
+}
 // "email | phone | City, ST | linkedin" — the header's contact row
 const isContactRow = (line: string) =>
   EMAIL_RE.test(line) || PHONE_RE.test(line) || LINKEDIN_RE.test(line) || URL_RE.test(line)
@@ -827,6 +852,11 @@ export function parseResumeText(input: string): Resume {
         else currentCustom.bullets.push(stripBullet(line))
         break
       case 'experience': {
+        const wrappedHeader = joinWrappedHeader(line, lines[nextNonEmptyIndex(lines, i)])
+        if (wrappedHeader) {
+          line = wrappedHeader
+          i = nextNonEmptyIndex(lines, i)
+        }
         if (isBullet(line)) {
           if (!currentExp) {
             currentExp = { ...emptyExperience(), id: newId(), bullets: [] }
