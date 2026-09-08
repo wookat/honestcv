@@ -653,6 +653,7 @@ const wordStems = (text: string): Set<string> => {
     const plain = w.replace(/'s$/, "");
     out.add(plain);
     out.add(stemmer(plain));
+    if (plain.includes("-")) out.add(plain.replace(/-/g, ""));
   }
   return out;
 };
@@ -682,6 +683,7 @@ export function tailorClaims(
     const plain = w.toLowerCase().replace(/'s$/, "");
     if (plain.length < 3 || FUNCTION_WORDS.has(plain)) continue;
     if (have.has(plain) || have.has(stemmer(plain))) continue;
+    if (plain.includes("-") && have.has(plain.replace(/-/g, ""))) continue;
     if (!jd.has(plain) && !jd.has(stemmer(plain))) continue;
     if (seen.has(stemmer(plain))) continue;
     seen.add(stemmer(plain));
