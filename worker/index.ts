@@ -762,6 +762,8 @@ const JOBS_BROADEN_MAX = 2
 const JOBS_BROADEN_MIN_TITLED_SHARE = 0.05
 /** Feeds that ignore the query (Arbeitnow; The Muse per place) are fetched once per this window and shared by every query. */
 const JOBS_FEED_FRESH_MS = 15 * 60 * 1000
+/** Remotive's public feed is one fixed page (17 rows, `search` / `category` / `limit` ignored) and its terms ask for at most ~4 requests a day. */
+const JOBS_REMOTIVE_FRESH_MS = 6 * 60 * 60 * 1000
 /** …and the last good copy is kept this long so an upstream 429 / timeout serves it instead of dropping the feed. */
 const JOBS_FEED_KEEP_TTL = 24 * 60 * 60
 
@@ -942,12 +944,8 @@ function normalizeTags(tags: string[] | undefined): string[] {
   return out
 }
 
-async function fetchRemotive(q: string, category: string): Promise<NormalizedJob[] | null> {
-  const url = new URL('https://remotive.com/api/remote-jobs')
-  if (q) url.searchParams.set('search', q)
-  if (category) url.searchParams.set('category', category)
-  url.searchParams.set('limit', '50')
-  const data = await fetchJson<{ jobs?: RemotiveJob[] }>(url)
+async function fetchRemotive(): Promise<NormalizedJob[] | null> {
+  const data = await fetchJson<{ jobs?: RemotiveJob[] }>(new URL('https://remotive.com/api/remote-jobs'))
   if (!data) return null
   return (data.jobs ?? [])
     .filter((j) => j.id && j.title && j.url)
@@ -1353,8 +1351,8 @@ interface FeedSnapshot {
   jobs: NormalizedJob[]
 }
 
-// Arbeitnow ignores its `search` parameter and The Muse is asked per place, so
-// every uncached query used to re-download the same pages — a burst of 12 new
+// Arbeitnow and Remotive ignore their `search` parameter and The Muse is asked
+// per place, so every uncached query used to re-download the same pages — a burst of 12 new
 // queries got Arbeitnow's 429 on four of them and the feed silently vanished
 // from `sources`. One snapshot per feed (per place) is shared by all queries;
 // when the upstream fails, the last good snapshot is served rather than nothing.
@@ -1363,12 +1361,13 @@ interface FeedSnapshot {
 async function sharedFeed(
   c: Context<{ Bindings: Env }>,
   key: string,
-  load: (allowPartial: boolean) => Promise<NormalizedJob[] | null>
+  load: (allowPartial: boolean) => Promise<NormalizedJob[] | null>,
+  freshMs = JOBS_FEED_FRESH_MS
 ): Promise<NormalizedJob[] | null> {
   const raw = await c.env.KV.get(key)
   const snap = raw ? (JSON.parse(raw) as FeedSnapshot) : null
   const age = snap ? Date.now() - snap.at : Infinity
-  if (snap && age < JOBS_FEED_FRESH_MS) return snap.jobs
+  if (snap && age < freshMs) return snap.jobs
   const fresh = await load(snap === null)
   if (fresh) {
     const next: FeedSnapshot = { at: Date.now(), jobs: fresh }
@@ -1462,11 +1461,13 @@ async function fetchJobFeeds(
   query: JobQuery,
   category: string,
   museLabel: string | null,
-  shared?: { arbeitnow: NormalizedJob[] | null; muse: NormalizedJob[] | null }
+  shared?: { remotive: NormalizedJob[] | null; arbeitnow: NormalizedJob[] | null; muse: NormalizedJob[] | null }
 ): Promise<JobFeeds> {
   const museCats = museLabel ? museCategories(category, query.upstream) : []
   const [remotive, jobicy, arbeitnow, muse] = await Promise.all([
-    fetchRemotive(query.upstream, category),
+    shared
+      ? shared.remotive
+      : sharedFeed(c, 'jobs:feed:v3:remotive', fetchRemotive, JOBS_REMOTIVE_FRESH_MS),
     fetchJobicy(query.upstream),
     shared ? shared.arbeitnow : sharedFeed(c, 'jobs:feed:v3:arbeitnow', fetchArbeitnow),
     shared
@@ -1496,8 +1497,8 @@ const cacheJobs = (c: Context<{ Bindings: Env }>, key: string, payload: JobSearc
 // "nurse" is 25; the user cannot know which word to drop, so the response
 // names the broader queries that do have complete title matches, each with its
 // real counts, and the client offers them — the typed query is never widened
-// on its own. Each broader query is a full search (Remotive / Jobicy re-asked
-// with the shorter term; the Arbeitnow / Muse pages are shared) and its result
+// on its own. Each broader query is a full search (Jobicy re-asked with the
+// shorter term; the Remotive / Arbeitnow / Muse pages are shared) and its result
 // is cached under its own key, so accepting a suggestion is instant.
 async function broaderQueries(
   c: Context<{ Bindings: Env }>,
@@ -1510,6 +1511,7 @@ async function broaderQueries(
   const groups = query.required
   if (titled >= JOBS_BROADEN_BELOW || groups.length < 2 || groups.length > 4) return undefined
   const shared = {
+    remotive: feeds.find(([name]) => name === 'remotive')?.[1] ?? null,
     arbeitnow: feeds.find(([name]) => name === 'arbeitnow')?.[1] ?? null,
     muse: feeds.find(([name]) => name === 'themuse')?.[1] ?? null,
   }
