@@ -1215,7 +1215,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           setImportBusy(false)
           return
         }
-        const parsed = parseResumeText(text)
+        const parsed = parseResumeText(text, { sectionHeadings: draft?.sectionHeadings })
         if (draft) {
           setImportedLinkedIn(looksLikeLinkedInExport(text))
           setConfirmImport(parsed)

@@ -969,3 +969,59 @@ describe('content-replacing import keeps the editor design', () => {
     expect(back.summary).toBe('Hello world')
   })
 })
+
+describe('re-import of an export whose headings the user renamed in the Builder (R796)', () => {
+  const base = sampleResume()
+  const renamed = {
+    ...base,
+    sectionHeadings: {
+      ...base.sectionHeadings,
+      experience: 'Where I have worked',
+      education: 'Academic Background',
+      skills: 'Tools & Technologies',
+      projects: 'Things I built',
+    },
+  }
+  const content = (r: Resume) => ({
+    summary: r.summary,
+    experience: r.experience.map((e) => [e.role, e.company, e.bullets]),
+    education: r.education.map((e) => [e.school, e.degree]),
+    skills: r.skills,
+    projects: r.projects.map((p) => p.name),
+    custom: r.customSections.map((s) => s.title),
+  })
+  const expected = content(parseResumeText(resumeToPlainText(base, { keepLinkUrls: true })))
+
+  it.each([
+    ['TXT', resumeToPlainText(renamed, { keepLinkUrls: true })],
+    ['MD', resumeToMarkdown(renamed)],
+  ])('%s: with the reader\'s headings the export reads back into the same sections', (_fmt, text) => {
+    const blind = parseResumeText(text)
+    // without the hint the arbitrary headings are not section headings and the roles are lost
+    expect(blind.experience.length).toBeLessThan(base.experience.length)
+    expect(content(blind)).not.toEqual(expected)
+    const hinted = parseResumeText(text, { sectionHeadings: renamed.sectionHeadings })
+    expect(content(hinted)).toEqual(expected)
+  })
+
+  it('the hint changes nothing for an export with default headings and does not leak into the next parse', () => {
+    const txt = resumeToPlainText(base, { keepLinkUrls: true })
+    expect(content(parseResumeText(txt, { sectionHeadings: renamed.sectionHeadings }))).toEqual(expected)
+    const arbitrary = resumeToPlainText(renamed, { keepLinkUrls: true })
+    parseResumeText(arbitrary, { sectionHeadings: renamed.sectionHeadings })
+    expect(parseResumeText(arbitrary).experience.length).toBeLessThan(base.experience.length)
+  })
+
+  it('a renamed custom-key heading keeps the user\'s title; a label only matches a whole heading line', () => {
+    const txt =
+      'Jane Doe\njane@example.com\n\nWhere I have worked\nEngineer · Acme Corp\nJan 2020 – Dec 2021\n- Built the Toolbox pipeline for 3 teams\n\nMy Volunteering\n- Mentor at Code Club\n\nToolbox\nTypeScript, React'
+    const r = parseResumeText(txt, {
+      sectionHeadings: { experience: 'Where I have worked', skills: 'Toolbox', involvement: 'My Volunteering' },
+    })
+    expect(r.experience.map((e) => [e.role, e.company, e.bullets])).toEqual([
+      ['Engineer', 'Acme Corp', ['Built the Toolbox pipeline for 3 teams']],
+    ])
+    expect(r.skills).toBe('TypeScript, React')
+    expect(r.customSections.map((s) => [s.title, s.bullets])).toEqual([['My Volunteering', ['Mentor at Code Club']]])
+  })
+})

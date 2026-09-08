@@ -10427,7 +10427,13 @@ export default function Builder() {
               if (!importText.trim()) return
               linkVersion(null)
               setResume(
-                keepDesignOnImport(resume, keepTargetOnImport(resume, parseResumeText(importText)))
+                keepDesignOnImport(
+                  resume,
+                  keepTargetOnImport(
+                    resume,
+                    parseResumeText(importText, { sectionHeadings: resume.sectionHeadings })
+                  )
+                )
               )
               setImportOpen(false)
               setImportText('')

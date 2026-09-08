@@ -165,9 +165,9 @@ export default function AtsChecker() {
     void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
   }
   const replaceAndOpen = (anchor?: string) => {
-    const parsed = parseResumeText(resumeText)
-    parsed.jobDescription = jd
     const existing = loadResume()
+    const parsed = parseResumeText(resumeText, { sectionHeadings: existing?.sectionHeadings })
+    parsed.jobDescription = jd
     setActiveVersionId(null)
     saveResume(existing ? keepDesignOnImport(existing, parsed) : parsed)
     goToBuilder(anchor)
@@ -204,14 +204,12 @@ export default function AtsChecker() {
 
   // The report is frozen at the inputs of the last explicit check, so typing
   // never rescores (or hides) it. Edits surface an honest stale notice instead.
+  // The saved resume's own heading names (Builder renames), so its export is read
+  // like the structured resume — by the scorer and by the health analysis alike.
+  const savedHeadings = useMemo(() => (scan ? loadResume()?.sectionHeadings : undefined), [scan])
   const result = useMemo(
-    () =>
-      scan
-        ? scoreResumeText(scan.resumeText, scan.jd, {
-            sectionHeadings: loadResume()?.sectionHeadings,
-          })
-        : null,
-    [scan]
+    () => (scan ? scoreResumeText(scan.resumeText, scan.jd, { sectionHeadings: savedHeadings }) : null),
+    [scan, savedHeadings]
   )
   const stale = scan !== null && (resumeText !== scan.resumeText || jd !== scan.jd)
   const isExample = scan?.resumeText === EXAMPLE_RESUME && scan?.jd === EXAMPLE_JD
@@ -243,11 +241,11 @@ export default function AtsChecker() {
 
   const analysis = useMemo(() => {
     if (!result || !scan) return null
-    const parsed = parseResumeText(scan.resumeText)
+    const parsed = parseResumeText(scan.resumeText, { sectionHeadings: savedHeadings })
     parsed.jobDescription = scan.jd
     const health = resumeHealth(parsed)
     return { health, fixes: priorityFixes(result, health) }
-  }, [result, scan])
+  }, [result, scan, savedHeadings])
 
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">

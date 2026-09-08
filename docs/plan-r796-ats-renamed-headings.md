@@ -102,6 +102,35 @@ with or without a hint. `npm test` 188 → 195 (the `it.each` counts 4).
   contains no date range, and the five entry checks are not run — the same
   treatment any experience section without dates gets. Honest reading.
 
+## Follow-up from production QA: the health panel read the same text blind
+
+The first deploy fixed the score and the 22-check table, but the
+testing agent found the **Priority fixes** panel next to it still said
+`Quantified impact — No experience bullets yet`, `Action verbs — No
+experience bullets yet`, `Completeness — Add 3+ achievement bullets` and
+`Summary is 141 words` for the same custom-heading export — the panel is
+built from `resumeHealth(parseResumeText(text))`, a second read of the
+text that had no access to the reader's headings. Oracle
+(`qa/r796-health-oracle.mts`, sample with experience / education / skills
+renamed → TXT):
+
+| parse | experience | education | skills | custom sections | summary chars | priority fixes |
+|---|---|---|---|---|---|---|
+| blind | 1 | 1 | 0 | 2 | 863 | 5 (the four above + "Add a skills section") |
+| with `sectionHeadings` | 2 | 1 | 81 | 0 | 216 | 2 ("Use standard section headings", word count) |
+
+Fix: `parseResumeText(input, { sectionHeadings })` — the importer's own
+heading table (`OWN_HEADINGS`, R789) is consulted after a per-call map
+built from the reader's renames (core keys → their section, other keys →
+a custom section with the user's title); a label still has to be a whole
+heading line. The map is set for the duration of one parse and restored in
+`finally`, so a hinted parse never leaks into the next one. Call sites:
+`/ats-checker` (health analysis and Replace resume), Builder Import
+dialog, Dashboard open-imported — every content-replacing import of a
+saved resume, so importing your own renamed export also reads back into
+the same sections. No-hint parse is byte-identical on the 186-file corpus
+(`qa/r796-parse-replay.mts`, 186 / 186).
+
 ## Boundaries
 
 - Custom labels match a whole heading line only (exact, case-insensitive,

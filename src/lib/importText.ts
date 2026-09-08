@@ -84,7 +84,24 @@ for (const { key, label } of defaultSectionLabels()) {
   OWN_HEADINGS.set(label.toLowerCase(), own)
   OWN_HEADINGS.set(label.toLowerCase().replace(/\s+/g, ''), own)
 }
-const ownHeading = (t: string) => OWN_HEADINGS.get(t.trim().replace(/\s+/g, ' ').toLowerCase())
+// The headings the reader renamed in the Builder ("Where I have worked"), for the
+// duration of one parse — its own export reads back into the sections it came from.
+let readerHeadings: Map<string, OwnHeading> | null = null
+function readerHeadingMap(sectionHeadings: Partial<Record<string, string>>): Map<string, OwnHeading> | null {
+  const map = new Map<string, OwnHeading>()
+  for (const [key, label] of Object.entries(sectionHeadings)) {
+    const t = label?.trim()
+    if (!t) continue
+    const own: OwnHeading = key in CORE_SECTION_KEYS ? { section: CORE_SECTION_KEYS[key] } : { custom: t }
+    map.set(t.toLowerCase(), own)
+    map.set(t.toLowerCase().replace(/\s+/g, ''), own)
+  }
+  return map.size ? map : null
+}
+const ownHeading = (t: string) => {
+  const k = t.trim().replace(/\s+/g, ' ').toLowerCase()
+  return readerHeadings?.get(k) ?? OWN_HEADINGS.get(k)
+}
 // "P R O F E S S I O N A L E X P E R I E N C E" — tracked (letter-spaced) headings
 // reach text extraction with a space after every letter.
 const LETTER_SPACED_RE = /^(?:[A-Za-z&/] ){3,}[A-Za-z&/]$/
@@ -692,7 +709,22 @@ export function keepDesignOnImport(prev: Resume, parsed: Resume): Resume {
   }
 }
 
-export function parseResumeText(input: string): Resume {
+export type ParseOptions = {
+  /** The reader's own section headings (Builder renames), so its export reads back into the same sections */
+  sectionHeadings?: Partial<Record<string, string>>
+}
+
+export function parseResumeText(input: string, options: ParseOptions = {}): Resume {
+  const previous = readerHeadings
+  readerHeadings = options.sectionHeadings ? readerHeadingMap(options.sectionHeadings) : null
+  try {
+    return parseResumeTextInner(input)
+  } finally {
+    readerHeadings = previous
+  }
+}
+
+function parseResumeTextInner(input: string): Resume {
   if (looksLikeLinkedInExport(input)) return parseLinkedInText(input)
   const raw = plainResumeText(input)
   const resume = emptyResume()
