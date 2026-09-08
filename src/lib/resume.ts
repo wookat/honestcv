@@ -2379,6 +2379,10 @@ export function experienceHeadingParts(e: ExperienceItem, grouped: boolean) {
   return entryHeading(e.role, place)
 }
 
+/** Education rows with something to print — a degree or a school (either alone is an entry) */
+export const educationEntries = (r: Resume): EducationItem[] =>
+  r.education.filter((e) => e.degree.trim() || e.school.trim())
+
 /** Education heading parts: degree · school, location */
 export function educationHeadingParts(e: EducationItem) {
   return entryHeading(e.degree, [e.school, e.location].filter((s) => s.trim()).join(', '))
@@ -2798,12 +2802,11 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
         lines.push(involvementHeadingLine(i) + (dates ? ` (${dates})` : ''))
         for (const b of involvementBullets(i)) lines.push(`- ${b}`)
       }
-    } else if (key === 'education' && r.education.some((e) => e.school)) {
+    } else if (key === 'education' && educationEntries(r).length > 0) {
       lines.push('', sectionHeading(r, 'education').toUpperCase())
-      for (const e of r.education) {
-        if (!e.school) continue
+      for (const e of educationEntries(r)) {
         lines.push(
-          [e.degree, e.school].filter(Boolean).join(', ') +
+          [e.degree, e.school].filter((s) => s.trim()).join(', ') +
             (e.startDate || e.endDate
               ? ` (${[e.startDate, e.endDate].filter(Boolean).join(' – ')})`
               : '')
@@ -2919,15 +2922,14 @@ export function resumeToMarkdown(r: Resume): string {
         for (const b of involvementBullets(i)) lines.push(`- ${b}`)
         lines.push('')
       }
-    } else if (key === 'education' && r.education.some((e) => e.school)) {
+    } else if (key === 'education' && educationEntries(r).length > 0) {
       heading(sectionHeading(r, 'education'))
-      for (const e of r.education) {
-        if (!e.school) continue
+      for (const e of educationEntries(r)) {
         const dates =
           e.startDate || e.endDate
             ? ` *(${[e.startDate, e.endDate].filter(Boolean).join(' – ')})*`
             : ''
-        lines.push(`### ${[e.degree, e.school].filter(Boolean).join(', ')}${dates}`, '')
+        lines.push(`### ${[e.degree, e.school].filter((s) => s.trim()).join(', ')}${dates}`, '')
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail, '')
       }
