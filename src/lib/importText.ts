@@ -70,6 +70,10 @@ const HEADING_WORD_RE = /^(?:[A-Z][A-Za-z&/'’-]*|&|\/|and|of|or|in|the)$/
 // "Project Manager" / "Customer Experience Lead" are entry headers, not sections.
 const JOB_TITLE_NOUN_RE =
   /\b(manager|engineer|developer|analyst|director|lead|specialist|coordinator|assistant|consultant|intern|officer|head|designer|architect|administrator|trainer|teacher|nurse|technician|associate|representative|executive|founder|owner|president|vp|supervisor|advisor|adviser|counsel|accountant|scientist|researcher|writer|editor|recruiter|planner|strategist|agent|clerk|operator|driver|chef|cook|server|barista|cashier|volunteer|partner|fellow|professor|lecturer|instructor|tutor|mentor|ambassador|apprentice|trainee|waiter|waitress|receptionist|paralegal|secretary|treasurer|leader)\b/i
+// One credential's name — "Graduate Project Management Certification",
+// "Certificate in Project Management" — not the section that lists them.
+const CREDENTIAL_TITLE_RE =
+  /^(?:\S+\s+){2,}(?:certification|certificate|licen[cs]e|diploma|course)$|^(?:certification|certificate|licen[cs]e|diploma|course)\s+(?:in|of)\s/i
 const looksLikeHeadingShape = (t: string) => {
   if (t.length > 48 || /[.,;:!?()\d]/.test(t)) return false
   const words = t.split(/\s+/)
@@ -252,7 +256,7 @@ function matchHeading(line: string): SectionName | null {
   }
   // "WORK EXPERIENCE (most impressive first)" — an aside after the heading
   t = t.replace(/\s*\([^)]*\)$/, '')
-  if (JOB_TITLE_NOUN_RE.test(t)) return null
+  if (JOB_TITLE_NOUN_RE.test(t) || CREDENTIAL_TITLE_RE.test(t)) return null
   if (t.length <= 40) for (const [re, name] of SECTION_HEADINGS) if (re.test(t)) return name
   if (CUSTOM_HEADING_RE.test(t) || !looksLikeHeadingShape(t)) return null
   for (const [re, name] of SECTION_WORDS) if (new RegExp(`\\b(?:${re.source})\\b`, 'i').test(t)) return name
