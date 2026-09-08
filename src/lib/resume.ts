@@ -663,6 +663,14 @@ const SECTION_LABELS_I18N: Record<Exclude<ResumeLanguage, 'en'>, Record<string, 
   },
 }
 
+/** Every default section heading the product prints, in every language, with its section key. */
+export function defaultSectionLabels(): { key: string; label: string }[] {
+  const out = Object.entries(SECTION_LABELS).map(([key, label]) => ({ key, label }))
+  for (const labels of Object.values(SECTION_LABELS_I18N))
+    for (const [key, label] of Object.entries(labels)) out.push({ key, label })
+  return out
+}
+
 const CUSTOM_SECTION_FALLBACK: Record<ResumeLanguage, string> = {
   en: 'Custom section',
   es: 'Sección personalizada',
