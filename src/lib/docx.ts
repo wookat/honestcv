@@ -33,6 +33,7 @@ import {
   courseworkBullets,
   courseworkEntries,
   involvementBullets,
+  projectBullets,
   involvementDates,
   involvementEntries,
   militaryBullets,
@@ -347,7 +348,9 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(pi++),
           })
         )
-        if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
+        const bullets = projectBullets(p)
+        if (bullets.length > 1) for (const b of bullets) children.push(body(b, { bullet: true }))
+        else if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
       }
     } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'involvement')))

@@ -110,6 +110,10 @@ const continuesPrevious = (prev: string | undefined, line: string) =>
   (/^[a-zà-ÿ$€£0-9]/.test(line) || OPEN_PHRASE_END_RE.test(prev)) &&
   !/^\(?\d{4}\b/.test(line) &&
   !DATE_RANGE_RE.test(line)
+// A line broken inside a hyphenated word ("multi-" + "tenant") rejoins without
+// a space; every other wrap rejoins with one.
+const joinWrapped = (prev: string, line: string) =>
+  /[A-Za-zà-ÿ]-$/.test(prev) && /^[a-zà-ÿ]/.test(line) ? `${prev}${line}` : `${prev} ${line}`
 
 // "Mumbai, India" / "Austin, TX" / "Remote" — a place, nothing else.
 const PLACE_RE = /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'’-]{0,30}(?:,\s*[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'’-]{0,30}){0,2}$/
@@ -380,6 +384,13 @@ const isTagList = (line: string) => {
   const parts = line.split(',').map((p) => p.trim())
   return parts.length >= 3 && !/[.:;!?]$/.test(line) && parts.every((p) => p && p.split(/\s+/).length <= 3)
 }
+// "Next.js · TypeScript · Vanilla CSS · React · Vercel" — a project's stack row
+const isStackRow = (line: string) => {
+  const parts = line.split(/\s[·|]\s/).map((p) => p.trim())
+  return parts.length >= 3 && !/[.:;!?]$/.test(line) && parts.every((p) => p && p.split(/\s+/).length <= 3)
+}
+// "Next.js" / "index.html" match URL_RE but name code, not a site
+const CODE_NAME_RE = /^[a-z0-9-]+\.(?:js|ts|jsx|tsx|py|rs|go|css|cs|sh|rb|md|cpp|html?|json|ya?ml)$/i
 // A line that names a degree and is not a "Label: items" detail row
 const isDegreeLine = (text: string) => {
   const label = SKILL_LABEL_RE.exec(text)
@@ -422,7 +433,7 @@ const continueEduLine = (edu: EducationItem, prev: string, line: string) => {
   const tail = prev.trim()
   for (const key of ['details', 'degree', 'school'] as const) {
     if (edu[key].endsWith(tail)) {
-      edu[key] = `${edu[key]} ${line}`
+      edu[key] = joinWrapped(edu[key], line)
       return
     }
   }
@@ -595,7 +606,10 @@ export function parseResumeText(raw: string): Resume {
       case 'custom':
         if (!currentCustom) break
         if (continuesPrevious(currentCustom.bullets[currentCustom.bullets.length - 1], line))
-          currentCustom.bullets[currentCustom.bullets.length - 1] += ` ${line}`
+          currentCustom.bullets[currentCustom.bullets.length - 1] = joinWrapped(
+            currentCustom.bullets[currentCustom.bullets.length - 1],
+            line
+          )
         else currentCustom.bullets.push(stripBullet(line))
         break
       case 'experience': {
@@ -609,7 +623,10 @@ export function parseResumeText(raw: string): Resume {
           currentExp &&
           continuesPrevious(currentExp.bullets[currentExp.bullets.length - 1], line)
         ) {
-          currentExp.bullets[currentExp.bullets.length - 1] += ` ${line}`
+          currentExp.bullets[currentExp.bullets.length - 1] = joinWrapped(
+            currentExp.bullets[currentExp.bullets.length - 1],
+            line
+          )
         } else {
           const { rest, start, end } = extractDates(line)
           if (!rest && start && currentExp && !currentExp.startDate) {
@@ -799,17 +816,40 @@ export function parseResumeText(raw: string): Resume {
       case 'projects': {
         const last = resume.projects[resume.projects.length - 1]
         const dates = extractDates(line)
+        const descLines = last ? last.description.split('\n') : []
+        const prevLine = descLines[descLines.length - 1] ?? ''
         if (dates.start && !dates.rest) {
           // date range on its own line under the project name
           if (last && !last.startDate) {
             last.startDate = dates.start
             last.endDate = dates.end
           }
-        } else if (last && (isBullet(line) || looksLikeBodyLine(line) || (last.description && isTagList(line)))) {
-          // a described project's row of tags ("Kubernetes, Helm, Rust") stays with it
-          last.description = [last.description, stripBullet(line)].filter(Boolean).join(' ')
+        } else if (
+          last &&
+          prevLine &&
+          !isBullet(line) &&
+          !isTagList(line) &&
+          !/\s·\s/.test(line) &&
+          (continuesPrevious(prevLine, line) ||
+            (!/[.!?:;]$/.test(prevLine) && prevLine.length >= 60 && looksLikeBodyLine(line)))
+        ) {
+          // the wrapped rest of the previous description line
+          descLines[descLines.length - 1] = joinWrapped(prevLine, line)
+          last.description = descLines.join('\n')
+        } else if (
+          last &&
+          (isBullet(line) ||
+            looksLikeBodyLine(line) ||
+            (last.description && isTagList(line)) ||
+            (!last.description && isStackRow(line)))
+        ) {
+          // one description line per source line; a described project's row of
+          // tags ("Kubernetes, Helm, Rust") and the stack row right under a
+          // project name ("Next.js · TypeScript · Vercel") stay with it
+          last.description = [last.description, stripBullet(line)].filter(Boolean).join('\n')
         } else {
-          const link = line.match(URL_RE)?.[0] ?? ''
+          const url = line.match(URL_RE)?.[0] ?? ''
+          const link = CODE_NAME_RE.test(url) ? '' : url
           resume.projects.push({
             id: newId(),
             name: line.replace(link, '').replace(/[—–|(),]\s*$/, '').trim() || line,

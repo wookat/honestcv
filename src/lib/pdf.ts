@@ -24,6 +24,7 @@ import {
   courseworkEntries,
   courseworkHeadingLine,
   involvementBullets,
+  projectBullets,
   involvementDates,
   involvementEntries,
   involvementHeadingLine,
@@ -878,7 +879,11 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         w.gap(2)
         w.ensure(30) // keep the project name with its description
         w.titleLine(projectHeadingLine(p), projectDates(p), { size: 10 })
-        if (p.description.trim()) {
+        const bullets = projectBullets(p)
+        if (bullets.length > 1) {
+          w.gap(1)
+          for (const b of bullets) w.bullet(b)
+        } else if (p.description.trim()) {
           w.gap(1)
           bodyText(p.description.trim())
         }
