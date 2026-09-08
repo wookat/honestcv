@@ -5,6 +5,7 @@ import { buildResumePdf } from '../src/lib/pdf'
 import { sampleResume, type Resume } from '../src/lib/resume'
 import { TEMPLATES } from '../src/lib/templates'
 import { pdfTextOf } from './import/helpers'
+import { ownSections, withOwnSections } from './import/ownSections'
 
 const contactRow = (text: string, c: Resume['contact']) =>
   text.split('\n').find((l) => l.includes(c.email) && l.includes(c.location)) ?? ''
@@ -161,6 +162,22 @@ describe('the company-info line under an entry header re-imports as companyInfo 
     for (const t of TEMPLATES) {
       const { text } = await pdfTextOf(await buildResumePdf({ ...src, templateId: t.id }))
       expect(pick(parseResumeText(text)), t.id).toEqual(pick(src))
+    }
+  })
+})
+
+describe('our own structured sections re-import from every template (R797)', () => {
+  const src = withOwnSections(sampleResume())
+  // Sidebar prints every heading in a label column; with this many sections
+  // the extractor reads the page as two columns and detaches the headings
+  // from their content (extractor limit, tracked separately).
+  const FULL_WIDTH = TEMPLATES.filter((t) => t.id !== 'sidebar')
+
+  it('involvement, coursework, certifications, awards, publications, references and military service come back field for field', async () => {
+    for (const t of FULL_WIDTH) {
+      const back = parseResumeText((await pdfTextOf(await buildResumePdf({ ...src, templateId: t.id }))).text)
+      expect(ownSections(back), t.id).toEqual(ownSections(src))
+      expect(back.customSections, t.id).toEqual([])
     }
   })
 })
