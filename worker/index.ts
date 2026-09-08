@@ -2044,6 +2044,9 @@ const SPA_ROUTES = new Set([
   '/jobs',
 ])
 
+// First-party pageview beacon tag as emitted by index.html / spa.html / build-seo
+const FP_BEACON_TAG = '<script defer src="/t.js"></script>'
+
 // Per-route snippet metadata for the raw shell HTML; copy is identical to
 // each page's client-side usePageMeta call.
 const SPA_META: Record<string, { title: string; description: string }> = {
@@ -2226,10 +2229,11 @@ app.notFound(async (c) => {
       .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${meta.title}"`)
       .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${meta.description}"`)
   }
-  return new Response(body, {
-    status: SPA_ROUTES.has(path) || shareLive ? 200 : 404,
-    headers,
-  })
+  const status = SPA_ROUTES.has(path) || shareLive ? 200 : 404
+  // 404 shells never report a pageview: probes for non-existent URLs are
+  // not visits, and the beacon has no route knowledge of its own.
+  if (status === 404 && typeof body === 'string') body = body.replace(FP_BEACON_TAG, '')
+  return new Response(body, { status, headers })
 })
 
 // Weekly IndexNow full push (same pattern as Shelfmark's runIndexNow cron):

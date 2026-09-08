@@ -68,7 +68,14 @@ External referrers recorded: none.
    first-visit → return-visit linkage does not exist.
 4. AI quota counters are lifetime (no per-day dimension) and count
    successful calls only (failures don't consume quota).
-5. **Beacon counts are not forgery-proof**: `/api/hit` and `/api/ev`
+5. **Pulse days are flagged, not deleted**: `scripts/analytics.mjs` marks
+   any day with ≥ max(50, 5 × median-day) hits as `⚠ pulse`. On this
+   product every such day so far coincided with an acceptance-review or
+   QA round whose browser had not set the QA flag (2026-08-30/31,
+   2026-09-08). Read the "ordinary days" subtotal as the organic ceiling.
+   404 shells (unknown routes, dead share links) no longer carry the
+   beacon at all, so URL probes cannot register as pageviews.
+6. **Beacon counts are not forgery-proof**: `/api/hit` and `/api/ev`
    accept unauthenticated requests by design (no cookies, no identity).
    Obvious automation (empty UA, bot/CLI UA, `x-qa` header) is dropped at
    the source, but a browser-like client can still inflate counts. Treat
