@@ -2354,6 +2354,7 @@ export function experienceDateRange(startDate: string, endDate: string): string 
   const start = startDate.trim()
   const end = endDate.trim()
   if (start && !end) return `${start} – Present`
+  if (start === end) return start
   return [start, end].filter(Boolean).join(' – ')
 }
 
