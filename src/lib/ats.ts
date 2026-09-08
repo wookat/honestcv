@@ -1068,7 +1068,7 @@ function employerTokens(jd: string, company: string | undefined): Set<string> {
 const URL_TOKEN_RE = /^www\.|\.(?:com|co|io|org|ai|de|uk|us|fr|eu|nl|es|it)$/
 
 const BOILERPLATE_HEADING_RE =
-  /^(?:(?:a bit |more )?about (?!(?:the |this )?(?:role|job|position|opportunity|team)\b|you\b).+|who we are|our (?:story|mission|values|culture|benefits|perks|commitment.*|hiring process|interview process|offer|way of working)|how we work|what we offer|what we give|what.s in it for you|what you.ll get|you.ll get|we offer|in return|rewards?|your benefits|why (?:join|work|you.ll love|us).*|the (?:perks|benefits|package)|(?:perks|benefits)(?: (?:&|and) (?:perks|benefits))?|(?:overview of|employee|pay (?:&|and)) benefits|compensation.*|salary.*|equal (?:employment )?opportunity.*|eeo statement|diversity.*|inclusion.*|accommodations|how to apply|application process|interview process|hiring process|the process|next steps|what to expect|.*recruitment scams?.*|.*(?:notice|alert)|visa sponsorship|life at .*|the company|company (?:overview|description)|working at .*|what we do|join us|(?:\w+ )?bonus eligibility|(?:referral|sign(?:ing|-on)|retention) bonus)$/i
+  /^(?:(?:a bit |more )?about (?!(?:the |this )?(?:role|job|position|opportunity|team)\b|you\b).+|who we are|our (?:story|mission|values|culture|benefits|perks|commitment.*|hiring process|interview process|offer|way of working)|how we work|what we offer|what we give|what.s in it for you|what you.ll get|you.ll get|what (?:you can|to) expect|we offer|in return|rewards?|your benefits|why (?:join|work|you.ll love|us).*|why [a-z][a-z.&-]*|the (?:perks|benefits|package)|(?:perks|benefits)(?: (?:&|and) (?:perks|benefits))?|(?:overview of|employee|pay (?:&|and)) benefits|compensation.*|salary.*|equal (?:employment )?opportunity.*|eeo statement|diversity.*|inclusion.*|accommodations|how to apply|application process|interview process|hiring process|the process|next steps|additional information|.*recruitment scams?.*|.*(?:notice|alert)|visa sponsorship|life at .*|the company|company (?:overview|description)|working at .*|what we do|(?:what|who) is (?!(?:the|this|a|an|it)\b).+|join us|(?:\w+ )?bonus eligibility|(?:referral|sign(?:ing|-on)|retention) bonus)$/i
 
 /**
  * Words a section title contains when the section is about the employer, the
@@ -1079,7 +1079,7 @@ const BOILERPLATE_HEADING_RE =
  * names requirements ("Skills & Benefits") is not read this way.
  */
 const BOILERPLATE_HEADING_CUE_RE =
-  /\b(?:benefits?|perks?|salary|pay(?: range| transparency| grade)?|compensation|(?:total )?rewards|(?:interview|recruitment|hiring|application|selection) (?:process|journey|steps?|tips?|deadline)|how to apply|apply now|privacy|equal opportunit(?:y|ies)|applicants|(?:our |company |team |engineering )culture|(?:our |company )values|(?:our |company |\w+.s )mission|get to know|introduction to|why (?:you should |top talent )?(?:join|work|chooses?)|what it.s like|working (?:here|at)|life at|we offer|time off|well-?being|wellness|work-life balance|flexible working|relocation|useful links|in numbers|fair chance)\b/i
+  /\b(?:benefits?|perks?|salary|diversity|inclusion|belonging|pay(?: range| transparency| grade)?|compensation|(?:total )?rewards|(?:interview|recruitment|hiring|application|selection) (?:process|journey|steps?|tips?|deadline)|how to apply|apply now|privacy|equal opportunit(?:y|ies)|applicants|(?:our |company |team |engineering |the )culture|(?:our |company )values|(?:our |company |\w+.s )mission|get to know|introduction to|why (?:you should |top talent )?(?:join|work|chooses?)|what it.s like|working (?:here|at)|life at|we offer|time off|well-?being|wellness|work-life balance|flexible working|relocation|useful links|in numbers|fair chance)\b/i
 
 /** Whether a section title (trailing punctuation and leading symbols removed) opens employer boilerplate. */
 function isBoilerplateHeading(label: string): boolean {
@@ -1090,7 +1090,7 @@ function isBoilerplateHeading(label: string): boolean {
 }
 
 /** "✅ A typical interview process" / "🏥 Private Medical Insurance:" → the words. */
-const headingLabel = (line: string) => line.trim().replace(/^[^A-Za-z0-9#$€£]+/, '').replace(/[:!\s]+$/, '')
+const headingLabel = (line: string) => line.trim().replace(/^[^A-Za-z0-9#$€£]+/, '').replace(/[:!?\s]+$/, '')
 
 /**
  * A paragraph that is employer boilerplate wherever it sits — equal-opportunity
@@ -1106,7 +1106,11 @@ const LIST_ITEM_LINE_RE = /^\s*(?:[-–—•*▪◦·]|\d+[.)])\s/
 const METADATA_LABEL_RE =
   /^\s*(?:work )?(?:location|salary|compensation|pay(?: range)?|(?:year \d+ )?ote|on-target earnings|job type|employment type|contract type|schedule|hours|working hours|start date|workplace|relocation assistance(?: provided)?)\s*:/i
 
-/** A short, non-bullet, non-sentence line with words in it — how sections are titled in job ads. */
+/**
+ * A short, non-bullet, non-sentence line with words in it — how sections are
+ * titled in job ads; a question too ("Why Join Us?", "Up for the Challenge?",
+ * "What is PerfectServe?" — 17 of 17 such lines in 96 ads title a section).
+ */
 function isHeadingLine(line: string): boolean {
   const t = line.trim()
   return (
@@ -1114,7 +1118,7 @@ function isHeadingLine(line: string): boolean {
     t.length <= 60 &&
     /^[^#]*[a-z]/i.test(t) &&
     !LIST_ITEM_LINE_RE.test(line) &&
-    !/[.,;?]$/.test(t) &&
+    !/[.,;]$/.test(t) &&
     t.split(/\s+/).length <= 6
   )
 }
@@ -1155,7 +1159,7 @@ function splitBoilerplate(jd: string): { job: string; boilerplate: string } {
 
 /** Section titles as ads write them, for recognising one glued to the text next to it. */
 const GLUED_HEADING_RE =
-  /^(?:about (?:the )?(?:company|role|us|team|position|job|opportunity)|about (?!(?:the|a|an|our|this|your)\b)[a-z][a-z.&-]*|who we.re looking for|what we.re looking for|what we offer|what we give|what you.ll (?:do|be doing|need|bring|get)|what you bring|who you are|about you|requirements|responsibilities|(?:key|your|main) responsibilities|(?:preferred|minimum|basic|required) qualifications|qualifications|preferred|nice to haves?|benefits|compensation|your (?:profile|role|mission|tasks)|the role|the team|(?:our )?tech stack|why (?:join us|[a-z][a-z.&-]*)|how to apply|next steps|the opportunity|job description|(?:role |position )?(?:overview|summary)|duties|skills(?: (?:&|and) qualifications)?|education|experience)$/i
+  /^(?:about (?:the )?(?:company|role|us|team|position|job|opportunity)|about (?!(?:the|a|an|our|this|your)\b)[a-z][a-z.&-]*|who we.re looking for|what we.re looking for|what we offer|what we give|what you.ll (?:do|be doing|need|bring|get)|what you bring|who you are|about you|requirements|responsibilities|(?:key|your|main) responsibilities|(?:preferred|minimum|basic|required) qualifications|qualifications|preferred|nice to haves?|benefits|compensation|your (?:profile|role|mission|tasks)|the role|the team|(?:our )?tech stack|why (?:join us|[a-z][a-z.&-]*)|how to apply|next steps|the opportunity|job description|(?:role |position )?(?:overview|summary)|duties|skills(?: (?:&|and) qualifications)?|education|experience|additional information|what (?:you can|to) expect)$/i
 
 const GLUED_MAX_WORDS = 5
 
@@ -1170,11 +1174,12 @@ function splitGluedHeading(line: string): string[] {
   const words = line.trim().split(/\s+/)
   if (words.length < 8) return [line]
   const isTitleCase = (w: string) => /^[A-Z]/.test(w)
+  const opensText = (w: string) => isTitleCase(w) || LIST_ITEM_LINE_RE.test(`${w} x`)
   for (let n = Math.min(GLUED_MAX_WORDS, words.length - 3); n >= 1; n--) {
     const head = words.slice(0, n).join(' ')
     // "Compensation: This is a fee-for-service position" is an inline label
     // whose content is the rest of the line; leave it whole.
-    if (isTitleCase(words[0]) && isTitleCase(words[n]) && !/:$/.test(head) && GLUED_HEADING_RE.test(head)) {
+    if (isTitleCase(words[0]) && opensText(words[n]) && !/:$/.test(head) && GLUED_HEADING_RE.test(head)) {
       return [head, ...splitGluedHeading(words.slice(n).join(' '))]
     }
   }
@@ -1340,7 +1345,8 @@ export function requirementsBlockLines(jd: string): RequirementLine[] {
     if (!line) continue
     if (isHeadingLine(line)) {
       const label = headingLabel(line)
-      if (isBoilerplateHeading(label)) {
+      // "Don't meet every single requirement?" asks; it lists nothing.
+      if (isBoilerplateHeading(label) || /\?$/.test(line)) {
         inside = false
       } else if (REQUIREMENTS_HEADING_RE.test(label)) {
         inside = true
@@ -1349,6 +1355,12 @@ export function requirementsBlockLines(jd: string): RequirementLine[] {
       } else if (!(inside && NICE_TO_HAVE_HEADING_RE.test(label))) {
         inside = false
       }
+      continue
+    }
+    // "How we feel about Diversity, Equity, Inclusion and Belonging:" — a
+    // boilerplate title too long to be read as a heading line.
+    if (!LIST_ITEM_LINE_RE.test(raw) && /:$/.test(line) && wordCount(line) <= 12 && isBoilerplateHeading(headingLabel(line))) {
+      inside = false
       continue
     }
     const colon = line.indexOf(':')
@@ -1440,9 +1452,12 @@ const PLACE_WORDS = new Set(
     'united states usa america american americas canada canadian mexico brazil argentina latam latin ' +
     'europe european emea union kingdom britain british england ireland germany france spain portugal italy ' +
     'netherlands switzerland austria poland sweden norway denmark finland india australia asia apac africa ' +
-    'singapore japan'
+    'singapore japan pacific asia-pacific nordics benelux dach oceania scandinavia'
   ).split(' ')
 )
+
+/** "our Berlin office", "the Boston HQ" — the word before names the place, not a skill. */
+const PLACE_BEFORE_OFFICE_RE = /\b([A-Z][A-Za-z.-]+) (?:offices?|HQ|headquarters|hub)\b/g
 
 /**
  * Sentence ends, after which a capital is the sentence's own ("…with clients.
@@ -1451,6 +1466,16 @@ const PLACE_WORDS = new Set(
  * open lists ("Frontend: Vue.js", "ERP; NetSuite preferred") and never split.
  */
 const CLAUSE_BREAK_RE = /(?:(?<=[a-z])(?<!\b(?:e\.g|i\.e|etc|sr|jr|vs|approx|incl|min|max))\.(?=\s|$)|[?!])+/
+
+/**
+ * A colon after which prose starts ("Adaptability: Thrive in a start-up",
+ * "Please Note: Devices such as") — the capital is the sentence's own. A colon
+ * that opens a list of names ("Frontend: Typescript, React") does not split.
+ */
+const COLON_PROSE_RE = /:\s+(?=[A-Z][a-z]+\s+[a-z])/
+
+/** "Proven Commercial Leadership:" — a Title-Case label before the colon names nothing by its capitals. */
+const LABEL_RE = /^([^:]{2,60}):\s/
 
 /**
  * Words the requirements block writes with a capital that is not the clause's
@@ -1466,15 +1491,24 @@ function capitalizedRequirementTerms(lines: RequirementLine[]): Set<string> {
   const wordsOf = (s: string) =>
     s.replace(/[^A-Za-z0-9+#./ -]/g, ' ').match(/[A-Za-z0-9+#][A-Za-z0-9+#./-]*/g) ?? []
   for (const { text } of lines) {
-    const line = text.replace(/\b[A-Za-z]+n[’']t\b/g, ' not ').replace(/[’']([A-Za-z]{1,2})\b/g, '')
-    const long = wordsOf(line).filter((w) => /^[A-Za-z]{4,}$/.test(w))
-    if (long.length >= 3 && long.every((w) => /^[A-Z]/.test(w))) continue
-    for (const clause of line.split(CLAUSE_BREAK_RE)) {
+    let line = text.replace(/\b[A-Za-z]+n[’']t\b/g, ' not ').replace(/[’']([A-Za-z]{1,2})\b/g, '')
+    const titleCase = (ws: string[]) => {
+      const long = ws.filter((w) => /^[A-Za-z]{4,}$/.test(w))
+      return long.length >= 3 && long.every((w) => /^[A-Z]/.test(w))
+    }
+    if (titleCase(wordsOf(line))) continue
+    const places = new Set([...line.matchAll(PLACE_BEFORE_OFFICE_RE)].map((m) => m[1].toLowerCase()))
+    const label = LABEL_RE.exec(line)
+    if (label && titleCase(wordsOf(label[1]))) {
+      // Acronyms in the label ("NPI Number and Individual Malpractice Insurance:") still name something.
+      line = wordsOf(label[1]).filter((w) => /^[A-Z0-9]{2,}$/.test(w)).join(' ') + line.slice(label[0].length - 1)
+    }
+    for (const clause of line.split(CLAUSE_BREAK_RE).flatMap((c) => c.split(COLON_PROSE_RE))) {
       for (const [i, w] of wordsOf(clause).entries()) {
         if (!/[A-Z]/.test(i === 0 ? w.slice(1) : w)) continue
         const tok = w.toLowerCase().replace(/[./-]+$/, '')
         if (tok.length < 3 || !/^[a-z]/.test(tok)) continue
-        if (STOPWORDS.has(tok) || CALENDAR_WORDS.has(tok) || PLACE_WORDS.has(tok)) continue
+        if (STOPWORDS.has(tok) || CALENDAR_WORDS.has(tok) || PLACE_WORDS.has(tok) || places.has(tok)) continue
         out.add(tok)
       }
     }
