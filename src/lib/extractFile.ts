@@ -102,7 +102,7 @@ export interface PdfTextItem {
 }
 
 type LineItem = { x: number; w: number; size: number; str: string }
-type Segment = { x: number; end: number; y: number; size: number; text: string }
+type Segment = { x: number; end: number; y: number; size: number; text: string; tags: number; tagText: string }
 
 /**
  * Split each visual line into segments at wide gaps (e.g. a right-aligned
@@ -111,23 +111,29 @@ type Segment = { x: number; end: number; y: number; size: number; text: string }
  * and separator gaps stay under 1.5em even in justified prose, while a
  * layout gap is several ems wide however narrow the column. A known column
  * gutter also splits, so a left cell that runs up to the gutter is not glued
- * to the cell beside it. Three or more items spaced by the same 1.5–2.5em
- * gap are a row of tags ("Kubernetes  Helm  Rust"), joined with commas.
+ * to the cell beside it. Three or more items spaced by 1.5–2.5em gaps are a
+ * row of tags ("Kubernetes  Helm  Rust"), joined with commas; two items so
+ * spaced are only counted (`tags`), since a role beside a company has the
+ * same shape — they join a tag list only as its wrapped tail (see `inOrder`).
  */
 function isTagRow(items: LineItem[]): boolean {
-  if (items.length < 3) return false
+  if (items.length < 2) return false
   const gaps = items.slice(1).map((it, i) => (it.x - (items[i].x + items[i].w)) / Math.max(it.size, items[i].size))
   return Math.min(...gaps) >= 1.5 && Math.max(...gaps) <= GAP_EMS
 }
 
 function segmentOf(items: LineItem[], y: number): Segment {
   const last = items[items.length - 1]
+  const tags = isTagRow(items) ? items.length : 0
+  const tagText = items.map((it) => it.str).join(', ')
   return {
     x: items[0].x,
     end: last.x + last.w,
     y,
     size: Math.max(...items.map((it) => it.size)),
-    text: items.map((it) => it.str).join(isTagRow(items) ? ', ' : ' '),
+    text: tags >= 3 ? tagText : items.map((it) => it.str).join(' '),
+    tags,
+    tagText,
   }
 }
 
@@ -220,11 +226,25 @@ export function pdfPageText(items: PdfTextItem[], margin: number | null = null):
     line.push({ x: item.transform[4], w: item.width, size, str: item.str })
   }
   let segments = lineSegments(lines, null, margin)
-  const inOrder = (segs: Segment[]) =>
-    segs
-      .sort((a, b) => b.y - a.y || a.x - b.x)
-      .map((s) => s.text.replace(/\s+/g, ' ').trim())
-      .filter(Boolean)
+  // A tag flow that wraps ("Bash Java Perl Golang C" over "Python Rust
+  // Javascript": same start, same size, the next row down) is one list; a
+  // two-item row alone is not one (a role beside a company).
+  const continuesTags = (prev: Segment, s: Segment) =>
+    prev.tags >= 3 &&
+    s.tags >= 2 &&
+    Math.abs(s.x - prev.x) <= 2 &&
+    Math.abs(s.size - prev.size) <= 0.25 &&
+    prev.y - s.y <= 2.5 * s.size
+  const inOrder = (segs: Segment[]) => {
+    const sorted = [...segs].sort((a, b) => b.y - a.y || a.x - b.x)
+    const rows: Segment[] = []
+    for (const s of sorted) {
+      const prev = rows[rows.length - 1]
+      if (prev && continuesTags(prev, s)) rows[rows.length - 1] = { ...prev, y: s.y, text: `${prev.text}, ${s.tagText}` }
+      else rows.push(s)
+    }
+    return rows.map((s) => s.text.replace(/\s+/g, ' ').trim()).filter(Boolean)
+  }
   // Text beside other text would interleave when read purely top-to-bottom.
   // A page-high sidebar (LinkedIn exports, sidebar templates) is emitted as
   // main column then sidebar; a local two-column block (a skills grid) is
@@ -374,14 +394,34 @@ function columnLayout(lines: Map<number, LineItem[]>, segments: Segment[]): Colu
   const gaps = rowsY.slice(1).map((y, i) => rowsY[i] - y).sort((a, b) => a - b)
   const pitch = gaps[Math.floor(gaps.length / 2)] || 12
   const minX = Math.min(...segments.map((s) => s.x))
+  // Where lines begin: segment starts, plus the cells of a tag row (spaced
+  // 1.5–2.5em, one segment) — a grid column may start inside such a row.
   const starts = new Map<number, number>()
-  for (const s of segments) starts.set(Math.round(s.x), (starts.get(Math.round(s.x)) ?? 0) + 1)
+  const count = (x: number) => starts.set(Math.round(x), (starts.get(Math.round(x)) ?? 0) + 1)
+  for (const s of segments) count(s.x)
+  for (const lineItems of lines.values()) {
+    const sorted = [...lineItems].sort((a, b) => a.x - b.x)
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1]
+      const gap = (sorted[i].x - (prev.x + prev.w)) / Math.max(sorted[i].size, prev.size)
+      if (gap >= 1.5 && gap <= GAP_EMS) count(sorted[i].x)
+    }
+  }
+  // A column's headings and its indented items begin within a few points of
+  // each other: starts within 8pt form one candidate, anchored at the leftmost.
+  const xs = [...starts.keys()].sort((a, b) => a - b)
+  const candidates = xs.map((x) => {
+    const group = xs.filter((o) => o >= x && o <= x + 8)
+    return { gutter: x, spread: group[group.length - 1] - x, n: group.reduce((t, o) => t + (starts.get(o) ?? 0), 0) }
+  })
   const dateHeavy = (segs: Segment[]) => segs.filter((s) => DATE_LIKE_RE.test(s.text)).length * 2 >= segs.length
   let best: { gutter: number; bands: [number, number][]; rightSegs: number } | null = null
-  for (const [gutter, n] of starts) {
+  for (const { gutter, spread, n } of candidates) {
     if (n < 4 || gutter < minX + 60) continue
     const split = lineSegments(lines, gutter)
-    const anchors = rowsY.filter((y) => split.some((s) => s.y === y && Math.abs(s.x - gutter) <= 3))
+    const anchors = rowsY.filter((y) =>
+      split.some((s) => s.y === y && s.x >= gutter - 3 && s.x <= gutter + spread + 3),
+    )
     const clusters: [number, number][] = []
     for (const y of anchors) {
       const last = clusters[clusters.length - 1]
