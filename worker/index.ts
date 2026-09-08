@@ -1057,6 +1057,11 @@ const NON_ENGLISH_STOPWORDS_RE =
 const isNonEnglishText = (text: string) =>
   (text.slice(0, 800).match(NON_ENGLISH_STOPWORDS_RE)?.length ?? 0) >= 6
 
+// Every Arbeitnow body ends with the board's own paragraph — `Find <a>Jobs in
+// Germany</a> on Arbeitnow` or `Find more <a>English Speaking Jobs in France</a>
+// on Arbeitnow` (258 of 500 postings use the second shape).
+const ARBEITNOW_FOOTER_RE = /\n*Find (?:[a-z]+ ){0,3}Jobs in [^\n]{1,60} on Arbeitnow\s*$/i
+
 // Arbeitnow (Europe, on-site + remote). Its `search` parameter is ignored
 // upstream, so the newest pages are fetched and filtered locally.
 async function fetchArbeitnow(allowPartial: boolean): Promise<NormalizedJob[] | null> {
@@ -1072,8 +1077,7 @@ async function fetchArbeitnow(allowPartial: boolean): Promise<NormalizedJob[] | 
     .map((j) => {
       const tags = normalizeTags(j.tags)
       const location = (j.location ?? '').trim()
-      // Every Arbeitnow body ends with the board's own `<p>Find <a>Jobs in Germany</a> on Arbeitnow</a>` footer
-      const description = htmlToText(j.description ?? '').replace(/\n*Find Jobs in [^\n]{1,60} on Arbeitnow\s*$/i, '')
+      const description = htmlToText(j.description ?? '').replace(ARBEITNOW_FOOTER_RE, '')
       return {
         id: `arbeitnow-${j.slug}`,
         title: (j.title ?? '').trim(),
