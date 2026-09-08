@@ -75,11 +75,11 @@ export default function SharedResume() {
   return (
     <div className="bg-muted/40 min-h-screen">
       <header className="bg-background border-b">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
           <p className="text-muted-foreground text-sm">
             Shared resume — read-only snapshot
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {state.status === 'ready' && (
               <Button
                 id="share-dl-pdf"
