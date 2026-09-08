@@ -93,15 +93,22 @@ const looksLikeWrappedHeader = (line: string) =>
 // PDF text extraction yields one line per visual line, so a bullet that wraps
 // arrives as "Reduced load time from 3.2" + "seconds to 1.8 seconds.": a
 // marker-less line starting in lowercase (or with a figure / currency amount)
-// after a line with no terminal punctuation continues that line. A line that
-// opens with a year is a date, not a continuation.
+// after a line with no terminal punctuation continues that line, and so does
+// any marker-less line after one that ends mid-phrase ("… security best
+// practices, and" + "TypeScript — raising standards"). A line that opens with
+// a year is a date, not a continuation.
+const OPEN_PHRASE_END_RE =
+  /(?:,|\b(?:and|or|but|with|for|to|of|in|on|by|at|as|from|into|via|using|across|through|including|the|a|an))$/i
 const continuesPrevious = (prev: string | undefined, line: string) =>
   !!prev &&
   !/[.!?:;]$/.test(prev) &&
   !isBullet(line) &&
-  /^[a-zà-ÿ$€£0-9]/.test(line) &&
+  (/^[a-zà-ÿ$€£0-9]/.test(line) || OPEN_PHRASE_END_RE.test(prev)) &&
   !/^\(?\d{4}\b/.test(line) &&
   !DATE_RANGE_RE.test(line)
+
+// "Mumbai, India" / "Austin, TX" / "Remote" — a place, nothing else.
+const PLACE_RE = /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'’-]{0,30}(?:,\s*[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'’-]{0,30}){0,2}$/
 
 const GITHUB_RE = /(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s|,;)]+/i
 
@@ -110,6 +117,32 @@ const SKILL_LABEL_RE = /^([A-Za-z][^:,]{0,39}):\s+(.+)$/
 const tidySkillItems = (items: string) =>
   items.split(',').map((s) => s.trim()).filter(Boolean).join(', ')
 
+// A skills grid lays each category label on its own line above its items
+// ("Languages" + "Python, TypeScript, SQL"). Two or more such pairs in a
+// block are folded to "Label: items" lines; a single pair could be a flat
+// list that happens to hold one comma line and is left alone.
+const SKILL_GRID_LABEL_RE = /^[A-Za-z][A-Za-z&/ '’-]{1,39}$/
+const isGridLabel = (l: string) =>
+  SKILL_GRID_LABEL_RE.test(l) && l !== l.toUpperCase() && l.split(/\s+/).length <= 4
+function foldSkillGrid(lines: string[]): string[] {
+  const pairAt = (i: number) =>
+    isGridLabel(lines[i]) &&
+    i + 1 < lines.length &&
+    lines[i + 1].includes(',') &&
+    !SKILL_LABEL_RE.test(lines[i + 1])
+  let pairs = 0
+  for (let i = 0; i < lines.length; i++) if (pairAt(i)) pairs++
+  if (pairs < 2) return lines
+  const out: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    if (pairAt(i)) {
+      out.push(`${lines[i]}: ${lines[i + 1]}`)
+      i++
+    } else out.push(lines[i])
+  }
+  return out
+}
+
 // A skills block written as one "Category: a, b" line per category keeps one
 // line per category (the format skillLines() renders with bold labels). A
 // marker-less line under a labelled line is that line's PDF wrap when it starts
@@ -117,9 +150,9 @@ const tidySkillItems = (items: string) =>
 // wrapped; a short labelled line followed by a plain one is a mixed block and
 // the plain line stays its own row. Blocks without labels stay a flat list.
 function joinSkillLines(lines: string[]): string {
-  const cleaned = lines
-    .map((l) => stripBullet(l).replace(/[•·▪◦|]/g, ',').trim())
-    .filter(Boolean)
+  const cleaned = foldSkillGrid(
+    lines.map((l) => stripBullet(l).replace(/[•·▪◦|]/g, ',').trim()).filter(Boolean)
+  )
   if (!cleaned.some((l) => SKILL_LABEL_RE.test(l))) return tidySkillItems(cleaned.join(','))
   const out: string[] = []
   let prevRaw = ''
@@ -207,8 +240,10 @@ function matchCustomHeading(line: string): string | null {
   }
   if (t.length > 32) return null
   if (CUSTOM_HEADING_RE.test(t)) return t
-  // Generic short ALL-CAPS heading like "PRO BONO WORK"
-  if (/^[A-Z][A-Z &/'-]+$/.test(t) && t.split(/\s+/).length <= 3) return t
+  // Generic short ALL-CAPS heading like "PRO BONO WORK" — a lone short
+  // acronym (CSS / AWS / SQL, a wrapped skill) is not one.
+  if (/^[A-Z][A-Z &/'-]+$/.test(t) && t.split(/\s+/).length <= 3 && (t.length >= 6 || t.includes(' ')))
+    return t
   return null
 }
 
@@ -352,7 +387,8 @@ export function parseResumeText(raw: string): Resume {
   const skillLines: string[] = []
   const certLines: string[] = []
 
-  for (let line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i]
     if (!line) continue
     const inline = matchInlineHeading(line)
     const heading = inline?.heading ?? matchHeading(line)
@@ -367,7 +403,15 @@ export function parseResumeText(raw: string): Resume {
     if (line === resume.contact.fullName) continue
     if (section !== null) {
       const customTitle = matchCustomHeading(line)
-      if (customTitle) {
+      // "Languages" above "Python, TypeScript, SQL" inside Skills is a grid
+      // label (folded by joinSkillLines), not a Languages section.
+      const gridLabel =
+        section === 'skills' &&
+        isGridLabel(line) &&
+        !!lines[i + 1] &&
+        lines[i + 1].includes(',') &&
+        !matchHeading(lines[i + 1])
+      if (customTitle && !gridLabel) {
         section = 'custom'
         currentExp = null
         currentEdu = null
@@ -419,6 +463,18 @@ export function parseResumeText(raw: string): Resume {
             currentExp &&
             !currentExp.startDate &&
             currentExp.bullets.length === 0 &&
+            currentExp.company &&
+            start &&
+            PLACE_RE.test(rest)
+          ) {
+            // "Mumbai, India | Dec 2021 – Present" under a "Role · Company" header
+            currentExp.location = currentExp.location || rest
+            currentExp.startDate = start
+            currentExp.endDate = end
+          } else if (
+            currentExp &&
+            !currentExp.startDate &&
+            currentExp.bullets.length === 0 &&
             /,$/.test(currentExp.company) &&
             rest.length <= 60 &&
             !looksLikeBodyLine(rest)
@@ -464,6 +520,18 @@ export function parseResumeText(raw: string): Resume {
         } else if (!rest && start && currentEdu && !currentEdu.startDate) {
           currentEdu.startDate = start
           currentEdu.endDate = end
+        } else if (
+          start &&
+          currentEdu &&
+          !currentEdu.startDate &&
+          PLACE_RE.test(rest.split('|')[0].trim())
+        ) {
+          // "Jaipur, India | 2014 – 2018 | CGPA: 8.03 / 10" under the degree line
+          const [place, ...more] = rest.split('|').map((s) => s.trim()).filter(Boolean)
+          currentEdu.location = currentEdu.location || place
+          currentEdu.startDate = start
+          currentEdu.endDate = end
+          if (more.length) currentEdu.details = [currentEdu.details, ...more].filter(Boolean).join('; ')
         } else if (!start && currentEdu && EDU_DETAIL_RE.test(line)) {
           currentEdu.details = [currentEdu.details, line].filter(Boolean).join('; ')
         } else {
