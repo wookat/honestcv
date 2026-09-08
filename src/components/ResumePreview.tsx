@@ -21,6 +21,7 @@ import {
   editDescriptionLine,
   experienceGroups,
   involvementBullets,
+  projectBullets,
   involvementDates,
   involvementEntries,
   militaryBullets,
@@ -900,7 +901,32 @@ function SectionBlock({
                     <p className="text-[10px] text-neutral-500 italic">{projectDates(p)}</p>
                   )}
                 </div>
-                {p.description.trim() && (
+                {projectBullets(p).length > 1 ? (
+                  <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
+                    {projectBullets(p).map((b, i) => (
+                      <li key={i} className="flex gap-1.5 text-[11px]">
+                        <span style={{ color: tpl.accent }}>•</span>
+                        <span>
+                          <InlineText
+                            value={b}
+                            onCommit={
+                              onEdit &&
+                              ((v) =>
+                                onEdit({
+                                  ...resume,
+                                  projects: resume.projects.map((x) =>
+                                    x.id === p.id
+                                      ? { ...x, description: editDescriptionLine(x.description, i, v) }
+                                      : x
+                                  ),
+                                }))
+                            }
+                          />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : p.description.trim() ? (
                   <p className="text-[11px]">
                     <InlineText
                       value={p.description.trim()}
@@ -916,7 +942,7 @@ function SectionBlock({
                       }
                     />
                   </p>
-                )}
+                ) : null}
               </div>
           ))}
       </>

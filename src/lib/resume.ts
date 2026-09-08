@@ -2701,6 +2701,14 @@ export function publicationHeadingLine(p: PublicationItem): string {
 export const publicationBullets = (p: PublicationItem): string[] =>
   p.description.split('\n').map((l) => l.trim()).filter(Boolean)
 
+/**
+ * A project's description lines. Two or more lines are the bullets the editor
+ * lints line by line and every renderer lists as bullets; a single line is a
+ * paragraph.
+ */
+export const projectBullets = (p: ProjectItem): string[] =>
+  p.description.split('\n').map((l) => l.trim()).filter(Boolean)
+
 /** Reference entries with a name */
 export const referenceEntries = (r: Resume): ReferenceItem[] =>
   (r.references ?? []).filter((x) => x.name.trim())
@@ -2793,7 +2801,9 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
             (p.link ? ` (${p.link})` : '') +
             (dates ? ` (${dates})` : '')
         )
-        if (p.description) lines.push(p.description)
+        const bullets = projectBullets(p)
+        if (bullets.length > 1) for (const b of bullets) lines.push(`- ${b}`)
+        else if (p.description) lines.push(p.description)
       }
     } else if (key === 'involvement' && involvementEntries(r).length > 0) {
       lines.push('', sectionHeading(r, 'involvement').toUpperCase())
@@ -2912,7 +2922,9 @@ export function resumeToMarkdown(r: Resume): string {
           `### ${p.link ? `[${title}](${p.link})` : title}${dates ? ` *(${dates})*` : ''}`,
           ''
         )
-        if (p.description) lines.push(p.description, '')
+        const bullets = projectBullets(p)
+        if (bullets.length > 1) lines.push(...bullets.map((b) => `- ${b}`), '')
+        else if (p.description) lines.push(p.description, '')
       }
     } else if (key === 'involvement' && involvementEntries(r).length > 0) {
       heading(sectionHeading(r, 'involvement'))
