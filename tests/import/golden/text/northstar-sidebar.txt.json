@@ -1,0 +1,68 @@
+{
+ "contact": {
+  "fullName": "Alex Morgan",
+  "title": "Software Engineer",
+  "email": "alex.morgan@example.com",
+  "phone": "+44 7700 900123",
+  "location": "London, UK",
+  "website": "github.com/alexmorgan-example",
+  "linkedin": "linkedin.com/in/alexmorgan-example"
+ },
+ "summary": "",
+ "experience": [
+  {
+   "company": "",
+   "role": "",
+   "location": "",
+   "startDate": "",
+   "endDate": "",
+   "bullets": [
+    ""
+   ]
+  }
+ ],
+ "education": [
+  {
+   "school": "",
+   "degree": "",
+   "location": "",
+   "startDate": "",
+   "endDate": "",
+   "details": ""
+  }
+ ],
+ "projects": [],
+ "skills": "TypeScript, JavaScript, HTML, CSS, Frontend: React, Redux, Storybook, responsive design, accessibility, Testing and tools: Playwright, Jest, Git, GitHub Actions, REST APIs",
+ "certifications": "",
+ "certItems": [],
+ "involvement": [],
+ "coursework": [],
+ "awards": [],
+ "publications": [],
+ "references": [],
+ "military": [],
+ "agents": [],
+ "customSections": [],
+ "sectionOrder": [
+  "summary",
+  "experience",
+  "projects",
+  "involvement",
+  "education",
+  "coursework",
+  "skills",
+  "certifications",
+  "awards",
+  "publications",
+  "references",
+  "military",
+  "agents"
+ ],
+ "templateId": "classic",
+ "accentColor": "",
+ "pageSize": "letter",
+ "fontScale": "m",
+ "lineSpacing": "normal",
+ "targetRole": "",
+ "jobDescription": ""
+}

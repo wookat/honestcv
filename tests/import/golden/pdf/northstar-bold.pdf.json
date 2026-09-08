@@ -1,0 +1,83 @@
+{
+ "multiColumn": false,
+ "contact": {
+  "fullName": "ALEX MORGAN",
+  "title": "Software Engineer",
+  "email": "alex.morgan@example.com",
+  "phone": "+44 7700 900123",
+  "location": "London, UK",
+  "website": "github.com/alexmorgan-example",
+  "linkedin": "linkedin.com/in/alexmorgan-example"
+ },
+ "summary": "Software engineer with six years of experience building customer-facing web applications. Focused on React, TypeScript, accessible interfaces and frontend performance. Collaborates with designers and product managers to turn customer needs into reliable software.",
+ "experience": [
+  {
+   "company": "Northstar Digital",
+   "role": "Senior Software Engineer",
+   "location": "London, UK",
+   "startDate": "Jan 2022",
+   "endDate": "Present",
+   "bullets": [
+    "Led a React and TypeScript checkout redesign that reduced median page load time from 3.2 seconds to 1.8 seconds.",
+    "Built 24 reusable UI components with Storybook and documented keyboard interactions for the product design system.",
+    "Added 65 Playwright end-to-end tests to the release pipeline and reduced escaped frontend defects by 30%."
+   ]
+  },
+  {
+   "company": "Harbor Analytics",
+   "role": "Software Engineer",
+   "location": "London, UK",
+   "startDate": "Jul 2020",
+   "endDate": "Dec 2021",
+   "bullets": [
+    "Developed customer reporting dashboards in React, integrating REST APIs and presenting daily usage trends for 120 business accounts.",
+    "Improved dashboard rendering performance by 35% through profiling, memoization and virtualized tables.",
+    "Partnered with two designers and three backend engineers to deliver monthly releases, reviewing code and documenting production incidents."
+   ]
+  }
+ ],
+ "education": [
+  {
+   "school": "University of Bristol",
+   "degree": "BSc Computer Science",
+   "location": "Bristol, UK",
+   "startDate": "Sep 2017",
+   "endDate": "Jun 2020",
+   "details": "First Class Honours. Final project: an accessible public transport journey planner."
+  }
+ ],
+ "projects": [],
+ "skills": "Languages: TypeScript, JavaScript, HTML, CSS, Frontend: React, Redux, Storybook, responsive design, accessibility, Testing and tools: Playwright, Jest, Git, GitHub Actions, REST APIs",
+ "certifications": "",
+ "certItems": [],
+ "involvement": [],
+ "coursework": [],
+ "awards": [],
+ "publications": [],
+ "references": [],
+ "military": [],
+ "agents": [],
+ "customSections": [],
+ "sectionOrder": [
+  "summary",
+  "experience",
+  "projects",
+  "involvement",
+  "education",
+  "coursework",
+  "skills",
+  "certifications",
+  "awards",
+  "publications",
+  "references",
+  "military",
+  "agents"
+ ],
+ "templateId": "classic",
+ "accentColor": "",
+ "pageSize": "letter",
+ "fontScale": "m",
+ "lineSpacing": "normal",
+ "targetRole": "",
+ "jobDescription": ""
+}

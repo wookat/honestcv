@@ -1,0 +1,82 @@
+{
+ "multiColumn": true,
+ "contact": {
+  "fullName": "Maria Lopez",
+  "title": "",
+  "email": "maria.lopez@example.com",
+  "phone": "555-987-6543",
+  "location": "Austin, TX",
+  "website": "",
+  "linkedin": ""
+ },
+ "summary": "Software engineer with 6 years of experience building web applications and data pipelines for retail.",
+ "experience": [
+  {
+   "company": "Retailco",
+   "role": "Senior Software Engineer",
+   "location": "Austin, TX",
+   "startDate": "Mar 2021",
+   "endDate": "Present",
+   "bullets": [
+    "Built a Next.js storefront serving 2M monthly visitors with 99.95% uptime.",
+    "Designed an Airflow pipeline that cut nightly reporting from 4 hours to 35 minutes.",
+    "Led code reviews for a team of 5 engineers and introduced trunk-based CI/CD."
+   ]
+  },
+  {
+   "company": "Datalytics",
+   "role": "Software Engineer",
+   "location": "Dallas, TX",
+   "startDate": "Jun 2018",
+   "endDate": "Feb 2021",
+   "bullets": [
+    "Developed FastAPI services and GraphQL gateways for three analytics products.",
+    "Migrated 40 dbt models to Snowflake, reducing warehouse cost by 22%."
+   ]
+  }
+ ],
+ "education": [
+  {
+   "school": "University of Texas at Dallas",
+   "degree": "BSc Computer Science",
+   "location": "",
+   "startDate": "2014",
+   "endDate": "2018",
+   "details": ""
+  }
+ ],
+ "projects": [],
+ "skills": "Languages: Python, TypeScript, SQL\nFrontend: React, Next.js, Tailwind\nBackend: Node.js, FastAPI, GraphQL\nCloud: AWS Lambda, S3, ECS\nData: Airflow, dbt, Snowflake\nPractices: CI/CD, Code Reviews, Agile",
+ "certifications": "",
+ "certItems": [],
+ "involvement": [],
+ "coursework": [],
+ "awards": [],
+ "publications": [],
+ "references": [],
+ "military": [],
+ "agents": [],
+ "customSections": [],
+ "sectionOrder": [
+  "summary",
+  "experience",
+  "projects",
+  "involvement",
+  "education",
+  "coursework",
+  "skills",
+  "certifications",
+  "awards",
+  "publications",
+  "references",
+  "military",
+  "agents"
+ ],
+ "templateId": "classic",
+ "accentColor": "",
+ "pageSize": "letter",
+ "fontScale": "m",
+ "lineSpacing": "normal",
+ "targetRole": "",
+ "jobDescription": ""
+}

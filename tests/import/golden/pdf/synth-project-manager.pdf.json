@@ -1,0 +1,80 @@
+{
+ "multiColumn": false,
+ "contact": {
+  "fullName": "Jane Doe",
+  "title": "",
+  "email": "jane.doe@example.com",
+  "phone": "555-123-4567",
+  "location": "Austin, TX",
+  "website": "",
+  "linkedin": ""
+ },
+ "summary": "",
+ "experience": [
+  {
+   "company": "Acme Corp",
+   "role": "Project Manager",
+   "location": "Austin, TX",
+   "startDate": "Jan 2020",
+   "endDate": "Present",
+   "bullets": [
+    "Delivered 12 client projects on time with a team of 6 engineers.",
+    "Cut onboarding time from 3 weeks to 8 days."
+   ]
+  },
+  {
+   "company": "Beta Inc",
+   "role": "Project Coordinator",
+   "location": "Dallas, TX",
+   "startDate": "Jun 2017",
+   "endDate": "Dec 2019",
+   "bullets": [
+    "Tracked budgets for 4 concurrent programmes."
+   ]
+  }
+ ],
+ "education": [
+  {
+   "school": "State University",
+   "degree": "BSc Business Administration",
+   "location": "",
+   "startDate": "2013",
+   "endDate": "2017",
+   "details": ""
+  }
+ ],
+ "projects": [],
+ "skills": "Java, SQL, Python, Jira",
+ "certifications": "",
+ "certItems": [],
+ "involvement": [],
+ "coursework": [],
+ "awards": [],
+ "publications": [],
+ "references": [],
+ "military": [],
+ "agents": [],
+ "customSections": [],
+ "sectionOrder": [
+  "summary",
+  "experience",
+  "projects",
+  "involvement",
+  "education",
+  "coursework",
+  "skills",
+  "certifications",
+  "awards",
+  "publications",
+  "references",
+  "military",
+  "agents"
+ ],
+ "templateId": "classic",
+ "accentColor": "",
+ "pageSize": "letter",
+ "fontScale": "m",
+ "lineSpacing": "normal",
+ "targetRole": "",
+ "jobDescription": ""
+}

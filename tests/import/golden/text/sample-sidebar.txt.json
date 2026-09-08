@@ -1,0 +1,68 @@
+{
+ "contact": {
+  "fullName": "Jordan Reyes",
+  "title": "Software Engineer",
+  "email": "jordan.reyes@email.com",
+  "phone": "(555) 210-4432",
+  "location": "",
+  "website": "",
+  "linkedin": "linkedin.com/in/jordanreyes"
+ },
+ "summary": "",
+ "experience": [
+  {
+   "company": "",
+   "role": "",
+   "location": "",
+   "startDate": "",
+   "endDate": "",
+   "bullets": [
+    ""
+   ]
+  }
+ ],
+ "education": [
+  {
+   "school": "",
+   "degree": "",
+   "location": "",
+   "startDate": "",
+   "endDate": "",
+   "details": ""
+  }
+ ],
+ "projects": [],
+ "skills": "",
+ "certifications": "",
+ "certItems": [],
+ "involvement": [],
+ "coursework": [],
+ "awards": [],
+ "publications": [],
+ "references": [],
+ "military": [],
+ "agents": [],
+ "customSections": [],
+ "sectionOrder": [
+  "summary",
+  "experience",
+  "projects",
+  "involvement",
+  "education",
+  "coursework",
+  "skills",
+  "certifications",
+  "awards",
+  "publications",
+  "references",
+  "military",
+  "agents"
+ ],
+ "templateId": "classic",
+ "accentColor": "",
+ "pageSize": "letter",
+ "fontScale": "m",
+ "lineSpacing": "normal",
+ "targetRole": "",
+ "jobDescription": ""
+}

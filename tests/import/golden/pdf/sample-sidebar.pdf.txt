@@ -1,0 +1,25 @@
+Jordan Reyes
+Software Engineer
+jordan.reyes@email.com (555) 210-4432 Austin, TX linkedin.com/in/jordanreyes
+SUMMARY
+Software engineer with 4 years of experience building customer-facing web applications.
+Shipped features used by 2M+ monthly users and cut page load times by 45%. Strong in
+React, TypeScript and cloud infrastructure.
+EXPERIENCE
+Software Engineer · Brightlane, Austin, TX
+Jun 2023 – Present
+• Led migration of the checkout flow to React + TypeScript, reducing cart abandonment by
+12%.
+• Built internal design-system components adopted by 5 product teams.
+• Cut p95 page load time from 3.2s to 1.7s via code splitting and CDN caching.
+Junior Developer · Nova Retail, Remote
+Jul 2021 – May 2023
+• Developed REST APIs in Node.js powering order tracking for 300k customers.
+• Automated regression test suite, cutting release QA time from 2 days to 4 hours.
+• Instrumented checkout funnel analytics that surfaced a 9% drop-off recovered by a
+one-day fix.
+EDUCATION
+B.S. Computer Science · University of Texas at Austin, Austin, TX
+2017 – 2021
+SKILLS
+React, TypeScript, Node.js, Python, PostgreSQL, AWS, Docker, CI/CD, GraphQL, Jest
