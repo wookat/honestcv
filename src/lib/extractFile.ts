@@ -102,7 +102,7 @@ export interface PdfTextItem {
 }
 
 type LineItem = { x: number; w: number; size: number; str: string }
-type Segment = { x: number; end: number; y: number; text: string }
+type Segment = { x: number; end: number; y: number; size: number; text: string }
 
 /**
  * Split each visual line into segments at wide gaps (e.g. a right-aligned
@@ -119,22 +119,25 @@ function lineSegments(lines: Map<number, LineItem[]>, gutter: number | null): Se
     const sorted = lineItems.sort((a, b) => a.x - b.x)
     let start = sorted[0].x
     let text = ''
+    let size = 0
     let prevEnd = -Infinity
     let prevSize = 0
     for (const it of sorted) {
       const atGutter = gutter !== null && it.x >= gutter - 3 && prevEnd < gutter - 1
       if (text && (it.x - prevEnd > GAP_EMS * Math.max(it.size, prevSize) || atGutter)) {
-        segments.push({ x: start, end: prevEnd, y, text })
+        segments.push({ x: start, end: prevEnd, y, size, text })
         text = ''
+        size = 0
         start = it.x
       } else if (text) {
         text += ' '
       }
       text += it.str
+      size = Math.max(size, it.size)
       prevEnd = it.x + it.w
       prevSize = it.size
     }
-    if (text) segments.push({ x: start, end: prevEnd, y, text })
+    if (text) segments.push({ x: start, end: prevEnd, y, size, text })
   }
   return segments
 }
@@ -193,7 +196,7 @@ export function pdfPageText(items: PdfTextItem[]): {
     const chars = (segs: Segment[]) => segs.reduce((n, s) => n + s.text.length, 0)
     const [main, side] = chars(right) >= chars(left) ? [right, left] : [left, right]
     return {
-      text: [...inOrder(main), ...inOrder(side)].join('\n'),
+      text: [...inOrder(main), ...unwrapSidebar(side)].join('\n'),
       multiColumn: true,
       smallChars,
       totalChars,
@@ -209,6 +212,39 @@ export function pdfPageText(items: PdfTextItem[]): {
   }
   out.push(...inOrder(rest))
   return { text: out.join('\n'), multiColumn: true, smallChars, totalChars }
+}
+
+/**
+ * A narrow sidebar wraps its items, and the lines of one item sit closer
+ * together than one item sits to the next (a LinkedIn export: 1.2em within a
+ * certification or publication, 1.7em between them). Where a run of same-size
+ * lines shows both pitches, the close ones are wraps and are joined; a run
+ * with a single pitch (contact rows, a skills list) is left as it is.
+ */
+function unwrapSidebar(segs: Segment[]): string[] {
+  const rows = [...segs]
+    .sort((a, b) => b.y - a.y || a.x - b.x)
+    .map((s) => ({ ...s, text: s.text.replace(/\s+/g, ' ').trim() }))
+    .filter((s) => s.text)
+  const out: string[] = []
+  let i = 0
+  while (i < rows.length) {
+    let j = i + 1
+    while (j < rows.length && Math.abs(rows[j].size - rows[i].size) <= 0.25) j++
+    const block = rows.slice(i, j)
+    // 0 for a second segment on the same line (never a wrap)
+    const pitch = block.slice(1).map((r, k) => (block[k].y - r.y) / r.size)
+    const tight = (p: number) => p > 0.5 && p <= 1.3
+    const wrapped = pitch.some(tight) && pitch.some((p) => p >= 1.5)
+    for (const [k, r] of block.entries()) {
+      if (wrapped && k > 0 && tight(pitch[k - 1]) && Math.abs(r.x - block[k - 1].x) <= 2) {
+        const prev = out[out.length - 1]
+        out[out.length - 1] = prev.endsWith('/') ? prev + r.text : `${prev} ${r.text}`
+      } else out.push(r.text)
+    }
+    i = j
+  }
+  return out
 }
 
 async function extractPdf(file: File): Promise<ExtractedResumeFile> {
