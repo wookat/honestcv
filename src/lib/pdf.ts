@@ -35,6 +35,7 @@ import {
   agentEntries,
   dividerOf,
   educationDetailLine,
+  educationEntries,
   educationHeadingParts,
   experienceGroups,
   experienceHeadingParts,
@@ -893,11 +894,10 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         w.gap(2)
         for (const b of involvementBullets(i)) w.bullet(b)
       }
-    } else if (key === 'education' && resume.education.some((e) => e.school)) {
+    } else if (key === 'education' && educationEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'education'))
       let edi = 0
-      for (const e of resume.education) {
-        if (!e.school) continue
+      for (const e of educationEntries(resume)) {
         entryRule(edi++)
         w.gap(2)
         w.ensure(34)

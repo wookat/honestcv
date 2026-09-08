@@ -1784,7 +1784,7 @@ export function bestExperienceForKeyword(
 }
 
 import type { Resume } from './resume'
-import { ONGOING_RE, dateSortValue, resumeToPlainText, skillLines } from './resume'
+import { ONGOING_RE, dateSortValue, educationEntries, resumeToPlainText, skillLines } from './resume'
 import { stripInlineMarks } from './marks'
 
 export function scoreResume(
@@ -1886,7 +1886,7 @@ export function scoreResume(
     },
     {
       label: 'Education listed',
-      pass: resume.education.some((e) => e.school.trim()),
+      pass: educationEntries(resume).length > 0,
       hint: 'Most ATS templates expect an education section.',
       anchor: 'education',
       category: 'format',
@@ -1983,10 +1983,10 @@ export function scoreResume(
           anchor: 'involvement' as const,
           id: i.id,
         })),
-      ...resume.education
-        .filter((e) => !e.hidden && e.school.trim())
+      ...educationEntries(resume)
+        .filter((e) => !e.hidden)
         .map((e) => ({
-          name: e.school.trim(),
+          name: e.school.trim() || e.degree.trim(),
           located: Boolean(e.location.trim()),
           anchor: 'education' as const,
           id: e.id,

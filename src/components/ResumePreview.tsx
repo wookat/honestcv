@@ -33,6 +33,7 @@ import {
   lineSpacingOf,
   educationDetailLine,
   educationDetailSuffix,
+  educationEntries,
   orderedSectionKeys,
   projectDates,
   sectionHeading,
@@ -100,22 +101,25 @@ function restoreMarkedDom(el: HTMLElement, text: string) {
 }
 
 /**
- * Plain-weight tail of an entry heading (company / school / organisation). With a blank
- * head in a read-only preview the tail stands alone in the head's weight, so the shared
+ * Plain-weight tail of an entry heading (company / school / organisation). A read-only
+ * preview prints the separator only between two non-blank parts: a blank head lets the
+ * tail stand alone in the head's weight, a blank tail leaves the head alone, so the shared
  * page and thumbnails never print the editor's placeholder or a dangling separator.
  */
 function Tail({
   head,
+  tail,
   sep = '  ·  ',
   editable,
   children,
 }: {
   head: string
+  tail: string
   sep?: string
   editable: boolean
   children: React.ReactNode
 }) {
-  const shown = editable || head.trim()
+  const shown = editable || (head.trim() && tail.trim())
   return (
     <span className={shown ? 'font-normal' : undefined}>
       {shown ? sep : ''}
@@ -730,12 +734,12 @@ function SectionBlock({
                     />
                     {g.grouped ? (
                       e.location && (
-                        <Tail head={e.role} editable={!!onEdit}>
+                        <Tail head={e.role} tail={e.location} editable={!!onEdit}>
                           {e.location}
                         </Tail>
                       )
                     ) : (
-                      <Tail head={e.role} editable={!!onEdit}>
+                      <Tail head={e.role} tail={e.company + e.location} editable={!!onEdit}>
                         <InlineText
                           value={e.company}
                           onCommit={
@@ -941,7 +945,7 @@ function SectionBlock({
                   }
                 />
                 {inv.organization.trim() && (
-                  <Tail head={inv.role} editable={!!onEdit}>
+                  <Tail head={inv.role} tail={inv.organization + inv.location} editable={!!onEdit}>
                     <InlineText
                       value={inv.organization.trim()}
                       onCommit={
@@ -993,10 +997,10 @@ function SectionBlock({
     ) : null
   }
   if (sectionKey === 'education')
-    return resume.education.some((e) => e.school) ? (
+    return educationEntries(resume).length > 0 ? (
       <>
         {heading(sectionHeading(resume, 'education'), 'education')}
-          {resume.education.filter((e) => e.school).map((e, ei) => (
+          {educationEntries(resume).map((e, ei) => (
               <div key={e.id} className="mb-1.5" style={entrySep(ei)}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <p className="text-[11px] font-bold">
@@ -1014,7 +1018,7 @@ function SectionBlock({
                           }))
                       }
                     />
-                    <Tail head={e.degree} editable={!!onEdit}>
+                    <Tail head={e.degree} tail={e.school + e.location} editable={!!onEdit}>
                       <InlineText
                         value={e.school}
                         onCommit={
@@ -1089,7 +1093,7 @@ function SectionBlock({
                   }
                 />
                 {cw.institution.trim() && (
-                  <Tail head={cw.name} editable={!!onEdit}>
+                  <Tail head={cw.name} tail={cw.institution} editable={!!onEdit}>
                     <InlineText
                       value={cw.institution.trim()}
                       onCommit={
@@ -1218,7 +1222,7 @@ function SectionBlock({
                   }
                 />
                 {c.issuer.trim() && (
-                  <Tail head={c.name} sep=" — " editable={!!onEdit}>
+                  <Tail head={c.name} tail={c.issuer} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={c.issuer.trim()}
                       onCommit={
@@ -1274,7 +1278,7 @@ function SectionBlock({
                   }
                 />
                 {a.organization.trim() && (
-                  <Tail head={a.name} sep=" — " editable={!!onEdit}>
+                  <Tail head={a.name} tail={a.organization} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={a.organization.trim()}
                       onCommit={
@@ -1348,7 +1352,7 @@ function SectionBlock({
                   }
                 />
                 {p.venue.trim() && (
-                  <Tail head={p.title} sep=" — " editable={!!onEdit}>
+                  <Tail head={p.title} tail={p.venue} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={p.venue.trim()}
                       onCommit={
@@ -1461,7 +1465,7 @@ function SectionBlock({
                   }
                 />
                 {m.branch.trim() && (
-                  <Tail head={m.rank} editable={!!onEdit}>
+                  <Tail head={m.rank} tail={m.branch + m.location} editable={!!onEdit}>
                     <InlineText
                       value={m.branch.trim()}
                       onCommit={

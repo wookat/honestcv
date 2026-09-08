@@ -42,6 +42,7 @@ import {
   agentEntries,
   dividerOf,
   educationDetailLine,
+  educationEntries,
   educationHeadingParts,
   entryHeading,
   experienceGroups,
@@ -374,11 +375,10 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         )
         for (const b of involvementBullets(i)) children.push(body(b, { bullet: true }))
       }
-    } else if (key === 'education' && resume.education.some((e) => e.school)) {
+    } else if (key === 'education' && educationEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'education')))
       let edi = 0
-      for (const e of resume.education) {
-        if (!e.school) continue
+      for (const e of educationEntries(resume)) {
         const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
         const { head, tail } = educationHeadingParts(e)
         children.push(
