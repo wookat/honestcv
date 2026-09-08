@@ -272,6 +272,28 @@ function matchInlineHeading(line: string): { heading: SectionName; rest: string 
   return null
 }
 
+// Templates (four of ours, Pages, Word) print the name in capitals; the case is
+// typography, not the name. Only a fully upper-case name is recased: mixed case
+// ("MacKenzie", "alex morgan") is left as the document had it.
+const NAME_PARTICLE_RE = /^(?:de|da|del|della|di|du|la|le|van|von|der|den|bin|ibn|al|el|y|e)$/i
+const NAME_NUMERAL_RE = /^(?:II|III|IV)$/
+export function humanNameCase(name: string): string {
+  const letters = name.replace(/\P{L}/gu, '')
+  if (letters.length < 4 || letters !== letters.toUpperCase()) return name
+  return name
+    .split(/(\s+)/)
+    .map((tok, i) => {
+      if (i % 2 === 1 || NAME_NUMERAL_RE.test(tok) || /^\p{L}\.?$/u.test(tok)) return tok
+      if (i > 0 && NAME_PARTICLE_RE.test(tok)) return tok.toLowerCase()
+      return tok.replace(/\p{L}+/gu, (run) =>
+        /^MC\p{L}/u.test(run)
+          ? `Mc${run[2]}${run.slice(3).toLowerCase()}`
+          : run[0] + run.slice(1).toLowerCase()
+      )
+    })
+    .join('')
+}
+
 // Gutter layouts print the section label beside the section's first line, and
 // layout-preserving extraction (Chrome's PDF copy, pdftotext -layout) keeps them
 // on one line: "EXPERIENCE Senior Software Engineer · Northstar Digital, London".
@@ -548,6 +570,7 @@ export function parseResumeText(raw: string): Resume {
     ''
 
   // Name: first short non-empty line without contact info or a heading
+  let nameLine = ''
   for (const line of nonEmpty.slice(0, 5)) {
     if (
       line.length <= 60 &&
@@ -558,7 +581,8 @@ export function parseResumeText(raw: string): Resume {
     ) {
       // "Name — Title" header lines carry the professional title too
       const dash = line.split(/\s+[—–]\s+/)
-      resume.contact.fullName = dash[0].trim()
+      nameLine = line
+      resume.contact.fullName = humanNameCase(dash[0].trim())
       if (dash.length > 1) resume.contact.title = dash.slice(1).join(' — ').trim()
       break
     }
@@ -615,7 +639,7 @@ export function parseResumeText(raw: string): Resume {
       if (!inline) continue
       line = inline.rest
     }
-    if (line === resume.contact.fullName) continue
+    if (line === nameLine) continue
     if (section !== null) {
       // "Languages: English, German" under Skills stays a categorised skill line
       // and "Honors: Dean's List" under a school stays its detail; anywhere else
@@ -1450,7 +1474,7 @@ function parseLinkedInText(raw: string): Resume {
 
   // Header: name, then headline (possibly wrapped), then location
   const header = headerLines.filter((l) => !EMAIL_RE.test(l) && !/\(LinkedIn\)/i.test(l))
-  resume.contact.fullName = header[0] ?? ''
+  resume.contact.fullName = humanNameCase(header[0] ?? '')
   const headline: string[] = []
   const rest = header.slice(1)
   for (const [i, line] of rest.entries()) {
