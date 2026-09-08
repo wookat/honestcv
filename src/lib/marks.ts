@@ -23,10 +23,51 @@ function linkHref(raw: string): string | null {
   return null
 }
 
-const MARK_RE = /(\*\*\*(?:[^*]|\*(?!\*\*))+\*\*\*|\*\*(?:[^*]|\*(?!\*))+\*\*|\*[^*\s](?:[^*]*[^*\s])?\*|__(?:[^_]|_(?!_))+__)/
+const MARK_RE = /(\*\*\*(?:[^*]|\*(?!\*\*))+\*\*\*|\*\*(?:[^*]|\*(?!\*))+\*\*|\*[^*\s](?:[^*]*[^*\s])?\*|__(?:[^_]|_(?!_))+__)/g
+
+const PUNCT_RE = /[\p{P}\p{S}]/u
+const isPunct = (ch: string | undefined) => ch !== undefined && PUNCT_RE.test(ch)
+const isSpaceOrEdge = (ch: string | undefined) => ch === undefined || /\s/.test(ch)
+
+/**
+ * CommonMark flanking rule for a `*` run at [start, start + len) — an opener
+ * must not be followed by whitespace and, when followed by punctuation, must
+ * be preceded by whitespace / punctuation / the edge; a closer mirrors it.
+ * Keeps `A*, Mathematics A*` (UK grades), `5*` and `A*s` literal while
+ * `*italic*`, `(*note*)` and intraword `a*b*c` still parse.
+ */
+function asteriskRunFlanks(text: string, start: number, len: number): boolean {
+  const before = text[start - 1]
+  const after = text[start + len]
+  return !isSpaceOrEdge(after) && (!isPunct(after) || isSpaceOrEdge(before) || isPunct(before))
+}
+
+function asteriskRunCloses(text: string, start: number, len: number): boolean {
+  const before = text[start - 1]
+  const after = text[start + len]
+  return !isSpaceOrEdge(before) && (!isPunct(before) || isSpaceOrEdge(after) || isPunct(after))
+}
+
+/** Next mark token at or after `from`; asterisk tokens must flank correctly. */
+function nextMark(text: string, from: number): RegExpExecArray | null {
+  MARK_RE.lastIndex = from
+  let m: RegExpExecArray | null
+  while ((m = MARK_RE.exec(text))) {
+    const token = m[0]
+    if (!token.startsWith('*')) return m
+    const len = token.startsWith('***') ? 3 : token.startsWith('**') ? 2 : 1
+    if (
+      asteriskRunFlanks(text, m.index, len) &&
+      asteriskRunCloses(text, m.index + token.length - len, len)
+    )
+      return m
+    MARK_RE.lastIndex = m.index + 1
+  }
+  return null
+}
 
 export function hasInlineMarks(text: string): boolean {
-  if (MARK_RE.test(text)) return true
+  if (nextMark(text, 0)) return true
   const l = LINK_RE.exec(text)
   return !!l && linkHref(l[2]) !== null
 }
@@ -56,14 +97,14 @@ export function parseInlineMarks(text: string): InlineRun[] {
 /** Bold/italic/underline parsing for link-free text. */
 function parseMarkRuns(text: string): InlineRun[] {
   const runs: InlineRun[] = []
-  let rest = text
-  while (rest) {
-    const m = MARK_RE.exec(rest)
+  let pos = 0
+  while (pos < text.length) {
+    const m = nextMark(text, pos)
     if (!m) {
-      runs.push(...plainRuns(rest))
+      runs.push(...plainRuns(text.slice(pos)))
       break
     }
-    if (m.index > 0) runs.push(...plainRuns(rest.slice(0, m.index)))
+    if (m.index > pos) runs.push(...plainRuns(text.slice(pos, m.index)))
     const token = m[0]
     if (token.startsWith('***')) {
       runs.push(...innerRuns(token.slice(3, -3), { bold: true, italic: true }))
@@ -76,7 +117,7 @@ function parseMarkRuns(text: string): InlineRun[] {
     } else {
       runs.push(...innerRuns(token.slice(1, -1), { bold: false, italic: true }))
     }
-    rest = rest.slice(m.index + token.length)
+    pos = m.index + token.length
   }
   return runs
 }
