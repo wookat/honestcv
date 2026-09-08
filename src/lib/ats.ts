@@ -996,15 +996,49 @@ function containsWord(phrase: string, word: string): boolean {
 }
 
 const EMPLOYER_NAME = String.raw`([A-Z][\w&.'-]*(?: [A-Z][\w&.'-]*){0,2})`
-const EMPLOYER_NAME_RES = [
-  new RegExp(`^\\W*About ${EMPLOYER_NAME}\\W*$`, 'm'),
-  new RegExp(`\\bAt ${EMPLOYER_NAME},`),
-  new RegExp(`^${EMPLOYER_NAME} is (?:a|an|the|one|on a mission|building|looking|hiring)\\b`, 'm'),
-  new RegExp(`\\b(?:Join|Life at|Working at|Why) ${EMPLOYER_NAME}\\b`),
+/** One word, any case — brands such as "iwoca" / "koppla" / "saas.group" write themselves lower-case. */
+const BRAND_WORD = String.raw`([A-Za-z][\w&.'-]*)`
+/** Section titles that name the employer ("About Acme", "What is Acme?", "Acme Corporation Overview"); every one counts. */
+const EMPLOYER_HEADING_RES = [
+  new RegExp(`^\\W*About ${EMPLOYER_NAME}\\W*$`, 'gm'),
+  new RegExp(`^\\W*(?:What|Who) is ${BRAND_WORD}\\?`, 'gm'),
+  new RegExp(`^\\W*About the .{0,80}? (?:role|position|job|opportunity) at ${EMPLOYER_NAME}\\W*$`, 'gm'),
+  new RegExp(`^\\W*${EMPLOYER_NAME} (?:Corporation |Company )?(?:Overview|Description|Introduction)\\W*$`, 'gm'),
+]
+/** Prose that introduces the employer ("At Acme, we…", "Acme is a…", "Acme's mission"); the first acceptable match counts. */
+const EMPLOYER_PROSE_RES = [
+  new RegExp(`\\bAt ${EMPLOYER_NAME},`, 'g'),
+  new RegExp(`\\b[Aa]t ${BRAND_WORD}, (?:we|our|you)\\b`, 'g'),
+  new RegExp(`^${EMPLOYER_NAME} is (?:a|an|the|one|on a mission|building|looking|hiring)\\b`, 'gm'),
+  new RegExp(`(?:^|[.!?] )${EMPLOYER_NAME} is (?:\\w+ing|your|proud)\\b`, 'gm'),
+  new RegExp(`^${EMPLOYER_NAME}(?: \\([^)]{0,60}\\))?,? (?:is|are) (?:seeking|hiring|looking for|recruiting|searching for)\\b`, 'gm'),
+  new RegExp(`\\b(?:Join|Life at|Working at|Why) ${EMPLOYER_NAME}\\b`, 'g'),
+  new RegExp(`\\b(?:[Ww]e (?:built|created|founded|started)|[Ww]elcome to|[Hh]ere at) ${BRAND_WORD}\\b`, 'g'),
+  new RegExp(`\\b${EMPLOYER_NAME}[’']s (?:mission|vision|purpose|culture|values)\\b`, 'g'),
 ]
 const NOT_AN_EMPLOYER = new Set(
-  'us this the opportunity role job position team company our you'.split(' ')
+  'us this the opportunity role job position team company our you working here profile'.split(' ')
 )
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * The employer tokens a matched name yields — none when the "name" is a
+ * section word ("About the Role", "Join Our Team"); otherwise its words that
+ * are neither a stopword ("Think Academy" → academy) nor a known skill, and
+ * that the ad writes capitalised more often than not — "Think Academy Online"
+ * / "PM Pediatric Care" carry a word the ad otherwise uses in lower case.
+ */
+function employerNameTokens(name: string, jd: string): string[] {
+  const toks = tokenize(name)
+  if (toks.some((t) => NOT_AN_EMPLOYER.has(t))) return []
+  return toks.filter((t) => {
+    if (t.length < 3 || STOPWORDS.has(t) || looksLikeSkill(t)) return false
+    const word = new RegExp(`(?<![\\w&.'-])${escapeRegExp(t)}(?![\\w&.'-])`, 'gi')
+    const all = jd.match(word) ?? []
+    const lower = all.filter((w) => w === t).length
+    return lower === all.length || all.length - lower > lower
+  })
+}
 
 /**
  * Tokens that name the employer — the company passed in, plus the name the ad
@@ -1016,13 +1050,16 @@ function employerTokens(jd: string, company: string | undefined): Set<string> {
   for (const tok of tokenize(company ?? '')) {
     for (const part of [tok, ...tok.split(/[./-]/)]) if (part.length >= 3) out.add(part)
   }
-  for (const re of EMPLOYER_NAME_RES) {
-    const m = re.exec(jd)
-    if (!m) continue
-    const toks = tokenize(m[1])
-    if (toks.some((t) => NOT_AN_EMPLOYER.has(t) || STOPWORDS.has(t))) continue
-    for (const t of toks) if (t.length >= 3 && !looksLikeSkill(t)) out.add(t)
-    break
+  for (const re of EMPLOYER_HEADING_RES) {
+    for (const m of jd.matchAll(re)) for (const t of employerNameTokens(m[1], jd)) out.add(t)
+  }
+  prose: for (const re of EMPLOYER_PROSE_RES) {
+    for (const m of jd.matchAll(re)) {
+      const toks = employerNameTokens(m[1], jd)
+      if (!toks.length) continue
+      for (const t of toks) out.add(t)
+      break prose
+    }
   }
   return out
 }
