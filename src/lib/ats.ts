@@ -1031,7 +1031,29 @@ function employerTokens(jd: string, company: string | undefined): Set<string> {
 const URL_TOKEN_RE = /^www\.|\.(?:com|co|io|org|ai|de|uk|us|fr|eu|nl|es|it)$/
 
 const BOILERPLATE_HEADING_RE =
-  /^(?:(?:a bit |more )?about (?!(?:the |this )?(?:role|job|position|opportunity|team)\b|you\b).+|who we are|our (?:story|mission|values|culture|benefits|perks|commitment.*|hiring process|interview process|offer|way of working)|how we work|what we offer|what we give|what.s in it for you|what you.ll get|you.ll get|we offer|in return|rewards?|your benefits|why (?:join|work|you.ll love|us).*|the (?:perks|benefits|package)|(?:perks|benefits)(?: (?:&|and) (?:perks|benefits))?|(?:overview of|employee|pay (?:&|and)) benefits|compensation.*|salary.*|equal (?:employment )?opportunity.*|eeo statement|diversity.*|inclusion.*|accommodations|how to apply|application process|interview process|hiring process|the process|next steps|what to expect|.*recruitment scams?.*|.*(?:notice|alert)|visa sponsorship|life at .*|the company|company (?:overview|description)|working at .*|what we do|join us)$/i
+  /^(?:(?:a bit |more )?about (?!(?:the |this )?(?:role|job|position|opportunity|team)\b|you\b).+|who we are|our (?:story|mission|values|culture|benefits|perks|commitment.*|hiring process|interview process|offer|way of working)|how we work|what we offer|what we give|what.s in it for you|what you.ll get|you.ll get|we offer|in return|rewards?|your benefits|why (?:join|work|you.ll love|us).*|the (?:perks|benefits|package)|(?:perks|benefits)(?: (?:&|and) (?:perks|benefits))?|(?:overview of|employee|pay (?:&|and)) benefits|compensation.*|salary.*|equal (?:employment )?opportunity.*|eeo statement|diversity.*|inclusion.*|accommodations|how to apply|application process|interview process|hiring process|the process|next steps|what to expect|.*recruitment scams?.*|.*(?:notice|alert)|visa sponsorship|life at .*|the company|company (?:overview|description)|working at .*|what we do|join us|(?:\w+ )?bonus eligibility|(?:referral|sign(?:ing|-on)|retention) bonus)$/i
+
+/**
+ * Words a section title contains when the section is about the employer, the
+ * package or the process rather than the job — the titles above as ads
+ * actually vary them ("Benefits include", "Why you should join SumUp", "What
+ * It's Like to Work at YipitData", "✅ A typical interview process", "Base Pay
+ * Range For US Locations", "Massachusetts Applicants"). A title that also
+ * names requirements ("Skills & Benefits") is not read this way.
+ */
+const BOILERPLATE_HEADING_CUE_RE =
+  /\b(?:benefits?|perks?|salary|pay(?: range| transparency| grade)?|compensation|(?:total )?rewards|(?:interview|recruitment|hiring|application|selection) (?:process|journey|steps?|tips?|deadline)|how to apply|apply now|privacy|equal opportunit(?:y|ies)|applicants|(?:our |company |team |engineering )culture|(?:our |company )values|(?:our |company |\w+.s )mission|get to know|introduction to|why (?:you should |top talent )?(?:join|work|chooses?)|what it.s like|working (?:here|at)|life at|we offer|time off|well-?being|wellness|work-life balance|flexible working|relocation|useful links|in numbers|fair chance)\b/i
+
+/** Whether a section title (trailing punctuation and leading symbols removed) opens employer boilerplate. */
+function isBoilerplateHeading(label: string): boolean {
+  return (
+    BOILERPLATE_HEADING_RE.test(label) ||
+    (BOILERPLATE_HEADING_CUE_RE.test(label) && !REQUIREMENTS_HEADING_RE.test(label))
+  )
+}
+
+/** "✅ A typical interview process" / "🏥 Private Medical Insurance:" → the words. */
+const headingLabel = (line: string) => line.trim().replace(/^[^A-Za-z0-9#$€£]+/, '').replace(/[:!\s]+$/, '')
 
 /**
  * A paragraph that is employer boilerplate wherever it sits — equal-opportunity
@@ -1045,7 +1067,7 @@ const LIST_ITEM_LINE_RE = /^\s*(?:[-–—•*▪◦·]|\d+[.)])\s/
 
 /** `Location: Berlin (Hybrid)` / `Job Type: Full-Time (W2)` — the posting's metadata, not its vocabulary. */
 const METADATA_LABEL_RE =
-  /^\s*(?:work )?(?:location|salary|compensation|pay(?: range)?|job type|employment type|contract type|schedule|hours|working hours|start date|workplace)\s*:/i
+  /^\s*(?:work )?(?:location|salary|compensation|pay(?: range)?|(?:year \d+ )?ote|on-target earnings|job type|employment type|contract type|schedule|hours|working hours|start date|workplace|relocation assistance(?: provided)?)\s*:/i
 
 /** A short, non-bullet, non-sentence line with words in it — how sections are titled in job ads. */
 function isHeadingLine(line: string): boolean {
@@ -1078,7 +1100,7 @@ function splitBoilerplate(jd: string): { job: string; boilerplate: string } {
   let inBoiler = false
   for (const line of lines) {
     if (isHeadingLine(line)) {
-      inBoiler = BOILERPLATE_HEADING_RE.test(line.trim().replace(/[:\s]+$/, ''))
+      inBoiler = isBoilerplateHeading(headingLabel(line))
       if (inBoiler) continue
     }
     // "Here's how to know you're speaking with a real member of our team:"
@@ -1238,14 +1260,14 @@ function withoutRoleTokens(keywords: string[], targetRole: string): string[] {
 
 /** Section titles under which ads list what the candidate must bring (measured over 84 real ads). */
 const REQUIREMENTS_HEADING_RE =
-  /\b(requirements?|qualifications|criteria|must[- ]haves?|(?:what )?you(?:.ll| will) need|what we.re looking for|who we.re looking for|skills we.re looking for|who you are|about you|what you bring|you.ll bring|you bring|ideal candidate|your profile|your background|what we need|required|experience|skills|expertise|tech stack|our stack|this role is for you if|license\/certification|nice[- ]to[- ]haves?|preferred|bonus|votre profil)\b/i
+  /\b(requirements?|qualifications|criteria|must[- ]haves?|(?:what )?you(?:.ll| will) need|(?:what|who|attributes|skills) we(?:.re| are) look(?:ing)? for|we look for|who you are|about you|what you bring|you.ll bring|you bring|ideal candidate|your profile|your background|what we need|required|experience|skills|expertise|tech stack|our stack|this role is for you if|desired characteristics|(?:makes you )?stand out|license\/certification|nice[- ]to[- ]haves?|preferred|bonus|votre profil)\b/i
 
 /** A requirements section continues through its "Nice to have" / "Preferred" sub-heading. */
 const NICE_TO_HAVE_HEADING_RE = /\b(nice[- ]to[- ]haves?|bonus|preferred|plus|desirable|good to have|great if|optional|valued)\b/i
 
 /** A sentence that opens the candidate profile in ads without a requirements heading. */
 const REQUIREMENTS_SENTENCE_RE =
-  /^\s*(you bring|you.ll bring|what we.re looking for|the ideal candidate|we are looking for|we.re looking for|you have|you are)\b|\byou (?:are|have|are\/have|bring|need)\s*:$/i
+  /^\s*(you bring|you.ll bring|what we.re looking for|the ideal candidate|we are looking for|we.re looking for|you have|you are|you(?:.ll| will) (?:thrive|succeed|be great)|you should apply if|we.d love to hear from you if)\b|\byou (?:are|have|are\/have|bring|need)\s*:$/i
 
 /**
  * What makes such a sentence state requirements rather than introduce the role
@@ -1277,8 +1299,8 @@ export function requirementsBlockLines(jd: string): RequirementLine[] {
     const line = raw.trim()
     if (!line) continue
     if (isHeadingLine(line)) {
-      const label = line.replace(/[:!\s]+$/, '')
-      if (BOILERPLATE_HEADING_RE.test(label)) {
+      const label = headingLabel(line)
+      if (isBoilerplateHeading(label)) {
         inside = false
       } else if (REQUIREMENTS_HEADING_RE.test(label)) {
         inside = true
@@ -1290,11 +1312,19 @@ export function requirementsBlockLines(jd: string): RequirementLine[] {
       continue
     }
     const colon = line.indexOf(':')
-    const label = colon > 1 && colon <= 50 ? line.slice(0, colon) : ''
-    if (label && !LIST_ITEM_LINE_RE.test(raw) && !/\d/.test(label) && REQUIREMENTS_HEADING_RE.test(label)) {
+    const label = colon > 1 && colon <= 50 ? headingLabel(line.slice(0, colon)) : ''
+    if (
+      label &&
+      !LIST_ITEM_LINE_RE.test(raw) &&
+      !/\d/.test(label) &&
+      !isBoilerplateHeading(label) &&
+      !METADATA_LABEL_RE.test(line) &&
+      REQUIREMENTS_HEADING_RE.test(label)
+    ) {
+      // An inline label's list is the rest of its line plus the items under it.
       inside = true
       sawList = false
-      bySentence = false
+      bySentence = true
       out.push({ text: line.slice(colon + 1), listed: true })
       continue
     }
