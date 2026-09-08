@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { scoreResumeText } from '../src/lib/ats'
 import { parseResumeText } from '../src/lib/importText'
 import { buildResumePdf } from '../src/lib/pdf'
 import { sampleResume, type Resume } from '../src/lib/resume'
@@ -36,5 +37,29 @@ describe('our own PDF export re-imported (R784)', () => {
     const back = parseResumeText(text)
     expect(back.contact.location).toBe(src.contact.location)
     expect(back.contact.linkedin).toContain('linkedin.com/in/jordan-reyes-software-engineer-austin')
+  })
+})
+
+describe('a wrapped bullet is one extracted line (R786)', () => {
+  // Capital-start continuation (no text cue), the only figure and the full stop
+  // both land on wrapped lines — the scorer and parser must see one bullet.
+  const long =
+    'Architected and implemented Azure-based cloud solutions including Azure Functions, App Service and Storage Accounts, integrated into CI/CD workflows via Azure DevOps pipelines for 14 product teams.'
+  const src = sampleResume()
+  src.experience[0].bullets = [long, 'Built internal design-system components adopted by 5 product teams.']
+
+  it('every template hands the scorer the whole bullet and the parser keeps the next header apart', async () => {
+    for (const t of TEMPLATES) {
+      const { text } = await pdfTextOf(await buildResumePdf({ ...src, templateId: t.id }))
+      const lines = text.split('\n')
+      expect(lines.filter((l) => l.startsWith('• ')).length, t.id).toBe(5)
+      expect(lines.find((l) => l.startsWith('• Architected')), t.id).toBe(`• ${long}`)
+      const back = parseResumeText(text)
+      expect(back.experience.map((e) => e.role), t.id).toEqual(['Software Engineer', 'Junior Developer'])
+      expect(back.experience[0].bullets, t.id).toEqual(src.experience[0].bullets)
+      expect(back.experience[1].bullets, t.id).toEqual(src.experience[1].bullets)
+      const quantified = scoreResumeText(text, '').checks.find((c) => c.label === 'Quantified bullet points')
+      expect(quantified?.pass, t.id).toBe(true)
+    }
   })
 })

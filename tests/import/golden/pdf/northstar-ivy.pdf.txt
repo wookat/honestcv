@@ -13,11 +13,9 @@ Jan 2022 – Present
 • Added 65 Playwright end-to-end tests to the release pipeline and reduced escaped frontend defects by 30%.
 Software Engineer · Harbor Analytics, London, UK
 Jul 2020 – Dec 2021
-• Developed customer reporting dashboards in React, integrating REST APIs and presenting daily usage trends for 120
-business accounts.
+• Developed customer reporting dashboards in React, integrating REST APIs and presenting daily usage trends for 120 business accounts.
 • Improved dashboard rendering performance by 35% through profiling, memoization and virtualized tables.
-• Partnered with two designers and three backend engineers to deliver monthly releases, reviewing code and documenting
-production incidents.
+• Partnered with two designers and three backend engineers to deliver monthly releases, reviewing code and documenting production incidents.
 Education
 BSc Computer Science · University of Bristol, Bristol, UK
 Sep 2017 – Jun 2020
