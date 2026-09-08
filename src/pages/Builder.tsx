@@ -4261,10 +4261,11 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <Input
                     aria-label="Education details (optional)"
                     placeholder="Details (honors, thesis — optional)"
+                    className="min-w-0 flex-1 basis-full sm:basis-0"
                     onKeyDown={markShortcutKeyDown}
                     value={e.details}
                     onChange={(ev) =>
@@ -6303,10 +6304,10 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <select
                     aria-label="Reference type"
-                    className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+                    className="border-input bg-background h-10 min-w-0 flex-1 basis-full rounded-md border px-3 text-sm sm:basis-0"
                     value={ref.kind}
                     onChange={(ev) =>
                       setResume((r) => ({

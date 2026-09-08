@@ -227,9 +227,19 @@ function matchInlineHeading(line: string): { heading: SectionName; rest: string 
   return null
 }
 
+// "Languages: English, German" / "Leadership, Negotiation" — a custom section
+// word that carries its own list is a labelled line, not a heading.
+const CUSTOM_LIST_RE = /^([A-Za-z][A-Za-z &/'’-]{0,30}?)\s*[:：]\s+(\S.*)$/
+function matchInlineCustomHeading(line: string): { title: string; rest: string } | null {
+  const m = CUSTOM_LIST_RE.exec(line.trim())
+  if (!m || !CUSTOM_HEADING_RE.test(m[1].trim())) return null
+  return { title: m[1].trim(), rest: m[2].trim() }
+}
+
 /** Heading for a section we don't have a dedicated field for (Awards, Languages…) */
 function matchCustomHeading(line: string): string | null {
   const t = line.trim().replace(/[:：]$/, '')
+  if (/[:：,;]\s*\S/.test(t)) return null
   if (LETTER_SPACED_RE.test(t)) {
     // Tracked heading of a section we have no field for; the last word is
     // recoverable when it is a known section word ("EXTRACURRICULAR ACTIVITIES").
@@ -402,6 +412,21 @@ export function parseResumeText(raw: string): Resume {
     }
     if (line === resume.contact.fullName) continue
     if (section !== null) {
+      // "Languages: English, German" under Skills stays a categorised skill line
+      // and "Honors: Dean's List" under a school stays its detail; anywhere else
+      // the line opens the section with the list as its first item.
+      const inlineCustom =
+        section === 'skills' || (section === 'education' && EDU_DETAIL_RE.test(line))
+          ? null
+          : matchInlineCustomHeading(line)
+      if (inlineCustom) {
+        section = 'custom'
+        currentExp = null
+        currentEdu = null
+        currentCustom = { id: newId(), title: inlineCustom.title, bullets: [inlineCustom.rest] }
+        resume.customSections.push(currentCustom)
+        continue
+      }
       const customTitle = matchCustomHeading(line)
       // "Languages" above "Python, TypeScript, SQL" inside Skills is a grid
       // label (folded by joinSkillLines), not a Languages section.
@@ -679,7 +704,8 @@ function parseLinkedInText(raw: string): Resume {
       // Only well-known headings here — an ALL-CAPS company name like "IBM"
       // must not start a custom section.
       const t = line.replace(/[:：]$/, '')
-      const customTitle = t.length <= 32 && CUSTOM_HEADING_RE.test(t) ? t : null
+      const customTitle =
+        t.length <= 32 && CUSTOM_HEADING_RE.test(t) && !/[:：,;]\s*\S/.test(t) ? t : null
       if (customTitle) {
         if (section === 'experience') flushExp()
         section = 'custom'
