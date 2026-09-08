@@ -1362,28 +1362,49 @@ function namedAsRequirement(kw: string, lines: RequirementLine[], capitalized: S
 }
 
 /**
- * Words the requirements block writes with a capital that is not the line's
+ * Countries, regions and demonyms an ad names when it says where the candidate
+ * must live; a demonym that is also a language (German, French) stays a term.
+ */
+const PLACE_WORDS = new Set(
+  (
+    'united states usa america american americas canada canadian mexico brazil argentina latam latin ' +
+    'europe european emea union kingdom britain british england ireland germany france spain portugal italy ' +
+    'netherlands switzerland austria poland sweden norway denmark finland india australia asia apac africa ' +
+    'singapore japan'
+  ).split(' ')
+)
+
+/**
+ * Sentence ends, after which a capital is the sentence's own ("…with clients.
+ * Finances can be…"). A full stop counts only after a lower-case letter that is
+ * not an abbreviation ("U.S. GAAP", "e.g. Excel" stay one clause); ":" and ";"
+ * open lists ("Frontend: Vue.js", "ERP; NetSuite preferred") and never split.
+ */
+const CLAUSE_BREAK_RE = /(?:(?<=[a-z])(?<!\b(?:e\.g|i\.e|etc|sr|jr|vs|approx|incl|min|max))\.(?=\s|$)|[?!])+/
+
+/**
+ * Words the requirements block writes with a capital that is not the clause's
  * own ("Ensure compliance with GAAP principles", "Proficiency in … Excel",
  * "fluent English") — the products, standards, languages and certifications
  * the ad names, lower-cased as `tokenize` would. A Title-Case line capitalizes
  * every word and names nothing by it; a two-letter capital (US state codes,
- * "FE", "MD") and a calendar word name a place or a schedule, not a skill.
+ * "FE", "MD"), a calendar word and a place name a schedule or a location, not
+ * a skill.
  */
 function capitalizedRequirementTerms(lines: RequirementLine[]): Set<string> {
   const out = new Set<string>()
+  const wordsOf = (s: string) =>
+    s.replace(/[^A-Za-z0-9+#./ -]/g, ' ').match(/[A-Za-z0-9+#][A-Za-z0-9+#./-]*/g) ?? []
   for (const { text } of lines) {
-    const words =
-      text
-        .replace(/\b[A-Za-z]+n[’']t\b/g, ' not ')
-        .replace(/[’']([A-Za-z]{1,2})\b/g, '')
-        .replace(/[^A-Za-z0-9+#./ -]/g, ' ')
-        .match(/[A-Za-z0-9+#][A-Za-z0-9+#./-]*/g) ?? []
-    const long = words.filter((w) => /^[A-Za-z]{4,}$/.test(w))
+    const line = text.replace(/\b[A-Za-z]+n[’']t\b/g, ' not ').replace(/[’']([A-Za-z]{1,2})\b/g, '')
+    const long = wordsOf(line).filter((w) => /^[A-Za-z]{4,}$/.test(w))
     if (long.length >= 3 && long.every((w) => /^[A-Z]/.test(w))) continue
-    for (const [i, w] of words.entries()) {
-      if (!/[A-Z]/.test(i === 0 ? w.slice(1) : w)) continue
-      const tok = w.toLowerCase().replace(/[./-]+$/, '')
-      if (tok.length >= 3 && /^[a-z]/.test(tok) && !STOPWORDS.has(tok) && !CALENDAR_WORDS.has(tok)) {
+    for (const clause of line.split(CLAUSE_BREAK_RE)) {
+      for (const [i, w] of wordsOf(clause).entries()) {
+        if (!/[A-Z]/.test(i === 0 ? w.slice(1) : w)) continue
+        const tok = w.toLowerCase().replace(/[./-]+$/, '')
+        if (tok.length < 3 || !/^[a-z]/.test(tok)) continue
+        if (STOPWORDS.has(tok) || CALENDAR_WORDS.has(tok) || PLACE_WORDS.has(tok)) continue
         out.add(tok)
       }
     }
