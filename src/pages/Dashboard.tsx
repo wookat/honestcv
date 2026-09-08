@@ -58,7 +58,7 @@ import { scoreResume } from '@/lib/ats'
 import { downloadText, loadExporter, professionalFileName } from '@/lib/download'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { exportWorkspace, parseWorkspaceBackup, restoreWorkspace } from '@/lib/workspace'
-import { looksLikeLinkedInExport, parseResumeText } from '@/lib/importText'
+import { keepDesignOnImport, looksLikeLinkedInExport, parseResumeText } from '@/lib/importText'
 import {
   type CareerDoc,
   type CareerDocKind,
@@ -1027,8 +1027,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   }
 
   const openImported = (r: Resume) => {
+    const existing = loadResume()
     setActiveVersionId(null)
-    saveResume(r)
+    saveResume(existing ? keepDesignOnImport(existing, r) : r)
     void navigate('/builder')
   }
 

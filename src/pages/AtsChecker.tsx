@@ -26,7 +26,7 @@ import {
 } from '@/lib/ats'
 import { IMPORT_ACCEPT, extractResumeFile, type FileCheck } from '@/lib/extractFile'
 import { priorityFixes, resumeHealth } from '@/lib/guidance'
-import { parseResumeText } from '@/lib/importText'
+import { keepDesignOnImport, parseResumeText } from '@/lib/importText'
 import { loadResume, saveResume, setActiveVersionId } from '@/lib/resume'
 import { useFocusAfterRender } from '@/lib/useFocusAfterRender'
 
@@ -167,8 +167,9 @@ export default function AtsChecker() {
   const replaceAndOpen = (anchor?: string) => {
     const parsed = parseResumeText(resumeText)
     parsed.jobDescription = jd
+    const existing = loadResume()
     setActiveVersionId(null)
-    saveResume(parsed)
+    saveResume(existing ? keepDesignOnImport(existing, parsed) : parsed)
     goToBuilder(anchor)
   }
   const keepSavedAndOpen = (anchor?: string) => {

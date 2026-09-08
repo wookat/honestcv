@@ -167,7 +167,7 @@ import {
   resumeStrength,
   unfinishedBulletLine,
 } from '@/lib/guidance'
-import { keepTargetOnImport, parseResumeText } from '@/lib/importText'
+import { keepDesignOnImport, keepTargetOnImport, parseResumeText } from '@/lib/importText'
 import {
   parseShareId,
   fetchResumeProfile,
@@ -10346,7 +10346,9 @@ export default function Builder() {
                   fetchZalizePrimary()
                     .then((rp) => {
                       linkVersion(null)
-                      setResume(resumeFromProfile(rp))
+                      setResume(
+                        keepDesignOnImport(resume, keepTargetOnImport(resume, resumeFromProfile(rp)))
+                      )
                       setImportOpen(false)
                     })
                     .catch((err: unknown) =>
@@ -10375,7 +10377,9 @@ export default function Builder() {
               fetchResumeProfile(shareId)
                 .then((rp) => {
                   linkVersion(null)
-                  setResume(resumeFromProfile(rp))
+                  setResume(
+                    keepDesignOnImport(resume, keepTargetOnImport(resume, resumeFromProfile(rp)))
+                  )
                   setImportOpen(false)
                   setRcInput('')
                 })
@@ -10422,7 +10426,9 @@ export default function Builder() {
             onClick={() => {
               if (!importText.trim()) return
               linkVersion(null)
-              setResume(keepTargetOnImport(resume, parseResumeText(importText)))
+              setResume(
+                keepDesignOnImport(resume, keepTargetOnImport(resume, parseResumeText(importText)))
+              )
               setImportOpen(false)
               setImportText('')
             }}

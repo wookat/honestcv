@@ -697,6 +697,31 @@ export function keepTargetOnImport(prev: Resume, parsed: Resume): Resume {
   }
 }
 
+/**
+ * Template, colours, paper and typography live in the editor, not in the
+ * file, so a content-replacing import keeps the replaced resume's design.
+ */
+export function keepDesignOnImport(prev: Resume, parsed: Resume): Resume {
+  return {
+    ...parsed,
+    templateId: prev.templateId,
+    accentColor: prev.accentColor,
+    pageSize: prev.pageSize,
+    fontScale: prev.fontScale,
+    lineSpacing: prev.lineSpacing,
+    fontFamily: prev.fontFamily,
+    sectionSpacing: prev.sectionSpacing,
+    pageMargins: prev.pageMargins,
+    sectionDivider: prev.sectionDivider,
+    bulletIndent: prev.bulletIndent,
+    contactIcons: prev.contactIcons,
+    groupByCompany: prev.groupByCompany,
+    textColor: prev.textColor,
+    sectionHeadings: prev.sectionHeadings,
+    autoSortByDate: prev.autoSortByDate,
+  }
+}
+
 export function parseResumeText(input: string): Resume {
   if (looksLikeLinkedInExport(input)) return parseLinkedInText(input)
   const raw = plainResumeText(input)

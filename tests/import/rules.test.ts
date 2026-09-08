@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { humanNameCase, looksLikeLinkedInExport, parseResumeText } from '../../src/lib/importText'
+import {
+  humanNameCase,
+  keepDesignOnImport,
+  keepTargetOnImport,
+  looksLikeLinkedInExport,
+  parseResumeText,
+} from '../../src/lib/importText'
 import { emptyEducation, resumeToMarkdown, resumeToPlainText, sampleResume, type Resume } from '../../src/lib/resume'
 
 /**
@@ -903,5 +909,63 @@ Austin, TX
 - Built the loyalty microsite.
 `)
     expect(pick(place)[0]).toMatchObject({ location: 'Austin, TX', companyInfo: '' })
+  })
+})
+
+describe('content-replacing import keeps the editor design', () => {
+  const styled = (): Resume => ({
+    ...sampleResume(),
+    templateId: 'modern',
+    accentColor: '#0f766e',
+    pageSize: 'a4',
+    fontScale: 's',
+    lineSpacing: 'compact',
+    fontFamily: 'serif',
+    sectionSpacing: 'tight',
+    pageMargins: 'narrow',
+    sectionDivider: 'on',
+    bulletIndent: 'on',
+    contactIcons: 'on',
+    groupByCompany: 'on',
+    textColor: 'navy',
+    sectionHeadings: { experience: 'Work History' },
+    autoSortByDate: ['experience'],
+    targetRole: 'Staff Engineer',
+    jobDescription: 'Ship things',
+  })
+
+  it('R795: the parsed text carries the replaced resume\'s template, colours, paper and typography', () => {
+    const prev = styled()
+    const parsed = parseResumeText(resumeToPlainText(prev))
+    // the file itself cannot say which template it came from
+    expect(parsed.templateId).toBe('classic')
+    expect(parsed.pageSize).toBe('letter')
+    const back = keepDesignOnImport(prev, keepTargetOnImport(prev, parsed))
+    const design = ({
+      templateId, accentColor, pageSize, fontScale, lineSpacing, fontFamily, sectionSpacing,
+      pageMargins, sectionDivider, bulletIndent, contactIcons, groupByCompany, textColor,
+      sectionHeadings, autoSortByDate,
+    }: Resume) => ({
+      templateId, accentColor, pageSize, fontScale, lineSpacing, fontFamily, sectionSpacing,
+      pageMargins, sectionDivider, bulletIndent, contactIcons, groupByCompany, textColor,
+      sectionHeadings, autoSortByDate,
+    })
+    expect(design(back)).toEqual(design(prev))
+    expect(back.targetRole).toBe('Staff Engineer')
+    expect(back.jobDescription).toBe('Ship things')
+    // content still comes from the file, not from the replaced resume
+    expect(back.experience.map((e) => e.role)).toEqual(prev.experience.map((e) => e.role))
+    expect(back.sectionOrder).toEqual(parsed.sectionOrder)
+    expect(back.hiddenContact).toEqual(parsed.hiddenContact)
+    expect(back.contact).toEqual(parsed.contact)
+  })
+
+  it('R795: a resume with editor defaults hands the import editor defaults, not undefined', () => {
+    const prev = sampleResume()
+    const back = keepDesignOnImport(prev, parseResumeText('Jane Doe\njane@example.com\nSummary\nHello world'))
+    expect(back.templateId).toBe(prev.templateId)
+    expect(back.accentColor).toBe(prev.accentColor)
+    expect(back.pageSize).toBe(prev.pageSize)
+    expect(back.summary).toBe('Hello world')
   })
 })
