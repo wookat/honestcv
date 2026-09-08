@@ -48,7 +48,8 @@ previously additionally directly record track
 like one come get sure real together please notice believe think keep without
 rather something way ways everyone actually even less see hear stay feel life
 hours time part every world around possible future outside meet e.g i.e u.s
-sponsorship visa`.split(/\s+/)
+sponsorship visa
+senior junior principal sr jr seasoned mid-level entry-level`.split(/\s+/)
 )
 
 /** Multi-word tech/business phrases worth matching as units */
