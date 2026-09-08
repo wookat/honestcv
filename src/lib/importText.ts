@@ -19,6 +19,14 @@ import {
 } from './resume'
 import { plainResumeText } from './markdownText'
 import { ACTION_VERBS } from './guidance'
+import {
+  CREDENTIAL_TITLE_RE,
+  CUSTOM_HEADING_RE,
+  JOB_TITLE_NOUN_RE,
+  SECTION_WORDS,
+  type CoreSectionName as SectionName,
+  looksLikeHeadingShape,
+} from './sectionWords'
 
 const EMAIL_RE = /[^\s@|,;]+@[^\s@|,;]+\.[a-z]{2,}/i
 const PHONE_RE = /(\+?\(?\d[\d\s().-]{5,}\d)/
@@ -46,14 +54,6 @@ const BARE_MONTH_RE = new RegExp(String.raw`^\(?(${MONTH}\.?\s+\d{4})\)?$`, 'i')
 const TRAILING_YEAR_RE = /\s\(((?:19|20)\d{2})\)$/
 const BARE_YEAR_LINE_RE = /^\(?((?:19|20)\d{2})\)?$/
 
-type SectionName =
-  | 'summary'
-  | 'experience'
-  | 'education'
-  | 'skills'
-  | 'projects'
-  | 'certifications'
-
 const SECTION_HEADINGS: [RegExp, SectionName][] = [
   [/^(professional\s+)?(summary|profile|objective|about)\b/i, 'summary'],
   [/^((work|professional)\s+)?(experience|employment|work\s+history)\b/i, 'experience'],
@@ -64,19 +64,6 @@ const SECTION_HEADINGS: [RegExp, SectionName][] = [
   [/^(certifications?|certificates|licenses)\b/i, 'certifications'],
 ]
 
-// A heading-shaped line (short, ALL CAPS or Title Case, no prose punctuation)
-// that names a section anywhere in it: "Work/Internship/Relevant Experience",
-// "Areas of Expertise", "Education & Training". Table order decides a heading
-// that names two sections ("Summary of Skills" → skills). Tested on the plain
-// text and on a letter-spaced heading collapsed to one word.
-const SECTION_WORDS: [RegExp, SectionName][] = [
-  [/experience|employment|work\s?history|career\s?history/i, 'experience'],
-  [/education/i, 'education'],
-  [/skills?|competenc(?:y|ies)|expertise/i, 'skills'],
-  [/projects?/i, 'projects'],
-  [/certifications?|certificates|licen[cs]es/i, 'certifications'],
-  [/summary|profile|objective|about\s?me/i, 'summary'],
-]
 // The headings our own previews / PDF / DOCX / TXT / MD print (SECTION_LABELS in
 // every language) read back as the section they were printed for: the six core
 // sections by field, the rest (Involvement, Coursework, Military service, …) as a
@@ -97,30 +84,30 @@ for (const { key, label } of defaultSectionLabels()) {
   OWN_HEADINGS.set(label.toLowerCase(), own)
   OWN_HEADINGS.set(label.toLowerCase().replace(/\s+/g, ''), own)
 }
-const ownHeading = (t: string) => OWN_HEADINGS.get(t.trim().replace(/\s+/g, ' ').toLowerCase())
+// The headings the reader renamed in the Builder ("Where I have worked"), for the
+// duration of one parse — its own export reads back into the sections it came from.
+let readerHeadings: Map<string, OwnHeading> | null = null
+function readerHeadingMap(sectionHeadings: Partial<Record<string, string>>): Map<string, OwnHeading> | null {
+  const map = new Map<string, OwnHeading>()
+  for (const [key, label] of Object.entries(sectionHeadings)) {
+    const t = label?.trim()
+    if (!t) continue
+    const own: OwnHeading = key in CORE_SECTION_KEYS ? { section: CORE_SECTION_KEYS[key] } : { custom: t }
+    map.set(t.toLowerCase(), own)
+    map.set(t.toLowerCase().replace(/\s+/g, ''), own)
+  }
+  return map.size ? map : null
+}
+const ownHeading = (t: string) => {
+  const k = t.trim().replace(/\s+/g, ' ').toLowerCase()
+  return readerHeadings?.get(k) ?? OWN_HEADINGS.get(k)
+}
 // "P R O F E S S I O N A L E X P E R I E N C E" — tracked (letter-spaced) headings
 // reach text extraction with a space after every letter.
 const LETTER_SPACED_RE = /^(?:[A-Za-z&/] ){3,}[A-Za-z&/]$/
-const HEADING_WORD_RE = /^(?:[A-Z][A-Za-z&/'’-]*|&|\/|and|of|or|in|the)$/
-// "Project Manager" / "Customer Experience Lead" are entry headers, not sections.
-const JOB_TITLE_NOUN_RE =
-  /\b(manager|engineer|developer|analyst|director|lead|specialist|coordinator|assistant|consultant|intern|officer|head|designer|architect|administrator|trainer|teacher|nurse|technician|associate|representative|executive|founder|owner|president|vp|supervisor|advisor|adviser|counsel|accountant|scientist|researcher|writer|editor|recruiter|planner|strategist|agent|clerk|operator|driver|chef|cook|server|barista|cashier|volunteer|partner|fellow|professor|lecturer|instructor|tutor|mentor|ambassador|apprentice|trainee|waiter|waitress|receptionist|paralegal|secretary|treasurer|leader)\b/i
-// One credential's name — "Graduate Project Management Certification",
-// "Certificate in Project Management" — not the section that lists them.
-const CREDENTIAL_TITLE_RE =
-  /^(?:\S+\s+){2,}(?:certification|certificate|licen[cs]e|diploma|course)$|^(?:certification|certificate|licen[cs]e|diploma|course)\s+(?:in|of)\s/i
 // "Role · Company" / "Role at Company" / "Role — Company" — the binders our
 // own PDF / TXT / MD exports and Role·Company headers use between two names.
 const ENTRY_HEADER_BINDER_RE = /\S\s(?:·|at|—)\s[A-Z0-9]/
-const looksLikeHeadingShape = (t: string) => {
-  if (t.length > 48 || /[.,;:!?()\d]/.test(t)) return false
-  const words = t.split(/\s+/)
-  return words.length <= 6 && (t === t.toUpperCase() || words.every((w) => HEADING_WORD_RE.test(w)))
-}
-
-// Common resume sections without a dedicated field — imported as custom sections
-const CUSTOM_HEADING_RE =
-  /^(awards?|honors?|achievements?|publications?|volunteer(ing|\s+experience)?|languages?|interests?|hobbies|activities|leadership|references)\b/i
 
 // Word's default list glyph is ● (U+25CF); Symbol-font bullets reach text
 // extraction as a lone Private Use Area character.
@@ -722,7 +709,22 @@ export function keepDesignOnImport(prev: Resume, parsed: Resume): Resume {
   }
 }
 
-export function parseResumeText(input: string): Resume {
+export type ParseOptions = {
+  /** The reader's own section headings (Builder renames), so its export reads back into the same sections */
+  sectionHeadings?: Partial<Record<string, string>>
+}
+
+export function parseResumeText(input: string, options: ParseOptions = {}): Resume {
+  const previous = readerHeadings
+  readerHeadings = options.sectionHeadings ? readerHeadingMap(options.sectionHeadings) : null
+  try {
+    return parseResumeTextInner(input)
+  } finally {
+    readerHeadings = previous
+  }
+}
+
+function parseResumeTextInner(input: string): Resume {
   if (looksLikeLinkedInExport(input)) return parseLinkedInText(input)
   const raw = plainResumeText(input)
   const resume = emptyResume()
