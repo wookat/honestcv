@@ -4470,8 +4470,8 @@ export default function Builder() {
                   flashEntryId === p.id ? 'ring-primary/60 ring-2' : ''
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs font-medium">
+                <div className="flex min-w-0 flex-wrap items-center justify-between sm:flex-nowrap">
+                  <p className="text-muted-foreground flex min-w-0 basis-full items-center gap-1 text-xs font-medium sm:basis-auto">
                     <span className="shrink-0">Project {pIdx + 1}</span>
                     {p.name.trim() && (
                       <span className="text-foreground min-w-0 truncate font-normal">
@@ -4492,7 +4492,7 @@ export default function Builder() {
                       label={`Project ${pIdx + 1}`}
                     />
                   </p>
-                  <div className="flex items-center">
+                  <div className="ml-auto flex items-center max-sm:basis-full max-sm:flex-wrap max-sm:justify-end sm:shrink-0">
                     <Button
                       type="button"
                       variant="ghost"
