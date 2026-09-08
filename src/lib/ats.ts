@@ -976,6 +976,25 @@ function tokenize(text: string): string[] {
 /** Fewest keywords worth scoring against; short ads are topped up to this many. */
 const MIN_KEYWORDS = 15
 
+/** Rank bonus of a curated / tech-shaped skill; a single mention outranks three of a plain word. */
+const SKILL_WEIGHT = 3
+
+/** Rank bonus of a name the requirements block capitalizes; a single mention ranks with two of a plain word. */
+const NAMED_TERM_WEIGHT = 1
+
+const CALENDAR_WORDS = new Set(
+  'monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december'.split(' ')
+)
+
+/** Whether `phrase` contains `word` as a whole word ("node.js" contains "node"; "scss" does not contain "css"). */
+function containsWord(phrase: string, word: string): boolean {
+  const at = phrase.indexOf(word)
+  if (at < 0) return false
+  const before = phrase[at - 1]
+  const after = phrase[at + word.length]
+  return (before === undefined || !/[a-z0-9]/.test(before)) && (after === undefined || !/[a-z0-9]/.test(after))
+}
+
 const EMPLOYER_NAME = String.raw`([A-Z][\w&.'-]*(?: [A-Z][\w&.'-]*){0,2})`
 const EMPLOYER_NAME_RES = [
   new RegExp(`^\\W*About ${EMPLOYER_NAME}\\W*$`, 'm'),
@@ -1160,24 +1179,32 @@ export function extractKeywords(jdRaw: string, limit = 30, company?: string): st
     if (URL_TOKEN_RE.test(tok) && !KNOWN_SKILLS.has(tok)) continue
     counts.set(tok, (counts.get(tok) ?? 0) + 1)
   }
-  const reqTokens = new Set(tokenize(requirementsBlock(jd)))
+  const reqLines = requirementsBlockLines(jd)
+  const reqTokens = new Set(tokenize(reqLines.map((l) => l.text).join('\n')))
+  // A name the requirements block writes with a capital (GAAP, Excel, English,
+  // ERP) is a keyword however rarely the ad says it; a curated skill outranks
+  // it, and both outrank a word the ad merely repeats.
+  const namedTerms = capitalizedRequirementTerms(reqLines)
+  const isSkill = (tok: string) => looksLikeSkill(tok) || namedTerms.has(tok)
   const score = (tok: string, n: number) =>
-    (looksLikeSkill(tok) ? n + 2 : n) + (reqTokens.has(tok) ? 0.5 : 0)
+    n +
+    (looksLikeSkill(tok) ? SKILL_WEIGHT : namedTerms.has(tok) ? NAMED_TERM_WEIGHT : 0) +
+    (reqTokens.has(tok) ? 0.5 : 0)
   const entries = [...counts.entries()]
   const core = entries
-    .filter(([tok, n]) => n >= 2 || looksLikeSkill(tok))
+    .filter(([tok, n]) => n >= 2 || isSkill(tok))
     .map(([tok, n]) => [tok, score(tok, n)] as const)
     .sort((a, b) => b[1] - a[1])
   // Short ads rarely repeat anything: top up from single-mention words, the
   // requirements block first, then the rest in reading order.
   const header = headerLineTokens(jd)
   const fill = entries
-    .filter(([tok, n]) => n < 2 && !looksLikeSkill(tok) && !header.has(tok))
+    .filter(([tok, n]) => n < 2 && !isSkill(tok) && !header.has(tok))
     .sort((a, b) => Number(reqTokens.has(b[0])) - Number(reqTokens.has(a[0])))
     .map(([tok, n]) => [tok, score(tok, n) - 1] as const)
   const spellings = new Set<string>()
   const add = ([word, n]: readonly [string, number]) => {
-    if ([...found.keys()].some((p) => p.includes(word))) return
+    if ([...found.keys()].some((p) => containsWord(p, word))) return
     const spelling = closedSpelling(word) ?? word
     if (spellings.has(spelling)) return
     spellings.add(spelling)
@@ -1211,14 +1238,14 @@ function withoutRoleTokens(keywords: string[], targetRole: string): string[] {
 
 /** Section titles under which ads list what the candidate must bring (measured over 84 real ads). */
 const REQUIREMENTS_HEADING_RE =
-  /\b(requirements?|qualifications|must[- ]haves?|what you.ll need|what we.re looking for|who we.re looking for|skills we.re looking for|who you are|about you|what you bring|you.ll bring|you bring|ideal candidate|your profile|your background|what we need|required|experience|skills|expertise|tech stack|our stack|this role is for you if|license\/certification|nice[- ]to[- ]haves?|preferred|bonus|votre profil)\b/i
+  /\b(requirements?|qualifications|criteria|must[- ]haves?|(?:what )?you(?:.ll| will) need|what we.re looking for|who we.re looking for|skills we.re looking for|who you are|about you|what you bring|you.ll bring|you bring|ideal candidate|your profile|your background|what we need|required|experience|skills|expertise|tech stack|our stack|this role is for you if|license\/certification|nice[- ]to[- ]haves?|preferred|bonus|votre profil)\b/i
 
 /** A requirements section continues through its "Nice to have" / "Preferred" sub-heading. */
 const NICE_TO_HAVE_HEADING_RE = /\b(nice[- ]to[- ]haves?|bonus|preferred|plus|desirable|good to have|great if|optional|valued)\b/i
 
 /** A sentence that opens the candidate profile in ads without a requirements heading. */
 const REQUIREMENTS_SENTENCE_RE =
-  /^\s*(you bring|you.ll bring|what we.re looking for|the ideal candidate|we are looking for|we.re looking for|you have|you are)\b/i
+  /^\s*(you bring|you.ll bring|what we.re looking for|the ideal candidate|we are looking for|we.re looking for|you have|you are)\b|\byou (?:are|have|are\/have|bring|need)\s*:$/i
 
 /**
  * What makes such a sentence state requirements rather than introduce the role
@@ -1241,7 +1268,7 @@ export function requirementsBlock(jd: string): string {
 }
 
 /** The requirements sections line by line, case preserved. */
-function requirementsBlockLines(jd: string): RequirementLine[] {
+export function requirementsBlockLines(jd: string): RequirementLine[] {
   const out: RequirementLine[] = []
   let inside = false
   let sawList = false
@@ -1298,7 +1325,7 @@ function requirementsBlockLines(jd: string): RequirementLine[] {
 }
 
 /** `listed`: the rest of an inline "Requirements: a, b, c" line — a list of requirements as such. */
-type RequirementLine = { text: string; listed: boolean }
+export type RequirementLine = { text: string; listed: boolean }
 
 /**
  * "experience with", "knowledge of", "degree in", "experience building" …
@@ -1319,27 +1346,49 @@ const SHORT_ITEM_TOKENS = 6
  * capital as a product or discipline (not the sentence's own capital), as a
  * known phrase or skill.
  */
-function namedAsRequirement(kw: string, lines: RequirementLine[]): boolean {
-  if (kw.includes(' ') || looksLikeSkill(kw)) return true
-  const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const asWritten = new RegExp(`(?:^|[^A-Za-z0-9])(${esc})(?![A-Za-z0-9])`, 'gi')
+function namedAsRequirement(kw: string, lines: RequirementLine[], capitalized: Set<string>): boolean {
+  if (kw.includes(' ') || looksLikeSkill(kw) || capitalized.has(kw)) return true
   for (const { text: line, listed } of lines) {
     const tokens = tokenize(line)
     if (!tokens.includes(kw)) continue
     if (tokens.length <= SHORT_ITEM_TOKENS) return true
     if (listed) return true
-    for (const m of line.matchAll(asWritten)) {
-      const written = m[1]!
-      const start = m.index + m[0].length - written.length
-      const sentenceInitial = !/[A-Za-z0-9]/.test(line.slice(0, start))
-      if (/[A-Z]/.test(sentenceInitial ? written.slice(1) : written)) return true
-    }
     for (const m of line.matchAll(REQUIREMENT_CUE_RE)) {
       const after = tokenize(line.slice(m.index + m[0].length)).slice(0, CUE_WINDOW)
       if (after.includes(kw)) return true
     }
   }
   return false
+}
+
+/**
+ * Words the requirements block writes with a capital that is not the line's
+ * own ("Ensure compliance with GAAP principles", "Proficiency in … Excel",
+ * "fluent English") — the products, standards, languages and certifications
+ * the ad names, lower-cased as `tokenize` would. A Title-Case line capitalizes
+ * every word and names nothing by it; a two-letter capital (US state codes,
+ * "FE", "MD") and a calendar word name a place or a schedule, not a skill.
+ */
+function capitalizedRequirementTerms(lines: RequirementLine[]): Set<string> {
+  const out = new Set<string>()
+  for (const { text } of lines) {
+    const words =
+      text
+        .replace(/\b[A-Za-z]+n[’']t\b/g, ' not ')
+        .replace(/[’']([A-Za-z]{1,2})\b/g, '')
+        .replace(/[^A-Za-z0-9+#./ -]/g, ' ')
+        .match(/[A-Za-z0-9+#][A-Za-z0-9+#./-]*/g) ?? []
+    const long = words.filter((w) => /^[A-Za-z]{4,}$/.test(w))
+    if (long.length >= 3 && long.every((w) => /^[A-Z]/.test(w))) continue
+    for (const [i, w] of words.entries()) {
+      if (!/[A-Z]/.test(i === 0 ? w.slice(1) : w)) continue
+      const tok = w.toLowerCase().replace(/[./-]+$/, '')
+      if (tok.length >= 3 && /^[a-z]/.test(tok) && !STOPWORDS.has(tok) && !CALENDAR_WORDS.has(tok)) {
+        out.add(tok)
+      }
+    }
+  }
+  return out
 }
 
 /**
@@ -1388,9 +1437,10 @@ export function highPriorityKeywords(jdRaw: string, keywords: string[]): Set<str
   const reqLines = requirementsBlockLines(jd)
   const reqBlock = reqLines.map((l) => l.text).join('\n').toLowerCase()
   const reqTokens = new Set(tokenize(reqBlock))
+  const capitalized = capitalizedRequirementTerms(reqLines)
   for (const kw of keywords) {
     const phrase = kw.includes(' ')
-    if ((phrase ? reqBlock.includes(kw) : reqTokens.has(kw)) && namedAsRequirement(kw, reqLines)) {
+    if ((phrase ? reqBlock.includes(kw) : reqTokens.has(kw)) && namedAsRequirement(kw, reqLines, capitalized)) {
       high.add(kw)
       continue
     }
