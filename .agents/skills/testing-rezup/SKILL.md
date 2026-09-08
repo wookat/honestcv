@@ -5,6 +5,12 @@ description: How to QA-test RezUp (cv.zalize.com) end-to-end — free/launch mod
 
 # Testing RezUp
 
+## Production import harness notes
+
+- Production CSP may reject Playwright `waitForFunction` with an `unsafe-eval` pageerror. Prefer bounded host-side polling of `locator.inputValue()` when waiting for ATS extraction to populate `#resume-text`; retain any harness-generated CSP error in diagnostics and distinguish it from application errors rather than weakening CSP.
+- Education Details is a single-line input. Verify its complete value against storage, use Home/End to expose start/tail without editing, and check card overflow separately from expected internal input scrolling. At mobile widths, scroll the first card's Move down control into view for evidence showing both full-width Details and the button row below it.
+- Builder Copies empty-state text includes punctuation: `No saved copies yet.` Use that exact string or a non-exact match when verifying cleanup.
+
 ## R198 lessons — ruled-entry templates (Circuit/Ledger) & preview/export divider QA
 
 - Builder template gallery cards: the card name lives in the sibling `[aria-label="Save <Name> template"]` button; the clickable card itself is the adjacent button whose `title` is the template *description* (e.g. "Serif with ruled entries…") — matching by name text or thumb SVG picks the wrong element.
