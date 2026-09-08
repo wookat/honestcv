@@ -14,6 +14,7 @@ import {
   emptyResume,
   newId,
 } from './resume'
+import { plainResumeText } from './markdownText'
 
 const EMAIL_RE = /[^\s@|,;]+@[^\s@|,;]+\.[a-z]{2,}/i
 const PHONE_RE = /(\+?\(?\d[\d\s().-]{5,}\d)/
@@ -553,26 +554,9 @@ export function keepTargetOnImport(prev: Resume, parsed: Resume): Resume {
   }
 }
 
-// A Markdown résumé (our own .md export, a GitHub profile): drop the heading
-// markers, the *(dates)* emphasis, link syntax and whole-line italics so the
-// lines read like the plain-text shape. Inline marks inside bullets stay.
-const looksLikeMarkdown = (raw: string) => (raw.match(/^#{1,6}\s+\S/gm) ?? []).length >= 2
-function unmarkdown(raw: string): string {
-  return raw
-    .split(/\r?\n/)
-    .map((l) =>
-      l
-        .replace(/^#{1,6}\s+/, '')
-        .replace(/\s\*\((.*?)\)\*\s*$/, ' ($1)')
-        .replace(/\[([^\]]+)\]\((\S+?)\)/g, '$1 ($2)')
-        .replace(/^\*([^*]+)\*$/, '$1')
-    )
-    .join('\n')
-}
-
 export function parseResumeText(input: string): Resume {
   if (looksLikeLinkedInExport(input)) return parseLinkedInText(input)
-  const raw = looksLikeMarkdown(input) ? unmarkdown(input) : input
+  const raw = plainResumeText(input)
   const resume = emptyResume()
   resume.experience = []
   resume.education = []

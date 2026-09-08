@@ -95,8 +95,27 @@ Three root causes, each read in the code:
 - Round trip: Northstar + sample × TXT + MD → 0 field diffs (contact, summary,
   skills, experience, education, projects).
 - Replay: 186 / 186 identical vs the R782 parser (text + PDF).
-- Tests: 130 (was 123); two new fixtures parse to byte-identical goldens.
+- Tests: 130 (was 123) after the first commit; two new fixtures parse to
+  byte-identical goldens.
 - Gates: tsc app / worker / test, eslint, build, verify-dist green.
 - Side effect, intended: `resumeToPlainText` now carries experience / education
   locations, so ATS matching, grounding evidence text and AI prompts see the
   same locations the PDF already printed.
+- Second commit: an education `details` of `Chemistry A*, Mathematics A*` (an
+  unlabelled grade list, the shape the Oxford CV stores after R768) re-imported
+  from our own TXT **and** MD as a second school (`degree: Chemistry A*`,
+  `school: Mathematics A*`) — the comma-split `Degree, School` fallback took it.
+  `isGradeList`: every `,`/`;` item is `Subject <grade>` with grade `A*`, `A–E`
+  (optionally starred) or a single digit `1–9`, and either ≥ 2 items or an `A*`
+  → `isEduDetailLine` → details of the open entry. `A Levels, Durham Sixth Form`
+  still opens an entry (no grade token). Replay 186 / 186 identical; 131 tests.
+- Third commit (production QA finding): the same Markdown export that
+  re-imports with 0 field diffs scored **82** on /ats-checker while the TXT
+  export scored **95** — `scoreResumeText` ran its heading regexes on the raw
+  paste, so `## Experience` / `## Skills` failed `Standard section headings`
+  and `Skills section present`. The parser's Markdown unwrap (`looksLikeMarkdown`
+  ≥ 2 heading lines, `unmarkdown`) moved to `src/lib/markdownText.ts` and the
+  scorer applies the same `plainResumeText` before indexing / checks. Plain
+  text and a lone `# Jane Doe` are scored as typed. `tests/ats.test.ts`: MD and
+  TXT exports produce the same score and failing-check list; a `#`-prefixed
+  plain resume scores like the unprefixed one. Replay 186 / 186; 133 tests.
