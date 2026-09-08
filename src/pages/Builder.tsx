@@ -579,6 +579,11 @@ function useUndo(
   return { undo, canUndo, redo, canRedo }
 }
 
+// Entry text box + its control buttons: one row on desktop, the box takes a
+// full line on small screens so it is not squeezed by the buttons.
+const ENTRY_TEXT_ROW =
+  'flex flex-wrap items-start gap-2 sm:flex-nowrap [&>:first-child]:basis-full sm:[&>:first-child]:flex-1 sm:[&>:first-child]:basis-0 [&>:nth-child(2)]:ml-auto'
+
 const moveId = (list: string, index: number, dir: 'up' | 'down') => `move-${list}-${index}-${dir}`
 
 /** A short window of `text` around the first occurrence of `around` (whole text when it is short). */
@@ -4635,7 +4640,7 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     aria-label="Organization (optional)"
                     placeholder="Organization (optional)"
@@ -4682,7 +4687,7 @@ export default function Builder() {
                     />
                   </div>
                 </div>
-                <div className="flex items-start justify-between gap-2">
+                <div className={ENTRY_TEXT_ROW}>
                   <LintedTextarea
                     aria-label="Project description"
                     rows={2}
@@ -4980,7 +4985,7 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     aria-label="College or city (optional)"
                     placeholder="College or city (optional)"
@@ -5026,7 +5031,7 @@ export default function Builder() {
                     />
                   </div>
                 </div>
-                <div className="flex items-start justify-between gap-2">
+                <div className={ENTRY_TEXT_ROW}>
                   <LintedTextarea
                     aria-label="Involvement description"
                     rows={2}
@@ -5446,7 +5451,7 @@ export default function Builder() {
                     Only the first 3 skills appear on the resume.
                   </p>
                 )}
-                <div className="flex items-start justify-between gap-2">
+                <div className={ENTRY_TEXT_ROW}>
                   <Textarea
                     aria-label="How you applied it"
                     rows={2}
@@ -5714,7 +5719,7 @@ export default function Builder() {
                     />
                   </div>
                 </div>
-                <div className="flex items-start justify-between gap-2">
+                <div className={ENTRY_TEXT_ROW}>
                   <Textarea
                     aria-label="Why it's relevant"
                     rows={2}
@@ -6008,7 +6013,7 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="flex items-start justify-between gap-2">
+                <div className={ENTRY_TEXT_ROW}>
                   <Textarea
                     aria-label="Additional information"
                     rows={2}
@@ -6569,7 +6574,7 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <Input
                     aria-label="Stationed at"
                     placeholder="Stationed at (e.g. Fort Bragg, NC)"
@@ -6616,7 +6621,7 @@ export default function Builder() {
                     />
                   </div>
                 </div>
-                <div className="flex items-start justify-between gap-2">
+                <div className={ENTRY_TEXT_ROW}>
                   <Textarea
                     aria-label="Responsibilities and accomplishments"
                     rows={2}
@@ -6786,7 +6791,7 @@ export default function Builder() {
                     }))
                   }
                 />
-                <div className="flex items-start justify-between gap-2">
+                <div className={ENTRY_TEXT_ROW}>
                   <Textarea
                     aria-label="How building the agent was relevant"
                     rows={2}
@@ -7190,7 +7195,7 @@ export default function Builder() {
                       />
                     </div>
                   </div>
-                  <div className="flex items-start justify-between gap-2">
+                  <div className={ENTRY_TEXT_ROW}>
                     <Textarea
                       aria-label="How it's relevant (optional)"
                       rows={2}
