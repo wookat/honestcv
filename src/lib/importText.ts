@@ -196,11 +196,13 @@ export function looksLikeLinkedInExport(raw: string): boolean {
 /** First phone-like match that isn't actually a year range like "2010 - 2014". */
 function findPhone(text: string): string {
   const re = new RegExp(PHONE_RE.source, 'g')
-  for (const m of text.matchAll(re)) {
-    const candidate = m[0].trim()
-    if (/^\(?\d{4}\s*[–—-]\s*\d{4}\)?$/.test(candidate)) continue
-    if (candidate.replace(/\D/g, '').length < 7) continue
-    return candidate
+  for (const line of text.split(/\r?\n/)) {
+    for (const m of line.matchAll(re)) {
+      const candidate = m[0].trim()
+      if (/\d{4}\s*[–—-]\s*\d{4}/.test(candidate)) continue
+      if (candidate.replace(/\D/g, '').length < 7) continue
+      return candidate
+    }
   }
   return ''
 }
@@ -774,10 +776,40 @@ const LI_HEADINGS: [RegExp, LiSection][] = [
 const LI_TENURE_RE = /^(?:less than a year|\d+\s+years?(?:\s+\d+\s+months?)?|\d+\s+months?)$/i
 
 const LI_LOCATION_RE = /^[A-Za-zÀ-ÿ .'-]+(?:,\s*[A-Za-zÀ-ÿ .'-]+){1,2}$/
+// The line under the dates with no comma: "Italy", "Greater Boston Area"
+const LI_PLACE_LINE_RE =
+  /^[A-ZÀ-Þ][A-Za-zÀ-ÿ.'-]*(?:\s+[A-ZÀ-Þ][A-Za-zÀ-ÿ.'-]*){0,3}$/
+// "… Agile Transformation" + "& Coaching": a role header wrapped over two lines
+const isLiHeaderWrap = (above: string, below: string) =>
+  /^[&,a-zà-ÿ]/.test(below) || /[&,]$/.test(above)
 
-/** A short line without ending punctuation — likely a company/role header. */
+// The page-1 sidebar (Contact / Top Skills / Languages / Certifications /
+// Honors-Awards / Publications) is extracted after the page's main column and
+// before the next page carries the main column on; it opens with one of these.
+const LI_SIDEBAR_START_RE = /^(contact|top skills)$/i
+const LI_MAIN_SECTIONS = new Set<LiSection>([
+  'summary',
+  'experience',
+  'education',
+])
+// Contact-block site lines: "gionn.net (Blog)", "KennethAdams.com (Portfolio)"
+const LI_SITE_RE =
+  /^([\w.-]+\.[a-z]{2,}(?:\/\S*)?)\s+\((blog|portfolio|personal|company|other)\)$/i
+const LI_PHONE_KIND_RE = /\s*\((mobile|home|work)\)\s*$/i
+// Education line tail: "Degree, Field · (2011 - 2015)" / "· (2014)"
+const LI_EDU_DATES_RE =
+  /\s*·?\s*\(((?:[A-Za-z]+\s+)?\d{4})(?:\s*[–—-]\s*((?:[A-Za-z]+\s+)?\d{4}|present))?\)\s*$/i
+
+/**
+ * A short line without ending punctuation — likely a company/role header.
+ * The export's main column wraps at ~75 characters; "Cox Automotive Inc." keeps
+ * its abbreviation's period.
+ */
 const looksLikeExpHeader = (line: string) =>
-  line.length <= 60 && line.split(/\s+/).length <= 8 && !/[.!?:,;]$/.test(line)
+  line.length <= 75 &&
+  line.split(/\s+/).length <= 12 &&
+  (!/[.!?:,;]$/.test(line) ||
+    /\b(?:inc|ltd|llc|co|corp|plc|gmbh|s\.p\.a|s\.r\.l)\.$/i.test(line))
 
 /**
  * Parser for LinkedIn's own "Save to PDF" profile export. Its layout is
@@ -790,14 +822,11 @@ function parseLinkedInText(raw: string): Resume {
   resume.experience = []
   resume.education = []
 
-  const lines = raw
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !LI_PAGE_RE.test(l))
+  // Blank lines are kept: extraction joins pages with a blank line, which is
+  // where the page-1 sidebar ends and the main column resumes.
+  const lines = raw.split(/\r?\n/).map((l) => l.trim())
 
   const text = raw
-  resume.contact.email = text.match(EMAIL_RE)?.[0] ?? ''
-  resume.contact.phone = findPhone(text.replace(/^.*\(LinkedIn\).*$/gim, ''))
   const fullUrl = text.match(LINKEDIN_RE)?.[0] ?? ''
   const handle = text.match(/^(\S+)\s+\(LinkedIn\)$/im)?.[1] ?? ''
   resume.contact.linkedin =
@@ -820,7 +849,90 @@ function parseLinkedInText(raw: string): Resume {
   let expectLocation = false
 
   let eduSchool = ''
+  let eduDegree: string[] = []
   let currentEdu: EducationItem | null = null
+
+  // Main-column state parked while the sidebar is read
+  type Parked = {
+    section: LiSection
+    currentExp: ExperienceItem | null
+    expHeader: string[]
+    expectLocation: boolean
+    eduSchool: string
+    eduDegree: string[]
+    currentEdu: EducationItem | null
+  }
+  let parked: Parked | null = null
+  let afterPageMark = false
+  const contactLines: string[] = []
+
+  const flushEdu = () => {
+    if (!eduSchool) return
+    resume.education.push({
+      ...emptyEducation(),
+      id: newId(),
+      school: eduSchool,
+      degree: eduDegree.join(' ').trim(),
+    })
+    eduSchool = ''
+    eduDegree = []
+  }
+
+  const enterSidebar = () => {
+    parked = {
+      section,
+      currentExp,
+      expHeader,
+      expectLocation,
+      eduSchool,
+      eduDegree,
+      currentEdu,
+    }
+    expHeader = []
+    currentExp = null
+    expectLocation = false
+    eduSchool = ''
+    eduDegree = []
+    currentEdu = null
+  }
+  const leaveSidebar = () => {
+    if (!parked) return
+    ;({
+      section,
+      currentExp,
+      expHeader,
+      expectLocation,
+      eduSchool,
+      eduDegree,
+      currentEdu,
+    } = parked)
+    parked = null
+    currentCustom = null
+  }
+  /** Trailing short lines the sidebar section swallowed from the resumed main column */
+  const reclaimSidebarTail = (): string[] => {
+    const sink =
+      section === 'custom'
+        ? currentCustom?.bullets
+        : section === 'certifications'
+          ? certLines
+          : section === 'skills'
+            ? skills
+            : undefined
+    const out: string[] = []
+    // company + role, or company + a role wrapped over two lines
+    const want = () =>
+      out.length === 2 && isLiHeaderWrap(out[0], out[1]) ? 3 : 2
+    while (
+      sink &&
+      out.length < want() &&
+      sink.length > 0 &&
+      looksLikeExpHeader(sink[sink.length - 1])
+    ) {
+      out.unshift(sink.pop() as string)
+    }
+    return out
+  }
 
   const flushExp = () => {
     if (!currentExp && expHeader.length > 0) {
@@ -839,31 +951,58 @@ function parseLinkedInText(raw: string): Resume {
     expectLocation = false
   }
 
-  for (const rawLine of lines) {
-    const line = rawLine.replace(LI_DURATION_RE, '').trim()
-    if (!line) continue
-
+  const consume = (line: string): void => {
     const heading = LI_HEADINGS.find(([re]) => re.test(line.replace(/[:：]$/, '')))
     if (heading) {
+      if (
+        !parked &&
+        LI_SIDEBAR_START_RE.test(line) &&
+        (afterPageMark || (section !== null && LI_MAIN_SECTIONS.has(section)))
+      ) {
+        enterSidebar()
+      } else if (
+        parked &&
+        (heading[1] === 'experience' ||
+          heading[1] === 'education' ||
+          heading[1] === 'summary')
+      ) {
+        // A main-column heading inside the sidebar: the sidebar has ended
+        leaveSidebar()
+      }
       if (section === 'experience') flushExp()
+      if (section === 'education') flushEdu()
       section = heading[1]
       currentCustom = null
       currentEdu = null
       eduSchool = ''
-      continue
+      eduDegree = []
+      return
     }
-    if (section !== null && section !== 'summary') {
+    if (section !== null && !LI_MAIN_SECTIONS.has(section)) {
       // Only well-known headings here — an ALL-CAPS company name like "IBM"
-      // must not start a custom section.
+      // must not start a custom section. The main column holds only Summary /
+      // Experience / Education; a bare "Leadership" line inside an entry is
+      // its description, the sidebar is where Languages / Publications live.
       const t = line.replace(/[:：]$/, '')
       const customTitle =
         t.length <= 32 && CUSTOM_HEADING_RE.test(t) && !/[:：,;]\s*\S/.test(t) ? t : null
       if (customTitle) {
-        if (section === 'experience') flushExp()
         section = 'custom'
         currentCustom = { id: newId(), title: customTitle, bullets: [] }
         resume.customSections.push(currentCustom)
-        continue
+        return
+      }
+    }
+    if (parked?.section === 'experience') {
+      // Text without a page break (pasted): a dated entry header means the
+      // main column has resumed — give the sidebar's tail back to it.
+      const { start, rest } = extractDates(line)
+      if (start && rest.length <= 12) {
+        const tail = reclaimSidebarTail()
+        leaveSidebar()
+        // The reclaimed lines precede a date line: entry headers, not a location
+        if (tail.length > 0) expectLocation = false
+        for (const l of tail) consume(l)
       }
     }
 
@@ -871,9 +1010,20 @@ function parseLinkedInText(raw: string): Resume {
       case null:
         headerLines.push(line)
         break
-      case 'contact':
-        // email / phone / profile handle — already captured via regexes
+      case 'contact': {
+        // Narrow column: "kenslinkedin2@kennethadams." + "com", "Site.com/" + "Path/ (Other)"
+        const prev = contactLines[contactLines.length - 1]
+        if (
+          prev &&
+          /[./@-]$/.test(prev) &&
+          !/\s/.test(line.replace(/\s+\([A-Za-z]+\)$/, ''))
+        ) {
+          contactLines[contactLines.length - 1] = prev + line
+        } else {
+          contactLines.push(line)
+        }
         break
+      }
       case 'summary':
         summaryLines.push(line)
         break
@@ -883,9 +1033,20 @@ function parseLinkedInText(raw: string): Resume {
       case 'certifications':
         certLines.push(line)
         break
-      case 'custom':
-        if (currentCustom) currentCustom.bullets.push(stripBullet(line))
+      case 'custom': {
+        if (!currentCustom) break
+        // The sidebar wraps at ~35 characters: '"Managing inbound spam in Lotus' / 'Domino 6"'
+        const prev = currentCustom.bullets[currentCustom.bullets.length - 1]
+        const openQuote = !!prev && /^["“][^"”]*$/.test(prev)
+        if (
+          prev &&
+          (openQuote || /[/-]$/.test(prev) || continuesPrevious(prev, line))
+        )
+          currentCustom.bullets[currentCustom.bullets.length - 1] =
+            prev + (/[/-]$/.test(prev) ? '' : ' ') + line
+        else currentCustom.bullets.push(stripBullet(line))
         break
+      }
       case 'experience': {
         const { rest, start, end } = extractDates(line)
         if (start && rest.length <= 12) {
@@ -893,6 +1054,7 @@ function parseLinkedInText(raw: string): Resume {
           // Header lines of a follow-up role may have been buffered as
           // description lines of the previous entry — reclaim short trailing
           // lines without ending punctuation.
+          let roleOnly = false
           if (expHeader.length === 0 && currentExp) {
             while (
               expHeader.length < 2 &&
@@ -901,9 +1063,34 @@ function parseLinkedInText(raw: string): Resume {
             ) {
               expHeader.unshift(currentExp.bullets.pop() as string)
             }
+            // A role wrapped over two lines: "Company" / "Role part one," / "& part two"
+            const bullets = currentExp.bullets
+            const last = () => bullets[bullets.length - 1]
+            const got: number = expHeader.length
+            if (got === 1) {
+              const above = last()
+              if (
+                above !== undefined &&
+                above.length <= 80 &&
+                !/[.!?:;]$/.test(above) &&
+                isLiHeaderWrap(above, expHeader[0])
+              ) {
+                expHeader.unshift(bullets.pop() as string)
+                const company = last()
+                if (company !== undefined && looksLikeExpHeader(company))
+                  expHeader.unshift(bullets.pop() as string)
+                else roleOnly = true
+              }
+            } else if (got === 2 && isLiHeaderWrap(expHeader[0], expHeader[1])) {
+              const company = last()
+              if (company !== undefined && looksLikeExpHeader(company))
+                expHeader.unshift(bullets.pop() as string)
+              else roleOnly = true
+            }
           }
-          const company = expHeader.length >= 2 ? expHeader[0] : lastCompany
-          const role = expHeader.length >= 2 ? expHeader.slice(1).join(' ') : (expHeader[0] ?? '')
+          const company = expHeader.length >= 2 && !roleOnly ? expHeader[0] : lastCompany
+          const role =
+            expHeader.length >= 2 && !roleOnly ? expHeader.slice(1).join(' ') : expHeader.join(' ')
           currentExp = {
             ...emptyExperience(),
             id: newId(),
@@ -934,7 +1121,9 @@ function parseLinkedInText(raw: string): Resume {
           expectLocation &&
           !currentExp.location &&
           line.length <= 60 &&
-          (LI_LOCATION_RE.test(line) || /^remote$/i.test(line))
+          (LI_LOCATION_RE.test(line) ||
+            /^remote$/i.test(line) ||
+            LI_PLACE_LINE_RE.test(line))
         ) {
           currentExp.location = line
           expectLocation = false
@@ -943,10 +1132,15 @@ function parseLinkedInText(raw: string): Resume {
           expectLocation = false
         } else if (
           currentExp.bullets.length > 0 &&
-          /^[a-zà-ÿ]/.test(line) &&
-          !/[.!?:]$/.test(currentExp.bullets[currentExp.bullets.length - 1])
+          !/[.!?:]$/.test(currentExp.bullets[currentExp.bullets.length - 1]) &&
+          (/^[a-zà-ÿ]/.test(line) ||
+            /,$/.test(currentExp.bullets[currentExp.bullets.length - 1]) ||
+            (currentExp.bullets[currentExp.bullets.length - 1].length >= 60 &&
+              !looksLikeExpHeader(line)))
         ) {
-          // Wrapped continuation of the previous description line
+          // Wrapped continuation of the previous description line: it starts
+          // lowercase, or the line above ended mid-list, or the line above
+          // filled the column and this one is not an entry header
           currentExp.bullets[currentExp.bullets.length - 1] += ` ${line}`
         } else {
           currentExp.bullets.push(line)
@@ -955,10 +1149,19 @@ function parseLinkedInText(raw: string): Resume {
         break
       }
       case 'education': {
-        const { rest, start, end } = extractDates(line)
-        if (eduSchool) {
-          // "Degree, Field of study · (2014 - 2018)"
-          const degree = rest.replace(/\s*·\s*$/, '').replace(/[\s·(),-]+$/, '').trim()
+        const li = line.match(LI_EDU_DATES_RE)
+        const dated = li
+          ? { rest: line.slice(0, li.index).trim(), start: li[1], end: li[2] ?? li[1] }
+          : extractDates(line)
+        const { rest, start, end } = dated
+        if (eduSchool && (start || /·/.test(line))) {
+          // "Degree, Field of study · (2014 - 2018)" — possibly wrapped over
+          // the previous line(s)
+          const degree = [...eduDegree, rest]
+            .join(' ')
+            .replace(/\s*·\s*$/, '')
+            .replace(/[\s·(),-]+$/, '')
+            .trim()
           currentEdu = {
             ...emptyEducation(),
             id: newId(),
@@ -969,6 +1172,14 @@ function parseLinkedInText(raw: string): Resume {
           }
           resume.education.push(currentEdu)
           eduSchool = ''
+          eduDegree = []
+        } else if (eduSchool && eduDegree.length === 0) {
+          // Undated degree line — or the first half of a wrapped one
+          eduDegree = [line]
+        } else if (eduSchool) {
+          // Second undated line: the entry had no dates; this line is a school
+          flushEdu()
+          eduSchool = line
         } else if (start && currentEdu && !currentEdu.startDate && !rest) {
           currentEdu.startDate = start
           currentEdu.endDate = end
@@ -981,17 +1192,54 @@ function parseLinkedInText(raw: string): Resume {
         break
     }
   }
-  if (section === 'experience') flushExp()
-  if (eduSchool) {
-    resume.education.push({ ...emptyEducation(), id: newId(), school: eduSchool })
+
+  for (const rawLine of lines) {
+    if (!rawLine) {
+      // Page boundary: the sidebar (if we are in it) is over
+      if (parked) leaveSidebar()
+      continue
+    }
+    if (LI_PAGE_RE.test(rawLine)) {
+      afterPageMark = true
+      continue
+    }
+    const line = rawLine.replace(LI_DURATION_RE, '').trim()
+    if (!line) continue
+    consume(line)
+    afterPageMark = false
   }
+  if (parked) leaveSidebar()
+  if (section === 'experience') flushExp()
+  flushEdu()
+
+  const contactText = (contactLines.length ? contactLines : lines).join('\n')
+  resume.contact.email = contactText.match(EMAIL_RE)?.[0] ?? text.match(EMAIL_RE)?.[0] ?? ''
+  resume.contact.phone = findPhone(
+    contactText
+      .replace(/^.*\(LinkedIn\).*$/gim, '')
+      .replace(new RegExp(LI_PHONE_KIND_RE.source, 'gim'), '')
+  )
+  const sites = contactLines
+    .map((l) => l.match(LI_SITE_RE))
+    .filter((m): m is RegExpMatchArray => m !== null)
+  resume.contact.website = (sites.find((m) => !/^other$/i.test(m[2])) ?? sites[0])?.[1] ?? ''
 
   // Header: name, then headline (possibly wrapped), then location
   const header = headerLines.filter((l) => !EMAIL_RE.test(l) && !/\(LinkedIn\)/i.test(l))
   resume.contact.fullName = header[0] ?? ''
   const headline: string[] = []
-  for (const line of header.slice(1)) {
-    if (LI_LOCATION_RE.test(line) && line.length <= 60 && headline.length > 0) {
+  const rest = header.slice(1)
+  for (const [i, line] of rest.entries()) {
+    const isLast = i === rest.length - 1
+    if (
+      headline.length > 0 &&
+      line.length <= 60 &&
+      (LI_LOCATION_RE.test(line) ||
+        // "Las Vegas Metropolitan Area" / "San Francisco Bay Area" — always the header's last line
+        (isLast &&
+          LI_PLACE_LINE_RE.test(line) &&
+          /\b(?:area|region|metropolitan)$/i.test(line)))
+    ) {
       resume.contact.location = line
       break
     }
