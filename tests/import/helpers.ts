@@ -20,8 +20,10 @@ export const normalize = (v: unknown) =>
  * The browser's PDF path minus the worker: same pdf.js text layer, same
  * `leftMargin` / `pdfPageText` geometry pass, pages joined with a blank line.
  */
-export async function pdfText(name: string): Promise<{ text: string; multiColumn: boolean }> {
-  const data = new Uint8Array(readFileSync(join(FIXTURES, 'pdf', name)))
+export const pdfText = (name: string) =>
+  pdfTextOf(new Uint8Array(readFileSync(join(FIXTURES, 'pdf', name))))
+
+export async function pdfTextOf(data: Uint8Array): Promise<{ text: string; multiColumn: boolean }> {
   const doc = await pdfjs.getDocument({ data, useWorkerFetch: false }).promise
   const pages: PdfTextItem[][] = []
   for (let i = 1; i <= doc.numPages; i++) {

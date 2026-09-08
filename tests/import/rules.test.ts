@@ -449,4 +449,26 @@ describe('education grade list round trip (R783)', () => {
     const r = parseResumeText('Jane Doe\n\nEducation\nA Levels, Durham Sixth Form (2016 – 2018)\nBSc Physics, University of Bristol (2018 – 2021)')
     expect(r.education.map((e) => e.school)).toEqual(['Durham Sixth Form', 'University of Bristol'])
   })
+
+  it('R784: a contact row with no separators (icon-led, or our pre-R784 PDFs) still yields the location', () => {
+    const body = '\n\nExperience\nEngineer at Acme (2020 – 2021)\n- Shipped'
+    const rows = [
+      'jordan.reyes@email.com (555) 210-4432 Austin, TX linkedin.com/in/jordanreyes',
+      'jordan.reyes@email.com   (555) 210-4432   Austin, TX   linkedin.com/in/jordanreyes',
+      'alex@example.com +44 7700 900123 London, UK github.com/alex linkedin.com/in/alex',
+      'Austin, TX (555) 210-4432 jordan.reyes@email.com',
+    ]
+    expect(rows.map((row) => parseResumeText(`Jordan Reyes\nSoftware Engineer\n${row}${body}`).contact.location)).toEqual([
+      'Austin, TX',
+      'Austin, TX',
+      'London, UK',
+      'Austin, TX',
+    ])
+    // the rest of the row still reads as before
+    const c = parseResumeText(`Jordan Reyes\n${rows[0]}${body}`).contact
+    expect(c).toMatchObject({ email: 'jordan.reyes@email.com', phone: '(555) 210-4432', linkedin: 'linkedin.com/in/jordanreyes' })
+    // no place on the row → no invented location
+    expect(parseResumeText(`Jordan Reyes\njordan.reyes@email.com (555) 210-4432 linkedin.com/in/jordanreyes${body}`).contact.location).toBe('')
+    expect(parseResumeText(`Jordan Reyes\nSenior Engineer, IBM\njordan.reyes@email.com${body}`).contact.location).toBe('')
+  })
 })
