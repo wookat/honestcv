@@ -348,9 +348,10 @@ function matchCustomHeading(line: string): string | null {
 }
 
 // Trailing separators left where the dates were; a bracket only when the
-// dates were the bracket's content ("Role (Jan 2020 – Present)" → "Role (").
+// dates were the bracket's content ("Role (Jan 2020 – Present)" → "Role ("
+// or, when the slice kept both halves, "Role at Acme ()").
 const stripDateRest = (s: string) => {
-  const t = s.replace(/[\s|,;–—-]+$/, '')
+  const t = s.replace(/\(\s*\)/g, ' ').replace(/[\s|,;–—-]+$/, '')
   const open = (t.match(/\(/g) ?? []).length
   const close = (t.match(/\)/g) ?? []).length
   if (open > close && /\($/.test(t)) return stripDateRest(t.slice(0, -1))
@@ -408,10 +409,15 @@ function splitRoleCompanyRaw(text: string): { role: string; company: string; loc
     if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
       // "Software Engineer III, Team Leader" — two titles, no employer
       if (sep.source.includes(',') && parts.every((p) => JOB_TITLE_NOUN_RE.test(p))) break
+      // "B.S. Computer Science, University of Texas at Austin" / "University at
+      // Buffalo" — the "at" is part of the school's name, not a separator
+      if (sep.source.includes('at') && SCHOOL_RE.test(parts[0]) && !parts.slice(1).some((p) => SCHOOL_RE.test(p)))
+        continue
       const company = parts.slice(1).join(', ').trim()
-      // "Role — Company, City, ST" — peel a trailing location off the company
-      const loc = company.match(/,\s*([A-Za-z .'-]+,\s*[A-Z]{2}|Remote)$/)
-      if (loc && !sep.source.includes(','))
+      // "Role — Company, City, ST" / "Role at Company, London, UK" /
+      // "Degree, School, City, ST" — peel a trailing location off the company
+      const loc = company.match(/,\s*([A-Za-z .'-]+,\s*[A-Z]{2}|Remote)$/) ?? placeTail(company)
+      if (loc && (!sep.source.includes(',') || parts.length >= 3) && (loc.index ?? 0) > 0)
         return {
           role: parts[0].trim(),
           company: company.slice(0, loc.index).trim(),
@@ -421,6 +427,15 @@ function splitRoleCompanyRaw(text: string): { role: string; company: string; loc
     }
   }
   return { role: text.trim(), company: '', location: '' }
+}
+
+// "Acme, Berlin, Germany" → the last two comma parts when they read as a place
+// and something is left for the company.
+function placeTail(company: string): RegExpMatchArray | null {
+  const m = company.match(/,\s*([^,]+,\s*[^,]+)$/)
+  return m && (m.index ?? 0) > 0 && isExpPlaceLine(m[1].trim()) && !/\b(?:present|current|year|month)\b/i.test(m[1])
+    ? m
+    : null
 }
 
 /** Undated honors/coursework line under an education entry — details, not a new school */
@@ -531,8 +546,26 @@ export function keepTargetOnImport(prev: Resume, parsed: Resume): Resume {
   }
 }
 
-export function parseResumeText(raw: string): Resume {
-  if (looksLikeLinkedInExport(raw)) return parseLinkedInText(raw)
+// A Markdown résumé (our own .md export, a GitHub profile): drop the heading
+// markers, the *(dates)* emphasis, link syntax and whole-line italics so the
+// lines read like the plain-text shape. Inline marks inside bullets stay.
+const looksLikeMarkdown = (raw: string) => (raw.match(/^#{1,6}\s+\S/gm) ?? []).length >= 2
+function unmarkdown(raw: string): string {
+  return raw
+    .split(/\r?\n/)
+    .map((l) =>
+      l
+        .replace(/^#{1,6}\s+/, '')
+        .replace(/\s\*\((.*?)\)\*\s*$/, ' ($1)')
+        .replace(/\[([^\]]+)\]\((\S+?)\)/g, '$1 ($2)')
+        .replace(/^\*([^*]+)\*$/, '$1')
+    )
+    .join('\n')
+}
+
+export function parseResumeText(input: string): Resume {
+  if (looksLikeLinkedInExport(input)) return parseLinkedInText(input)
+  const raw = looksLikeMarkdown(input) ? unmarkdown(input) : input
   const resume = emptyResume()
   resume.experience = []
   resume.education = []
@@ -965,11 +998,17 @@ export function parseResumeText(raw: string): Resume {
         } else {
           const url = line.match(URL_RE)?.[0] ?? ''
           const link = CODE_NAME_RE.test(url) ? '' : url
+          // "Name · Org (link) (dates)" — our own TXT/MD export shape
+          const head = stripDateRest((dates.start ? dates.rest : line).replace(link, ''))
+          const dot = head.split(/\s+·\s+/)
+          const [name, org] = dot.length === 2 ? dot : [head, '']
           resume.projects.push({
             id: newId(),
-            name: line.replace(link, '').replace(/[—–|(),]\s*$/, '').trim() || line,
+            name: name.replace(/[—–|(),]\s*$/, '').trim() || line,
             link,
             description: '',
+            ...(org ? { org: org.trim() } : {}),
+            ...(dates.start ? { startDate: dates.start, endDate: dates.end } : {}),
           })
         }
         break
