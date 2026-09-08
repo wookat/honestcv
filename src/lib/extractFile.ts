@@ -102,7 +102,20 @@ export interface PdfTextItem {
 }
 
 type LineItem = { x: number; w: number; size: number; str: string }
-type Segment = { x: number; end: number; y: number; size: number; text: string; tags: number; tagText: string }
+type Segment = {
+  x: number
+  end: number
+  y: number
+  size: number
+  text: string
+  tags: number
+  tagText: string
+  /** x where a hanging-indent bullet's text starts (its glyph is its own item), else null */
+  textX: number | null
+}
+
+const LIST_GLYPH_RE = /^[•●▪◦·\-–—*■○➢➤►✓]$/
+const LIST_GLYPH_START_RE = /^[•●▪◦·\-–—*■○➢➤►✓](?:\s|$)/
 
 /**
  * Split each visual line into segments at wide gaps (e.g. a right-aligned
@@ -134,6 +147,7 @@ function segmentOf(items: LineItem[], y: number): Segment {
     text: tags >= 3 ? tagText : items.map((it) => it.str).join(' '),
     tags,
     tagText,
+    textX: items.length > 1 && LIST_GLYPH_RE.test(items[0].str.trim()) ? items[1].x : null,
   }
 }
 
@@ -235,12 +249,28 @@ export function pdfPageText(items: PdfTextItem[], margin: number | null = null):
     Math.abs(s.x - prev.x) <= 2 &&
     Math.abs(s.size - prev.size) <= 0.25 &&
     prev.y - s.y <= 2.5 * s.size
+  // A hanging-indent bullet wraps onto lines that start exactly where its
+  // text starts, one line pitch down; the next bullet's glyph and the next
+  // header both start left of that, so the x tells a wrap from a new row
+  // (the pitch alone does not — both sit at 1.3–1.6em in the corpus).
+  const continuesBullet = (prev: Segment, s: Segment) =>
+    prev.textX !== null &&
+    s.tags < 3 &&
+    !LIST_GLYPH_START_RE.test(s.text.trim()) &&
+    Math.abs(s.x - prev.textX) <= 2 &&
+    Math.abs(s.size - prev.size) <= 0.25 &&
+    prev.y - s.y > 0 &&
+    prev.y - s.y <= 1.6 * s.size
+  const joinWrap = (prev: string, next: string) =>
+    /[A-Za-zà-ÿ]-$/.test(prev) && /^[a-zà-ÿ]/.test(next) ? `${prev}${next}` : `${prev} ${next}`
   const inOrder = (segs: Segment[]) => {
     const sorted = [...segs].sort((a, b) => b.y - a.y || a.x - b.x)
     const rows: Segment[] = []
     for (const s of sorted) {
       const prev = rows[rows.length - 1]
       if (prev && continuesTags(prev, s)) rows[rows.length - 1] = { ...prev, y: s.y, text: `${prev.text}, ${s.tagText}` }
+      else if (prev && continuesBullet(prev, s))
+        rows[rows.length - 1] = { ...prev, y: s.y, end: s.end, text: joinWrap(prev.text.trimEnd(), s.text.trim()) }
       else rows.push(s)
     }
     return rows.map((s) => s.text.replace(/\s+/g, ' ').trim()).filter(Boolean)
