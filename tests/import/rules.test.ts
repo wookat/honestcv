@@ -7,6 +7,7 @@ import {
   parseResumeText,
 } from '../../src/lib/importText'
 import { emptyEducation, resumeToMarkdown, resumeToPlainText, sampleResume, type Resume } from '../../src/lib/resume'
+import { ownSections, withOwnSections } from './ownSections'
 
 /**
  * One case per import behaviour fixed since R763, each traced to the real
@@ -649,32 +650,25 @@ describe('every heading the product prints is a heading to the importer (R789)',
     education: r.education.map((e) => [e.degree, e.school]),
     customTitles: r.customSections.map((c) => c.title),
   })
-  const labels: Record<string, string[]> = {
-    en: ['Involvement', 'Coursework', 'Awards & Honors', 'Publications', 'Military service'],
-    es: ['Actividades', 'Cursos', 'Premios y reconocimientos', 'Publicaciones', 'Servicio militar'],
-    fr: ['Engagements', 'Cours', 'Prix et distinctions', 'Publications', 'Service militaire'],
-    de: ['Engagement', 'Kurse', 'Auszeichnungen', 'Publikationen', 'Militärdienst'],
-    pt: ['Atividades', 'Cursos', 'Prêmios e distinções', 'Publicações', 'Serviço militar'],
-  }
 
   it('TXT (capitals) and Markdown (title case) exports of every section, in all five languages, read back as their sections', () => {
     for (const lang of ['en', 'es', 'fr', 'de', 'pt'] as const) {
       const src = withEverySection(lang === 'en' ? undefined : lang)
-      const want = { ...shape(src), customTitles: labels[lang] }
+      // R797: the sections read back into their own fields, so no custom section is left
+      const want = { ...shape(src), customTitles: [] }
       for (const [name, text] of [
         ['txt', resumeToPlainText(src, { keepLinkUrls: true })],
         ['md', resumeToMarkdown(src)],
       ] as const) {
         const back = parseResumeText(text)
         expect(shape(back), `${lang} ${name}`).toEqual(want)
-        // the section content is kept, under its own heading, not read as a role or a school
-        expect(back.customSections[0].bullets.join('\n'), `${lang} ${name}`).toContain('Mentor')
-        expect(back.customSections[4].bullets.join('\n'), `${lang} ${name}`).toContain('Sergeant')
+        // the section content is kept in its fields, not read as a role or a school
+        expect(ownSections(back), `${lang} ${name}`).toEqual(ownSections(src))
       }
     }
   })
 
-  it('a title-case heading with no English section word ("Involvement", "Military service") opens a custom section instead of becoming a role or a school', () => {
+  it('a title-case heading with no English section word ("Involvement", "Military service") opens its section instead of becoming a role or a school', () => {
     const r = cv(`
 Experience
 Software Engineer — Brightlane, Austin, TX (Jun 2023 – Present)
@@ -691,11 +685,10 @@ Sergeant — US Army (2010 – 2014)
 `)
     expect(r.experience.map((x) => x.role)).toEqual(['Software Engineer'])
     expect(r.education.map((e) => e.degree)).toEqual(['B.S. Computer Science'])
-    expect(r.customSections.map((c) => [c.title, c.bullets.length])).toEqual([
-      ['Involvement', 2],
-      ['Coursework', 1],
-      ['Military service', 1],
-    ])
+    expect(r.customSections).toEqual([])
+    expect(r.involvement).toMatchObject([{ role: 'Mentor', organization: 'Women Who Code Austin', startDate: 'Jan 2022', endDate: 'Present', description: 'Mentored 12 engineers.' }])
+    expect(r.coursework).toMatchObject([{ name: 'Distributed Systems', institution: 'University of Texas at Austin', date: '2020' }])
+    expect(r.military).toMatchObject([{ rank: 'Sergeant', branch: 'US Army', startDate: '2010', endDate: '2014' }])
   })
 
   it('a localized core heading opens its section as a gutter label, an inline label and a letter-spaced heading', () => {
@@ -716,7 +709,8 @@ HABILIDADES TypeScript, React
 
     const spaced = cv(`E X P E R I E N C I A\nIngeniera · Acme (2020 – Present)\nS E R V I C I O M I L I T A R\nSargento — Ejército (2010 – 2014)\n`)
     expect(spaced.experience.map((x) => x.role)).toEqual(['Ingeniera'])
-    expect(spaced.customSections.map((c) => c.title)).toEqual(['Servicio militar'])
+    expect(spaced.customSections).toEqual([])
+    expect(spaced.military).toMatchObject([{ rank: 'Sargento', branch: 'Ejército', startDate: '2010', endDate: '2014' }])
   })
 
   it('the label has to be the whole line — an entry header or a bullet that contains a label word is still content', () => {
@@ -1023,5 +1017,92 @@ describe('re-import of an export whose headings the user renamed in the Builder 
     ])
     expect(r.skills).toBe('TypeScript, React')
     expect(r.customSections.map((s) => [s.title, s.bullets])).toEqual([['My Volunteering', ['Mentor at Code Club']]])
+  })
+})
+
+describe('our own structured sections read back into their fields (R797)', () => {
+  it('TXT and Markdown exports re-import involvement, coursework, certifications, awards, publications, references and military service field for field', () => {
+    const src = withOwnSections(sampleResume())
+    for (const [name, text] of [
+      ['txt', resumeToPlainText(src, { keepLinkUrls: true })],
+      ['md', resumeToMarkdown(src)],
+    ] as const) {
+      const back = parseResumeText(text)
+      expect(ownSections(back), name).toEqual(ownSections(src))
+      expect(back.certifications, name).toBe('')
+      expect(back.customSections, name).toEqual([])
+    }
+  })
+
+  it('entries without a date or a binder are left as they were: a plain list under our heading stays a custom section, a flat certification line stays text', () => {
+    const list = cv(`SUMMARY
+Engineer.
+PUBLICATIONS
+- Smith, J. (2021). Edge parsing. Journal of Web Systems.
+- Smith, J. (2019). Streaming imports. WebConf.
+`)
+    expect(list.publications ?? []).toEqual([])
+    expect(list.customSections).toMatchObject([{ title: 'Publications', bullets: [expect.stringContaining('Edge parsing'), expect.stringContaining('Streaming imports')] }])
+
+    const names = cv(`SUMMARY
+Engineer.
+INVOLVEMENT
+Biology Club–Secretary
+Coordinated weekly tutoring sessions for 30 students
+`)
+    expect(names.involvement ?? []).toEqual([])
+    expect(names.customSections).toMatchObject([{ title: 'Involvement', bullets: ['Biology Club–Secretary', 'Coordinated weekly tutoring sessions for 30 students'] }])
+
+    const flat = cv(`SUMMARY
+Engineer.
+CERTIFICATIONS
+AWS Certified Developer, Google Cloud Professional Architect
+`)
+    expect(flat.certItems ?? []).toEqual([])
+    expect(flat.certifications).toBe('AWS Certified Developer, Google Cloud Professional Architect')
+
+    const bullets = cv(`SUMMARY
+Engineer.
+CERTIFICATIONS
+- AWS Certified Developer (2020)
+- PMP
+`)
+    expect(bullets.certItems ?? []).toEqual([])
+    expect(bullets.certifications).toBe('- AWS Certified Developer (2020); - PMP')
+  })
+
+  it('a section whose entries mix our shape with a plain line is not half-lifted', () => {
+    const r = cv(`SUMMARY
+Engineer.
+AWARDS & HONORS
+Dean's List — University of Texas at Austin (2019)
+- Top 5% of the class.
+Employee of the month
+`)
+    expect(r.awards ?? []).toEqual([])
+    expect(r.customSections).toMatchObject([{ title: 'Awards & Honors' }])
+    expect(r.customSections[0].bullets).toHaveLength(3)
+  })
+
+  it('a PDF-shaped section (date on its own line, plain certification description, reference contact row) reads the same as the TXT shape', () => {
+    const r = cv(`SUMMARY
+Engineer.
+CERTIFICATIONS
+AWS Solutions Architect – Associate — Amazon Web Services
+2023
+Designed the multi-region failover for Northstar.
+REFERENCES
+Dana Whitfield — VP Engineering, Northstar Digital
+dana@northstar.example · +1 512 555 0100 · Professional reference
+MILITARY SERVICE
+Sergeant · US Army, Fort Hood, TX
+2010 – 2014
+• Led a 12-person logistics team.
+`)
+    const src = withOwnSections(sampleResume())
+    const want = ownSections(src) as Record<string, unknown>
+    const got = ownSections(r) as Record<string, unknown>
+    for (const k of ['certItems', 'references', 'military']) expect(got[k], k).toEqual(want[k])
+    expect(r.customSections).toEqual([])
   })
 })

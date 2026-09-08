@@ -7,13 +7,23 @@
 import {
   MONTH_WORD_ALTERNATION,
   ONGOING_WORD_ALTERNATION,
+  type CertificationItem,
   type CustomSection,
   type EducationItem,
   type ExperienceItem,
+  type ReferenceKind,
   type Resume,
   defaultSectionLabels,
+  emptyAgent,
+  emptyAward,
+  emptyCertification,
+  emptyCoursework,
   emptyEducation,
   emptyExperience,
+  emptyInvolvement,
+  emptyMilitaryService,
+  emptyPublication,
+  emptyReference,
   emptyResume,
   newId,
 } from './resume'
@@ -77,10 +87,10 @@ const CORE_SECTION_KEYS: Record<string, SectionName> = {
   projects: 'projects',
   certifications: 'certifications',
 }
-type OwnHeading = { section: SectionName } | { custom: string }
+type OwnHeading = { section: SectionName } | { custom: string; key: string }
 const OWN_HEADINGS = new Map<string, OwnHeading>()
 for (const { key, label } of defaultSectionLabels()) {
-  const own: OwnHeading = key in CORE_SECTION_KEYS ? { section: CORE_SECTION_KEYS[key] } : { custom: label }
+  const own: OwnHeading = key in CORE_SECTION_KEYS ? { section: CORE_SECTION_KEYS[key] } : { custom: label, key }
   OWN_HEADINGS.set(label.toLowerCase(), own)
   OWN_HEADINGS.set(label.toLowerCase().replace(/\s+/g, ''), own)
 }
@@ -92,7 +102,7 @@ function readerHeadingMap(sectionHeadings: Partial<Record<string, string>>): Map
   for (const [key, label] of Object.entries(sectionHeadings)) {
     const t = label?.trim()
     if (!t) continue
-    const own: OwnHeading = key in CORE_SECTION_KEYS ? { section: CORE_SECTION_KEYS[key] } : { custom: t }
+    const own: OwnHeading = key in CORE_SECTION_KEYS ? { section: CORE_SECTION_KEYS[key] } : { custom: t, key }
     map.set(t.toLowerCase(), own)
     map.set(t.toLowerCase().replace(/\s+/g, ''), own)
   }
@@ -826,6 +836,25 @@ function parseResumeTextInner(input: string): Resume {
   const certLines: string[] = []
   let headerProse = false
   let expHeaderRaw = ''
+  // Each custom section's lines as the document had them (bullet marks kept),
+  // so a section we printed ourselves can be read back into its fields.
+  const customRaw = new WeakMap<CustomSection, string[]>()
+  const openCustom = (title: string, first?: string): CustomSection => {
+    const s: CustomSection = { id: newId(), title, bullets: first === undefined ? [] : [stripBullet(first)] }
+    customRaw.set(s, first === undefined ? [] : [first])
+    resume.customSections.push(s)
+    return s
+  }
+  const pushCustom = (s: CustomSection, line: string) => {
+    s.bullets.push(stripBullet(line))
+    customRaw.get(s)?.push(line)
+  }
+  const joinCustom = (s: CustomSection, line: string) => {
+    const last = s.bullets.length - 1
+    s.bullets[last] = joinWrapped(s.bullets[last], line)
+    const raw = customRaw.get(s)
+    if (raw) raw[last] = joinWrapped(raw[last], line)
+  }
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i]
@@ -835,8 +864,7 @@ function parseResumeTextInner(input: string): Resume {
       section = 'custom'
       currentExp = null
       currentEdu = null
-      currentCustom = { id: newId(), title: gutter.custom, bullets: [stripBullet(gutter.rest)] }
-      resume.customSections.push(currentCustom)
+      currentCustom = openCustom(gutter.custom, gutter.rest)
       continue
     }
     const inline = gutter ?? matchInlineHeading(line)
@@ -862,8 +890,7 @@ function parseResumeTextInner(input: string): Resume {
         section = 'custom'
         currentExp = null
         currentEdu = null
-        currentCustom = { id: newId(), title: inlineCustom.title, bullets: [inlineCustom.rest] }
-        resume.customSections.push(currentCustom)
+        currentCustom = openCustom(inlineCustom.title, inlineCustom.rest)
         continue
       }
       const customTitle = matchCustomHeading(line)
@@ -879,12 +906,7 @@ function parseResumeTextInner(input: string): Resume {
         section = 'custom'
         currentExp = null
         currentEdu = null
-        currentCustom = {
-          id: newId(),
-          title: customTitle,
-          bullets: [],
-        }
-        resume.customSections.push(currentCustom)
+        currentCustom = openCustom(customTitle)
         continue
       }
     }
@@ -901,12 +923,12 @@ function parseResumeTextInner(input: string): Resume {
         break
       case 'custom':
         if (!currentCustom) break
-        if (continuesPrevious(currentCustom.bullets[currentCustom.bullets.length - 1], line))
-          currentCustom.bullets[currentCustom.bullets.length - 1] = joinWrapped(
-            currentCustom.bullets[currentCustom.bullets.length - 1],
-            line
-          )
-        else currentCustom.bullets.push(stripBullet(line))
+        if (
+          continuesPrevious(currentCustom.bullets[currentCustom.bullets.length - 1], line) &&
+          !isReferenceDetail(line)
+        )
+          joinCustom(currentCustom, line)
+        else pushCustom(currentCustom, line)
         break
       case 'experience': {
         const wrappedHeader = joinWrappedHeader(line, lines[nextNonEmptyIndex(lines, i)])
@@ -1279,11 +1301,227 @@ function parseResumeTextInner(input: string): Resume {
 
   resume.summary = joinWrappedLines(summaryLines)
   resume.skills = joinSkillLines(skillLines)
-  resume.certifications = certLines.join('; ')
+  const certItems = liftCertifications(certLines)
+  if (certItems) resume.certItems = certItems
+  else resume.certifications = certLines.join('; ')
+  liftOwnSections(resume, customRaw)
 
   if (resume.experience.length === 0) resume.experience = [emptyExperience()]
   if (resume.education.length === 0) resume.education = [emptyEducation()]
   return resume
+}
+
+// ---------------------------------------------------------------------------
+// Our own structured sections read back into their fields.
+//
+// The Builder's Involvement / Coursework / Awards / Publications / References /
+// Military service / Certifications entries print as one header line per entry
+// ("Role  ·  Organization, Location (dates)", "Name — Issuer (date)"), the date
+// either in the header's parentheses (TXT / MD / DOCX) or on its own line under
+// it (PDF), then the description as bullets (a plain line for a certification
+// and a reference's contact row). Only a section whose heading we printed and
+// whose every entry carries that signature — a " · " / " — " binder or a date —
+// is lifted; anything else stays the custom section / certification text it
+// always was, so a hand-written "Publications" list is untouched.
+// ---------------------------------------------------------------------------
+
+type OwnEntry = { header: string; start: string; end: string; kind: string; bullets: string[]; plain: string[] }
+
+const BARE_DATE_LINE_RE = new RegExp(`^(?:${DATE_RANGE_RE.source}|${BARE_MONTH_RE.source.slice(1, -1)}|${BARE_YEAR_LINE_RE.source.slice(1, -1)})$`, 'i')
+const OWN_BINDER_RE = /\S\s(?:·|—)\s\S/
+// "(Talk)" / "(Book chapter)" left at the end of a publication header once the date is gone
+const TRAILING_KIND_RE = /\s\(([^()]{1,40})\)$/
+const REFERENCE_KIND_RE = /^(personal|professional) reference$/i
+// "dana@northstar.example · +1 512 555 0100 · Professional reference" — a
+// reference's contact row, which opens in lowercase like a wrapped line would.
+const isReferenceDetail = (line: string) =>
+  line.split(/\s·\s/).every((p) => EMAIL_RE.test(p) || PHONE_RE.test(p) || REFERENCE_KIND_RE.test(p.trim()))
+
+function bareDate(line: string): { start: string; end: string } | null {
+  if (!BARE_DATE_LINE_RE.test(line.trim())) return null
+  const d = extractDates(line.replace(/^\(|\)$/g, ''))
+  if (d.start) return { start: d.start, end: d.end }
+  const y = line.match(BARE_YEAR_LINE_RE)
+  return y ? { start: y[1], end: y[1] } : null
+}
+
+/**
+ * Groups a section's raw lines into entries: a marker-less line opens one (its
+ * dates taken from the header's parentheses or the bare date line under it),
+ * bullets are its description. `plainIsDetail` says when a marker-less line
+ * under an open entry is that entry's own text rather than the next header.
+ */
+function groupOwnEntries(
+  raw: string[],
+  plainIsDetail: (line: string, entry: OwnEntry) => boolean,
+  opts: { kind?: boolean } = {}
+): OwnEntry[] {
+  const entries: OwnEntry[] = []
+  let cur: OwnEntry | null = null
+  for (const line of raw) {
+    if (isBullet(line)) {
+      if (!cur) return []
+      cur.bullets.push(stripBullet(line))
+      continue
+    }
+    const date = bareDate(line)
+    if (date && cur && !cur.start && cur.bullets.length === 0 && cur.plain.length === 0) {
+      cur.start = date.start
+      cur.end = date.end
+      continue
+    }
+    if (cur && !date && plainIsDetail(line, cur)) {
+      cur.plain.push(line.trim())
+      continue
+    }
+    if (date) return []
+    const d = extractDates(line)
+    cur = { header: d.rest.trim(), start: d.start, end: d.end, kind: '', bullets: [], plain: [] }
+    const k = opts.kind ? cur.header.match(TRAILING_KIND_RE) : null
+    if (k && !bareDate(k[1])) {
+      cur.kind = k[1].trim()
+      cur.header = cur.header.slice(0, k.index).trim()
+    }
+    if (!cur.header) return []
+    entries.push(cur)
+  }
+  return entries
+}
+
+const hasOwnSignature = (e: OwnEntry) => !!e.start || OWN_BINDER_RE.test(e.header)
+const splitBinder = (header: string, binder: RegExp): [string, string] => {
+  const m = binder.exec(header)
+  if (!m || m.index === 0) return [header.trim(), '']
+  return [header.slice(0, m.index).trim(), header.slice(m.index + m[0].length).trim()]
+}
+const singleDate = (e: OwnEntry) => (e.start && e.end && e.start !== e.end ? `${e.start} – ${e.end}` : e.start)
+const dotHeader = (header: string) => {
+  const [left, rest] = splitBinder(header, /\s·\s/.test(header) ? /\s·\s/ : /\s—\s/)
+  const comma = rest.indexOf(', ')
+  return comma > 0
+    ? { left, right: rest.slice(0, comma).trim(), location: rest.slice(comma + 2).trim() }
+    : { left, right: rest, location: '' }
+}
+
+function liftCertifications(raw: string[]): CertificationItem[] | null {
+  if (raw.length === 0) return null
+  const entries = groupOwnEntries(raw, (line, e) => !OWN_BINDER_RE.test(line) && e.bullets.length === 0 && !extractDates(line).start)
+  if (entries.length === 0 || !entries.every((e) => OWN_BINDER_RE.test(e.header) || e.start)) return null
+  return entries.map((e) => {
+    const [name, issuer] = splitBinder(e.header, /\s—\s/)
+    return {
+      ...emptyCertification(),
+      name,
+      issuer,
+      date: singleDate(e),
+      description: [...e.plain, ...e.bullets].join('\n'),
+    }
+  })
+}
+
+function liftOwnSections(resume: Resume, customRaw: WeakMap<CustomSection, string[]>): void {
+  const keep: CustomSection[] = []
+  for (const s of resume.customSections) {
+    const own = ownHeading(s.title)
+    const raw = customRaw.get(s)
+    const key = own && 'custom' in own ? own.key : ''
+    if (!key || !raw || raw.length === 0 || !liftOwnSection(resume, key, raw)) keep.push(s)
+  }
+  resume.customSections = keep
+}
+
+function liftOwnSection(resume: Resume, key: string, raw: string[]): boolean {
+  const plainNever = () => false
+  switch (key) {
+    case 'involvement':
+    case 'military': {
+      const entries = groupOwnEntries(raw, plainNever)
+      if (entries.length === 0 || !entries.every(hasOwnSignature)) return false
+      for (const e of entries) {
+        const { left, right, location } = dotHeader(e.header)
+        const description = e.bullets.join('\n')
+        if (key === 'involvement')
+          (resume.involvement ??= []).push({ ...emptyInvolvement(), role: left, organization: right, location, startDate: e.start, endDate: e.end, description })
+        else
+          (resume.military ??= []).push({ ...emptyMilitaryService(), rank: left, branch: right, location, startDate: e.start, endDate: e.end, description })
+      }
+      return true
+    }
+    case 'coursework': {
+      const entries = groupOwnEntries(raw, plainNever)
+      if (entries.length === 0 || !entries.every(hasOwnSignature)) return false
+      for (const e of entries) {
+        const { left, right } = dotHeader(e.header)
+        const skillLine = e.bullets[0]?.match(/^Skills?:\s+(.+)$/)
+        const skill = skillLine ? skillLine[1].split(/\s*·\s*/).join(', ') : ''
+        const description = (skillLine ? e.bullets.slice(1) : e.bullets).join('\n')
+        ;(resume.coursework ??= []).push({ ...emptyCoursework(), name: left, institution: right, date: singleDate(e), skill, description })
+      }
+      return true
+    }
+    case 'awards': {
+      const entries = groupOwnEntries(raw, plainNever)
+      if (entries.length === 0 || !entries.every(hasOwnSignature)) return false
+      for (const e of entries) {
+        const [name, organization] = splitBinder(e.header, /\s—\s/)
+        ;(resume.awards ??= []).push({ ...emptyAward(), name, organization, date: singleDate(e), description: e.bullets.join('\n') })
+      }
+      return true
+    }
+    case 'publications': {
+      const entries = groupOwnEntries(raw, plainNever, { kind: true })
+      if (entries.length === 0 || !entries.every(hasOwnSignature)) return false
+      for (const e of entries) {
+        const [title, venue] = splitBinder(e.header, /\s—\s/)
+        ;(resume.publications ??= []).push({ ...emptyPublication(), title, venue, kind: e.kind, date: singleDate(e), description: e.bullets.join('\n') })
+      }
+      return true
+    }
+    case 'references': {
+      const isDetail = isReferenceDetail
+      const entries = groupOwnEntries(raw, (line, e) => e.plain.length === 0 && isDetail(line))
+      if (entries.length === 0) return false
+      for (const e of entries) {
+        const detail = [...e.plain, ...e.bullets]
+        if (!OWN_BINDER_RE.test(e.header) && detail.length === 0) return false
+        if (detail.length > 1 || (detail.length === 1 && !isDetail(detail[0]))) return false
+      }
+      for (const e of entries) {
+        const [name, role] = splitBinder(e.header, /\s—\s/)
+        const comma = role.indexOf(', ')
+        const parts = (e.plain[0] ?? e.bullets[0] ?? '').split(/\s·\s/).map((p) => p.trim())
+        const kindWord = parts.find((p) => REFERENCE_KIND_RE.test(p))?.toLowerCase()
+        const kind: ReferenceKind = kindWord?.startsWith('personal') ? 'personal' : kindWord?.startsWith('professional') ? 'professional' : ''
+        ;(resume.references ??= []).push({
+          ...emptyReference(),
+          name,
+          title: comma > 0 ? role.slice(0, comma).trim() : role,
+          employer: comma > 0 ? role.slice(comma + 2).trim() : '',
+          email: parts.find((p) => EMAIL_RE.test(p)) ?? '',
+          phone: parts.find((p) => !EMAIL_RE.test(p) && PHONE_RE.test(p)) ?? '',
+          kind,
+        })
+      }
+      return true
+    }
+    case 'agents': {
+      const entries = groupOwnEntries(raw, plainNever)
+      if (entries.length === 0 || !entries.every((e) => e.start || /^Skills used:\s/.test(e.bullets[0] ?? ''))) return false
+      for (const e of entries) {
+        const skillLine = e.bullets[0]?.match(/^Skills used:\s+(.+)$/)
+        ;(resume.agents ??= []).push({
+          ...emptyAgent(),
+          name: e.header,
+          date: singleDate(e),
+          skills: skillLine ? skillLine[1].trim() : '',
+          description: (skillLine ? e.bullets.slice(1) : e.bullets).join('\n'),
+        })
+      }
+      return true
+    }
+    default:
+      return false
+  }
 }
 
 type LiSection = SectionName | 'contact' | 'custom' | null

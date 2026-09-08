@@ -5,6 +5,7 @@ import { buildResumeDocx } from '../src/lib/docx'
 import { extractResumeFile } from '../src/lib/extractFile'
 import { parseResumeText } from '../src/lib/importText'
 import { resumeToPlainText, sampleResume } from '../src/lib/resume'
+import { ownSections, withOwnSections } from './import/ownSections'
 
 const BULLET_CHECKS = [
   '3–6 bullet points per role',
@@ -103,5 +104,16 @@ describe('the company-info paragraph re-imports as companyInfo (R794)', () => {
     const back = parseResumeText(text)
     expect(back.experience.map((e) => e.companyInfo)).toEqual(src.experience.map((e) => e.companyInfo))
     expect(stripIds(back)).toEqual(stripIds(parseResumeText(resumeToPlainText(src))))
+  })
+})
+
+describe('our own structured sections re-import from DOCX (R797)', () => {
+  it('DOCX and TXT exports parse to the same structured optional sections', async () => {
+    const src = withOwnSections(sampleResume())
+    const { text } = await extractResumeFile(new File([await buildResumeDocx(src)], 'jordan-reyes-resume.docx'))
+    const back = parseResumeText(text)
+    expect(ownSections(back)).toEqual(ownSections(src))
+    expect(ownSections(back)).toEqual(ownSections(parseResumeText(resumeToPlainText(src))))
+    expect(back.customSections).toEqual([])
   })
 })
