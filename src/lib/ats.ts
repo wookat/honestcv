@@ -163,6 +163,15 @@ export const CHECK_CATEGORIES: { key: CheckCategory; label: string }[] = [
 
 const COMPOUND_SEP_RE = /[/-]/
 
+/** Two-part alphabetic compound ("front-end", "front end") whose closed spelling
+    ("frontend") is the same word to a recruiter. */
+const COMPOUND_WORD_RE = /^([a-z]{3,})[- ]([a-z]{3,})$/
+
+function closedSpelling(word: string): string | null {
+  const m = COMPOUND_WORD_RE.exec(word)
+  return m ? m[1] + m[2] : null
+}
+
 const tokenMatches = (t: string, kw: string): boolean =>
   t === kw || (COMPOUND_SEP_RE.test(t) && t.split(COMPOUND_SEP_RE).includes(kw))
 
@@ -264,13 +273,30 @@ export interface ResumeIndex {
   tokens: string[]
   tokenSet: Set<string>
   stems: string[]
+  /** Closed spelling → the resume's hyphenated / two-word wording ("frontend" → "front-end") */
+  compounds: Map<string, string>
 }
 
 export function indexResumeText(resumeTextRaw: string): ResumeIndex {
   const text = resumeTextRaw.toLowerCase()
   const tokens = tokenize(text)
   const stems = tokens.map(stemToken)
-  return { text, tokens, tokenSet: matchTokenSet(tokens), stems }
+  const compounds = new Map<string, string>()
+  tokens.forEach((t, i) => {
+    const hyphenated = closedSpelling(t)
+    if (hyphenated && !compounds.has(hyphenated)) compounds.set(hyphenated, t)
+    const pair = i + 1 < tokens.length ? `${t} ${tokens[i + 1]}` : ''
+    const spaced = pair && closedSpelling(pair)
+    if (spaced && !compounds.has(spaced)) compounds.set(spaced, pair)
+  })
+  return { text, tokens, tokenSet: matchTokenSet(tokens), stems, compounds }
+}
+
+/** The resume's spelling of a compound written differently in `needle`, or null. */
+function findCompound(needle: string, idx: ResumeIndex): string | null {
+  const closed = closedSpelling(needle)
+  if (closed) return idx.tokenSet.has(closed) ? closed : (idx.compounds.get(closed) ?? null)
+  return /^[a-z]{6,}$/.test(needle) ? (idx.compounds.get(needle) ?? null) : null
 }
 
 /** Resume wording that matched `needle` exactly ('' when written as-is), or null. */
@@ -282,11 +308,11 @@ function findForm(needle: string, idx: ResumeIndex): string | null {
       for (let j = 0; j < parts.length; j++) if (idx.stems[i + j] !== parts[j]) continue outer
       return idx.tokens.slice(i, i + parts.length).join(' ')
     }
-    return null
+    return findCompound(needle, idx)
   }
   if (idx.tokenSet.has(needle)) return ''
   const at = idx.stems.indexOf(stemToken(needle))
-  return at >= 0 ? idx.tokens[at] : null
+  return at >= 0 ? idx.tokens[at] : findCompound(needle, idx)
 }
 
 /**
@@ -1149,8 +1175,12 @@ export function extractKeywords(jdRaw: string, limit = 30, company?: string): st
     .filter(([tok, n]) => n < 2 && !looksLikeSkill(tok) && !header.has(tok))
     .sort((a, b) => Number(reqTokens.has(b[0])) - Number(reqTokens.has(a[0])))
     .map(([tok, n]) => [tok, score(tok, n) - 1] as const)
+  const spellings = new Set<string>()
   const add = ([word, n]: readonly [string, number]) => {
     if ([...found.keys()].some((p) => p.includes(word))) return
+    const spelling = closedSpelling(word) ?? word
+    if (spellings.has(spelling)) return
+    spellings.add(spelling)
     found.set(word, n)
   }
   core.forEach(add)
