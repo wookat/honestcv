@@ -28,3 +28,6 @@ dist-ssr
 node_modules/.tmp
 *.tsbuildinfo
 test-plan-*.md
+
+# per-round tsx smoke oracles (see testing skill); never committed
+.tmp-smoke/
