@@ -387,8 +387,24 @@ const splitDegreeLine = (text: string) => {
   const [degree, ...more] = head.split(/;\s*/)
   return { degree: degree.trim(), school: school.trim(), location, details: more.join('; ').trim() }
 }
+const prevNonEmpty = (lines: string[], i: number) => {
+  for (let p = i - 1; p >= 0; p--) if (lines[p]) return lines[p]
+  return ''
+}
 const appendDetails = (edu: EducationItem, extra: string) => {
   edu.details = [edu.details, extra].filter(Boolean).join('; ')
+}
+// "… from a low socio-economic" + "background)": the wrapped rest of the line
+// above goes back onto the field that line filled.
+const continueEduLine = (edu: EducationItem, prev: string, line: string) => {
+  const tail = prev.trim()
+  for (const key of ['details', 'degree', 'school'] as const) {
+    if (edu[key].endsWith(tail)) {
+      edu[key] = `${edu[key]} ${line}`
+      return
+    }
+  }
+  appendDetails(edu, line)
 }
 
 /**
@@ -698,6 +714,13 @@ export function parseResumeText(raw: string): Resume {
           !(currentEdu.degree && currentEdu.school && isDegreeLine(splitDegreeLine(line).degree))
         ) {
           appendDetails(currentEdu, line)
+        } else if (
+          currentEdu &&
+          !start &&
+          extractDates(prevNonEmpty(lines, i)).rest &&
+          continuesPrevious(prevNonEmpty(lines, i), line)
+        ) {
+          continueEduLine(currentEdu, prevNonEmpty(lines, i), line)
         } else {
           const { role, company, location: eduLoc } = splitRoleCompanyRaw(rest || line)
           currentEdu = {
