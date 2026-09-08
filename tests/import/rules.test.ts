@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { humanNameCase, looksLikeLinkedInExport, parseResumeText } from '../../src/lib/importText'
-import { resumeToMarkdown, resumeToPlainText, sampleResume, type Resume } from '../../src/lib/resume'
+import { emptyEducation, resumeToMarkdown, resumeToPlainText, sampleResume, type Resume } from '../../src/lib/resume'
 
 /**
  * One case per import behaviour fixed since R763, each traced to the real
@@ -411,5 +411,42 @@ describe('project header round trip (R783)', () => {
         },
       ])
     }
+  })
+})
+
+describe('education grade list round trip (R783)', () => {
+  it('"Chemistry A*, Mathematics A*" under our exported school line stays its details', () => {
+    const src = sampleResume()
+    src.education = [
+      {
+        ...emptyEducation(),
+        id: 'e1',
+        degree: 'A Levels',
+        school: 'Durham Sixth Form',
+        location: 'Durham, UK',
+        startDate: '2016',
+        endDate: '2018',
+        details: 'Chemistry A*, Mathematics A*',
+      },
+      {
+        ...emptyEducation(),
+        id: 'e2',
+        degree: 'BSc Physics',
+        school: 'University of Bristol',
+        location: 'Bristol, UK',
+        startDate: '2018',
+        endDate: '2021',
+        details: 'Modules: Quantum Mechanics, Thermodynamics',
+      },
+    ]
+    for (const text of [resumeToPlainText(src, { keepLinkUrls: true }), resumeToMarkdown(src)]) {
+      expect(parseResumeText(text).education).toMatchObject([
+        { degree: 'A Levels', school: 'Durham Sixth Form', location: 'Durham, UK', details: 'Chemistry A*, Mathematics A*' },
+        { degree: 'BSc Physics', school: 'University of Bristol', location: 'Bristol, UK', details: 'Modules: Quantum Mechanics, Thermodynamics' },
+      ])
+    }
+    // a "Degree, School" header is still a new entry
+    const r = parseResumeText('Jane Doe\n\nEducation\nA Levels, Durham Sixth Form (2016 – 2018)\nBSc Physics, University of Bristol (2018 – 2021)')
+    expect(r.education.map((e) => e.school)).toEqual(['Durham Sixth Form', 'University of Bristol'])
   })
 })

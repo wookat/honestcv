@@ -445,8 +445,15 @@ const EDU_DETAIL_RE =
 // line under a school is its detail unless the label itself names a degree.
 const EDU_DEGREE_LABEL_RE =
   /\b(b\.?s\.?c?|b\.?a|m\.?s\.?c?|m\.?a|m\.?eng|b\.?eng|bachelor|master|ph\.?d|mba|diploma|certificate|degree)\b/i
+// "Chemistry A*, Mathematics A*" / "Maths 9, Physics 8" — subjects each ending in
+// a grade are results, not a "Degree, School" header.
+const GRADE_ITEM_RE = /^[A-Za-z][A-Za-z &/()-]{1,40}\s+(?:A\*|[A-E]\*?|[1-9])$/
+const isGradeList = (line: string) => {
+  const items = line.split(/[,;]/).map((s) => s.trim())
+  return items.every((s) => GRADE_ITEM_RE.test(s)) && (items.length >= 2 || /A\*$/.test(line))
+}
 const isEduDetailLine = (line: string) => {
-  if (EDU_DETAIL_RE.test(line)) return true
+  if (EDU_DETAIL_RE.test(line) || isGradeList(line)) return true
   const m = SKILL_LABEL_RE.exec(line)
   return !!m && !EDU_DEGREE_LABEL_RE.test(m[1]) && !CUSTOM_HEADING_RE.test(m[1].trim())
 }
