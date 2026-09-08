@@ -514,6 +514,11 @@ async function extractDocx(file: File): Promise<ExtractedResumeFile> {
   }
   checks.push(fontSizeCheck(smallChars, totalChars), iconGlyphCheck(bodyText))
   const text = xml
+    // Word keeps list glyphs in numbering.xml, not in the paragraph text;
+    // mark list paragraphs so bullets read like they do in PDF/plain text.
+    .replace(/<w:pPr>(?:(?!<\/w:pPr>)[\s\S])*?<w:numPr>[\s\S]*?<\/w:numPr>[\s\S]*?<\/w:pPr>/g, (pPr) =>
+      /<w:numId\b[^>]*w:val="0*[1-9]\d*"/.test(pPr) ? `${pPr}<w:t>• </w:t>` : pPr
+    )
     // Tabs typically separate a header from a right-aligned date; a line
     // break keeps them as separate fields for the import parser.
     .replace(/<w:tab[^>]*\/>/g, '\n')

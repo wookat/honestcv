@@ -80,6 +80,10 @@ const PAGE_TWIPS = {
 } as const
 
 export async function downloadResumeDocx(resume: Resume, filename: string) {
+  downloadBlob(await buildResumeDocx(resume), filename)
+}
+
+export async function buildResumeDocx(resume: Resume): Promise<Blob> {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const font = FONT_BY_KIND[familyOf(resume, tpl.serif)]
   const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
@@ -625,8 +629,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       },
     ],
   })
-  const blob = await Packer.toBlob(doc)
-  downloadBlob(blob, filename)
+  return Packer.toBlob(doc)
 }
 
 /** Generic text document (cover letter / interview brief) */
