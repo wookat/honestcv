@@ -89,8 +89,6 @@ import {
 import {
   DraftFlagList,
   draftFlagGroups,
-  REMEASURED_LABEL,
-  remeasuredItems,
   skillFlagGroups,
   type DraftFlagGroup,
 } from '@/components/DraftFlagList'
@@ -12461,13 +12459,7 @@ function TailorDialog({
     if (!rows) return out
     const resumeText = evidenceText(resumeToPlainText(snapshot))
     for (const r of rows) {
-      const c = tailorClaims(r.original, r.suggestion, resumeText, jd)
-      const groups = [
-        { label: 'Figures your resume never states', items: c.figures },
-        { label: REMEASURED_LABEL, items: remeasuredItems(c.remeasured) },
-        { label: 'Names / tools your resume never mentions', items: c.terms },
-        { label: 'Wording taken from the job ad that your resume never uses', items: c.mirrored },
-      ].filter((g) => g.items.length > 0)
+      const groups = draftFlagGroups(tailorClaims(r.original, r.suggestion, resumeText, jd))
       if (groups.length > 0) out.set(r.id, groups)
     }
     return out

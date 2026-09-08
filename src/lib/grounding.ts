@@ -632,8 +632,10 @@ export interface TailorClaims {
   figures: string[];
   /** Names / tools the rewrite states that the resume and job ad do not */
   terms: string[];
-  /** Job-ad words the rewrite adds that appear nowhere in the resume */
+  /** Job-ad wording the rewrite adds that appears nowhere in the resume */
   mirrored: string[];
+  /** Remit verbs (owned / led / architected …) the resume never uses in any form */
+  scope: string[];
   /** Figures kept from the original line but attached to something else */
   remeasured: RemeasuredFigure[];
 }
@@ -661,8 +663,12 @@ const wordStems = (text: string): Set<string> => {
 /**
  * What a "Tailor to this job" rewrite adds that the candidate's own text does
  * not support. The prompt allows JD wording only where the fact is already in
- * the line, so a job-ad word the whole resume never uses is the exact signal
- * for scope or skill inflation ("Owned", "conversion", "latency").
+ * the line, so the signal is a clause the rewrite *adds* — two or more job-ad
+ * words in one clause that neither the line nor the resume uses ("leading
+ * across team boundaries", "latency reduction and conversion improvements") —
+ * plus the draft-level checks: job-ad phrases, ad-specific single words and
+ * remit verbs. A lone generic ad word ("ship", "cut", "team") is a synonym,
+ * not a claim, and is left alone.
  */
 export function tailorClaims(
   original: string,
@@ -670,30 +676,41 @@ export function tailorClaims(
   resumeText: string,
   jobDescription: string,
 ): TailorClaims {
-  const own = [original, resumeText];
-  const { terms, figures } = unsupportedClaims(suggestion, own);
-  const jdTerms = new Set(
-    unsupportedClaims(suggestion, [jobDescription]).terms.map(key),
-  );
+  const d = draftClaims(suggestion, resumeText, jobDescription, [original]);
   const have = wordStems(`${original}\n${resumeText}`);
+  const haveVerbs = new Set(
+    (normalise(`${original}\n${resumeText}`).match(CONTENT_RE) ?? []).map(
+      verbStem,
+    ),
+  );
   const jd = wordStems(jobDescription);
-  const mirrored: string[] = [];
-  const seen = new Set<string>();
-  for (const w of suggestion.match(/[A-Za-z][A-Za-z'-]*[A-Za-z]/g) ?? []) {
-    const plain = w.toLowerCase().replace(/'s$/, "");
-    if (plain.length < 3 || FUNCTION_WORDS.has(plain)) continue;
-    if (have.has(plain) || have.has(stemmer(plain))) continue;
-    if (plain.includes("-") && have.has(plain.replace(/-/g, ""))) continue;
-    if (!jd.has(plain) && !jd.has(stemmer(plain))) continue;
-    if (seen.has(stemmer(plain))) continue;
-    seen.add(stemmer(plain));
-    mirrored.push(w);
+  const isOwn = (plain: string) =>
+    have.has(plain) ||
+    have.has(stemmer(plain)) ||
+    haveVerbs.has(verbStem(plain)) ||
+    (plain.includes("-") && have.has(plain.replace(/-/g, "")));
+  const added: string[] = [];
+  for (const clause of suggestion.split(CLAUSE_RE)) {
+    const fresh: { w: string; at: number }[] = [];
+    for (const m of clause.matchAll(CONTENT_RE)) {
+      const plain = m[0].toLowerCase().replace(/'s$/, "");
+      if (plain.length < 3 || FUNCTION_WORDS.has(plain) || isOwn(plain)) continue;
+      if (!jd.has(plain) && !jd.has(stemmer(plain))) continue;
+      fresh.push({ w: m[0], at: m.index ?? 0 });
+    }
+    if (fresh.length < 2) continue;
+    const first = fresh[0];
+    const last = fresh[fresh.length - 1];
+    added.push(clause.slice(first.at, last.at + last.w.length).trim());
   }
+  const covered = (item: string) =>
+    added.some((a) => a.toLowerCase().includes(item.toLowerCase()));
   return {
-    figures,
-    terms: terms.filter((t) => !jdTerms.has(key(t))),
-    mirrored,
-    remeasured: remeasuredFigures(original, suggestion),
+    figures: d.figures,
+    terms: d.terms,
+    mirrored: [...added, ...d.mirrored.filter((m) => !covered(m))],
+    scope: d.scope,
+    remeasured: d.remeasured,
   };
 }
 
@@ -811,11 +828,13 @@ export function draftClaims(
   const ownWord = (w: string) =>
     isOwn(w) ||
     (w.includes("-") &&
-      w.split("-").some((p) => p.length >= 3 && isOwn(p)));
+      (have.has(w.replace(/-/g, "")) ||
+        w.split("-").some((p) => p.length >= 3 && isOwn(p))));
   const lineWord = (w: string) =>
     lineWords.has(stemmer(w)) ||
     (w.includes("-") &&
-      w.split("-").some((p) => p.length >= 3 && lineWords.has(stemmer(p))));
+      (lineWords.has(w.replace(/-/g, "")) ||
+        w.split("-").some((p) => p.length >= 3 && lineWords.has(stemmer(p)))));
   // Word offsets that open a sentence: capitalised there says nothing
   const sentenceStarts = new Set<number>();
   let idx = 0;
