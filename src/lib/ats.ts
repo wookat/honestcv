@@ -1205,18 +1205,21 @@ export function extractKeywords(jdRaw: string, limit = 30, company?: string): st
   const reqTokens = new Set(tokenize(reqLines.map((l) => l.text).join('\n')))
   // A name the requirements block writes with a capital (GAAP, Excel, English,
   // ERP) is a keyword however rarely the ad says it; a curated skill outranks
-  // it, and both outrank a word the ad merely repeats.
+  // it, and both outrank a word the ad merely repeats. At an equal score the
+  // name goes first, so the keyword cap cuts the repeated plain word.
   const namedTerms = capitalizedRequirementTerms(reqLines)
   const isSkill = (tok: string) => looksLikeSkill(tok) || namedTerms.has(tok)
   const score = (tok: string, n: number) =>
     n +
     (looksLikeSkill(tok) ? SKILL_WEIGHT : namedTerms.has(tok) ? NAMED_TERM_WEIGHT : 0) +
     (reqTokens.has(tok) ? 0.5 : 0)
+  const byRank = (a: readonly [string, number], b: readonly [string, number]) =>
+    b[1] - a[1] || Number(namedTerms.has(b[0])) - Number(namedTerms.has(a[0]))
   const entries = [...counts.entries()]
   const core = entries
     .filter(([tok, n]) => n >= 2 || isSkill(tok))
     .map(([tok, n]) => [tok, score(tok, n)] as const)
-    .sort((a, b) => b[1] - a[1])
+    .sort(byRank)
   // Short ads rarely repeat anything: top up from single-mention words, the
   // requirements block first, then the rest in reading order.
   const header = headerLineTokens(jd)
@@ -1238,7 +1241,7 @@ export function extractKeywords(jdRaw: string, limit = 30, company?: string): st
     add(entry)
   }
   return [...found.entries()]
-    .sort((a, b) => b[1] - a[1])
+    .sort(byRank)
     .slice(0, limit)
     .map(([k]) => k)
 }
