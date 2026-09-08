@@ -2358,6 +2358,32 @@ export function experienceDateRange(startDate: string, endDate: string): string 
   return [start, end].filter(Boolean).join(' – ')
 }
 
+/**
+ * Bold head and plain tail of an entry heading. A blank head promotes the tail into
+ * its place, so a document never prints the editor's placeholder (Degree / Role / …).
+ */
+export function entryHeading(
+  head: string,
+  tail: string,
+  sep = '  ·  '
+): { head: string; tail: string } {
+  const h = head.trim()
+  const t = tail.trim()
+  if (!h) return { head: t, tail: '' }
+  return { head: h, tail: t ? `${sep}${t}` : '' }
+}
+
+/** Experience heading parts: role · company, location (role · location inside a company group) */
+export function experienceHeadingParts(e: ExperienceItem, grouped: boolean) {
+  const place = grouped ? e.location : [e.company, e.location].filter((s) => s.trim()).join(', ')
+  return entryHeading(e.role, place)
+}
+
+/** Education heading parts: degree · school, location */
+export function educationHeadingParts(e: EducationItem) {
+  return entryHeading(e.degree, [e.school, e.location].filter((s) => s.trim()).join(', '))
+}
+
 /** Heading line for a project entry: name · org — link */
 export function projectHeadingLine(p: ProjectItem): string {
   const left = [p.name.trim(), p.org?.trim() ?? ''].filter(Boolean).join(' · ')
@@ -2742,7 +2768,7 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
         for (const e of g.entries) {
           lines.push(
             (g.grouped
-              ? e.role || 'Role'
+              ? e.role.trim()
               : [e.role, e.company].filter(Boolean).join(' at ')) +
               (e.startDate || e.endDate
                 ? ` (${experienceDateRange(e.startDate, e.endDate)})`
@@ -2865,7 +2891,7 @@ export function resumeToMarkdown(r: Resume): string {
               ? ` *(${experienceDateRange(e.startDate, e.endDate)})*`
               : ''
           const title = g.grouped
-            ? e.role || 'Role'
+            ? e.role.trim()
             : [e.role, e.company].filter(Boolean).join(' — ')
           lines.push(`${g.grouped ? '####' : '###'} ${title}${dates}`, '')
           if (e.companyInfo?.trim()) lines.push(`*${e.companyInfo.trim()}*`, '')

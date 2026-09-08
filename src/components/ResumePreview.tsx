@@ -99,21 +99,50 @@ function restoreMarkedDom(el: HTMLElement, text: string) {
     .join('')
 }
 
+/**
+ * Plain-weight tail of an entry heading (company / school / organisation). With a blank
+ * head in a read-only preview the tail stands alone in the head's weight, so the shared
+ * page and thumbnails never print the editor's placeholder or a dangling separator.
+ */
+function Tail({
+  head,
+  sep = '  ·  ',
+  editable,
+  children,
+}: {
+  head: string
+  sep?: string
+  editable: boolean
+  children: React.ReactNode
+}) {
+  const shown = editable || head.trim()
+  return (
+    <span className={shown ? 'font-normal' : undefined}>
+      {shown ? sep : ''}
+      {children}
+    </span>
+  )
+}
+
 /** Click-to-type text in the preview: commits on blur/Enter, reverts on Escape. */
 function InlineText({
   value,
   fallback = '',
+  placeholder = '',
   onCommit,
   onEnterNext,
 }: {
   value: string
+  /** Shown in place of an empty value in every mode (a real default, e.g. the section label) */
   fallback?: string
+  /** Shown in place of an empty value only while editable (click-to-type affordance) */
+  placeholder?: string
   /** When set, the span is contentEditable and commits plain text edits */
   onCommit?: (next: string) => void
   /** Called after an Enter-commit, e.g. to open a draft bullet below */
   onEnterNext?: () => void
 }) {
-  const shown = value || fallback
+  const shown = value || fallback || (onCommit ? placeholder : '')
   if (!onCommit) return <MarkedText text={shown} />
   return (
     <span
@@ -146,7 +175,7 @@ function InlineText({
       }}
       onBlur={(e) => {
         const next = domToMarks(e.currentTarget)
-        if (next === shown || next === value || (next === fallback && !value)) {
+        if (next === shown || next === value || (next === (fallback || placeholder) && !value)) {
           restoreMarkedDom(e.currentTarget, shown)
           return
         }
@@ -687,7 +716,7 @@ function SectionBlock({
                   <p className="text-[11.5px] font-bold">
                     <InlineText
                       value={e.role}
-                      fallback="Role"
+                      placeholder="Role"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -700,10 +729,13 @@ function SectionBlock({
                       }
                     />
                     {g.grouped ? (
-                      e.location && <span className="font-normal">{'  ·  '}{e.location}</span>
+                      e.location && (
+                        <Tail head={e.role} editable={!!onEdit}>
+                          {e.location}
+                        </Tail>
+                      )
                     ) : (
-                      <span className="font-normal">
-                        {'  ·  '}
+                      <Tail head={e.role} editable={!!onEdit}>
                         <InlineText
                           value={e.company}
                           onCommit={
@@ -717,8 +749,8 @@ function SectionBlock({
                               }))
                           }
                         />
-                        {e.location ? `, ${e.location}` : ''}
-                      </span>
+                        {e.location ? `${e.company.trim() || onEdit ? ', ' : ''}${e.location}` : ''}
+                      </Tail>
                     )}
                   </p>
                   {(e.startDate || e.endDate) && (
@@ -896,7 +928,7 @@ function SectionBlock({
               <p className="text-[11.5px] font-bold">
                 <InlineText
                   value={inv.role.trim()}
-                  fallback="Role"
+                  placeholder="Role"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -909,8 +941,7 @@ function SectionBlock({
                   }
                 />
                 {inv.organization.trim() && (
-                  <span className="font-normal">
-                    {'  ·  '}
+                  <Tail head={inv.role} editable={!!onEdit}>
                     <InlineText
                       value={inv.organization.trim()}
                       onCommit={
@@ -925,7 +956,7 @@ function SectionBlock({
                       }
                     />
                     {inv.location.trim() ? `, ${inv.location.trim()}` : ''}
-                  </span>
+                  </Tail>
                 )}
               </p>
               {involvementDates(inv) && (
@@ -971,7 +1002,7 @@ function SectionBlock({
                   <p className="text-[11px] font-bold">
                     <InlineText
                       value={e.degree}
-                      fallback="Degree"
+                      placeholder="Degree"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -983,8 +1014,7 @@ function SectionBlock({
                           }))
                       }
                     />
-                    <span className="font-normal">
-                      {'  ·  '}
+                    <Tail head={e.degree} editable={!!onEdit}>
                       <InlineText
                         value={e.school}
                         onCommit={
@@ -998,8 +1028,8 @@ function SectionBlock({
                             }))
                         }
                       />
-                      {e.location ? `, ${e.location}` : ''}
-                    </span>
+                      {e.location ? `${e.school.trim() || onEdit ? ', ' : ''}${e.location}` : ''}
+                    </Tail>
                   </p>
                   {(e.startDate || e.endDate) && (
                     <p className="text-[10px] text-neutral-500 italic">
@@ -1046,7 +1076,7 @@ function SectionBlock({
               <p className="text-[11.5px] font-bold">
                 <InlineText
                   value={cw.name.trim()}
-                  fallback="Course"
+                  placeholder="Course"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -1059,8 +1089,7 @@ function SectionBlock({
                   }
                 />
                 {cw.institution.trim() && (
-                  <span className="font-normal">
-                    {'  ·  '}
+                  <Tail head={cw.name} editable={!!onEdit}>
                     <InlineText
                       value={cw.institution.trim()}
                       onCommit={
@@ -1074,7 +1103,7 @@ function SectionBlock({
                           }))
                       }
                     />
-                  </span>
+                  </Tail>
                 )}
               </p>
               {cw.date.trim() && (
@@ -1176,7 +1205,7 @@ function SectionBlock({
               <p className="text-[11px] font-bold">
                 <InlineText
                   value={c.name.trim()}
-                  fallback="Certificate"
+                  placeholder="Certificate"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -1189,8 +1218,7 @@ function SectionBlock({
                   }
                 />
                 {c.issuer.trim() && (
-                  <span className="font-normal">
-                    {' — '}
+                  <Tail head={c.name} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={c.issuer.trim()}
                       onCommit={
@@ -1204,7 +1232,7 @@ function SectionBlock({
                           }))
                       }
                     />
-                  </span>
+                  </Tail>
                 )}
               </p>
               {c.date.trim() && (
@@ -1233,7 +1261,7 @@ function SectionBlock({
               <p className="text-[11.5px] font-bold">
                 <InlineText
                   value={a.name.trim()}
-                  fallback="Award"
+                  placeholder="Award"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -1246,8 +1274,7 @@ function SectionBlock({
                   }
                 />
                 {a.organization.trim() && (
-                  <span className="font-normal">
-                    {' — '}
+                  <Tail head={a.name} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={a.organization.trim()}
                       onCommit={
@@ -1261,7 +1288,7 @@ function SectionBlock({
                           }))
                       }
                     />
-                  </span>
+                  </Tail>
                 )}
               </p>
               {a.date.trim() && (
@@ -1308,7 +1335,7 @@ function SectionBlock({
               <p className="text-[11.5px] font-bold">
                 <InlineText
                   value={p.title.trim()}
-                  fallback="Publication"
+                  placeholder="Publication"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -1321,8 +1348,7 @@ function SectionBlock({
                   }
                 />
                 {p.venue.trim() && (
-                  <span className="font-normal">
-                    {' — '}
+                  <Tail head={p.title} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={p.venue.trim()}
                       onCommit={
@@ -1336,7 +1362,7 @@ function SectionBlock({
                           }))
                       }
                     />
-                  </span>
+                  </Tail>
                 )}
                 {(p.kind ?? '').trim() && (
                   <span className="font-normal italic"> ({(p.kind ?? '').trim()})</span>
@@ -1422,7 +1448,7 @@ function SectionBlock({
               <p className="text-[11.5px] font-bold">
                 <InlineText
                   value={m.rank.trim()}
-                  fallback="Rank"
+                  placeholder="Rank"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -1435,8 +1461,7 @@ function SectionBlock({
                   }
                 />
                 {m.branch.trim() && (
-                  <span className="font-normal">
-                    {'  ·  '}
+                  <Tail head={m.rank} editable={!!onEdit}>
                     <InlineText
                       value={m.branch.trim()}
                       onCommit={
@@ -1451,7 +1476,7 @@ function SectionBlock({
                       }
                     />
                     {m.location.trim() ? `, ${m.location.trim()}` : ''}
-                  </span>
+                  </Tail>
                 )}
               </p>
               {militaryDates(m) && (

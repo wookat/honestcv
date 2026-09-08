@@ -35,7 +35,9 @@ import {
   agentEntries,
   dividerOf,
   educationDetailLine,
+  educationHeadingParts,
   experienceGroups,
+  experienceHeadingParts,
   fontScaleOf,
   pageMarginOf,
   lineSpacingOf,
@@ -849,10 +851,8 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
           w.gap(g.grouped ? 2 : 4)
           w.ensure(34) // keep the entry header with its first bullet
           const dates = experienceDateRange(e.startDate, e.endDate)
-          const left = g.grouped
-            ? `${e.role || 'Role'}${e.location ? `  ·  ${e.location}` : ''}`
-            : `${e.role || 'Role'}  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`
-          w.titleLine(left, dates, { size: 10.5 })
+          const { head, tail } = experienceHeadingParts(e, g.grouped)
+          w.titleLine(head + tail, dates, { size: 10.5 })
           if (e.companyInfo?.trim()) {
             w.gap(1)
             const info = e.companyInfo.trim()
@@ -902,11 +902,8 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
         w.gap(2)
         w.ensure(34)
         const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
-        w.titleLine(
-          `${e.degree || 'Degree'}  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,
-          dates,
-          { size: 10 }
-        )
+        const { head, tail } = educationHeadingParts(e)
+        w.titleLine(head + tail, dates, { size: 10 })
         const detail = educationDetailLine(e)
         if (detail) {
           w.gap(1)
