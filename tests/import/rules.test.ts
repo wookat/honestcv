@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { looksLikeLinkedInExport, parseResumeText } from '../../src/lib/importText'
+import { humanNameCase, looksLikeLinkedInExport, parseResumeText } from '../../src/lib/importText'
 
 /**
  * One case per import behaviour fixed since R763, each traced to the real
@@ -232,6 +232,39 @@ AWS Solutions Architect
     expect(r.projects).toMatchObject([{ name: 'Thesis Visualiser' }])
     expect(r.skills).toBe('Python, R')
     expect(r.certifications).toBe('AWS Solutions Architect')
+  })
+})
+
+describe('contact name', () => {
+  it('R782: a name a template printed in capitals is stored in name case; the header line is still skipped', () => {
+    const r = parseResumeText(`ALEX MORGAN
+Software Engineer
+alex@example.com · London, UK
+SUMMARY
+Builds web apps.
+EXPERIENCE
+Engineer · Acme
+2020 – 2021
+• Shipped things
+`)
+    expect(r.contact.fullName).toBe('Alex Morgan')
+    expect(r.contact.title).toBe('Software Engineer')
+    expect(r.summary).toBe('Builds web apps.')
+    expect(r.experience).toMatchObject([{ role: 'Engineer', company: 'Acme' }])
+    expect(parseResumeText('Alex Morgan\nalex@example.com\n').contact.fullName).toBe('Alex Morgan')
+    expect(parseResumeText('alex morgan\nalex@example.com\n').contact.fullName).toBe('alex morgan')
+  })
+
+  it('R782: humanNameCase keeps hyphens, apostrophes, particles, numerals, initials and Mc-', () => {
+    expect(humanNameCase("MARY-JANE O'NEIL")).toBe("Mary-Jane O'Neil")
+    expect(humanNameCase('LUDWIG VAN BEETHOVEN')).toBe('Ludwig van Beethoven')
+    expect(humanNameCase('JOHN SMITH III')).toBe('John Smith III')
+    expect(humanNameCase('J.R.R. TOLKIEN')).toBe('J.R.R. Tolkien')
+    expect(humanNameCase('RONALD MCDONALD')).toBe('Ronald McDonald')
+    expect(humanNameCase('ÉMILE ZOLA')).toBe('Émile Zola')
+    expect(humanNameCase('LI')).toBe('LI')
+    expect(humanNameCase('MacKenzie Scott')).toBe('MacKenzie Scott')
+    expect(humanNameCase('')).toBe('')
   })
 })
 
