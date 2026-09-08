@@ -345,6 +345,50 @@ const isEduDetailLine = (line: string) => {
   return !!m && !EDU_DEGREE_LABEL_RE.test(m[1]) && !CUSTOM_HEADING_RE.test(m[1].trim())
 }
 
+// Career-centre layouts put each education field on its own line
+// ("University of Florida | Gainesville, FL" / "Bachelor of Science in …" /
+// "Expected May 2026"); these classify a line so it fills the open entry
+// instead of opening a school per line.
+const EDU_DEGREE_RE =
+  /\b(b\.?s\.?c?|b\.?a|b\.?e|b\.?tech|m\.?s\.?c?|m\.?a|m\.?eng|b\.?eng|m\.?tech|m\.?phil|bachelor|master|ph\.?d|mba|diploma|certificate|degree|associate|btec|hnd|baccalaur[eé]at|abitur|laurea|licenciatura)\b/i
+const SCHOOL_RE =
+  /\b(university|universit[aä]t|universidad|universit[eé]|college|school|institute|instituto|academy|polytechnic|lyc[eé]e|gymnasium|hochschule|conservatoire|conservatory|faculty|escuela)\b/i
+const EDU_GRAD_RE = /^(?:expected|anticipated|graduat(?:ed|ing|ion))\b|\b(?:expected|anticipated) graduation\b/i
+const isEduPlaceLine = (line: string) =>
+  PLACE_RE.test(line) && line.includes(',') && !SCHOOL_RE.test(line) && !EDU_DEGREE_RE.test(line)
+// A line that names a degree and is not a "Label: items" detail row
+const isDegreeLine = (text: string) => {
+  const label = SKILL_LABEL_RE.exec(text)
+  if (label && !EDU_DEGREE_LABEL_RE.test(label[1])) return false
+  return EDU_DEGREE_RE.test(text)
+}
+// "BA Economics; GPA: 3.8" / "MSc Data Science, Columbia University | New York, NY" —
+// the degree keeps its commas ("Bachelor of Science, Computer Science"); a school
+// noun after the first comma, or anything after a dash / pipe, is the school.
+const splitDegreeLine = (text: string) => {
+  const parts = text.split(/\s*[—–|]\s*/).filter(Boolean)
+  let head = parts[0] ?? ''
+  let school = parts.slice(1).join(', ')
+  let location = ''
+  if (!school) {
+    const comma = head.indexOf(', ')
+    if (comma > 0 && SCHOOL_RE.test(head.slice(comma + 2)) && !SCHOOL_RE.test(head.slice(0, comma))) {
+      school = head.slice(comma + 2).trim()
+      head = head.slice(0, comma)
+    }
+  }
+  const loc = school.match(/,\s*([A-Za-z .'-]+,\s*[A-Z]{2}|[A-Za-z .'-]+,\s*[A-Za-z .'-]+|Remote)$/)
+  if (loc && SCHOOL_RE.test(school.slice(0, loc.index))) {
+    location = loc[1].trim()
+    school = school.slice(0, loc.index).trim()
+  }
+  const [degree, ...more] = head.split(/;\s*/)
+  return { degree: degree.trim(), school: school.trim(), location, details: more.join('; ').trim() }
+}
+const appendDetails = (edu: EducationItem, extra: string) => {
+  edu.details = [edu.details, extra].filter(Boolean).join('; ')
+}
+
 /**
  * Pasted resume text can't express the target job or resume settings, so a
  * content-replacing import carries them over from the resume being replaced.
@@ -595,18 +639,88 @@ export function parseResumeText(raw: string): Resume {
           currentEdu.startDate = start
           currentEdu.endDate = end
           if (more.length) currentEdu.details = [currentEdu.details, ...more].filter(Boolean).join('; ')
-        } else if (!start && currentEdu && isEduDetailLine(line)) {
-          currentEdu.details = [currentEdu.details, line].filter(Boolean).join('; ')
+        } else if (
+          currentEdu &&
+          isDegreeLine(rest || line) &&
+          (!currentEdu.degree ||
+            (!currentEdu.school &&
+              !EDU_DEGREE_RE.test(currentEdu.degree) &&
+              !SCHOOL_RE.test(rest || line)))
+        ) {
+          // degree line under a school line ("Cedarville University" / "BA Economics; GPA: 3.9")
+          const { degree, school, location: eduLoc, details } = splitDegreeLine(rest || line)
+          if (!currentEdu.school) currentEdu.school = currentEdu.degree
+          currentEdu.degree = degree
+          if (school) {
+            if (!currentEdu.school) currentEdu.school = school
+            else appendDetails(currentEdu, school)
+          }
+          if (eduLoc) currentEdu.location = currentEdu.location || eduLoc
+          if (details) appendDetails(currentEdu, details)
+          if (start && !currentEdu.startDate) {
+            currentEdu.startDate = start
+            currentEdu.endDate = end
+          }
+        } else if (
+          currentEdu &&
+          !currentEdu.school &&
+          EDU_DEGREE_RE.test(currentEdu.degree) &&
+          SCHOOL_RE.test(rest || line) &&
+          !EDU_DEGREE_RE.test(rest || line) &&
+          !EDU_DETAIL_RE.test(line)
+        ) {
+          // school line under a degree line ("Bachelor of Science" / "University of Florida | Gainesville, FL")
+          const { role, company, location: eduLoc } = splitRoleCompanyRaw(rest || line)
+          currentEdu.school = role
+          const tail = eduLoc || company
+          if (tail) {
+            if (isEduPlaceLine(tail)) currentEdu.location = currentEdu.location || tail
+            else appendDetails(currentEdu, tail)
+          }
+          if (start && !currentEdu.startDate) {
+            currentEdu.startDate = start
+            currentEdu.endDate = end
+          }
+        } else if (!start && currentEdu && !currentEdu.location && isEduPlaceLine(line)) {
+          currentEdu.location = line
+        } else if (currentEdu && EDU_GRAD_RE.test(line)) {
+          // "Expected May 2026" / "Graduation: May 2026" — the end date
+          const when = line.replace(EDU_GRAD_RE, '').replace(/^[\s:–—-]*(?:graduation\b)?[\s:–—-]*/i, '').trim()
+          if (/^(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+)?\d{4}$/i.test(when) && !currentEdu.endDate)
+            currentEdu.endDate = when
+          else appendDetails(currentEdu, line)
+        } else if (
+          !start &&
+          currentEdu &&
+          isEduDetailLine(line) &&
+          !(currentEdu.degree && currentEdu.school && isDegreeLine(splitDegreeLine(line).degree))
+        ) {
+          appendDetails(currentEdu, line)
         } else {
-          const { role: degree, company: school, location: eduLoc } = splitRoleCompanyRaw(rest || line)
+          const { role, company, location: eduLoc } = splitRoleCompanyRaw(rest || line)
           currentEdu = {
             ...emptyEducation(),
             id: newId(),
-            degree,
-            school,
+            degree: role,
+            school: company,
             location: eduLoc,
             startDate: start,
             endDate: end,
+          }
+          if (!company && isDegreeLine(role)) {
+            // "Bachelor of Arts in Economics; GPA: 3.7" — the school line follows
+            const { degree, details } = splitDegreeLine(role)
+            currentEdu.degree = degree
+            currentEdu.details = details
+          } else if (SCHOOL_RE.test(role) && !EDU_DEGREE_RE.test(role)) {
+            // "St Mary's High School, Durham" — the school comes first
+            currentEdu.school = role
+            currentEdu.degree = ''
+            if (company) {
+              if (EDU_DEGREE_RE.test(company)) currentEdu.degree = company
+              else if (isEduPlaceLine(company)) currentEdu.location = currentEdu.location || company
+              else appendDetails(currentEdu, company)
+            }
           }
           resume.education.push(currentEdu)
         }
