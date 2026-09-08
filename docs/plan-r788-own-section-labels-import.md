@@ -67,6 +67,45 @@ own labels; the product's own strings are the only first-hand set); detecting th
 document language and setting `resume.language` (the Builder import keeps the draft's
 language via `keepTargetOnImport`; /ats-checker scores in English regardless).
 
+## Verification
+
+- Tests: `tests/import/rules.test.ts` + 4 (3 fail on the R787 parser; the whole-line guard passes on both):
+  every-section resume through `resumeToPlainText` / `resumeToMarkdown` in EN / ES / FR / DE / PT
+  reads back 2 / 1 / same skills / same summary with five custom sections in section order
+  (`Involvement | Coursework | Awards & Honors | Publications | Military service` and the localized
+  titles), `Mentor` and `Sergeant` preserved as content; title-case `Involvement` / `Coursework` /
+  `Military service` under a Markdown-shaped resume no longer become a role or a school; `RESUMEN …` /
+  `EXPERIENCIA …` / `EDUCACIÓN …` / `HABILIDADES …` gutter lines, `Kenntnisse: …` inline and
+  `E X P E R I E N C I A` letter-spaced open their sections; `Engagement Manager · Acme Corp` with
+  bullets naming `Cursos` / `Publications` / `Kurse` stays one experience, 0 custom sections.
+  `matchGutterLabel` accepts accented capitals (`\p{Lu}`) — `EDUCACIÓN Grado en …` was rejected by the
+  ASCII caps run. `npm test` 154; goldens unchanged.
+- Local: 186-file replay (`qa/r789-replay.mts`, R787 parser vs branch) **184 identical**; the 2 changes
+  are one Word template (`word-cu.pdf` + its pdf.js text) whose custom-section title goes
+  `INVOLVEMENT` → `Involvement` — title casing only, bullets byte-equal. Gates tsc app + worker + test /
+  eslint / vitest / build / verify-dist green.
+- Deployed `index-TrE18YGi.js` + `importText-Cmdj55rI.js` (SHA-256 identical to dist); Routes
+  `code 10000` as always. Production QA (testing agent) 1280 + 375, cache disabled, 13 fresh-tab
+  journeys, 0 downloads: EN TXT upload / EN MD ATS paste / EN MD Builder Import paste / ES TXT upload /
+  ES MD paste / independent 375 EN TXT upload / independent 375 ES MD paste — all 2 / 1, 216-char
+  summary, 81-char skills, five custom sections with the expected titles, order, line counts and
+  content (`Mentor / Women Who Code Austin`, `Sergeant / US Army`), 0 normalised diffs TXT vs MD, ATS vs
+  Builder, desktop vs mobile, EN vs ES core fields; accented gutter probe → exact summary, `Ingeniera
+  Senior / Northstar Digital`, `Grado en Informática / Universidad de Madrid`, skills `TypeScript, React`;
+  guard probe → 1 experience / 2 bullets / 0 custom. Regression: Oxford 82 7 / 2 (`Dec 2023` once, literal
+  `A*`), Alex 95 2 / 1, Sumit 82 4 / 1 / 4 (3 / 3 / 3 / 2) unchanged; Kenneth 50 22 / 5 with one field
+  moved — `customSections[0].title` `PUBLICATIONS` → `Publications` (the canonical-title change, same as
+  the replay). 375 `scrollWidth = clientWidth` 375 / 375, 0 horizontal scroll. 0 console / page errors,
+  0 failed requests, 0 HTTP ≥ 400, 0 POSTs (13 quota GETs), 0 downloads / leads / shares / payments /
+  copies / deletes; storage equal to baseline byte-for-byte at all 13 checkpoints
+  (`/home/ubuntu/qa/r789-cleanup.json`). Recording
+  `/home/ubuntu/screencasts/r789-own-section-import/r789-own-section-import-edited.mp4`; structured
+  `/home/ubuntu/qa/r789-results.json`.
+- Seen by this QA, already a recorded boundary above, queued first for R790: the same content scores
+  **95 / 22 checks** from the EN export and **82 / 17 checks** from the ES export — `/ats-checker`
+  reads English headings only (`Standard section headings` and `Skills section present` fail, the five
+  role / date checks do not run).
+
 ## Boundaries (recorded, not changed)
 
 - Dates typed in another language (`ene. 2022 – actualidad`) are still not read as
