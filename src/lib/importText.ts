@@ -29,6 +29,8 @@ const DATE_RANGE_RE =
 // "Skin Bliss, Micro-Intern (1 week); Dec 2023" — a one-off engagement dated
 // with a single month after a separator at the end of the header.
 const SINGLE_DATE_RE = /[;|,(–—-]\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4})\)?\s*$/i
+// "Dec 2023" alone on the line under a header: the one-off's date.
+const BARE_MONTH_RE = /^\(?((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4})\)?$/i
 
 type SectionName =
   | 'summary'
@@ -84,15 +86,35 @@ const BULLET_MARK_RE = /^[-–—•*·▪▫◦●○■□◆◇❖➢➤►�
 const isBullet = (line: string) => BULLET_MARK_RE.test(line)
 const stripBullet = (line: string) => line.replace(BULLET_MARK_RE, '').trim()
 
+// "Giggling Platypus Co." / "Acme Inc." — a capitalised name whose period
+// closes an abbreviation, not a sentence.
+const ABBREV_END_RE =
+  /\b(?:co|inc|ltd|corp|llc|plc|pvt|bros|gmbh|s\.a|l\.?p|jr|sr|st|dept|univ|assoc|intl)\.$/i
+const ORG_WORD_RE = /^(?:[A-Z0-9&][\w&.'’-]*|and|of|the|de|du|&)$/
+const looksLikeOrgName = (line: string) => {
+  if (!ABBREV_END_RE.test(line)) return false
+  const words = line.split(/\s+/)
+  return words.length <= 6 && words.every((w) => ORG_WORD_RE.test(w))
+}
+
 // A sentence-like description line without a bullet marker (plain-text and
 // DOCX exports often drop the markers): ends in sentence punctuation or is
 // too long to be an entry header.
-const looksLikeBodyLine = (line: string) => /[.!?;]$/.test(line) || line.length > 60
+const looksLikeBodyLine = (line: string) =>
+  (/[.!?;]$/.test(line) && !looksLikeOrgName(line)) || line.length > 60
 
 // "Role (long qualifier) · Company," — a header long enough to wrap: the
 // middle dot binds role and company and prose never ends a line with it.
 const looksLikeWrappedHeader = (line: string) =>
   line.length <= 120 && /\s·\s/.test(line) && /,$/.test(line)
+// "Publicity Officer · Oxford University Personalised Medicine Society" — a
+// role · company header long enough to pass for prose by length alone; prose
+// does not carry a middle dot and a header does not end in sentence punctuation.
+const looksLikeDotHeader = (line: string) =>
+  line.length <= 120 &&
+  /\s·\s/.test(line) &&
+  !/[.!?;:]$/.test(line) &&
+  line.split(/\s+/).length <= 14
 
 // PDF text extraction yields one line per visual line, so a bullet that wraps
 // arrives as "Reduced load time from 3.2" + "seconds to 1.8 seconds.": a
@@ -114,6 +136,8 @@ const continuesPrevious = (prev: string | undefined, line: string) =>
 // a space; every other wrap rejoins with one.
 const joinWrapped = (prev: string, line: string) =>
   /[A-Za-zà-ÿ]-$/.test(prev) && /^[a-zà-ÿ]/.test(line) ? `${prev}${line}` : `${prev} ${line}`
+const joinWrappedLines = (lines: string[]) =>
+  lines.reduce((acc, l) => (acc ? joinWrapped(acc, l) : l), '')
 
 // "Mumbai, India" / "Austin, TX" / "Remote" — a place, nothing else.
 const PLACE_RE = /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'’-]{0,30}(?:,\s*[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'’-]{0,30}){0,2}$/
@@ -287,6 +311,8 @@ const stripDateRest = (s: string) => {
 function extractDates(line: string): { rest: string; start: string; end: string } {
   const m = line.match(DATE_RANGE_RE)
   if (!m) {
+    const bare = line.match(BARE_MONTH_RE)
+    if (bare) return { rest: '', start: bare[1].trim(), end: bare[1].trim() }
     const s = line.match(SINGLE_DATE_RE)
     if (!s || (s.index ?? 0) === 0 || (s.index ?? 0) > 80) return { rest: line, start: '', end: '' }
     // a blank end date renders "start – Present", so a one-off keeps both ends
@@ -633,6 +659,22 @@ export function parseResumeText(raw: string): Resume {
             // date range on its own line under the entry header
             currentExp.startDate = start
             currentExp.endDate = end
+          } else if (!rest && start) {
+            // date range on its own line above the entry header (or after a
+            // header this parser could not read): open the entry with its dates
+            // and let the next header line name it
+            currentExp = { ...emptyExperience(), id: newId(), startDate: start, endDate: end, bullets: [] }
+            resume.experience.push(currentExp)
+          } else if (
+            currentExp &&
+            !currentExp.role &&
+            !currentExp.company &&
+            currentExp.bullets.length === 0 &&
+            !start &&
+            (looksLikeDotHeader(line) || !looksLikeBodyLine(line))
+          ) {
+            // header line under a bare date line
+            Object.assign(currentExp, splitRoleCompany(line))
           } else if (
             currentExp &&
             !currentExp.startDate &&
@@ -672,13 +714,26 @@ export function parseResumeText(raw: string): Resume {
           ) {
             // "Buffalo, NY" on its own line under role / company / dates
             currentExp.location = line
-          } else if (currentExp && !currentExp.company && !start && rest.length <= 60 && !looksLikeBodyLine(line)) {
+          } else if (
+            currentExp &&
+            !currentExp.company &&
+            currentExp.bullets.length === 0 &&
+            !start &&
+            rest.length <= 60 &&
+            !looksLikeBodyLine(line)
+          ) {
             // second header line (e.g. company on its own line)
             Object.assign(
               currentExp,
               orientRoleCompany({ role: currentExp.role.replace(/,$/, '').trim(), company: rest })
             )
-          } else if (currentExp && !start && looksLikeBodyLine(line) && !looksLikeWrappedHeader(line)) {
+          } else if (
+            currentExp &&
+            !start &&
+            looksLikeBodyLine(line) &&
+            !looksLikeWrappedHeader(line) &&
+            !looksLikeDotHeader(line)
+          ) {
             // marker-less description line under the current entry
             currentExp.bullets.push(line)
           } else {
@@ -881,7 +936,7 @@ export function parseResumeText(raw: string): Resume {
     }
   }
 
-  resume.summary = summaryLines.join(' ')
+  resume.summary = joinWrappedLines(summaryLines)
   resume.skills = joinSkillLines(skillLines)
   resume.certifications = certLines.join('; ')
 
@@ -1271,7 +1326,10 @@ function parseLinkedInText(raw: string): Resume {
           // Wrapped continuation of the previous description line: it starts
           // lowercase, or the line above ended mid-list, or the line above
           // filled the column and this one is not an entry header
-          currentExp.bullets[currentExp.bullets.length - 1] += ` ${line}`
+          currentExp.bullets[currentExp.bullets.length - 1] = joinWrapped(
+            currentExp.bullets[currentExp.bullets.length - 1],
+            line
+          )
         } else {
           currentExp.bullets.push(line)
           expectLocation = false
@@ -1377,7 +1435,7 @@ function parseLinkedInText(raw: string): Resume {
   }
   resume.contact.title = headline.join(' ')
 
-  resume.summary = summaryLines.join(' ')
+  resume.summary = joinWrappedLines(summaryLines)
   resume.skills = skills.join(', ')
   resume.certifications = certLines.join('; ')
 
