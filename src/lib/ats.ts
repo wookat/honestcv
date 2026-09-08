@@ -4,6 +4,7 @@
  * browser; the JD and resume never leave the device for scoring.
  */
 import { stemmer } from 'stemmer'
+import { plainResumeText } from './markdownText'
 
 const STOPWORDS = new Set(
   `a about above after again all also am an and any are as at be because been
@@ -1632,7 +1633,8 @@ export function matchReport(
 }
 
 /** Score pasted resume text (standalone ATS checker page) */
-export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
+export function scoreResumeText(input: string, jd: string): AtsResult {
+  const resumeTextRaw = plainResumeText(input)
   const idx = indexResumeText(resumeTextRaw)
   const resumeText = idx.text
 

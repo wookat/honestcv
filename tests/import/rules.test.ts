@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { humanNameCase, looksLikeLinkedInExport, parseResumeText } from '../../src/lib/importText'
+import { emptyEducation, resumeToMarkdown, resumeToPlainText, sampleResume, type Resume } from '../../src/lib/resume'
 
 /**
  * One case per import behaviour fixed since R763, each traced to the real
@@ -276,5 +277,176 @@ describe('LinkedIn export detector (R776)', () => {
         'Contact\nwww.linkedin.com/in/jane\nTop Skills\nPython\nJane Doe\nExperience\nAcme\nEngineer\nJanuary 2020 - Present\n'
       )
     ).toBe(true)
+  })
+})
+
+describe('our own TXT / Markdown exports re-imported (R783)', () => {
+  const fields = (r: Resume) => ({
+    name: r.contact.fullName,
+    summary: r.summary,
+    skills: r.skills,
+    experience: r.experience.map(({ role, company, location, startDate, endDate, bullets }) => ({
+      role,
+      company,
+      location,
+      startDate,
+      endDate,
+      bullets,
+    })),
+    education: r.education.map(({ degree, school, location, startDate, endDate, details }) => ({
+      degree,
+      school,
+      location,
+      startDate,
+      endDate,
+      details,
+    })),
+  })
+
+  it('the sample resume survives resumeToPlainText → parseResumeText field for field', () => {
+    const src = sampleResume()
+    const txt = resumeToPlainText(src, { keepLinkUrls: true })
+    expect(txt).toContain('Software Engineer at Brightlane, Austin, TX (Jun 2023 – Present)')
+    expect(txt).toContain('B.S. Computer Science, University of Texas at Austin, Austin, TX (2017 – 2021)')
+    expect(fields(parseResumeText(txt))).toEqual(fields(src))
+  })
+
+  it('the sample resume survives resumeToMarkdown → parseResumeText field for field', () => {
+    const src = sampleResume()
+    const md = resumeToMarkdown(src)
+    expect(md).toContain('### Junior Developer — Nova Retail, Remote *(Jul 2021 – May 2023)*')
+    expect(fields(parseResumeText(md))).toEqual(fields(src))
+  })
+
+  it('"Role at Company (dates)" leaves no empty brackets; "at" inside a school name is not a separator', () => {
+    const r = cv(`EXPERIENCE
+Advanced Data Scientist at Honeywell (Jan 2020 – Present)
+- Built models
+Teaching Assistant, University at Buffalo (2018 – 2019)
+- Ran labs
+Engineer at Acme, Berlin, Germany (2016 – 2018)
+- Shipped things
+EDUCATION
+B.S. Computer Science, University of Texas at Austin, Austin, TX (2017 – 2021)
+BSc Physics at University of Bristol, Bristol, UK (2010 – 2013)
+`)
+    expect(r.experience).toMatchObject([
+      { role: 'Advanced Data Scientist', company: 'Honeywell', location: '' },
+      { role: 'Teaching Assistant', company: 'University at Buffalo', location: '' },
+      { role: 'Engineer', company: 'Acme', location: 'Berlin, Germany' },
+    ])
+    expect(r.education).toMatchObject([
+      { degree: 'B.S. Computer Science', school: 'University of Texas at Austin', location: 'Austin, TX' },
+      { degree: 'BSc Physics', school: 'University of Bristol', location: 'Bristol, UK' },
+    ])
+  })
+
+  it('Markdown structure is unwrapped; inline marks inside bullets and "A*" grades stay', () => {
+    const r = parseResumeText(`# Jane Doe — Engineer
+
+jane@example.com · London, UK
+
+## Experience
+
+### Engineer — Acme *(2020 – 2021)*
+
+- Shipped **three** releases, graded A* by the client
+
+## Projects
+
+### [AlgoLens](https://algolens.example) *(Mar 2021 – Jun 2021)*
+
+- Visualises sorting algorithms
+- Built with React
+
+## Education
+
+### BSc Physics, University of Bristol, Bristol, UK *(2016 – 2019)*
+
+First Class Honours. Final project: an A* route planner.
+`)
+    expect(r.contact.fullName).toBe('Jane Doe')
+    expect(r.experience).toMatchObject([
+      { role: 'Engineer', company: 'Acme', startDate: '2020', endDate: '2021', bullets: ['Shipped **three** releases, graded A* by the client'] },
+    ])
+    expect(r.projects).toMatchObject([
+      { name: 'AlgoLens', link: 'https://algolens.example', startDate: 'Mar 2021', endDate: 'Jun 2021', description: 'Visualises sorting algorithms\nBuilt with React' },
+    ])
+    expect(r.education).toMatchObject([
+      {
+        degree: 'BSc Physics',
+        school: 'University of Bristol',
+        location: 'Bristol, UK',
+        details: 'First Class Honours. Final project: an A* route planner.',
+      },
+    ])
+    // one "#" line is a plain-text resume, not Markdown
+    expect(parseResumeText('# Jane Doe\njane@example.com\n').contact.fullName).toBe('# Jane Doe')
+  })
+})
+
+describe('project header round trip (R783)', () => {
+  it('"Name · Org (link) (dates)" from our TXT / MD export keeps every field', () => {
+    const src = sampleResume()
+    src.projects = [
+      {
+        id: 'p1',
+        name: 'AlgoLens',
+        org: 'Hack Club',
+        link: 'https://algolens.example',
+        startDate: 'Mar 2021',
+        endDate: 'Jun 2021',
+        description: 'Visualises sorting algorithms\nBuilt with React',
+      },
+    ]
+    for (const text of [resumeToPlainText(src, { keepLinkUrls: true }), resumeToMarkdown(src)]) {
+      expect(parseResumeText(text).projects).toMatchObject([
+        {
+          name: 'AlgoLens',
+          org: 'Hack Club',
+          link: 'https://algolens.example',
+          startDate: 'Mar 2021',
+          endDate: 'Jun 2021',
+          description: 'Visualises sorting algorithms\nBuilt with React',
+        },
+      ])
+    }
+  })
+})
+
+describe('education grade list round trip (R783)', () => {
+  it('"Chemistry A*, Mathematics A*" under our exported school line stays its details', () => {
+    const src = sampleResume()
+    src.education = [
+      {
+        ...emptyEducation(),
+        id: 'e1',
+        degree: 'A Levels',
+        school: 'Durham Sixth Form',
+        location: 'Durham, UK',
+        startDate: '2016',
+        endDate: '2018',
+        details: 'Chemistry A*, Mathematics A*',
+      },
+      {
+        ...emptyEducation(),
+        id: 'e2',
+        degree: 'BSc Physics',
+        school: 'University of Bristol',
+        location: 'Bristol, UK',
+        startDate: '2018',
+        endDate: '2021',
+        details: 'Modules: Quantum Mechanics, Thermodynamics',
+      },
+    ]
+    for (const text of [resumeToPlainText(src, { keepLinkUrls: true }), resumeToMarkdown(src)]) {
+      expect(parseResumeText(text).education).toMatchObject([
+        { degree: 'A Levels', school: 'Durham Sixth Form', location: 'Durham, UK', details: 'Chemistry A*, Mathematics A*' },
+        { degree: 'BSc Physics', school: 'University of Bristol', location: 'Bristol, UK', details: 'Modules: Quantum Mechanics, Thermodynamics' },
+      ])
+    }
+    // a "Degree, School" header is still a new entry
+    const r = parseResumeText('Jane Doe\n\nEducation\nA Levels, Durham Sixth Form (2016 – 2018)\nBSc Physics, University of Bristol (2018 – 2021)')
+    expect(r.education.map((e) => e.school)).toEqual(['Durham Sixth Form', 'University of Bristol'])
   })
 })

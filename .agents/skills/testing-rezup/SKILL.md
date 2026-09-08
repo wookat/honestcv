@@ -1533,3 +1533,12 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Keyword highlighting renders via the CSS Custom Highlight API — assert `CSS.highlights.has('kw-match')` / range count, not `<mark>` elements.
 - `Page.printToPDF` fires `beforeprint`, making it a good end-to-end probe for print-arming logic (as of R477 the mobile preview subtree mounts on beforeprint via flushSync).
 - As of R477 a cold 375px /builder in Edit state has `#preview` in the DOM with 0 descendant elements; the subtree mounts on lg viewport, beforeprint, or the "Preview & score" tap (then stays mounted).
+
+## Production import QA: fresh tabs and reliable evidence
+- Capture all localStorage/sessionStorage entries on an inert same-origin page before installing QA instrumentation. Enable the CDP Page domain before registering new-document scripts. A plain-text `/robots.txt` document may not run those scripts: explicitly write and read back `honestcv.qa='1'` there before the first app navigation, and keep the new-document marker for subsequent app loads.
+- Wait for the ATS form and lazy assets to settle after cache-busted deployment discovery before navigating away; immediate navigation can cancel chunk/manifest requests and make response-body SHA capture unavailable. Keep such `net::ERR_ABORTED` events in diagnostics, distinguish harness navigation from application failure, and verify hashes from a completed runtime load.
+- For byte-exact two-tab cleanup, leave both app pages before restoration; compare every key/value immediately and after settling. Save the actual mismatching snapshots/keys as well as booleans so a transient storage-event race can be explained rather than silently treated as an immediate pass.
+- `scrollIntoViewIfNeeded()` only ensures visibility and may leave the score at the bottom of a screenshot. Align the result heading with mouse-wheel scrolling based on its bounding box; capture both the score and the Format/Best Practices checks, especially on narrow viewports.
+
+### Devin Secrets Needed
+- None for public production ATS/Builder import QA. Paid, AI, share, and export actions require separate explicit authorization; never infer it from public access.

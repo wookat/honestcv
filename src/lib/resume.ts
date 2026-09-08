@@ -2782,6 +2782,7 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
             (g.grouped
               ? e.role.trim()
               : [e.role, e.company].filter(Boolean).join(' at ')) +
+              (e.location?.trim() ? `, ${e.location.trim()}` : '') +
               (e.startDate || e.endDate
                 ? ` (${experienceDateRange(e.startDate, e.endDate)})`
                 : '')
@@ -2816,7 +2817,7 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
       lines.push('', sectionHeading(r, 'education').toUpperCase())
       for (const e of educationEntries(r)) {
         lines.push(
-          [e.degree, e.school].filter((s) => s.trim()).join(', ') +
+          [e.degree, e.school, e.location].filter((s) => s.trim()).join(', ') +
             (e.startDate || e.endDate
               ? ` (${[e.startDate, e.endDate].filter(Boolean).join(' – ')})`
               : '')
@@ -2903,9 +2904,9 @@ export function resumeToMarkdown(r: Resume): string {
             e.startDate || e.endDate
               ? ` *(${experienceDateRange(e.startDate, e.endDate)})*`
               : ''
-          const title = g.grouped
-            ? e.role.trim()
-            : [e.role, e.company].filter(Boolean).join(' — ')
+          const title =
+            (g.grouped ? e.role.trim() : [e.role, e.company].filter(Boolean).join(' — ')) +
+            (e.location?.trim() ? `, ${e.location.trim()}` : '')
           lines.push(`${g.grouped ? '####' : '###'} ${title}${dates}`, '')
           if (e.companyInfo?.trim()) lines.push(`*${e.companyInfo.trim()}*`, '')
           for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
@@ -2941,7 +2942,10 @@ export function resumeToMarkdown(r: Resume): string {
           e.startDate || e.endDate
             ? ` *(${[e.startDate, e.endDate].filter(Boolean).join(' – ')})*`
             : ''
-        lines.push(`### ${[e.degree, e.school].filter((s) => s.trim()).join(', ')}${dates}`, '')
+        lines.push(
+          `### ${[e.degree, e.school, e.location].filter((s) => s.trim()).join(', ')}${dates}`,
+          ''
+        )
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail, '')
       }

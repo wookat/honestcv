@@ -14,6 +14,7 @@ import {
   emptyResume,
   newId,
 } from './resume'
+import { plainResumeText } from './markdownText'
 
 const EMAIL_RE = /[^\s@|,;]+@[^\s@|,;]+\.[a-z]{2,}/i
 const PHONE_RE = /(\+?\(?\d[\d\s().-]{5,}\d)/
@@ -348,9 +349,10 @@ function matchCustomHeading(line: string): string | null {
 }
 
 // Trailing separators left where the dates were; a bracket only when the
-// dates were the bracket's content ("Role (Jan 2020 – Present)" → "Role (").
+// dates were the bracket's content ("Role (Jan 2020 – Present)" → "Role ("
+// or, when the slice kept both halves, "Role at Acme ()").
 const stripDateRest = (s: string) => {
-  const t = s.replace(/[\s|,;–—-]+$/, '')
+  const t = s.replace(/\(\s*\)/g, ' ').replace(/[\s|,;–—-]+$/, '')
   const open = (t.match(/\(/g) ?? []).length
   const close = (t.match(/\)/g) ?? []).length
   if (open > close && /\($/.test(t)) return stripDateRest(t.slice(0, -1))
@@ -408,10 +410,15 @@ function splitRoleCompanyRaw(text: string): { role: string; company: string; loc
     if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
       // "Software Engineer III, Team Leader" — two titles, no employer
       if (sep.source.includes(',') && parts.every((p) => JOB_TITLE_NOUN_RE.test(p))) break
+      // "B.S. Computer Science, University of Texas at Austin" / "University at
+      // Buffalo" — the "at" is part of the school's name, not a separator
+      if (sep.source.includes('at') && SCHOOL_RE.test(parts[0]) && !parts.slice(1).some((p) => SCHOOL_RE.test(p)))
+        continue
       const company = parts.slice(1).join(', ').trim()
-      // "Role — Company, City, ST" — peel a trailing location off the company
-      const loc = company.match(/,\s*([A-Za-z .'-]+,\s*[A-Z]{2}|Remote)$/)
-      if (loc && !sep.source.includes(','))
+      // "Role — Company, City, ST" / "Role at Company, London, UK" /
+      // "Degree, School, City, ST" — peel a trailing location off the company
+      const loc = company.match(/,\s*([A-Za-z .'-]+,\s*[A-Z]{2}|Remote)$/) ?? placeTail(company)
+      if (loc && (!sep.source.includes(',') || parts.length >= 3) && (loc.index ?? 0) > 0)
         return {
           role: parts[0].trim(),
           company: company.slice(0, loc.index).trim(),
@@ -423,6 +430,15 @@ function splitRoleCompanyRaw(text: string): { role: string; company: string; loc
   return { role: text.trim(), company: '', location: '' }
 }
 
+// "Acme, Berlin, Germany" → the last two comma parts when they read as a place
+// and something is left for the company.
+function placeTail(company: string): RegExpMatchArray | null {
+  const m = company.match(/,\s*([^,]+,\s*[^,]+)$/)
+  return m && (m.index ?? 0) > 0 && isExpPlaceLine(m[1].trim()) && !/\b(?:present|current|year|month)\b/i.test(m[1])
+    ? m
+    : null
+}
+
 /** Undated honors/coursework line under an education entry — details, not a new school */
 const EDU_DETAIL_RE =
   /\b(gpa|cgpa|dean'?s list|cum laude|hono(?:u?rs)|minor|major|coursework|thesis|dissertation|scholar(?:ship)?|bursary|award|grade|modules?|a[- ]levels?|gcses?|distinction|merit|first[- ]class)\b/i
@@ -430,8 +446,15 @@ const EDU_DETAIL_RE =
 // line under a school is its detail unless the label itself names a degree.
 const EDU_DEGREE_LABEL_RE =
   /\b(b\.?s\.?c?|b\.?a|m\.?s\.?c?|m\.?a|m\.?eng|b\.?eng|bachelor|master|ph\.?d|mba|diploma|certificate|degree)\b/i
+// "Chemistry A*, Mathematics A*" / "Maths 9, Physics 8" — subjects each ending in
+// a grade are results, not a "Degree, School" header.
+const GRADE_ITEM_RE = /^[A-Za-z][A-Za-z &/()-]{1,40}\s+(?:A\*|[A-E]\*?|[1-9])$/
+const isGradeList = (line: string) => {
+  const items = line.split(/[,;]/).map((s) => s.trim())
+  return items.every((s) => GRADE_ITEM_RE.test(s)) && (items.length >= 2 || /A\*$/.test(line))
+}
 const isEduDetailLine = (line: string) => {
-  if (EDU_DETAIL_RE.test(line)) return true
+  if (EDU_DETAIL_RE.test(line) || isGradeList(line)) return true
   const m = SKILL_LABEL_RE.exec(line)
   return !!m && !EDU_DEGREE_LABEL_RE.test(m[1]) && !CUSTOM_HEADING_RE.test(m[1].trim())
 }
@@ -531,8 +554,9 @@ export function keepTargetOnImport(prev: Resume, parsed: Resume): Resume {
   }
 }
 
-export function parseResumeText(raw: string): Resume {
-  if (looksLikeLinkedInExport(raw)) return parseLinkedInText(raw)
+export function parseResumeText(input: string): Resume {
+  if (looksLikeLinkedInExport(input)) return parseLinkedInText(input)
+  const raw = plainResumeText(input)
   const resume = emptyResume()
   resume.experience = []
   resume.education = []
@@ -965,11 +989,17 @@ export function parseResumeText(raw: string): Resume {
         } else {
           const url = line.match(URL_RE)?.[0] ?? ''
           const link = CODE_NAME_RE.test(url) ? '' : url
+          // "Name · Org (link) (dates)" — our own TXT/MD export shape
+          const head = stripDateRest((dates.start ? dates.rest : line).replace(link, ''))
+          const dot = head.split(/\s+·\s+/)
+          const [name, org] = dot.length === 2 ? dot : [head, '']
           resume.projects.push({
             id: newId(),
-            name: line.replace(link, '').replace(/[—–|(),]\s*$/, '').trim() || line,
+            name: name.replace(/[—–|(),]\s*$/, '').trim() || line,
             link,
             description: '',
+            ...(org ? { org: org.trim() } : {}),
+            ...(dates.start ? { startDate: dates.start, endDate: dates.end } : {}),
           })
         }
         break
