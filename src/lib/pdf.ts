@@ -221,11 +221,69 @@ class PdfWriter {
     this.y = this.pageH - margin
   }
 
+  newPage() {
+    this.page = this.doc.addPage([this.pageW, this.pageH])
+    this.y = this.pageH - this.margin
+  }
+
   ensure(height: number) {
-    if (this.y - height < this.margin) {
-      this.page = this.doc.addPage([this.pageW, this.pageH])
-      this.y = this.pageH - this.margin
+    if (this.y - height < this.margin) this.newPage()
+  }
+
+  /** True when nothing has been drawn on the current page yet. */
+  atPageTop() {
+    return this.y >= this.pageH - this.margin - 0.01
+  }
+
+  /**
+   * Widow/orphan control for a wrapped block of `n` lines: the index of the
+   * line that starts a new page, or -1 when the block fits. A block of up to
+   * three lines moves whole; a longer one splits only where at least two
+   * lines stay on each side of the break.
+   */
+  private breakIndex(n: number, lineHeight: number): number {
+    const room = Math.floor((this.y - this.margin) / lineHeight + 1e-6)
+    if (room >= n) return -1
+    if (n <= 3 || room < 2) return 0
+    return Math.min(room, n - 2)
+  }
+
+  /** Height `titleLine` will take for this header, in points. */
+  titleLineHeight(left: string, right: string, opts: { size?: number } = {}) {
+    const size = (opts.size ?? 10.5) * this.fs
+    const dateSize = 9 * this.fs
+    const rightWidth = right ? drawnWidth(this.fonts.italic, right, dateSize) : 0
+    const leftMax = this.contentW - (right ? rightWidth + 12 : 0)
+    const plain = hasInlineMarks(left) ? stripInlineMarks(left) : left
+    const leftW = drawnWidth(this.fonts.bold, plain, size)
+    if (right && leftW <= leftMax) return size * this.lh
+    const lines = wrapText(plain, this.fonts.bold, size, this.contentW).length
+    return lines * size * this.lh + (right ? 1 + dateSize * this.lh : 0)
+  }
+
+  /**
+   * Start a new page unless the entry header (with its stacked date and
+   * optional sub-line) plus the part of its first body block that
+   * `breakIndex` would keep here fit below, so a header never sits alone at
+   * the bottom of a page. `lead` is the spacing (entry rule, gap) drawn
+   * before the header; `body` is the first bullet or description line.
+   */
+  keepEntry(
+    left: string,
+    right: string,
+    opts: { size?: number; lead?: number; sub?: string; body?: string; bullet?: boolean } = {}
+  ) {
+    const bodySize = 10 * this.fs
+    let bodyLines = 1
+    if (opts.body) {
+      const indent = opts.bullet ? 14 + this.bi : 0
+      const plain = hasInlineMarks(opts.body) ? stripInlineMarks(opts.body) : opts.body
+      const n = wrapText(plain, this.fonts.regular, bodySize, this.contentW - indent).length
+      bodyLines = n <= 3 ? n : 2
     }
+    const body = bodyLines * bodySize * this.lh + 2
+    const sub = opts.sub ? 1 + 9 * this.fs * this.lh : 0
+    this.ensure((opts.lead ?? 0) + this.titleLineHeight(left, right, opts) + sub + body)
   }
 
   text(
@@ -245,7 +303,10 @@ class PdfWriter {
     const indent = opts.indent ?? 0
     const maxWidth = opts.maxWidth ?? this.contentW - indent
     const lineHeight = size * this.lh + (opts.lineGap ?? 0)
-    for (const line of wrapText(text, font, size, maxWidth)) {
+    const lines = wrapText(text, font, size, maxWidth)
+    const breakAt = this.breakIndex(lines.length, lineHeight)
+    for (const [i, line] of lines.entries()) {
+      if (i === breakAt) this.newPage()
       this.ensure(lineHeight)
       const width = drawnWidth(font, line, size)
       const x = opts.center ? (this.pageW - width) / 2 : this.x0 + indent
@@ -423,7 +484,7 @@ class PdfWriter {
     const plain = marked ? stripInlineMarks(text) : text
     // heading + divider + first content line, so a heading never sits
     // alone at the bottom of a page
-    this.ensure(52)
+    this.ensure(10 * this.ss + 11 * this.fs * this.lh + 9 + 10 * this.fs * this.lh + 2)
     this.gap(10 * this.ss)
     if (this.tpl.sideLabels && this.x0 > this.margin) {
       // Label drawn in the left gutter on the first content baseline; it
@@ -487,6 +548,7 @@ class PdfWriter {
 
   /** Light hairline between entries (templates with entryDivider) */
   entryRule() {
+    if (this.atPageTop()) return
     this.ensure(10)
     this.gap(4)
     this.page.drawLine({
@@ -519,7 +581,9 @@ class PdfWriter {
       return
     }
     const lines = wrapText(text, font, size, this.contentW - indent)
+    const breakAt = this.breakIndex(lines.length, lineHeight)
     lines.forEach((line, i) => {
+      if (i === breakAt) this.newPage()
       this.ensure(lineHeight)
       this.y -= lineHeight
       marker(i === 0)
@@ -553,7 +617,9 @@ class PdfWriter {
       size,
       opts.maxWidth ?? this.contentW - indent
     )
+    const breakAt = this.breakIndex(lines.length, lineHeight)
     lines.forEach((words, i) => {
+      if (i === breakAt) this.newPage()
       this.ensure(lineHeight)
       this.y -= lineHeight
       marker(i === 0)
@@ -833,6 +899,22 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
     if (tpl.entryDivider && i > 0) w.entryRule()
   }
 
+  /** Entry header preceded by its rule and gap, moved to a new page together
+   *  with its first body line when they would not fit. */
+  const entryHeader = (
+    i: number,
+    gap: number,
+    left: string,
+    right: string,
+    opts: { size: number; sub?: string; body?: string; bullet?: boolean }
+  ) => {
+    const lead = (tpl.entryDivider && i > 0 ? 10 : 0) + gap
+    w.keepEntry(left, right, { ...opts, lead })
+    entryRule(i)
+    w.gap(gap)
+    w.titleLine(left, right, { size: opts.size })
+  }
+
   /** Section body text: parses inline marks, plain text otherwise. */
   const bodyText = (t: string) => {
     if (hasInlineMarks(t)) w.richText(t)
@@ -847,20 +929,17 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'experience'))
       let gi = 0
       for (const g of experienceGroups(resume.experience, resume.groupByCompany === 'on')) {
-        entryRule(gi++)
-        if (g.grouped) {
-          w.gap(4)
-          w.ensure(34)
-          w.titleLine(g.company.trim(), '', { size: 10.5 })
-        }
+        if (g.grouped) entryHeader(gi, 4, g.company.trim(), '', { size: 10.5 })
         let ei = 0
         for (const e of g.entries) {
-          if (g.grouped) entryRule(ei++)
-          w.gap(g.grouped ? 2 : 4)
-          w.ensure(34) // keep the entry header with its first bullet
           const dates = experienceDateRange(e.startDate, e.endDate, resumeLanguageOf(resume))
           const { head, tail } = experienceHeadingParts(e, g.grouped)
-          w.titleLine(head + tail, dates, { size: 10.5 })
+          entryHeader(g.grouped ? ei++ : gi, g.grouped ? 2 : 4, head + tail, dates, {
+            size: 10.5,
+            sub: e.companyInfo?.trim(),
+            body: e.bullets.find((b) => b.trim())?.trim(),
+            bullet: true,
+          })
           if (e.companyInfo?.trim()) {
             w.gap(1)
             const info = e.companyInfo.trim()
@@ -875,17 +954,19 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
           w.gap(2)
           for (const b of e.bullets) if (b.trim()) w.bullet(b.trim())
         }
+        gi++
       }
     } else if (key === 'projects' && resume.projects.some((p) => p.name)) {
       w.heading(sectionHeading(resume, 'projects'))
       let pi = 0
       for (const p of resume.projects) {
         if (!p.name) continue
-        entryRule(pi++)
-        w.gap(2)
-        w.ensure(30) // keep the project name with its description
-        w.titleLine(projectHeadingLine(p), projectDates(p), { size: 10 })
         const bullets = projectBullets(p)
+        entryHeader(pi++, 2, projectHeadingLine(p), projectDates(p), {
+          size: 10,
+          body: bullets.length > 1 ? bullets[0] : p.description.trim(),
+          bullet: bullets.length > 1,
+        })
         if (bullets.length > 1) {
           w.gap(1)
           for (const b of bullets) w.bullet(b)
@@ -898,10 +979,11 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'involvement'))
       let ii = 0
       for (const i of involvementEntries(resume)) {
-        entryRule(ii++)
-        w.gap(4)
-        w.ensure(34)
-        w.titleLine(involvementHeadingLine(i), involvementDates(i), { size: 10.5 })
+        entryHeader(ii++, 4, involvementHeadingLine(i), involvementDates(i), {
+          size: 10.5,
+          body: involvementBullets(i)[0],
+          bullet: true,
+        })
         w.gap(2)
         for (const b of involvementBullets(i)) w.bullet(b)
       }
@@ -909,13 +991,10 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'education'))
       let edi = 0
       for (const e of educationEntries(resume)) {
-        entryRule(edi++)
-        w.gap(2)
-        w.ensure(34)
         const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
         const { head, tail } = educationHeadingParts(e)
-        w.titleLine(head + tail, dates, { size: 10 })
         const detail = educationDetailLine(e)
+        entryHeader(edi++, 2, head + tail, dates, { size: 10, body: detail || undefined })
         if (detail) {
           w.gap(1)
           bodyText(detail)
@@ -925,10 +1004,11 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'coursework'))
       let cwi = 0
       for (const cw of courseworkEntries(resume)) {
-        entryRule(cwi++)
-        w.gap(4)
-        w.ensure(34)
-        w.titleLine(courseworkHeadingLine(cw), cw.date.trim(), { size: 10.5 })
+        entryHeader(cwi++, 4, courseworkHeadingLine(cw), cw.date.trim(), {
+          size: 10.5,
+          body: courseworkBullets(cw)[0],
+          bullet: true,
+        })
         w.gap(2)
         for (const b of courseworkBullets(cw)) w.bullet(b)
       }
@@ -946,10 +1026,10 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'certifications'))
       let cti = 0
       for (const c of certEntries(resume)) {
-        entryRule(cti++)
-        w.gap(2)
-        w.ensure(30)
-        w.titleLine(certHeadingLine(c), c.date.trim(), { size: 10 })
+        entryHeader(cti++, 2, certHeadingLine(c), c.date.trim(), {
+          size: 10,
+          body: c.description.trim() || undefined,
+        })
         if (c.description.trim()) {
           w.gap(1)
           bodyText(c.description.trim())
@@ -963,10 +1043,11 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'awards'))
       let awi = 0
       for (const a of awardEntries(resume)) {
-        entryRule(awi++)
-        w.gap(4)
-        w.ensure(34)
-        w.titleLine(awardHeadingLine(a), a.date.trim(), { size: 10.5 })
+        entryHeader(awi++, 4, awardHeadingLine(a), a.date.trim(), {
+          size: 10.5,
+          body: awardBullets(a)[0],
+          bullet: true,
+        })
         w.gap(2)
         for (const b of awardBullets(a)) w.bullet(b)
       }
@@ -974,10 +1055,11 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'publications'))
       let pbi = 0
       for (const p of publicationEntries(resume)) {
-        entryRule(pbi++)
-        w.gap(4)
-        w.ensure(34)
-        w.titleLine(publicationHeadingLine(p), p.date.trim(), { size: 10.5 })
+        entryHeader(pbi++, 4, publicationHeadingLine(p), p.date.trim(), {
+          size: 10.5,
+          body: publicationBullets(p)[0],
+          bullet: true,
+        })
         w.gap(2)
         for (const b of publicationBullets(p)) w.bullet(b)
       }
@@ -985,11 +1067,8 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'references'))
       let rfi = 0
       for (const x of referenceEntries(resume)) {
-        entryRule(rfi++)
-        w.gap(4)
-        w.ensure(34)
-        w.titleLine(referenceHeadingLine(x), '', { size: 10.5 })
         const detail = referenceDetailLine(x)
+        entryHeader(rfi++, 4, referenceHeadingLine(x), '', { size: 10.5, body: detail || undefined })
         if (detail) {
           w.gap(2)
           bodyText(detail)
@@ -999,10 +1078,11 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'military'))
       let mli = 0
       for (const m of militaryEntries(resume)) {
-        entryRule(mli++)
-        w.gap(4)
-        w.ensure(34)
-        w.titleLine(militaryHeadingLine(m), militaryDates(m), { size: 10.5 })
+        entryHeader(mli++, 4, militaryHeadingLine(m), militaryDates(m), {
+          size: 10.5,
+          body: militaryBullets(m)[0],
+          bullet: true,
+        })
         w.gap(2)
         for (const b of militaryBullets(m)) w.bullet(b)
       }
@@ -1010,10 +1090,11 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'agents'))
       let agi = 0
       for (const a of agentEntries(resume)) {
-        entryRule(agi++)
-        w.gap(4)
-        w.ensure(34)
-        w.titleLine(a.name.trim(), a.date.trim(), { size: 10.5 })
+        entryHeader(agi++, 4, a.name.trim(), a.date.trim(), {
+          size: 10.5,
+          body: agentBullets(a)[0],
+          bullet: true,
+        })
         w.gap(2)
         for (const b of agentBullets(a)) w.bullet(b)
       }

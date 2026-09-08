@@ -97,3 +97,43 @@ describe('a LinkedIn-shaped resume survives our PDF export (R787)', () => {
     }
   })
 })
+
+describe('page breaks keep bullets and entry headers whole (R793)', () => {
+  // Seven jobs of seven bullets (one to three lines each) run to three or four
+  // pages on every template, so each rendering crosses several page bottoms.
+  const src = sampleResume()
+  const words = ['platform', 'pipeline', 'dashboard', 'service', 'ledger', 'catalog', 'gateway', 'scheduler']
+  const sentence = (e: number, b: number, n: number) =>
+    Array.from({ length: n }, (_, k) => `${words[(e + b + k) % words.length]} ${e + 1}-${b + 1}-${k + 1}`).join(' ')
+  src.experience = Array.from({ length: 7 }, (_, e) => ({
+    ...src.experience[0],
+    id: `x${e}`,
+    role: e % 2 ? 'Staff Engineer' : 'Senior Engineer',
+    company: `Company ${String.fromCharCode(65 + e)}`,
+    location: 'Austin, TX',
+    startDate: `Jan ${2010 + e}`,
+    endDate: `Dec ${2010 + e}`,
+    ...(e % 2 ? { companyInfo: 'Series B fintech, 200 people' } : {}),
+    bullets: Array.from({ length: 7 }, (_, b) => `Delivered the ${sentence(e, b, 4 + ((e + b) % 3) * 9)}.`),
+  }))
+  const bullets = src.experience.flatMap((e) => e.bullets)
+  const headers = new Set(src.experience.map((e) => `${e.role} · ${e.company}, ${e.location}`))
+
+  it('every template re-imports the same bullets and no page ends on an entry header', async () => {
+    for (const t of TEMPLATES) {
+      const { text } = await pdfTextOf(await buildResumePdf({ ...src, templateId: t.id }))
+      const pages = text.split('\n\n')
+      expect(pages.length, t.id).toBeGreaterThan(2)
+      for (const page of pages.slice(0, -1)) {
+        const rows = page.trim().split('\n')
+        const last = rows[rows.length - 1]
+        expect(headers.has(last) || /^(Jan|Dec) 20\d\d/.test(last) || last === 'Series B fintech, 200 people', `${t.id}: page ends on "${last}"`).toBe(false)
+      }
+      // the companyInfo line re-imports as its own header (queued, not a
+      // page-break matter); the seven real headers and every bullet must be there
+      const back = parseResumeText(text)
+      expect(back.experience.filter((e) => e.role.endsWith('Engineer')).length, t.id).toBe(7)
+      expect(back.experience.flatMap((e) => e.bullets), t.id).toEqual(bullets)
+    }
+  })
+})
