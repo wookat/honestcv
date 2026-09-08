@@ -44,6 +44,32 @@ const SECTION_HEADINGS: [RegExp, SectionName][] = [
   [/^(certifications?|certificates|licenses)\b/i, 'certifications'],
 ]
 
+// A heading-shaped line (short, ALL CAPS or Title Case, no prose punctuation)
+// that names a section anywhere in it: "Work/Internship/Relevant Experience",
+// "Areas of Expertise", "Education & Training". Table order decides a heading
+// that names two sections ("Summary of Skills" → skills). Tested on the plain
+// text and on a letter-spaced heading collapsed to one word.
+const SECTION_WORDS: [RegExp, SectionName][] = [
+  [/experience|employment|work\s?history|career\s?history/i, 'experience'],
+  [/education/i, 'education'],
+  [/skills?|competenc(?:y|ies)|expertise/i, 'skills'],
+  [/projects?/i, 'projects'],
+  [/certifications?|certificates|licen[cs]es/i, 'certifications'],
+  [/summary|profile|objective|about\s?me/i, 'summary'],
+]
+// "P R O F E S S I O N A L E X P E R I E N C E" — tracked (letter-spaced) headings
+// reach text extraction with a space after every letter.
+const LETTER_SPACED_RE = /^(?:[A-Za-z&/] ){3,}[A-Za-z&/]$/
+const HEADING_WORD_RE = /^(?:[A-Z][A-Za-z&/'’-]*|&|\/|and|of|or|in|the)$/
+// "Project Manager" / "Customer Experience Lead" are entry headers, not sections.
+const JOB_TITLE_NOUN_RE =
+  /\b(manager|engineer|developer|analyst|director|lead|specialist|coordinator|assistant|consultant|intern|officer|head|designer|architect|administrator|trainer|teacher|nurse|technician|associate|representative|executive|founder|owner|president|vp|supervisor|advisor|adviser|counsel|accountant|scientist|researcher|writer|editor|recruiter|planner|strategist|agent|clerk|operator|driver|chef|cook|server|barista|cashier|volunteer|partner|fellow|professor|lecturer|instructor|tutor)\b/i
+const looksLikeHeadingShape = (t: string) => {
+  if (t.length > 48 || /[.,;:!?()\d]/.test(t)) return false
+  const words = t.split(/\s+/)
+  return words.length <= 6 && (t === t.toUpperCase() || words.every((w) => HEADING_WORD_RE.test(w)))
+}
+
 // Common resume sections without a dedicated field — imported as custom sections
 const CUSTOM_HEADING_RE =
   /^(awards?|honors?|achievements?|publications?|volunteer(ing|\s+experience)?|languages?|interests?|hobbies|activities|leadership|references)\b/i
@@ -144,15 +170,41 @@ function findPhone(text: string): string {
 }
 
 function matchHeading(line: string): SectionName | null {
-  const t = line.trim().replace(/[:：]$/, '')
-  if (t.length > 40) return null
-  for (const [re, name] of SECTION_HEADINGS) if (re.test(t)) return name
+  let t = line.trim().replace(/[:：]$/, '')
+  if (LETTER_SPACED_RE.test(t)) {
+    const word = t.replace(/ /g, '')
+    for (const [re, name] of SECTION_WORDS) if (re.test(word)) return name
+    return null
+  }
+  // "WORK EXPERIENCE (most impressive first)" — an aside after the heading
+  t = t.replace(/\s*\([^)]*\)$/, '')
+  if (JOB_TITLE_NOUN_RE.test(t)) return null
+  if (t.length <= 40) for (const [re, name] of SECTION_HEADINGS) if (re.test(t)) return name
+  if (CUSTOM_HEADING_RE.test(t) || !looksLikeHeadingShape(t)) return null
+  for (const [re, name] of SECTION_WORDS) if (new RegExp(`\\b(?:${re.source})\\b`, 'i').test(t)) return name
+  return null
+}
+
+// "Technical Skills: Java, SQL" — a standard heading that carries its first line.
+const INLINE_HEADING_RE = /^([^:：]{1,40})[:：]\s+(\S.*)$/
+function matchInlineHeading(line: string): { heading: SectionName; rest: string } | null {
+  const m = INLINE_HEADING_RE.exec(line)
+  if (!m || JOB_TITLE_NOUN_RE.test(m[1])) return null
+  for (const [re, name] of SECTION_HEADINGS) if (re.test(m[1].trim())) return { heading: name, rest: m[2] }
   return null
 }
 
 /** Heading for a section we don't have a dedicated field for (Awards, Languages…) */
 function matchCustomHeading(line: string): string | null {
   const t = line.trim().replace(/[:：]$/, '')
+  if (LETTER_SPACED_RE.test(t)) {
+    // Tracked heading of a section we have no field for; the last word is
+    // recoverable when it is a known section word ("EXTRACURRICULAR ACTIVITIES").
+    return t
+      .replace(/ /g, '')
+      .replace(/(.)(awards?|honors?|achievements?|publications?|activities|interests?|languages?|leadership|work|involvement)$/i, '$1 $2')
+      .toUpperCase()
+  }
   if (t.length > 32) return null
   if (CUSTOM_HEADING_RE.test(t)) return t
   // Generic short ALL-CAPS heading like "PRO BONO WORK"
@@ -300,15 +352,17 @@ export function parseResumeText(raw: string): Resume {
   const skillLines: string[] = []
   const certLines: string[] = []
 
-  for (const line of lines) {
+  for (let line of lines) {
     if (!line) continue
-    const heading = matchHeading(line)
+    const inline = matchInlineHeading(line)
+    const heading = inline?.heading ?? matchHeading(line)
     if (heading) {
       section = heading
       currentExp = null
       currentEdu = null
       currentCustom = null
-      continue
+      if (!inline) continue
+      line = inline.rest
     }
     if (line === resume.contact.fullName) continue
     if (section !== null) {
