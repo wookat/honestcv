@@ -26,6 +26,9 @@ const LINKEDIN_RE = /linkedin\.com\/[^\s|,;)]+/i
 const URL_RE = /(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s|,;)]*)?/i
 const DATE_RANGE_RE =
   /((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{4}|\d{4})\s*(?:[–—-]|to)\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{4}|\d{4}|present|current|now)/i
+// "Skin Bliss, Micro-Intern (1 week); Dec 2023" — a one-off engagement dated
+// with a single month after a separator at the end of the header.
+const SINGLE_DATE_RE = /[;|,(–—-]\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4})\)?\s*$/i
 
 type SectionName =
   | 'summary'
@@ -63,7 +66,7 @@ const LETTER_SPACED_RE = /^(?:[A-Za-z&/] ){3,}[A-Za-z&/]$/
 const HEADING_WORD_RE = /^(?:[A-Z][A-Za-z&/'’-]*|&|\/|and|of|or|in|the)$/
 // "Project Manager" / "Customer Experience Lead" are entry headers, not sections.
 const JOB_TITLE_NOUN_RE =
-  /\b(manager|engineer|developer|analyst|director|lead|specialist|coordinator|assistant|consultant|intern|officer|head|designer|architect|administrator|trainer|teacher|nurse|technician|associate|representative|executive|founder|owner|president|vp|supervisor|advisor|adviser|counsel|accountant|scientist|researcher|writer|editor|recruiter|planner|strategist|agent|clerk|operator|driver|chef|cook|server|barista|cashier|volunteer|partner|fellow|professor|lecturer|instructor|tutor)\b/i
+  /\b(manager|engineer|developer|analyst|director|lead|specialist|coordinator|assistant|consultant|intern|officer|head|designer|architect|administrator|trainer|teacher|nurse|technician|associate|representative|executive|founder|owner|president|vp|supervisor|advisor|adviser|counsel|accountant|scientist|researcher|writer|editor|recruiter|planner|strategist|agent|clerk|operator|driver|chef|cook|server|barista|cashier|volunteer|partner|fellow|professor|lecturer|instructor|tutor|mentor|ambassador|apprentice|trainee|waiter|waitress|receptionist|paralegal|secretary|treasurer)\b/i
 const looksLikeHeadingShape = (t: string) => {
   if (t.length > 48 || /[.,;:!?()\d]/.test(t)) return false
   const words = t.split(/\s+/)
@@ -257,20 +260,44 @@ function matchCustomHeading(line: string): string | null {
   return null
 }
 
+// Trailing separators left where the dates were; a bracket only when the
+// dates were the bracket's content ("Role (Jan 2020 – Present)" → "Role (").
+const stripDateRest = (s: string) => {
+  const t = s.replace(/[\s|,;–—-]+$/, '')
+  const open = (t.match(/\(/g) ?? []).length
+  const close = (t.match(/\)/g) ?? []).length
+  if (open > close && /\($/.test(t)) return stripDateRest(t.slice(0, -1))
+  if (close > open && /\)$/.test(t)) return stripDateRest(t.slice(0, -1))
+  return t.trim()
+}
 function extractDates(line: string): { rest: string; start: string; end: string } {
   const m = line.match(DATE_RANGE_RE)
-  if (!m) return { rest: line, start: '', end: '' }
+  if (!m) {
+    const s = line.match(SINGLE_DATE_RE)
+    if (!s || (s.index ?? 0) === 0 || (s.index ?? 0) > 80) return { rest: line, start: '', end: '' }
+    // a blank end date renders "start – Present", so a one-off keeps both ends
+    return { rest: stripDateRest(line.slice(0, s.index)), start: s[1].trim(), end: s[1].trim() }
+  }
   return {
-    rest: (line.slice(0, m.index) + line.slice((m.index ?? 0) + m[0].length))
-      .replace(/[\s|,()–—-]+$/, '')
-      .trim(),
+    rest: stripDateRest(line.slice(0, m.index) + line.slice((m.index ?? 0) + m[0].length)),
     start: m[1].trim(),
     end: m[2].trim(),
   }
 }
 
+// "Arowwai Industries, Operations Manager" — employer-first headers (UK CVs,
+// Canva templates): the side that names a job title is the role.
+function orientRoleCompany<T extends { role: string; company: string }>(h: T): T {
+  if (h.company && !JOB_TITLE_NOUN_RE.test(h.role) && JOB_TITLE_NOUN_RE.test(h.company))
+    return { ...h, role: h.company, company: h.role }
+  return h
+}
+
 /** Split "Role · Company" / "Role at Company" / "Role — Company" / "Role, Company" / "Role | Company" */
 function splitRoleCompany(text: string): { role: string; company: string; location: string } {
+  return orientRoleCompany(splitRoleCompanyRaw(text))
+}
+function splitRoleCompanyRaw(text: string): { role: string; company: string; location: string } {
   // "Role · Company, Location" — the middle-dot binds role/company; a
   // comma after it introduces a location, not another separator.
   const dot = text.split(/\s*·\s*/)
@@ -307,7 +334,16 @@ function splitRoleCompany(text: string): { role: string; company: string; locati
 
 /** Undated honors/coursework line under an education entry — details, not a new school */
 const EDU_DETAIL_RE =
-  /\b(gpa|dean'?s list|cum laude|hono(?:u?rs)|minor|major|coursework|thesis|scholarship|award)\b/i
+  /\b(gpa|cgpa|dean'?s list|cum laude|hono(?:u?rs)|minor|major|coursework|thesis|dissertation|scholar(?:ship)?|bursary|award|grade|modules?|a[- ]levels?|gcses?|distinction|merit|first[- ]class)\b/i
+// "Modules: Proteins; Quantum Mechanics" / "A Levels: Chemistry A*" — a labelled
+// line under a school is its detail unless the label itself names a degree.
+const EDU_DEGREE_LABEL_RE =
+  /\b(b\.?s\.?c?|b\.?a|m\.?s\.?c?|m\.?a|m\.?eng|b\.?eng|bachelor|master|ph\.?d|mba|diploma|certificate|degree)\b/i
+const isEduDetailLine = (line: string) => {
+  if (EDU_DETAIL_RE.test(line)) return true
+  const m = SKILL_LABEL_RE.exec(line)
+  return !!m && !EDU_DEGREE_LABEL_RE.test(m[1]) && !CUSTOM_HEADING_RE.test(m[1].trim())
+}
 
 /**
  * Pasted resume text can't express the target job or resume settings, so a
@@ -416,7 +452,7 @@ export function parseResumeText(raw: string): Resume {
       // and "Honors: Dean's List" under a school stays its detail; anywhere else
       // the line opens the section with the list as its first item.
       const inlineCustom =
-        section === 'skills' || (section === 'education' && EDU_DETAIL_RE.test(line))
+        section === 'skills' || (section === 'education' && isEduDetailLine(line))
           ? null
           : matchInlineCustomHeading(line)
       if (inlineCustom) {
@@ -514,8 +550,10 @@ export function parseResumeText(raw: string): Resume {
             }
           } else if (currentExp && !currentExp.company && !start && rest.length <= 60 && !looksLikeBodyLine(line)) {
             // second header line (e.g. company on its own line)
-            currentExp.role = currentExp.role.replace(/,$/, '').trim()
-            currentExp.company = rest
+            Object.assign(
+              currentExp,
+              orientRoleCompany({ role: currentExp.role.replace(/,$/, '').trim(), company: rest })
+            )
           } else if (currentExp && !start && looksLikeBodyLine(line) && !looksLikeWrappedHeader(line)) {
             // marker-less description line under the current entry
             currentExp.bullets.push(line)
@@ -557,10 +595,10 @@ export function parseResumeText(raw: string): Resume {
           currentEdu.startDate = start
           currentEdu.endDate = end
           if (more.length) currentEdu.details = [currentEdu.details, ...more].filter(Boolean).join('; ')
-        } else if (!start && currentEdu && EDU_DETAIL_RE.test(line)) {
+        } else if (!start && currentEdu && isEduDetailLine(line)) {
           currentEdu.details = [currentEdu.details, line].filter(Boolean).join('; ')
         } else {
-          const { role: degree, company: school, location: eduLoc } = splitRoleCompany(rest || line)
+          const { role: degree, company: school, location: eduLoc } = splitRoleCompanyRaw(rest || line)
           currentEdu = {
             ...emptyEducation(),
             id: newId(),
