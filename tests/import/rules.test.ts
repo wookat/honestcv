@@ -773,3 +773,59 @@ Analista de Mercado · Acme (2019 – 2021)
     expect(r.experience[0].bullets).toHaveLength(2)
   })
 })
+
+describe('a "Role · Company, Location" header wrapped around its binder rejoins (R792)', () => {
+  it('both wrap shapes our Sidebar export produces read as one header each; the year and the bullets stay with their entry', () => {
+    const r = cv(`EXPERIENCE
+Engineering Team Leader, Senior Scrum Master, Agile Transformation &
+Coaching · AT&T
+2023
+• Led the agile transformation of three product lines.
+Cloud Engineering, Global Program Manager, Agile Transformation & Coaching ·
+Ivanti, San Francisco Bay Area
+2016 – 2018
+• Ran the cloud migration programme.
+`)
+    expect(r.experience.map(({ role, company, location, startDate, endDate, bullets }) => ({ role, company, location, startDate, endDate, bullets }))).toEqual([
+      {
+        role: 'Engineering Team Leader, Senior Scrum Master, Agile Transformation & Coaching',
+        company: 'AT&T',
+        location: '',
+        startDate: '2023',
+        endDate: '2023',
+        bullets: ['Led the agile transformation of three product lines.'],
+      },
+      {
+        role: 'Cloud Engineering, Global Program Manager, Agile Transformation & Coaching',
+        company: 'Ivanti',
+        location: 'San Francisco Bay Area',
+        startDate: '2016',
+        endDate: '2018',
+        bullets: ['Ran the cloud migration programme.'],
+      },
+    ])
+  })
+
+  it('a bullet ending mid-phrase, a sentence, or a header followed by a bare date line are not rejoined', () => {
+    const r = cv(`EXPERIENCE
+Senior Engineer · Acme Corp
+2019 – 2021
+• Owned the payments platform, the checkout &
+the ledger service
+Shipped the redesign of the billing pages.
+Staff Engineer · Beta Ltd
+2021 – Present
+• Built the platform team.
+`)
+    expect(r.experience.map(({ role, company, startDate, endDate, bullets }) => ({ role, company, startDate, endDate, bullets }))).toEqual([
+      {
+        role: 'Senior Engineer',
+        company: 'Acme Corp',
+        startDate: '2019',
+        endDate: '2021',
+        bullets: ['Owned the payments platform, the checkout & the ledger service', 'Shipped the redesign of the billing pages.'],
+      },
+      { role: 'Staff Engineer', company: 'Beta Ltd', startDate: '2021', endDate: 'Present', bullets: ['Built the platform team.'] },
+    ])
+  })
+})

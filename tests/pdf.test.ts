@@ -87,10 +87,11 @@ describe('a LinkedIn-shaped resume survives our PDF export (R787)', () => {
     experience: r.experience.map(({ role, company, location, startDate, endDate, bullets }) => ({ role, company, location, startDate, endDate, bullets })),
   })
 
-  // Sidebar's narrow column wraps the 78-character role before its " · " (a
-  // header split ahead of the binder) — not rejoined yet; see plan-r787.
-  it('every full-width template re-imports contact, summary and the three entries field for field', async () => {
-    for (const t of TEMPLATES.filter((t) => t.id !== 'sidebar')) {
+  // Sidebar's narrow column wraps the 78-character roles around their " · "
+  // ("… Transformation &" + "Coaching · AT&T", "… Coaching ·" + "Ivanti, San
+  // Francisco Bay Area"); the importer rejoins both shapes (R792).
+  it('every template re-imports contact, summary and the three entries field for field', async () => {
+    for (const t of TEMPLATES) {
       const { text } = await pdfTextOf(await buildResumePdf({ ...src, templateId: t.id }))
       expect(pick(parseResumeText(text)), t.id).toEqual(pick(src))
     }
