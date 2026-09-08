@@ -829,3 +829,79 @@ Staff Engineer · Beta Ltd
     ])
   })
 })
+
+describe('the company-info line under an entry header is companyInfo, not a new entry (R794)', () => {
+  const pick = (r: Resume) =>
+    r.experience.map(({ role, company, location, startDate, endDate, companyInfo, bullets }) => ({
+      role,
+      company,
+      location,
+      startDate,
+      endDate,
+      companyInfo: companyInfo ?? '',
+      bullets,
+    }))
+
+  it('our own TXT and Markdown exports re-import the line as companyInfo on every entry, bullets or not', () => {
+    const src = sampleResume()
+    src.experience = [
+      { ...src.experience[0], companyInfo: 'Series B fintech, ~200 people, B2B payments' },
+      { ...src.experience[1], companyInfo: 'Fortune 500 retailer with 12,000 employees' },
+      { ...src.experience[0], id: 'x3', role: 'Intern', company: 'Verdant Labs', startDate: 'Jun 2020', endDate: 'Aug 2020', companyInfo: 'Early-stage climate startup (YC W21)', bullets: [] },
+    ]
+    for (const [name, text] of [
+      ['txt', resumeToPlainText(src, { keepLinkUrls: true })],
+      ['md', resumeToMarkdown(src)],
+    ] as const) {
+      expect(pick(parseResumeText(text)), name).toEqual(pick(src))
+    }
+  })
+
+  it('a marker-less bullet list, an action-verb line and an undated next header stay what they are', () => {
+    // Canva-shaped export: no bullet glyphs, no terminal punctuation
+    const canva = cv(`EXPERIENCE
+Operations Manager · Arowwai Industries
+Oct 2020 – Present
+Collaborate with top management to develop and implement strategic plans
+Identify opportunities for process optimization and implement changes
+Business Development Manager · Hanover and Tyke
+Nov 2018 – Sept 2020
+Conducted market research to identify potential business opportunities
+`)
+    expect(pick(canva).map((e) => [e.role, e.companyInfo, e.bullets.length])).toEqual([
+      ['Operations Manager', '', 2],
+      ['Business Development Manager', '', 1],
+    ])
+    // a single marker-less past-tense line followed by the next header
+    const verb = cv(`EXPERIENCE
+Barista · Giggling Platypus Co.
+July 2020 – Jan 2022
+Educated customers about different coffee beans, flavor profiles, and brewing methods
+Software Engineer · Brightlane
+Jun 2023 – Present
+- Shipped the checkout redesign.
+`)
+    expect(pick(verb).map((e) => [e.role, e.companyInfo, e.bullets])).toEqual([
+      ['Barista', '', ['Educated customers about different coffee beans, flavor profiles, and brewing methods']],
+      ['Software Engineer', '', ['Shipped the checkout redesign.']],
+    ])
+    // an undated "Role at Company" header right after a bullet-less dated entry
+    const header = cv(`EXPERIENCE
+Software Engineer at Brightlane (Jun 2023 – Present)
+Junior developer at Nova Retail
+- Built the loyalty microsite.
+`)
+    expect(pick(header).map((e) => [e.role, e.company, e.companyInfo])).toEqual([
+      ['Software Engineer', 'Brightlane', ''],
+      ['Junior developer', 'Nova Retail', ''],
+    ])
+    // a location line under the header is still the location
+    const place = cv(`EXPERIENCE
+Software Engineer · Brightlane
+Jun 2023 – Present
+Austin, TX
+- Built the loyalty microsite.
+`)
+    expect(pick(place)[0]).toMatchObject({ location: 'Austin, TX', companyInfo: '' })
+  })
+})

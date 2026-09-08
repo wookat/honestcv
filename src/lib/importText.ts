@@ -18,6 +18,7 @@ import {
   newId,
 } from './resume'
 import { plainResumeText } from './markdownText'
+import { ACTION_VERBS } from './guidance'
 
 const EMAIL_RE = /[^\s@|,;]+@[^\s@|,;]+\.[a-z]{2,}/i
 const PHONE_RE = /(\+?\(?\d[\d\s().-]{5,}\d)/
@@ -624,6 +625,35 @@ const joinWrappedHeader = (line: string, next: string | undefined): string | nul
     return joined
   return null
 }
+// "Series B fintech, ~200 people, B2B payments" — the one-line company
+// description the product prints (PDF / DOCX / TXT / MD) right under a
+// complete entry header, before the bullets. It is a noun phrase with several
+// ordinary lowercase words — not a "Role · Company" / "Role at Company"
+// header (whose lowercase words are only binders), not a sentence (no
+// terminal punctuation), not a bullet (does not open with an action verb), and
+// the line after it is a marked bullet, a dated header, a heading or the end
+// of the text — never another marker-less prose line, which is how a
+// marker-less bullet list starts.
+const BINDER_WORD_RE = /^(?:at|of|the|and|or|for|de|du|da|del|la|le|von|van|&|-|–|—|to|in)$/
+const STRONG_VERBS = new Set(ACTION_VERBS.flatMap((g) => g.verbs.map((v) => v.toLowerCase())))
+const isCompanyInfoLine = (line: string, next: string | undefined) => {
+  if (line.length > 90 || /[.!?;:]$/.test(line)) return false
+  if (/\s[·|]\s|\s[—–]\s|\bat\s+[A-Z]/.test(line)) return false
+  if (isBullet(line) || extractDates(line).start || isExpPlaceLine(line)) return false
+  const first = line.split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, '')
+  if (STRONG_VERBS.has(first) || /^[a-z]+ed$/.test(first)) return false
+  const lower = line
+    .split(/\s+/)
+    .filter((w) => /^[a-zà-ÿ]/.test(w) && !BINDER_WORD_RE.test(w.replace(/[,()]/g, '')))
+  if (lower.length < 2) return false
+  return (
+    next === undefined ||
+    isBullet(next) ||
+    !!extractDates(next).start ||
+    !!matchHeading(next) ||
+    !!matchCustomHeading(next)
+  )
+}
 // "email | phone | City, ST | linkedin" — the header's contact row
 const isContactRow = (line: string) =>
   EMAIL_RE.test(line) || PHONE_RE.test(line) || LINKEDIN_RE.test(line) || URL_RE.test(line)
@@ -971,6 +1001,17 @@ export function parseResumeText(input: string): Resume {
               currentExp,
               orientRoleCompany({ role: currentExp.role.replace(/,$/, '').trim(), company: rest })
             )
+          } else if (
+            currentExp &&
+            currentExp.role &&
+            currentExp.company &&
+            currentExp.startDate &&
+            !currentExp.companyInfo &&
+            currentExp.bullets.length === 0 &&
+            isCompanyInfoLine(line, lines[nextNonEmptyIndex(lines, i)])
+          ) {
+            // one-line company description under a complete entry header
+            currentExp.companyInfo = line
           } else if (
             currentExp &&
             !start &&

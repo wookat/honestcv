@@ -129,11 +129,38 @@ describe('page breaks keep bullets and entry headers whole (R793)', () => {
         const last = rows[rows.length - 1]
         expect(headers.has(last) || /^(Jan|Dec) 20\d\d/.test(last) || last === 'Series B fintech, 200 people', `${t.id}: page ends on "${last}"`).toBe(false)
       }
-      // the companyInfo line re-imports as its own header (queued, not a
-      // page-break matter); the seven real headers and every bullet must be there
       const back = parseResumeText(text)
-      expect(back.experience.filter((e) => e.role.endsWith('Engineer')).length, t.id).toBe(7)
+      expect(back.experience.map((e) => e.companyInfo ?? ''), t.id).toEqual(src.experience.map((e) => e.companyInfo ?? ''))
       expect(back.experience.flatMap((e) => e.bullets), t.id).toEqual(bullets)
+    }
+  })
+})
+
+describe('the company-info line under an entry header re-imports as companyInfo (R794)', () => {
+  const src = sampleResume()
+  src.experience = src.experience.map((e, i) => ({
+    ...e,
+    companyInfo: [
+      'Series B fintech, ~200 people, B2B payments',
+      'Fortune 500 retailer with 12,000 employees',
+      'Early-stage climate startup (YC W21)',
+    ][i % 3],
+  }))
+  const pick = (r: Resume) =>
+    r.experience.map(({ role, company, location, startDate, endDate, companyInfo, bullets }) => ({
+      role,
+      company,
+      location,
+      startDate,
+      endDate,
+      companyInfo: companyInfo ?? '',
+      bullets,
+    }))
+
+  it('every template re-imports the experience entries field for field, company info included', async () => {
+    for (const t of TEMPLATES) {
+      const { text } = await pdfTextOf(await buildResumePdf({ ...src, templateId: t.id }))
+      expect(pick(parseResumeText(text)), t.id).toEqual(pick(src))
     }
   })
 })

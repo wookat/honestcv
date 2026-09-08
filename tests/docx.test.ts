@@ -90,3 +90,18 @@ describe('Word list paragraphs (R785)', () => {
     expect(text).toBe('• First\nSecond')
   })
 })
+
+describe('the company-info paragraph re-imports as companyInfo (R794)', () => {
+  it('DOCX and TXT exports of an entry with company info parse to the same fields', async () => {
+    const src = sampleResume()
+    src.experience = src.experience.map((e, i) => ({
+      ...e,
+      companyInfo: ['Series B fintech, ~200 people, B2B payments', 'Fortune 500 retailer with 12,000 employees'][i % 2],
+    }))
+    const file = new File([await buildResumeDocx(src)], 'jordan-reyes-resume.docx')
+    const { text } = await extractResumeFile(file)
+    const back = parseResumeText(text)
+    expect(back.experience.map((e) => e.companyInfo)).toEqual(src.experience.map((e) => e.companyInfo))
+    expect(stripIds(back)).toEqual(stripIds(parseResumeText(resumeToPlainText(src))))
+  })
+})
