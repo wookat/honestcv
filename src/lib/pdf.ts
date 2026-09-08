@@ -52,6 +52,7 @@ import {
   bulletIndentOf,
   contactIconsOf,
   experienceDateRange,
+  resumeLanguageOf,
   familyOf,
   textInkOf,
   type FontFamilyKind,
@@ -857,7 +858,7 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
           if (g.grouped) entryRule(ei++)
           w.gap(g.grouped ? 2 : 4)
           w.ensure(34) // keep the entry header with its first bullet
-          const dates = experienceDateRange(e.startDate, e.endDate)
+          const dates = experienceDateRange(e.startDate, e.endDate, resumeLanguageOf(resume))
           const { head, tail } = experienceHeadingParts(e, g.grouped)
           w.titleLine(head + tail, dates, { size: 10.5 })
           if (e.companyInfo?.trim()) {

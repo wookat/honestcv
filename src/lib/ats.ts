@@ -450,8 +450,10 @@ const NEXT_SECTION_RE = headingLineRe(
     SECTION_KEYS.filter((k) => k !== 'summary' && k !== 'experience')
   )}`
 )
-const DATE_RANGE_RE =
-  /((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2})\s*(?:[–—-]|to)\s*((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2}|present|current|now|ongoing)/gi
+const DATE_RANGE_RE = new RegExp(
+  String.raw`((?:19|20)\d{2}|\p{L}{3,10}\.?[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2})\s*(?:[–—-]|to)\s*((?:19|20)\d{2}|\p{L}{3,10}\.?[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2}|${ONGOING_WORD_ALTERNATION})`,
+  'giu'
+)
 
 /** Experience block of pasted text: from the experience heading to the next standard heading */
 function experienceBlock(raw: string): string | null {
@@ -505,7 +507,7 @@ function textBulletCounts(raw: string): { name: string; count: number }[] {
   })
 }
 
-const MONTH_YEAR_RE = /^[a-z]{3,9}\.?[ ,./-]*(?:19|20)\d{2}$/i
+const MONTH_YEAR_RE = /^\p{L}{3,10}\.?[ ,./-]*(?:19|20)\d{2}$/iu
 const NUMERIC_DATE_RE = /^\d{1,2}[/.-](?:19|20)\d{2}$/
 
 /** Date style: named month + year vs numeric month + year; anything else is skipped */
@@ -1806,6 +1808,7 @@ export function bestExperienceForKeyword(
 import type { Resume } from './resume'
 import {
   ONGOING_RE,
+  ONGOING_WORD_ALTERNATION,
   SECTION_KEYS,
   dateSortValue,
   defaultSectionLabels,

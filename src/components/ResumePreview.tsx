@@ -760,7 +760,7 @@ function SectionBlock({
                   </p>
                   {(e.startDate || e.endDate) && (
                     <p className="text-[10px] text-neutral-500 italic">
-                      {experienceDateRange(e.startDate, e.endDate)}
+                      {experienceDateRange(e.startDate, e.endDate, resumeLanguageOf(resume))}
                     </p>
                   )}
                 </div>

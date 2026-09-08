@@ -59,6 +59,7 @@ import {
   skillLines,
   bulletIndentOf,
   experienceDateRange,
+  resumeLanguageOf,
   familyOf,
   TEXT_INKS,
   textInkOf,
@@ -289,7 +290,7 @@ export async function buildResumeDocx(resume: Resume): Promise<Blob> {
         }
         let ei = 0
         for (const e of g.entries) {
-          const dates = experienceDateRange(e.startDate, e.endDate)
+          const dates = experienceDateRange(e.startDate, e.endDate, resumeLanguageOf(resume))
           const { head, tail } = experienceHeadingParts(e, g.grouped)
           children.push(
             new Paragraph({
