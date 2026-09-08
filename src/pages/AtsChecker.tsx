@@ -205,7 +205,12 @@ export default function AtsChecker() {
   // The report is frozen at the inputs of the last explicit check, so typing
   // never rescores (or hides) it. Edits surface an honest stale notice instead.
   const result = useMemo(
-    () => (scan ? scoreResumeText(scan.resumeText, scan.jd) : null),
+    () =>
+      scan
+        ? scoreResumeText(scan.resumeText, scan.jd, {
+            sectionHeadings: loadResume()?.sectionHeadings,
+          })
+        : null,
     [scan]
   )
   const stale = scan !== null && (resumeText !== scan.resumeText || jd !== scan.jd)

@@ -98,3 +98,61 @@ describe('dates written in the product languages (R791)', () => {
     expect(check(text, 'Dates use a written month')?.hint).toMatch(/"03\/2023" is numeric/)
   })
 })
+
+describe('ATS check on the export of a resume with renamed headings (R796)', () => {
+  const JD = 'Requirements:\n- React and TypeScript\n- Node.js, PostgreSQL and AWS'
+  const checks = (text: string, sectionHeadings?: Partial<Record<string, string>>) =>
+    scoreResumeText(text, JD, { sectionHeadings }).checks.map((c) => `${c.label}=${c.pass}`)
+  const base = sampleResume()
+  const baseTxt = resumeToPlainText(base, { keepLinkUrls: true })
+  const renamed = (sectionHeadings: Partial<Record<string, string>>) => {
+    const r = { ...base, sectionHeadings: { ...base.sectionHeadings, ...sectionHeadings } }
+    return { r, txt: resumeToPlainText(r, { keepLinkUrls: true }), md: resumeToMarkdown(r) }
+  }
+
+  it.each(['Work History', 'Employment History', 'Career History', 'Professional Experience'])(
+    'an experience section headed "%s" is read like "Experience" without any hint',
+    (label) => {
+      const { txt, md } = renamed({ experience: label })
+      expect(txt).toMatch(new RegExp(`^${label}$`, 'im'))
+      expect(checks(txt)).toEqual(checks(baseTxt))
+      expect(checks(md)).toEqual(checks(baseTxt))
+    }
+  )
+
+  it('an arbitrary experience / education / skills rename runs every check when the ATS checker knows the resume', () => {
+    const { r, txt } = renamed({
+      experience: 'Where I have worked',
+      education: 'Academic Background',
+      skills: 'Tools & Technologies',
+    })
+    const blind = scoreResumeText(txt, JD)
+    expect(blind.checks.filter((c) => !c.na)).toHaveLength(17)
+    const hinted = scoreResumeText(txt, JD, { sectionHeadings: r.sectionHeadings })
+    expect(hinted.checks.filter((c) => !c.na)).toHaveLength(22)
+    expect(hinted.checks.map((c) => c.label)).toContain('3–6 bullet points per role')
+    const bullets = hinted.checks.find((c) => c.label === '3–6 bullet points per role')
+    const baseBullets = scoreResumeText(baseTxt, JD).checks.find((c) => c.label === '3–6 bullet points per role')
+    expect(bullets?.pass).toBe(baseBullets?.pass)
+    expect(hinted.checks.find((c) => c.label === 'Skills section present')?.pass).toBe(true)
+    const headings = hinted.checks.find((c) => c.label === 'Standard section headings')
+    expect(headings?.pass).toBe(false)
+    expect(headings?.hint).toContain('"Where I have worked"')
+    expect(headings?.hint).toContain('"Academic Background"')
+    expect(scoreResumeText(txt, JD, { sectionHeadings: r.sectionHeadings }).score).toBeGreaterThan(blind.score)
+  })
+
+  it('the hint only names section-heading lines, not prose that repeats the label', () => {
+    const plain =
+      'Jane Doe\njane@example.com\n\nExperience\nEngineer at Acme (2020 – 2021)\n- Built the Toolbox pipeline for 3 teams\n- Cut costs 20%\n- Led 3 people\n\nEducation\nBSc, Uni (2016 – 2019)\n\nToolbox\nTypeScript, React'
+    const hinted = scoreResumeText(plain, '', { sectionHeadings: { skills: 'Toolbox' } })
+    expect(hinted.checks.find((c) => c.label === 'Skills section present')?.pass).toBe(true)
+    const counts = hinted.checks.find((c) => c.label === '3–6 bullet points per role')
+    expect(counts?.pass).toBe(true)
+  })
+
+  it('a resume without renamed headings scores exactly as before when a hint is passed', () => {
+    expect(checks(baseTxt, base.sectionHeadings ?? {})).toEqual(checks(baseTxt))
+    expect(checks(baseTxt, { experience: 'Work History' })).toEqual(checks(baseTxt))
+  })
+})

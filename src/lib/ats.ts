@@ -427,46 +427,92 @@ function reverseChronCheck(
   }
 }
 
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-/** Alternation of every default heading the product prints (all languages) for the given section keys */
-function ownHeadingAlternation(keys: readonly string[]): string {
-  const labels = new Set<string>()
-  for (const { key, label } of defaultSectionLabels())
-    if (keys.includes(key)) labels.add(escapeRe(label.toLowerCase()))
-  return [...labels].join('|')
+/** Every default heading the product prints (all languages), lower-cased, → its section key */
+const OWN_HEADING_KEYS = new Map<string, string>()
+for (const { key, label } of defaultSectionLabels()) OWN_HEADING_KEYS.set(label.toLowerCase(), key)
+/** Section a heading-shaped line opens, or 'custom' for a section without a field (Awards, Languages, …), or null */
+function textHeadingSection(line: string): string | null {
+  const t = line.trim().replace(/[:：]$/, '').trim()
+  if (!t) return null
+  const own = OWN_HEADING_KEYS.get(t.toLowerCase())
+  if (own) return own
+  if (/^(?:work |professional |employment )?experience$/i.test(t)) return 'experience'
+  if (/^(?:technical |core |key )?skills$/i.test(t)) return 'skills'
+  if (/^(?:education|projects)$/i.test(t)) return t.toLowerCase()
+  if (/^certifications?$/i.test(t)) return 'certifications'
+  if (/^(?:awards|publications|languages|interests|volunteer(?:ing)?|involvement)$/i.test(t)) return 'custom'
+  const named = sectionNamedByHeading(t)
+  if (named) return named
+  return CUSTOM_HEADING_RE.test(t) && looksLikeHeadingShape(t) ? 'custom' : null
 }
-const headingLineRe = (alternation: string) => new RegExp(`^\\s*(?:${alternation})\\s*:?\\s*$`, 'im')
+type HeadingLookup = (line: string) => string | null
 
-const EXPERIENCE_HEADING_RE = headingLineRe(
-  `(?:work |professional |employment )?experience|${ownHeadingAlternation(['experience'])}`
+/** `textHeadingSection` that also knows the labels a resume's owner gave its sections ("Where I have worked" → experience) */
+export function textHeadingLookup(sectionHeadings?: Partial<Record<string, string>>): HeadingLookup {
+  const custom = new Map<string, string>()
+  for (const [key, label] of Object.entries(sectionHeadings ?? {}))
+    if (label?.trim()) custom.set(label.trim().toLowerCase(), key)
+  if (custom.size === 0) return textHeadingSection
+  return (line) =>
+    custom.get(line.trim().replace(/[:：]$/, '').trim().toLowerCase()) ?? textHeadingSection(line)
+}
+/** First line of `raw` that heads a section accepted by `wanted` (offset of the line, length through its newline) */
+function findTextHeading(
+  raw: string,
+  wanted: (key: string) => boolean,
+  lookup: HeadingLookup = textHeadingSection
+): { index: number; length: number } | null {
+  let index = 0
+  while (index < raw.length) {
+    const nl = raw.indexOf('\n', index)
+    const end = nl === -1 ? raw.length : nl + 1
+    const key = lookup(raw.slice(index, end))
+    if (key !== null && wanted(key)) return { index, length: end - index }
+    index = end
+  }
+  return null
+}
+const isExperience = (k: string) => k === 'experience'
+const isAfterExperience = (k: string) => k !== 'summary' && k !== 'experience'
+const hasTextHeading = (raw: string, key: string, lookup: HeadingLookup = textHeadingSection) =>
+  findTextHeading(raw, (k) => k === key, lookup) !== null
+/** "Skills: Java, SQL" / "Core Competencies: …" — a skills heading that carries its first line */
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const SKILLS_INLINE_RE = new RegExp(
+  `(?:${[...OWN_HEADING_KEYS]
+    .filter(([, k]) => k === 'skills')
+    .map(([l]) => escapeRe(l))
+    .join('|')}):`,
+  'i'
 )
-const EDUCATION_HEADING_RE = headingLineRe(ownHeadingAlternation(['education']))
-const SKILLS_HEADING_RE = headingLineRe(
-  `(?:technical |core |key )?skills|${ownHeadingAlternation(['skills'])}`
-)
-const SKILLS_INLINE_RE = new RegExp(`(?:${ownHeadingAlternation(['skills'])}):`, 'i')
-const NEXT_SECTION_RE = headingLineRe(
-  `education|(?:technical |core |key )?skills|projects|certifications?|awards|publications|languages|interests|volunteer(?:ing)?|involvement|${ownHeadingAlternation(
-    SECTION_KEYS.filter((k) => k !== 'summary' && k !== 'experience')
-  )}`
-)
+function hasInlineSkillsHeading(raw: string, lookup: HeadingLookup = textHeadingSection): boolean {
+  if (SKILLS_INLINE_RE.test(raw)) return true
+  for (const line of raw.split('\n')) {
+    const m = /^([^:：]{1,40})[:：]\s+\S/.exec(line)
+    if (m && lookup(m[1]) === 'skills') return true
+  }
+  return false
+}
 const DATE_RANGE_RE = new RegExp(
   String.raw`((?:19|20)\d{2}|\p{L}{3,10}\.?[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2})\s*(?:[–—-]|to)\s*((?:19|20)\d{2}|\p{L}{3,10}\.?[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2}|${ONGOING_WORD_ALTERNATION})`,
   'giu'
 )
 
 /** Experience block of pasted text: from the experience heading to the next standard heading */
-function experienceBlock(raw: string): string | null {
-  const heading = EXPERIENCE_HEADING_RE.exec(raw)
+function experienceBlock(raw: string, lookup: HeadingLookup = textHeadingSection): string | null {
+  const heading = findTextHeading(raw, isExperience, lookup)
   if (!heading) return null
-  const after = raw.slice(heading.index + heading[0].length)
-  const next = NEXT_SECTION_RE.exec(after)
+  const after = raw.slice(heading.index + heading.length)
+  const next = findTextHeading(after, isAfterExperience, lookup)
   return next ? after.slice(0, next.index) : after
 }
 
 /** Pasted text split at the experience heading: summary-ish head, experience-onward tail */
-function textPronounSegments(raw: string): { text: string; anchor: SectionAnchor }[] {
-  const heading = EXPERIENCE_HEADING_RE.exec(raw)
+function textPronounSegments(
+  raw: string,
+  lookup: HeadingLookup = textHeadingSection
+): { text: string; anchor: SectionAnchor }[] {
+  const heading = findTextHeading(raw, isExperience, lookup)
   if (!heading) return [{ text: raw, anchor: 'summary' }]
   return [
     { text: raw.slice(0, heading.index), anchor: 'summary' },
@@ -475,8 +521,11 @@ function textPronounSegments(raw: string): { text: string; anchor: SectionAnchor
 }
 
 /** Date ranges ("Jun 2023 – Present", "2019-2021") in the experience block of pasted text */
-function textDateRanges(raw: string): { name: string; start: string; end: string }[] {
-  const block = experienceBlock(raw)
+function textDateRanges(
+  raw: string,
+  lookup: HeadingLookup = textHeadingSection
+): { name: string; start: string; end: string }[] {
+  const block = experienceBlock(raw, lookup)
   if (block === null) return []
   const ranges: { name: string; start: string; end: string }[] = []
   for (const m of block.matchAll(DATE_RANGE_RE)) {
@@ -496,8 +545,11 @@ const countBulletLines = (text: string) =>
  * Empty when there is no experience heading, no date range, or no
  * bullet-marker lines at all (pasting often strips markers).
  */
-function textBulletCounts(raw: string): { name: string; count: number }[] {
-  const block = experienceBlock(raw)
+function textBulletCounts(
+  raw: string,
+  lookup: HeadingLookup = textHeadingSection
+): { name: string; count: number }[] {
+  const block = experienceBlock(raw, lookup)
   if (block === null || countBulletLines(block) === 0) return []
   const matches = [...block.matchAll(DATE_RANGE_RE)]
   return matches.map((m, i) => {
@@ -931,9 +983,10 @@ const LOCATION_LIKE_RE =
  * text).
  */
 function textEntryLocations(
-  raw: string
+  raw: string,
+  lookup: HeadingLookup = textHeadingSection
 ): { name: string; located: boolean; anchor: SectionAnchor }[] {
-  const block = experienceBlock(raw)
+  const block = experienceBlock(raw, lookup)
   if (block === null) return []
   const matches = [...block.matchAll(DATE_RANGE_RE)]
   const headerStart = (m: RegExpExecArray | RegExpMatchArray, floor: number) => {
@@ -1654,11 +1707,20 @@ export function matchReport(
   }
 }
 
+export type TextScoreOptions = {
+  /** The reader's own section headings (Builder renames), so its export is read like its structured resume */
+  sectionHeadings?: Partial<Record<string, string>>
+}
+
 /** Score pasted resume text (standalone ATS checker page) */
-export function scoreResumeText(input: string, jd: string): AtsResult {
+export function scoreResumeText(input: string, jd: string, options: TextScoreOptions = {}): AtsResult {
   const resumeTextRaw = plainResumeText(input)
   const idx = indexResumeText(resumeTextRaw)
   const resumeText = idx.text
+  const lookup = textHeadingLookup(options.sectionHeadings)
+  const nonStandard = ['experience', 'education']
+    .map((k) => options.sectionHeadings?.[k]?.trim() ?? '')
+    .filter((label) => label && textHeadingSection(label) === null)
 
   const keywords = jd.trim() ? extractKeywords(jd) : []
   const { matched, missing, variants } = splitKeywords(keywords, idx)
@@ -1680,14 +1742,16 @@ export function scoreResumeText(input: string, jd: string): AtsResult {
     },
     {
       label: 'Standard section headings',
-      pass: EXPERIENCE_HEADING_RE.test(resumeText) && EDUCATION_HEADING_RE.test(resumeText),
-      hint: 'Use standard headings like "Experience" and "Education" (or their equivalents in your resume\'s language) so parsers find them.',
+      pass: hasTextHeading(resumeTextRaw, 'experience') && hasTextHeading(resumeTextRaw, 'education'),
+      hint: nonStandard.length
+        ? `${nonStandard.map((l) => `"${l}"`).join(' / ')} is not a heading ATS parsers look for — use "Experience" / "Education" (or their equivalents in your resume's language) so they find the section.`
+        : 'Use standard headings like "Experience" and "Education" (or their equivalents in your resume\'s language) so parsers find them.',
       anchor: 'experience',
       category: 'format',
     },
     {
       label: 'Skills section present',
-      pass: SKILLS_HEADING_RE.test(resumeText) || SKILLS_INLINE_RE.test(resumeText),
+      pass: hasTextHeading(resumeTextRaw, 'skills', lookup) || hasInlineSkillsHeading(resumeTextRaw, lookup),
       hint: 'A dedicated skills list is the easiest keyword match for ATS.',
       anchor: 'skills',
       category: 'bestPractices',
@@ -1714,20 +1778,20 @@ export function scoreResumeText(input: string, jd: string): AtsResult {
       category: 'content',
     },
     wordCountCheck(resumeTextRaw, 'experience'),
-    reverseChronCheck(textDateRanges(resumeTextRaw)),
-    bulletsPerEntryCheck(textBulletCounts(resumeTextRaw)),
-    dateFormatCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
-    namedMonthDatesCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
-    pronounCheck(textPronounSegments(resumeTextRaw)),
+    reverseChronCheck(textDateRanges(resumeTextRaw, lookup)),
+    bulletsPerEntryCheck(textBulletCounts(resumeTextRaw, lookup)),
+    dateFormatCheck(textDateRanges(resumeTextRaw, lookup).flatMap((r) => [r.start, r.end])),
+    namedMonthDatesCheck(textDateRanges(resumeTextRaw, lookup).flatMap((r) => [r.start, r.end])),
+    pronounCheck(textPronounSegments(resumeTextRaw, lookup)),
     activeVoiceCheck(textBulletSources(resumeTextRaw)),
     weakOpenerCheck(textBulletSources(resumeTextRaw)),
     quantifiedBulletsCheck(textBulletSources(resumeTextRaw)),
     punctuatedBulletsCheck(textBulletSources(resumeTextRaw)),
     bulletLengthCheck(textBulletSources(resumeTextRaw)),
-    buzzwordCheck(textPronounSegments(resumeTextRaw)),
-    fillerWordCheck(textPronounSegments(resumeTextRaw)),
+    buzzwordCheck(textPronounSegments(resumeTextRaw, lookup)),
+    fillerWordCheck(textPronounSegments(resumeTextRaw, lookup)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
-    entryLocationsCheck(textEntryLocations(resumeTextRaw)),
+    entryLocationsCheck(textEntryLocations(resumeTextRaw, lookup)),
   ]
 
   return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, idx, jd, variants), variants)
@@ -1809,7 +1873,6 @@ import type { Resume } from './resume'
 import {
   ONGOING_RE,
   ONGOING_WORD_ALTERNATION,
-  SECTION_KEYS,
   dateSortValue,
   defaultSectionLabels,
   educationEntries,
@@ -1817,6 +1880,7 @@ import {
   skillLines,
 } from './resume'
 import { stripInlineMarks } from './marks'
+import { CUSTOM_HEADING_RE, looksLikeHeadingShape, sectionNamedByHeading } from './sectionWords'
 
 export function scoreResume(
   resume: Resume,
