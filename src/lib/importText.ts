@@ -41,6 +41,7 @@ type SectionName =
 const SECTION_HEADINGS: [RegExp, SectionName][] = [
   [/^(professional\s+)?(summary|profile|objective|about)\b/i, 'summary'],
   [/^((work|professional)\s+)?(experience|employment|work\s+history)\b/i, 'experience'],
+  [/^work$/i, 'experience'],
   [/^education\b/i, 'education'],
   [/^(technical\s+)?skills?\b/i, 'skills'],
   [/^projects?\b/i, 'projects'],
@@ -66,7 +67,7 @@ const LETTER_SPACED_RE = /^(?:[A-Za-z&/] ){3,}[A-Za-z&/]$/
 const HEADING_WORD_RE = /^(?:[A-Z][A-Za-z&/'’-]*|&|\/|and|of|or|in|the)$/
 // "Project Manager" / "Customer Experience Lead" are entry headers, not sections.
 const JOB_TITLE_NOUN_RE =
-  /\b(manager|engineer|developer|analyst|director|lead|specialist|coordinator|assistant|consultant|intern|officer|head|designer|architect|administrator|trainer|teacher|nurse|technician|associate|representative|executive|founder|owner|president|vp|supervisor|advisor|adviser|counsel|accountant|scientist|researcher|writer|editor|recruiter|planner|strategist|agent|clerk|operator|driver|chef|cook|server|barista|cashier|volunteer|partner|fellow|professor|lecturer|instructor|tutor|mentor|ambassador|apprentice|trainee|waiter|waitress|receptionist|paralegal|secretary|treasurer)\b/i
+  /\b(manager|engineer|developer|analyst|director|lead|specialist|coordinator|assistant|consultant|intern|officer|head|designer|architect|administrator|trainer|teacher|nurse|technician|associate|representative|executive|founder|owner|president|vp|supervisor|advisor|adviser|counsel|accountant|scientist|researcher|writer|editor|recruiter|planner|strategist|agent|clerk|operator|driver|chef|cook|server|barista|cashier|volunteer|partner|fellow|professor|lecturer|instructor|tutor|mentor|ambassador|apprentice|trainee|waiter|waitress|receptionist|paralegal|secretary|treasurer|leader)\b/i
 const looksLikeHeadingShape = (t: string) => {
   if (t.length > 48 || /[.,;:!?()\d]/.test(t)) return false
   const words = t.split(/\s+/)
@@ -184,13 +185,20 @@ function joinSkillLines(lines: string[]): string {
 const LI_PAGE_RE = /^page \d+ of \d+$/i
 const LI_DURATION_RE = /\s*\((?:less than a year|\d+\s+years?(?:\s+\d+\s+months?)?|\d+\s+months?)\)\s*$/i
 
+/**
+ * A LinkedIn "Save to PDF" export (or its pasted text) carries the profile URL,
+ * a `<user> (LinkedIn)` contact row, a Top Skills sidebar and page footers; a
+ * résumé that merely lists `<user> (LinkedIn)` among its links has one of them.
+ */
 export function looksLikeLinkedInExport(raw: string): boolean {
-  return (
-    /^\S+\s+\(LinkedIn\)$/im.test(raw) ||
-    /^top skills$/im.test(raw) ||
-    (LINKEDIN_RE.test(raw) &&
-      raw.split(/\r?\n/).some((l) => LI_PAGE_RE.test(l.trim())))
-  )
+  const lines = raw.split(/\r?\n/).map((l) => l.trim())
+  const markers = [
+    lines.some((l) => /^\S+\s+\(LinkedIn\)$/i.test(l)),
+    lines.some((l) => /^top skills$/i.test(l)),
+    lines.some((l) => LI_PAGE_RE.test(l)),
+    LINKEDIN_RE.test(raw),
+  ].filter(Boolean).length
+  return markers >= 2
 }
 
 /** First phone-like match that isn't actually a year range like "2010 - 2014". */
@@ -319,6 +327,8 @@ function splitRoleCompanyRaw(text: string): { role: string; company: string; loc
   for (const sep of seps) {
     const parts = text.split(sep)
     if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
+      // "Software Engineer III, Team Leader" — two titles, no employer
+      if (sep.source.includes(',') && parts.every((p) => JOB_TITLE_NOUN_RE.test(p))) break
       const company = parts.slice(1).join(', ').trim()
       // "Role — Company, City, ST" — peel a trailing location off the company
       const loc = company.match(/,\s*([A-Za-z .'-]+,\s*[A-Z]{2}|Remote)$/)
@@ -358,6 +368,18 @@ const SCHOOL_RE =
 const EDU_GRAD_RE = /^(?:expected|anticipated|graduat(?:ed|ing|ion))\b|\b(?:expected|anticipated) graduation\b/i
 const isEduPlaceLine = (line: string) =>
   PLACE_RE.test(line) && line.includes(',') && !SCHOOL_RE.test(line) && !EDU_DEGREE_RE.test(line)
+// "Buffalo, NY" / "Berlin, Germany" — never an employer ("Acme, Inc") or a title
+const isExpPlaceLine = (line: string) =>
+  isEduPlaceLine(line) &&
+  line.length <= 40 &&
+  line.split(',').every((p) => /^\s*[A-ZÀ-Þ]/.test(p)) &&
+  !JOB_TITLE_NOUN_RE.test(line) &&
+  !/\b(?:inc|llc|ltd|gmbh|corp|co|plc|limited|sa|ag|pty)\b\.?$/i.test(line)
+// "Kubernetes, Minikube, Helm, Rust" — three or more short comma-separated names
+const isTagList = (line: string) => {
+  const parts = line.split(',').map((p) => p.trim())
+  return parts.length >= 3 && !/[.:;!?]$/.test(line) && parts.every((p) => p && p.split(/\s+/).length <= 3)
+}
 // A line that names a degree and is not a "Label: items" detail row
 const isDegreeLine = (text: string) => {
   const label = SKILL_LABEL_RE.exec(text)
@@ -434,14 +456,20 @@ export function parseResumeText(raw: string): Resume {
   const text = raw
 
   const email = text.match(EMAIL_RE)?.[0] ?? ''
-  const linkedin = text.match(LINKEDIN_RE)?.[0] ?? ''
+  // "ronstr8 (LinkedIn)" — a profile named by its handle (JSON Resume themes)
+  const handle = text.match(/^([A-Za-z0-9][A-Za-z0-9._-]{2,})\s+\(LinkedIn\)$/im)?.[1]
+  const linkedin = text.match(LINKEDIN_RE)?.[0] ?? (handle ? `linkedin.com/in/${handle}` : '')
   const phone = findPhone(text)
   resume.contact.email = email
   resume.contact.phone = phone
   resume.contact.linkedin = linkedin
-  // Header URL that is not LinkedIn (GitHub / portfolio) → website
+  // Header URL that is not LinkedIn (GitHub / portfolio) → website. The
+  // header runs to the first section heading (an unheaded summary can push
+  // the contact block down), capped at 20 lines.
+  const firstHeading = nonEmpty.findIndex((l, i) => i > 0 && !!matchHeading(l))
+  const headerLines = Math.max(6, Math.min(20, firstHeading < 0 ? 6 : firstHeading))
   const headerText = nonEmpty
-    .slice(0, 6)
+    .slice(0, headerLines)
     .join('\n')
     .replace(new RegExp(EMAIL_RE.source, 'gi'), ' ')
   resume.contact.website =
@@ -486,6 +514,11 @@ export function parseResumeText(raw: string): Resume {
     }
     if (resume.contact.location) break
   }
+  // "Williamsville, United States" on its own header line
+  if (!resume.contact.location) {
+    const place = nonEmpty.slice(1, headerLines).find((l) => isExpPlaceLine(l) && !matchHeading(l))
+    if (place) resume.contact.location = place
+  }
 
   let section: SectionName | 'custom' | null = null
   let currentExp: ExperienceItem | null = null
@@ -494,6 +527,7 @@ export function parseResumeText(raw: string): Resume {
   const summaryLines: string[] = []
   const skillLines: string[] = []
   const certLines: string[] = []
+  let headerProse = false
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i]
@@ -610,6 +644,17 @@ export function parseResumeText(raw: string): Resume {
               currentExp.startDate = start
               currentExp.endDate = end
             }
+          } else if (
+            currentExp &&
+            currentExp.company &&
+            currentExp.startDate &&
+            !currentExp.location &&
+            currentExp.bullets.length === 0 &&
+            !start &&
+            isExpPlaceLine(line)
+          ) {
+            // "Buffalo, NY" on its own line under role / company / dates
+            currentExp.location = line
           } else if (currentExp && !currentExp.company && !start && rest.length <= 60 && !looksLikeBodyLine(line)) {
             // second header line (e.g. company on its own line)
             Object.assign(
@@ -752,9 +797,17 @@ export function parseResumeText(raw: string): Resume {
         break
       }
       case 'projects': {
-        if ((isBullet(line) || looksLikeBodyLine(line)) && resume.projects.length > 0) {
-          const p = resume.projects[resume.projects.length - 1]
-          p.description = [p.description, stripBullet(line)].filter(Boolean).join(' ')
+        const last = resume.projects[resume.projects.length - 1]
+        const dates = extractDates(line)
+        if (dates.start && !dates.rest) {
+          // date range on its own line under the project name
+          if (last && !last.startDate) {
+            last.startDate = dates.start
+            last.endDate = dates.end
+          }
+        } else if (last && (isBullet(line) || looksLikeBodyLine(line) || (last.description && isTagList(line)))) {
+          // a described project's row of tags ("Kubernetes, Helm, Rust") stays with it
+          last.description = [last.description, stripBullet(line)].filter(Boolean).join(' ')
         } else {
           const link = line.match(URL_RE)?.[0] ?? ''
           resume.projects.push({
@@ -766,11 +819,25 @@ export function parseResumeText(raw: string): Resume {
         }
         break
       }
-      default:
+      default: {
         // Before any heading: professional title often sits under the name
-        if (!resume.contact.title && line.length <= 60 && !EMAIL_RE.test(line) && !PHONE_RE.test(line)) {
+        // (never a contact row — "City, ST | phone | email" is not a title)
+        const contactish = EMAIL_RE.test(line) || PHONE_RE.test(line) || URL_RE.test(line) || /[|•]/.test(line)
+        if (!resume.contact.title && line.length <= 60 && !contactish) {
           resume.contact.title = line
+          headerProse = true
+        } else if (
+          headerProse &&
+          !contactish &&
+          (looksLikeBodyLine(line) ||
+            (summaryLines.length > 0 && continuesPrevious(summaryLines[summaryLines.length - 1], line)))
+        ) {
+          // the paragraph directly under the title, with no heading, is the summary
+          summaryLines.push(line)
+        } else {
+          headerProse = false
         }
+      }
     }
   }
 

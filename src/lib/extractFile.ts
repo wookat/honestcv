@@ -111,39 +111,83 @@ type Segment = { x: number; end: number; y: number; size: number; text: string }
  * and separator gaps stay under 1.5em even in justified prose, while a
  * layout gap is several ems wide however narrow the column. A known column
  * gutter also splits, so a left cell that runs up to the gutter is not glued
- * to the cell beside it.
+ * to the cell beside it. Three or more items spaced by the same 1.5–2.5em
+ * gap are a row of tags ("Kubernetes  Helm  Rust"), joined with commas.
  */
-function lineSegments(lines: Map<number, LineItem[]>, gutter: number | null): Segment[] {
+function isTagRow(items: LineItem[]): boolean {
+  if (items.length < 3) return false
+  const gaps = items.slice(1).map((it, i) => (it.x - (items[i].x + items[i].w)) / Math.max(it.size, items[i].size))
+  return Math.min(...gaps) >= 1.5 && Math.max(...gaps) <= GAP_EMS
+}
+
+function segmentOf(items: LineItem[], y: number): Segment {
+  const last = items[items.length - 1]
+  return {
+    x: items[0].x,
+    end: last.x + last.w,
+    y,
+    size: Math.max(...items.map((it) => it.size)),
+    text: items.map((it) => it.str).join(isTagRow(items) ? ', ' : ' '),
+  }
+}
+
+function lineSegments(lines: Map<number, LineItem[]>, gutter: number | null, margin: number | null = null): Segment[] {
   const segments: Segment[] = []
   for (const [y, lineItems] of lines) {
     const sorted = lineItems.sort((a, b) => a.x - b.x)
-    let start = sorted[0].x
-    let text = ''
-    let size = 0
-    let prevEnd = -Infinity
-    let prevSize = 0
+    let cell: LineItem[] = []
     for (const it of sorted) {
+      const prev = cell[cell.length - 1]
+      const prevEnd = prev ? prev.x + prev.w : -Infinity
       const atGutter = gutter !== null && it.x >= gutter - 3 && prevEnd < gutter - 1
-      if (text && (it.x - prevEnd > GAP_EMS * Math.max(it.size, prevSize) || atGutter)) {
-        segments.push({ x: start, end: prevEnd, y, size, text })
-        text = ''
-        size = 0
-        start = it.x
-      } else if (text) {
-        text += ' '
+      const atMargin =
+        margin !== null &&
+        prevEnd < margin - 1 &&
+        Math.abs(it.x - margin) <= 3 &&
+        prev !== undefined &&
+        it.x - prevEnd >= 0.75 * Math.min(it.size, prev.size) &&
+        /[A-Za-z].*[A-Za-z]/.test(cell.map((c) => c.str).join(' '))
+      if (prev && (it.x - prevEnd > GAP_EMS * Math.max(it.size, prev.size) || atGutter || atMargin)) {
+        segments.push(segmentOf(cell, y))
+        cell = []
       }
-      text += it.str
-      size = Math.max(size, it.size)
-      prevEnd = it.x + it.w
-      prevSize = it.size
+      cell.push(it)
     }
-    if (text) segments.push({ x: start, end: prevEnd, y, size, text })
+    if (cell.length) segments.push(segmentOf(cell, y))
   }
   return segments
 }
 
+/**
+ * The x where the document's lines begin: the leftmost start shared by at
+ * least three lines and one line in twenty. A label hanging in the left gutter
+ * ("Work" beside "Senior Software Engineer", right-aligned short of the margin)
+ * ends before it; a bullet glyph or a date column is itself the start of its
+ * lines and so sets the margin instead of falling left of it.
+ */
+export function leftMargin(pages: PdfTextItem[][]): number | null {
+  const starts = new Map<number, number>()
+  let total = 0
+  for (const items of pages) {
+    const lines = new Map<number, number>()
+    for (const item of items) {
+      if (!item.str.trim()) continue
+      const y = Math.round(item.transform[5])
+      const key = [...lines.keys()].find((k) => Math.abs(k - y) <= 2) ?? y
+      lines.set(key, Math.min(lines.get(key) ?? Infinity, item.transform[4]))
+    }
+    for (const x of lines.values()) {
+      const k = Math.round(x)
+      starts.set(k, (starts.get(k) ?? 0) + 1)
+      total++
+    }
+  }
+  const shared = [...starts.entries()].filter(([, n]) => n >= 3 && n * 20 >= total).map(([x]) => x)
+  return shared.length ? Math.min(...shared) : null
+}
+
 /** One page's text in reading order, assembled from pdf.js text items. */
-export function pdfPageText(items: PdfTextItem[]): {
+export function pdfPageText(items: PdfTextItem[], margin: number | null = null): {
   text: string
   multiColumn: boolean
   smallChars: number
@@ -175,7 +219,7 @@ export function pdfPageText(items: PdfTextItem[]): {
     }
     line.push({ x: item.transform[4], w: item.width, size, str: item.str })
   }
-  let segments = lineSegments(lines, null)
+  let segments = lineSegments(lines, null, margin)
   const inOrder = (segs: Segment[]) =>
     segs
       .sort((a, b) => b.y - a.y || a.x - b.x)
@@ -188,7 +232,7 @@ export function pdfPageText(items: PdfTextItem[]): {
   // grouped with their content either way.
   const layout = columnLayout(lines, segments)
   if (!layout) return { text: inOrder(segments).join('\n'), multiColumn: false, smallChars, totalChars }
-  segments = lineSegments(lines, layout.gutter)
+  segments = lineSegments(lines, layout.gutter, margin)
   const isLeft = (s: Segment) => s.x < layout.gutter - 3
   if (layout.sidebar) {
     const left = segments.filter(isLeft)
@@ -262,6 +306,7 @@ async function extractPdf(file: File): Promise<ExtractedResumeFile> {
   let multiColumn = false
   let smallChars = 0
   let totalChars = 0
+  const pageItems: PdfTextItem[][] = []
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i)
     const ops = await page.getOperatorList()
@@ -271,7 +316,11 @@ async function extractPdf(file: File): Promise<ExtractedResumeFile> {
     )
       hasImages = true
     const content = await page.getTextContent()
-    const pageText = pdfPageText(content.items.filter((item) => 'str' in item))
+    pageItems.push(content.items.filter((item) => 'str' in item))
+  }
+  const margin = leftMargin(pageItems)
+  for (const items of pageItems) {
+    const pageText = pdfPageText(items, margin)
     if (pageText.multiColumn) multiColumn = true
     smallChars += pageText.smallChars
     totalChars += pageText.totalChars
