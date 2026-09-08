@@ -63,3 +63,36 @@ describe('a wrapped bullet is one extracted line (R786)', () => {
     }
   })
 })
+
+describe('a LinkedIn-shaped resume survives our PDF export (R787)', () => {
+  // Long headline (wraps in every template), region-only location, an entry
+  // titled with a section word, same-year tenures printed as a lone year, and a
+  // header long enough to wrap inside its "Company, Region" tail.
+  const src = sampleResume()
+  src.contact = {
+    ...src.contact,
+    fullName: 'Kenneth Adams',
+    title: 'Engineering Manager; Agile Leader - Agile Coach, Scrum Master, CSP, CSM, SAFe Expert; Program Manager at Apple, IBM & more...',
+    phone: '',
+    location: 'Las Vegas Metropolitan Area',
+  }
+  src.experience = [
+    { ...src.experience[0], role: 'Engineering Team Leader, Senior Scrum Master, Agile Transformation & Coaching', company: 'AT&T', location: '', startDate: '2023', endDate: '2023' },
+    { ...src.experience[1], role: 'About Recommendations', company: 'Recommendations', location: '', startDate: '2020', endDate: '2021', bullets: ['Recommendations from clients and colleagues.'] },
+    { ...src.experience[0], id: 'x3', role: 'Cloud Engineering, Global Program Manager, Agile Transformation & Coaching', company: 'Ivanti', location: 'San Francisco Bay Area', startDate: '2016', endDate: '2018' },
+  ]
+  const pick = (r: Resume) => ({
+    contact: r.contact,
+    summary: r.summary,
+    experience: r.experience.map(({ role, company, location, startDate, endDate, bullets }) => ({ role, company, location, startDate, endDate, bullets })),
+  })
+
+  // Sidebar's narrow column wraps the 78-character role before its " · " (a
+  // header split ahead of the binder) — not rejoined yet; see plan-r787.
+  it('every full-width template re-imports contact, summary and the three entries field for field', async () => {
+    for (const t of TEMPLATES.filter((t) => t.id !== 'sidebar')) {
+      const { text } = await pdfTextOf(await buildResumePdf({ ...src, templateId: t.id }))
+      expect(pick(parseResumeText(text)), t.id).toEqual(pick(src))
+    }
+  })
+})

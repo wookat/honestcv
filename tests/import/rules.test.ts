@@ -472,3 +472,155 @@ describe('education grade list round trip (R783)', () => {
     expect(parseResumeText(`Jordan Reyes\nSenior Engineer, IBM\njordan.reyes@email.com${body}`).contact.location).toBe('')
   })
 })
+
+describe('an entry header that opens with a section word (R787)', () => {
+  // A LinkedIn profile re-exported by us: the second experience is titled
+  // "About Recommendations · Recommendations". Read as a Summary heading, it
+  // swallowed the remaining 20 experiences into a 17.5k-character summary.
+  const heads = [
+    'About Recommendations · Recommendations',
+    'About Recommendations at Recommendations',
+    'About Recommendations — Recommendations',
+    'Profile Lead at Acme Corp',
+  ]
+  it.each(heads)('"%s" under Experience is an entry, not a summary heading', (head) => {
+    const r = cv(`Summary
+Engineering leader.
+
+Experience
+Engineering Team Leader · AT&T
+2023
+- Led the platform group.
+${head}
+2020 – 2021
+- Recommendations from clients and colleagues.
+Senior Scrum Master · Adobe
+2019
+- Coached four teams.`)
+    expect(r.summary).toBe('Engineering leader.')
+    expect(r.experience.map((e) => e.role)).toEqual(['Engineering Team Leader', head.split(/\s(?:·|at|—)\s/)[0], 'Senior Scrum Master'])
+    expect(r.experience[1].company).toBe(head.split(/\s(?:·|at|—)\s/)[1])
+    expect(r.experience[1].bullets).toEqual(['Recommendations from clients and colleagues.'])
+    expect(r.experience[2]).toMatchObject({ company: 'Adobe', startDate: '2019', endDate: '2019' })
+  })
+
+  it('genuine summary headings still open the section', () => {
+    for (const heading of ['About', 'About Me', 'SUMMARY', 'Professional Summary', 'OBJECTIVE or PROFESSIONAL SUMMARY', 'Profile']) {
+      const r = cv(`${heading}\nBuilds reliable systems.\n\nExperience\nEngineer at Acme Corp (2020 – 2021)\n- Shipped`)
+      expect(r.summary, heading).toBe('Builds reliable systems.')
+      expect(r.experience.map((e) => e.role), heading).toEqual(['Engineer'])
+    }
+  })
+
+  it('a year in parentheses closes a header; a sentence\'s year and an "Inc." period are told apart', () => {
+    const r = cv(`Experience
+Senior Scrum Master at Adobe, San Jose, CA (2019)
+- Coached four teams.
+Program Manager at Cox Automotive Inc. (2018)
+- We shipped the platform. (2017)`)
+    expect(r.experience).toMatchObject([
+      { role: 'Senior Scrum Master', company: 'Adobe', location: 'San Jose, CA', startDate: '2019', endDate: '2019' },
+      { role: 'Program Manager', company: 'Cox Automotive Inc.', startDate: '2018', endDate: '2018', bullets: ['We shipped the platform. (2017)'] },
+    ])
+  })
+
+  it('a long "Name — Headline" first line and a region-only location are read as contact fields', () => {
+    const headline =
+      'Engineering Manager; Agile Leader - Agile Coach, Scrum Master, CSP, CSM, SAFe Expert; Program Manager at Apple, IBM & more...'
+    for (const sep of [' | ', ' · ']) {
+      const r = parseResumeText(
+        `Kenneth Adams — ${headline}\n${['ken@example.com', 'Las Vegas Metropolitan Area', 'linkedin.com/in/kenadams'].join(sep)}\n\nExperience\nEngineer at Acme Corp (2020 – 2021)\n- Shipped`
+      )
+      expect(r.contact, sep).toMatchObject({
+        fullName: 'Kenneth Adams',
+        title: headline,
+        email: 'ken@example.com',
+        location: 'Las Vegas Metropolitan Area',
+        linkedin: 'linkedin.com/in/kenadams',
+      })
+    }
+    // the headline on its own line between the name and the contact row, or wrapped over two
+    const own = parseResumeText(`Kenneth Adams\n${headline}\nken@example.com | Las Vegas Metropolitan Area\n\nExperience\nEngineer at Acme Corp (2020 – 2021)`)
+    expect(own.contact.title).toBe(headline)
+    const wrapped = parseResumeText(
+      `Kenneth Adams\nEngineering Manager; Agile Leader - Agile Coach, Scrum Master, CSP, CSM, SAFe Expert; Program\nManager at Apple, IBM & more...\nken@example.com | Las Vegas Metropolitan Area\n\nExperience\nEngineer at Acme Corp (2020 – 2021)`
+    )
+    expect(wrapped.contact.title).toBe(headline)
+    expect(wrapped.experience.map((e) => e.role)).toEqual(['Engineer'])
+    // "Ivanti, San Francisco Bay Area" — the region is the location, the company stays whole
+    const region = cv(`Experience\nProgram Manager · Ivanti, San Francisco Bay Area\n2016 – 2018\n- Scaled the program.`)
+    expect(region.experience[0]).toMatchObject({ role: 'Program Manager', company: 'Ivanti', location: 'San Francisco Bay Area' })
+  })
+
+  it('a header our PDF export wrapped inside its location, then a lone year, rejoin', () => {
+    const r = cv(`Experience
+Cloud Engineering, Global Program Manager, Agile Transformation & Coaching · Ivanti, San Francisco Bay
+Area
+2016 – 2018
+- Scaled the cloud program from 10 to 24 teams.
+Agile Program Manager, Agile Coach, Senior Scrum Master · Pacific Gas and Electric Company, San Francisco
+Bay Area
+2014
+- Coached three programs.`)
+    expect(r.experience).toMatchObject([
+      {
+        role: 'Cloud Engineering, Global Program Manager, Agile Transformation & Coaching',
+        company: 'Ivanti',
+        location: 'San Francisco Bay Area',
+        startDate: '2016',
+        endDate: '2018',
+        bullets: ['Scaled the cloud program from 10 to 24 teams.'],
+      },
+      {
+        role: 'Agile Program Manager, Agile Coach, Senior Scrum Master',
+        company: 'Pacific Gas and Electric Company',
+        location: 'San Francisco Bay Area',
+        startDate: '2014',
+        endDate: '2014',
+        bullets: ['Coached three programs.'],
+      },
+    ])
+  })
+
+  it('a LinkedIn-shaped resume survives our TXT / MD exports; a school-only entry comes back as its name', () => {
+    const src = sampleResume()
+    src.contact = {
+      ...src.contact,
+      fullName: 'Kenneth Adams',
+      title: 'Engineering Manager; Agile Leader - Agile Coach, Scrum Master, CSP, CSM, SAFe Expert; Program Manager at Apple, IBM & more...',
+      phone: '',
+      location: 'Las Vegas Metropolitan Area',
+    }
+    src.experience = [
+      { ...src.experience[0], role: 'Engineering Team Leader, Senior Scrum Master', company: 'AT&T', location: '', startDate: '2023', endDate: '2023' },
+      { ...src.experience[1], role: 'About Recommendations', company: 'Recommendations', location: '', startDate: '2020', endDate: '2021', bullets: ['Recommendations from clients and colleagues.'] },
+      { ...src.experience[0], id: 'x3', role: 'Cloud Engineering, Global Program Manager', company: 'Ivanti', location: 'San Francisco Bay Area', startDate: '2016', endDate: '2018' },
+    ]
+    src.education = [
+      { ...emptyEducation(), id: 'e1', degree: '', school: 'Certified Scrum Professional (CSP)', startDate: '2014', endDate: '2014' },
+      { ...emptyEducation(), id: 'e2', degree: 'Engineering', school: 'Software & Systems Engineering Certifications' },
+    ]
+    src.customSections = [{ id: 'c1', title: 'Publications', bullets: ['Agile at Scale (2019)'] }]
+    const pick = (r: Resume) => ({
+      contact: r.contact,
+      summary: r.summary,
+      skills: r.skills,
+      experience: r.experience.map(({ role, company, location, startDate, endDate, bullets }) => ({ role, company, location, startDate, endDate, bullets })),
+    })
+    for (const [name, text] of [
+      ['txt', resumeToPlainText(src, { keepLinkUrls: true })],
+      ['md', resumeToMarkdown(src)],
+    ] as const) {
+      const back = parseResumeText(text)
+      expect(pick(back), name).toEqual(pick(src))
+      // a blank degree prints the school alone (R771); the lone name reads back as the degree
+      expect(back.education.map((e) => [e.degree || e.school, e.startDate, e.endDate]), name).toEqual([
+        ['Certified Scrum Professional (CSP)', '2014', '2014'],
+        ['Engineering', '', ''],
+      ])
+      expect(back.education[1].school, name).toBe('Software & Systems Engineering Certifications')
+      // TXT prints custom section titles in capitals; the bullets round-trip either way
+      expect(back.customSections.map((c) => [c.title.toLowerCase(), c.bullets]), name).toEqual([['publications', ['Agile at Scale (2019)']]])
+    }
+  })
+})

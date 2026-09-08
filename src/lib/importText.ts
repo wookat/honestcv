@@ -32,6 +32,11 @@ const DATE_RANGE_RE =
 const SINGLE_DATE_RE = /[;|,(–—-]\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4})\)?\s*$/i
 // "Dec 2023" alone on the line under a header: the one-off's date.
 const BARE_MONTH_RE = /^\(?((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4})\)?$/i
+// "Senior Scrum Master at Adobe, San Jose, CA (2019)" — a year alone in
+// parentheses closing a header (our own TXT / MD exports print a same-year
+// tenure this way); a bare year elsewhere on the line is not a date.
+const TRAILING_YEAR_RE = /\s\(((?:19|20)\d{2})\)$/
+const BARE_YEAR_LINE_RE = /^\(?((?:19|20)\d{2})\)?$/
 
 type SectionName =
   | 'summary'
@@ -75,6 +80,9 @@ const JOB_TITLE_NOUN_RE =
 // "Certificate in Project Management" — not the section that lists them.
 const CREDENTIAL_TITLE_RE =
   /^(?:\S+\s+){2,}(?:certification|certificate|licen[cs]e|diploma|course)$|^(?:certification|certificate|licen[cs]e|diploma|course)\s+(?:in|of)\s/i
+// "Role · Company" / "Role at Company" / "Role — Company" — the binders our
+// own PDF / TXT / MD exports and Role·Company headers use between two names.
+const ENTRY_HEADER_BINDER_RE = /\S\s(?:·|at|—)\s[A-Z0-9]/
 const looksLikeHeadingShape = (t: string) => {
   if (t.length > 48 || /[.,;:!?()\d]/.test(t)) return false
   const words = t.split(/\s+/)
@@ -119,7 +127,7 @@ const looksLikeDotHeader = (line: string) =>
   line.length <= 120 &&
   /\s·\s/.test(line) &&
   !/[.!?;:]$/.test(line) &&
-  line.split(/\s+/).length <= 14
+  line.split(/\s+/).length <= 18
 
 // PDF text extraction yields one line per visual line, so a bullet that wraps
 // arrives as "Reduced load time from 3.2" + "seconds to 1.8 seconds.": a
@@ -258,6 +266,10 @@ function matchHeading(line: string): SectionName | null {
   // "WORK EXPERIENCE (most impressive first)" — an aside after the heading
   t = t.replace(/\s*\([^)]*\)$/, '')
   if (JOB_TITLE_NOUN_RE.test(t) || CREDENTIAL_TITLE_RE.test(t)) return null
+  // "About Recommendations · Recommendations" / "Profile Lead at Acme" — an
+  // entry header that happens to open with a section word; a section heading
+  // never binds two names with a middle dot or "at".
+  if (ENTRY_HEADER_BINDER_RE.test(t)) return null
   if (t.length <= 40) for (const [re, name] of SECTION_HEADINGS) if (re.test(t)) return name
   if (CUSTOM_HEADING_RE.test(t) || !looksLikeHeadingShape(t)) return null
   for (const [re, name] of SECTION_WORDS) if (new RegExp(`\\b(?:${re.source})\\b`, 'i').test(t)) return name
@@ -272,6 +284,10 @@ function matchInlineHeading(line: string): { heading: SectionName; rest: string 
   for (const [re, name] of SECTION_HEADINGS) if (re.test(m[1].trim())) return { heading: name, rest: m[2] }
   return null
 }
+
+// Two to four words, the first capitalised, before a " — ": the name half of
+// our own "Name — Title" header line.
+const NAME_HEAD_RE = /^[A-ZÀ-Þ][\p{L}.'’-]*(?:\s+[\p{L}.'’-]+){1,3}$/u
 
 // Templates (four of ours, Pages, Word) print the name in capitals; the case is
 // typography, not the name. Only a fully upper-case name is recased: mixed case
@@ -365,7 +381,15 @@ function extractDates(line: string): { rest: string; start: string; end: string 
     const bare = line.match(BARE_MONTH_RE)
     if (bare) return { rest: '', start: bare[1].trim(), end: bare[1].trim() }
     const s = line.match(SINGLE_DATE_RE)
-    if (!s || (s.index ?? 0) === 0 || (s.index ?? 0) > 80) return { rest: line, start: '', end: '' }
+    if (!s || (s.index ?? 0) === 0 || (s.index ?? 0) > 80) {
+      const y = line.match(TRAILING_YEAR_RE)
+      const head = y ? line.slice(0, y.index).trim() : ''
+      // a sentence's year ("… shipped the platform. (2023)") is not a tenure;
+      // an abbreviation's period ("Cox Automotive Inc. (2018)") is
+      if (!y || !head || /[!?;]$/.test(head) || (/\.$/.test(head) && !ABBREV_END_RE.test(head)))
+        return { rest: line, start: '', end: '' }
+      return { rest: stripDateRest(line.slice(0, y.index)), start: y[1], end: y[1] }
+    }
     // a blank end date renders "start – Present", so a one-off keeps both ends
     return { rest: stripDateRest(line.slice(0, s.index)), start: s[1].trim(), end: s[1].trim() }
   }
@@ -417,7 +441,10 @@ function splitRoleCompanyRaw(text: string): { role: string; company: string; loc
       const company = parts.slice(1).join(', ').trim()
       // "Role — Company, City, ST" / "Role at Company, London, UK" /
       // "Degree, School, City, ST" — peel a trailing location off the company
-      const loc = company.match(/,\s*([A-Za-z .'-]+,\s*[A-Z]{2}|Remote)$/) ?? placeTail(company)
+      const loc =
+        company.match(/,\s*([A-Za-z .'-]+,\s*[A-Z]{2}|Remote)$/) ??
+        placeTail(company) ??
+        company.match(REGION_TAIL_RE)
       if (loc && (!sep.source.includes(',') || parts.length >= 3) && (loc.index ?? 0) > 0)
         return {
           role: parts[0].trim(),
@@ -429,6 +456,14 @@ function splitRoleCompanyRaw(text: string): { role: string; company: string; loc
   }
   return { role: text.trim(), company: '', location: '' }
 }
+
+// "Ivanti, San Francisco Bay Area" / "CGS, Greater Philadelphia Area" — the
+// region labels LinkedIn prints (and our exports carry) as the location.
+const REGION_RE = /(?:[A-Z][A-Za-z.'-]*\s+){1,4}(?:Area|Region|Metropolitan Area)/
+const REGION_TAIL_RE = new RegExp(`,\\s*(${REGION_RE.source})$`)
+const REGION_LINE_RE = new RegExp(`^${REGION_RE.source}$`)
+// up to three capitalised words: the tail of a header wrapped inside its location
+const HEADER_TAIL_RE = /^[A-Z][A-Za-z.'-]*(?:\s+[A-Z][A-Za-z.'-]*){0,2}$/
 
 // "Acme, Berlin, Germany" → the last two comma parts when they read as a place
 // and something is left for the company.
@@ -522,6 +557,21 @@ const prevNonEmpty = (lines: string[], i: number) => {
   for (let p = i - 1; p >= 0; p--) if (lines[p]) return lines[p]
   return ''
 }
+const nextNonEmptyIndex = (lines: string[], i: number) => {
+  for (let n = i + 1; n < lines.length; n++) if (lines[n]) return n
+  return lines.length
+}
+// "email | phone | City, ST | linkedin" — the header's contact row
+const isContactRow = (line: string) =>
+  EMAIL_RE.test(line) || PHONE_RE.test(line) || LINKEDIN_RE.test(line) || URL_RE.test(line)
+// the short tail of a headline wrapped by a renderer ("Manager at Apple, IBM & more...")
+const isTitleWrap = (line: string) =>
+  line.length > 0 &&
+  line.length <= 60 &&
+  !isBullet(line) &&
+  !isContactRow(line) &&
+  !matchHeading(line) &&
+  !/[.!?]$/.test(line.replace(/(?:\.{3}|…)$/, ''))
 const appendDetails = (edu: EducationItem, extra: string) => {
   edu.details = [edu.details, extra].filter(Boolean).join('; ')
 }
@@ -596,15 +646,17 @@ export function parseResumeText(input: string): Resume {
   // Name: first short non-empty line without contact info or a heading
   let nameLine = ''
   for (const line of nonEmpty.slice(0, 5)) {
+    // "Name — Title" header lines carry the professional title too; the
+    // title may run long (a LinkedIn headline), the name never does
+    const dash = line.split(/\s+[—–]\s+/)
+    const head = dash.length > 1 && NAME_HEAD_RE.test(dash[0]) ? dash[0] : line
     if (
-      line.length <= 60 &&
+      head.length <= 60 &&
       !EMAIL_RE.test(line) &&
       !PHONE_RE.test(line) &&
       !matchHeading(line) &&
-      line.split(/\s+/).length <= 6
+      head.split(/\s+/).length <= 6
     ) {
-      // "Name — Title" header lines carry the professional title too
-      const dash = line.split(/\s+[—–]\s+/)
       nameLine = line
       resume.contact.fullName = humanNameCase(dash[0].trim())
       if (dash.length > 1) resume.contact.title = dash.slice(1).join(' — ').trim()
@@ -617,6 +669,7 @@ export function parseResumeText(input: string): Resume {
   // row without separators (icon-led contact rows) is read with its e-mail /
   // phone / URL tokens removed.
   const contactPlace = (seg: string) => {
+    if (REGION_LINE_RE.test(seg)) return seg
     const m = seg.match(/^([A-Za-z .'-]+?)(?:,\s*|\s+)([A-Z]{2})$/)
     return m && (seg.includes(',') || US_STATES.has(m[2])) ? seg : ''
   }
@@ -652,6 +705,7 @@ export function parseResumeText(input: string): Resume {
   const skillLines: string[] = []
   const certLines: string[] = []
   let headerProse = false
+  let expHeaderRaw = ''
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i]
@@ -751,7 +805,19 @@ export function parseResumeText(input: string): Resume {
           )
         } else {
           const { rest, start, end } = extractDates(line)
-          if (!rest && start && currentExp && !currentExp.startDate) {
+          const year = line.trim().match(BARE_YEAR_LINE_RE)
+          if (
+            year &&
+            currentExp &&
+            (currentExp.role || currentExp.company) &&
+            !currentExp.startDate &&
+            currentExp.bullets.length === 0
+          ) {
+            // a lone year right under the entry header: our own PDF export
+            // prints a same-year tenure on the dates line this way
+            currentExp.startDate = year[1]
+            currentExp.endDate = year[1]
+          } else if (!rest && start && currentExp && !currentExp.startDate) {
             // date range on its own line under the entry header
             currentExp.startDate = start
             currentExp.endDate = end
@@ -770,6 +836,7 @@ export function parseResumeText(input: string): Resume {
             (looksLikeDotHeader(line) || !looksLikeBodyLine(line))
           ) {
             // header line under a bare date line
+            expHeaderRaw = line
             Object.assign(currentExp, splitRoleCompany(line))
           } else if (
             currentExp &&
@@ -812,6 +879,19 @@ export function parseResumeText(input: string): Resume {
             currentExp.location = line
           } else if (
             currentExp &&
+            currentExp.company &&
+            !currentExp.startDate &&
+            currentExp.bullets.length === 0 &&
+            !start &&
+            HEADER_TAIL_RE.test(line) &&
+            splitRoleCompany(`${expHeaderRaw} ${line}`).location
+          ) {
+            // "… · Ivanti, San Francisco Bay" + "Area": a header wrapped inside
+            // its location (our own PDF export wraps long headers this way)
+            expHeaderRaw = `${expHeaderRaw} ${line}`
+            Object.assign(currentExp, splitRoleCompany(expHeaderRaw))
+          } else if (
+            currentExp &&
             !currentExp.company &&
             currentExp.bullets.length === 0 &&
             !start &&
@@ -833,7 +913,8 @@ export function parseResumeText(input: string): Resume {
             // marker-less description line under the current entry
             currentExp.bullets.push(line)
           } else {
-            const { role, company, location } = splitRoleCompany(rest || line)
+            expHeaderRaw = rest || line
+            const { role, company, location } = splitRoleCompany(expHeaderRaw)
             currentExp = {
               ...emptyExperience(),
               id: newId(),
@@ -1023,6 +1104,28 @@ export function parseResumeText(input: string): Resume {
         if (!resume.contact.title && line.length <= 60 && !contactish) {
           resume.contact.title = line
           headerProse = true
+        } else if (
+          !resume.contact.title &&
+          !contactish &&
+          nameLine &&
+          prevNonEmpty(lines, i) === nameLine &&
+          isContactRow(lines[nextNonEmptyIndex(lines, i)] ?? '')
+        ) {
+          // a long headline between the name and the contact row
+          resume.contact.title = line
+        } else if (
+          !resume.contact.title &&
+          !contactish &&
+          nameLine &&
+          prevNonEmpty(lines, i) === nameLine &&
+          line.length > 60 &&
+          isTitleWrap(lines[nextNonEmptyIndex(lines, i)] ?? '') &&
+          isContactRow(lines[nextNonEmptyIndex(lines, nextNonEmptyIndex(lines, i))] ?? '')
+        ) {
+          // the same headline wrapped over two lines (our own PDF export)
+          const j = nextNonEmptyIndex(lines, i)
+          resume.contact.title = `${line} ${lines[j]}`
+          lines[j] = ''
         } else if (
           headerProse &&
           !contactish &&
