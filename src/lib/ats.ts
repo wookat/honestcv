@@ -1237,7 +1237,12 @@ const REQUIREMENTS_CUE_RE =
  * no such section.
  */
 export function requirementsBlock(jd: string): string {
-  const out: string[] = []
+  return requirementsBlockLines(jd).map((l) => l.text).join('\n').toLowerCase()
+}
+
+/** The requirements sections line by line, case preserved. */
+function requirementsBlockLines(jd: string): RequirementLine[] {
+  const out: RequirementLine[] = []
   let inside = false
   let sawList = false
   let bySentence = false
@@ -1263,7 +1268,7 @@ export function requirementsBlock(jd: string): string {
       inside = true
       sawList = false
       bySentence = false
-      out.push(line.slice(colon + 1))
+      out.push({ text: line.slice(colon + 1), listed: true })
       continue
     }
     if (
@@ -1275,7 +1280,7 @@ export function requirementsBlock(jd: string): string {
       inside = true
       bySentence = true
       sawList = false
-      out.push(line)
+      out.push({ text: line, listed: false })
       continue
     }
     if (!inside) continue
@@ -1287,9 +1292,54 @@ export function requirementsBlock(jd: string): string {
       continue
     }
     if (LIST_ITEM_LINE_RE.test(raw)) sawList = true
-    out.push(line)
+    out.push({ text: line, listed: false })
   }
-  return out.join('\n').toLowerCase()
+  return out
+}
+
+/** `listed`: the rest of an inline "Requirements: a, b, c" line — a list of requirements as such. */
+type RequirementLine = { text: string; listed: boolean }
+
+/**
+ * "experience with", "knowledge of", "degree in", "experience building" …
+ * followed by the qualifiers ads put before the thing itself ("5+ years of",
+ * "strong", "modern"). The requirement is what comes next.
+ */
+const REQUIREMENT_CUE_RE =
+  /\b(?:experience|expertise|proficien(?:t|cy)|familiar(?:ity)?|knowledge|understanding|foundation|background|degree|fluen(?:t|cy)|skills?|competen(?:t|ce|cy)|certifi(?:ed|cation)|licen[sc]ed?|hands-on|track record|command|mastery|exposure|involvement|interest|ability|working|work|skilled|experienced|versed|comfortable|comfort|passion(?:ate)?)(?:\s+(?:of|in|with|using|on|for|across|as|around|at|to)\b|\s+[a-z]+ing\b|\s*\()(?:\s+(?:a|an|the|our|modern|strong|solid|deep|various|multiple|at least|\d+\+?|years?|of|or more|relevant|related|professional|hands-on|proven|demonstrated|advanced|basic|good|excellent|any|some|either|one|more|large|complex|distributed|enterprise|cloud|open|source|[a-z]+ing))*/gi
+const CUE_WINDOW = 8
+const SHORT_ITEM_TOKENS = 6
+
+/**
+ * Whether a keyword the requirements block mentions is one of its requirements
+ * rather than a word the bullet spends on the way there ("in a fast-paced
+ * environment", "across the full stack"). It is when the ad names it as a
+ * requirement — right after a cue such as "experience with", in an inline
+ * "Requirements: …" list or a short list item of its own, written with a
+ * capital as a product or discipline (not the sentence's own capital), as a
+ * known phrase or skill.
+ */
+function namedAsRequirement(kw: string, lines: RequirementLine[]): boolean {
+  if (kw.includes(' ') || looksLikeSkill(kw)) return true
+  const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const asWritten = new RegExp(`(?:^|[^A-Za-z0-9])(${esc})(?![A-Za-z0-9])`, 'gi')
+  for (const { text: line, listed } of lines) {
+    const tokens = tokenize(line)
+    if (!tokens.includes(kw)) continue
+    if (tokens.length <= SHORT_ITEM_TOKENS) return true
+    if (listed) return true
+    for (const m of line.matchAll(asWritten)) {
+      const written = m[1]!
+      const start = m.index + m[0].length - written.length
+      const sentenceInitial = !/[A-Za-z0-9]/.test(line.slice(0, start))
+      if (/[A-Z]/.test(sentenceInitial ? written.slice(1) : written)) return true
+    }
+    for (const m of line.matchAll(REQUIREMENT_CUE_RE)) {
+      const after = tokenize(line.slice(m.index + m[0].length)).slice(0, CUE_WINDOW)
+      if (after.includes(kw)) return true
+    }
+  }
+  return false
 }
 
 /**
@@ -1335,11 +1385,12 @@ export function highPriorityKeywords(jdRaw: string, keywords: string[]): Set<str
   const opening = (jd.trim().split(/\n/, 1)[0] ?? '').trim().toLowerCase()
   const firstLine = opening.length <= 100 && wordCount(opening) <= 12 ? opening : ''
   const firstLineTokens = new Set(tokenize(firstLine))
-  const reqBlock = requirementsBlock(jd)
+  const reqLines = requirementsBlockLines(jd)
+  const reqBlock = reqLines.map((l) => l.text).join('\n').toLowerCase()
   const reqTokens = new Set(tokenize(reqBlock))
   for (const kw of keywords) {
     const phrase = kw.includes(' ')
-    if (phrase ? reqBlock.includes(kw) : reqTokens.has(kw)) {
+    if ((phrase ? reqBlock.includes(kw) : reqTokens.has(kw)) && namedAsRequirement(kw, reqLines)) {
       high.add(kw)
       continue
     }
