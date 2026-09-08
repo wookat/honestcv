@@ -101,6 +101,44 @@ export interface PdfTextItem {
   width: number
 }
 
+type LineItem = { x: number; w: number; size: number; str: string }
+type Segment = { x: number; end: number; y: number; text: string }
+
+/**
+ * Split each visual line into segments at wide gaps (e.g. a right-aligned
+ * date after an entry header, a section label in a left column, or a
+ * sidebar next to the main column). Measured in the text's own size: word
+ * and separator gaps stay under 1.5em even in justified prose, while a
+ * layout gap is several ems wide however narrow the column. A known column
+ * gutter also splits, so a left cell that runs up to the gutter is not glued
+ * to the cell beside it.
+ */
+function lineSegments(lines: Map<number, LineItem[]>, gutter: number | null): Segment[] {
+  const segments: Segment[] = []
+  for (const [y, lineItems] of lines) {
+    const sorted = lineItems.sort((a, b) => a.x - b.x)
+    let start = sorted[0].x
+    let text = ''
+    let prevEnd = -Infinity
+    let prevSize = 0
+    for (const it of sorted) {
+      const atGutter = gutter !== null && it.x >= gutter - 3 && prevEnd < gutter - 1
+      if (text && (it.x - prevEnd > GAP_EMS * Math.max(it.size, prevSize) || atGutter)) {
+        segments.push({ x: start, end: prevEnd, y, text })
+        text = ''
+        start = it.x
+      } else if (text) {
+        text += ' '
+      }
+      text += it.str
+      prevEnd = it.x + it.w
+      prevSize = it.size
+    }
+    if (text) segments.push({ x: start, end: prevEnd, y, text })
+  }
+  return segments
+}
+
 /** One page's text in reading order, assembled from pdf.js text items. */
 export function pdfPageText(items: PdfTextItem[]): {
   text: string
@@ -134,56 +172,43 @@ export function pdfPageText(items: PdfTextItem[]): {
     }
     line.push({ x: item.transform[4], w: item.width, size, str: item.str })
   }
-  // Split each visual line into segments at wide gaps (e.g. a right-aligned
-  // date after an entry header, a section label in a left column, or a
-  // sidebar next to the main column). Measured in the text's own size: word
-  // and separator gaps stay under 1.5em even in justified prose, while a
-  // layout gap is several ems wide however narrow the column.
-  const segments: { x: number; y: number; text: string }[] = []
-  for (const [y, lineItems] of lines) {
-    const sorted = lineItems.sort((a, b) => a.x - b.x)
-    let start = sorted[0].x
-    let text = ''
-    let prevEnd = -Infinity
-    let prevSize = 0
-    for (const it of sorted) {
-      if (text && it.x - prevEnd > GAP_EMS * Math.max(it.size, prevSize)) {
-        segments.push({ x: start, y, text })
-        text = ''
-        start = it.x
-      } else if (text) {
-        text += ' '
-      }
-      text += it.str
-      prevEnd = it.x + it.w
-      prevSize = it.size
-    }
-    if (text) segments.push({ x: start, y, text })
-  }
-  // Two-column layouts (like LinkedIn profile exports: sidebar + main
-  // column) would interleave when read purely top-to-bottom. Detect a wide
-  // gap between segment start positions and emit each column in one block
-  // so headings stay grouped with their content.
-  const split = detectColumnSplit(segments)
-  const inOrder = (segs: typeof segments) =>
+  let segments = lineSegments(lines, null)
+  const inOrder = (segs: Segment[]) =>
     segs
       .sort((a, b) => b.y - a.y || a.x - b.x)
       .map((s) => s.text.replace(/\s+/g, ' ').trim())
       .filter(Boolean)
-      .join('\n')
-  if (split === null) return { text: inOrder(segments), multiColumn: false, smallChars, totalChars }
-  const left = segments.filter((s) => s.x <= split)
-  const right = segments.filter((s) => s.x > split)
-  const chars = (segs: typeof segments) => segs.reduce((n, s) => n + s.text.length, 0)
-  // Main column (the one with more text) first, sidebar after, so the
-  // name/headline stay at the top and headings stay with their content.
-  const [main, side] = chars(right) >= chars(left) ? [right, left] : [left, right]
-  return {
-    text: [inOrder(main), inOrder(side)].filter(Boolean).join('\n'),
-    multiColumn: true,
-    smallChars,
-    totalChars,
+  // Text beside other text would interleave when read purely top-to-bottom.
+  // A page-high sidebar (LinkedIn exports, sidebar templates) is emitted as
+  // main column then sidebar; a local two-column block (a skills grid) is
+  // emitted left cells then right cells in its place, so headings stay
+  // grouped with their content either way.
+  const layout = columnLayout(lines, segments)
+  if (!layout) return { text: inOrder(segments).join('\n'), multiColumn: false, smallChars, totalChars }
+  segments = lineSegments(lines, layout.gutter)
+  const isLeft = (s: Segment) => s.x < layout.gutter - 3
+  if (layout.sidebar) {
+    const left = segments.filter(isLeft)
+    const right = segments.filter((s) => !isLeft(s))
+    const chars = (segs: Segment[]) => segs.reduce((n, s) => n + s.text.length, 0)
+    const [main, side] = chars(right) >= chars(left) ? [right, left] : [left, right]
+    return {
+      text: [...inOrder(main), ...inOrder(side)].join('\n'),
+      multiColumn: true,
+      smallChars,
+      totalChars,
+    }
   }
+  const out: string[] = []
+  let rest = segments
+  for (const [top, bottom] of layout.bands) {
+    const above = rest.filter((s) => s.y > top + 1)
+    const inBand = rest.filter((s) => s.y <= top + 1 && s.y >= bottom - 1)
+    rest = rest.filter((s) => s.y < bottom - 1)
+    out.push(...inOrder(above), ...inOrder(inBand.filter(isLeft)), ...inOrder(inBand.filter((s) => !isLeft(s))))
+  }
+  out.push(...inOrder(rest))
+  return { text: out.join('\n'), multiColumn: true, smallChars, totalChars }
 }
 
 async function extractPdf(file: File): Promise<ExtractedResumeFile> {
@@ -240,29 +265,68 @@ async function extractPdf(file: File): Promise<ExtractedResumeFile> {
   return { text: pages.join('\n\n').trim(), checks }
 }
 
+const DATE_LIKE_RE = /\b(?:19|20)\d{2}\b|\bpresent\b/i
+
+type ColumnLayout = {
+  /** x where the right column's lines start */
+  gutter: number
+  /** y ranges (top ≥ bottom, PDF coordinates) where both columns carry text */
+  bands: [number, number][]
+  /** the bands cover most of the page: a sidebar, not a local grid */
+  sidebar: boolean
+}
+
 /**
- * x midpoint of the gap between two text columns, or null for single-column
- * pages. Both sides must carry real prose (several long segments) so that
- * right-aligned dates in a single-column resume don't register as a column.
+ * A second text column starts at an x where several lines begin and which no
+ * line from the left crosses. Right-aligned dates fail that test (the bullets
+ * beneath them run past the date's x) and so does a date column beside the
+ * entries (its cells are dates on the entries' own rows); both keep the plain
+ * top-to-bottom order.
  */
-function detectColumnSplit(segments: { x: number; text: string }[]): number | null {
-  if (segments.length < 40) return null
-  const xs = [...new Set(segments.map((s) => Math.round(s.x)))].sort((a, b) => a - b)
-  let best = 0
-  let at = 0
-  for (let i = 1; i < xs.length; i++) {
-    if (xs[i] - xs[i - 1] > best) {
-      best = xs[i] - xs[i - 1]
-      at = (xs[i] + xs[i - 1]) / 2
+function columnLayout(lines: Map<number, LineItem[]>, segments: Segment[]): ColumnLayout | null {
+  const rowsY = [...new Set(segments.map((s) => s.y))].sort((a, b) => b - a)
+  if (rowsY.length < 8) return null
+  const gaps = rowsY.slice(1).map((y, i) => rowsY[i] - y).sort((a, b) => a - b)
+  const pitch = gaps[Math.floor(gaps.length / 2)] || 12
+  const minX = Math.min(...segments.map((s) => s.x))
+  const starts = new Map<number, number>()
+  for (const s of segments) starts.set(Math.round(s.x), (starts.get(Math.round(s.x)) ?? 0) + 1)
+  const dateHeavy = (segs: Segment[]) => segs.filter((s) => DATE_LIKE_RE.test(s.text)).length * 2 >= segs.length
+  let best: { gutter: number; bands: [number, number][]; rightSegs: number } | null = null
+  for (const [gutter, n] of starts) {
+    if (n < 4 || gutter < minX + 60) continue
+    const split = lineSegments(lines, gutter)
+    const anchors = rowsY.filter((y) => split.some((s) => s.y === y && Math.abs(s.x - gutter) <= 3))
+    const clusters: [number, number][] = []
+    for (const y of anchors) {
+      const last = clusters[clusters.length - 1]
+      if (last && last[1] - y <= 4 * pitch) last[1] = y
+      else clusters.push([y, y])
     }
+    const bands: [number, number][] = []
+    let rightSegs = 0
+    for (const [top, bottom] of clusters) {
+      const inBand = split.filter((s) => s.y <= top + 1 && s.y >= bottom - 1)
+      const wordy = (s: Segment) => /[A-Za-z]{3}/.test(s.text)
+      const left = inBand.filter((s) => s.x < gutter - 3 && wordy(s))
+      const right = inBand.filter((s) => s.x >= gutter - 3 && wordy(s))
+      const bandRows = new Set(inBand.map((s) => s.y)).size
+      const rows = (segs: Segment[]) => new Set(segs.map((s) => s.y)).size
+      // Both columns carry worded lines of their own on most rows — bullet
+      // glyphs, section labels or dates beside the entries are not a column.
+      if (Math.min(left.length, right.length) < 6) continue
+      if (rows(left) * 4 < bandRows || rows(right) * 4 < bandRows) continue
+      if (left.filter((s) => s.end > gutter + 3).length > Math.max(1, bandRows * 0.05)) continue
+      if (dateHeavy(left) || dateHeavy(right)) continue
+      bands.push([top, bottom])
+      rightSegs += right.length
+    }
+    if (bands.length && (!best || rightSegs > best.rightSegs)) best = { gutter, bands, rightSegs }
   }
-  if (best < 80) return null
-  const left = segments.filter((s) => s.x <= at)
-  const right = segments.filter((s) => s.x > at)
-  if (left.length < 8 || right.length < 8) return null
-  const longCount = (segs: typeof segments) => segs.filter((s) => s.text.length > 30).length
-  if (longCount(left) < 4 || longCount(right) < 4) return null
-  return at
+  if (!best) return null
+  const pageSpan = rowsY[0] - rowsY[rowsY.length - 1]
+  const covered = best.bands.reduce((n, [top, bottom]) => n + (top - bottom), 0)
+  return { gutter: best.gutter, bands: best.bands, sidebar: covered * 2 >= pageSpan }
 }
 
 async function extractDocx(file: File): Promise<ExtractedResumeFile> {
