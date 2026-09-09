@@ -48,3 +48,31 @@ describe('R818: /jobs keeps a single pane while the workspace sidebar shares the
     expect(tag).toMatch(/className="h-10 w-full max-w-md sm:w-auto sm:min-w-72 sm:flex-1"/)
   })
 })
+
+describe('R819: job-card titles wrap to two lines instead of one truncated line', () => {
+  // Production, 150 rows: one-line `truncate` clipped 94 titles at 1024 px (191 px box,
+  // ~15 chars hidden each), 57–62 at 375 / 1280; two lines clip 3–15 and leave no two
+  // rows reading the same. The company · location line stays one line (secondary).
+  const cardTitle = () => {
+    const sub = jobsSrc.indexOf('{j.company} · {j.location}')
+    expect(sub).toBeGreaterThan(-1)
+    const at = jobsSrc.lastIndexOf('{j.title}', sub)
+    expect(at).toBeGreaterThan(-1)
+    return jobsSrc.slice(jobsSrc.lastIndexOf('<p', at), at)
+  }
+
+  it('the title paragraph clamps to two lines and breaks long words', () => {
+    const tag = cardTitle()
+    expect(tag).toMatch(/\bline-clamp-2\b/)
+    expect(tag).toMatch(/\bbreak-words\b/)
+    expect(tag).not.toMatch(/\btruncate\b/)
+  })
+
+  it('the company · location line below it remains a single truncated line', () => {
+    const at = jobsSrc.indexOf('{j.company} · {j.location}')
+    expect(at).toBeGreaterThan(-1)
+    const tag = jobsSrc.slice(jobsSrc.lastIndexOf('<p', at), at)
+    expect(tag).toMatch(/\btruncate\b/)
+    expect(tag).toMatch(/\btext-xs\b/)
+  })
+})
