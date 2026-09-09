@@ -1661,3 +1661,8 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Counting dated `@container` grids: filter by a descendant date-picker button, not by any input — reference cards use the same container grid but hold no dates.
 - Reference e-mail at 1024 is 178 px inside and a 26+-char address still scrolls — known boundary, not a failure.
 - On a selector-only harness failure after a successful edit, keep the current draft and the normalised baseline, fix the selector and continue to the single Undo; never reseed or repeat the mutation silently.
+
+## R831 — Contact section geometry
+
+- Contact inputs are `#c-fullName #c-title #c-email #c-phone #c-location #c-website #c-linkedin` in a `grid gap-3 sm:grid-cols-2`; since R831 the LinkedIn cell is `col-span-full`, so at ≥ sm expect three pairs (fullName/title, email/phone, location/website) and a full-width LinkedIn row (≈417 usable at 1024, ≈545 at 1280); the other six stay ≈189 / 253. At 375 everything is one column (≈268 with a native scrollbar, ≈283 without). Use clipping as the oracle; a LinkedIn default URL (`name-name-9chars`, ≥ 288 px) still scrolls at 375 — known boundary, not a failure.
+- The Hide/Show eye buttons sit between fields in tab order (`fullName → title → eye → email → eye → phone …`); they have `aria-pressed` and the label gains a `Hidden` tag.

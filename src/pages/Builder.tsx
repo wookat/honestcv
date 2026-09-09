@@ -3363,7 +3363,10 @@ export default function Builder() {
                 const fieldHidden =
                   hideable && (resume.hiddenContact ?? []).includes(key as HideableContactField)
                 return (
-                  <div key={key} className={`space-y-1.5 ${fieldHidden ? 'opacity-60' : ''}`}>
+                  <div
+                    key={key}
+                    className={`space-y-1.5 ${key === 'linkedin' ? 'col-span-full' : ''} ${fieldHidden ? 'opacity-60' : ''}`}
+                  >
                     <div className="flex items-center justify-between gap-1">
                       <Label htmlFor={`c-${key}`}>
                         {label}
