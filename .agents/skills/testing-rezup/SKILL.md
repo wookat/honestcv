@@ -1562,3 +1562,5 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 
 ### Devin Secrets Needed
 - None for public production ATS/Builder import QA. Paid, AI, share, and export actions require separate explicit authorization; never infer it from public access.
+
+- Import since R802: a paste with no name line stores `contact.fullName = ""`. The Builder name input then shows the placeholder `Jordan Reyes` — record the input's `value`, `placeholder` and `:placeholder-shown` rather than reading the screenshot, and pair it with a populated guard screenshot. Count printed-date duplication in extracted text / preview, not in serialized JSON (a single-date job legitimately has start = end). When reloading a QA helper in the REPL keep its imports in scope; record helper errors separately from page errors and restore seeded storage before retrying.
