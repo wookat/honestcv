@@ -19,13 +19,14 @@ const gridAround = (marker: string): { grid: string; body: string } => {
 }
 
 // Every structured entry whose start–end date pair shares a `sm:grid-cols-2`
-// row with its location / organisation field.
-const DATED_ENTRIES = [
-  'htmlFor={`exp-${e.id}-start`}',
-  'htmlFor={`edu-${e.id}-start`}',
-  'aria-label="Organization (optional)"',
-  'aria-label="College or city (optional)"',
-  'aria-label="Stationed at"',
+// row with its location / organisation field, with the number of wide fields the
+// grid holds (experience / education also widen their name pair — R829).
+const DATED_ENTRIES: [string, number][] = [
+  ['htmlFor={`exp-${e.id}-start`}', 4],
+  ['htmlFor={`edu-${e.id}-start`}', 4],
+  ['aria-label="Organization (optional)"', 2],
+  ['aria-label="College or city (optional)"', 2],
+  ['aria-label="Stationed at"', 2],
 ]
 
 describe('R826: a dated entry never shows a quarter-width date box that clips "Jun 2023"', () => {
@@ -46,11 +47,11 @@ describe('R826: a dated entry never shows a quarter-width date box that clips "J
   })
 
   it('every dated entry uses the shared grid and widens both the place field and the date pair', () => {
-    for (const marker of DATED_ENTRIES) {
+    for (const [marker, wideFields] of DATED_ENTRIES) {
       const { grid, body } = gridAround(marker)
       expect(grid, marker).toBe('<div className={ENTRY_FIELDS_GRID}>')
       const wide = body.match(/ENTRY_WIDE_FIELD/g) ?? []
-      expect(wide.length, `${marker}: place field + date pair`).toBe(2)
+      expect(wide.length, `${marker}: place field + date pair (+ name pair)`).toBe(wideFields)
     }
     // The remaining 2-column entry grids (references, agents, project name row …) hold no date pair.
     const plainGrids = builderSrc.match(/className="grid gap-2 sm:grid-cols-2"/g) ?? []
