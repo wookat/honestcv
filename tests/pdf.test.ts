@@ -39,6 +39,17 @@ describe('our own PDF export re-imported (R784)', () => {
     expect(back.contact.location).toBe(src.contact.location)
     expect(back.contact.linkedin).toContain('linkedin.com/in/jordan-reyes-software-engineer-austin')
   })
+
+  it('R804: an education entry with only a graduation year re-imports as one entry from every template', async () => {
+    const gradOnly: Resume = { ...src, education: [{ ...src.education[0], startDate: '', endDate: '2021' }] }
+    for (const t of TEMPLATES) {
+      const { text } = await pdfTextOf(await buildResumePdf({ ...gradOnly, templateId: t.id }))
+      const back = parseResumeText(text)
+      expect(back.education.map((e) => [e.degree, e.school, e.startDate, e.endDate]), t.id).toEqual([
+        [src.education[0].degree, src.education[0].school, '2021', '2021'],
+      ])
+    }
+  })
 })
 
 describe('a wrapped bullet is one extracted line (R786)', () => {
