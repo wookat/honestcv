@@ -168,13 +168,9 @@ describe('the company-info line under an entry header re-imports as companyInfo 
 
 describe('our own structured sections re-import from every template (R797)', () => {
   const src = withOwnSections(sampleResume())
-  // Sidebar prints every heading in a label column; with this many sections
-  // the extractor reads the page as two columns and detaches the headings
-  // from their content (extractor limit, tracked separately).
-  const FULL_WIDTH = TEMPLATES.filter((t) => t.id !== 'sidebar')
 
   it('involvement, coursework, certifications, awards, publications, references and military service come back field for field', async () => {
-    for (const t of FULL_WIDTH) {
+    for (const t of TEMPLATES) {
       const back = parseResumeText((await pdfTextOf(await buildResumePdf({ ...src, templateId: t.id }))).text)
       expect(ownSections(back), t.id).toEqual(ownSections(src))
       expect(back.customSections, t.id).toEqual([])
@@ -183,9 +179,31 @@ describe('our own structured sections re-import from every template (R797)', () 
 
   it('R799: the section order the template prints comes back from every template', async () => {
     const ordered = reorderedOwnSections(sampleResume())
-    for (const t of FULL_WIDTH) {
+    for (const t of TEMPLATES) {
       const back = parseResumeText((await pdfTextOf(await buildResumePdf({ ...ordered, templateId: t.id }))).text)
       expect(printedOrder(back), t.id).toEqual(PRINTED_ORDER)
     }
+  })
+
+  // Sidebar hangs every heading in a label column beside its section. With
+  // ten of them the extractor took the labels for a text column and emitted
+  // them after the whole body (R801): the re-import kept one blank job.
+  it('R801: Sidebar\'s label column reads with its sections, not as a second column', async () => {
+    const { text, multiColumn } = await pdfTextOf(await buildResumePdf({ ...src, templateId: 'sidebar' }))
+    expect(multiColumn).toBe(false)
+    const lines = text.split('\n')
+    const at = (label: string) => lines.indexOf(label)
+    expect(at('EXPERIENCE')).toBeGreaterThan(at('Jordan Reyes'))
+    expect(lines[at('EXPERIENCE') + 1]).toMatch(/^Software Engineer · Brightlane/)
+    expect(lines[at('EDUCATION') + 1]).toMatch(/^B\.S\. Computer Science/)
+    expect(lines[at('REFERENCES') + 1]).toMatch(/^Dana Whitfield/)
+    const back = parseResumeText(text)
+    expect(back.contact.fullName).toBe('Jordan Reyes')
+    expect(back.experience.map((e) => [e.role, e.company, e.bullets.length])).toEqual([
+      ['Software Engineer', 'Brightlane', 3],
+      ['Junior Developer', 'Nova Retail', 3],
+    ])
+    expect(back.skills).toEqual(src.skills)
+    expect(back.summary).toBe(src.summary)
   })
 })

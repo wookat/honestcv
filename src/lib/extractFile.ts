@@ -1,3 +1,5 @@
+import { CUSTOM_HEADING_RE, looksLikeHeadingShape, sectionNamedByHeading } from './sectionWords'
+
 export const IMPORT_ACCEPT = '.pdf,.docx,.txt'
 
 /** File-level ATS compatibility check on an uploaded resume file. */
@@ -402,6 +404,17 @@ async function extractPdf(file: File): Promise<ExtractedResumeFile> {
 
 const DATE_LIKE_RE = /\b(?:19|20)\d{2}\b|\bpresent\b/i
 
+// A section label ("EXPERIENCE", "Awards & Honors") rather than a line of a
+// column's own text.
+const isSectionLabel = (t: string) => {
+  const s = t.trim()
+  return (
+    looksLikeHeadingShape(s) &&
+    /[A-Za-z]{3}/.test(s) &&
+    (s === s.toUpperCase() || sectionNamedByHeading(s) !== null || CUSTOM_HEADING_RE.test(s))
+  )
+}
+
 type ColumnLayout = {
   /** x where the right column's lines start */
   gutter: number
@@ -445,6 +458,7 @@ function columnLayout(lines: Map<number, LineItem[]>, segments: Segment[]): Colu
     return { gutter: x, spread: group[group.length - 1] - x, n: group.reduce((t, o) => t + (starts.get(o) ?? 0), 0) }
   })
   const dateHeavy = (segs: Segment[]) => segs.filter((s) => DATE_LIKE_RE.test(s.text)).length * 2 >= segs.length
+  const labelHeavy = (segs: Segment[]) => segs.filter((s) => isSectionLabel(s.text)).length * 2 > segs.length
   let best: { gutter: number; bands: [number, number][]; rightSegs: number } | null = null
   for (const { gutter, spread, n } of candidates) {
     if (n < 4 || gutter < minX + 60) continue
@@ -469,10 +483,13 @@ function columnLayout(lines: Map<number, LineItem[]>, segments: Segment[]): Colu
       const rows = (segs: Segment[]) => new Set(segs.map((s) => s.y)).size
       // Both columns carry worded lines of their own on most rows — bullet
       // glyphs, section labels or dates beside the entries are not a column.
+      // A label column (a sidebar template's headings hanging beside their
+      // sections) reads top to bottom with the content it labels.
       if (Math.min(left.length, right.length) < 6) continue
       if (rows(left) * 4 < bandRows || rows(right) * 4 < bandRows) continue
       if (left.filter((s) => s.end > gutter + 3).length > Math.max(1, bandRows * 0.05)) continue
       if (dateHeavy(left) || dateHeavy(right)) continue
+      if (labelHeavy(left) || labelHeavy(right)) continue
       bands.push([top, bottom])
       rightSegs += right.length
     }
