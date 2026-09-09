@@ -1,0 +1,198 @@
+{
+ "contact": {
+  "fullName": "Jordan Reyes",
+  "title": "Software Engineer",
+  "email": "jordan.reyes@email.com",
+  "phone": "(555) 210-4432",
+  "location": "Austin, TX",
+  "website": "",
+  "linkedin": "linkedin.com/in/jordanreyes"
+ },
+ "summary": "Software engineer with 4 years of experience building customer-facing web applications. Shipped features used by 2M+ monthly users and cut page load times by 45%. Strong in React, TypeScript and cloud infrastructure.",
+ "experience": [
+  {
+   "id": "ayrivch8",
+   "company": "Brightlane",
+   "role": "Software Engineer",
+   "location": "Austin, TX",
+   "startDate": "Jun 2023",
+   "endDate": "Present",
+   "bullets": [
+    "Led migration of the checkout flow to React + TypeScript, reducing cart abandonment by 12%.",
+    "Built internal design-system components adopted by 5 product teams.",
+    "Cut p95 page load time from 3.2s to 1.7s via code splitting and CDN caching."
+   ]
+  },
+  {
+   "id": "ll8m9xol",
+   "company": "Nova Retail",
+   "role": "Junior Developer",
+   "location": "Remote",
+   "startDate": "Jul 2021",
+   "endDate": "May 2023",
+   "bullets": [
+    "Developed REST APIs in Node.js powering order tracking for 300k customers.",
+    "Automated regression test suite, cutting release QA time from 2 days to 4 hours.",
+    "Instrumented checkout funnel analytics that surfaced a 9% drop-off recovered by a one-day fix."
+   ]
+  }
+ ],
+ "education": [
+  {
+   "id": "p5xgpb6w",
+   "school": "University of Texas at Austin",
+   "degree": "B.S. Computer Science",
+   "location": "Austin, TX",
+   "startDate": "2017",
+   "endDate": "2021",
+   "details": ""
+  }
+ ],
+ "projects": [
+  {
+   "id": "p1",
+   "name": "Ledger",
+   "link": "",
+   "description": "Open source ledger",
+   "org": "OSS",
+   "startDate": "2020",
+   "endDate": "2021"
+  }
+ ],
+ "skills": "React, TypeScript, Node.js, Python, PostgreSQL, AWS, Docker, CI/CD, GraphQL, Jest",
+ "certifications": "",
+ "certItems": [
+  {
+   "id": "c1",
+   "name": "AWS SA",
+   "issuer": "Amazon",
+   "date": "2024",
+   "url": "",
+   "description": ""
+  }
+ ],
+ "involvement": [
+  {
+   "id": "inv1",
+   "role": "Selected Member",
+   "organization": "Robotics Club",
+   "location": "Austin, TX",
+   "startDate": "Sep 2018",
+   "endDate": "May 2020",
+   "description": "Built line-following robot"
+  }
+ ],
+ "coursework": [
+  {
+   "id": "cw1",
+   "name": "Introduction to Computer Systems",
+   "institution": "University of Texas at Austin",
+   "date": "2019",
+   "skill": "C",
+   "description": "Wrote a shell"
+  }
+ ],
+ "awards": [
+  {
+   "id": "aw1",
+   "name": "Dean's List",
+   "organization": "University of Texas at Austin",
+   "date": "2019",
+   "description": "Top 10%"
+  }
+ ],
+ "publications": [
+  {
+   "id": "pub1",
+   "title": "Fast Sorting",
+   "venue": "ACM SIGMOD",
+   "kind": "Conference paper",
+   "date": "2021",
+   "description": ""
+  }
+ ],
+ "references": [
+  {
+   "id": "ref1",
+   "name": "Sam Lee",
+   "title": "CTO",
+   "employer": "Acme",
+   "email": "sam@acme.com",
+   "phone": "555-1000",
+   "kind": "professional"
+  }
+ ],
+ "military": [
+  {
+   "id": "mil1",
+   "rank": "Sergeant",
+   "branch": "Army",
+   "location": "Fort Bragg, NC",
+   "startDate": "2012",
+   "endDate": "2016",
+   "description": "Led a squad"
+  }
+ ],
+ "agents": [],
+ "customSections": [
+  {
+   "id": "cs1",
+   "title": "Volunteering",
+   "bullets": [
+    "Food bank shift lead, 2021\u2013present"
+   ]
+  },
+  {
+   "id": "cs2",
+   "title": "UX Research Work",
+   "bullets": [
+    "Diary study, 12 participants"
+   ]
+  },
+  {
+   "id": "cs3",
+   "title": "Speaking Engagements",
+   "bullets": [
+    "ReactConf 2024 lightning talk"
+   ]
+  }
+ ],
+ "sectionOrder": [
+  "skills",
+  "custom:cs1",
+  "education",
+  "custom:cs2",
+  "summary",
+  "experience",
+  "custom:cs3",
+  "involvement",
+  "coursework",
+  "awards",
+  "publications",
+  "references",
+  "military",
+  "projects",
+  "certifications"
+ ],
+ "templateId": "modern",
+ "accentColor": "#6d28d9",
+ "pageSize": "a4",
+ "fontScale": "s",
+ "lineSpacing": "compact",
+ "targetRole": "",
+ "jobDescription": "",
+ "fontFamily": "serif",
+ "sectionSpacing": "tight",
+ "pageMargins": "narrow",
+ "sectionDivider": "on",
+ "bulletIndent": "on",
+ "contactIcons": "on",
+ "groupByCompany": "on",
+ "textColor": "navy",
+ "sectionHeadings": {
+  "experience": "Work History"
+ },
+ "autoSortByDate": [
+  "experience"
+ ]
+}

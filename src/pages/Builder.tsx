@@ -97,6 +97,7 @@ import { prefersReducedMotion } from '@/lib/motion'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { type AuditFinding } from '@/lib/auditChip'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
+import { AtsScoreValue } from '@/components/AtsScoreValue'
 import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { EntryAuditChip } from '@/components/EntryAuditChip'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
@@ -211,6 +212,7 @@ import {
   stashUnreadableShareLinks,
 } from '@/lib/share'
 import { useHistoryGuard } from '@/lib/useHistoryGuard'
+import { usePdfLength } from '@/lib/usePdfLength'
 
 import {
   type ExperienceItem,
@@ -415,42 +417,6 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' | 'error' {
     }
   }, [])
   return state
-}
-
-let pdfMeasureIdle: Promise<void> | null = null
-/** Resolves once the page has loaded and the main thread is idle, so the
- * heavy PDF engine never competes with Builder startup. */
-function whenIdleForPdfMeasure(): Promise<void> {
-  pdfMeasureIdle ??= new Promise((resolve) => {
-    const idle = () => {
-      if (typeof window.requestIdleCallback === 'function')
-        window.requestIdleCallback(() => resolve(), { timeout: 4000 })
-      else window.setTimeout(resolve, 1500)
-    }
-    if (document.readyState === 'complete') idle()
-    else window.addEventListener('load', idle, { once: true })
-  })
-  return pdfMeasureIdle
-}
-
-/** Debounced fractional length of the exported PDF, shown next to the preview. */
-function usePdfLength(resume: Resume): import('@/lib/pdf').ResumeLength | null {
-  const [len, setLen] = useState<import('@/lib/pdf').ResumeLength | null>(null)
-  const seq = useRef(0)
-  useEffect(() => {
-    const id = ++seq.current
-    const t = window.setTimeout(() => {
-      void whenIdleForPdfMeasure()
-        .then(() => import('@/lib/pdf'))
-        .then((m) => m.measureResumePdf(resume))
-        .then((n) => {
-          if (seq.current === id) setLen(n)
-        })
-        .catch(() => undefined)
-    }, 800)
-    return () => window.clearTimeout(t)
-  }, [resume])
-  return len
 }
 
 /** Whether the viewport is at the lg breakpoint, where both panes show side by side. */
@@ -9784,8 +9750,7 @@ export default function Builder() {
                     )}
                     <p className="text-muted-foreground text-xs">
                       {new Date(v.updatedAt).toLocaleString()}
-                      {v.folder ? ` · ${v.folder}` : ''} · ATS{' '}
-                      {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+                      {v.folder ? ` · ${v.folder}` : ''} · ATS <AtsScoreValue resume={v.data} />
                       <CopyTargetNote
                         version={v}
                         pipeline={copiesPipeline}

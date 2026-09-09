@@ -54,7 +54,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { scoreResume } from '@/lib/ats'
+import { AtsScoreValue } from '@/components/AtsScoreValue'
 import { downloadText, loadExporter, professionalFileName } from '@/lib/download'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { exportWorkspace, parseWorkspaceBackup, restoreWorkspace } from '@/lib/workspace'
@@ -1126,8 +1126,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{v.name}</p>
             <p className="text-muted-foreground text-xs">
-              {editedAgo(v.updatedAt)} · ATS{' '}
-              {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+              {editedAgo(v.updatedAt)} · ATS <AtsScoreValue resume={v.data} />
               {v.folder ? ` · ${v.folder}` : ''}
               {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
               <CopyTargetNote
@@ -1154,8 +1153,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{v.name}</p>
           <p className="text-muted-foreground text-xs">
-            {editedAgo(v.updatedAt)} · ATS{' '}
-            {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+            {editedAgo(v.updatedAt)} · ATS <AtsScoreValue resume={v.data} />
             {v.folder ? ` · ${v.folder}` : ''}
             {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
             <CopyTargetNote
@@ -1556,7 +1554,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     {draft.targetRole || draft.contact.fullName || 'Current draft'}
                   </p>
                   <p className="text-muted-foreground text-xs">
-                    Current draft · ATS {scoreResume(visibleResume(draft), draft.jobDescription).score}/100
+                    Current draft · ATS <AtsScoreValue resume={draft} />
                   </p>
                 </div>
                 <div className="mt-auto flex flex-wrap gap-1.5">
