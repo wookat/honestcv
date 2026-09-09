@@ -115,7 +115,41 @@ if (comma.length === 2 && NAME_HEAD_RE.test(comma[0]) && !JOB_TITLE_NOUN_RE.test
 
 ## Deploy + production QA
 
-(filled in after deployment)
+- `npm run build && node scripts/verify-dist.mjs && npx wrangler deploy`:
+  30 / 30 modified assets + worker uploaded; route listing still fails with
+  Cloudflare `code: 10000` (token lacks route-list permission; upload itself
+  succeeded, not redeployed for it). Production `index-R7lSDT_d.js`,
+  `importText-DM4CrN2E.js`, `Builder-Co95aSlp.js`, `AtsChecker-BjhlvLqa.js`
+  SHA-256 = local dist; `/examples/examples.json` and a prerendered page 200.
+- Production QA (persistent testing agent, 1280 + independent 375, cache off,
+  recording 10m09s 2× `/home/ubuntu/qa/r810/r810-production-readable-2x.mp4`,
+  raw `/home/ubuntu/qa/r810/results.json`): shapes A–G through Builder Import
+  paste and `/ats-checker` paste → Replace, both widths — A (`at` + dates),
+  B (`—` + dates), C (`at` + bullets, no dates): name `Jane Doe`, title `""`
+  (`#c-title` empty, placeholder shown, no title paragraph in the preview
+  contact block), summary `""`, exactly one experience
+  `Senior Engineer / Acme Corp` with the exact dates / bullets; D explicit
+  heading control identical; E prose title kept whole; F `Jane Doe, Senior
+  Engineer` → `Jane Doe` / `Senior Engineer`, e-mail + phone kept, preview
+  prints name once and title once without the comma; G `Jane Doe, PhD` whole
+  name / `Director, Engineering` and `Senior Engineer, Acme, Inc.` whole
+  titles / leading `New York, NY` → location. Stored JSON equal across paths
+  and widths after id removal + the known `ignoredKeywords: []`
+  normalisation; real form values match. 375 = 375 / scale 1 / scrollX 0.
+  Regressions Sumit 82/22 4/1/4 `Technical Writing`, Oxford 82/22 7/2/0,
+  Alex 95/22 2/1, Kenneth 55/22 22/5 — fixture hashes, extracted text, full
+  parsed content and ATS tables identical to R809. 27 runtime-discovered JS
+  assets SHA = dist before and after. 2,465 GET / 0 POST (71 quota reads),
+  0 console / page errors, 0 HTTP ≥ 400, 0 AI / lead / share / pay / copy /
+  delete / download. 46 byte-exact storage checkpoints + 4 final snapshots.
+  Raw assertions 1,627 / 0 on the corrected run; the retained first attempts
+  add 68 / 1 — the one failure is the harness reading a helper field
+  (`replaceDialog`) the helper never records (replacement did happen), and the
+  first Builder-A attempt missed its immediate storage checkpoint (recorded as
+  a protocol exception; both A paths re-run with byte-exact checkpoints). The
+  desktop screenshot tool could not connect; CDP screenshots / recording were
+  used. Not exercised in production: shared `/s/:id`, downloads / exports
+  (unit-tested).
 
 ## Boundaries
 
