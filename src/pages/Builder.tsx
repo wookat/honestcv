@@ -599,6 +599,11 @@ const ENTRY_NAME_ORG_DATE = 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]'
 const ENTRY_NAME_FIELD = 'sm:col-span-2'
 const ENTRY_DATE_FIELD = 'w-32 sm:w-24'
 
+// Dated entry field grid is a size container: below 32rem (editor beside the
+// preview at 1024–1215px) the place field and the date pair each take a full row.
+const ENTRY_FIELDS_GRID = '@container grid gap-2 sm:grid-cols-2'
+const ENTRY_WIDE_FIELD = '@max-[32rem]:col-span-full'
+
 const moveId = (list: string, index: number, dir: 'up' | 'down') => `move-${list}-${index}-${dir}`
 
 /** A short window of `text` around the first occurrence of `around` (whole text when it is short). */
@@ -3782,7 +3787,7 @@ export default function Builder() {
                 </div>
                 {!collapsedEntries.has(e.id) && (
                   <>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className={ENTRY_FIELDS_GRID}>
                   <div className="space-y-1.5">
                     <Label htmlFor={`exp-${e.id}-role`}>
                       {e.company.trim() ? `Your role at ${e.company.trim()}` : 'Your role'}
@@ -3805,7 +3810,7 @@ export default function Builder() {
                       onChange={(ev) => setExp(e.id, { company: ev.target.value })}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`exp-${e.id}-location`}>
                       {e.company.trim()
                         ? `Where was ${e.company.trim()} based?`
@@ -3818,7 +3823,7 @@ export default function Builder() {
                       onChange={(ev) => setExp(e.id, { location: ev.target.value })}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`exp-${e.id}-start`}>
                       {e.company.trim()
                         ? `When were you at ${e.company.trim()}?`
@@ -4175,7 +4180,7 @@ export default function Builder() {
                 </p>
                 {!collapsedEntries.has(e.id) && (
                   <>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className={ENTRY_FIELDS_GRID}>
                   <div className="space-y-1.5">
                     <Label htmlFor={`edu-${e.id}-degree`}>Degree and major</Label>
                     <Input
@@ -4210,7 +4215,7 @@ export default function Builder() {
                     }
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`edu-${e.id}-location`}>
                       {e.school.trim()
                         ? `Where is ${e.school.trim()} located?`
@@ -4230,7 +4235,7 @@ export default function Builder() {
                       }
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`edu-${e.id}-start`}>When did you study?</Label>
                     <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
@@ -4665,8 +4670,9 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className={ENTRY_FIELDS_GRID}>
                   <Input
+                    className={ENTRY_WIDE_FIELD}
                     aria-label="Organization (optional)"
                     placeholder="Organization (optional)"
                     onKeyDown={markShortcutKeyDown}
@@ -4680,7 +4686,7 @@ export default function Builder() {
                       }))
                     }
                   />
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className={`grid grid-cols-2 gap-2 ${ENTRY_WIDE_FIELD}`}>
                     <MonthYearField
                       language={resumeLanguageOf(resume)}
                       ariaLabel="Start date"
@@ -5012,8 +5018,9 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className={ENTRY_FIELDS_GRID}>
                   <Input
+                    className={ENTRY_WIDE_FIELD}
                     aria-label="College or city (optional)"
                     placeholder="College or city (optional)"
                     value={inv.location}
@@ -5026,7 +5033,7 @@ export default function Builder() {
                       }))
                     }
                   />
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className={`grid grid-cols-2 gap-2 ${ENTRY_WIDE_FIELD}`}>
                     <MonthYearField
                       language={resumeLanguageOf(resume)}
                       ariaLabel="Start date"
@@ -6602,8 +6609,9 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className={ENTRY_FIELDS_GRID}>
                   <Input
+                    className={ENTRY_WIDE_FIELD}
                     aria-label="Stationed at"
                     placeholder="Stationed at (e.g. Fort Bragg, NC)"
                     onKeyDown={markShortcutKeyDown}
@@ -6617,7 +6625,7 @@ export default function Builder() {
                       }))
                     }
                   />
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className={`grid grid-cols-2 gap-2 ${ENTRY_WIDE_FIELD}`}>
                     <MonthYearField
                       language={resumeLanguageOf(resume)}
                       ariaLabel="Start date"
