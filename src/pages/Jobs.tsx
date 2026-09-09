@@ -168,6 +168,9 @@ const agoFromMs = (ms: number) => {
 // list a later search already produced.
 let jobsFetchSeq = 0
 
+/** Widths where list and detail share one pane (below Tailwind `lg`). */
+const SINGLE_PANE_MQ = '(max-width: 1023px)'
+
 export default function Jobs() {
   usePageMeta(
     'Job search — RezUp',
@@ -380,12 +383,12 @@ export default function Jobs() {
     window.history.replaceState(window.history.state, '', window.location.pathname + (qs ? `?${qs}` : ''))
   }, [query, tab, followUpOnly, category, locationFilter, typeFilter, skillsFilter, sort, selectedId])
 
-  // On the mobile layout the detail pane covers the list, so browser Back
+  // Below `lg` the detail pane covers the list, so browser Back
   // should close it and return to the list instead of leaving /jobs: push a
   // sentinel history entry while the pane is open and pop it on close.
   useEffect(() => {
     if (!mobileDetail) return
-    if (!window.matchMedia('(max-width: 767px)').matches) return
+    if (!window.matchMedia(SINGLE_PANE_MQ).matches) return
     window.history.pushState({ 'hcv-mobile-detail': true }, '')
     const onPop = () => setMobileDetail(false)
     window.addEventListener('popstate', onPop)
@@ -402,7 +405,7 @@ export default function Jobs() {
   const listScrollRef = useRef(0)
   const mobileDetailWasOpen = useRef(false)
   useEffect(() => {
-    if (!window.matchMedia('(max-width: 767px)').matches) return
+    if (!window.matchMedia(SINGLE_PANE_MQ).matches) return
     if (mobileDetail) {
       mobileDetailWasOpen.current = true
       listScrollRef.current = window.scrollY
@@ -1418,7 +1421,7 @@ export default function Jobs() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by job title, e.g. frontend developer"
               aria-label="Search jobs by title"
-              className="h-10 w-full max-w-md sm:w-auto sm:flex-1"
+              className="h-10 w-full max-w-md sm:w-auto sm:min-w-72 sm:flex-1"
             />
             <Button type="submit" className="min-h-10 gap-1.5">
               <Search className="size-4" /> Search
@@ -1660,10 +1663,10 @@ export default function Jobs() {
           </div>
         )}
 
-        <div className="mt-6 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           <div
             className={`bg-card max-h-[70vh] overflow-y-auto rounded-md border ${
-              mobileDetail ? 'hidden md:block' : ''
+              mobileDetail ? 'hidden lg:block' : ''
             }`}
           >
             {tab === 'tracked' && repeatedSkills.length > 0 && (
@@ -2107,7 +2110,7 @@ export default function Jobs() {
 
           <div
             className={`bg-card max-h-[70vh] overflow-y-auto rounded-md border p-4 ${
-              mobileDetail ? '' : 'hidden md:block'
+              mobileDetail ? '' : 'hidden lg:block'
             }`}
           >
             {selected ? (
@@ -2115,7 +2118,7 @@ export default function Jobs() {
                 <button
                   type="button"
                   onClick={() => setMobileDetail(false)}
-                  className="text-muted-foreground hover:text-foreground mb-2 inline-flex min-h-10 items-center gap-1 text-sm md:hidden"
+                  className="text-muted-foreground hover:text-foreground mb-2 inline-flex min-h-10 items-center gap-1 text-sm lg:hidden"
                 >
                   <ArrowLeft className="size-4" /> Back to list
                 </button>
