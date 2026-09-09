@@ -66,13 +66,13 @@ export function MonthYearField({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="pr-8"
+        className="pr-10 sm:pr-8"
       />
       <button
         type="button"
         aria-label={open ? 'Close date picker' : 'Open date picker'}
         aria-expanded={open}
-        className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-8 items-center justify-center"
+        className="text-muted-foreground hover:text-foreground absolute -inset-y-0.5 right-0 flex w-10 items-center justify-center sm:inset-y-0 sm:w-8"
         onClick={() => {
           if (!open) setYear(yearOf(value))
           setOpen((o) => !o)
