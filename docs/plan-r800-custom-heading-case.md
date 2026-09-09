@@ -50,7 +50,10 @@ Rezi keeps a custom section's title through its export / import loop.
   `markedHeadings` set (saved / restored like `readerHeadings`) and
   `matchCustomHeading` accepts a line that was a `##` heading whatever its
   case — headings by declaration, `###` entry headers and bullets unaffected.
-- Letter-spaced heading recovery learns `writing` (`T E C H N I C A L
+- `unglueHeading()`: a heading whose spaces the extractor dropped
+  (`TECHNICALWRITING`, the real Sumit PDF) recovers the space before a known
+  section last word in the generic ALL-CAPS branch too, not only for
+  letter-spaced text; the word list learns `writing` / `experience` (`T E C H N I C A L
   W R I T I N G` → `Technical Writing`, a real Pages export).
 - Generic short ALL-CAPS custom heading (≤ 3 words): a `&` token no longer
   counts as a word (`UX & PRODUCT WORK` — found by production QA of the first

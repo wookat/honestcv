@@ -1249,6 +1249,17 @@ UX & PRODUCT WORK
     ])
   })
 
+  it('a heading whose spaces the extractor dropped recovers the space before a known last word', () => {
+    const r = cv(`EXPERIENCE
+Engineer · Acme Corp
+Jan 2020 – Present
+- Shipped the platform
+TECHNICALWRITING
+- API reference for the SDK
+`)
+    expect(r.customSections.map((s) => s.title)).toEqual(['Technical Writing'])
+  })
+
   it('a letter-spaced heading recovers the space before a known last word', () => {
     const r = cv(`EXPERIENCE
 Engineer · Acme Corp

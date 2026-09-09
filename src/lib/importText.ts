@@ -408,10 +408,7 @@ function matchCustomHeading(line: string): string | null {
   if (LETTER_SPACED_RE.test(t)) {
     // Tracked heading of a section we have no field for; the last word is
     // recoverable when it is a known section word ("EXTRACURRICULAR ACTIVITIES").
-    return t
-      .replace(/ /g, '')
-      .replace(/(.)(awards?|honors?|achievements?|publications?|activities|interests?|languages?|leadership|work|writing|involvement)$/i, '$1 $2')
-      .toUpperCase()
+    return unglueHeading(t.replace(/ /g, '')).toUpperCase()
   }
   if (markedHeadings?.has(t)) return t
   if (t.length > 32) return null
@@ -419,9 +416,17 @@ function matchCustomHeading(line: string): string | null {
   // Generic short ALL-CAPS heading like "PRO BONO WORK" — a lone short
   // acronym (CSS / AWS / SQL, a wrapped skill) is not one.
   if (/^[A-Z][A-Z &/'-]+$/.test(t) && t.split(/\s+/).filter((w) => w !== '&').length <= 3 && (t.length >= 6 || t.includes(' ')))
-    return t
+    return unglueHeading(t)
   return null
 }
+
+// A tracked heading whose spaces the extractor dropped ("TECHNICALWRITING"):
+// the last word is recoverable when it is a known section word.
+const unglueHeading = (t: string) =>
+  t.replace(
+    /^([A-Za-z]{5,})(awards?|honors?|achievements?|publications?|activities|interests?|languages?|leadership|work|writing|involvement|experience)$/i,
+    '$1 $2',
+  )
 
 // Trailing separators left where the dates were; a bracket only when the
 // dates were the bracket's content ("Role (Jan 2020 – Present)" → "Role ("

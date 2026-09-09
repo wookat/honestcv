@@ -3710,4 +3710,5 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - Replay 186 vs R799 byte copy (`qa/r800-parse-replay.mts`): 175 identical, 11 changed, all custom-title casing (Sumit `TECHNICALWRITING` → `Technical Writing` also visible in `sectionOrder` since the replay names custom slots by title).
 - Boundaries: a deliberately capitalised custom title comes back title-cased from a capitals template; acronyms by length / vowels (`NASA` → `Nasa`, `HTML` kept); non-Latin scripts unchanged.
 - Production QA (first deploy) found a supplementary plain-text edge: `UX & PRODUCT WORK` after another custom section was not a heading — the generic short ALL-CAPS rule counted `&` as a word (≤ 3 words). Same PR, second commit: `&` no longer counts; replay unchanged (175 / 11 casing-only); test +1 → 219.
-- Gates tsc ×3 / eslint / vitest 219 / build / verify-dist green.
+- Production QA also showed the real Sumit PDF (`~/qa/r778-downloads/sumit-yadav-resume.pdf`) reaches the parser with its tracked heading already glued (`TECHNICALWRITING`) → `Technicalwriting`; third commit: `unglueHeading()` (prefix ≥ 5 letters + known section last word) applies to the generic ALL-CAPS custom heading as well as the letter-spaced branch → `Technical Writing`; replay unchanged; test +1 → 220.
+- Gates tsc ×3 / eslint / vitest 220 / build / verify-dist green.
