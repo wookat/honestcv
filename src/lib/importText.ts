@@ -353,6 +353,37 @@ const isHeadlessEntryHeader = (line: string, next: string) =>
   bindsEntryHeader(line) &&
   !isContactRow(line) &&
   (bareDate(next) !== null || isBullet(next) || (!!extractDates(line).start && !!extractDates(line).rest))
+// "• Led the migration of the billing platform to the new" + "Kubernetes
+// cluster, cutting p99 latency by 40%.": the second visual line of a bullet
+// opens with a capitalised word, so `continuesPrevious` (lowercase / figure /
+// open phrase) does not see the wrap — a page break in our own PDF export, or
+// a paste that kept its line breaks. It continues the bullet when that bullet
+// carried a marker in the source (marker-less bullet lists — Canva — end
+// without punctuation and each line is its own item), still ends
+// mid-sentence, and this marker-less line reads as prose rather than as an
+// entry header, a date line, a tag row or a bullet that lost its marker (it
+// opens with an action verb — "Shipped the redesign …").
+const openedWithMarker = (lines: string[], i: number, bullet: string) => {
+  for (let p = i - 1; p >= 0; p--) {
+    const src = lines[p]
+    if (!src) continue
+    if (isBullet(src)) return bullet.startsWith(stripBullet(src))
+    if (!bullet.includes(src.trim())) return false
+  }
+  return false
+}
+const continuesOpenBullet = (lines: string[], i: number, bullet: string | undefined, line: string) =>
+  !!bullet &&
+  !/[.!?:;]$/.test(bullet) &&
+  !isBullet(line) &&
+  /^[A-ZÀ-Þ]/.test(line) &&
+  looksLikeBodyLine(line) &&
+  !opensWithActionVerb(line) &&
+  !bindsEntryHeader(line) &&
+  !isTagList(line) &&
+  !DATE_RANGE_RE.test(line) &&
+  !extractDates(line).start &&
+  openedWithMarker(lines, i, bullet)
 // The document's body has begun: a dated line, a bullet or an entry header.
 // A name never follows these, so the name scan stops here.
 const startsBody = (line: string, next: string) =>
@@ -697,12 +728,15 @@ const joinWrappedHeader = (line: string, next: string | undefined): string | nul
 // marker-less bullet list starts.
 const BINDER_WORD_RE = /^(?:at|of|the|and|or|for|de|du|da|del|la|le|von|van|&|-|–|—|to|in)$/
 const STRONG_VERBS = new Set(ACTION_VERBS.flatMap((g) => g.verbs.map((v) => v.toLowerCase())))
+function opensWithActionVerb(line: string) {
+  const first = line.split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, '')
+  return STRONG_VERBS.has(first) || /^[a-z]+ed$/.test(first)
+}
 const isCompanyInfoLine = (line: string, next: string | undefined) => {
   if (line.length > 90 || /[.!?;:]$/.test(line)) return false
   if (/\s[·|]\s|\s[—–]\s|\bat\s+[A-Z]/.test(line)) return false
   if (isBullet(line) || extractDates(line).start || isExpPlaceLine(line)) return false
-  const first = line.split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, '')
-  if (STRONG_VERBS.has(first) || /^[a-z]+ed$/.test(first)) return false
+  if (opensWithActionVerb(line)) return false
   const lower = line
     .split(/\s+/)
     .filter((w) => /^[a-zà-ÿ]/.test(w) && !BINDER_WORD_RE.test(w.replace(/[,()]/g, '')))
@@ -1066,7 +1100,8 @@ function parseResumeTextInner(input: string): Resume {
           currentExp.bullets.push(stripBullet(line))
         } else if (
           currentExp &&
-          continuesPrevious(currentExp.bullets[currentExp.bullets.length - 1], line)
+          (continuesPrevious(currentExp.bullets[currentExp.bullets.length - 1], line) ||
+            continuesOpenBullet(lines, i, currentExp.bullets[currentExp.bullets.length - 1], line))
         ) {
           currentExp.bullets[currentExp.bullets.length - 1] = joinWrapped(
             currentExp.bullets[currentExp.bullets.length - 1],
