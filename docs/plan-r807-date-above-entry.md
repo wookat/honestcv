@@ -114,7 +114,12 @@ becoming the degree — that is the word-table replay case below.
 ## Boundaries (recorded, not fixed)
 
 - A date line followed by a body sentence opens a nameless dated entry (the
-  honours case) — no degree is invented; the user sees the dates and details.
+  honours case) — no degree is invented; the Builder card shows the dates and
+  details. Production QA (R807) found that `educationEntries()` (R772 rule:
+  degree or school required) omits such an entry from the preview and every
+  export, so the honours text is stored and editable but not printed —
+  queued R808 (render a nameless entry when it has dates or details).
+  Before R807 the same input printed `2017 · Jun 2020` as degree / school.
 - A date line above a `City, ST` line then the header: the place is skipped
   by the existing place branch, the header still names the entry; not
   probed in production QA.
