@@ -20,13 +20,14 @@ const gridAround = (marker: string): { grid: string; body: string } => {
 
 // Every structured entry whose start–end date pair shares a `sm:grid-cols-2`
 // row with its location / organisation field, with the number of wide fields the
-// grid holds (experience / education also widen their name pair — R829).
+// grid holds (experience / education widen their name pair too — R829; involvement /
+// military joined that layout with visible labels — R833).
 const DATED_ENTRIES: [string, number][] = [
   ['htmlFor={`exp-${e.id}-start`}', 4],
   ['htmlFor={`edu-${e.id}-start`}', 4],
   ['aria-label="Organization (optional)"', 2],
-  ['aria-label="College or city (optional)"', 2],
-  ['aria-label="Stationed at"', 2],
+  ['htmlFor={`inv-${inv.id}-start`}', 4],
+  ['htmlFor={`mil-${m.id}-start`}', 4],
 ]
 
 describe('R826: a dated entry never shows a quarter-width date box that clips "Jun 2023"', () => {
@@ -55,6 +56,6 @@ describe('R826: a dated entry never shows a quarter-width date box that clips "J
     }
     // The remaining 2-column entry grids (agents, project name row …) hold no date pair.
     const plainGrids = builderSrc.match(/className="grid gap-2 sm:grid-cols-2"/g) ?? []
-    expect(plainGrids.length).toBe(4)
+    expect(plainGrids.length).toBe(2)
   })
 })
