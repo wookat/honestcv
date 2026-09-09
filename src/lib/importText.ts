@@ -324,6 +324,8 @@ function matchInlineHeading(line: string): { heading: SectionName; rest: string 
 // Two to four words, the first capitalised, before a " — ": the name half of
 // our own "Name — Title" header line.
 const NAME_HEAD_RE = /^[A-ZÀ-Þ][\p{L}.'’-]*(?:\s+[\p{L}.'’-]+){1,3}$/u
+// Document title printed above the name ("Curriculum Vitae", "Résumé")
+const DOC_TITLE_RE = /^(?:curriculum vitae|cv|r[ée]sum[ée]|personal (?:details|information))\s*:?$/i
 // "Senior Engineer · Acme Corp" / "Senior Engineer | Acme Corp" over its
 // dates — an entry header pasted without any heading above it. A contact row
 // uses the same binders but carries an e-mail / phone / URL, and a
@@ -830,7 +832,8 @@ function parseResumeTextInner(input: string): Resume {
     const named = dash.length > 1 && NAME_HEAD_RE.test(dash[0])
     const head = named ? dash[0] : line
     if (!named && startsBody(line, nonEmpty[n + 1] ?? '')) break
-    if (!named && isExpPlaceLine(line)) continue
+    if (matchHeading(line) || matchGutterLabel(line)) break
+    if (!named && (isExpPlaceLine(line) || DOC_TITLE_RE.test(line))) continue
     if (
       head.length <= 60 &&
       !EMAIL_RE.test(line) &&
@@ -1339,6 +1342,7 @@ function parseResumeTextInner(input: string): Resume {
         // Before any heading: professional title often sits under the name
         // (never a contact row — "City, ST | phone | email" is not a title)
         const contactish = EMAIL_RE.test(line) || PHONE_RE.test(line) || URL_RE.test(line) || /[|•]/.test(line)
+        if (DOC_TITLE_RE.test(line)) break
         if (!contactish && isExpPlaceLine(line)) {
           // "Austin, TX" on its own header line is the location (read above),
           // not the title. Under the name it opens the header, so prose below
