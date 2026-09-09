@@ -9,7 +9,14 @@ import { parseResumeText } from '../src/lib/importText'
 import { buildResumePdf } from '../src/lib/pdf'
 import {
   educationEntries,
+  emptyAward,
+  emptyCertification,
+  emptyCoursework,
   emptyEducation,
+  emptyExperience,
+  emptyInvolvement,
+  emptyMilitaryService,
+  emptyPublication,
   resumeToMarkdown,
   resumeToPlainText,
   sampleResume,
@@ -134,5 +141,63 @@ describe('education entries with no degree or school still print (R808)', () => 
     const listed = (r: Resume) => scoreResume(r, '').checks.find((c) => c.label === 'Education listed')?.pass
     for (const { name, e } of PRINTABLE) expect(listed(withEducation(e)), name).toBe(true)
     expect(listed(withEducation(edu({})))).toBe(false)
+  })
+})
+
+describe('editor heading placeholders in the other structured sections (R809)', () => {
+  const text = (html: string) => norm(html.replace(/<[^>]+>/g, '')).trim()
+  const block = (html: string, heading: string) => {
+    const i = html.search(new RegExp(`>${heading}(</span>)?</h3>`))
+    if (i < 0) return ''
+    const rest = html.slice(i)
+    const j = rest.indexOf('<h3', 1)
+    return j < 0 ? rest : rest.slice(0, j)
+  }
+  const heading = (html: string, section: string) =>
+    text(block(html, section).match(/<p class="text-\[11(\.5)?px\] font-bold">(.*?)<\/p>/)?.[2] ?? '')
+
+  it('a job with a role and no company shows "Role · Company" while editing and the role alone read-only', () => {
+    const r: Resume = { ...sampleResume(), experience: [{ ...emptyExperience(), id: 'exp-r809', role: 'Engineer' }] }
+    expect(heading(preview(r, true), 'Experience')).toBe('Engineer · Company')
+    expect(heading(preview(r, true), 'Experience')).not.toMatch(/·\s*$/)
+    expect(heading(preview(r), 'Experience')).toBe('Engineer')
+    expect(block(preview(r), 'Experience')).not.toMatch(/·\s*<\/span>/)
+    // a job with a company and no role: the left side is the placeholder
+    const company: Resume = { ...sampleResume(), experience: [{ ...emptyExperience(), id: 'exp-r809', company: 'Acme' }] }
+    expect(heading(preview(company, true), 'Experience')).toBe('Role · Acme')
+    expect(heading(preview(company), 'Experience')).toBe('Acme')
+  })
+
+  it('every other structured heading keeps both sides typed or a placeholder while editing, and prints the head alone read-only', () => {
+    const r: Resume = {
+      ...sampleResume(),
+      involvement: [{ ...emptyInvolvement(), id: 'inv', role: 'Volunteer' }],
+      coursework: [{ ...emptyCoursework(), id: 'cw', name: 'Algorithms' }],
+      certItems: [{ ...emptyCertification(), id: 'ce', name: 'AWS SAA' }],
+      awards: [{ ...emptyAward(), id: 'aw', name: 'Top Prize' }],
+      publications: [{ ...emptyPublication(), id: 'pu', title: 'A paper' }],
+      military: [{ ...emptyMilitaryService(), id: 'mi', rank: 'Sergeant' }],
+    }
+    const editable = preview(r, true)
+    const readonly = preview(r)
+    for (const [section, head, edited] of [
+      ['Involvement', 'Volunteer', 'Volunteer · Organization'],
+      ['Coursework', 'Algorithms', 'Algorithms · Institution'],
+      ['Certifications', 'AWS SAA', 'AWS SAA — Issuer'],
+      ['Awards &amp; Honors', 'Top Prize', 'Top Prize — Organization'],
+      ['Publications', 'A paper', 'A paper — Venue'],
+      ['Military service', 'Sergeant', 'Sergeant · Branch'],
+    ] as const) {
+      const e = block(editable, section)
+      const ro = block(readonly, section)
+      expect(e, section).toBeTruthy()
+      expect(heading(e, section), section).toBe(edited)
+      expect(heading(ro, section), section).toBe(head)
+      expect(e, section).not.toMatch(/(·|—)\s*<\/span>/)
+      expect(e, section).not.toMatch(/(·|—)\s*<span[^>]*><\/span>/)
+      expect(text(ro), section).toContain(head)
+      expect(ro, section).not.toMatch(/(·|—)\s*<\/span>/)
+      expect(ro, section).not.toMatch(/(·|—)\s*<span[^>]*><\/span>/)
+    }
   })
 })
