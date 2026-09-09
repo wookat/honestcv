@@ -330,8 +330,11 @@ const isUrlSegment = (seg: string) =>
   LINKEDIN_RE.test(seg) ||
   /^(?:https?:\/\/|www\.)/i.test(seg) ||
   /\b[a-z0-9-]+\.(?:com|dev|io|me|net|org|co|ai|design|xyz)(?:\/|$)/i.test(seg)
-// Document title printed above the name ("Curriculum Vitae", "Résumé")
-const DOC_TITLE_RE = /^(?:curriculum vitae|cv|r[ée]sum[ée]|personal (?:details|information))\s*:?$/i
+// Document title printed above the name ("Curriculum Vitae", "Résumé") in
+// English or a product language (ES / FR / DE / PT: "Lebenslauf",
+// "Currículum Vitae", "Hoja de Vida", "Currículo", "Persönliche Daten" …)
+const DOC_TITLE_RE =
+  /^(?:curr[ií]cul[ou]m?(?:\s+vit[aæ]e?)?|cv|r[ée]sum[ée]|lebenslauf|hoja\s+de\s+vida|personal\s+(?:details|information)|pers[öo]nliche\s+(?:daten|angaben)|angaben\s+zur\s+person|datos\s+personales|informaci[óo]n\s+personal|dados\s+pessoais|informa[çc][õo]es\s+pessoais|coordonn[ée]es|informations\s+personnelles|[ée]tat\s+civil)\s*:?$/iu
 // "Senior Engineer · Acme Corp" / "Senior Engineer | Acme Corp" over its
 // dates or its bullets — an entry header pasted without any heading above it.
 // A contact row uses the same binders but carries an e-mail / phone / URL,
