@@ -363,8 +363,9 @@ export function ResumePreview({
 
   const aspectRatio = resume.pageSize === 'a4' ? '210 / 297' : '8.5 / 11'
   const contentStyle: React.CSSProperties = {
-    // Mirror the export's text-size and line-spacing settings
-    zoom: fontScaleOf(resume),
+    // Mirror the export's text-size and line-spacing settings. The template's px sizes
+    // stand for the export's pt sizes, so inside a 96dpi page frame they zoom by 96/72.
+    zoom: fontScaleOf(resume) * (paginated ? PX_PER_PT : 1),
     lineHeight: lineSpacingOf(resume) + 0.1,
   }
   const jumpProps = (key: string, label: string) =>
@@ -476,6 +477,8 @@ export function ResumePreview({
   )
 }
 
+/** CSS px per PDF point on the 96dpi page frames. */
+const PX_PER_PT = 96 / 72
 // 32px at 96dpi corresponds to the default 0.75\u2033 margin band's scaled look
 const PAGE_PAD = 32
 const pagePadOf = (r: Resume) => Math.round((PAGE_PAD * pageMarginOf(r)) / 54)
