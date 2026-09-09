@@ -430,6 +430,57 @@ Jan 2020 – Present
     })
   })
 
+  it('R806: a "Name | Title" / "Name · Title" header row splits into name and title; a name leading a contact row is the name', () => {
+    const head = (text: string) => {
+      const r = parseResumeText(text)
+      return {
+        name: r.contact.fullName,
+        title: r.contact.title,
+        location: r.contact.location,
+        email: r.contact.email,
+        website: r.contact.website,
+        exp: r.experience.map(({ role, company, bullets }) => [role, company, bullets.length]),
+      }
+    }
+    const body = 'EXPERIENCE\nEngineer · Acme\n2020 – 2021'
+    expect(head(`Jane Doe | Senior Engineer\njane@example.com · 555-111-2222\n${body}`)).toMatchObject({
+      name: 'Jane Doe',
+      title: 'Senior Engineer',
+      email: 'jane@example.com',
+      exp: [['Engineer', 'Acme', 0]],
+    })
+    expect(head(`Jane Doe · Senior Software Engineer, Platform\njane@example.com\n${body}`)).toMatchObject({
+      name: 'Jane Doe',
+      title: 'Senior Software Engineer, Platform',
+    })
+    // contact / link / place segments are not the title; a dotted title is not a link
+    expect(head(`Jane Doe | jane@example.com | 555-111-2222\n${body}`)).toMatchObject({
+      name: 'Jane Doe',
+      title: '',
+      email: 'jane@example.com',
+      exp: [['Engineer', 'Acme', 0]],
+    })
+    expect(head(`Jane Doe | Austin, TX\njane@example.com\n${body}`)).toMatchObject({
+      name: 'Jane Doe',
+      title: '',
+      location: 'Austin, TX',
+    })
+    expect(head(`Jane Doe | Node.js Developer | github.com/jane\njane@example.com\n${body}`)).toMatchObject({
+      name: 'Jane Doe',
+      title: 'Node.js Developer',
+      website: 'github.com/jane',
+    })
+    // an entry header over its bullets is the first job, not a name row (R802 covered the dated shape)
+    expect(head('Senior Engineer · Acme Corp\n- Built things.\n- Led the team.')).toMatchObject({
+      name: '',
+      title: '',
+      exp: [['Senior Engineer', 'Acme Corp', 2]],
+    })
+    // "Name — Headline" and a plain name line are unchanged
+    expect(head(`Jane Doe — Senior Engineer\njane@example.com\n${body}`)).toMatchObject({ name: 'Jane Doe', title: 'Senior Engineer' })
+    expect(head(`Jane Doe\nSenior Engineer\njane@example.com\n${body}`)).toMatchObject({ name: 'Jane Doe', title: 'Senior Engineer' })
+  })
+
   it('R782: humanNameCase keeps hyphens, apostrophes, particles, numerals, initials and Mc-', () => {
     expect(humanNameCase("MARY-JANE O'NEIL")).toBe("Mary-Jane O'Neil")
     expect(humanNameCase('LUDWIG VAN BEETHOVEN')).toBe('Ludwig van Beethoven')

@@ -324,22 +324,16 @@ function matchInlineHeading(line: string): { heading: SectionName; rest: string 
 // Two to four words, the first capitalised, before a " — ": the name half of
 // our own "Name — Title" header line.
 const NAME_HEAD_RE = /^[A-ZÀ-Þ][\p{L}.'’-]*(?:\s+[\p{L}.'’-]+){1,3}$/u
-// A header-row segment that is a link ("github.com/jane", "linkedin.com/in/jane",
-// "www.jane.dev"), as opposed to a title that merely contains a dot ("Node.js Developer")
-const isUrlSegment = (seg: string) =>
-  LINKEDIN_RE.test(seg) ||
-  /^(?:https?:\/\/|www\.)/i.test(seg) ||
-  /\b[a-z0-9-]+\.(?:com|dev|io|me|net|org|co|ai|design|xyz)(?:\/|$)/i.test(seg)
 // Document title printed above the name ("Curriculum Vitae", "Résumé")
 const DOC_TITLE_RE = /^(?:curriculum vitae|cv|r[ée]sum[ée]|personal (?:details|information))\s*:?$/i
 // "Senior Engineer · Acme Corp" / "Senior Engineer | Acme Corp" over its
-// dates or its bullets — an entry header pasted without any heading above it.
-// A contact row uses the same binders but carries an e-mail / phone / URL,
-// and a "Name | Title" row has neither a date line nor a bullet under it.
+// dates — an entry header pasted without any heading above it. A contact row
+// uses the same binders but carries an e-mail / phone / URL, and a
+// "Name | Title" row has no date line under it.
 const isHeadlessEntryHeader = (line: string, next: string) =>
   /\S\s(?:·|\|)\s\S/.test(line) &&
   !isContactRow(line) &&
-  (bareDate(next) !== null || isBullet(next) || (!!extractDates(line).start && !!extractDates(line).rest))
+  (bareDate(next) !== null || (!!extractDates(line).start && !!extractDates(line).rest))
 // The document's body has begun: a dated line, a bullet or an entry header.
 // A name never follows these, so the name scan stops here.
 const startsBody = (line: string, next: string) =>
@@ -835,35 +829,21 @@ function parseResumeTextInner(input: string): Resume {
     // "Name — Title" header lines carry the professional title too; the
     // title may run long (a LinkedIn headline), the name never does
     const dash = line.split(/\s+[—–]\s+/)
-    let parts = dash
-    let named = dash.length > 1 && NAME_HEAD_RE.test(dash[0])
+    const named = dash.length > 1 && NAME_HEAD_RE.test(dash[0])
+    const head = named ? dash[0] : line
     if (!named && startsBody(line, nonEmpty[n + 1] ?? '')) break
-    // "Name | Title", "Name | e-mail | phone", "Name · City, ST": one header
-    // row bound by | or · that opens with the name. An entry header
-    // ("Role · Company" over its dates) has already ended the scan above.
-    if (!named) {
-      const row = line.split(/\s+[|·•]\s+/)
-      if (row.length > 1 && NAME_HEAD_RE.test(row[0]) && !isExpPlaceLine(row[0])) {
-        parts = row
-        named = true
-      }
-    }
-    const head = named ? parts[0] : line
     if (matchHeading(line) || matchGutterLabel(line)) break
     if (!named && (isExpPlaceLine(line) || DOC_TITLE_RE.test(line))) continue
     if (
       head.length <= 60 &&
-      !EMAIL_RE.test(head) &&
-      !PHONE_RE.test(head) &&
+      !EMAIL_RE.test(line) &&
+      !PHONE_RE.test(line) &&
       !matchHeading(line) &&
       head.split(/\s+/).length <= 6
     ) {
       nameLine = line
-      resume.contact.fullName = humanNameCase(head.trim())
-      const title = parts
-        .slice(1)
-        .filter((p) => !EMAIL_RE.test(p) && !PHONE_RE.test(p) && !isUrlSegment(p) && !isExpPlaceLine(p))
-      if (title.length) resume.contact.title = title.join(parts === dash ? ' — ' : ' · ').trim()
+      resume.contact.fullName = humanNameCase(dash[0].trim())
+      if (dash.length > 1) resume.contact.title = dash.slice(1).join(' — ').trim()
       break
     }
   }
