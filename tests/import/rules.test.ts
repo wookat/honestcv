@@ -532,6 +532,40 @@ Jan 2020 – Present
     ])
   })
 
+  it('R809: a detail line that opens the education section is a detail, not the degree; a header under it names the entry', () => {
+    const edu = (text: string) =>
+      parseResumeText(`Jane Doe\njane@example.com\nEDUCATION\n${text}`).education.map(({ degree, school, startDate, endDate, details }) => [
+        degree,
+        school,
+        startDate,
+        endDate,
+        details,
+      ])
+    const honours = 'First Class Honours. Final project: a journey planner.'
+    // the R808 QA fixture: a dateless honours sentence directly under the heading
+    expect(edu(honours)).toEqual([['', '', '', '', honours]])
+    expect(edu('GPA: 3.8')).toEqual([['', '', '', '', 'GPA: 3.8']])
+    // detail above its header (Canva / Word timeline layouts linearised): one entry
+    expect(edu(`${honours}\nBSc Computer Science · University of Bristol`)).toEqual([
+      ['BSc Computer Science', 'University of Bristol', '', '', honours],
+    ])
+    expect(edu("Dean's List\nState University")).toEqual([['', 'State University', '', '', "Dean's List"]])
+    // date line, detail line, header: the header names the entry and keeps the detail (R807 dropped it)
+    expect(edu('2017 – Jun 2020\nFirst Class Honours.\nBSc Computer Science · University of Bristol')).toEqual([
+      ['BSc Computer Science', 'University of Bristol', '2017', 'Jun 2020', 'First Class Honours.'],
+    ])
+    // a degree whose name carries a detail word is still the degree; school-first and the normal shapes are unchanged
+    expect(edu('Bachelor of Arts with Honours in English\nUniversity of Leeds')).toEqual([
+      ['Bachelor of Arts with Honours in English', 'University of Leeds', '', '', ''],
+    ])
+    expect(edu('Honours College, State University\nBS Computer Science')).toEqual([
+      ['BS Computer Science', 'Honours College', '', '', 'State University'],
+    ])
+    expect(edu('BS Computer Science · State University\n2016\nGPA: 3.8')).toEqual([
+      ['BS Computer Science', 'State University', '2016', '2016', 'GPA: 3.8'],
+    ])
+  })
+
   it('R782: humanNameCase keeps hyphens, apostrophes, particles, numerals, initials and Mc-', () => {
     expect(humanNameCase("MARY-JANE O'NEIL")).toBe("Mary-Jane O'Neil")
     expect(humanNameCase('LUDWIG VAN BEETHOVEN')).toBe('Ludwig van Beethoven')

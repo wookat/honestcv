@@ -744,6 +744,7 @@ function SectionBlock({
                       <Tail head={e.role} tail={e.company + e.location} editable={!!onEdit}>
                         <InlineText
                           value={e.company}
+                          placeholder="Company"
                           onCommit={
                             onEdit &&
                             ((v) =>
@@ -971,10 +972,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {inv.organization.trim() && (
+                {(inv.organization.trim() || onEdit) && (
                   <Tail head={inv.role} tail={inv.organization + inv.location} editable={!!onEdit}>
                     <InlineText
                       value={inv.organization.trim()}
+                      placeholder="Organization"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -1124,10 +1126,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {cw.institution.trim() && (
+                {(cw.institution.trim() || onEdit) && (
                   <Tail head={cw.name} tail={cw.institution} editable={!!onEdit}>
                     <InlineText
                       value={cw.institution.trim()}
+                      placeholder="Institution"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -1253,10 +1256,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {c.issuer.trim() && (
+                {(c.issuer.trim() || onEdit) && (
                   <Tail head={c.name} tail={c.issuer} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={c.issuer.trim()}
+                      placeholder="Issuer"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -1309,10 +1313,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {a.organization.trim() && (
+                {(a.organization.trim() || onEdit) && (
                   <Tail head={a.name} tail={a.organization} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={a.organization.trim()}
+                      placeholder="Organization"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -1383,10 +1388,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {p.venue.trim() && (
+                {(p.venue.trim() || onEdit) && (
                   <Tail head={p.title} tail={p.venue} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={p.venue.trim()}
+                      placeholder="Venue"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -1496,10 +1502,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {m.branch.trim() && (
+                {(m.branch.trim() || onEdit) && (
                   <Tail head={m.rank} tail={m.branch + m.location} editable={!!onEdit}>
                     <InlineText
                       value={m.branch.trim()}
+                      placeholder="Branch"
                       onCommit={
                         onEdit &&
                         ((v) =>

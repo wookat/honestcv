@@ -1221,14 +1221,18 @@ function parseResumeTextInner(input: string): Resume {
           currentEdu &&
           !currentEdu.degree &&
           !currentEdu.school &&
-          currentEdu.startDate &&
+          (currentEdu.startDate || currentEdu.details) &&
           !start &&
           !isEduPlaceLine(line) &&
           !isEduDetailLine(line) &&
           (looksLikeDotHeader(line) || !looksLikeBodyLine(line))
         ) {
-          // the entry line under its own date line
-          Object.assign(currentEdu, newEducationEntry(line, currentEdu.startDate, currentEdu.endDate), { id: currentEdu.id })
+          // the entry line under its own date (or detail) line
+          const named = newEducationEntry(line, currentEdu.startDate, currentEdu.endDate)
+          Object.assign(currentEdu, named, {
+            id: currentEdu.id,
+            details: [named.details, currentEdu.details].filter(Boolean).join('; '),
+          })
         } else if (
           start &&
           currentEdu &&
@@ -1298,6 +1302,19 @@ function parseResumeTextInner(input: string): Resume {
           !(currentEdu.degree && currentEdu.school && isDegreeLine(splitDegreeLine(line).degree))
         ) {
           appendDetails(currentEdu, line)
+        } else if (
+          !currentEdu &&
+          !start &&
+          isEduDetailLine(line) &&
+          !isDegreeLine(line) &&
+          !SCHOOL_RE.test(line) &&
+          !looksLikeDotHeader(line)
+        ) {
+          // "First Class Honours. Final project: …" as the first line of the
+          // section — a detail with no degree or school to hang on
+          currentEdu = { ...emptyEducation(), id: newId() }
+          appendDetails(currentEdu, line)
+          resume.education.push(currentEdu)
         } else if (
           currentEdu &&
           !start &&
