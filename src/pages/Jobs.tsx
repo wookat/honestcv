@@ -1987,7 +1987,9 @@ export default function Jobs() {
                               />
                             )}
                             <span className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium">{j.title}</p>
+                              <p className="line-clamp-2 text-sm font-medium break-words">
+                                {j.title}
+                              </p>
                               <p className="text-muted-foreground truncate text-xs">
                                 {j.company} · {j.location}
                               </p>
