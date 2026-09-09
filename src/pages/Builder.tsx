@@ -584,6 +584,14 @@ function useUndo(
 const ENTRY_TEXT_ROW =
   'flex flex-wrap items-start gap-2 sm:flex-nowrap [&>:first-child]:basis-full sm:[&>:first-child]:flex-1 sm:[&>:first-child]:basis-0 [&>:nth-child(2)]:ml-auto'
 
+// Name / organisation / date row of a one-line structured entry (coursework,
+// award, publication, certification): the name takes a full line, the
+// organisation shares the next line with a compact date box from `sm` up, and
+// every field stacks below `sm` so a school or issuer name is never clipped.
+const ENTRY_NAME_ORG_DATE = 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]'
+const ENTRY_NAME_FIELD = 'sm:col-span-2'
+const ENTRY_DATE_FIELD = 'w-32 sm:w-24'
+
 const moveId = (list: string, index: number, dir: 'up' | 'down') => `move-${list}-${index}-${dir}`
 
 /** A short window of `text` around the first occurrence of `around` (whole text when it is short). */
@@ -5394,9 +5402,10 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className={ENTRY_NAME_ORG_DATE}>
                   <Input
                     aria-label="Course name"
+                    className={ENTRY_NAME_FIELD}
                     placeholder="Course name (e.g. Intro to Computer Systems)"
                     onKeyDown={markShortcutKeyDown}
                     value={cw.name}
@@ -5409,35 +5418,34 @@ export default function Builder() {
                       }))
                     }
                   />
-                  <div className="grid grid-cols-[1fr_5rem] gap-2">
-                    <Input
-                      aria-label="Where (school or platform)"
-                      placeholder="Where (school or platform)"
-                      onKeyDown={markShortcutKeyDown}
-                      value={cw.institution}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          coursework: (r.coursework ?? []).map((x) =>
-                            x.id === cw.id ? { ...x, institution: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <Input
-                      aria-label="When"
-                      placeholder="When"
-                      value={cw.date}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          coursework: (r.coursework ?? []).map((x) =>
-                            x.id === cw.id ? { ...x, date: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                  </div>
+                  <Input
+                    aria-label="Where (school or platform)"
+                    placeholder="Where (school or platform)"
+                    onKeyDown={markShortcutKeyDown}
+                    value={cw.institution}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).map((x) =>
+                          x.id === cw.id ? { ...x, institution: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    aria-label="When"
+                    className={ENTRY_DATE_FIELD}
+                    placeholder="When"
+                    value={cw.date}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).map((x) =>
+                          x.id === cw.id ? { ...x, date: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
                 </div>
                 <Input
                   aria-label="Skills used (optional)"
@@ -5681,9 +5689,10 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className={ENTRY_NAME_ORG_DATE}>
                   <Input
                     aria-label="Award name"
+                    className={ENTRY_NAME_FIELD}
                     placeholder="Award name (e.g. Dean's List)"
                     onKeyDown={markShortcutKeyDown}
                     value={a.name}
@@ -5696,35 +5705,34 @@ export default function Builder() {
                       }))
                     }
                   />
-                  <div className="grid grid-cols-[1fr_5rem] gap-2">
-                    <Input
-                      aria-label="Awarded by"
-                      placeholder="Awarded by (organization)"
-                      onKeyDown={markShortcutKeyDown}
-                      value={a.organization}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          awards: (r.awards ?? []).map((x) =>
-                            x.id === a.id ? { ...x, organization: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <Input
-                      aria-label="When"
-                      placeholder="When"
-                      value={a.date}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          awards: (r.awards ?? []).map((x) =>
-                            x.id === a.id ? { ...x, date: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                  </div>
+                  <Input
+                    aria-label="Awarded by"
+                    placeholder="Awarded by (organization)"
+                    onKeyDown={markShortcutKeyDown}
+                    value={a.organization}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: (r.awards ?? []).map((x) =>
+                          x.id === a.id ? { ...x, organization: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    aria-label="When"
+                    className={ENTRY_DATE_FIELD}
+                    placeholder="When"
+                    value={a.date}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        awards: (r.awards ?? []).map((x) =>
+                          x.id === a.id ? { ...x, date: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
                 </div>
                 <div className={ENTRY_TEXT_ROW}>
                   <Textarea
@@ -5960,9 +5968,10 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className={ENTRY_NAME_ORG_DATE}>
                   <Input
                     aria-label="Publication title"
+                    className={ENTRY_NAME_FIELD}
                     placeholder="Publication title"
                     onKeyDown={markShortcutKeyDown}
                     value={pub.title}
@@ -5975,37 +5984,37 @@ export default function Builder() {
                       }))
                     }
                   />
-                  <div className="grid grid-cols-[1fr_5rem] gap-2">
-                    <Input
-                      aria-label="Journal or conference"
-                      placeholder="Journal / conference"
-                      onKeyDown={markShortcutKeyDown}
-                      value={pub.venue}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          publications: (r.publications ?? []).map((x) =>
-                            x.id === pub.id ? { ...x, venue: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <Input
-                      aria-label="When"
-                      placeholder="When"
-                      value={pub.date}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          publications: (r.publications ?? []).map((x) =>
-                            x.id === pub.id ? { ...x, date: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                  </div>
+                  <Input
+                    aria-label="Journal or conference"
+                    placeholder="Journal / conference"
+                    onKeyDown={markShortcutKeyDown}
+                    value={pub.venue}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).map((x) =>
+                          x.id === pub.id ? { ...x, venue: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    aria-label="When"
+                    className={ENTRY_DATE_FIELD}
+                    placeholder="When"
+                    value={pub.date}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        publications: (r.publications ?? []).map((x) =>
+                          x.id === pub.id ? { ...x, date: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
                   <Input
                     aria-label="Publication type"
+                    className={ENTRY_NAME_FIELD}
                     placeholder="Type — e.g. Journal Article"
                     onKeyDown={markShortcutKeyDown}
                     list="publication-kinds"
@@ -7157,9 +7166,10 @@ export default function Builder() {
                       Hidden — left out of the resume
                     </p>
                   )}
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className={ENTRY_NAME_ORG_DATE}>
                     <Input
                       aria-label="Certificate name"
+                      className={ENTRY_NAME_FIELD}
                       placeholder="Certificate name (AWS Solutions Architect)"
                       onKeyDown={markShortcutKeyDown}
                       value={c.name}
@@ -7172,36 +7182,34 @@ export default function Builder() {
                         }))
                       }
                     />
-                    <div className="grid grid-cols-[1fr_auto] gap-2">
-                      <Input
-                        aria-label="Issuer"
-                        placeholder="Issuer (Amazon Web Services)"
-                        onKeyDown={markShortcutKeyDown}
-                        value={c.issuer}
-                        onChange={(ev) =>
-                          setResume((r) => ({
-                            ...r,
-                            certItems: (r.certItems ?? []).map((x) =>
-                              x.id === c.id ? { ...x, issuer: ev.target.value } : x
-                            ),
-                          }))
-                        }
-                      />
-                      <Input
-                        aria-label="When"
-                        className="w-24"
-                        placeholder="2024"
-                        value={c.date}
-                        onChange={(ev) =>
-                          setResume((r) => ({
-                            ...r,
-                            certItems: (r.certItems ?? []).map((x) =>
-                              x.id === c.id ? { ...x, date: ev.target.value } : x
-                            ),
-                          }))
-                        }
-                      />
-                    </div>
+                    <Input
+                      aria-label="Issuer"
+                      placeholder="Issuer (Amazon Web Services)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={c.issuer}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: (r.certItems ?? []).map((x) =>
+                            x.id === c.id ? { ...x, issuer: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Input
+                      aria-label="When"
+                      className={ENTRY_DATE_FIELD}
+                      placeholder="2024"
+                      value={c.date}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          certItems: (r.certItems ?? []).map((x) =>
+                            x.id === c.id ? { ...x, date: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
                   </div>
                   <div className={ENTRY_TEXT_ROW}>
                     <Textarea
