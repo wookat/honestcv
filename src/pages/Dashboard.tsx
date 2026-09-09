@@ -2507,7 +2507,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               <Button
                 type="button"
                 variant="outline"
-                className="min-h-10"
+                className="h-auto min-h-10 whitespace-normal"
                 onClick={() => saveEditingAsNewCopy(editingMatchesTrackedJob?.job.id)}
               >
                 {!editingMatchesTrackedJob
@@ -2521,7 +2521,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               <Button
                 type="button"
                 variant="outline"
-                className="min-h-10"
+                className="h-auto min-h-10 whitespace-normal"
                 onClick={() => saveEditing(editingMatchesTrackedJob.job.id)}
               >
                 {editingMatchesTrackedJob.hasCopy
