@@ -12,9 +12,22 @@ export const listFixtures = (kind: 'text' | 'pdf') =>
 
 export const readText = (name: string) => readFileSync(join(FIXTURES, 'text', name), 'utf8')
 
-/** Drops generated ids so a golden compares content, not random identifiers. */
-export const normalize = (v: unknown) =>
-  JSON.stringify(v, (k, x) => (k === 'id' ? undefined : x), 1) + '\n'
+/**
+ * Drops generated ids so a golden compares content, not random identifiers;
+ * `sectionOrder` names a custom section by its title instead of its id.
+ */
+export const normalize = (v: unknown) => {
+  const r = v as { customSections?: { id: string; title: string }[] }
+  const titles = new Map((r.customSections ?? []).map((s) => [`custom:${s.id}`, `custom:${s.title}`]))
+  return (
+    JSON.stringify(
+      v,
+      (k, x: unknown) =>
+        k === 'id' ? undefined : k === 'sectionOrder' && Array.isArray(x) ? (x as string[]).map((key) => titles.get(key) ?? key) : x,
+      1
+    ) + '\n'
+  )
+}
 
 /**
  * The browser's PDF path minus the worker: same pdf.js text layer, same

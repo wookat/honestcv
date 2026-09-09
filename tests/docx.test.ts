@@ -5,7 +5,7 @@ import { buildResumeDocx } from '../src/lib/docx'
 import { extractResumeFile } from '../src/lib/extractFile'
 import { parseResumeText } from '../src/lib/importText'
 import { resumeToPlainText, sampleResume } from '../src/lib/resume'
-import { ownSections, withOwnSections } from './import/ownSections'
+import { PRINTED_ORDER, ownSections, printedOrder, reorderedOwnSections, withOwnSections } from './import/ownSections'
 
 const BULLET_CHECKS = [
   '3–6 bullet points per role',
@@ -115,5 +115,11 @@ describe('our own structured sections re-import from DOCX (R797)', () => {
     expect(ownSections(back)).toEqual(ownSections(src))
     expect(ownSections(back)).toEqual(ownSections(parseResumeText(resumeToPlainText(src))))
     expect(back.customSections).toEqual([])
+  })
+
+  it('R799: the section order the DOCX prints comes back', async () => {
+    const src = reorderedOwnSections(sampleResume())
+    const { text } = await extractResumeFile(new File([await buildResumeDocx(src)], 'jordan-reyes-resume.docx'))
+    expect(printedOrder(parseResumeText(text))).toEqual(PRINTED_ORDER)
   })
 })

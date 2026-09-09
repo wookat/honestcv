@@ -26,6 +26,7 @@ import {
   emptyReference,
   emptyResume,
   newId,
+  orderedSectionKeys,
 } from './resume'
 import { plainResumeText } from './markdownText'
 import { ACTION_VERBS } from './guidance'
@@ -839,10 +840,16 @@ function parseResumeTextInner(input: string): Resume {
   // Each custom section's lines as the document had them (bullet marks kept),
   // so a section we printed ourselves can be read back into its fields.
   const customRaw = new WeakMap<CustomSection, string[]>()
+  // Section keys in the order the document's headings introduce them
+  const headingOrder: string[] = []
+  const noteSection = (key: string) => {
+    if (!headingOrder.includes(key)) headingOrder.push(key)
+  }
   const openCustom = (title: string, first?: string): CustomSection => {
     const s: CustomSection = { id: newId(), title, bullets: first === undefined ? [] : [stripBullet(first)] }
     customRaw.set(s, first === undefined ? [] : [first])
     resume.customSections.push(s)
+    noteSection(`custom:${s.id}`)
     return s
   }
   const pushCustom = (s: CustomSection, line: string) => {
@@ -871,6 +878,7 @@ function parseResumeTextInner(input: string): Resume {
     const heading = inline?.heading ?? matchHeading(line)
     if (heading) {
       section = heading
+      noteSection(heading)
       currentExp = null
       currentEdu = null
       currentCustom = null
@@ -1304,10 +1312,11 @@ function parseResumeTextInner(input: string): Resume {
   const certItems = liftCertifications(certLines)
   if (certItems) resume.certItems = certItems
   else resume.certifications = certLines.join('; ')
-  liftOwnSections(resume, customRaw)
+  liftOwnSections(resume, customRaw, headingOrder)
 
   if (resume.experience.length === 0) resume.experience = [emptyExperience()]
   if (resume.education.length === 0) resume.education = [emptyEducation()]
+  resume.sectionOrder = orderedSectionKeys({ ...resume, sectionOrder: headingOrder })
   return resume
 }
 
@@ -1419,13 +1428,17 @@ function liftCertifications(raw: string[]): CertificationItem[] | null {
   })
 }
 
-function liftOwnSections(resume: Resume, customRaw: WeakMap<CustomSection, string[]>): void {
+function liftOwnSections(resume: Resume, customRaw: WeakMap<CustomSection, string[]>, headingOrder: string[]): void {
   const keep: CustomSection[] = []
   for (const s of resume.customSections) {
     const own = ownHeading(s.title)
     const raw = customRaw.get(s)
     const key = own && 'custom' in own ? own.key : ''
     if (!key || !raw || raw.length === 0 || !liftOwnSection(resume, key, raw)) keep.push(s)
+    else {
+      const at = headingOrder.indexOf(`custom:${s.id}`)
+      if (at !== -1) headingOrder.splice(at, 1, ...(headingOrder.includes(key) ? [] : [key]))
+    }
   }
   resume.customSections = keep
 }
