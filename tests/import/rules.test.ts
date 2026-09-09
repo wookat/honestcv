@@ -386,6 +386,50 @@ Jan 2020 – Present
     expect(edu('BS Computer Science · State University\n2012 – 2016\n2018\n')[0]).toMatchObject({ startDate: '2012', endDate: '2016' })
   })
 
+  it('R805: a section heading ends the name scan — a fragment pasted from EDUCATION / SUMMARY down keeps its first line in the section', () => {
+    const head = (text: string) => {
+      const r = parseResumeText(text)
+      return {
+        name: r.contact.fullName,
+        title: r.contact.title,
+        summary: r.summary,
+        edu: r.education.map(({ degree, school, startDate, endDate, details }) => [degree, school, startDate, endDate, details]),
+      }
+    }
+    expect(head('EDUCATION\nState University\nBS Computer Science\n2016\nGPA: 3.8')).toEqual({
+      name: '',
+      title: '',
+      summary: '',
+      edu: [['BS Computer Science', 'State University', '2016', '2016', 'GPA: 3.8']],
+    })
+    expect(head('jane@example.com · 555-111-2222\nEDUCATION\nState University\nBS Computer Science\n2016')).toMatchObject({
+      name: '',
+      edu: [['BS Computer Science', 'State University', '2016', '2016', '']],
+    })
+    expect(head('SUMMARY\nSeasoned engineer.\nEXPERIENCE\nEngineer · Acme\n2020 – 2021\n- Built.')).toMatchObject({
+      name: '',
+      title: '',
+      summary: 'Seasoned engineer.',
+    })
+    const gutter = parseResumeText('EXPERIENCE Senior Engineer · Acme Corp\nJan 2020 – Present\n- Built things.')
+    expect(gutter.contact.fullName).toBe('')
+    expect(gutter.experience.map((e) => [e.role, e.company])).toEqual([['Senior Engineer', 'Acme Corp']])
+    // a real name above the heading is still the name
+    expect(head('Jane Doe\nEDUCATION\nState University\nBS Computer Science\n2016\nGPA: 3.8')).toMatchObject({
+      name: 'Jane Doe',
+      edu: [['BS Computer Science', 'State University', '2016', '2016', 'GPA: 3.8']],
+    })
+    // a document title printed over the name is neither the name nor the title
+    expect(head('CURRICULUM VITAE\nJane Doe\njane@example.com\nEDUCATION\nBS Computer Science · State University\n2016')).toMatchObject({
+      name: 'Jane Doe',
+      title: '',
+    })
+    expect(head('Personal Details\nJane Doe\nSenior Engineer\njane@example.com · 555-111-2222\nEXPERIENCE\nEngineer · Acme\n2020 – 2021')).toMatchObject({
+      name: 'Jane Doe',
+      title: 'Senior Engineer',
+    })
+  })
+
   it('R782: humanNameCase keeps hyphens, apostrophes, particles, numerals, initials and Mc-', () => {
     expect(humanNameCase("MARY-JANE O'NEIL")).toBe("Mary-Jane O'Neil")
     expect(humanNameCase('LUDWIG VAN BEETHOVEN')).toBe('Ludwig van Beethoven')
