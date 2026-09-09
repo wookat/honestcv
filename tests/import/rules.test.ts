@@ -1716,3 +1716,75 @@ T E C H N I C A L W R I T I N G
     expect(r.customSections.map((s) => s.title)).toEqual(['Technical Writing'])
   })
 })
+
+describe('a bare known city on the contact row and a hyphen-joined degree/school (R824)', () => {
+  it('"jane@example.com | +44 20 7946 0000 | London" stores London as the location', () => {
+    const r = parseResumeText(`Jane Doe\njane@example.com | +44 20 7946 0000 | London\n`)
+    expect(r.contact.location).toBe('London')
+    expect(r.contact.email).toBe('jane@example.com')
+    expect(r.contact.title).toBe('')
+  })
+
+  it('a bare country / another known city on a contact row is the location too', () => {
+    expect(parseResumeText(`Jane Doe\njane@example.com | Berlin\n`).contact.location).toBe('Berlin')
+    expect(parseResumeText(`Jane Doe\n+1 555 210 4432 | Canada\n`).contact.location).toBe('Canada')
+  })
+
+  it('a title word on the contact row is not a location', () => {
+    const r = parseResumeText(`Jane Doe\njane@example.com | +44 20 7946 0000 | Engineer\n`)
+    expect(r.contact.location).toBe('')
+  })
+
+  it('a bare word that is not in the place vocabulary is not a location', () => {
+    const r = parseResumeText(`Jane Doe\njane@example.com | Springfield\n`)
+    expect(r.contact.location).toBe('')
+  })
+
+  it('a bare city with no e-mail / phone / URL on its row is not taken from that row', () => {
+    const r = parseResumeText(`Jane Doe\nLondon\n\nSKILLS\nReact, TypeScript\n`)
+    expect(r.contact.location).toBe('')
+    expect(r.skills).toContain('React, TypeScript')
+  })
+
+  it('a skills row below the first heading is never the location', () => {
+    const r = parseResumeText(`Jane Doe\nSenior Engineer\njane@example.com\n\nSKILLS\nReact, TypeScript\n`)
+    expect(r.contact.location).toBe('')
+    expect(r.contact.title).toBe('Senior Engineer')
+  })
+
+  it('"B.S. Computer Science - State University (2017 - 2021)" splits degree / school / years', () => {
+    const r = cv(`EDUCATION
+B.S. Computer Science - State University (2017 - 2021)
+`)
+    expect(r.education).toHaveLength(1)
+    expect(r.education[0]).toMatchObject({
+      degree: 'B.S. Computer Science',
+      school: 'State University',
+      startDate: '2017',
+      endDate: '2021',
+    })
+  })
+
+  it('"School - Degree" orients the same way round', () => {
+    const r = cv(`EDUCATION
+State University - B.S. Computer Science (2017 - 2021)
+`)
+    expect(r.education[0]).toMatchObject({
+      degree: 'B.S. Computer Science',
+      school: 'State University',
+      startDate: '2017',
+      endDate: '2021',
+    })
+  })
+
+  it('a hyphen that joins a degree to its grade is not a degree/school separator', () => {
+    const r = cv(`EDUCATION
+BSc (Hons) Computer Science - 2:1 (2017 - 2021)
+University of Leeds
+`)
+    expect(r.education).toHaveLength(1)
+    expect(r.education[0].school).toBe('University of Leeds')
+    expect(r.education[0].degree).toMatch(/^BSc \(Hons\) Computer Science/)
+    expect(`${r.education[0].degree} ${r.education[0].details}`).toContain('2:1')
+  })
+})

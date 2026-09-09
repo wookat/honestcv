@@ -10260,7 +10260,7 @@ export default function Builder() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-auto w-full flex-col items-start gap-0.5 py-2.5"
+                className="h-auto w-full flex-col items-start gap-0.5 py-2.5 text-left whitespace-normal"
                 onClick={() => {
                   localStorage.setItem('honestcv.setupDone', '1')
                   setWizardOpen(false)
@@ -10314,7 +10314,7 @@ export default function Builder() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-auto w-full flex-col items-start gap-0.5 py-2.5"
+                className="h-auto w-full flex-col items-start gap-0.5 py-2.5 text-left whitespace-normal"
                 onClick={() => {
                   localStorage.setItem('honestcv.setupDone', '1')
                   setWizardOpen(false)
@@ -10498,6 +10498,7 @@ export default function Builder() {
               setImportText('')
             }}
             disabled={!importText.trim()}
+            className="h-auto min-h-9 whitespace-normal"
           >
             <ClipboardPaste /> Import — replaces current content (Ctrl+Z to undo)
           </Button>

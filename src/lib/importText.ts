@@ -30,6 +30,7 @@ import {
 } from './resume'
 import { markdownSectionHeadings, plainResumeText } from './markdownText'
 import { ACTION_VERBS } from './guidance'
+import { isKnownPlace } from './places'
 import {
   CREDENTIAL_TITLE_RE,
   CUSTOM_HEADING_RE,
@@ -946,13 +947,25 @@ function parseResumeTextInner(input: string): Resume {
     `${EMAIL_RE.source}|${LINKEDIN_RE.source}|${URL_RE.source}|${PHONE_RE.source}`,
     'gi'
   )
+  // "jane@example.com | +44 20 7946 0000 | London": a bare city or country is
+  // the location only on a row that also carries an e-mail / phone / URL, and
+  // only when the place vocabulary knows it — never a title word.
+  const bareKnownPlace = (seg: string, line: string) =>
+    PLACE_RE.test(seg) &&
+    !seg.includes(',') &&
+    seg.toLowerCase() !== resume.contact.fullName.toLowerCase() &&
+    isKnownPlace(seg) &&
+    new RegExp(contactTokens.source, 'i').test(line)
+      ? seg
+      : ''
   for (const line of nonEmpty.slice(0, 5)) {
     if (matchHeading(line)) break
     for (const raw of line.split(/\s*[|•·]\s*/)) {
       const seg = raw.trim()
       const place =
         contactPlace(seg) ||
-        contactPlace(seg.replace(contactTokens, ' ').replace(/\s+/g, ' ').trim())
+        contactPlace(seg.replace(contactTokens, ' ').replace(/\s+/g, ' ').trim()) ||
+        bareKnownPlace(seg, line)
       if (place) {
         resume.contact.location = place
         break
@@ -960,9 +973,12 @@ function parseResumeTextInner(input: string): Resume {
     }
     if (resume.contact.location) break
   }
-  // "Williamsville, United States" on its own header line
+  // "Williamsville, United States" on its own header line — above the first
+  // section heading, so a "React, TypeScript" skills row is never the location
   if (!resume.contact.location) {
-    const place = nonEmpty.slice(1, headerLines).find((l) => isExpPlaceLine(l) && !matchHeading(l))
+    const place = nonEmpty
+      .slice(1, firstHeading < 0 ? headerLines : Math.min(headerLines, firstHeading))
+      .find((l) => isExpPlaceLine(l) && !matchHeading(l))
     if (place) resume.contact.location = place
   }
 
@@ -1540,8 +1556,18 @@ const isReferenceDetail = (line: string) =>
 // The line that opens an education entry: "Degree · School", a degree line
 // ("Bachelor of Arts in Economics; GPA: 3.7" — the school follows) or a school
 // line ("St Mary's High School, Durham" — the degree follows)
+// "B.S. Computer Science - State University": a spaced ASCII hyphen joins a
+// degree and a school when exactly one side names a school (the date range's
+// hyphen is gone by now; "BSc Computer Science - 2:1" keeps its grade).
+const eduHeaderSeparators = (header: string) => {
+  const parts = header.split(/\s+-\s+/)
+  return parts.length === 2 && SCHOOL_RE.test(parts[0]) !== SCHOOL_RE.test(parts[1])
+    ? parts.join(' — ')
+    : header
+}
+
 function newEducationEntry(header: string, start: string, end: string): EducationItem {
-  const { role, company, location } = splitRoleCompanyRaw(header)
+  const { role, company, location } = splitRoleCompanyRaw(eduHeaderSeparators(header))
   const entry: EducationItem = {
     ...emptyEducation(),
     id: newId(),
