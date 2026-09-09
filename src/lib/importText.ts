@@ -324,6 +324,21 @@ function matchInlineHeading(line: string): { heading: SectionName; rest: string 
 // Two to four words, the first capitalised, before a " — ": the name half of
 // our own "Name — Title" header line.
 const NAME_HEAD_RE = /^[A-ZÀ-Þ][\p{L}.'’-]*(?:\s+[\p{L}.'’-]+){1,3}$/u
+// "Senior Engineer · Acme Corp" / "Senior Engineer | Acme Corp" over its
+// dates — an entry header pasted without any heading above it. A contact row
+// uses the same binders but carries an e-mail / phone / URL, and a
+// "Name | Title" row has no date line under it.
+const isHeadlessEntryHeader = (line: string, next: string) =>
+  /\S\s(?:·|\|)\s\S/.test(line) &&
+  !isContactRow(line) &&
+  (bareDate(next) !== null || (!!extractDates(line).start && !!extractDates(line).rest))
+// The document's body has begun: a dated line, a bullet or an entry header.
+// A name never follows these, so the name scan stops here.
+const startsBody = (line: string, next: string) =>
+  isBullet(line) ||
+  bareDate(line) !== null ||
+  !!extractDates(line).start ||
+  isHeadlessEntryHeader(line, next)
 
 // Templates (four of ours, Pages, Word) print the name in capitals; the case is
 // typography, not the name. Only a fully upper-case name is recased: mixed case
@@ -805,13 +820,17 @@ function parseResumeTextInner(input: string): Resume {
       ) ??
     ''
 
-  // Name: first short non-empty line without contact info or a heading
+  // Name: first short non-empty line without contact info or a heading,
+  // above the first line of body
   let nameLine = ''
-  for (const line of nonEmpty.slice(0, 5)) {
+  for (const [n, line] of nonEmpty.slice(0, 5).entries()) {
     // "Name — Title" header lines carry the professional title too; the
     // title may run long (a LinkedIn headline), the name never does
     const dash = line.split(/\s+[—–]\s+/)
-    const head = dash.length > 1 && NAME_HEAD_RE.test(dash[0]) ? dash[0] : line
+    const named = dash.length > 1 && NAME_HEAD_RE.test(dash[0])
+    const head = named ? dash[0] : line
+    if (!named && startsBody(line, nonEmpty[n + 1] ?? '')) break
+    if (!named && isExpPlaceLine(line)) continue
     if (
       head.length <= 60 &&
       !EMAIL_RE.test(line) &&
@@ -921,6 +940,12 @@ function parseResumeTextInner(input: string): Resume {
       line = inline.rest
     }
     if (line === nameLine) continue
+    if (section === null && isHeadlessEntryHeader(line, lines[nextNonEmptyIndex(lines, i)] ?? '')) {
+      // A pasted experience block with no heading: "Role · Company" over its
+      // dates is the first entry, not the professional title
+      section = 'experience'
+      noteSection('experience')
+    }
     if (section !== null) {
       // "Languages: English, German" under Skills stays a categorised skill line
       // and "Honors: Dean's List" under a school stays its detail; anywhere else
