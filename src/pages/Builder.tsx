@@ -95,8 +95,10 @@ import {
 import { evidenceText, recordAppliedAnyway } from '@/lib/appliedAnyway'
 import { prefersReducedMotion } from '@/lib/motion'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
+import { type AuditFinding } from '@/lib/auditChip'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
 import { CopyTargetNote } from '@/components/CopyTargetNote'
+import { EntryAuditChip } from '@/components/EntryAuditChip'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
   FreeDownloadDialog,
@@ -10625,8 +10627,6 @@ function BulletIdeas({
   )
 }
 
-type AuditFinding = { category: string; line?: number }
-
 const AUDIT_CATEGORY: Record<BulletIssue['kind'], string> = {
   'weak-opener': 'Weak bullet points',
   'first-person': 'Personal pronouns',
@@ -10651,19 +10651,6 @@ const BULLET_CATEGORIES = [
   'Bullet length',
 ]
 
-const AUDIT_EXPLANATION: Record<string, string> = {
-  'Weak bullet points': 'Open each bullet with a strong action verb instead of "worked" or "was".',
-  'Quantified bullet points': 'Add a number that shows scale or impact — team size, %, time or money.',
-  'Personal pronouns': 'Drop I / me / my — resume bullets are written without pronouns.',
-  'Filler words': 'Cut empty phrases like "responsible for" or "various" — say what you did.',
-  Buzzwords: 'Swap vague buzzwords for the concrete skill or result behind them.',
-  'Passive voice': 'Rewrite in active voice so you — not the task — are the subject.',
-  'Punctuation & capitalization': 'Start with a capital letter and keep end punctuation consistent.',
-  'Bullet length': 'Keep each bullet roughly one line — long enough to be specific, short enough to scan.',
-  'Number of bullet points': 'Aim for 3–6 bullets per role — enough evidence without padding.',
-  'Dates are missing': 'Recruiters need dates to place this on your timeline and verify experience.',
-}
-
 const DATE_FINDING: AuditFinding = { category: 'Dates are missing' }
 
 const EXPERIENCE_CHECKS = ['Number of bullet points', 'Dates are missing', ...BULLET_CATEGORIES]
@@ -10678,131 +10665,6 @@ function bulletFindings(bullets: string[], entryFilled: boolean): AuditFinding[]
   if (entryFilled && (count < 3 || count > 6))
     findings.unshift({ category: 'Number of bullet points' })
   return findings
-}
-
-function EntryAuditChip({
-  findings,
-  filled,
-  checks,
-  expandable,
-  onExpand,
-  label,
-}: {
-  findings: AuditFinding[]
-  filled: boolean
-  /** Ordered audit category names that apply to this section type. */
-  checks: string[]
-  /** Whether the card is collapsed, so the warning chip can expand it. */
-  expandable: boolean
-  onExpand: () => void
-  label: string
-}) {
-  const groups = new Map<string, number[]>()
-  for (const f of findings) {
-    const lines = groups.get(f.category) ?? []
-    if (f.line !== undefined) lines.push(f.line)
-    groups.set(f.category, lines)
-  }
-  const passedNames = checks.filter((c) => !groups.has(c))
-  const passed = passedNames.length
-  const [shown, setShown] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
-  useEffect(() => {
-    if (!shown || dismissed) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDismissed(true)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [shown, dismissed])
-  const reveal = () => {
-    setShown(true)
-    setDismissed(false)
-  }
-  const wrapProps = {
-    className: 'relative flex shrink-0',
-    onMouseEnter: reveal,
-    onMouseLeave: () => setShown(false),
-    onFocus: reveal,
-    onBlur: () => setShown(false),
-  }
-  const panel = (
-    <div
-      aria-hidden
-      className={cn(
-        'bg-popover text-popover-foreground fixed inset-x-4 bottom-20 z-40 rounded-md border p-2 text-left shadow-md sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:bottom-auto sm:mt-1 sm:w-64',
-        shown && !dismissed ? 'block' : 'hidden',
-      )}
-    >
-      <ul className="space-y-1 text-[11px] leading-snug font-normal">
-        {[...groups.entries()].map(([category, lines]) => (
-          <li key={category} className="text-amber-700">
-            ⚠ {category}
-            {lines.length > 0 && (
-              <span className="text-muted-foreground">
-                {' '}
-                — line{lines.length === 1 ? '' : 's'} {[...new Set(lines)].join(', ')}
-              </span>
-            )}
-            {AUDIT_EXPLANATION[category] && (
-              <span className="text-muted-foreground block">{AUDIT_EXPLANATION[category]}</span>
-            )}
-          </li>
-        ))}
-        {passed > 0 && (
-          <li className="text-emerald-700">
-            ✓ {passed} best practice{passed === 1 ? '' : 's'} applied
-            <span className="text-muted-foreground block">{passedNames.join(', ')}</span>
-          </li>
-        )}
-      </ul>
-    </div>
-  )
-  if (findings.length === 0) {
-    if (!filled) return null
-    return (
-      <span {...wrapProps}>
-        <span
-          tabIndex={0}
-          className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
-          aria-label={`${label}: ${checks.length} best practice${checks.length === 1 ? '' : 's'} applied`}
-        >
-          ✓
-        </span>
-        {panel}
-      </span>
-    )
-  }
-  if (!expandable) {
-    return (
-      <span {...wrapProps}>
-        <span
-          tabIndex={0}
-          className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
-          aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'}`}
-        >
-          ⚠ {findings.length}
-        </span>
-        {panel}
-      </span>
-    )
-  }
-  return (
-    <span {...wrapProps}>
-      <button
-        type="button"
-        className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100"
-        aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'} — expand to review`}
-        onPointerDown={onExpand}
-        onClick={(e) => {
-          if (e.detail === 0) onExpand()
-        }}
-      >
-        ⚠ {findings.length}
-      </button>
-      {panel}
-    </span>
-  )
 }
 
 function BulletGuidance({
