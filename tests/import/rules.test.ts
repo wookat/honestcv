@@ -272,6 +272,74 @@ Engineer · Acme
     expect(parseResumeText('alex morgan\nalex@example.com\n').contact.fullName).toBe('alex morgan')
   })
 
+  it('R802: a paste with no name leaves the name empty — a date line, an entry header or a summary sentence is not a name', () => {
+    const headless = parseResumeText(`Senior Engineer · Acme Corp, Austin, TX
+Jan 2020 – Present
+- Shipped the platform to 2M users
+- Cut p95 latency 40%
+Staff Engineer · Beta Ltd
+2017 – 2019
+- Led a team of 6
+EDUCATION
+BS Computer Science · State University
+2013 – 2017
+SKILLS
+React, TypeScript, Node.js
+`)
+    expect(headless.contact.fullName).toBe('')
+    expect(headless.contact.title).toBe('')
+    expect(headless.experience.map((e) => [e.role, e.company, e.location, e.startDate, e.endDate, e.bullets.length])).toEqual([
+      ['Senior Engineer', 'Acme Corp', 'Austin, TX', 'Jan 2020', 'Present', 2],
+      ['Staff Engineer', 'Beta Ltd', '', '2017', '2019', 1],
+    ])
+    expect(headless.education).toHaveLength(1)
+    expect(headless.skills).toBe('React, TypeScript, Node.js')
+    expect(headless.sectionOrder.indexOf('experience')).toBeLessThan(headless.sectionOrder.indexOf('education'))
+
+    const headingFirst = parseResumeText(`EXPERIENCE
+Senior Engineer · Acme Corp, Austin, TX
+Jan 2020 – Present
+- Shipped the platform
+EDUCATION
+BS Computer Science · State University
+2013 – 2017
+`)
+    expect(headingFirst.contact.fullName).toBe('')
+    expect(headingFirst.experience).toMatchObject([
+      { role: 'Senior Engineer', company: 'Acme Corp', startDate: 'Jan 2020', endDate: 'Present', bullets: ['Shipped the platform'] },
+    ])
+
+    const summaryFirst = parseResumeText(`Product-minded engineer with 8 years building web platforms.
+EXPERIENCE
+Senior Engineer · Acme Corp
+Jan 2020 – Present
+- Shipped the platform
+`)
+    expect(summaryFirst.contact.fullName).toBe('')
+    expect(summaryFirst.experience).toMatchObject([{ role: 'Senior Engineer', company: 'Acme Corp', bullets: ['Shipped the platform'] }])
+
+    const contactOnly = parseResumeText(`jane@example.com · 555-111-2222
+Senior Engineer | Acme Corp
+Jan 2020 – Present
+- Shipped the platform
+`)
+    expect(contactOnly.contact).toMatchObject({ fullName: '', title: '', email: 'jane@example.com', phone: '555-111-2222' })
+    expect(contactOnly.experience).toMatchObject([{ role: 'Senior Engineer', company: 'Acme Corp', startDate: 'Jan 2020' }])
+  })
+
+  it('R802: a real name above the body is still the name — a place line before it is skipped, "Name — Headline" and "Name | Title" contact rows are untouched', () => {
+    expect(parseResumeText('Austin, TX\nJane Doe\njane@example.com\n').contact.fullName).toBe('Jane Doe')
+    const dash = parseResumeText('Jane Doe — Senior Engineer · Acme Corp\njane@example.com\nEXPERIENCE\nEngineer · Acme\n2020 – 2021\n')
+    expect(dash.contact.fullName).toBe('Jane Doe')
+    expect(dash.contact.title).toBe('Senior Engineer · Acme Corp')
+    const row = parseResumeText('Jane Doe\njane@example.com | 555-111-2222 | Austin, TX\nEXPERIENCE\nEngineer · Acme\n2020 – 2021\n')
+    expect(row.contact).toMatchObject({ fullName: 'Jane Doe', location: 'Austin, TX' })
+    expect(row.experience).toMatchObject([{ role: 'Engineer', company: 'Acme' }])
+    const bound = parseResumeText('Jane Doe | Senior Engineer\njane@example.com\nEXPERIENCE\nEngineer · Acme\n2020 – 2021\n')
+    expect(bound.contact.fullName).toContain('Jane Doe')
+    expect(bound.experience).toMatchObject([{ role: 'Engineer', company: 'Acme', startDate: '2020' }])
+  })
+
   it('R782: humanNameCase keeps hyphens, apostrophes, particles, numerals, initials and Mc-', () => {
     expect(humanNameCase("MARY-JANE O'NEIL")).toBe("Mary-Jane O'Neil")
     expect(humanNameCase('LUDWIG VAN BEETHOVEN')).toBe('Ludwig van Beethoven')
