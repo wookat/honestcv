@@ -97,7 +97,42 @@ const continuesOpenBullet = (lines, i, bullet, line) =>
 
 ## Deploy + production QA
 
-(filled in after deployment)
+- `npm run build && node scripts/verify-dist.mjs && npx wrangler deploy`:
+  30 / 30 modified assets + worker uploaded; route listing still fails with
+  Cloudflare `code: 10000` (token lacks route-list permission; upload itself
+  succeeded, not redeployed for it). Production `index-BkrMgmfj.js`,
+  `importText-BmlUhUKt.js`, `Builder-CU178hlM.js`, `AtsChecker-CbF0-Qao.js`
+  SHA-256 = local dist.
+- Production QA (persistent testing agent, 1280 + independent 375, cache off,
+  recording 10m24s 2× `/home/ubuntu/qa/r812/r812-production-readable-2x.mp4`,
+  raw `/home/ubuntu/qa/r812/results.json`): A capitalised wrap, B with a
+  blank line between, C three-line wrap, D wrap then next header, E1–E3
+  guards (header / tag row / action-verb sentence), F marker-less list —
+  through Builder Import paste and `/ats-checker` paste → Replace, both
+  widths: exact bullet strings and counts in stored JSON, real form values
+  and preview (`•` glyph count); both paths equal after id removal + the known
+  `ignoredKeywords: []`. H real source: sample resume authored to 6 jobs × 6
+  bullets (271–276 chars, a capitalised product name every 4th word), one
+  authorised Classic PDF download (5 pages, 13,422 bytes) whose page 3 → 4
+  boundary splits an unfinished bullet before `Redis`; Builder file import
+  and ATS upload → Replace at both widths return **36 / 36 authored bullets
+  verbatim**, six jobs, zero product-start fragments. 375 = 375 / scale 1 /
+  scrollX 0. Regressions Sumit 82/22 4/1/4 `Technical Writing`, Oxford 82/22
+  7/2/0, Alex 95/22 2/1, Kenneth 55/22 22/5 — hashes, extracted text, parsed
+  content and ATS tables identical to R811. 27 runtime-discovered JS assets
+  SHA = dist before and after. 2,368 GET / 0 POST (68 quota reads), 0
+  console / page errors, 0 HTTP ≥ 400, exactly 1 authorised download, 0 AI /
+  lead / share / pay / copy / delete. 47 byte-exact storage checkpoints + 4
+  final snapshots. Corrected run 1,395 / 2; retained initial attempts 63 / 5
+  (four preview oracles omitted the literal `•` / header location, one
+  fixture generator caught before export; two harness exceptions — redundant
+  `saveAs()` after CDP had saved the file, a nonexistent extra cleanup
+  helper). Not exercised: Sidebar export (optional), shared `/s/:id`.
+- **New finding (not this round, not parser):** the authored Classic résumé
+  (XL · loose · wide typography) shows 3 preview pages and a 4.39-page length
+  meter while the exported PDF has 5 pages — preview pagination / length
+  meter disagree with the PDF paginator. Reproduced on reopening the draft;
+  when it was introduced is not established. Queued first for R813.
 
 ## Boundaries
 
