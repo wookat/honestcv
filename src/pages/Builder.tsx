@@ -134,6 +134,8 @@ import {
   aiTailor,
   fetchAiQuota,
   isAbortError,
+  subscribeAiOutage,
+  type AiOutage,
 } from '@/lib/api'
 import {
   type AtsResult,
@@ -947,6 +949,35 @@ function AiWaitHint() {
   )
 }
 
+const aiErrorId = (tag: string) => `ai-error-${tag.replace(/[^\w-]/g, '_')}`
+
+const clockTime = (ms: number) =>
+  new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+
+/** Shown while the Worker reports that the model relay cannot be reached: the
+ * AI controls stay usable (the record may be stale), the notice says what will
+ * happen and what is unaffected. */
+function AiOutageNotice({ outage }: { outage: AiOutage }) {
+  const sameMinute = clockTime(outage.since) === clockTime(outage.last)
+  return (
+    <div
+      role="status"
+      data-testid="ai-outage-notice"
+      className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900"
+    >
+      <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      <p>
+        <span className="font-medium">AI tools can&apos;t be reached right now</span> — the AI
+        service has been offline since {clockTime(outage.since)}
+        {sameMinute ? '' : ` (last failed ${clockTime(outage.last)})`}
+        {outage.status ? ` (error ${outage.status})` : ''}. Suggestions, rewrites and tailoring
+        will fail until it is back; none of your free AI uses are spent. Your resume, ATS score,
+        preview and downloads are unaffected.
+      </p>
+    </div>
+  )
+}
+
 /**
  * One Tab stop for a group of chip buttons (W3C toolbar pattern): only the active
  * button is tabbable, arrow keys move focus, and when the active chip is consumed
@@ -1124,6 +1155,8 @@ export default function Builder() {
   const [aiError, setAiError] = useState('')
   const [aiErrorTag, setAiErrorTag] = useState<string | null>(null)
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
+  const [aiOutage, setAiOutage] = useState<AiOutage | null>(null)
+  useEffect(() => subscribeAiOutage(setAiOutage), [])
   const [downloading, setDownloading] = useState<string | null>(null)
   const [dlError, setDlError] = useState<string | null>(null)
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false)
@@ -2501,6 +2534,7 @@ export default function Builder() {
         onClick={onClick}
         disabled={Boolean(aiBusy) || Boolean(notReady)}
         className="h-10 gap-1 text-xs sm:h-7"
+        aria-describedby={!notReady && aiError && aiErrorTag === tag ? aiErrorId(tag) : undefined}
         title={
           (typeof notReady === 'string' && notReady ? notReady : undefined) ??
           (!unlocked && freeLeft !== null
@@ -2520,7 +2554,9 @@ export default function Builder() {
         <p className="text-muted-foreground w-full text-xs">{notReady}</p>
       )}
       {!notReady && aiError && aiErrorTag === tag && (
-        <p className="text-destructive text-xs">{aiError}</p>
+        <p id={aiErrorId(tag)} role="alert" className="text-destructive text-xs">
+          {aiError}
+        </p>
       )}
     </>
   )
@@ -3083,6 +3119,8 @@ export default function Builder() {
               setHealthOpen(true)
             }}
           />
+
+          {aiOutage && <AiOutageNotice outage={aiOutage} />}
 
           <Section
             title="Target job (powers AI + ATS score)"
@@ -9380,7 +9418,9 @@ export default function Builder() {
               )
             })}
             {aiError && variantPick?.tag && aiErrorTag === variantPick.tag && (
-              <p className="text-destructive text-sm">{aiError}</p>
+              <p role="alert" className="text-destructive text-sm">
+                {aiError}
+              </p>
             )}
             {variantPick?.regenerate && (
               <div className="flex flex-wrap items-center gap-2">
@@ -9461,7 +9501,9 @@ export default function Builder() {
                   `${bulletSuggest.kind}-${bulletSuggest.entryId}-suggest`
                 ) ||
                   aiErrorTag === `${bulletSuggest.kind}-${bulletSuggest.entryId}-complete`) && (
-                  <p className="text-destructive text-sm">{aiError}</p>
+                  <p role="alert" className="text-destructive text-sm">
+                    {aiError}
+                  </p>
                 )}
               <div className="flex flex-wrap gap-2">
                 <Button
