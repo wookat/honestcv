@@ -38,7 +38,9 @@ A header line (above the first section heading, not the name line) that is nothi
 place is the location and never the title. Recognised shapes, fail-closed on the shared
 vocabulary:
 
-- `London` / `United Kingdom` / `Bavaria` — `isKnownPlace(line)`;
+- `London` / `United Kingdom` / `Europe` — `isKnownPlace(line)` (cities the job feeds
+  publish, country aliases, and the five region aliases; a sub-national region such as
+  `Bavaria` is *not* in the vocabulary and stays the title, exactly like `Springfield`);
 - `London UK` — every word group known (`isKnownPlace(head) && isKnownPlace(lastWord)`);
 - `Location: London` / `Based in London` / `Address: Austin, TX` — a location label whose
   body is a known place or a `City, ST` line stores the body; a labelled line whose body is
