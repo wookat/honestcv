@@ -17,5 +17,11 @@ export function unmarkdown(raw: string): string {
     .join('\n')
 }
 
+/** The `## …` section headings of a Markdown résumé (trimmed, ≤ 60 chars); [] for anything else. */
+export function markdownSectionHeadings(raw: string): string[] {
+  if (!looksLikeMarkdown(raw)) return []
+  return [...raw.matchAll(/^##\s+(\S.*?)(?:\s+#+)?\s*$/gm)].map((m) => m[1].trim()).filter((t) => t.length <= 60)
+}
+
 /** Markdown résumé text as plain text; anything else unchanged. */
 export const plainResumeText = (raw: string) => (looksLikeMarkdown(raw) ? unmarkdown(raw) : raw)

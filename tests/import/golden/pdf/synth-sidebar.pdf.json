@@ -58,7 +58,7 @@
  "agents": [],
  "customSections": [
   {
-   "title": "CONTACT",
+   "title": "Contact",
    "bullets": [
     "Toronto, ON",
     "555-222-1111",
@@ -66,14 +66,14 @@
    ]
   },
   {
-   "title": "LANGUAGES",
+   "title": "Languages",
    "bullets": [
     "English (native)",
     "French (professional working)"
    ]
   },
   {
-   "title": "INTERESTS",
+   "title": "Interests",
    "bullets": [
     "Typography, cycling, community design workshops for youth groups in Toronto"
    ]
@@ -86,16 +86,16 @@
   "involvement",
   "education",
   "coursework",
-  "custom:CONTACT",
+  "custom:Contact",
   "skills",
-  "custom:LANGUAGES",
+  "custom:Languages",
   "certifications",
   "awards",
   "publications",
   "references",
   "military",
   "agents",
-  "custom:INTERESTS"
+  "custom:Interests"
  ],
  "templateId": "classic",
  "accentColor": "",
