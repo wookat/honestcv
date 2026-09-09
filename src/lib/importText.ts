@@ -336,8 +336,18 @@ const DOC_TITLE_RE = /^(?:curriculum vitae|cv|r[ée]sum[ée]|personal (?:details
 // dates or its bullets — an entry header pasted without any heading above it.
 // A contact row uses the same binders but carries an e-mail / phone / URL,
 // and a "Name | Title" row has neither a date line nor a bullet under it.
+// "Senior Engineer at Acme Corp" / "Senior Engineer — Acme Corp" bind the same
+// way, but "at" and a dash also occur in prose ("8 years at scale-ups — mostly
+// fintech"), so those need a job-title noun on the left and a header shape.
+const AT_DASH_BINDER_RE = /[\p{L})]\s(?:at|—|–)\s[A-Z0-9]/u
+const bindsEntryHeader = (line: string) => {
+  if (/\S\s(?:·|\|)\s\S/.test(line)) return true
+  if (!AT_DASH_BINDER_RE.test(line) || looksLikeBodyLine(line)) return false
+  const { role } = splitRoleCompanyRaw(line)
+  return JOB_TITLE_NOUN_RE.test(role) && !/\d/.test(role) && role.split(/\s+/).length <= 6
+}
 const isHeadlessEntryHeader = (line: string, next: string) =>
-  /\S\s(?:·|\|)\s\S/.test(line) &&
+  bindsEntryHeader(line) &&
   !isContactRow(line) &&
   (bareDate(next) !== null || isBullet(next) || (!!extractDates(line).start && !!extractDates(line).rest))
 // The document's body has begun: a dated line, a bullet or an entry header.
@@ -845,6 +855,24 @@ function parseResumeTextInner(input: string): Resume {
       const row = line.split(/\s+[|·•]\s+/)
       if (row.length > 1 && NAME_HEAD_RE.test(row[0]) && !isExpPlaceLine(row[0])) {
         parts = row
+        named = true
+      }
+    }
+    // "Jane Doe, Senior Engineer": a name, then a job title. "Jane Doe, PhD"
+    // (no title noun), "Director, Engineering" (title noun on the left) and
+    // "City, ST" keep their comma.
+    if (!named) {
+      const comma = line.split(/,\s+/)
+      if (
+        comma.length === 2 &&
+        NAME_HEAD_RE.test(comma[0]) &&
+        !JOB_TITLE_NOUN_RE.test(comma[0]) &&
+        !isExpPlaceLine(line) &&
+        JOB_TITLE_NOUN_RE.test(comma[1]) &&
+        !/\d/.test(comma[1]) &&
+        comma[1].split(/\s+/).length <= 6
+      ) {
+        parts = comma
         named = true
       }
     }

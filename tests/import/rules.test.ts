@@ -566,6 +566,82 @@ Jan 2020 – Present
     ])
   })
 
+  it('R810: an unheaded "Role at Company" / "Role — Company" over its dates or bullets is the first job, not the title', () => {
+    const head = (text: string) => {
+      const r = parseResumeText(text)
+      return {
+        name: r.contact.fullName,
+        title: r.contact.title,
+        summary: r.summary,
+        exp: r.experience.map(({ role, company, startDate, endDate, bullets }) => [role, company, startDate, endDate, bullets.length]),
+      }
+    }
+    const dated = 'Jan 2020 – Present\n- Built the billing platform.\n- Led a team of four.'
+    expect(head(`Jane Doe\njane@example.com | 555-010-0000\nSenior Engineer at Acme Corp\n${dated}`)).toEqual({
+      name: 'Jane Doe',
+      title: '',
+      summary: '',
+      exp: [['Senior Engineer', 'Acme Corp', 'Jan 2020', 'Present', 2]],
+    })
+    expect(head(`Jane Doe\njane@example.com\nSenior Engineer — Acme Corp\n${dated}`)).toMatchObject({
+      title: '',
+      exp: [['Senior Engineer', 'Acme Corp', 'Jan 2020', 'Present', 2]],
+    })
+    expect(head('Jane Doe\njane@example.com\nSenior Engineer at Acme Corp\n- Built the billing platform.\n- Led a team of four.')).toMatchObject({
+      title: '',
+      summary: '',
+      exp: [['Senior Engineer', 'Acme Corp', '', '', 2]],
+    })
+    // the same header under an explicit heading reads as before
+    expect(head(`Jane Doe\nEXPERIENCE\nSenior Engineer at Acme Corp\n${dated}`)).toMatchObject({
+      exp: [['Senior Engineer', 'Acme Corp', 'Jan 2020', 'Present', 2]],
+    })
+    // prose with "at" / a dash stays the title / summary; a contact row is a contact row
+    const body = 'EXPERIENCE\nEngineer · Acme\n2019 – 2020\n- Did things.'
+    expect(head(`Jane Doe\njane@example.com\nEngineer with 8 years at scale-ups and at Acme.\n${body}`)).toMatchObject({
+      title: 'Engineer with 8 years at scale-ups and at Acme.',
+      exp: [['Engineer', 'Acme', '2019', '2020', 1]],
+    })
+    expect(head(`Jane Doe\nSenior Engineer\nLives at 12 Main St — Austin, TX\n2019 – 2020\n${body}`).exp[0][0]).not.toBe('Lives')
+    expect(head(`Jane Doe\njane@example.com at gmail — 555-010-0000\n${body}`)).toMatchObject({
+      name: 'Jane Doe',
+      exp: [['Engineer', 'Acme', '2019', '2020', 1]],
+    })
+  })
+
+  it('R810: a "Name, Title" header row splits into name and title; suffixes, two-part titles and employers keep their comma', () => {
+    const head = (text: string) => {
+      const r = parseResumeText(text)
+      return { name: r.contact.fullName, title: r.contact.title, exp: r.experience.map(({ role, company }) => [role, company]) }
+    }
+    const body = 'EXPERIENCE\nEngineer · Acme\n2019 – 2020\n- Did things.'
+    expect(head(`Jane Doe, Senior Engineer\njane@example.com | 555-010-0000\n${body}`)).toEqual({
+      name: 'Jane Doe',
+      title: 'Senior Engineer',
+      exp: [['Engineer', 'Acme']],
+    })
+    expect(head(`Mary-Jane O'Neil, Registered Nurse\njane@example.com\n${body}`)).toMatchObject({
+      name: "Mary-Jane O'Neil",
+      title: 'Registered Nurse',
+    })
+    // a credential suffix is part of the name
+    expect(head(`Jane Doe, PhD\njane@example.com\n${body}`)).toMatchObject({ name: 'Jane Doe, PhD', title: '' })
+    expect(head(`Jane Doe, MBA\nSenior Engineer\njane@example.com\n${body}`)).toMatchObject({ name: 'Jane Doe, MBA', title: 'Senior Engineer' })
+    // a two-part title over the name is not a name row; an employer's comma is not a split
+    expect(head(`Jane Doe\nDirector, Engineering\njane@example.com\n${body}`)).toMatchObject({ name: 'Jane Doe', title: 'Director, Engineering' })
+    expect(head(`Senior Director, Engineering\nJane Doe\njane@example.com\n${body}`).name).not.toBe('Senior Director')
+    expect(head(`Jane Doe\nSenior Engineer, Acme, Inc.\njane@example.com\n${body}`)).toMatchObject({
+      name: 'Jane Doe',
+      title: 'Senior Engineer, Acme, Inc.',
+    })
+    // "City, ST" of its own stays the location (R803)
+    expect(parseResumeText(`New York, NY\nJane Doe\njane@example.com\n${body}`).contact).toMatchObject({
+      fullName: 'Jane Doe',
+      location: 'New York, NY',
+      title: '',
+    })
+  })
+
   it('R782: humanNameCase keeps hyphens, apostrophes, particles, numerals, initials and Mc-', () => {
     expect(humanNameCase("MARY-JANE O'NEIL")).toBe("Mary-Jane O'Neil")
     expect(humanNameCase('LUDWIG VAN BEETHOVEN')).toBe('Ludwig van Beethoven')
