@@ -51,6 +51,7 @@ import {
 } from '@/lib/resume'
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { domToMarks, hasInlineMarks, parseInlineMarks } from '@/lib/marks'
+import { lineBoxesOf, pageCuts } from '@/lib/pageCuts'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
 /** Inline bold/italic/underline/link marks rendered as styled runs. */
@@ -479,6 +480,11 @@ export function ResumePreview({
 
 /** CSS px per PDF point on the 96dpi page frames. */
 const PX_PER_PT = 96 / 72
+/** Page-cut slack in column px: one device pixel of per-frame text snapping plus half a px. */
+const cutSlack = (scale: number) => 1 / scale + 0.5
+/** State updater that keeps the previous page-start array when the cuts have not moved. */
+const keepIfEqual = (next: number[]) => (prev: number[]) =>
+  prev.length === next.length && prev.every((v, i) => Math.abs(v - next[i]) < 0.01) ? prev : next
 // 32px at 96dpi corresponds to the default 0.75\u2033 margin band's scaled look
 const PAGE_PAD = 32
 const pagePadOf = (r: Resume) => Math.round((PAGE_PAD * pageMarginOf(r)) / 54)
@@ -507,16 +513,18 @@ function PaginatedPages({
   const windowH = baseH - pagePad * 2
   const frameRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
-  const [pages, setPages] = useState(1)
+  const [starts, setStarts] = useState<number[]>([0])
   const [scale, setScale] = useState(0)
+  const pages = starts.length
 
   useEffect(() => {
     const frame = frameRef.current
     const content = contentRef.current
     if (!frame || !content) return
     const measure = () => {
-      setScale(frame.clientWidth / baseW)
-      setPages(Math.max(1, Math.ceil((content.scrollHeight - 1) / windowH)))
+      const s = frame.clientWidth / baseW
+      setScale(s)
+      setStarts(keepIfEqual(pageCuts(lineBoxesOf(content, s), content.scrollHeight, windowH, cutSlack(s))))
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -527,7 +535,7 @@ function PaginatedPages({
 
   return (
     <div className="space-y-4">
-      {Array.from({ length: pages }, (_, i) => (
+      {starts.map((start, i) => (
         <div
           key={i}
           ref={i === 0 ? frameRef : undefined}
@@ -558,10 +566,15 @@ function PaginatedPages({
               transformOrigin: 'top left',
             }}
           >
-            <div style={{ height: windowH, overflow: 'hidden' }}>
+            <div
+              style={{
+                height: i + 1 < pages ? Math.min(windowH, starts[i + 1] - start) : windowH,
+                overflow: 'hidden',
+              }}
+            >
               <div
                 ref={i === 0 ? contentRef : undefined}
-                style={{ transform: i > 0 ? `translateY(-${i * windowH}px)` : undefined }}
+                style={{ transform: start > 0 ? `translateY(-${start}px)` : undefined }}
               >
                 <div style={contentStyle}>{children}</div>
               </div>
@@ -603,6 +616,7 @@ function FlowPage({
   const frameRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [contentH, setContentH] = useState(windowH)
+  const [starts, setStarts] = useState<number[]>([0])
   const [scale, setScale] = useState(0)
 
   useEffect(() => {
@@ -610,8 +624,10 @@ function FlowPage({
     const content = contentRef.current
     if (!frame || !content) return
     const measure = () => {
-      setScale(frame.clientWidth / baseW)
+      const s = frame.clientWidth / baseW
+      setScale(s)
       setContentH(Math.max(windowH, content.scrollHeight))
+      setStarts(keepIfEqual(pageCuts(lineBoxesOf(content, s), content.scrollHeight, windowH, cutSlack(s))))
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -620,7 +636,6 @@ function FlowPage({
     return () => ro.disconnect()
   }, [baseW, windowH])
 
-  const breaks = Math.max(0, Math.ceil((contentH - 1) / windowH) - 1)
   return (
     <div
       ref={frameRef}
@@ -651,12 +666,12 @@ function FlowPage({
         <div ref={contentRef}>
           <div style={contentStyle}>{children}</div>
         </div>
-        {Array.from({ length: breaks }, (_, i) => (
+        {starts.slice(1).map((start, i) => (
           <div
             key={i}
             aria-hidden
             className="pointer-events-none absolute right-0 left-0 border-t border-dashed border-neutral-300"
-            style={{ top: pagePad + (i + 1) * windowH }}
+            style={{ top: pagePad + start }}
           >
             <span className="absolute right-1 -top-2 bg-white px-1 text-[9px] text-neutral-400">
               Page break
