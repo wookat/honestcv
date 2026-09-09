@@ -1158,10 +1158,22 @@ function parseResumeTextInner(input: string): Resume {
       }
       case 'education': {
         const { rest, start, end } = extractDates(line)
+        const year = line.trim().match(BARE_YEAR_LINE_RE)
         if (isBullet(line) && currentEdu) {
           currentEdu.details = [currentEdu.details, stripBullet(line)]
             .filter(Boolean)
             .join('; ')
+        } else if (
+          year &&
+          currentEdu &&
+          (currentEdu.degree || currentEdu.school) &&
+          !currentEdu.startDate &&
+          !currentEdu.endDate
+        ) {
+          // a lone year right under the entry: the graduation year on its own
+          // dates line (our own PDF / DOCX exports print an end-only date this way)
+          currentEdu.startDate = year[1]
+          currentEdu.endDate = year[1]
         } else if (!rest && start && currentEdu && !currentEdu.startDate) {
           currentEdu.startDate = start
           currentEdu.endDate = end

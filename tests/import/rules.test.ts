@@ -362,6 +362,30 @@ Jan 2020 – Present
     expect(parseResumeText('Jane Doe\nAcme, Inc\njane@example.com\n').contact.title).toBe('Acme, Inc')
   })
 
+  it('R804: a lone year under an education entry is its graduation year, not a second entry', () => {
+    const edu = (text: string) =>
+      parseResumeText(`Jane Doe\njane@example.com\nEDUCATION\n${text}`).education.map(
+        ({ degree, school, startDate, endDate, details }) => ({ degree, school, startDate, endDate, details }),
+      )
+    // our own PDF / DOCX exports print an end-only education date on its own line
+    expect(edu('BS Computer Science · State University\n2016\n')).toEqual([
+      { degree: 'BS Computer Science', school: 'State University', startDate: '2016', endDate: '2016', details: '' },
+    ])
+    expect(edu('State University\nBS Computer Science\n2016\nGPA: 3.8\n')).toEqual([
+      { degree: 'BS Computer Science', school: 'State University', startDate: '2016', endDate: '2016', details: 'GPA: 3.8' },
+    ])
+    expect(edu('MS Data Science · Tech Institute\n2018\nBS Computer Science · State University\n2016\n')).toEqual([
+      { degree: 'MS Data Science', school: 'Tech Institute', startDate: '2018', endDate: '2018', details: '' },
+      { degree: 'BS Computer Science', school: 'State University', startDate: '2016', endDate: '2016', details: '' },
+    ])
+    // a range, a month and an inline year keep their existing reading
+    expect(edu('BS Computer Science · State University\n2012 – 2016\n')).toMatchObject([{ startDate: '2012', endDate: '2016' }])
+    expect(edu('BS Computer Science · State University\nMay 2016\n')).toMatchObject([{ startDate: 'May 2016', endDate: 'May 2016' }])
+    expect(edu('BS Computer Science · State University (2016)\n')).toMatchObject([{ startDate: '2016', endDate: '2016' }])
+    // an entry that already has dates does not take a later year
+    expect(edu('BS Computer Science · State University\n2012 – 2016\n2018\n')[0]).toMatchObject({ startDate: '2012', endDate: '2016' })
+  })
+
   it('R782: humanNameCase keeps hyphens, apostrophes, particles, numerals, initials and Mc-', () => {
     expect(humanNameCase("MARY-JANE O'NEIL")).toBe("Mary-Jane O'Neil")
     expect(humanNameCase('LUDWIG VAN BEETHOVEN')).toBe('Ludwig van Beethoven')
