@@ -1875,6 +1875,8 @@ import {
   ONGOING_WORD_ALTERNATION,
   dateSortValue,
   defaultSectionLabels,
+  educationDates,
+  educationDetailLine,
   educationEntries,
   resumeToPlainText,
   skillLines,
@@ -2081,7 +2083,7 @@ export function scoreResume(
       ...educationEntries(resume)
         .filter((e) => !e.hidden)
         .map((e) => ({
-          name: e.school.trim() || e.degree.trim(),
+          name: e.school.trim() || e.degree.trim() || educationDetailLine(e) || educationDates(e),
           located: Boolean(e.location.trim()),
           anchor: 'education' as const,
           id: e.id,

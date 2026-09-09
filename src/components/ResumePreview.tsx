@@ -32,6 +32,7 @@ import {
   fontScaleOf,
   pageMarginOf,
   lineSpacingOf,
+  educationDates,
   educationDetailLine,
   educationDetailSuffix,
   educationEntries,
@@ -1028,6 +1029,11 @@ function SectionBlock({
         {heading(sectionHeading(resume, 'education'), 'education')}
           {educationEntries(resume).map((e, ei) => (
               <div key={e.id} className="mb-1.5" style={entrySep(ei)}>
+                {(onEdit ||
+                  e.degree.trim() ||
+                  e.school.trim() ||
+                  e.location.trim() ||
+                  educationDates(e)) && (
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <p className="text-[11px] font-bold">
                     <InlineText
@@ -1047,6 +1053,7 @@ function SectionBlock({
                     <Tail head={e.degree} tail={e.school + e.location} editable={!!onEdit}>
                       <InlineText
                         value={e.school}
+                        placeholder="School"
                         onCommit={
                           onEdit &&
                           ((v) =>
@@ -1061,12 +1068,11 @@ function SectionBlock({
                       {e.location ? `${e.school.trim() || onEdit ? ', ' : ''}${e.location}` : ''}
                     </Tail>
                   </p>
-                  {(e.startDate || e.endDate) && (
-                    <p className="text-[10px] text-neutral-500 italic">
-                      {[e.startDate, e.endDate].filter(Boolean).join(' – ')}
-                    </p>
+                  {educationDates(e) && (
+                    <p className="text-[10px] text-neutral-500 italic">{educationDates(e)}</p>
                   )}
                 </div>
+                )}
                 {educationDetailLine(e) && (
                   <p className="text-[11px]">
                     {e.details.trim() ? (
