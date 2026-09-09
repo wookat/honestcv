@@ -28,7 +28,7 @@ import {
   newId,
   orderedSectionKeys,
 } from './resume'
-import { plainResumeText } from './markdownText'
+import { markdownSectionHeadings, plainResumeText } from './markdownText'
 import { ACTION_VERBS } from './guidance'
 import {
   CREDENTIAL_TITLE_RE,
@@ -113,6 +113,9 @@ const ownHeading = (t: string) => {
   const k = t.trim().replace(/\s+/g, ' ').toLowerCase()
   return readerHeadings?.get(k) ?? OWN_HEADINGS.get(k)
 }
+// Lines a Markdown document marked `## …` — headings by declaration, so a custom
+// section titled in mixed case ("UX Research Work") is one on re-import too.
+let markedHeadings: Set<string> | null = null
 // "P R O F E S S I O N A L E X P E R I E N C E" — tracked (letter-spaced) headings
 // reach text extraction with a space after every letter.
 const LETTER_SPACED_RE = /^(?:[A-Za-z&/] ){3,}[A-Za-z&/]$/
@@ -344,6 +347,24 @@ export function humanNameCase(name: string): string {
     .join('')
 }
 
+// 15 of our 25 templates (and TXT / DOCX) print section headings in capitals;
+// the case is typography, not the title. A fully upper-case custom heading is
+// stored in title case — small words lower-cased after the first, short
+// vowel-less runs (IT / UX / SQL / CSS) kept as acronyms. Mixed case is kept.
+const HEADING_SMALL_WORD_RE = /^(?:and|or|of|the|for|in|on|at|to|a|an|with|de|y|et|und|e)$/i
+export function headingCase(title: string): string {
+  const letters = title.replace(/\P{L}/gu, '')
+  if (letters.length < 4 || letters !== letters.toUpperCase()) return title
+  let first = true
+  return title.replace(/\p{L}+/gu, (run) => {
+    const lead = first
+    first = false
+    if (HEADING_SMALL_WORD_RE.test(run)) return lead ? run[0] + run.slice(1).toLowerCase() : run.toLowerCase()
+    if (run.length <= 2 || (run.length <= 3 && !/[AEIOUY]/.test(run))) return run
+    return run[0] + run.slice(1).toLowerCase()
+  })
+}
+
 // Gutter layouts print the section label beside the section's first line, and
 // layout-preserving extraction (Chrome's PDF copy, pdftotext -layout) keeps them
 // on one line: "EXPERIENCE Senior Software Engineer · Northstar Digital, London".
@@ -387,19 +408,25 @@ function matchCustomHeading(line: string): string | null {
   if (LETTER_SPACED_RE.test(t)) {
     // Tracked heading of a section we have no field for; the last word is
     // recoverable when it is a known section word ("EXTRACURRICULAR ACTIVITIES").
-    return t
-      .replace(/ /g, '')
-      .replace(/(.)(awards?|honors?|achievements?|publications?|activities|interests?|languages?|leadership|work|involvement)$/i, '$1 $2')
-      .toUpperCase()
+    return unglueHeading(t.replace(/ /g, '')).toUpperCase()
   }
+  if (markedHeadings?.has(t)) return t
   if (t.length > 32) return null
   if (CUSTOM_HEADING_RE.test(t)) return t
   // Generic short ALL-CAPS heading like "PRO BONO WORK" — a lone short
   // acronym (CSS / AWS / SQL, a wrapped skill) is not one.
-  if (/^[A-Z][A-Z &/'-]+$/.test(t) && t.split(/\s+/).length <= 3 && (t.length >= 6 || t.includes(' ')))
-    return t
+  if (/^[A-Z][A-Z &/'-]+$/.test(t) && t.split(/\s+/).filter((w) => w !== '&').length <= 3 && (t.length >= 6 || t.includes(' ')))
+    return unglueHeading(t)
   return null
 }
+
+// A tracked heading whose spaces the extractor dropped ("TECHNICALWRITING"):
+// the last word is recoverable when it is a known section word.
+const unglueHeading = (t: string) =>
+  t.replace(
+    /^([A-Za-z]{5,})(awards?|honors?|achievements?|publications?|activities|interests?|languages?|leadership|work|writing|involvement|experience)$/i,
+    '$1 $2',
+  )
 
 // Trailing separators left where the dates were; a bracket only when the
 // dates were the bracket's content ("Role (Jan 2020 – Present)" → "Role ("
@@ -727,11 +754,15 @@ export type ParseOptions = {
 
 export function parseResumeText(input: string, options: ParseOptions = {}): Resume {
   const previous = readerHeadings
+  const previousMarked = markedHeadings
   readerHeadings = options.sectionHeadings ? readerHeadingMap(options.sectionHeadings) : null
+  const marked = markdownSectionHeadings(input)
+  markedHeadings = marked.length ? new Set(marked) : null
   try {
     return parseResumeTextInner(input)
   } finally {
     readerHeadings = previous
+    markedHeadings = previousMarked
   }
 }
 
@@ -846,7 +877,11 @@ function parseResumeTextInner(input: string): Resume {
     if (!headingOrder.includes(key)) headingOrder.push(key)
   }
   const openCustom = (title: string, first?: string): CustomSection => {
-    const s: CustomSection = { id: newId(), title, bullets: first === undefined ? [] : [stripBullet(first)] }
+    const s: CustomSection = {
+      id: newId(),
+      title: headingCase(title),
+      bullets: first === undefined ? [] : [stripBullet(first)],
+    }
     customRaw.set(s, first === undefined ? [] : [first])
     resume.customSections.push(s)
     noteSection(`custom:${s.id}`)

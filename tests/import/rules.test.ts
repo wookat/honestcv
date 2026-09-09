@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  headingCase,
   humanNameCase,
   keepDesignOnImport,
   keepTargetOnImport,
@@ -164,7 +165,7 @@ Google UX Design Certificate
     expect(r.certifications).toBe('')
     expect(r.customSections).toMatchObject([
       {
-        title: 'ACTIVITIES',
+        title: 'Activities',
         bullets: [
           'Community Volunteer',
           'Graduate Project Management Certification',
@@ -200,7 +201,7 @@ LANGUAGES English (native), Spanish (B2)
       { degree: 'BSc Computer Science', school: 'University of Bristol', location: 'Bristol, UK', startDate: 'Sep 2017', endDate: 'Jun 2020' },
     ])
     expect(r.skills).toBe('Languages: TypeScript, JavaScript\nFrontend: React, Redux')
-    expect(r.customSections).toMatchObject([{ title: 'LANGUAGES', bullets: ['English (native), Spanish (B2)'] }])
+    expect(r.customSections).toMatchObject([{ title: 'Languages', bullets: ['English (native), Spanish (B2)'] }])
     // pdftotext -layout: wide gaps instead of one space
     const layout = cv(`SUMMARY        Software engineer with six years of experience.
 EXPERIENCE     Senior Software Engineer · Northstar Digital, London, UK        Jan 2022 – Present
@@ -1175,5 +1176,98 @@ Jan 2020 – Present
 `)
     expect(r.sectionOrder).toEqual(emptyResume().sectionOrder)
     expect(cv('Just a paragraph about me.').sectionOrder).toEqual(emptyResume().sectionOrder)
+  })
+})
+
+describe('a custom heading a template printed in capitals is stored in title case (R800)', () => {
+  const src = sampleResume()
+  src.customSections = [
+    { id: 'cs1', title: 'Volunteering', bullets: ['Food bank shift lead, 2021–present'] },
+    { id: 'cs2', title: 'UX Research Work', bullets: ['Diary study, 12 participants'] },
+    { id: 'cs3', title: 'Speaking Engagements', bullets: ['ReactConf 2024 lightning talk'] },
+  ]
+  src.sectionOrder = [...src.sectionOrder.filter((k) => !k.startsWith('custom:')), 'custom:cs1', 'custom:cs2', 'custom:cs3']
+
+  it.each([
+    ['TXT', resumeToPlainText(src, { keepLinkUrls: true })],
+    ['MD', resumeToMarkdown(src)],
+  ])('%s: our own export reads its custom titles back as the user wrote them', (_fmt, text) => {
+    const back = parseResumeText(text)
+    expect(back.customSections.map((s) => s.title)).toEqual(['Volunteering', 'UX Research Work', 'Speaking Engagements'])
+    expect(back.customSections.map((s) => s.bullets)).toEqual(src.customSections.map((s) => s.bullets))
+    expect(back.sectionOrder.filter((k) => k.startsWith('custom:'))).toEqual(back.customSections.map((s) => `custom:${s.id}`))
+  })
+
+  it('a Markdown `##` heading is a heading whatever its case; `###` entry headers and bullets are not', () => {
+    const r = cv(`## Experience
+### Engineer — Acme Corp, Austin, TX *(Jan 2020 – Present)*
+- Shipped the platform
+## Pro Bono Work
+- Legal aid clinic
+`)
+    expect(r.experience).toMatchObject([{ role: 'Engineer', company: 'Acme Corp', bullets: ['Shipped the platform'] }])
+    expect(r.customSections).toMatchObject([{ title: 'Pro Bono Work', bullets: ['Legal aid clinic'] }])
+  })
+
+  it('headingCase: small words, acronyms, separators and mixed case', () => {
+    expect(headingCase('VOLUNTEERING')).toBe('Volunteering')
+    expect(headingCase('LEADERSHIP AND INVOLVEMENT')).toBe('Leadership and Involvement')
+    expect(headingCase('AWARDS/HONORS')).toBe('Awards/Honors')
+    expect(headingCase('IT CERTIFICATIONS AND TRAINING')).toBe('IT Certifications and Training')
+    expect(headingCase('UX & PRODUCT WORK')).toBe('UX & Product Work')
+    expect(headingCase('SQL TRAINING')).toBe('SQL Training')
+    expect(headingCase('OF NOTE')).toBe('Of Note')
+    expect(headingCase('Pro Bono Work')).toBe('Pro Bono Work')
+    expect(headingCase('iOS Apps')).toBe('iOS Apps')
+    expect(headingCase('AWS')).toBe('AWS')
+  })
+
+  it('an ALL-CAPS heading in someone else\'s document is title-cased too', () => {
+    const r = cv(`EXPERIENCE
+Engineer · Acme Corp
+Jan 2020 – Present
+- Shipped the platform
+EXTRACURRICULAR ACTIVITIES
+- Debate club captain
+`)
+    expect(r.customSections).toMatchObject([{ title: 'Extracurricular Activities', bullets: ['Debate club captain'] }])
+  })
+
+  it('an "&" in a short ALL-CAPS heading does not count as a word', () => {
+    const r = cv(`EXPERIENCE
+Engineer · Acme Corp
+Jan 2020 – Present
+- Shipped the platform
+LEADERSHIP AND INVOLVEMENT
+- Debate club captain
+UX & PRODUCT WORK
+- Diary study, 12 participants
+`)
+    expect(r.customSections).toMatchObject([
+      { title: 'Leadership and Involvement', bullets: ['Debate club captain'] },
+      { title: 'UX & Product Work', bullets: ['Diary study, 12 participants'] },
+    ])
+  })
+
+  it('a heading whose spaces the extractor dropped recovers the space before a known last word', () => {
+    const r = cv(`EXPERIENCE
+Engineer · Acme Corp
+Jan 2020 – Present
+- Shipped the platform
+TECHNICALWRITING
+- API reference for the SDK
+`)
+    expect(r.customSections.map((s) => s.title)).toEqual(['Technical Writing'])
+  })
+
+  it('a letter-spaced heading recovers the space before a known last word', () => {
+    const r = cv(`EXPERIENCE
+Engineer · Acme Corp
+Jan 2020 – Present
+- Shipped the platform
+T E C H N I C A L W R I T I N G
+- API reference for the SDK
+`)
+    expect(r.customSections.map((s) => s.title)).toEqual(['Technical Writing'])
   })
 })
