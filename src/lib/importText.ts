@@ -1327,7 +1327,13 @@ function parseResumeTextInner(input: string): Resume {
         // Before any heading: professional title often sits under the name
         // (never a contact row — "City, ST | phone | email" is not a title)
         const contactish = EMAIL_RE.test(line) || PHONE_RE.test(line) || URL_RE.test(line) || /[|•]/.test(line)
-        if (!resume.contact.title && line.length <= 60 && !contactish) {
+        if (!contactish && isExpPlaceLine(line)) {
+          // "Austin, TX" on its own header line is the location (read above),
+          // not the title. Under the name it opens the header, so prose below
+          // it is the summary; after the summary it starts the contact block.
+          headerProse = summaryLines.length === 0
+        } else if (!resume.contact.title && summaryLines.length === 0 && line.length <= 60 && !contactish) {
+          // the title sits above the summary, never inside it
           resume.contact.title = line
           headerProse = true
         } else if (

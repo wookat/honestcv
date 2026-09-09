@@ -340,6 +340,28 @@ Jan 2020 – Present
     expect(bound.experience).toMatchObject([{ role: 'Engineer', company: 'Acme', startDate: '2020' }])
   })
 
+  it('R803: a "City, ST" line of its own in the header is the location, not the title', () => {
+    const underName = parseResumeText('Jane Doe\nAustin, TX\njane@example.com · 555-111-2222\nEXPERIENCE\nEngineer · Acme\n2020 – 2021\n')
+    expect(underName.contact).toMatchObject({ fullName: 'Jane Doe', title: '', location: 'Austin, TX', email: 'jane@example.com' })
+    expect(underName.experience).toMatchObject([{ role: 'Engineer', company: 'Acme', startDate: '2020' }])
+
+    // Canva: contact row first, the city on the next line
+    const afterContact = parseResumeText('Henrietta Mitchell\n+123-456-7890 · hello@example.com · @example.com\nAny City, ST\nSKILLS\nP&L Management\n')
+    expect(afterContact.contact).toMatchObject({ fullName: 'Henrietta Mitchell', title: '', location: 'Any City, ST' })
+
+    // the title before or after the place line is still the title; a paragraph under the place line is still the summary
+    expect(parseResumeText('Jane Doe\nAustin, TX\nSenior Engineer\njane@example.com\n').contact).toMatchObject({ title: 'Senior Engineer', location: 'Austin, TX' })
+    expect(parseResumeText('Jane Doe\nSenior Engineer\nAustin, TX\njane@example.com\n').contact).toMatchObject({ title: 'Senior Engineer', location: 'Austin, TX' })
+    const prose = parseResumeText('Jane Doe\nAustin, TX\nSeasoned platform engineer with ten years building web systems for retail and fintech teams.\nEXPERIENCE\nEngineer · Acme\n2020 – 2021\n')
+    expect(prose.contact).toMatchObject({ title: '', location: 'Austin, TX' })
+    expect(prose.summary).toBe('Seasoned platform engineer with ten years building web systems for retail and fintech teams.')
+    expect(prose.experience).toMatchObject([{ role: 'Engineer', company: 'Acme' }])
+
+    // a comma in a title or an employer is not a place
+    expect(parseResumeText('Jane Doe\nDirector, Engineering\njane@example.com\n').contact.title).toBe('Director, Engineering')
+    expect(parseResumeText('Jane Doe\nAcme, Inc\njane@example.com\n').contact.title).toBe('Acme, Inc')
+  })
+
   it('R782: humanNameCase keeps hyphens, apostrophes, particles, numerals, initials and Mc-', () => {
     expect(humanNameCase("MARY-JANE O'NEIL")).toBe("Mary-Jane O'Neil")
     expect(humanNameCase('LUDWIG VAN BEETHOVEN')).toBe('Ludwig van Beethoven')
