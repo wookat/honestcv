@@ -217,6 +217,65 @@ let thinkingParamRejected = false
  * generation would double a wait the user has mostly given up on. */
 const LLM_RETRY_BUDGET_MS = 30_000
 
+/** The relay could not be reached at all (fetch threw, or a gateway status came
+ * back): recorded in KV so the client can say so before the next click.
+ * `status` is the upstream status, or 0 when the fetch itself failed. */
+interface LlmOutage {
+  since: number
+  last: number
+  status: number
+}
+const LLM_DOWN_KEY = 'llm:down'
+const LLM_DOWN_TTL_S = 15 * 60
+const LLM_DOWN_WRITE_GAP_MS = 30_000
+let llmDownWrittenAt = 0
+let llmDownSeen = false
+
+const isUnreachableStatus = (status: number) =>
+  status === 502 || status === 503 || status === 504 || (status >= 520 && status <= 530)
+
+async function readLlmOutage(env: Env): Promise<LlmOutage | null> {
+  try {
+    const raw = await kvGet(env, LLM_DOWN_KEY)
+    if (!raw) return null
+    const rec = JSON.parse(raw) as Partial<LlmOutage>
+    if (typeof rec.since !== 'number' || typeof rec.last !== 'number') return null
+    return { since: rec.since, last: rec.last, status: typeof rec.status === 'number' ? rec.status : 0 }
+  } catch {
+    return null
+  }
+}
+
+/** Record an unreachable relay. KV trouble is swallowed: the reply the user is
+ * waiting for must not depend on the bookkeeping (R822). */
+async function markLlmOutage(env: Env, status: number): Promise<LlmOutage> {
+  const now = Date.now()
+  llmDownSeen = true
+  const prev = await readLlmOutage(env)
+  const rec: LlmOutage = { since: prev?.since ?? now, last: now, status }
+  if (now - llmDownWrittenAt >= LLM_DOWN_WRITE_GAP_MS) {
+    llmDownWrittenAt = now
+    try {
+      await kvPut(env, LLM_DOWN_KEY, JSON.stringify(rec), { expirationTtl: LLM_DOWN_TTL_S })
+    } catch {
+      llmDownWrittenAt = 0
+    }
+  }
+  return rec
+}
+
+/** A usable reply ends the outage: the record is removed whichever isolate wrote it. */
+async function clearLlmOutage(env: Env): Promise<void> {
+  llmDownWrittenAt = 0
+  if (!llmDownSeen && !(await readLlmOutage(env))) return
+  llmDownSeen = false
+  try {
+    await kvDelete(env, LLM_DOWN_KEY)
+  } catch {
+    llmDownSeen = true
+  }
+}
+
 interface LlmUsage {
   prompt_tokens?: number
   completion_tokens?: number
@@ -328,7 +387,7 @@ async function callLlm(
   temperature = 0.5,
   maxTokens = 1200,
   live?: LlmLiveHooks
-): Promise<{ text?: string; error?: string; status?: number }> {
+): Promise<{ text?: string; error?: string; status?: number; aiUnavailable?: LlmOutage }> {
   let baseUrl = env.LLM_RELAY_BASE_URL?.replace(/\/+$/, '')
   if (baseUrl && !/\/v\d+$/.test(baseUrl)) baseUrl = `${baseUrl}/v1`
   const apiKey = env.LLM_RELAY_API_KEY
@@ -351,6 +410,8 @@ async function callLlm(
     error: 'Could not reach the AI service — please retry in a minute. None of your free AI uses were spent.',
     status: 502,
   }
+  /** Upstream status of the last unreachable attempt (0 = fetch threw); -1 when the last failure was something else. */
+  let unreachable = 0
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (live?.signal?.aborted) return LLM_CANCELLED
     if (backoff) await new Promise((r) => setTimeout(r, 1000))
@@ -382,6 +443,7 @@ async function callLlm(
       })
     } catch {
       if (live?.signal?.aborted) return LLM_CANCELLED
+      unreachable = 0
       if (elapsed() >= LLM_RETRY_BUDGET_MS) break
       continue
     }
@@ -398,8 +460,12 @@ async function callLlm(
     if (!upstream.ok) {
       const detail = await upstream.text().catch(() => '')
       console.error('LLM upstream error', upstream.status, `${elapsed()}ms`, detail.slice(0, 500))
+      unreachable = isUnreachableStatus(upstream.status) ? upstream.status : -1
       failure = {
-        error: `The AI service is temporarily unavailable (${upstream.status}) — please retry in a minute. None of your free AI uses were spent.`,
+        error:
+          unreachable >= 0
+            ? `The AI service can't be reached right now (${upstream.status}). None of your free AI uses were spent.`
+            : `The AI service is temporarily unavailable (${upstream.status}) — please retry in a minute. None of your free AI uses were spent.`,
         status: 502,
       }
       const retryable = upstream.status === 429 || upstream.status >= 500
@@ -450,6 +516,7 @@ async function callLlm(
     )
     if (live?.signal?.aborted) return LLM_CANCELLED
     if (reply.interrupted) {
+      unreachable = -1
       failure = {
         error: 'The AI service was interrupted — please retry in a minute. None of your free AI uses were spent.',
         status: 502,
@@ -459,8 +526,10 @@ async function callLlm(
     }
     const text = reply.content.trim()
     if (!text) return { error: 'Empty response from the AI service. Please retry.', status: 502 }
+    await clearLlmOutage(env)
     return { text }
   }
+  if (unreachable >= 0) return { ...failure, aiUnavailable: await markLlmOutage(env, unreachable) }
   return failure
 }
 
@@ -561,9 +630,9 @@ async function callLlmJsonArray(
   temperature: number,
   maxTokens: number,
   live?: LlmLiveHooks
-): Promise<{ items?: unknown[]; error?: string; status?: number }> {
+): Promise<{ items?: unknown[]; error?: string; status?: number; aiUnavailable?: LlmOutage }> {
   const first = await callLlm(env, messages, temperature, maxTokens, live)
-  if (first.error) return { error: first.error, status: first.status }
+  if (first.error) return { error: first.error, status: first.status, aiUnavailable: first.aiUnavailable }
   const items = parseJsonArrayLenient(first.text ?? '')
   if (items && items.length > 0) return { items }
   console.error('LLM non-JSON output, re-asking', (first.text ?? '').slice(0, 200))
@@ -582,7 +651,7 @@ async function callLlmJsonArray(
     maxTokens,
     live
   )
-  if (second.error) return { error: second.error, status: second.status }
+  if (second.error) return { error: second.error, status: second.status, aiUnavailable: second.aiUnavailable }
   const retried = parseJsonArrayLenient(second.text ?? '')
   if (retried && retried.length > 0) return { items: retried }
   console.error('LLM non-JSON output after re-ask', (second.text ?? '').slice(0, 200))
@@ -602,7 +671,7 @@ const wantsLiveReply = (c: { req: { header: (name: string) => string | undefined
 function liveAiReply(
   c: Context<{ Bindings: Env }>,
   freeRemaining: number | null,
-  run: (live: LlmLiveHooks) => Promise<{ text?: string; error?: string; status?: number }>
+  run: (live: LlmLiveHooks) => Promise<{ text?: string; error?: string; status?: number; aiUnavailable?: LlmOutage }>
 ) {
   return streamSSE(c, async (stream) => {
     const gone = new AbortController()
@@ -623,7 +692,11 @@ function liveAiReply(
     })
     if (gone.signal.aborted) return
     if (result.error) {
-      await send('error', { error: result.error, status: result.status ?? 502 })
+      await send('error', {
+        error: result.error,
+        status: result.status ?? 502,
+        ...(result.aiUnavailable ? { aiUnavailable: result.aiUnavailable } : {}),
+      })
       return
     }
     const remaining = freeRemaining !== null ? await consumeFreeQuota(c) : null
@@ -633,9 +706,10 @@ function liveAiReply(
 
 type AiReplyBody = Record<string, unknown> | { error: string; status: number }
 
-const aiFailure = (r: { error?: string; status?: number }) => ({
+const aiFailure = (r: { error?: string; status?: number; aiUnavailable?: LlmOutage }) => ({
   error: r.error ?? AI_TROUBLE_ERROR,
   status: r.status ?? 502,
+  ...(r.aiUnavailable ? { aiUnavailable: r.aiUnavailable } : {}),
 })
 
 /** Buffered (JSON) AI reply whose headers leave at once and whose body is one
@@ -874,8 +948,13 @@ app.get('/api/ai/quota', async (c) => {
   if (!fp || fp.length < 8 || fp.length > 128) return c.json({ freeRemaining: null })
   const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
   try {
-    const used = Number((await kvGet(c.env, quotaKvKey(fp, 'ai'))) ?? '0')
-    return c.json({ freeRemaining: Math.max(limit - used, 0) })
+    const [usedRaw, outage] = await Promise.all([kvGet(c.env, quotaKvKey(fp, 'ai')), readLlmOutage(c.env)])
+    const used = Number(usedRaw ?? '0')
+    if (outage) c.header('Cache-Control', 'no-store')
+    return c.json({
+      freeRemaining: Math.max(limit - used, 0),
+      ...(outage ? { aiUnavailable: outage } : {}),
+    })
   } catch (e) {
     if (!(e instanceof KvUnavailableError)) throw e
     c.header('Cache-Control', 'no-store')
@@ -1724,9 +1803,10 @@ app.get('/api/jobs/search', async (c) => {
   return c.json(payload)
 })
 
-app.get('/api/health', (c) => {
+app.get('/api/health', async (c) => {
   const configured = Boolean(c.env.LLM_RELAY_BASE_URL && c.env.LLM_RELAY_API_KEY)
-  return c.json({ ok: true, llmConfigured: configured })
+  const outage = await readLlmOutage(c.env)
+  return c.json({ ok: true, llmConfigured: configured, llmUnreachableSince: outage?.since ?? null })
 })
 
 // AI rewrite: polish a summary / bullets / skills, optionally tailored to a JD.

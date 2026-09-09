@@ -40,7 +40,7 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
       { cause: e }
     )
   }
-  let data: T & { error?: string; code?: string; status?: number }
+  let data: T & { error?: string; code?: string; status?: number; aiUnavailable?: AiOutage }
   try {
     data = await res.json()
   } catch (e) {
@@ -51,10 +51,39 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
   // AI replies stream their headers before the model has answered, so a failure
   // decided later arrives in a 200 body as { error, status }.
   if (typeof data.error === 'string' && typeof data.status === 'number') {
+    if (data.aiUnavailable) noteAiOutage(data.aiUnavailable)
     throw apiError(data.status, data)
   }
-  if (path.startsWith('/api/ai/')) trackEvent('ai-use')
+  if (path.startsWith('/api/ai/')) {
+    noteAiOutage(null)
+    trackEvent('ai-use')
+  }
   return data
+}
+
+/** The Worker's record of a relay it could not reach (`aiUnavailable` in a
+ * failed AI reply or in `/api/ai/quota`); `null` once a reply succeeds. */
+export interface AiOutage {
+  since: number
+  last: number
+  status: number
+}
+let aiOutage: AiOutage | null = null
+const aiOutageListeners = new Set<(outage: AiOutage | null) => void>()
+
+function noteAiOutage(next: AiOutage | null) {
+  if (next === aiOutage) return
+  if (next && aiOutage && next.since === aiOutage.since && next.last === aiOutage.last) return
+  aiOutage = next
+  for (const fn of aiOutageListeners) fn(next)
+}
+
+export function subscribeAiOutage(fn: (outage: AiOutage | null) => void): () => void {
+  aiOutageListeners.add(fn)
+  fn(aiOutage)
+  return () => {
+    aiOutageListeners.delete(fn)
+  }
 }
 
 type AiText = { text: string; freeRemaining: number | null }
@@ -95,6 +124,7 @@ async function postLive(
       code?: string
     }
     if (!res.ok) throw apiError(res.status, data)
+    noteAiOutage(null)
     trackEvent('ai-use')
     return data
   }
@@ -113,7 +143,8 @@ async function postLive(
     } else if (event === 'done') {
       final.value = JSON.parse(data) as AiText
     } else if (event === 'error') {
-      const err = JSON.parse(data) as { error?: string; status?: number }
+      const err = JSON.parse(data) as { error?: string; status?: number; aiUnavailable?: AiOutage }
+      if (err.aiUnavailable) noteAiOutage(err.aiUnavailable)
       throw apiError(err.status ?? 502, err)
     }
   }
@@ -141,6 +172,7 @@ async function postLive(
       'The connection dropped before the AI finished — please try again. Your free AI uses are only spent on a finished result.'
     )
   }
+  noteAiOutage(null)
   trackEvent('ai-use')
   return final.value
 }
@@ -171,7 +203,8 @@ export function fetchAiQuota(): Promise<number | null> {
     try {
       const res = await fetch('/api/ai/quota', { headers: licenseHeaders() })
       if (!res.ok) return null
-      const data = (await res.json()) as { freeRemaining: number | null }
+      const data = (await res.json()) as { freeRemaining: number | null; aiUnavailable?: AiOutage }
+      noteAiOutage(data.aiUnavailable ?? null)
       return data.freeRemaining
     } catch {
       return null
