@@ -1653,3 +1653,11 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - At 375 Resume settings is 343 px wide with x 16..359; focus enters `#edit-version-name`. The 600 px-tall panel can have 756 px scrollHeight; wheel within it and require changed scrollTop plus both 40 px footer buttons visible and hit-testable. Scan every rendered descendant, including absolute controls, for horizontal bounds; skip only truly clipped sr-only/hidden nodes. Escape must restore the exact opener DOM node and preserve local/session/cookies/IDB bytes.
 - When editing through an independent dashboard context, also discover and SHA-match its lazy Dashboard chunk from the live index before/after, rather than checking only Builder.
 
+
+## R830 — Reference card geometry and preview
+
+- Reference inputs are labelled `Reference full name` / `Reference job title` / `Reference employer` / `Reference email` / `Reference phone`; the relationship select is `Reference type` (professional / personal). Since R830 the three headline inputs are direct children of one `@container` grid: 1024 → three full rows (≈391 usable), 1280 → name row + shared title/employer row (≈242), 375 → one column (≈242 with a native scrollbar, ≈257 without). Use clipping as the oracle (canvas text width in the input's computed font vs `clientWidth − padding`); record `documentElement.clientWidth` separately from the configured viewport.
+- In the preview only the reference **name** is contenteditable; title and employer share one normal span ` — <title>, <employer>`. Scope to `[data-resume-preview] span.font-normal` and match the combined text — do not reuse the Education contenteditable selector.
+- Counting dated `@container` grids: filter by a descendant date-picker button, not by any input — reference cards use the same container grid but hold no dates.
+- Reference e-mail at 1024 is 178 px inside and a 26+-char address still scrolls — known boundary, not a failure.
+- On a selector-only harness failure after a successful edit, keep the current draft and the normalised baseline, fix the selector and continue to the single Undo; never reseed or repeat the mutation silently.
