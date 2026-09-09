@@ -5032,202 +5032,232 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    aria-label="Role"
-                    placeholder="Role (e.g. Selected Member)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={inv.role}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).map((x) =>
-                          x.id === inv.id ? { ...x, role: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Organization"
-                    placeholder="Organization"
-                    onKeyDown={markShortcutKeyDown}
-                    value={inv.organization}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).map((x) =>
-                          x.id === inv.id ? { ...x, organization: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                </div>
                 <div className={ENTRY_FIELDS_GRID}>
-                  <Input
-                    className={ENTRY_WIDE_FIELD}
-                    aria-label="College or city (optional)"
-                    placeholder="College or city (optional)"
-                    value={inv.location}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).map((x) =>
-                          x.id === inv.id ? { ...x, location: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <div className={`grid grid-cols-2 gap-2 ${ENTRY_WIDE_FIELD}`}>
-                    <MonthYearField
-                      language={resumeLanguageOf(resume)}
-                      ariaLabel="Start date"
-                      placeholder="Start (2024)"
-                      value={inv.startDate}
-                      onChange={(v) =>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`inv-${inv.id}-role`}>
+                      {inv.organization.trim()
+                        ? `Your role at ${inv.organization.trim()}`
+                        : 'Your role'}
+                    </Label>
+                    <Input
+                      id={`inv-${inv.id}-role`}
+                      placeholder="Role (e.g. Selected Member)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={inv.role}
+                      onChange={(ev) =>
                         setResume((r) => ({
                           ...r,
                           involvement: (r.involvement ?? []).map((x) =>
-                            x.id === inv.id ? { ...x, startDate: v } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <MonthYearField
-                      language={resumeLanguageOf(resume)}
-                      allowPresent
-                      ariaLabel="End date"
-                      placeholder="End"
-                      value={inv.endDate}
-                      onChange={(v) =>
-                        setResume((r) => ({
-                          ...r,
-                          involvement: (r.involvement ?? []).map((x) =>
-                            x.id === inv.id ? { ...x, endDate: v } : x
+                            x.id === inv.id ? { ...x, role: ev.target.value } : x
                           ),
                         }))
                       }
                     />
                   </div>
-                </div>
-                <div className={ENTRY_TEXT_ROW}>
-                  <LintedTextarea
-                    aria-label="Involvement description"
-                    rows={2}
-                    placeholder="What you did there — one bullet per line"
-                    value={inv.description}
-                    highlightLine={hlLine?.key === `inv-${inv.id}` ? hlLine.line : null}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).map((x) =>
-                          x.id === inv.id ? { ...x, description: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={invIdx === 0}
-                    id={moveId('involvement', invIdx, 'up')}
-                    title="Move up"
-                    aria-label={`Move involvement ${invIdx + 1} up`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        involvement: moveItem(r.involvement ?? [], invIdx, -1),
-                      }))
-                      movedEntry('involvement', 'Involvement', invIdx, -1, (resume.involvement ?? []).length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={invIdx === (resume.involvement ?? []).length - 1}
-                    id={moveId('involvement', invIdx, 'down')}
-                    title="Move down"
-                    aria-label={`Move involvement ${invIdx + 1} down`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        involvement: moveItem(r.involvement ?? [], invIdx, 1),
-                      }))
-                      movedEntry('involvement', 'Involvement', invIdx, 1, (resume.involvement ?? []).length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title={inv.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                    aria-pressed={inv.hidden === true}
-                    aria-label={`${inv.hidden ? 'Show' : 'Hide'} involvement ${invIdx + 1} ${inv.hidden ? 'on' : 'from'} resume`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).map((x) =>
-                          x.id === inv.id ? { ...x, hidden: !x.hidden } : x
-                        ),
-                      }))
-                    }
-                  >
-                    {inv.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title="Save involvement to library — reuse it in other resume copies"
-                    aria-label={`Save involvement ${invIdx + 1} to library`}
-                    disabled={
-                      !inv.role.trim() && !inv.organization.trim() && !inv.description.trim()
-                    }
-                    onClick={() => {
-                      const next = saveInvolvementToLibrary(inv)
-                      if (next === null) {
-                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                        return
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`inv-${inv.id}-organization`}>
+                      Which organization was this?
+                    </Label>
+                    <Input
+                      id={`inv-${inv.id}-organization`}
+                      placeholder="Organization"
+                      onKeyDown={markShortcutKeyDown}
+                      value={inv.organization}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, organization: ev.target.value } : x
+                          ),
+                        }))
                       }
-                      setInvLibrary(next)
-                      setInvLibrarySavedId(inv.id)
-                      window.setTimeout(
-                        () => setInvLibrarySavedId((v) => (v === inv.id ? null : v)),
-                        1600
-                      )
-                    }}
-                  >
-                    {invLibrarySavedId === inv.id ? (
-                      <Check className="size-3.5 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" />
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
-                    title="Delete involvement"
-                    aria-label="Delete involvement"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).filter((x) => x.id !== inv.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`inv-${inv.id}-location`}>
+                      {inv.organization.trim()
+                        ? `Where was ${inv.organization.trim()} based? (optional)`
+                        : 'Where was this? (optional)'}
+                    </Label>
+                    <Input
+                      id={`inv-${inv.id}-location`}
+                      placeholder="College or city"
+                      value={inv.location}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, location: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`inv-${inv.id}-start`}>
+                      {inv.organization.trim()
+                        ? `When were you involved with ${inv.organization.trim()}?`
+                        : 'When was this?'}
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <MonthYearField
+                        language={resumeLanguageOf(resume)}
+                        id={`inv-${inv.id}-start`}
+                        placeholder="Start (2024)"
+                        value={inv.startDate}
+                        onChange={(v) =>
+                          setResume((r) => ({
+                            ...r,
+                            involvement: (r.involvement ?? []).map((x) =>
+                              x.id === inv.id ? { ...x, startDate: v } : x
+                            ),
+                          }))
+                        }
+                      />
+                      <MonthYearField
+                        language={resumeLanguageOf(resume)}
+                        allowPresent
+                        ariaLabel="End date"
+                        placeholder="End"
+                        value={inv.endDate}
+                        onChange={(v) =>
+                          setResume((r) => ({
+                            ...r,
+                            involvement: (r.involvement ?? []).map((x) =>
+                              x.id === inv.id ? { ...x, endDate: v } : x
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`inv-${inv.id}-description`}>
+                    {inv.organization.trim()
+                      ? `What did you do at ${inv.organization.trim()}?`
+                      : 'What did you do there?'}
+                  </Label>
+                  <div className={ENTRY_TEXT_ROW}>
+                    <LintedTextarea
+                      id={`inv-${inv.id}-description`}
+                      rows={2}
+                      placeholder="What you did there — one bullet per line"
+                      value={inv.description}
+                      highlightLine={hlLine?.key === `inv-${inv.id}` ? hlLine.line : null}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      disabled={invIdx === 0}
+                      id={moveId('involvement', invIdx, 'up')}
+                      title="Move up"
+                      aria-label={`Move involvement ${invIdx + 1} up`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          involvement: moveItem(r.involvement ?? [], invIdx, -1),
+                        }))
+                        movedEntry('involvement', 'Involvement', invIdx, -1, (resume.involvement ?? []).length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      disabled={invIdx === (resume.involvement ?? []).length - 1}
+                      id={moveId('involvement', invIdx, 'down')}
+                      title="Move down"
+                      aria-label={`Move involvement ${invIdx + 1} down`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          involvement: moveItem(r.involvement ?? [], invIdx, 1),
+                        }))
+                        movedEntry('involvement', 'Involvement', invIdx, 1, (resume.involvement ?? []).length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      title={inv.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={inv.hidden === true}
+                      aria-label={`${inv.hidden ? 'Show' : 'Hide'} involvement ${invIdx + 1} ${inv.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {inv.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      title="Save involvement to library — reuse it in other resume copies"
+                      aria-label={`Save involvement ${invIdx + 1} to library`}
+                      disabled={
+                        !inv.role.trim() && !inv.organization.trim() && !inv.description.trim()
+                      }
+                      onClick={() => {
+                        const next = saveInvolvementToLibrary(inv)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setInvLibrary(next)
+                        setInvLibrarySavedId(inv.id)
+                        window.setTimeout(
+                          () => setInvLibrarySavedId((v) => (v === inv.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {invLibrarySavedId === inv.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                      title="Delete involvement"
+                      aria-label="Delete involvement"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).filter((x) => x.id !== inv.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
                 <BulletGuidance
                   bullets={inv.description.split('\n')}
@@ -6624,173 +6654,195 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    aria-label="Rank or position"
-                    placeholder="Rank or position (e.g. Sergeant)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={m.rank}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).map((x) =>
-                          x.id === m.id ? { ...x, rank: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Branch"
-                    placeholder="Branch (e.g. Army)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={m.branch}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).map((x) =>
-                          x.id === m.id ? { ...x, branch: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                </div>
                 <div className={ENTRY_FIELDS_GRID}>
-                  <Input
-                    className={ENTRY_WIDE_FIELD}
-                    aria-label="Stationed at"
-                    placeholder="Stationed at (e.g. Fort Bragg, NC)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={m.location}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).map((x) =>
-                          x.id === m.id ? { ...x, location: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <div className={`grid grid-cols-2 gap-2 ${ENTRY_WIDE_FIELD}`}>
-                    <MonthYearField
-                      language={resumeLanguageOf(resume)}
-                      ariaLabel="Start date"
-                      placeholder="Start (2020)"
-                      value={m.startDate}
-                      onChange={(v) =>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`mil-${m.id}-rank`}>
+                      {m.branch.trim()
+                        ? `Your rank or position in the ${m.branch.trim()}`
+                        : 'Your rank or position'}
+                    </Label>
+                    <Input
+                      id={`mil-${m.id}-rank`}
+                      placeholder="Rank or position (e.g. Sergeant)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={m.rank}
+                      onChange={(ev) =>
                         setResume((r) => ({
                           ...r,
                           military: (r.military ?? []).map((x) =>
-                            x.id === m.id ? { ...x, startDate: v } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <MonthYearField
-                      language={resumeLanguageOf(resume)}
-                      allowPresent
-                      ariaLabel="End date"
-                      placeholder="End"
-                      value={m.endDate}
-                      onChange={(v) =>
-                        setResume((r) => ({
-                          ...r,
-                          military: (r.military ?? []).map((x) =>
-                            x.id === m.id ? { ...x, endDate: v } : x
+                            x.id === m.id ? { ...x, rank: ev.target.value } : x
                           ),
                         }))
                       }
                     />
                   </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`mil-${m.id}-branch`}>Which branch did you serve in?</Label>
+                    <Input
+                      id={`mil-${m.id}-branch`}
+                      placeholder="Branch (e.g. Army)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={m.branch}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).map((x) =>
+                            x.id === m.id ? { ...x, branch: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`mil-${m.id}-location`}>Where were you stationed?</Label>
+                    <Input
+                      id={`mil-${m.id}-location`}
+                      placeholder="Stationed at (e.g. Fort Bragg, NC)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={m.location}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).map((x) =>
+                            x.id === m.id ? { ...x, location: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`mil-${m.id}-start`}>
+                      {m.branch.trim()
+                        ? `When did you serve in the ${m.branch.trim()}?`
+                        : 'When did you serve?'}
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <MonthYearField
+                        language={resumeLanguageOf(resume)}
+                        id={`mil-${m.id}-start`}
+                        placeholder="Start (2020)"
+                        value={m.startDate}
+                        onChange={(v) =>
+                          setResume((r) => ({
+                            ...r,
+                            military: (r.military ?? []).map((x) =>
+                              x.id === m.id ? { ...x, startDate: v } : x
+                            ),
+                          }))
+                        }
+                      />
+                      <MonthYearField
+                        language={resumeLanguageOf(resume)}
+                        allowPresent
+                        ariaLabel="End date"
+                        placeholder="End"
+                        value={m.endDate}
+                        onChange={(v) =>
+                          setResume((r) => ({
+                            ...r,
+                            military: (r.military ?? []).map((x) =>
+                              x.id === m.id ? { ...x, endDate: v } : x
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className={ENTRY_TEXT_ROW}>
-                  <Textarea
-                    aria-label="Responsibilities and accomplishments"
-                    rows={2}
-                    placeholder="Responsibilities and accomplishments — one bullet per line"
-                    onKeyDown={markShortcutKeyDown}
-                    value={m.description}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).map((x) =>
-                          x.id === m.id ? { ...x, description: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={mIdx === 0}
-                    id={moveId('military', mIdx, 'up')}
-                    title="Move up"
-                    aria-label={`Move military service ${mIdx + 1} up`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        military: moveItem(r.military ?? [], mIdx, -1),
-                      }))
-                      movedEntry('military', 'Military service', mIdx, -1, (resume.military ?? []).length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={mIdx === (resume.military ?? []).length - 1}
-                    id={moveId('military', mIdx, 'down')}
-                    title="Move down"
-                    aria-label={`Move military service ${mIdx + 1} down`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        military: moveItem(r.military ?? [], mIdx, 1),
-                      }))
-                      movedEntry('military', 'Military service', mIdx, 1, (resume.military ?? []).length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title={m.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                    aria-pressed={m.hidden === true}
-                    aria-label={`${m.hidden ? 'Show' : 'Hide'} military service ${m.hidden ? 'on' : 'from'} resume`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).map((x) =>
-                          x.id === m.id ? { ...x, hidden: !x.hidden } : x
-                        ),
-                      }))
-                    }
-                  >
-                    {m.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
-                    title="Delete military service"
-                    aria-label="Delete military service"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).filter((x) => x.id !== m.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`mil-${m.id}-description`}>
+                    What were your responsibilities and accomplishments?
+                  </Label>
+                  <div className={ENTRY_TEXT_ROW}>
+                    <Textarea
+                      id={`mil-${m.id}-description`}
+                      rows={2}
+                      placeholder="Responsibilities and accomplishments — one bullet per line"
+                      onKeyDown={markShortcutKeyDown}
+                      value={m.description}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).map((x) =>
+                            x.id === m.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      disabled={mIdx === 0}
+                      id={moveId('military', mIdx, 'up')}
+                      title="Move up"
+                      aria-label={`Move military service ${mIdx + 1} up`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          military: moveItem(r.military ?? [], mIdx, -1),
+                        }))
+                        movedEntry('military', 'Military service', mIdx, -1, (resume.military ?? []).length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      disabled={mIdx === (resume.military ?? []).length - 1}
+                      id={moveId('military', mIdx, 'down')}
+                      title="Move down"
+                      aria-label={`Move military service ${mIdx + 1} down`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          military: moveItem(r.military ?? [], mIdx, 1),
+                        }))
+                        movedEntry('military', 'Military service', mIdx, 1, (resume.military ?? []).length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 shrink-0 sm:min-h-9"
+                      title={m.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={m.hidden === true}
+                      aria-label={`${m.hidden ? 'Show' : 'Hide'} military service ${m.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).map((x) =>
+                            x.id === m.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {m.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                      title="Delete military service"
+                      aria-label="Delete military service"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).filter((x) => x.id !== m.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
