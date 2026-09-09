@@ -3826,7 +3826,7 @@ export default function Builder() {
                 {!collapsedEntries.has(e.id) && (
                   <>
                 <div className={ENTRY_FIELDS_GRID}>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`exp-${e.id}-role`}>
                       {e.company.trim() ? `Your role at ${e.company.trim()}` : 'Your role'}
                     </Label>
@@ -3838,7 +3838,7 @@ export default function Builder() {
                       onChange={(ev) => setExp(e.id, { role: ev.target.value })}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`exp-${e.id}-company`}>Which company was this?</Label>
                     <Input
                       id={`exp-${e.id}-company`}
@@ -4219,7 +4219,7 @@ export default function Builder() {
                 {!collapsedEntries.has(e.id) && (
                   <>
                 <div className={ENTRY_FIELDS_GRID}>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`edu-${e.id}-degree`}>Degree and major</Label>
                     <Input
                       id={`edu-${e.id}-degree`}
@@ -4236,7 +4236,7 @@ export default function Builder() {
                     }
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`edu-${e.id}-school`}>Where did you study?</Label>
                     <Input
                       id={`edu-${e.id}-school`}
