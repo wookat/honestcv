@@ -605,6 +605,9 @@ const ENTRY_DATE_FIELD = 'w-32 sm:w-24'
 // preview at 1024–1215px) the place field and the date pair each take a full row.
 const ENTRY_FIELDS_GRID = '@container grid gap-2 sm:grid-cols-2'
 const ENTRY_WIDE_FIELD = '@max-[32rem]:col-span-full'
+// Reference e-mail / phone row: an address is wider than a phone number (even
+// one with an extension), so the pair splits 4:3 instead of in half.
+const REFERENCE_CONTACT_ROW = 'grid gap-2 sm:grid-cols-[minmax(0,4fr)_minmax(0,3fr)]'
 
 const moveId = (list: string, index: number, dir: 'up' | 'down') => `move-${list}-${index}-${dir}`
 
@@ -6365,7 +6368,7 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className={REFERENCE_CONTACT_ROW}>
                   <Input
                     aria-label="Reference email"
                     type="email"
