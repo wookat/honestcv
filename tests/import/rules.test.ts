@@ -1740,9 +1740,10 @@ describe('a bare known city on the contact row and a hyphen-joined degree/school
     expect(r.contact.location).toBe('')
   })
 
-  it('a bare city with no e-mail / phone / URL on its row is not taken from that row', () => {
+  it('a bare known city on its own header line is the location (R825), never a skill', () => {
     const r = parseResumeText(`Jane Doe\nLondon\n\nSKILLS\nReact, TypeScript\n`)
-    expect(r.contact.location).toBe('')
+    expect(r.contact.location).toBe('London')
+    expect(r.contact.title).toBe('')
     expect(r.skills).toContain('React, TypeScript')
   })
 
@@ -1786,5 +1787,90 @@ University of Leeds
     expect(r.education[0].school).toBe('University of Leeds')
     expect(r.education[0].degree).toMatch(/^BSc \(Hons\) Computer Science/)
     expect(`${r.education[0].degree} ${r.education[0].details}`).toContain('2:1')
+  })
+})
+
+describe('a bare place on its own header line is the location, not the title (R825)', () => {
+  const body = `\n\nEXPERIENCE\nSenior Engineer · Acme Corp (Jan 2020 - Present)\n- Led a team\n`
+
+  it('"London" directly under the name is the location and the title stays empty', () => {
+    const r = parseResumeText(`Jane Doe\nLondon\njane@example.com | +44 20 7946 0000${body}`)
+    expect(r.contact.fullName).toBe('Jane Doe')
+    expect(r.contact.location).toBe('London')
+    expect(r.contact.title).toBe('')
+    expect(r.contact.email).toBe('jane@example.com')
+    expect(r.experience).toHaveLength(1)
+  })
+
+  it('a title line and a city line both survive, in either order', () => {
+    for (const header of ['Senior Software Engineer\nLondon', 'London\nSenior Software Engineer']) {
+      const r = parseResumeText(`Jane Doe\n${header}\njane@example.com${body}`)
+      expect(r.contact.title).toBe('Senior Software Engineer')
+      expect(r.contact.location).toBe('London')
+    }
+  })
+
+  it('a country, a "City Country" pair and "Remote" are locations too', () => {
+    expect(parseResumeText(`Jane Doe\nUnited Kingdom\njane@example.com${body}`).contact).toMatchObject({
+      title: '',
+      location: 'United Kingdom',
+    })
+    expect(parseResumeText(`Jane Doe\nLondon UK\njane@example.com${body}`).contact).toMatchObject({
+      title: '',
+      location: 'London UK',
+    })
+    expect(parseResumeText(`Jane Doe\nRemote\njane@example.com${body}`).contact).toMatchObject({
+      title: '',
+      location: 'Remote',
+    })
+  })
+
+  it('a labelled location line stores its body; an unrecognised body is still not the title', () => {
+    expect(parseResumeText(`Jane Doe\nLocation: London\njane@example.com${body}`).contact).toMatchObject({
+      title: '',
+      location: 'London',
+    })
+    expect(parseResumeText(`Jane Doe\nBased in Berlin\njane@example.com${body}`).contact).toMatchObject({
+      title: '',
+      location: 'Berlin',
+    })
+    expect(parseResumeText(`Jane Doe\nAddress: Austin, TX\njane@example.com${body}`).contact).toMatchObject({
+      title: '',
+      location: 'Austin, TX',
+    })
+    expect(parseResumeText(`Jane Doe\nAddress: 12 Baker Street\njane@example.com${body}`).contact).toMatchObject({
+      title: '',
+      location: '',
+    })
+  })
+
+  it('a city below the contact rows is the location as well', () => {
+    const r = parseResumeText(`Jane Doe\njane@example.com\n+44 20 7946 0000\nLondon${body}`)
+    expect(r.contact.location).toBe('London')
+    expect(r.contact.title).toBe('')
+  })
+
+  it('a title word or an unknown place under the name is still the title (fail-closed)', () => {
+    expect(parseResumeText(`Jane Doe\nEngineer\njane@example.com${body}`).contact).toMatchObject({
+      title: 'Engineer',
+      location: '',
+    })
+    expect(parseResumeText(`Jane Doe\nSpringfield\njane@example.com${body}`).contact).toMatchObject({
+      title: 'Springfield',
+      location: '',
+    })
+  })
+
+  it('a two-word place above the name is not taken as the name', () => {
+    const r = parseResumeText(`New York\nJane Doe\njane@example.com${body}`)
+    expect(r.contact.fullName).toBe('Jane Doe')
+    expect(r.contact.location).toBe('New York')
+  })
+
+  it('"City, ST" under the name keeps its R803 reading and a contact-row place still wins', () => {
+    expect(parseResumeText(`Jane Doe\nAustin, TX\njane@example.com${body}`).contact.location).toBe('Austin, TX')
+    expect(
+      parseResumeText(`Jane Doe\nLondon\njane@example.com | Manchester, UK${body}`).contact.location
+    ).toBe('Manchester, UK')
   })
 })

@@ -185,6 +185,8 @@ const joinWrappedLines = (lines: string[]) =>
 
 // "Mumbai, India" / "Austin, TX" / "Remote" — a place, nothing else.
 const PLACE_RE = /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'’-]{0,30}(?:,\s*[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'’-]{0,30}){0,2}$/
+// "Location: London" / "Based in Berlin" / "Address — Austin, TX"
+const HEADER_PLACE_LABEL_RE = /^(?:(?:location|address)\s*[:—–-]|(?:based|lives) in)\s*(\S.*)$/i
 
 const GITHUB_RE = /(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s|,;)]+/i
 
@@ -876,6 +878,24 @@ function parseResumeTextInner(input: string): Resume {
       ) ??
     ''
 
+  // A header line that is nothing but a place — "London", "United Kingdom",
+  // "London UK", "Location: London", "Based in Berlin", "Remote" — is the
+  // location, never the name or the title. Fail-closed on the place
+  // vocabulary: "Engineer" / "Springfield" are left to the title rule.
+  const headerPlace = (line: string): string => {
+    const body = (line.match(HEADER_PLACE_LABEL_RE)?.[1] ?? line).trim()
+    if (isExpPlaceLine(body)) return body
+    if (/^remote$/i.test(body)) return 'Remote'
+    if (!PLACE_RE.test(body) || body.includes(',')) return ''
+    if (isKnownPlace(body)) return body
+    const words = body.split(/\s+/)
+    return words.length >= 2 &&
+      isKnownPlace(words.slice(0, -1).join(' ')) &&
+      isKnownPlace(words[words.length - 1])
+      ? body
+      : ''
+  }
+
   // Name: first short non-empty line without contact info or a heading,
   // above the first line of body
   let nameLine = ''
@@ -916,7 +936,7 @@ function parseResumeTextInner(input: string): Resume {
     }
     const head = named ? parts[0] : line
     if (matchHeading(line) || matchGutterLabel(line)) break
-    if (!named && (isExpPlaceLine(line) || DOC_TITLE_RE.test(line))) continue
+    if (!named && (isExpPlaceLine(line) || headerPlace(line) || DOC_TITLE_RE.test(line))) continue
     if (
       head.length <= 60 &&
       !EMAIL_RE.test(head) &&
@@ -973,12 +993,15 @@ function parseResumeTextInner(input: string): Resume {
     }
     if (resume.contact.location) break
   }
-  // "Williamsville, United States" on its own header line — above the first
-  // section heading, so a "React, TypeScript" skills row is never the location
+  // "Williamsville, United States" / "London" / "Location: London" on its own
+  // header line — above the first section heading, so a "React, TypeScript"
+  // skills row is never the location
   if (!resume.contact.location) {
     const place = nonEmpty
-      .slice(1, firstHeading < 0 ? headerLines : Math.min(headerLines, firstHeading))
-      .find((l) => isExpPlaceLine(l) && !matchHeading(l))
+      .slice(0, firstHeading < 0 ? headerLines : Math.min(headerLines, firstHeading))
+      .filter((l) => l !== nameLine && !matchHeading(l))
+      .map((l) => (isExpPlaceLine(l) ? l : headerPlace(l)))
+      .find(Boolean)
     if (place) resume.contact.location = place
   }
 
@@ -1468,10 +1491,11 @@ function parseResumeTextInner(input: string): Resume {
         // (never a contact row — "City, ST | phone | email" is not a title)
         const contactish = EMAIL_RE.test(line) || PHONE_RE.test(line) || URL_RE.test(line) || /[|•]/.test(line)
         if (DOC_TITLE_RE.test(line)) break
-        if (!contactish && isExpPlaceLine(line)) {
-          // "Austin, TX" on its own header line is the location (read above),
-          // not the title. Under the name it opens the header, so prose below
-          // it is the summary; after the summary it starts the contact block.
+        if (!contactish && (isExpPlaceLine(line) || headerPlace(line) || HEADER_PLACE_LABEL_RE.test(line))) {
+          // "Austin, TX" / "London" / "Location: …" on its own header line is
+          // the location (read above), not the title. Under the name it opens
+          // the header, so prose below it is the summary; after the summary it
+          // starts the contact block.
           headerProse = summaryLines.length === 0
         } else if (!resume.contact.title && summaryLines.length === 0 && line.length <= 60 && !contactish) {
           // the title sits above the summary, never inside it
