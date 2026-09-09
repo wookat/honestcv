@@ -418,7 +418,7 @@ function matchCustomHeading(line: string): string | null {
   if (CUSTOM_HEADING_RE.test(t)) return t
   // Generic short ALL-CAPS heading like "PRO BONO WORK" — a lone short
   // acronym (CSS / AWS / SQL, a wrapped skill) is not one.
-  if (/^[A-Z][A-Z &/'-]+$/.test(t) && t.split(/\s+/).length <= 3 && (t.length >= 6 || t.includes(' ')))
+  if (/^[A-Z][A-Z &/'-]+$/.test(t) && t.split(/\s+/).filter((w) => w !== '&').length <= 3 && (t.length >= 6 || t.includes(' ')))
     return t
   return null
 }

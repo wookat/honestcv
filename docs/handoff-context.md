@@ -3709,4 +3709,5 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 - Tests 212 → 218 (R800 block: TXT + MD title fidelity + custom slots in sectionOrder, MD `##` vs `###`/bullets, `headingCase` cases, foreign ALL-CAPS heading, letter-spaced TECHNICALWRITING); R780 / R781 expectations → `Activities` / `Languages`; golden synth-sidebar CONTACT / LANGUAGES / INTERESTS → title case only.
 - Replay 186 vs R799 byte copy (`qa/r800-parse-replay.mts`): 175 identical, 11 changed, all custom-title casing (Sumit `TECHNICALWRITING` → `Technical Writing` also visible in `sectionOrder` since the replay names custom slots by title).
 - Boundaries: a deliberately capitalised custom title comes back title-cased from a capitals template; acronyms by length / vowels (`NASA` → `Nasa`, `HTML` kept); non-Latin scripts unchanged.
-- Gates tsc ×3 / eslint / vitest 218 / build / verify-dist green.
+- Production QA (first deploy) found a supplementary plain-text edge: `UX & PRODUCT WORK` after another custom section was not a heading — the generic short ALL-CAPS rule counted `&` as a word (≤ 3 words). Same PR, second commit: `&` no longer counts; replay unchanged (175 / 11 casing-only); test +1 → 219.
+- Gates tsc ×3 / eslint / vitest 219 / build / verify-dist green.

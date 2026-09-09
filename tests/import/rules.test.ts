@@ -1233,6 +1233,22 @@ EXTRACURRICULAR ACTIVITIES
     expect(r.customSections).toMatchObject([{ title: 'Extracurricular Activities', bullets: ['Debate club captain'] }])
   })
 
+  it('an "&" in a short ALL-CAPS heading does not count as a word', () => {
+    const r = cv(`EXPERIENCE
+Engineer · Acme Corp
+Jan 2020 – Present
+- Shipped the platform
+LEADERSHIP AND INVOLVEMENT
+- Debate club captain
+UX & PRODUCT WORK
+- Diary study, 12 participants
+`)
+    expect(r.customSections).toMatchObject([
+      { title: 'Leadership and Involvement', bullets: ['Debate club captain'] },
+      { title: 'UX & Product Work', bullets: ['Diary study, 12 participants'] },
+    ])
+  })
+
   it('a letter-spaced heading recovers the space before a known last word', () => {
     const r = cv(`EXPERIENCE
 Engineer · Acme Corp

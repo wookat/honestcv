@@ -52,6 +52,9 @@ Rezi keeps a custom section's title through its export / import loop.
   case — headings by declaration, `###` entry headers and bullets unaffected.
 - Letter-spaced heading recovery learns `writing` (`T E C H N I C A L
   W R I T I N G` → `Technical Writing`, a real Pages export).
+- Generic short ALL-CAPS custom heading (≤ 3 words): a `&` token no longer
+  counts as a word (`UX & PRODUCT WORK` — found by production QA of the first
+  deploy, fixed in the same PR).
 - Standard-section recognition, structured lifting (R797), section order (R799),
   ATS, exports untouched.
 
