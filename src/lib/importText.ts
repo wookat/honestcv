@@ -1059,11 +1059,17 @@ function parseResumeTextInner(input: string): Resume {
             // date range on its own line under the entry header
             currentExp.startDate = start
             currentExp.endDate = end
-          } else if (!rest && start) {
-            // date range on its own line above the entry header (or after a
-            // header this parser could not read): open the entry with its dates
-            // and let the next header line name it
-            currentExp = { ...emptyExperience(), id: newId(), startDate: start, endDate: end, bullets: [] }
+          } else if (year || (!rest && start)) {
+            // date range (or lone year) on its own line above the entry header
+            // (or after a header this parser could not read): open the entry
+            // with its dates and let the next header line name it
+            currentExp = {
+              ...emptyExperience(),
+              id: newId(),
+              startDate: year ? year[1] : start,
+              endDate: year ? year[1] : end,
+              bullets: [],
+            }
             resume.experience.push(currentExp)
           } else if (
             currentExp &&
@@ -1200,6 +1206,29 @@ function parseResumeTextInner(input: string): Resume {
         } else if (!rest && start && currentEdu && !currentEdu.startDate) {
           currentEdu.startDate = start
           currentEdu.endDate = end
+        } else if (year || (!rest && start)) {
+          // date line on its own above the entry it dates (or after an entry that
+          // already has its dates): open the entry with the dates and let the
+          // next line name it
+          currentEdu = {
+            ...emptyEducation(),
+            id: newId(),
+            startDate: year ? year[1] : start,
+            endDate: year ? year[1] : end,
+          }
+          resume.education.push(currentEdu)
+        } else if (
+          currentEdu &&
+          !currentEdu.degree &&
+          !currentEdu.school &&
+          currentEdu.startDate &&
+          !start &&
+          !isEduPlaceLine(line) &&
+          !isEduDetailLine(line) &&
+          (looksLikeDotHeader(line) || !looksLikeBodyLine(line))
+        ) {
+          // the entry line under its own date line
+          Object.assign(currentEdu, newEducationEntry(line, currentEdu.startDate, currentEdu.endDate), { id: currentEdu.id })
         } else if (
           start &&
           currentEdu &&
@@ -1277,32 +1306,9 @@ function parseResumeTextInner(input: string): Resume {
         ) {
           continueEduLine(currentEdu, prevNonEmpty(lines, i), line)
         } else {
-          const { role, company, location: eduLoc } = splitRoleCompanyRaw(rest || line)
-          currentEdu = {
-            ...emptyEducation(),
-            id: newId(),
-            degree: role,
-            school: company,
-            location: eduLoc,
-            startDate: start,
-            endDate: end,
-          }
-          if (!company && isDegreeLine(role)) {
-            // "Bachelor of Arts in Economics; GPA: 3.7" — the school line follows
-            const { degree, details } = splitDegreeLine(role)
-            currentEdu.degree = degree
-            currentEdu.details = details
-          } else if (SCHOOL_RE.test(role) && !EDU_DEGREE_RE.test(role)) {
-            // "St Mary's High School, Durham" — the school comes first
-            currentEdu.school = role
-            currentEdu.degree = ''
-            if (company) {
-              if (EDU_DEGREE_RE.test(company)) currentEdu.degree = company
-              else if (isEduPlaceLine(company)) currentEdu.location = currentEdu.location || company
-              else appendDetails(currentEdu, company)
-            }
-          }
-          resume.education.push(currentEdu)
+          const entry = newEducationEntry(rest || line, start, end)
+          currentEdu = entry
+          resume.education.push(entry)
         }
         break
       }
@@ -1447,6 +1453,36 @@ const REFERENCE_KIND_RE = /^(personal|professional) reference$/i
 // reference's contact row, which opens in lowercase like a wrapped line would.
 const isReferenceDetail = (line: string) =>
   line.split(/\s·\s/).every((p) => EMAIL_RE.test(p) || PHONE_RE.test(p) || REFERENCE_KIND_RE.test(p.trim()))
+
+// The line that opens an education entry: "Degree · School", a degree line
+// ("Bachelor of Arts in Economics; GPA: 3.7" — the school follows) or a school
+// line ("St Mary's High School, Durham" — the degree follows)
+function newEducationEntry(header: string, start: string, end: string): EducationItem {
+  const { role, company, location } = splitRoleCompanyRaw(header)
+  const entry: EducationItem = {
+    ...emptyEducation(),
+    id: newId(),
+    degree: role,
+    school: company,
+    location,
+    startDate: start,
+    endDate: end,
+  }
+  if (!company && isDegreeLine(role)) {
+    const { degree, details } = splitDegreeLine(role)
+    entry.degree = degree
+    entry.details = details
+  } else if (SCHOOL_RE.test(role) && !EDU_DEGREE_RE.test(role)) {
+    entry.school = role
+    entry.degree = ''
+    if (company) {
+      if (EDU_DEGREE_RE.test(company)) entry.degree = company
+      else if (isEduPlaceLine(company)) entry.location = entry.location || company
+      else appendDetails(entry, company)
+    }
+  }
+  return entry
+}
 
 function bareDate(line: string): { start: string; end: string } | null {
   if (!BARE_DATE_LINE_RE.test(line.trim())) return null

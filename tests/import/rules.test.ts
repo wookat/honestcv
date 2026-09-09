@@ -481,6 +481,57 @@ Jan 2020 – Present
     expect(head(`Jane Doe\nSenior Engineer\njane@example.com\n${body}`)).toMatchObject({ name: 'Jane Doe', title: 'Senior Engineer' })
   })
 
+  it('R807: a date / year line printed above its entry dates that entry — education and experience', () => {
+    const edu = (text: string) =>
+      parseResumeText(`Jane Doe\njane@example.com\nEDUCATION\n${text}`).education.map(({ degree, school, startDate, endDate, details }) => [
+        degree,
+        school,
+        startDate,
+        endDate,
+        details,
+      ])
+    const exp = (text: string) =>
+      parseResumeText(`Jane Doe\njane@example.com\nEXPERIENCE\n${text}`).experience.map(({ role, company, startDate, endDate, bullets }) => [
+        role,
+        company,
+        startDate,
+        endDate,
+        bullets,
+      ])
+    // year above a "Degree · School" header, twice
+    expect(edu('2018\nMS Data Science · Tech Institute\n2016\nBS Computer Science · State University')).toEqual([
+      ['MS Data Science', 'Tech Institute', '2018', '2018', ''],
+      ['BS Computer Science', 'State University', '2016', '2016', ''],
+    ])
+    // year above a school-first one-field-per-line entry
+    expect(edu('2018\nTech Institute\nMS Data Science\nGPA: 3.9')).toEqual([['MS Data Science', 'Tech Institute', '2018', '2018', 'GPA: 3.9']])
+    // range above the entry
+    expect(edu('2014 – 2018\nTech Institute\nMS Data Science\n2010 – 2014\nState University\nBS Computer Science')).toEqual([
+      ['MS Data Science', 'Tech Institute', '2014', '2018', ''],
+      ['BS Computer Science', 'State University', '2010', '2014', ''],
+    ])
+    // a detail sentence under a lone date line stays a detail, never the degree
+    expect(edu('2017 – Jun 2020\nFirst Class Honours. Final project: a journey planner.')).toEqual([
+      ['', '', '2017', 'Jun 2020', 'First Class Honours. Final project: a journey planner.'],
+    ])
+    // bare year above an experience header (a range above it already worked)
+    expect(exp('2021\nContract Engineer · Acme\n- Built.\n2019\nIntern · Beta\n- Helped.')).toEqual([
+      ['Contract Engineer', 'Acme', '2021', '2021', ['Built.']],
+      ['Intern', 'Beta', '2019', '2019', ['Helped.']],
+    ])
+    expect(exp('Jan 2020 – Present\nSenior Engineer\nAcme Corp\n- Built things.')).toEqual([
+      ['Senior Engineer', 'Acme Corp', 'Jan 2020', 'Present', ['Built things.']],
+    ])
+    // R804 (year below the entry) and years inside bullets are unchanged
+    expect(edu('MS Data Science · Tech Institute\n2018\nBS Computer Science · State University\n2016')).toEqual([
+      ['MS Data Science', 'Tech Institute', '2018', '2018', ''],
+      ['BS Computer Science', 'State University', '2016', '2016', ''],
+    ])
+    expect(exp('Engineer · Acme\n2020 – 2021\n- Shipped v2 in 2021.\n- 2019 award.')).toEqual([
+      ['Engineer', 'Acme', '2020', '2021', ['Shipped v2 in 2021.', '2019 award.']],
+    ])
+  })
+
   it('R782: humanNameCase keeps hyphens, apostrophes, particles, numerals, initials and Mc-', () => {
     expect(humanNameCase("MARY-JANE O'NEIL")).toBe("Mary-Jane O'Neil")
     expect(humanNameCase('LUDWIG VAN BEETHOVEN')).toBe('Ludwig van Beethoven')
