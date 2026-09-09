@@ -430,6 +430,40 @@ Jan 2020 – Present
     })
   })
 
+  it('R811: a document title in a product language (Lebenslauf / Currículum Vitae / Hoja de Vida / Currículo / Persönliche Daten …) is neither the name nor the title', () => {
+    const head = (text: string) => {
+      const r = parseResumeText(text)
+      return { name: r.contact.fullName, title: r.contact.title, email: r.contact.email }
+    }
+    const body = 'Jane Doe\nSenior Engineer\njane@example.com · 555-111-2222\nEXPERIENCE\nEngineer · Acme\n2020 – 2021'
+    for (const title of [
+      'Lebenslauf',
+      'LEBENSLAUF',
+      'Persönliche Daten',
+      'Persönliche Angaben:',
+      'Angaben zur Person',
+      'Currículum Vitae',
+      'Currículum',
+      'Hoja de Vida',
+      'Datos personales',
+      'Información personal',
+      'Curriculum Vitæ',
+      'Coordonnées',
+      'Informations personnelles',
+      'État civil',
+      'Currículo',
+      'Curriculum vitae',
+      'Dados pessoais',
+      'Informações pessoais',
+    ]) {
+      expect(head(`${title}\n${body}`), title).toEqual({ name: 'Jane Doe', title: 'Senior Engineer', email: 'jane@example.com' })
+    }
+    // a name that merely contains a title word is still the name
+    expect(head(`Vida Lebens\n${body.split('\n').slice(1).join('\n')}`)).toMatchObject({ name: 'Vida Lebens', title: 'Senior Engineer' })
+    // the title over a name-less paste leaves the name empty rather than storing the title
+    expect(head('Lebenslauf\njane@example.com\nEXPERIENCE\nEngineer · Acme\n2020 – 2021')).toMatchObject({ name: '', title: '', email: 'jane@example.com' })
+  })
+
   it('R806: a "Name | Title" / "Name · Title" header row splits into name and title; a name leading a contact row is the name', () => {
     const head = (text: string) => {
       const r = parseResumeText(text)
