@@ -42,6 +42,7 @@ import {
   agentBullets,
   agentEntries,
   dividerOf,
+  educationDates,
   educationDetailLine,
   educationEntries,
   educationHeadingParts,
@@ -387,25 +388,29 @@ export async function buildResumeDocx(resume: Resume): Promise<Blob> {
       children.push(heading(sectionHeading(resume, 'education')))
       let edi = 0
       for (const e of educationEntries(resume)) {
-        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+        const dates = educationDates(e)
         const { head, tail } = educationHeadingParts(e)
-        children.push(
-          new Paragraph({
-            spacing: { before: 60, after: 20 },
-            keepNext: true,
-            border: entryBorder(edi++),
-            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
-            children: [
-              ...headRuns(head, 21),
-              ...(tail ? [new TextRun({ text: tail, size: sz(21), font })] : []),
-              ...(dates
-                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
-                : []),
-            ],
-          })
-        )
         const detail = educationDetailLine(e)
-        if (detail) children.push(body(detail))
+        if (head + tail || dates) {
+          children.push(
+            new Paragraph({
+              spacing: { before: 60, after: 20 },
+              keepNext: true,
+              border: entryBorder(edi++),
+              tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+              children: [
+                ...headRuns(head, 21),
+                ...(tail ? [new TextRun({ text: tail, size: sz(21), font })] : []),
+                ...(dates
+                  ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
+                  : []),
+              ],
+            })
+          )
+          if (detail) children.push(body(detail))
+        } else if (detail) {
+          children.push(body(detail, { border: entryBorder(edi++) }))
+        }
       }
     } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'coursework')))

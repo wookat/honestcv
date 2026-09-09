@@ -35,6 +35,7 @@ import {
   agentBullets,
   agentEntries,
   dividerOf,
+  educationDates,
   educationDetailLine,
   educationEntries,
   educationHeadingParts,
@@ -991,14 +992,17 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       w.heading(sectionHeading(resume, 'education'))
       let edi = 0
       for (const e of educationEntries(resume)) {
-        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
+        const dates = educationDates(e)
         const { head, tail } = educationHeadingParts(e)
         const detail = educationDetailLine(e)
-        entryHeader(edi++, 2, head + tail, dates, { size: 10, body: detail || undefined })
-        if (detail) {
-          w.gap(1)
-          bodyText(detail)
+        if (head + tail || dates) {
+          entryHeader(edi++, 2, head + tail, dates, { size: 10, body: detail || undefined })
+          if (detail) w.gap(1)
+        } else {
+          entryRule(edi++)
+          w.gap(2)
         }
+        if (detail) bodyText(detail)
       }
     } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'coursework'))

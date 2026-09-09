@@ -2470,9 +2470,23 @@ export function experienceHeadingParts(e: ExperienceItem, grouped: boolean) {
   return entryHeading(e.role, place)
 }
 
-/** Education rows with something to print — a degree or a school (either alone is an entry) */
+/**
+ * Education rows with something to print — a degree, a school, a date or a detail
+ * line (any one alone is an entry; only an all-blank row is skipped)
+ */
 export const educationEntries = (r: Resume): EducationItem[] =>
-  r.education.filter((e) => e.degree.trim() || e.school.trim())
+  r.education.filter(
+    (e) =>
+      e.degree.trim() ||
+      e.school.trim() ||
+      e.startDate.trim() ||
+      e.endDate.trim() ||
+      educationDetailLine(e)
+  )
+
+/** Date range printed for an education entry */
+export const educationDates = (e: EducationItem): string =>
+  [e.startDate.trim(), e.endDate.trim()].filter(Boolean).join(' – ')
 
 /** Education heading parts: degree · school, location */
 export function educationHeadingParts(e: EducationItem) {
@@ -2907,12 +2921,10 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
     } else if (key === 'education' && educationEntries(r).length > 0) {
       lines.push('', sectionHeading(r, 'education').toUpperCase())
       for (const e of educationEntries(r)) {
-        lines.push(
-          [e.degree, e.school, e.location].filter((s) => s.trim()).join(', ') +
-            (e.startDate || e.endDate
-              ? ` (${[e.startDate, e.endDate].filter(Boolean).join(' – ')})`
-              : '')
-        )
+        const head = [e.degree, e.school, e.location].filter((s) => s.trim()).join(', ')
+        const dates = educationDates(e)
+        if (head) lines.push(head + (dates ? ` (${dates})` : ''))
+        else if (dates) lines.push(dates)
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail)
       }
@@ -3029,14 +3041,10 @@ export function resumeToMarkdown(r: Resume): string {
     } else if (key === 'education' && educationEntries(r).length > 0) {
       heading(sectionHeading(r, 'education'))
       for (const e of educationEntries(r)) {
-        const dates =
-          e.startDate || e.endDate
-            ? ` *(${[e.startDate, e.endDate].filter(Boolean).join(' – ')})*`
-            : ''
-        lines.push(
-          `### ${[e.degree, e.school, e.location].filter((s) => s.trim()).join(', ')}${dates}`,
-          ''
-        )
+        const head = [e.degree, e.school, e.location].filter((s) => s.trim()).join(', ')
+        const dates = educationDates(e)
+        if (head) lines.push(`### ${head}${dates ? ` *(${dates})*` : ''}`, '')
+        else if (dates) lines.push(`### ${dates}`, '')
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail, '')
       }
