@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { AtsScoreValue } from '../src/components/AtsScoreValue'
 import { scoreResume } from '../src/lib/ats'
+import { countUpValue } from '../src/lib/motion'
 import { measureResumePdf } from '../src/lib/pdf'
 import { sampleResume, sanitizeResume, visibleResume, type Resume } from '../src/lib/resume'
 
@@ -115,5 +116,60 @@ describe('every stored-copy score display goes through AtsScoreValue (R820)', ()
     // the tailoring report compares keyword coverage before / after; it never shows a /100 score
     const tailor = builder.slice(builder.indexOf('const before = scoreResume(snapshot, jd)'))
     expect(tailor.slice(0, 4000)).not.toMatch(/report\.(before|after)\.score\b/)
+  })
+})
+
+describe('the builder shows no score before its first PDF measurement (R821)', () => {
+  const builder = src('src/pages/Builder.tsx')
+  const hook = src('src/lib/usePdfLength.ts')
+
+  it('the first measurement starts at once; only re-measurements after edits are debounced', () => {
+    expect(hook).toContain('started.current ? delayMs : 0')
+    expect(hook).toMatch(/started\.current = true\s*\n\s*measurePdfOnceIdle\(resume\)/)
+  })
+
+  it('usePdfLength tells pending (undefined) apart from unavailable (null)', () => {
+    const body = hook.slice(hook.indexOf('export function usePdfLength('))
+    expect(body).toContain('ResumeLength | null | undefined')
+    expect(body.slice(0, 400)).toContain('if (m === null) return undefined')
+    expect(body.slice(0, 400)).toContain("if (m === 'unavailable') return null")
+  })
+
+  it('every /100 number, the ring, the badge and the readiness tier wait for the measurement', () => {
+    expect(builder).toContain('const atsPending = pdfMeasure === undefined')
+    expect(builder).toContain('const pdfLength = pdfMeasure ?? null')
+    expect(builder).toMatch(/atsPending \? \(\s*<PendingScoreRing size=\{72\} \/>\s*\) : \(\s*<ScoreRing score=\{ats\.score\} size=\{72\} \/>/)
+    expect(builder).toContain("{atsPending ? '…' : ats.score}")
+    expect(builder).toContain("? 'ATS match score: measuring the exported PDF'")
+    expect(builder).toContain('{atsPending ? <PendingScoreMark /> : ats.structureScore}')
+    expect(builder).toContain('Score breakdown — ATS {atsPending ? <PendingScoreMark /> : ats.score}/100')
+    expect(builder).toContain('{!atsPending && readiness.blockers.length > 0 && (')
+    // no other bare score digit is rendered
+    expect(builder).not.toMatch(/>\s*\{ats\.score\}\s*</)
+    expect(builder.match(/<ScoreRing score=\{ats\.score\}/g)).toHaveLength(1)
+    expect(builder).toMatch(/aria-label="ATS match score: measuring the exported PDF's page count"/)
+  })
+
+  it('the length meter says "unavailable" when the measurement failed, "measuring" only while pending', () => {
+    expect(builder).toContain("? 'Resume length is being measured'\n                      : 'Resume length is unavailable'")
+    expect(builder).toMatch(
+      /atsPending \? \(\s*'Resume length: measuring[^']*'\s*\) : \(\s*'Resume length: unavailable — the PDF preview could not be prepared[^']*'/,
+    )
+  })
+
+  it('the ring count-up never swings below its start when the first frame timestamp predates the tween', () => {
+    // Production R821 QA sampled the ring at 0, -12, 18, … 79: the rAF timestamp of the first
+    // frame preceded the performance.now() the tween was armed with.
+    expect(countUpValue(0, 79, -35, 900)).toBe(0)
+    expect(countUpValue(0, 79, 0, 900)).toBe(0)
+    expect(countUpValue(0, 79, 450, 900)).toBe(69)
+    expect(countUpValue(0, 79, 900, 900)).toBe(79)
+    expect(countUpValue(0, 79, 1200, 900)).toBe(79)
+    expect(countUpValue(79, 83, -35, 900)).toBe(79)
+    for (let ms = -200; ms <= 1200; ms += 10) {
+      const v = countUpValue(0, 79, ms, 900)
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThanOrEqual(79)
+    }
   })
 })

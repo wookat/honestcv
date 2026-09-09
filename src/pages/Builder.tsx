@@ -419,6 +419,45 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' | 'error' {
   return state
 }
 
+/** Stands in for a score digit while the exported PDF's page count is still being measured. */
+function PendingScoreMark() {
+  return (
+    <span title="Measuring the exported PDF's page count">
+      <span aria-hidden="true">…</span>
+      <span className="sr-only">measuring</span>
+    </span>
+  )
+}
+
+/** Undrawn ScoreRing shown until the first PDF measurement makes the score final. */
+function PendingScoreRing({ size }: { size: number }) {
+  const stroke = 7
+  const r = (size - stroke) / 2
+  return (
+    <span
+      className="relative inline-flex items-center justify-center"
+      role="img"
+      aria-label="ATS match score: measuring the exported PDF's page count"
+      title="Measuring the exported PDF's page count"
+    >
+      <svg width={size} height={size} aria-hidden>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          className="text-muted forced-colors:stroke-[CanvasText]"
+          strokeWidth={stroke}
+        />
+      </svg>
+      <span className="text-muted-foreground absolute text-xl font-bold" aria-hidden="true">
+        …
+      </span>
+    </span>
+  )
+}
+
 /** Whether the viewport is at the lg breakpoint, where both panes show side by side. */
 function useIsLgViewport(): boolean {
   const [isLg, setIsLg] = useState(() => window.matchMedia('(min-width: 64rem)').matches)
@@ -1469,7 +1508,12 @@ export default function Builder() {
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
   const shown = useMemo(() => visibleResume(resume), [resume])
-  const pdfLength = usePdfLength(shown)
+  const pdfMeasure = usePdfLength(shown)
+  /** Length meter input — `null` while the first measurement is pending as well as when it failed. */
+  const pdfLength = pdfMeasure ?? null
+  /** The score is not shown until the first PDF measurement lands, so the page-count-blind
+   * number never flashes before the measured one. */
+  const atsPending = pdfMeasure === undefined
   const [fitBusy, setFitBusy] = useState(false)
   const [fitMsg, setFitMsg] = useState('')
   const autoFit = useCallback(async () => {
@@ -7605,7 +7649,9 @@ export default function Builder() {
                 role="img"
                 aria-label={
                   pdfLength === null
-                    ? 'Resume length is being measured'
+                    ? atsPending
+                      ? 'Resume length is being measured'
+                      : 'Resume length is unavailable'
                     : `Resume fills ${Math.round(Math.min(pdfLength.length, 1) * 100)}% of the first page`
                 }
                 className="bg-muted inline-block h-1.5 w-16 overflow-hidden rounded-full forced-colors:border forced-colors:border-[CanvasText]"
@@ -7631,7 +7677,11 @@ export default function Builder() {
                 }`}
               >
                 {pdfLength === null ? (
-                  'Resume length: measuring — the meter and page guidance will update once the preview settles…'
+                  atsPending ? (
+                    'Resume length: measuring — the meter and page guidance will update once the preview settles…'
+                  ) : (
+                    'Resume length: unavailable — the PDF preview could not be prepared, so page guidance is off until it loads'
+                  )
                 ) : (
                   <>
                     Resume length: {pdfLength.length.toFixed(2)} page
@@ -8254,7 +8304,11 @@ export default function Builder() {
                     — free, computed in your browser
                   </span>
                 </p>
-                <ScoreRing score={ats.score} size={72} />
+                {atsPending ? (
+                  <PendingScoreRing size={72} />
+                ) : (
+                  <ScoreRing score={ats.score} size={72} />
+                )}
               </div>
               <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                 {ats.keywordScore !== null && (
@@ -8264,7 +8318,10 @@ export default function Builder() {
                   </span>
                 )}
                 <span>
-                  Structure <span className="text-foreground font-medium">{ats.structureScore}</span>
+                  Structure{' '}
+                  <span className="text-foreground font-medium">
+                    {atsPending ? <PendingScoreMark /> : ats.structureScore}
+                  </span>
                   {ats.keywordScore !== null && (
                     <span> ×30%</span>
                   )}
@@ -8506,22 +8563,28 @@ export default function Builder() {
               <div className="mt-3 space-y-3">
                 <div
                   className={`rounded-md px-2.5 py-1.5 text-xs ${
-                    readiness.tier === 'ready'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : readiness.tier === 'almost'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-red-100 text-red-800'
+                    atsPending
+                      ? 'bg-muted text-muted-foreground'
+                      : readiness.tier === 'ready'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : readiness.tier === 'almost'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-red-100 text-red-800'
                   }`}
                 >
                   <span className="font-semibold">
                     Application ready:{' '}
-                    {readiness.tier === 'ready'
-                      ? 'Ready to send'
-                      : readiness.tier === 'almost'
-                        ? 'Almost there'
-                        : 'Needs work'}
+                    {atsPending ? (
+                      <PendingScoreMark />
+                    ) : readiness.tier === 'ready' ? (
+                      'Ready to send'
+                    ) : readiness.tier === 'almost' ? (
+                      'Almost there'
+                    ) : (
+                      'Needs work'
+                    )}
                   </span>
-                  {readiness.blockers.length > 0 && (
+                  {!atsPending && readiness.blockers.length > 0 && (
                     <span> — {readiness.blockers.join(' · ')}</span>
                   )}
                 </div>
@@ -8671,16 +8734,22 @@ export default function Builder() {
             {icon} {label}
             {pane === 'preview' && (
               <span
-                aria-label={`ATS match score ${ats.score} out of 100`}
+                aria-label={
+                  atsPending
+                    ? 'ATS match score: measuring the exported PDF'
+                    : `ATS match score ${ats.score} out of 100`
+                }
                 className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
-                  ats.score >= 80
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : ats.score >= 50
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-red-100 text-red-700'
+                  atsPending
+                    ? 'bg-muted text-muted-foreground'
+                    : ats.score >= 80
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : ats.score >= 50
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-red-100 text-red-700'
                 }`}
               >
-                {ats.score}
+                {atsPending ? '…' : ats.score}
               </span>
             )}
           </button>
@@ -9024,6 +9093,7 @@ export default function Builder() {
         onClose={() => setHealthOpen(false)}
         health={health}
         ats={ats}
+        atsPending={atsPending}
         onJump={jumpToSection}
         onJumpEntry={jumpToEntry}
       />
@@ -12655,6 +12725,7 @@ function HealthDialog({
   onClose,
   health,
   ats,
+  atsPending,
   onJump,
   onJumpEntry,
 }: {
@@ -12662,6 +12733,7 @@ function HealthDialog({
   onClose: () => void
   health: HealthReport
   ats: AtsResult
+  atsPending: boolean
   onJump: (anchor: SectionAnchor | 'target') => void
   onJumpEntry: (id: string, anchor?: SectionAnchor) => void
 }) {
@@ -12709,7 +12781,7 @@ function HealthDialog({
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Score breakdown — ATS {ats.score}/100 · Writing{' '}
+            Score breakdown — ATS {atsPending ? <PendingScoreMark /> : ats.score}/100 · Writing{' '}
             {`${health.score}/100 (${scoreVerdict(health.score)})`}
           </DialogTitle>
           <DialogDescription>
