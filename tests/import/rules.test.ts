@@ -464,6 +464,47 @@ Jan 2020 – Present
     expect(head('Lebenslauf\njane@example.com\nEXPERIENCE\nEngineer · Acme\n2020 – 2021')).toMatchObject({ name: '', title: '', email: 'jane@example.com' })
   })
 
+  it('R812: a marked bullet wrapped before a capitalised word ("… to the new" / "Kubernetes cluster, …") is one bullet, across a page break too', () => {
+    const exps = (tail: string) =>
+      parseResumeText(
+        `Jane Doe\nSenior Engineer\njane@example.com · 555-111-2222\nEXPERIENCE\nSenior Engineer · Acme Corp, Austin, TX\nJan 2020 – Dec 2021\n${tail}`
+      ).experience.map((e) => [e.role, e.company, e.startDate, e.bullets])
+    const joined = 'Led the migration of the billing platform to the new Kubernetes cluster, cutting p99 latency by 40% for 2M users.'
+    const acme = (bullets: string[]) => ['Senior Engineer', 'Acme Corp', 'Jan 2020', bullets]
+    const beta = ['Staff Engineer', 'Beta Inc', 'Jan 2018', ['Other.']]
+    const wrap = '• Led the migration of the billing platform to the new\nKubernetes cluster, cutting p99 latency by 40% for 2M users.'
+    expect(exps(`${wrap}\n• Second bullet here.`)).toEqual([acme([joined, 'Second bullet here.'])])
+    // a page break in our own PDF export arrives as a blank line inside the bullet
+    expect(exps(`${wrap.replace('\n', '\n\n')}\n• Second bullet here.`)).toEqual([acme([joined, 'Second bullet here.'])])
+    // a third visual line after a lowercase second one
+    expect(
+      exps('• Led the migration of the billing platform to a new\nservice mesh and moved the ledger onto the shared\nKubernetes cluster, cutting p99 latency by 40% for 2M users.')
+    ).toEqual([
+      acme([
+        'Led the migration of the billing platform to a new service mesh and moved the ledger onto the shared Kubernetes cluster, cutting p99 latency by 40% for 2M users.',
+      ]),
+    ])
+    // the last bullet of an entry, then the next header
+    expect(exps(`${wrap}\nStaff Engineer · Beta Inc, Austin, TX\nJan 2018 – Dec 2019\n• Other.`)).toEqual([acme([joined]), beta])
+    // guards: a header, a dated line or a tag row after an unterminated bullet is not its continuation …
+    const open = '• Shipped the billing platform and the ledger'
+    expect(exps(`${open}\nStaff Engineer · Beta Inc, Austin, TX\nJan 2018 – Dec 2019\n• Other.`)).toEqual([acme(['Shipped the billing platform and the ledger']), beta])
+    expect(exps(`${open}\nStaff Engineer at Beta Inc\nJan 2018 – Dec 2019\n• Other.`)).toEqual([acme(['Shipped the billing platform and the ledger']), beta])
+    expect(exps(`${open}\nKubernetes, Helm, Terraform, Grafana, Postgres, Kafka, Redis, Airflow, Spark\n• Other.`)[0][3]).toHaveLength(3)
+    // … nor is a bullet that lost its marker (opens with an action verb)
+    expect(exps(`${open}\nShipped the redesign of the billing pages and the invoice archive.\n• Other.`)[0][3]).toHaveLength(3)
+    // … and a marker-less list whose items end without punctuation (Canva) stays one item per line
+    expect(
+      exps(
+        'Collaborate with top management to develop and implement strategic plans to achieve\norganizational objectives\nIdentify opportunities for process optimization and implement changes to enhance efficiency\nDevelop and manage budgets for operational activities, monitoring expenses and ensuring adherence'
+      )[0][3]
+    ).toEqual([
+      'Collaborate with top management to develop and implement strategic plans to achieve organizational objectives',
+      'Identify opportunities for process optimization and implement changes to enhance efficiency',
+      'Develop and manage budgets for operational activities, monitoring expenses and ensuring adherence',
+    ])
+  })
+
   it('R806: a "Name | Title" / "Name · Title" header row splits into name and title; a name leading a contact row is the name', () => {
     const head = (text: string) => {
       const r = parseResumeText(text)

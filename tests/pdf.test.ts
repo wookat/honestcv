@@ -146,6 +146,35 @@ describe('page breaks keep bullets and entry headers whole (R793)', () => {
       expect(back.experience.flatMap((e) => e.bullets), t.id).toEqual(bullets)
     }
   })
+
+  it('R812: a bullet split at a page bottom before a capitalised word re-imports whole on every template', async () => {
+    // Bullets built from product names, so the line after a page break (and any
+    // visual wrap) opens with a capital — the shape `continuesPrevious` misses.
+    const names = ['Kafka', 'Redis', 'Postgres', 'Kubernetes', 'Terraform', 'Grafana', 'Airflow', 'Spark', 'Flink', 'Envoy']
+    const run = (e: number, b: number, n: number) =>
+      Array.from({ length: n }, (_, k) => `${names[(e * 3 + b * 7 + k) % names.length]} ${names[(e + b + k * 3) % names.length]} adapters`).join(' beside ')
+    const caps = sampleResume()
+    caps.experience = Array.from({ length: 6 }, (_, e) => ({
+      ...caps.experience[0],
+      id: `c${e}`,
+      role: 'Senior Engineer',
+      company: `Company ${String.fromCharCode(65 + e)}`,
+      location: 'Austin, TX',
+      startDate: `Jan ${2010 + e}`,
+      endDate: `Dec ${2010 + e}`,
+      bullets: Array.from({ length: 6 }, (_, b) => `Migrated job ${e + 1}-${b + 1} onto the ${run(e, b, 14 + ((e + b) % 4) * 4)} platform.`),
+    }))
+    const capBullets = caps.experience.flatMap((e) => e.bullets)
+    for (const t of TEMPLATES) {
+      const { text } = await pdfTextOf(await buildResumePdf({ ...caps, templateId: t.id }))
+      const pages = text.split('\n\n')
+      expect(pages.length, t.id).toBeGreaterThan(3)
+      // at least one page ends inside a bullet (the R793 2 + 2 split) …
+      expect(pages.slice(0, -1).some((p) => !/[.!?]$/.test(p.trim())), t.id).toBe(true)
+      // … and every bullet still comes back as one
+      expect(parseResumeText(text).experience.flatMap((e) => e.bullets), t.id).toEqual(capBullets)
+    }
+  })
 })
 
 describe('the company-info line under an entry header re-imports as companyInfo (R794)', () => {
