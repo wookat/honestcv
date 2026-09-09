@@ -65,6 +65,107 @@ interface Env extends BillingEnv, LsEnv {
 
 const freeMode = (env: Env) => env.FREE_MODE === 'true'
 
+// KV is shared with the account's other Workers, so its free-plan daily read
+// cap can be exhausted by traffic that is not ours ("KV get() limit exceeded
+// for the day"), and the binding then throws on every read for the rest of the
+// UTC day. Every KV call goes through these wrappers so the failure is one
+// typed error: routes that can degrade catch it (quota peek, job cache, share
+// shell) and the rest answer an honest 503 from `app.onError` instead of 500.
+class KvUnavailableError extends Error {
+  constructor(op: 'get' | 'put' | 'delete', key: string, cause: unknown) {
+    super(
+      `KV ${op} ${key.split(':')[0]}:* failed: ${cause instanceof Error ? cause.message : String(cause)}`
+    )
+    this.name = 'KvUnavailableError'
+  }
+}
+
+async function kvGet(env: Env, key: string): Promise<string | null> {
+  try {
+    return await env.KV.get(key)
+  } catch (e) {
+    const err = new KvUnavailableError('get', key, e)
+    console.error(err.message)
+    throw err
+  }
+}
+
+async function kvPut(
+  env: Env,
+  key: string,
+  value: string,
+  options?: KVNamespacePutOptions
+): Promise<void> {
+  try {
+    await env.KV.put(key, value, options)
+  } catch (e) {
+    const err = new KvUnavailableError('put', key, e)
+    console.error(err.message)
+    throw err
+  }
+}
+
+async function kvDelete(env: Env, key: string): Promise<void> {
+  try {
+    await env.KV.delete(key)
+  } catch (e) {
+    const err = new KvUnavailableError('delete', key, e)
+    console.error(err.message)
+    throw err
+  }
+}
+
+const KV_UNAVAILABLE_MESSAGE =
+  'This is temporarily unavailable on our side — please retry in a few minutes.'
+const AI_UNAVAILABLE_MESSAGE =
+  'Free AI is paused for a few minutes — usage tracking is offline on our side. None of your free uses were spent; please retry shortly.'
+const SHARE_UNAVAILABLE_MESSAGE =
+  'Loading shared resumes is temporarily unavailable on our side — please retry in a few minutes. This is not a revoked link.'
+
+// Cache API shadow for the job-search caches (feed snapshots, assembled
+// payloads): free and uncapped, but per data centre, so KV stays the primary
+// global cache and the shadow only answers when KV reads fail — each colo then
+// asks the upstream boards once per query per TTL instead of on every request.
+const shadowRequest = (key: string) =>
+  new Request(`https://kv-shadow.cv.zalize.com/${encodeURIComponent(key)}`, { method: 'GET' })
+
+const shadowStore = () => (typeof caches === 'undefined' ? null : caches.default)
+
+async function readShadowedCache(c: Context<{ Bindings: Env }>, key: string): Promise<string | null> {
+  try {
+    return await kvGet(c.env, key)
+  } catch (e) {
+    if (!(e instanceof KvUnavailableError)) throw e
+    const hit = await shadowStore()?.match(shadowRequest(key))
+    return hit ? hit.text() : null
+  }
+}
+
+function writeShadowedCache(
+  c: Context<{ Bindings: Env }>,
+  key: string,
+  value: string,
+  ttlSeconds: number
+): void {
+  const shadow = shadowStore()
+  c.executionCtx.waitUntil(
+    Promise.allSettled([
+      kvPut(c.env, key, value, { expirationTtl: ttlSeconds }),
+      shadow
+        ? shadow.put(
+            shadowRequest(key),
+            new Response(value, {
+              headers: {
+                'content-type': 'application/json',
+                'Cache-Control': `public, s-maxage=${ttlSeconds}`,
+              },
+            })
+          )
+        : Promise.resolve(),
+    ])
+  )
+}
+
 /** Unified QA-traffic marker: scripted probes send `x-qa: 1`, and headless
  * browsers are never real visitors. Marked requests are accepted but not
  * counted in first-party analytics. */
@@ -525,7 +626,7 @@ function liveAiReply(
       await send('error', { error: result.error, status: result.status ?? 502 })
       return
     }
-    const remaining = freeRemaining !== null ? Math.max(await consumeFreeQuota(c), 0) : null
+    const remaining = freeRemaining !== null ? await consumeFreeQuota(c) : null
     await send('done', { text: result.text, freeRemaining: remaining })
   })
 }
@@ -573,19 +674,26 @@ function bufferedAiReply(
   })
 }
 
-/** Consume one free-AI-quota unit; returns remaining, or -1 when exhausted */
+/** Consume one free-AI-quota unit after a successful call; returns the uses
+ * left (0 when exhausted), or null when KV could not record it — the reply the
+ * user waited for is still delivered, and the client shows no count. */
 async function consumeFreeQuota(c: {
   req: { header: (name: string) => string | undefined }
   env: Env
-}): Promise<number> {
+}): Promise<number | null> {
   const fp = c.req.header('x-client-id')?.trim()
-  if (!fp || fp.length < 8 || fp.length > 128) return -1
+  if (!fp || fp.length < 8 || fp.length > 128) return 0
   const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
   const kvKey = quotaKvKey(fp, 'ai')
-  const used = Number((await c.env.KV.get(kvKey)) ?? '0')
-  if (used >= limit) return -1
-  await c.env.KV.put(kvKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 30 })
-  return limit - used - 1
+  try {
+    const used = Number((await kvGet(c.env, kvKey)) ?? '0')
+    if (used >= limit) return 0
+    await kvPut(c.env, kvKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 30 })
+    return limit - used - 1
+  } catch (e) {
+    if (e instanceof KvUnavailableError) return null
+    throw e
+  }
 }
 
 /** Peek at the remaining free-AI quota without consuming; -1 when exhausted/invalid */
@@ -596,7 +704,7 @@ async function peekFreeQuota(c: {
   const fp = c.req.header('x-client-id')?.trim()
   if (!fp || fp.length < 8 || fp.length > 128) return -1
   const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
-  const used = Number((await c.env.KV.get(quotaKvKey(fp, 'ai'))) ?? '0')
+  const used = Number((await kvGet(c.env, quotaKvKey(fp, 'ai'))) ?? '0')
   if (used >= limit) return -1
   return limit - used
 }
@@ -691,6 +799,12 @@ app.use(
   })
 )
 
+const aiUnavailable = (c: Context<{ Bindings: Env }>) => {
+  c.header('Retry-After', '300')
+  c.header('Cache-Control', 'no-store')
+  return c.json({ error: AI_UNAVAILABLE_MESSAGE, code: 'unavailable' }, 503)
+}
+
 // Abuse gate for all AI endpoints: request-size cap plus a per-IP daily
 // request cap. Licensed users are exempt; the per-client free quota is
 // still checked per endpoint (x-client-id stays a UX dimension only).
@@ -704,7 +818,15 @@ app.use('/api/ai/*', async (c, next) => {
   if (ip && !(await entitlementFromRequest(c))) {
     const day = new Date().toISOString().slice(0, 10)
     const key = `rl:ai:${day}:${ip}`
-    const used = Number((await c.env.KV.get(key)) ?? '0')
+    // Fail closed: with the counters unreadable the free tier is paused (a
+    // licensed request never touches KV here), and the reply says so.
+    let used: number
+    try {
+      used = Number((await kvGet(c.env, key)) ?? '0')
+    } catch (e) {
+      if (!(e instanceof KvUnavailableError)) throw e
+      return aiUnavailable(c)
+    }
     if (used >= AI_IP_DAILY_LIMIT) {
       return c.json(
         {
@@ -716,7 +838,13 @@ app.use('/api/ai/*', async (c, next) => {
       )
     }
     const globalKey = `rl:ai-global:${day}`
-    const globalUsed = Number((await c.env.KV.get(globalKey)) ?? '0')
+    let globalUsed: number
+    try {
+      globalUsed = Number((await kvGet(c.env, globalKey)) ?? '0')
+    } catch (e) {
+      if (!(e instanceof KvUnavailableError)) throw e
+      return aiUnavailable(c)
+    }
     if (globalUsed >= AI_GLOBAL_DAILY_LIMIT) {
       return c.json(
         {
@@ -727,19 +855,32 @@ app.use('/api/ai/*', async (c, next) => {
         429
       )
     }
-    await c.env.KV.put(key, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
-    await c.env.KV.put(globalKey, String(globalUsed + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+    try {
+      await kvPut(c.env, key, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+      await kvPut(c.env, globalKey, String(globalUsed + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+    } catch (e) {
+      if (!(e instanceof KvUnavailableError)) throw e
+      return aiUnavailable(c)
+    }
   }
   return next()
 })
 
-// Remaining free-AI quota for this client (read-only, no consumption)
+// Remaining free-AI quota for this client (read-only, no consumption).
+// `null` means "unknown" to the client (no count shown), so a KV outage
+// degrades to the same answer an anonymous request gets.
 app.get('/api/ai/quota', async (c) => {
   const fp = c.req.header('x-client-id')?.trim()
   if (!fp || fp.length < 8 || fp.length > 128) return c.json({ freeRemaining: null })
   const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
-  const used = Number((await c.env.KV.get(quotaKvKey(fp, 'ai'))) ?? '0')
-  return c.json({ freeRemaining: Math.max(limit - used, 0) })
+  try {
+    const used = Number((await kvGet(c.env, quotaKvKey(fp, 'ai'))) ?? '0')
+    return c.json({ freeRemaining: Math.max(limit - used, 0) })
+  } catch (e) {
+    if (!(e instanceof KvUnavailableError)) throw e
+    c.header('Cache-Control', 'no-store')
+    return c.json({ freeRemaining: null })
+  }
 })
 
 // Job search: aggregate the keyless public feeds (Remotive, Jobicy, Arbeitnow,
@@ -1364,14 +1505,14 @@ async function sharedFeed(
   load: (allowPartial: boolean) => Promise<NormalizedJob[] | null>,
   freshMs = JOBS_FEED_FRESH_MS
 ): Promise<NormalizedJob[] | null> {
-  const raw = await c.env.KV.get(key)
+  const raw = await readShadowedCache(c, key)
   const snap = raw ? (JSON.parse(raw) as FeedSnapshot) : null
   const age = snap ? Date.now() - snap.at : Infinity
   if (snap && age < freshMs) return snap.jobs
   const fresh = await load(snap === null)
   if (fresh) {
     const next: FeedSnapshot = { at: Date.now(), jobs: fresh }
-    c.executionCtx.waitUntil(c.env.KV.put(key, JSON.stringify(next), { expirationTtl: JOBS_FEED_KEEP_TTL }))
+    writeShadowedCache(c, key, JSON.stringify(next), JOBS_FEED_KEEP_TTL)
     return fresh
   }
   if (snap) {
@@ -1487,10 +1628,11 @@ async function fetchJobFeeds(
 }
 
 const cacheJobs = (c: Context<{ Bindings: Env }>, key: string, payload: JobSearchPayload, feedCount: number) =>
-  c.executionCtx.waitUntil(
-    c.env.KV.put(key, JSON.stringify(payload), {
-      expirationTtl: payload.sources.length < feedCount ? JOBS_DEGRADED_CACHE_TTL : JOBS_CACHE_TTL,
-    })
+  writeShadowedCache(
+    c,
+    key,
+    JSON.stringify(payload),
+    payload.sources.length < feedCount ? JOBS_DEGRADED_CACHE_TTL : JOBS_CACHE_TTL
   )
 
 // "Registered Nurse - ICU" is one indirect match on the remote feeds while
@@ -1522,7 +1664,7 @@ async function broaderQueries(
     if (cq.required.length === 0 || tried.has(cq.upstream)) return null
     tried.add(cq.upstream)
     const cacheKey = jobsCacheKey(cq, category, museLabel)
-    const cached = await c.env.KV.get(cacheKey)
+    const cached = await readShadowedCache(c, cacheKey)
     const payload: JobSearchPayload = cached
       ? (JSON.parse(cached) as JobSearchPayload)
       : assembleJobs(cq, category, await fetchJobFeeds(c, cq, category, museLabel, shared))
@@ -1569,7 +1711,7 @@ app.get('/api/jobs/search', async (c) => {
   // role words gate, the grade / bracketed words only rank (worker/jobQuery.ts).
   const query = parseJobQuery(q)
   const cacheKey = jobsCacheKey(query, category, museLabel)
-  const cached = await c.env.KV.get(cacheKey)
+  const cached = await readShadowedCache(c, cacheKey)
   if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
   const feeds = await fetchJobFeeds(c, query, category, museLabel)
   const assembled = assembleJobs(query, category, feeds)
@@ -1672,7 +1814,7 @@ app.post('/api/ai/rewrite', async (c) => {
         .filter(Boolean)
       if (texts.length < 2) texts = undefined
     }
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { text: texts?.[0] ?? result.text, texts, freeRemaining }
   })
 })
@@ -1745,7 +1887,7 @@ app.post('/api/ai/summary-draft', async (c) => {
       .map((t) => t.trim())
       .slice(0, 3)
     if (texts.length === 0) return { error: AI_TROUBLE_ERROR, status: 502 }
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { text: texts[0], texts, freeRemaining }
   })
 })
@@ -1807,7 +1949,7 @@ app.post('/api/ai/skill-suggest', async (c) => {
       .filter((t) => t.length <= 40)
       .slice(0, 12)
     if (suggested.length === 0) return { error: AI_TROUBLE_ERROR, status: 502 }
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { skills: suggested, freeRemaining }
   })
 })
@@ -1856,7 +1998,7 @@ app.post('/api/ai/keyword-bullet', async (c) => {
     // Quota is consumed only after a successful call, so failures cost nothing
     if (result.error) return aiFailure(result)
     const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { text, freeRemaining }
   })
 })
@@ -1928,7 +2070,7 @@ app.post('/api/ai/suggest-bullet', async (c) => {
     // Quota is consumed only after a successful call, so failures cost nothing
     if (result.error) return aiFailure(result)
     const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { text, freeRemaining }
   })
 })
@@ -1987,7 +2129,7 @@ app.post('/api/ai/tailor', async (c) => {
             known.has((s as { id: string }).id)
         )
     )
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { suggestions, freeRemaining }
   })
 })
@@ -2045,7 +2187,7 @@ app.post('/api/ai/cover-letter', async (c) => {
     const result = await callLlm(c.env, messages, 0.6, 1200, live)
     // Quota is consumed only after a successful call, so failures cost nothing
     if (result.error) return aiFailure(result)
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { text: result.text, freeRemaining }
   })
 })
@@ -2104,7 +2246,7 @@ app.post('/api/ai/resignation-letter', async (c) => {
     )
     // Quota is consumed only after a successful call, so failures cost nothing
     if (result.error) return aiFailure(result)
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { text: result.text, freeRemaining }
   })
 })
@@ -2151,7 +2293,7 @@ app.post('/api/ai/interview-brief', async (c) => {
     const result = await callLlm(c.env, messages, 0.5, 1200, live)
     // Quota is consumed only after a successful call, so failures cost nothing
     if (result.error) return aiFailure(result)
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { text: result.text, freeRemaining }
   })
 })
@@ -2205,7 +2347,7 @@ app.post('/api/ai/interview-questions', async (c) => {
       .map((q) => q.trim().slice(0, 200))
       .slice(0, 5)
     if (questions.length === 0) return { error: AI_TROUBLE_ERROR, status: 502 }
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { questions, freeRemaining }
   })
 })
@@ -2268,7 +2410,7 @@ app.post('/api/ai/interview-feedback', async (c) => {
     )
     // Quota is consumed only after a successful call, so failures cost nothing
     if (result.error) return aiFailure(result)
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     return { text: result.text, freeRemaining }
   })
 })
@@ -2335,7 +2477,7 @@ app.post('/api/ai/assistant', async (c) => {
     )
     // Quota is consumed only after a successful call, so failures cost nothing
     if (result.error) return aiFailure(result)
-    if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
     const { text, action } = parseAssistantAction(result.text ?? '')
     return { text, action, freeRemaining }
   })
@@ -2397,8 +2539,8 @@ app.post('/api/billing/ls-webhook', async (c) => {
   const webhookId = event.meta?.webhook_id
   if (webhookId) {
     const seenKey = lsEventKvKey(webhookId)
-    if (await c.env.KV.get(seenKey)) return c.json({ ok: true, duplicate: true })
-    await c.env.KV.put(seenKey, '1', { expirationTtl: 60 * 60 * 24 * 7 })
+    if (await kvGet(c.env, seenKey)) return c.json({ ok: true, duplicate: true })
+    await kvPut(c.env, seenKey, '1', { expirationTtl: 60 * 60 * 24 * 7 })
   }
 
   if (event.meta?.event_name === 'order_created' && event.data?.id) {
@@ -2409,10 +2551,10 @@ app.post('/api/billing/ls-webhook', async (c) => {
     const plan = planFromVariantId(c.env, attrs?.first_order_item?.variant_id)
     if (paid && plan) {
       const kvKey = lsOrderKvKey(event.data.id)
-      const existing = await c.env.KV.get(kvKey)
+      const existing = await kvGet(c.env, kvKey)
       if (!existing) {
         const record: OrderRecord = { transactionId: event.data.id, plan }
-        await c.env.KV.put(kvKey, JSON.stringify(record))
+        await kvPut(c.env, kvKey, JSON.stringify(record))
       }
     }
   }
@@ -2444,7 +2586,7 @@ app.post('/api/hit', async (c) => {
   if (path.startsWith('/qa-') || isQaRequest(c.req.raw)) return c.json({ ok: true })
   if (!/^https?:\/\/[^\s<>"']{1,100}$/.test(ref)) ref = ''
   const day = new Date().toISOString().slice(0, 10)
-  await c.env.KV.put(
+  await kvPut(c.env, 
     `hit:${day}:${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
     JSON.stringify(ref ? { p: path, r: ref } : { p: path }),
     { expirationTtl: 60 * 60 * 24 * 90 }
@@ -2463,8 +2605,8 @@ app.post('/api/ev', async (c) => {
   }
   const day = new Date().toISOString().slice(0, 10)
   const key = `ev:${day}:${e}`
-  const current = Number((await c.env.KV.get(key)) ?? '0')
-  await c.env.KV.put(key, String(current + 1), { expirationTtl: 60 * 60 * 24 * 400 })
+  const current = Number((await kvGet(c.env, key)) ?? '0')
+  await kvPut(c.env, key, String(current + 1), { expirationTtl: 60 * 60 * 24 * 400 })
   return c.json({ ok: true })
 })
 
@@ -2494,7 +2636,7 @@ app.post('/api/leads', async (c) => {
     const ipLimit = clientId ? LEADS_IP_DAILY_LIMIT : LEADS_CLIENT_DAILY_LIMIT
     gates.push({ key: `rl:leads:${day}:${ip}`, limit: ipLimit })
   }
-  const counts = await Promise.all(gates.map((g) => c.env.KV.get(g.key)))
+  const counts = await Promise.all(gates.map((g) => kvGet(c.env, g.key)))
   for (let i = 0; i < gates.length; i++) {
     if (Number(counts[i] ?? '0') >= gates[i].limit) {
       return c.json(
@@ -2504,14 +2646,14 @@ app.post('/api/leads', async (c) => {
     }
   }
   await Promise.all(
-    gates.map((g, i) => c.env.KV.put(g.key, String(Number(counts[i] ?? '0') + 1), ttl))
+    gates.map((g, i) => kvPut(c.env, g.key, String(Number(counts[i] ?? '0') + 1), ttl))
   )
   const record = {
     email: addr,
     plan: typeof plan === 'string' ? plan.slice(0, 32) : '',
     createdAt: new Date().toISOString(),
   }
-  await c.env.KV.put(`lead:${Date.now()}`, JSON.stringify(record))
+  await kvPut(c.env, `lead:${Date.now()}`, JSON.stringify(record))
   return c.json({ ok: true })
 })
 
@@ -2563,7 +2705,7 @@ app.post('/api/share', async (c) => {
   }
   const day = new Date().toISOString().slice(0, 10)
   const rlKey = `rl:share:${day}:${fp}`
-  const used = Number((await c.env.KV.get(rlKey)) ?? '0')
+  const used = Number((await kvGet(c.env, rlKey)) ?? '0')
   if (used >= SHARE_CLIENT_DAILY_LIMIT) {
     return c.json({ error: 'Daily share limit reached — please try again tomorrow.' }, 429)
   }
@@ -2592,7 +2734,7 @@ app.post('/api/share', async (c) => {
     typeof body?.token === 'string' &&
     validShareId(body.id)
   ) {
-    const existing = await c.env.KV.get(`share:${body.id}`)
+    const existing = await kvGet(c.env, `share:${body.id}`)
     if (existing) {
       const rec = parseShareRecord(existing)
       if (rec && rec.tokenHash === (await sha256Hex(body.token))) {
@@ -2609,7 +2751,7 @@ app.post('/api/share', async (c) => {
         400
       )
     }
-    const existing = await c.env.KV.get(`share:${slug}`)
+    const existing = await kvGet(c.env, `share:${slug}`)
     if (existing) {
       return c.json({ error: 'That custom link is already taken — try another.' }, 409)
     }
@@ -2620,19 +2762,29 @@ app.post('/api/share', async (c) => {
     id = randomB64url(16)
     token = randomB64url(16)
   }
-  await c.env.KV.put(
+  await kvPut(c.env, 
     `share:${id}`,
     JSON.stringify({ resume, tokenHash: await sha256Hex(token), createdAt: Date.now() }),
     { expirationTtl: SHARE_TTL_SECONDS }
   )
-  await c.env.KV.put(rlKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+  await kvPut(c.env, rlKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
   return c.json({ id, token, url: `https://cv.zalize.com/s/${id}` })
 })
 
 app.get('/api/share/:id', async (c) => {
   const id = c.req.param('id')
   if (!validShareId(id)) return c.json({ error: 'Not Found' }, 404)
-  const raw = await c.env.KV.get(`share:${id}`)
+  // A 404 here is what tells the client the link is revoked, so a KV outage
+  // must answer 503, never 404 (the recipient would be told the link is gone).
+  let raw: string | null
+  try {
+    raw = await kvGet(c.env, `share:${id}`)
+  } catch (e) {
+    if (!(e instanceof KvUnavailableError)) throw e
+    c.header('Retry-After', '300')
+    c.header('Cache-Control', 'no-store')
+    return c.json({ error: SHARE_UNAVAILABLE_MESSAGE, code: 'unavailable' }, 503)
+  }
   if (!raw) return c.json({ error: 'Not Found' }, 404)
   const rec = parseShareRecord(raw)
   if (!rec) return c.json({ error: 'Not Found' }, 404)
@@ -2644,18 +2796,18 @@ app.delete('/api/share/:id', async (c) => {
   const id = c.req.param('id')
   const token = c.req.header('x-share-token')?.trim() ?? ''
   if (!validShareId(id) || !token) return c.json({ error: 'Not Found' }, 404)
-  const raw = await c.env.KV.get(`share:${id}`)
+  const raw = await kvGet(c.env, `share:${id}`)
   if (!raw) return c.json({ ok: true })
   const rec = parseShareRecord(raw)
   if (!rec) {
     // Corrupt record: unreadable by GET anyway, so allow cleanup.
-    await c.env.KV.delete(`share:${id}`)
+    await kvDelete(c.env, `share:${id}`)
     return c.json({ ok: true })
   }
   if (rec.tokenHash !== (await sha256Hex(token))) {
     return c.json({ error: 'Not authorized.' }, 403)
   }
-  await c.env.KV.delete(`share:${id}`)
+  await kvDelete(c.env, `share:${id}`)
   return c.json({ ok: true })
 })
 
@@ -2681,7 +2833,7 @@ app.post('/api/license/claim', async (c) => {
 
   const txKvKey = lsOrderKvKey(txId)
   let txRecord: OrderRecord | null = null
-  const storedTx = await c.env.KV.get(txKvKey)
+  const storedTx = await kvGet(c.env, txKvKey)
   if (storedTx) {
     try {
       txRecord = JSON.parse(storedTx) as OrderRecord
@@ -2692,7 +2844,7 @@ app.post('/api/license/claim', async (c) => {
 
   // Already claimed: return the same license (idempotent, no re-issue)
   if (txRecord?.licenseKey) {
-    const stored = await c.env.KV.get(licenseKvKey(txRecord.licenseKey))
+    const stored = await kvGet(c.env, licenseKvKey(txRecord.licenseKey))
     if (stored) {
       const record = JSON.parse(stored) as LicenseRecord
       if (record.expiresAt < Date.now()) {
@@ -2740,14 +2892,14 @@ app.post('/api/license/claim', async (c) => {
     orderId: txId,
     activatedAt: Date.now(),
   })
-  await c.env.KV.put(licenseKvKey(licenseKey), JSON.stringify(record))
+  await kvPut(c.env, licenseKvKey(licenseKey), JSON.stringify(record))
   const claimed: OrderRecord = {
     transactionId: txId,
     licenseKey,
     plan,
     claimedAt: Date.now(),
   }
-  await c.env.KV.put(txKvKey, JSON.stringify(claimed))
+  await kvPut(c.env, txKvKey, JSON.stringify(claimed))
 
   const token = await signToken(secret, {
     key: record.key,
@@ -2774,7 +2926,7 @@ app.post('/api/license/activate', async (c) => {
     return c.json({ error: 'Please enter a valid license key.' }, 400)
   }
 
-  const stored = await c.env.KV.get(licenseKvKey(key))
+  const stored = await kvGet(c.env, licenseKvKey(key))
   let record: LicenseRecord | null = null
   if (stored) {
     try {
@@ -2794,7 +2946,7 @@ app.post('/api/license/activate', async (c) => {
   }
   if (!record.activatedAt) {
     record.activatedAt = Date.now()
-    await c.env.KV.put(licenseKvKey(key), JSON.stringify(record))
+    await kvPut(c.env, licenseKvKey(key), JSON.stringify(record))
   }
 
   const token = await signToken(secret, {
@@ -2989,7 +3141,19 @@ app.notFound(async (c) => {
   const isShare = path.startsWith('/s/') && validShareId(path.slice(3))
   // Revoked/expired/unknown share links get an honest 404 status; the SPA
   // shell still renders the branded "no longer available" card either way.
-  const shareRaw = isShare ? await c.env.KV.get(`share:${path.slice(3)}`) : null
+  // When KV cannot be read the link's state is unknown: serve the shell with
+  // 200 and the generic share meta, and let the client's /api/share call
+  // (which answers 503 then) show the retry card instead of "gone".
+  let shareRaw: string | null = null
+  let shareUnknown = false
+  if (isShare) {
+    try {
+      shareRaw = await kvGet(c.env, `share:${path.slice(3)}`)
+    } catch (e) {
+      if (!(e instanceof KvUnavailableError)) throw e
+      shareUnknown = true
+    }
+  }
   const shareLive = shareRaw !== null
   const headers: Record<string, string> = { 'content-type': 'text/html; charset=utf-8' }
   if (path.startsWith('/s/')) {
@@ -3063,9 +3227,27 @@ app.notFound(async (c) => {
       .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${meta.description}"`)
   }
   return new Response(body, {
-    status: SPA_ROUTES.has(path) || shareLive ? 200 : 404,
+    status: SPA_ROUTES.has(path) || shareLive || shareUnknown ? 200 : 404,
     headers,
   })
+})
+
+// Last resort for anything a route did not degrade itself: a KV outage is an
+// honest 503 with a retry hint (Lemon Squeezy retries its webhook on 5xx), and
+// every other unhandled error stays a 500 but is JSON on the API so the
+// clients' `data.error` paths show a sentence instead of "(500)".
+app.onError((err, c) => {
+  c.header('Cache-Control', 'no-store')
+  if (err instanceof KvUnavailableError) {
+    c.header('Retry-After', '300')
+    console.error('KV unavailable ->', c.req.method, c.req.path)
+    return c.json({ error: KV_UNAVAILABLE_MESSAGE, code: 'unavailable' }, 503)
+  }
+  console.error('unhandled', c.req.method, c.req.path, err instanceof Error ? err.stack ?? err.message : String(err))
+  if (c.req.path.startsWith('/api/')) {
+    return c.json({ error: 'Something went wrong on our side — please retry.' }, 500)
+  }
+  return c.text('Internal Server Error', 500)
 })
 
 // Weekly IndexNow full push (same pattern as Shelfmark's runIndexNow cron):

@@ -204,7 +204,12 @@ export async function fetchSharedResume(
     throw new Error('Loading the resume failed — check your connection and try again.')
   }
   if (res.status >= 500) {
-    throw new Error(`Loading the resume failed (${res.status}). Try again.`)
+    const data = (await res.json().catch(() => null)) as { error?: unknown } | null
+    throw new Error(
+      typeof data?.error === 'string' && data.error
+        ? data.error
+        : `Loading the resume failed (${res.status}). Try again.`
+    )
   }
   if (!res.ok) return null
   const data = (await res.json().catch(() => null)) as {
