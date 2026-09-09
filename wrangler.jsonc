@@ -3,6 +3,8 @@
   // Worker name stays "honestcv" (brand is now RezUp): renaming the Worker
   // would detach the existing secrets / custom domain / KV history.
   "name": "honestcv",
+  // zalize.com lives in this Cloudflare account since 2026-09-09 (Workers Paid).
+  "account_id": "583090ace6fb9a02db3f2625487ed865",
   "compatibility_date": "2026-07-01",
   // Request.signal fires when the browser disconnects, so an abandoned AI
   // request can stop the upstream generation instead of running to the end.
@@ -20,7 +22,7 @@
   "triggers": { "crons": ["0 9 * * 1"] },
   "kv_namespaces": [
     // Stores licenses / free quotas / leads (namespace HONESTCV_KV)
-    { "binding": "KV", "id": "580004279c364a678ad3eeaf4f604425" }
+    { "binding": "KV", "id": "6f898109cec74ece85db204dabdca9ad" }
   ],
   "vars": {
     // LLM_RELAY_BASE_URL / LLM_RELAY_API_KEY / LLM_MODEL, plus payment secrets
