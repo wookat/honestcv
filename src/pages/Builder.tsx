@@ -6315,8 +6315,9 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className={ENTRY_FIELDS_GRID}>
                   <Input
+                    className="col-span-full"
                     aria-label="Reference full name"
                     placeholder="Full name"
                     onKeyDown={markShortcutKeyDown}
@@ -6330,36 +6331,36 @@ export default function Builder() {
                       }))
                     }
                   />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      aria-label="Reference job title"
-                      placeholder="Job title"
-                      onKeyDown={markShortcutKeyDown}
-                      value={ref.title}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          references: (r.references ?? []).map((x) =>
-                            x.id === ref.id ? { ...x, title: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <Input
-                      aria-label="Reference employer"
-                      placeholder="Employer"
-                      onKeyDown={markShortcutKeyDown}
-                      value={ref.employer}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          references: (r.references ?? []).map((x) =>
-                            x.id === ref.id ? { ...x, employer: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                  </div>
+                  <Input
+                    className={ENTRY_WIDE_FIELD}
+                    aria-label="Reference job title"
+                    placeholder="Job title"
+                    onKeyDown={markShortcutKeyDown}
+                    value={ref.title}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        references: (r.references ?? []).map((x) =>
+                          x.id === ref.id ? { ...x, title: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                  <Input
+                    className={ENTRY_WIDE_FIELD}
+                    aria-label="Reference employer"
+                    placeholder="Employer"
+                    onKeyDown={markShortcutKeyDown}
+                    value={ref.employer}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        references: (r.references ?? []).map((x) =>
+                          x.id === ref.id ? { ...x, employer: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input

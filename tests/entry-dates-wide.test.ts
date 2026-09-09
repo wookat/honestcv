@@ -53,8 +53,8 @@ describe('R826: a dated entry never shows a quarter-width date box that clips "J
       const wide = body.match(/ENTRY_WIDE_FIELD/g) ?? []
       expect(wide.length, `${marker}: place field + date pair (+ name pair)`).toBe(wideFields)
     }
-    // The remaining 2-column entry grids (references, agents, project name row …) hold no date pair.
+    // The remaining 2-column entry grids (reference email/phone, agents, project name row …) hold no date pair.
     const plainGrids = builderSrc.match(/className="grid gap-2 sm:grid-cols-2"/g) ?? []
-    expect(plainGrids.length).toBe(6)
+    expect(plainGrids.length).toBe(5)
   })
 })
