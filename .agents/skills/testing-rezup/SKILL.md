@@ -1838,3 +1838,182 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Headless contexts may have no 15 px scrollbar gutter even when the headed browser does — record
   `clientWidth` beside every screenshot and do not use headless full-page geometry as a pixel
   baseline against headed captures.
+
+### Import retention QA (R845)
+
+- Byte-exact Import→Ctrl+Z is only meaningful against an **app-normalised** baseline: a resume saved by
+  `/ats-checker` → Fix in builder still lacks the keys the reducer adds at load time (empty education
+  `gpa` / `minor`, `ignoredKeywords`, `hiddenContact`, existing custom ids in `sectionOrder`). Make a
+  reversible edit through a visible field and Ctrl+Z it once, capture that baseline, then import and
+  Ctrl+Z. Keep the pre-normalised→normalised diff separate and never attribute it to the importer.
+- Retention tests must search distinctive *opening* prose fragments as well as late body markers, in
+  both stored JSON and the real preview text (`[data-resume-preview]`, Flow view
+  `[aria-label="Resume preview (continuous)"]`, mobile needs Preview & score). Normalise whitespace:
+  a narrow column wraps `Program/` ↵ `Project Manager` and `user@domain.` ↵ `com`, and the parser
+  joins them with a space / rejoins the e-mail.
+- ATS "Replace resume" starts a new Builder lifecycle; test Import Undo through the Builder Import
+  dialog instead. Use the visible Upload button and the native file chooser.
+- The German-heading LinkedIn fixtures under `/home/ubuntu/qa/r845-foreign/` are synthetic
+  translated-heading proxies of real English exports — evidence for text retention through the
+  generic fallback, not for real non-English LinkedIn exports.
+
+## R846 QA notes (sticky section nav reveals the active / focused chip)
+
+- Measure focused-chip rectangles independently from the `aria-current` rectangle — focus and the
+  current section legitimately differ. Reach the strip with trusted Tab / Shift+Tab (from the
+  health-report button's Escape return path) and settle ~1 s before calling a smooth reveal a miss.
+- Strip overflow depends on the health verdict's width: a high-score fixture can fit every chip at
+  desktop while a lower score overflows. Assert actual `scrollWidth > clientWidth` before a reveal test.
+- Native keyboard focus can scroll the *page* even though the nav is sticky (Chrome scrolls to the
+  element's static position). Record `window.scrollY` before the key, around the strip's `scrollTo`
+  and after settlement; the horizontal reveal itself preserves Y — attribute vertical motion to the
+  browser, not the reveal. Re-run a forward sweep after native focus has settled.
+- Keep fractional rectangles and integer `scrollLeft` values in the evidence; Chrome rounds
+  `scrollLeft`, so full containment can miss by < 1 px and the 8 px margin read 7.58 — use an agreed
+  ±1 px tolerance and check the screenshot for real text clipping.
+- Do not overload one assertion key (`focus` as text in one object, anchor id in another); use a
+  distinct `focusAnchor` from the focused element's closest section anchor.
+- Full-Builder axe at the top *and* at a sticky scroll position (Skills); record `partiallyObscured`
+  `target-size` findings with their node names separately — a top-only zero is not zero everywhere.
+
+## R847 QA notes (focus inside a stuck sticky bar keeps the page still)
+
+- Native focus scroll happens *before* `focusin` fires — read `scrollY` before `.focus()` and again
+  synchronously after, then after two frames; the product guard (`src/lib/stickyFocus.ts`) restores the
+  last settled position, so before → immediate → settled must all be equal for a stuck bar.
+- Measure a sticky bar's outer rect against its computed CSS `top` (Builder nav outer top 56, chips 61);
+  the guard only acts while the bar is stuck. Include two negative controls: a chip focused while the nav
+  is still below the fold (375×500 at y = 0 — the browser *should* scroll and the chip must stay
+  visible) and an ordinary off-screen field (must still scroll into view with header clearance).
+- Set the initial focus with `preventScroll`, then use real Tab / Shift+Tab; for pointer tests use raw
+  trusted mouse coordinates — locator click helpers auto-scroll first and fake a Y change.
+- Derive header tab order from visible, enabled, non-negative-tabindex controls; desktop and mobile navs
+  share `aria-label="Main"`, so pick the visible one before counting mobile links.
+- Opening the mobile Menu expands the in-flow sticky header (57 → 730 px at 375×812) and scroll
+  anchoring moves `scrollY` by exactly that difference, back again on close — layout, not focus; record
+  header height and Y on open, per link, and on Escape / outside-close, and do not count downstream
+  steps as failures because the starting Y moved. At short heights the menu fills the viewport, so
+  there is no outside hit area to test.
+- After changing the Playwright viewport, re-maximize the visible window before recording.
+
+### Section-nav active-chip (observer) QA — R848 lessons
+
+- Gate every measurement on the *loaded* bundle names (`performance.getEntriesByType('resource')`,
+  index + lazy Builder chunk), not on the HTML you curl'd: the edge served the previous HTML once right
+  after a deploy and the probe "reproduced" a defect that was already fixed.
+- The geometry oracle covers section-chip keys only — `[data-section-anchor="target"]` is the Target
+  job card, not a chip.
+- Pick a wheel step below the shortest activation interval (a short Projects header after a tall
+  Education card can be active for < 100 px; 120 px steps skip it without any stale state). Keep the
+  coarse result and rerun at 40 px before calling a skipped sample a defect.
+- Sample `scrollY` and `aria-current` on animation frames to bound the delay from the first settled
+  Y=0 frame to the expected chip; exercise large wheel, small wheel ticks, Ctrl+Home, smooth `scrollTo`
+  and a real scrollbar-thumb drag separately. For the drag, screenshot an intermediate position and the
+  top *while the button is still held*, then release — a final screenshot alone cannot prove a drag.
+- Mobile pane checks: hidden Edit anchors have zero height and the previous highlight must be kept;
+  verify Edit Y restoration, and also scroll inside Preview before returning to Edit at the top.
+- `GET /api/ai/quota` is expected read-only traffic, not AI generation.
+
+## R849 QA notes (/jobs wrapped company · location line)
+
+- Gate each search on the exact query's `/api/jobs/search` response and the disappearance of `[aria-busy="true"]`; fixed waits mislabel stale results as empty. Finish a title search before changing location — the location debounce reruns the last completed query.
+- Location input: `getByLabel('Filter by location', { exact: true })`. Row selection is `aria-pressed`, not `aria-current`; confirm by the detail heading as well.
+- Engineer queries may have no body-only fold; use a broad skill (Python), read N from the real "Show N more" label, assert expanded = initial + N and Hide restores initial. Never hard-code live counts.
+- Named example companies may be absent from today's feed — search them separately and expand the fold before declaring them missing.
+- Clipping evidence: measure the secondary `<p>` and a character range after " · ", not DOM text presence; the three-line clamp can render a final ellipsis while computed `text-overflow` is `clip`. Pair with screenshots.
+- Report the clickable heading/metadata button height and the full card (with Save/status) separately — "54 px" is the button.
+- At 375 the detail pane after selection keeps the filters above it; capture the initial state, then one real outer-page wheel for a readable detail screenshot. Playwright `isVisible` ≠ inside the viewport.
+
+## R850 QA notes (/jobs single-pane detail reveal)
+- Measure the first frame that shows the selected heading and the settled frame; do not `scrollIntoView` / locator-click off-screen detail controls before the first screenshot — that masks a broken reveal. Select with raw pointer coordinates or CDP touch.
+- Record page `scrollY` and the list pane's own `scrollTop` separately; a deep row depends on both. Expect pane top ≈63 / Back ≈80 / h2 ≈128 under the 57 px header (html `scroll-padding-top`).
+- Tap-selection and a cold `?job=` landing are separate checks: at 768 the filters row grows after the jobs load, so the cold landing sits lower (357) than a tap (63).
+- Playwright `page.keyboard` Alt+Left reaches the page but does not drive Chrome history — use native OS Alt+Left on the focused window (or the toolbar Back) and keep the failed attempt in the evidence.
+- Record `document.activeElement` after opening and after Back to list (currently `body` after closing); one Tab after opening reaches Back. Do not infer focus restoration from restored geometry.
+- Run axe at the exact open-detail scroll position: the detail pane's skill chips (20 px tall) and header-obscured location chips produce `target-size` findings — record the exact targets; only call them pre-existing with an old-bundle or source comparison.
+
+## R851 QA notes (/jobs skill-chip hit area)
+- The detail `+N more` expander needs a live job with more than ten tags; a job with exactly ten cannot exercise it. Repeated skills come from tags shared by ≥2 *tracked* jobs, not from the search results — save two matching jobs through the UI, then open Tracked; activating a repeated skill switches to All jobs. The All-jobs skills field is `input[type=search][aria-label="Filter by skills"]` (absent in Tracked).
+- Rounded-pill edge hit tests: use `x = left + width/2, y = top + 2`; a near-corner point can be outside the painted pill while inside its bounding box. Classify the actual receiver with `elementFromPoint` before delivering trusted pointer / emulated touch, and check the neighbouring control's state (the report toggle) as well as the filter state.
+- Inline actions using `INLINE_ACTION` (`relative -my-3 py-3` below sm) paint a 40 px box above later non-positioned siblings without moving layout — measure their rect against the controls that follow (top edge of the next row) at 375; flex gaps and chip-to-chip geometry can pass while the first row's top pixels belong to the link.
+- A reversible "remove the min-height classes and re-measure" comparison proves width invariance; do not describe it as an old-deployment comparison.
+- Asset hash check: dist assets live in `dist/client/assets/`; the production URL is `/assets/<file>`. A wrong path returns the SPA shell and yields two *identical* hashes for different files — treat identical hashes across files as a wrong URL, not a match.
+- Keep the exact open-detail scroll position for axe; record intrinsic bounding boxes separately from axe's `partiallyObscured` effective size and report residual non-target findings rather than "clean".
+
+## R854 QA notes (Undo after Stop tracking)
+- The tracking control on the `/jobs` pane is the status chip group (`#track-chip-saved`, `#track-chip-applied`, …, `aria-pressed`), not a button named `Save` — `getByRole('button', { name: /^Save$/ })` matches nothing. Save = press `#track-chip-saved`; stop tracking = press the pressed chip again (a Stop-tracking dialog appears when the entry has notes / history / linked documents).
+- To make the tracked row the *only* source of the job (so untracking removes it from the list), use the Tracked tab with a search that matches nothing (`?tab=tracked&q=<nonsense>`); with the All-jobs feed still carrying the job, the row stays and the vanishing branch is never exercised.
+- Measure Undo and Dismiss as two different contracts: Dismiss focuses the neighbour row (R650); Undo must focus the *restored* job — the row on a single pane (`job-card-<id>`), the status chip on the ≥ lg split pane (`track-chip-<status>`). Record the next Tab after each (row → its own `Saved` action; chip → next chip).
+- On the 1280 split pane there is no `Back to list` button; make that click conditional (`if (await back.count())`) or the harness times out before the interesting steps.
+- Record page `scrollY` before/after the untrack and after Undo separately: the list reflows when the pane closes / the row leaves (366→286 at 375), which is not a focus defect.
+- The Undo target depends on pane visibility, not viewport width alone: in ordinary All jobs the row remains in the feed, so the single detail pane stays open and the visible status chip is the intended first target. The restored row is the fallback only when that pane is hidden. Test open- and closed-pane cases separately; next Tab is Applied from Saved, or the row's own Saved action from the row.
+- If Undo changes numeric page Y, measure the target and grid document positions (`rect.top + scrollY`) and viewport positions before/after, plus pre-action visibility. Tracking can insert content above the grid: equal document-position and Y deltas with unchanged viewport position suggest scroll anchoring, not focus reveal. Do not equate this to the fixed toast height.
+- Next Tab can legitimately scroll when the row's action is below the viewport even if the row itself was visible. Record the action's pre-Tab rect as well as the destination instead of assuming row visibility proves action visibility.
+- Clicking Back moves focus onto Back before closing; row focus afterward is the R853 contract. To test retention of an already-focused Undo toast while closing, use history Back rather than clicking the Back button.
+
+## R857 QA notes (Tracked-tab bulk checkbox hit box)
+- axe `target-size` is not a hit-area oracle for a lone small control: a 16 px checkbox passes when no other target lies within 24 px of it. Prove a hit area with `elementFromPoint` at ±12/14/16/19 px from the control's centre **and** trusted `mouse.click` / touch at those offsets, asserting the state change (`checked`), `activeElement` and that the URL / pane did not change (a miss that lands on the card opens the job).
+- Bulk mode on `/jobs?tab=tracked`: `Select…` → each row gets a `<label>` (36 × 44) wrapping the 16 × 16 checkbox; the label ends 2 px before the row's `button[id^="job-card-"]`. Measure row and card rects before and after entering bulk mode / after the change — they must not move (negative margins cancel the padding).
+- At 375 the first tick reveals the Move-to-status `<select>` and `Untrack N` on a second line, so every row shifts down 48 px once; re-read the label rect before the next tap instead of reusing the pre-tick one.
+- Track fixtures through the pane's `#track-chip-saved` (there is no "Save" button) and search a no-match query on the Tracked tab so the pipeline is the rows' only source; diff `localStorage` keys against the baseline in `finally` and remove only the added ones.
+
+## R856 QA notes (confirm-dialog close animation vs. focus the user moved)
+- A Radix dialog goes `data-state="closed"` at once but stays mounted for its ~200 ms exit animation; `onCloseAutoFocus` fires only at detachment. Any focus race there needs a capture-phase trusted `focusin` / `keydown` log **and** a `MutationObserver` on `[role=dialog]` (`data-state` attribute + removal), timestamps relative to the confirming Enter / click. Assert three things: where focus is right after detachment, the *target* of the final Enter (not just its effect), and the row count / stored pipeline ids afterwards (dismiss keeps them untracked, Undo restores them).
+- Rapid path: send Tab 60–100 ms after confirming (before detachment, ~220 ms). A 600 ms-only control cannot expose the race. Run the rapid path for single (`#track-chip-saved` → Stop tracking, keyboard confirm) and bulk (`Select…` → checkboxes → `Untrack N`, pointer confirm) separately; also keep the no-Tab path (Undo must still be focused after detachment and Enter must restore) and the Cancel path (focus must return to the real opener: the Saved chip for single, the `Untrack N` button for bulk).
+- Dismiss destinations depend on what is left: the neighbouring row when rows remain, `main` when the Tracked list is now empty (R650). Track three jobs so the single path leaves neighbours and the bulk path can still untrack two.
+- Post-fix contract of `focusOnClose` (`src/lib/useFocusAfterRender.ts`): keep focus that already sits outside the closing dialog (Dismiss, Undo, anything the user tabbed to), else focus the action's target (`#undo-untrack`), else let the library restore the opener. A regression shows up as a `focusin` on Undo at detachment time after a Tab that already reached Dismiss.
+- Fresh public contexts have no resume, so the single Stop-tracking confirmation may only appear once the entry has meaningful data — the pressed Saved chip alone is enough on the Tracked tab with a pipeline entry; if not, type a short note in `#job-notes` and blur before untracking.
+- Lint baseline: `npm run lint` (`eslint .`) reports 4 pre-existing errors in the tracked legacy fixtures `.tmp-smoke/r345_oracle.ts` / `r346_oracle.ts`; the product scope is `npx eslint src tests worker` (0 errors / 11 pre-existing warnings). Do not "fix" the fixtures as part of an unrelated round.
+
+## R855 QA notes (bulk Undo, ordinary-Undo Y shift, cold `?job=` deep link)
+- Bulk untrack (Tracked tab: Select… → checkboxes → `Untrack N` → confirm) and single-item untrack are two different Undo handlers — test both. Bulk Undo focuses the **first restored row** (`job-card-<id>`) unless one of the restored entries is the job whose pane is open; never another job's status chip. Bulk Dismiss is the control path (neighbour row, R650). Read the current pipeline ids from `localStorage['honestcv.jobPipeline']` instead of hard-coding the fixture ids — earlier steps may have changed which jobs remain.
+- The +98 / +44 px ordinary-Undo Y shift is the `Hide:` status-chip filter group (rendered only while `pipeline.length > 0`, `mt-3`) unmounting on untrack and remounting on Undo — its measured height + 12 px equals the shift exactly. Measure the group's height and the focused target's viewport top before/after; equal deltas with an unchanged viewport top is scroll anchoring, not a defect.
+- A cold `?job=` deep link must be sampled from first paint to settle (poll every ~50 ms for `scrollY`, `document.documentElement.scrollHeight`, pane / Back tops, row count): the R850 reveal ran before the first fetch had laid out the filter rows, so only the *settled* pane top (63 under the sticky header, Back 80) counts, and 375 can pass while 768 fails. Also run the control: with the deep-linked pane open, scroll elsewhere and type a new search — the page must not move again.
+- Harness scripts must be cleanup-safe: wrap the body in `try/finally` and remove only the localStorage keys the harness added (diff against the baseline snapshot) so a failed step never leaves fixtures in the shared profile.
+- Read the loaded bundle names (`performance.getEntriesByType('resource')`, `/assets/(index|Jobs)-*.js`) on the very navigation you measure — right after a deploy the edge served old HTML for `/jobs` and new HTML for `/jobs?job=` at the same time.
+- Probes that take viewport from `process.argv` must be invoked with positional args (`node probe.cjs 375 812`); an env-var invocation silently runs the default viewport and reports the wrong width.
+- Independent-QA lessons (R855 round): the Tracked-tab bulk checkbox is in the row button's grandparent, the Saved / status action column in its parent — scope selectors accordingly; Dismiss on the Undo toast may be icon-only, assert its accessible name not `textContent`. `/jobs` auto-selects the first shown row, so "no pane open" is asserted by the absence of `job=` plus a hidden single pane, not by `aria-pressed=false` on every row; desktop always has a split pane. A cold single-pane deep link hides the list rows on purpose — wait for DOM attachment, not row visibility. Register a cold-link sampler once per context (a retried registration doubles the timers).
+- (Pre-R856 behaviour, fixed by R856 — kept as the regression signature) Tab → Dismiss → Enter fired ~120 ms after confirming restored the rows instead of dismissing: the closing dialog's `onCloseAutoFocus` re-focused Undo at detachment. Log trusted keydown / focusin timestamps when probing that race.
+- Ordinary-Undo geometry: compare the chip's viewport top pre-untrack with post-Undo (they must match); the untracked mid-state can differ because the pane's tracked-dependent notes (Targeted copy score) unmount with the entry. Scroll anchoring is off at `scrollY = 0`, so at page top the whole chip moves by the group height instead — still not a defect.
+
+## R853 QA notes (focus return after a single-pane detail closes)
+- When a control that has focus unmounts (e.g. `Back to list` closes the `/jobs` pane), measure `document.activeElement` immediately after the close **and** where the next Tab lands (tag, text, `getBoundingClientRect().top`, `scrollY` before/after): focus on `<body>` restarts tabbing from the document top and can scroll the page even though the list looks correctly restored.
+- Exercise every close path separately — pointer click, Enter, Space on the button, and real browser history Back (`page.goBack()`; Playwright Alt+Left does not drive history). They can differ: a body-only rescue fixed history Back but not the button, because during the React commit that hides the pane the button is still `activeElement` (the browser's focus fixup runs after the commit).
+- On desktop split-pane widths the pane never unmounts and `goBack()` leaves the site (no history sentinel is pushed) — do not treat that navigation timeout as a product failure; assert the row stays focused instead.
+- Re-read the loaded bundle names (`performance.getEntriesByType('resource')`) on every run right after a deploy; the edge served the previous `index.html` on the first fetch more than once, which "reproduces" the old defect on the old bundle.
+
+- Scope the "next Tab lands on Save" assertion to the row's own action column (`:scope > div > button`); an unscoped `div button` also matches the row button itself through ancestor matching and passes vacuously.
+- Live focus-theft guards on `/jobs`: (a) open `Target my resume`, focus a dialog control, `page.goBack()` — the dialog control must keep focus while the pane hides (cancel afterwards, no copy created); (b) Save → untrack a live result (a populated draft may auto-link a copy, so confirm the Stop-tracking dialog first) → `#undo-untrack` focused → `page.goBack()` must not move focus off Undo. Include the generated resume-version / pipeline keys in the storage restore.
+- Do not require a second deep row with > 10 skills for a focus fixture; the live corpus may have only one. Pick any other non-first row.
+- The 375 open-pane axe `target-size` on `Berlin (n)` / `Munich (n)` location chips is the sticky-header `partiallyObscured` artefact (R843 class), not a chip-size defect; the closed-list scan is clean.
+
+## R852 QA notes (inline relationship actions / links)
+- Two different hit-testing failures look alike: (a) a padded `relative` box reaching into the *next row* (a height problem — measure its rect against the next row's top), and (b) two inline controls in *one sentence* where the later sibling's invisible padding paints over the earlier one's wrapped second line (a paint-order problem — shrinking the box does not fix it). Test both: rect overlap against neighbours, and `elementFromPoint` on every text line of the control itself (`Range.getClientRects()`, 25/50/75 % × top+2 / middle / bottom−2).
+- To prove a z-index label layer is doing work, strip the class from the deployed DOM (`querySelectorAll('.z-\\[1\\]')…classList.remove`) and re-run the same probe; report the lost-sample count with and without it.
+- Do not select inline actions by their utility classes alone: static toolbar buttons (`Hide … from resume`, `Collapse …`) share `relative`/padding utilities and show up as false "inline actions" on `/builder`. Use the relationship-note fixture (R651 seed: two copies for one tracked job, unlinked documents) and identify controls by their names.
+- The Jobs broader-query pill is found by text (`/titles? match/`), not by class; its `< sm` height is 32 and `≥ sm` 24.
+- Playwright `page.touchscreen.tap` needs `hasTouch` on the context; on a shared context use CDP `Input.dispatchTouchEvent` (touchStart + touchEnd) instead.
+- The app CSS is inlined into `index.html` by the build (no `style-*.css` resource entry in production); compare the inline `<style>` against `dist/client/index.html` rather than looking for a CSS bundle name.
+- Production CSP rejects `page.addScriptTag` with the local axe source; inject it with `page.evaluate(axeSource)` instead, and keep the one harness-caused CSP console error out of the application-error count.
+- `/documents?doc=<id>` is a one-shot query the viewer consumes after opening its dialog: assert the dialog heading and route, not that the query persists.
+- Touch is a second hit-area oracle, separate from `elementFromPoint` and from mouse (R857): Chrome's touch adjustment hands a CDP `Input.dispatchTouchEvent` tap to a *clickable* neighbour within a few px even when the tap point is inside a padded `<label>` (a label's padding is not a target of its own). Log capture-phase `click` with `isTrusted`, `clientX/Y` and the target's nearest `#job-card-*`; sweep from the control's centre to the neighbour's edge in 2 px steps at radius 1 and 12, ≥ 650 ms apart; assert checked state, URL (`job=`) and pane visibility, not just the hit-test tag. A clearance of 2 px lost the label's right 4 px to the card; 8 px (`gap-4`) is enough. An accidental pane open is recovered with the visible **Back to list**, never `page.goBack()` (times out).
+- Tracked-tab bulk Move-to-status regroups the list, so relocate the same job by `#job-card-<id>` (never `nth(0)`) before the reverse move; compare Done-selecting rects against the *same selected row* (its `border-l-2` shifts the card 2 px).
+- Headed Playwright probes from another shell steal the shared desktop foreground and spoil screen recordings; record QA via a target-specific CDP `Page.startScreencast` (mind the first frames' downscale) or run the probes headless while a recording is active.
+- Target-specific CDP screencasts (R857 QA): with an emulated CSS viewport `Page.startScreencast` captures the whole native canvas (the app sits in its upper-left corner); setting `maxWidth` to the emulated width shrinks the canvas and makes the app unreadable. Decode and inspect the first frame before the matrix, capture at native resolution and crop to the verified CSS viewport when rendering — never crop a downscaled frame and call it native proof (repeat the affected coverage instead). Ack every `screencastFrame`, keep raw frames + timestamps, and derive timing claims from the trusted event log, not from the edited video (label compressed idle spans). The desktop `annotate_recording` tool does not attach to a manual CDP capture; render annotations from your own timestamped log instead of starting a shared-desktop recording just to get them.
+- Tracked-tab bulk toolbar traversal: from a selected row checkbox, Shift+Tab reaches the Move-to-status `<select>` directly (no trip through the pane / footer); log the focus path and assert the native select is `activeElement` before typing a status. `elementFromPoint` exactly at a `DOMRect` right / bottom edge returns the *neighbour* (the interior is half-open) — classify exact-edge touch samples as boundary, separately from in-label samples, and state them rather than folding them into the aggregate.
+
+## R858 QA notes (what a dialog shows while it animates closed)
+- Observe the *already-open* dialog before the trusted confirm: a `MutationObserver` (subtree text + `data-state`) plus a `requestAnimationFrame` sampler recording full title, full description, `data-state`, computed opacity and `isConnected` until the node detaches. Count distinct texts over the connected samples — the first closed frame is at opacity 1 and is what the user sees; a post-detach DOM check can never catch a closing-text flash. Exit animation measured 196–276 ms (Jobs ~210–240, Dashboard bulk/folder up to 276), not a fixed 200.
+- Keep trusted key / focus logs and the dialog sampler in one clock (`performance.now()` of the observed confirm event); schedule the rapid Tab against that timestamp, not a fixed delay after an awaited automation call.
+- Reopen freshness: observe the *first mount* of the next dialog (it may start at opacity 0) and compare its title with the second fixture, then take the settled screenshot.
+- Dashboard copy fixtures on a clean browser: pick a built-in example via its "Use this example" link → Dashboard → "Save as copy" → "Duplicate this copy"; name / folder each copy through "Edit name & target job" — its footer control is **Save** (not "Save changes", which belongs to another flow). Undo copy deletions; folder removal keeps the copies and clears their membership. Tracking a job on an empty profile creates no copy.
+- Native screencasts: record `performance.timeOrigin` per navigation to align event times with frame timestamps; compare each JPEG's dimensions with the screencast device metadata and *drop* downscaled / loading canvases instead of stretching them; crop only native canvases to the CSS viewport, annotate outside it, and disclose omitted setup / idle spans.
+- Mobile bulk Stop-tracking dialog: axe `color-contrast` on the description is *incomplete* (`elmPartiallyObscuring`, indeterminate background), not a violation — report it separately.
+
+## R859 QA notes (layout that changes between two taps)
+- For "tick one, then tick the next" flows, capture the geometry of *every* target before the first interaction, perform it, then hit-test (`document.elementFromPoint`) and actually tap the **old** coordinate of the next target. A post-interaction screenshot alone shows a plausible layout and hides that the user's second tap would have missed.
+- Seed the Tracked tab through `#track-chip-saved` and open `/jobs?tab=tracked&q=<no match>` so the tracked pipeline is the only row source; enter bulk mode with the `Select…` button; the bulk bar is `[aria-label="Bulk actions on tracked jobs"]`.
+- Since R859 the bulk bar is its final size as soon as Select… is on: `0 selected` + disabled `Move to…` / `Untrack` / `Clear` (label `Untrack N` only once N > 0). A regression is any bar-height or row-`top` change between the pre-tick and post-tick captures at 375 / 768; at 1280 the controls fit one line either way.
+- A desktop Tracked route without `job=` may already show the first job's split pane (`selectedId === null` falls back to `shown[0]`). For checkbox isolation, capture the pre-tap pane visibility/title/company and require all three unchanged; below `lg` require the pane to stay hidden. Absolute "no pane exists" is not a valid desktop precondition.
+- To test zero **matching** tracked jobs while retaining bulk-mode controls, keep at least one tracked entry and type a no-match string in `Filter tracked jobs by title or company`. A completely empty pipeline has a different toolbar gate. Verify `Done selecting` while filtered empty, then erase the filter with explicit Ctrl+A → Backspace; typing an empty string does not erase selected text.
+- Disabled toolbar controls can be tested without force-enabling them: raw pointer coordinates plus trusted Enter/ArrowDown/Escape must leave pipeline bytes unchanged; reverse-Tab from the first checkbox reaches Done selecting, and Tab returns directly to that checkbox, skipping disabled actions. Check both DOM disabled state and visible zero-selection labels.
