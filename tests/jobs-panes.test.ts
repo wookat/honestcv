@@ -162,3 +162,42 @@ describe('R851: /jobs skill chips keep a 32 px (< sm) / 24 px (sm+) hit area', (
     expect(tag).toMatch(/min-h-8 .*sm:min-h-6/)
   })
 })
+
+describe('R853: closing the single-pane job detail hands keyboard focus back to the job row', () => {
+  // Production 375×812 / 768×800 (R852 bundle): after "Back to list" (pointer, Enter, Space) or the
+  // browser's Back, `document.activeElement` was `<body>` — the Back button had unmounted with the
+  // pane — and the next Tab landed on the workspace sidebar's "Upgrade" / "Resume builder" link past
+  // the whole list, scrolling the page 567 → 964 / 377 → 678 and undoing R850's list restore. The row
+  // the pane was showing (`job-card-<id>`) is visible again in the same commit, so it takes focus.
+  const closeEffect = () => {
+    const at = jobsSrc.indexOf('} else if (mobileDetailWasOpen.current)')
+    expect(at).toBeGreaterThan(-1)
+    return jobsSrc.slice(at, jobsSrc.indexOf('}, [mobileDetail])', at))
+  }
+
+  it('focuses the selected row without scrolling (the scroll offset is restored separately)', () => {
+    const close = closeEffect()
+    expect(close).toContain('window.scrollTo(0, listScrollRef.current)')
+    expect(close).toMatch(/document\.getElementById\(`job-card-\$\{selectedIdRef\.current\}`\)/)
+    expect(close).toMatch(/row\.focus\(\{ preventScroll: true \}\)/)
+  })
+
+  it('rescues focus that fell to <body> or still sits on the hidden pane; a dialog / toast keeps it', () => {
+    // Deployed first cut (index-tBfk79We / Jobs-zznOBqGe) only checked `=== document.body`: browser
+    // Back was fixed, but pointer / Enter / Space on the pane's Back button still lost focus — the
+    // button is still `activeElement` during the commit that hides it (focus fixup runs later).
+    const close = closeEffect()
+    expect(close).toContain('active === document.body')
+    expect(close).toContain('detailPaneRef.current?.contains(active) === true')
+    expect(close).toMatch(/if \(lost && row instanceof HTMLElement\) row\.focus/)
+  })
+
+  it('reads the selection through a ref so the effect still keys off mobileDetail alone', () => {
+    const at = jobsSrc.indexOf('const selectedIdRef = useRef(selectedId)')
+    expect(at).toBeGreaterThan(-1)
+    // synced in its own effect, declared before the close effect so it runs first in the same commit
+    expect(jobsSrc.slice(at, at + 120)).toMatch(/useEffect\(\(\) => \{\s*selectedIdRef\.current = selectedId\s*\}, \[selectedId\]\)/)
+    expect(at).toBeLessThan(jobsSrc.indexOf('} else if (mobileDetailWasOpen.current)'))
+    expect(closeEffect()).not.toContain('selectedId)')
+  })
+})

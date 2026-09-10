@@ -403,10 +403,15 @@ export default function Jobs() {
   // the search form), so opening a job deep in the list would land
   // mid-description: bring the pane's top under the sticky header (the html
   // scroll-padding keeps it clear) and restore the list's scroll offset when
-  // the pane closes.
+  // the pane closes. Closing also hides the pane's Back button that had focus,
+  // so hand keyboard focus to the row the pane was showing.
   const listScrollRef = useRef(0)
   const mobileDetailWasOpen = useRef(false)
   const detailPaneRef = useRef<HTMLDivElement>(null)
+  const selectedIdRef = useRef(selectedId)
+  useEffect(() => {
+    selectedIdRef.current = selectedId
+  }, [selectedId])
   useEffect(() => {
     if (!window.matchMedia(SINGLE_PANE_MQ).matches) return
     if (mobileDetail) {
@@ -417,6 +422,13 @@ export default function Jobs() {
     } else if (mobileDetailWasOpen.current) {
       mobileDetailWasOpen.current = false
       window.scrollTo(0, listScrollRef.current)
+      // The pane's Back button is still `document.activeElement` here — the browser only
+      // drops focus from a now-hidden control after this commit — so treat focus inside
+      // the pane as lost, but leave focus that something else (a dialog, a toast) took.
+      const active = document.activeElement
+      const lost = !active || active === document.body || detailPaneRef.current?.contains(active) === true
+      const row = selectedIdRef.current ? document.getElementById(`job-card-${selectedIdRef.current}`) : null
+      if (lost && row instanceof HTMLElement) row.focus({ preventScroll: true })
     }
   }, [mobileDetail])
 
