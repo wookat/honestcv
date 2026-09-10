@@ -1,4 +1,4 @@
-import { useEffect, useId, useReducer, useRef } from 'react'
+import { useEffect, useId, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import {
   AUDIT_CHIP_IDLE,
   AUDIT_EXPLANATION,
@@ -6,6 +6,7 @@ import {
   auditChipReducer,
   auditChipVisible,
 } from '@/lib/auditChip'
+import { popoverShift } from '@/lib/popoverShift'
 import { cn } from '@/lib/utils'
 
 /** Per-entry audit badge (✓ / ⚠ n) whose findings panel opens on hover, focus or a
@@ -38,7 +39,32 @@ export function EntryAuditChip({
   const [state, dispatch] = useReducer(auditChipReducer, AUDIT_CHIP_IDLE)
   const visible = auditChipVisible(state)
   const wrapRef = useRef<HTMLSpanElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [shift, setShift] = useState(0)
   const panelId = useId()
+  useLayoutEffect(() => {
+    if (!visible) return
+    const place = () => {
+      const panel = panelRef.current
+      const anchor = wrapRef.current
+      if (!panel || !anchor) return
+      // Below sm the panel is a fixed strip; from sm up it is right-aligned to the chip.
+      if (getComputedStyle(panel).position !== 'absolute') {
+        setShift(0)
+        return
+      }
+      const right = anchor.getBoundingClientRect().right
+      setShift(
+        popoverShift(
+          { left: right - panel.offsetWidth, right },
+          document.documentElement.clientWidth,
+        ),
+      )
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [visible])
   useEffect(() => {
     if (!visible) return
     const onKey = (e: KeyboardEvent) => {
@@ -94,6 +120,8 @@ export function EntryAuditChip({
       </button>
       <div
         id={panelId}
+        ref={panelRef}
+        style={shift ? { transform: `translateX(${shift}px)` } : undefined}
         className={cn(
           'bg-popover text-popover-foreground fixed inset-x-4 bottom-20 z-40 rounded-md border p-2 text-left shadow-md sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:bottom-auto sm:mt-1 sm:w-64',
           visible ? 'block' : 'hidden',

@@ -1815,3 +1815,26 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
   pane switcher.
 - After a deploy, check the loaded `index-*.js` name before trusting a measurement on the shared
   default profile: it can still serve the previous `index.html` from cache for one load.
+
+## R844 QA notes (entry-audit findings panel stays inside the viewport)
+
+- Since R844 the desktop (`sm`+) findings panel keeps `sm:absolute sm:right-0 sm:w-64` and gains an
+  inline `transform: translateX(N px)` only when the right-aligned box would cross the 8 px viewport
+  margin. Oracle per chip: `panel.getBoundingClientRect().left >= 8`, `.right <= clientWidth − 8`,
+  width 256; a panel that already fits has **no** transform and equals the full right-aligned
+  rectangle (`left = wrapper.right − 256`, `right = wrapper.right`, `top = wrapper.bottom + 4`).
+  Measure the expectation from the chip wrapper, never from the already-transformed panel. Push chips
+  to both card edges with one-letter and 60+-char titles, and include the narrow green `✓` chip.
+- Resize an *open* panel across widths and across 639 / 640: below `sm` the fixed strip must carry
+  no transform (React leaves an empty `style=""` after removing it — equivalent), and coming back up
+  the shift must not compound. Use `page.setViewportSize()` for intentional resizes.
+- The `Load this example?` dialog is conditional: an empty profile loads the sample directly, a
+  non-empty `contact.fullName` / `summary` triggers it. Check for `Replace with example` instead of
+  waiting for it unconditionally.
+- Query `matchMedia('(hover: hover)')` in the actual context before assuming `hover: none`: fixed
+  desktop Playwright contexts here reported `hover: hover` / `pointer: fine`, and a trusted
+  mouse-move onto an unfocused chip opened the panel with no CSS patching; the flag-configured second
+  headless Chrome (R359 notes) remains the independent fallback.
+- Headless contexts may have no 15 px scrollbar gutter even when the headed browser does — record
+  `clientWidth` beside every screenshot and do not use headless full-page geometry as a pixel
+  baseline against headed captures.

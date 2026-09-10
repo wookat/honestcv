@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -8,6 +9,12 @@ import {
   auditChipReducer,
   auditChipVisible,
 } from '../src/lib/auditChip'
+import { popoverShift } from '../src/lib/popoverShift'
+
+const chipSrc = readFileSync(
+  new URL('../src/components/EntryAuditChip.tsx', import.meta.url),
+  'utf8',
+)
 
 const after = (events: AuditChipEvent[]) => events.reduce(auditChipReducer, AUDIT_CHIP_IDLE)
 
@@ -92,5 +99,48 @@ describe('R817: entry audit chip opens on a tap and reads as a button', () => {
     expect(badge(chip({ findings: [] }))).toEqual(
       expect.arrayContaining(['px-1.5', 'py-0.5', 'text-[10px]', 'bg-emerald-50', 'text-emerald-700']),
     )
+  })
+})
+
+describe('R844: the findings panel stays inside the viewport from sm up', () => {
+  it('a right-anchored 256px panel on a chip near the card edge is shifted right, margin kept', () => {
+    // measured on production (1280 / 1024 / 768, one-letter titles): chip right edge 177.8 / 180.2 / 208
+    expect(popoverShift({ left: 177.75 - 256, right: 177.75 }, 1265)).toBeCloseTo(86.25)
+    expect(popoverShift({ left: 180.17 - 256, right: 180.17 }, 1009)).toBeCloseTo(83.83)
+    expect(popoverShift({ left: 207.98 - 256, right: 207.98 }, 753)).toBeCloseTo(56.02)
+    // natural titles already fit: Role 1 panel 132.4..388.4 at 1280, Education 228..484
+    expect(popoverShift({ left: 132.4, right: 388.4 }, 1265)).toBe(0)
+    expect(popoverShift({ left: 228, right: 484 }, 1265)).toBe(0)
+  })
+
+  it('the chip measures the untransformed panel from its anchor, applies the shift as a transform, and leaves the fixed mobile strip alone', () => {
+    expect(chipSrc).toContain("import { popoverShift } from '@/lib/popoverShift'")
+    expect(chipSrc).toMatch(/useLayoutEffect\(\(\) => \{\s*if \(!visible\) return/)
+    expect(chipSrc).toMatch(
+      /if \(getComputedStyle\(panel\)\.position !== 'absolute'\) \{\s*setShift\(0\)\s*return\s*\}/,
+    )
+    expect(chipSrc).toMatch(
+      /popoverShift\(\s*\{ left: right - panel\.offsetWidth, right \},\s*document\.documentElement\.clientWidth,?\s*\)/,
+    )
+    expect(chipSrc).toContain("window.addEventListener('resize', place)")
+    expect(chipSrc).toContain('style={shift ? { transform: `translateX(${shift}px)` } : undefined}')
+    // the panel keeps its mobile strip and its desktop right anchor + width (R691 / R817 / R843)
+    const panel = chip().match(/<div id="[^"]+" class="([^"]+)"/)?.[1].split(' ') ?? []
+    expect(panel).toEqual(
+      expect.arrayContaining([
+        'fixed',
+        'inset-x-4',
+        'bottom-20',
+        'z-40',
+        'sm:absolute',
+        'sm:inset-x-auto',
+        'sm:top-full',
+        'sm:right-0',
+        'sm:mt-1',
+        'sm:w-64',
+      ]),
+    )
+    // hidden panel carries no transform until it is measured
+    expect(chip()).not.toMatch(/translateX/)
   })
 })
