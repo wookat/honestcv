@@ -37,7 +37,8 @@ describe('R818: /jobs keeps a single pane while the workspace sidebar shares the
 
   it('the single-pane history / scroll behaviour keys off the same media query', () => {
     expect(jobsSrc).toMatch(/const SINGLE_PANE_MQ = '\(max-width: 1023px\)'/)
-    expect(jobsSrc.match(/window\.matchMedia\(SINGLE_PANE_MQ\)/g)).toHaveLength(2)
+    // history sentinel, open/close reveal + restore, and the R855 deep-link re-reveal
+    expect(jobsSrc.match(/window\.matchMedia\(SINGLE_PANE_MQ\)/g)).toHaveLength(3)
     expect(jobsSrc).not.toMatch(/max-width: 767px/)
   })
 
@@ -228,5 +229,54 @@ describe('R854: Undo after stopping tracking hands keyboard focus to the restore
     const undo = undoHandler()
     expect(undo).toMatch(/focusAfterRender\(\s*`track-chip-\$\{restored\.entry\.status\}`,\s*`job-card-\$\{restored\.entry\.job\.id\}`,?\s*\)/)
     expect(jobsSrc).toMatch(/mobileDetail \? '' : 'hidden lg:block'/)
+  })
+})
+
+describe('R855: Undo after a bulk "Untrack N" hands keyboard focus to a restored row', () => {
+  // Production 375×812 / 768×800 / 1280×800 (R854 bundle): Tracked tab → Select… → two checkboxes →
+  // Untrack 2 → Stop tracking. The toast took focus (R646) and Dismiss went to the neighbour row
+  // (R650), but Undo brought the rows back with focus on `<body>` — the next Tab went to
+  // "Skip to content". No job was open, so the R854 `find(... === restoredId)` matched nothing and
+  // nothing was queued. The fallback is the first restored entry's row (pipeline order), then main.
+  const undoHandler = () => {
+    const at = jobsSrc.indexOf('restorePipelineEntries(undoUntrack)')
+    expect(at).toBeGreaterThan(-1)
+    return jobsSrc.slice(at, jobsSrc.indexOf('setUndoUntrack(null)', at))
+  }
+
+  it('falls back to the first restored row, then main, when no restored entry is the selected job', () => {
+    const undo = undoHandler()
+    expect(undo).toMatch(/else focusAfterRender\(`job-card-\$\{undoUntrack\[0\]\.entry\.job\.id\}`, 'main'\)/)
+  })
+
+  it('does not aim the fallback at another job\u2019s status chip (the open pane may show a job that was not untracked)', () => {
+    const undo = undoHandler()
+    const fallback = undo.slice(undo.indexOf('else focusAfterRender'))
+    expect(fallback).not.toContain('track-chip-')
+  })
+})
+
+describe('R855: a ?job= deep link on a single pane reveals the pane once the first fetch has laid out the page', () => {
+  // Production 768×800 (R854 bundle): the R850 reveal runs on mount, while the pane still sits at
+  // document Y 235; the first fetch then renders the status / location filter rows above it and the
+  // pane ends at Y 529 with the page still at scrollY 172 — pane top 357 instead of the 63 a tap gives
+  // (375×812 happened to settle at 63 both ways). Re-revealing once `loading` clears puts the cold
+  // link where the tap path lands; the flag is armed only by the deep link, so later fetches (a new
+  // search typed above an open pane) never scroll the page.
+  const revealEffect = () => {
+    const at = jobsSrc.indexOf('if (loading || !revealAfterFetch.current) return')
+    expect(at).toBeGreaterThan(-1)
+    return jobsSrc.slice(at, jobsSrc.indexOf('}, [loading])', at))
+  }
+
+  it('is armed by the ?job= deep link only, and disarmed after one use', () => {
+    expect(jobsSrc).toMatch(/const revealAfterFetch = useRef\(seedParams\.get\('job'\) !== null\)/)
+    expect(revealEffect()).toContain('revealAfterFetch.current = false')
+  })
+
+  it('reveals the pane the same way a tap does, only on a single pane', () => {
+    const effect = revealEffect()
+    expect(effect).toContain('if (!window.matchMedia(SINGLE_PANE_MQ).matches) return')
+    expect(effect).toMatch(/detailPaneRef\.current\?\.scrollIntoView\(\{ block: 'start' \}\)/)
   })
 })
