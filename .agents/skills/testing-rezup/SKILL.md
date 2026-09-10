@@ -1913,3 +1913,39 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Mobile pane checks: hidden Edit anchors have zero height and the previous highlight must be kept;
   verify Edit Y restoration, and also scroll inside Preview before returning to Edit at the top.
 - `GET /api/ai/quota` is expected read-only traffic, not AI generation.
+
+## R849 QA notes (/jobs wrapped company · location line)
+
+- Gate each search on the exact query's `/api/jobs/search` response and the disappearance of `[aria-busy="true"]`; fixed waits mislabel stale results as empty. Finish a title search before changing location — the location debounce reruns the last completed query.
+- Location input: `getByLabel('Filter by location', { exact: true })`. Row selection is `aria-pressed`, not `aria-current`; confirm by the detail heading as well.
+- Engineer queries may have no body-only fold; use a broad skill (Python), read N from the real "Show N more" label, assert expanded = initial + N and Hide restores initial. Never hard-code live counts.
+- Named example companies may be absent from today's feed — search them separately and expand the fold before declaring them missing.
+- Clipping evidence: measure the secondary `<p>` and a character range after " · ", not DOM text presence; the three-line clamp can render a final ellipsis while computed `text-overflow` is `clip`. Pair with screenshots.
+- Report the clickable heading/metadata button height and the full card (with Save/status) separately — "54 px" is the button.
+- At 375 the detail pane after selection keeps the filters above it; capture the initial state, then one real outer-page wheel for a readable detail screenshot. Playwright `isVisible` ≠ inside the viewport.
+
+## R850 QA notes (/jobs single-pane detail reveal)
+- Measure the first frame that shows the selected heading and the settled frame; do not `scrollIntoView` / locator-click off-screen detail controls before the first screenshot — that masks a broken reveal. Select with raw pointer coordinates or CDP touch.
+- Record page `scrollY` and the list pane's own `scrollTop` separately; a deep row depends on both. Expect pane top ≈63 / Back ≈80 / h2 ≈128 under the 57 px header (html `scroll-padding-top`).
+- Tap-selection and a cold `?job=` landing are separate checks: at 768 the filters row grows after the jobs load, so the cold landing sits lower (357) than a tap (63).
+- Playwright `page.keyboard` Alt+Left reaches the page but does not drive Chrome history — use native OS Alt+Left on the focused window (or the toolbar Back) and keep the failed attempt in the evidence.
+- Record `document.activeElement` after opening and after Back to list (currently `body` after closing); one Tab after opening reaches Back. Do not infer focus restoration from restored geometry.
+- Run axe at the exact open-detail scroll position: the detail pane's skill chips (20 px tall) and header-obscured location chips produce `target-size` findings — record the exact targets; only call them pre-existing with an old-bundle or source comparison.
+
+## R851 QA notes (/jobs skill-chip hit area)
+- The detail `+N more` expander needs a live job with more than ten tags; a job with exactly ten cannot exercise it. Repeated skills come from tags shared by ≥2 *tracked* jobs, not from the search results — save two matching jobs through the UI, then open Tracked; activating a repeated skill switches to All jobs. The All-jobs skills field is `input[type=search][aria-label="Filter by skills"]` (absent in Tracked).
+- Rounded-pill edge hit tests: use `x = left + width/2, y = top + 2`; a near-corner point can be outside the painted pill while inside its bounding box. Classify the actual receiver with `elementFromPoint` before delivering trusted pointer / emulated touch, and check the neighbouring control's state (the report toggle) as well as the filter state.
+- Inline actions using `INLINE_ACTION` (`relative -my-3 py-3` below sm) paint a 40 px box above later non-positioned siblings without moving layout — measure their rect against the controls that follow (top edge of the next row) at 375; flex gaps and chip-to-chip geometry can pass while the first row's top pixels belong to the link.
+- A reversible "remove the min-height classes and re-measure" comparison proves width invariance; do not describe it as an old-deployment comparison.
+- Asset hash check: dist assets live in `dist/client/assets/`; the production URL is `/assets/<file>`. A wrong path returns the SPA shell and yields two *identical* hashes for different files — treat identical hashes across files as a wrong URL, not a match.
+- Keep the exact open-detail scroll position for axe; record intrinsic bounding boxes separately from axe's `partiallyObscured` effective size and report residual non-target findings rather than "clean".
+
+## R852 QA notes (inline relationship actions / links)
+- Two different hit-testing failures look alike: (a) a padded `relative` box reaching into the *next row* (a height problem — measure its rect against the next row's top), and (b) two inline controls in *one sentence* where the later sibling's invisible padding paints over the earlier one's wrapped second line (a paint-order problem — shrinking the box does not fix it). Test both: rect overlap against neighbours, and `elementFromPoint` on every text line of the control itself (`Range.getClientRects()`, 25/50/75 % × top+2 / middle / bottom−2).
+- To prove a z-index label layer is doing work, strip the class from the deployed DOM (`querySelectorAll('.z-\\[1\\]')…classList.remove`) and re-run the same probe; report the lost-sample count with and without it.
+- Do not select inline actions by their utility classes alone: static toolbar buttons (`Hide … from resume`, `Collapse …`) share `relative`/padding utilities and show up as false "inline actions" on `/builder`. Use the relationship-note fixture (R651 seed: two copies for one tracked job, unlinked documents) and identify controls by their names.
+- The Jobs broader-query pill is found by text (`/titles? match/`), not by class; its `< sm` height is 32 and `≥ sm` 24.
+- Playwright `page.touchscreen.tap` needs `hasTouch` on the context; on a shared context use CDP `Input.dispatchTouchEvent` (touchStart + touchEnd) instead.
+- The app CSS is inlined into `index.html` by the build (no `style-*.css` resource entry in production); compare the inline `<style>` against `dist/client/index.html` rather than looking for a CSS bundle name.
+- Production CSP rejects `page.addScriptTag` with the local axe source; inject it with `page.evaluate(axeSource)` instead, and keep the one harness-caused CSP console error out of the application-error count.
+- `/documents?doc=<id>` is a one-shot query the viewer consumes after opening its dialog: assert the dialog heading and route, not that the query persists.

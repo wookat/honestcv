@@ -99,7 +99,7 @@ import { keepPageStillOnFocus } from '@/lib/stickyFocus'
 import { activeSection } from '@/lib/activeSection'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { type AuditFinding } from '@/lib/auditChip'
-import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
+import { cn, INLINE_ACTION, INLINE_LABEL, INLINE_LINK } from '@/lib/utils'
 import { AtsScoreValue } from '@/components/AtsScoreValue'
 import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { EntryAuditChip } from '@/components/EntryAuditChip'
@@ -3189,7 +3189,7 @@ export default function Builder() {
                   to={`/jobs?job=${encodeURIComponent(linkedJob.id)}`}
                   className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
-                  View it on the jobs board &rarr;
+                  <span className={INLINE_LABEL}>View it on the jobs board &rarr;</span>
                 </Link>
               </p>
             )}
@@ -3203,16 +3203,18 @@ export default function Builder() {
                   className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
                   onClick={() => saveDraftAsCopyFor(retargetedTrackedJob.job)}
                 >
-                  {retargetedTrackedJob.hasCopy
-                    ? 'Save as new copy and use it for that job instead'
-                    : 'Save as new copy for it'}
+                  <span className={INLINE_LABEL}>
+                    {retargetedTrackedJob.hasCopy
+                      ? 'Save as new copy and use it for that job instead'
+                      : 'Save as new copy for it'}
+                  </span>
                 </button>
                 {' · '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(retargetedTrackedJob.job.id)}`}
                   className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
-                  View it on the jobs board &rarr;
+                  <span className={INLINE_LABEL}>View it on the jobs board &rarr;</span>
                 </Link>
               </p>
             )}
@@ -3229,16 +3231,18 @@ export default function Builder() {
                   className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
                   onClick={linkCopyToTargetedJob}
                 >
-                  {jobLinksLiveCopy(targetedTrackedEntry, versions)
-                    ? 'Use this copy instead'
-                    : 'Link this copy to it'}
+                  <span className={INLINE_LABEL}>
+                    {jobLinksLiveCopy(targetedTrackedEntry, versions)
+                      ? 'Use this copy instead'
+                      : 'Link this copy to it'}
+                  </span>
                 </button>
                 {' · '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(targetedTrackedJob.id)}`}
                   className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
-                  View it on the jobs board &rarr;
+                  <span className={INLINE_LABEL}>View it on the jobs board &rarr;</span>
                 </Link>
               </p>
             )}
@@ -3252,14 +3256,14 @@ export default function Builder() {
                     to={`/jobs?q=${encodeURIComponent(copyOrigin.title)}&job=${encodeURIComponent(copyOrigin.id)}`}
                     className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                   >
-                    Open it to save it again &rarr;
+                    <span className={INLINE_LABEL}>Open it to save it again &rarr;</span>
                   </Link>
                 ) : (
                   <Link
                     to={`/jobs?q=${encodeURIComponent(resume.targetRole.trim())}`}
                     className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                   >
-                    Find it again &rarr;
+                    <span className={INLINE_LABEL}>Find it again &rarr;</span>
                   </Link>
                 )}
               </p>
@@ -11756,7 +11760,7 @@ function BundleToolDialog({
               className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
               onClick={onJumpToTarget}
             >
-              Change the copy&apos;s target &rarr;
+              <span className={INLINE_LABEL}>Change the copy&apos;s target &rarr;</span>
             </button>
           </p>
         )}
@@ -11865,7 +11869,7 @@ function BundleToolDialog({
               to={`/documents?doc=${encodeURIComponent(existingDoc.id)}`}
               className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
             >
-              Open the saved {docKindNoun(kind)}
+              <span className={INLINE_LABEL}>Open the saved {docKindNoun(kind)}</span>
             </Link>{' '}
             &mdash; or write a new one: Save makes it the {docKindNoun(kind)} linked to the job; the
             earlier one stays in My resumes.
