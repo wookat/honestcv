@@ -1838,3 +1838,21 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Headless contexts may have no 15 px scrollbar gutter even when the headed browser does — record
   `clientWidth` beside every screenshot and do not use headless full-page geometry as a pixel
   baseline against headed captures.
+
+### Import retention QA (R845)
+
+- Byte-exact Import→Ctrl+Z is only meaningful against an **app-normalised** baseline: a resume saved by
+  `/ats-checker` → Fix in builder still lacks the keys the reducer adds at load time (empty education
+  `gpa` / `minor`, `ignoredKeywords`, `hiddenContact`, existing custom ids in `sectionOrder`). Make a
+  reversible edit through a visible field and Ctrl+Z it once, capture that baseline, then import and
+  Ctrl+Z. Keep the pre-normalised→normalised diff separate and never attribute it to the importer.
+- Retention tests must search distinctive *opening* prose fragments as well as late body markers, in
+  both stored JSON and the real preview text (`[data-resume-preview]`, Flow view
+  `[aria-label="Resume preview (continuous)"]`, mobile needs Preview & score). Normalise whitespace:
+  a narrow column wraps `Program/` ↵ `Project Manager` and `user@domain.` ↵ `com`, and the parser
+  joins them with a space / rejoins the e-mail.
+- ATS "Replace resume" starts a new Builder lifecycle; test Import Undo through the Builder Import
+  dialog instead. Use the visible Upload button and the native file chooser.
+- The German-heading LinkedIn fixtures under `/home/ubuntu/qa/r845-foreign/` are synthetic
+  translated-heading proxies of real English exports — evidence for text retention through the
+  generic fallback, not for real non-English LinkedIn exports.
