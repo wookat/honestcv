@@ -2131,10 +2131,16 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   >
                     <button
                       type="button"
-                      onClick={() => setPreviewExample(e)}
-                      className="focus-visible:ring-ring cursor-pointer rounded-t-md text-left focus-visible:ring-2 focus-visible:outline-hidden"
+                      tabIndex={-1}
+                      aria-hidden
+                      onClick={(ev) => {
+                        ev.currentTarget.parentElement
+                          ?.querySelector<HTMLButtonElement>('button[data-sample-title]')
+                          ?.focus()
+                        setPreviewExample(e)
+                      }}
+                      className="cursor-pointer rounded-t-md text-left"
                     >
-                      <span className="sr-only">Preview {e.role} sample</span>
                       <Thumb resume={exampleToResume(e.person)} />
                     </button>
                     <button
@@ -2162,6 +2168,8 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                       <div className="min-w-0">
                         <button
                           type="button"
+                          data-sample-title
+                          aria-label={`Preview ${e.role} sample`}
                           onClick={() => setPreviewExample(e)}
                           className="relative -my-2.5 block w-full cursor-pointer truncate py-2.5 text-left text-sm font-medium hover:underline"
                         >
@@ -2171,7 +2179,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                       </div>
                       <div className="mt-auto">
                         <Button asChild size="sm" className="min-h-10 w-full sm:min-h-8">
-                          <Link to={`/builder?example=${e.slug}`}>Use this example</Link>
+                          <Link
+                            to={`/builder?example=${e.slug}`}
+                            aria-label={`Use this example: ${e.role}`}
+                          >
+                            Use this example
+                          </Link>
                         </Button>
                       </div>
                     </div>
@@ -2233,7 +2246,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   Close
                 </Button>
                 <Button asChild className="min-h-10 sm:min-h-9">
-                  <Link to={`/builder?example=${previewExample.slug}`}>Use this example</Link>
+                  <Link
+                    to={`/builder?example=${previewExample.slug}`}
+                    aria-label={`Use this example: ${previewExample.role}`}
+                  >
+                    Use this example
+                  </Link>
                 </Button>
               </DialogFooter>
             </>
