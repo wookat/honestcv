@@ -1913,3 +1913,13 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Mobile pane checks: hidden Edit anchors have zero height and the previous highlight must be kept;
   verify Edit Y restoration, and also scroll inside Preview before returning to Edit at the top.
 - `GET /api/ai/quota` is expected read-only traffic, not AI generation.
+
+## R849 QA notes (/jobs wrapped company · location line)
+
+- Gate each search on the exact query's `/api/jobs/search` response and the disappearance of `[aria-busy="true"]`; fixed waits mislabel stale results as empty. Finish a title search before changing location — the location debounce reruns the last completed query.
+- Location input: `getByLabel('Filter by location', { exact: true })`. Row selection is `aria-pressed`, not `aria-current`; confirm by the detail heading as well.
+- Engineer queries may have no body-only fold; use a broad skill (Python), read N from the real "Show N more" label, assert expanded = initial + N and Hide restores initial. Never hard-code live counts.
+- Named example companies may be absent from today's feed — search them separately and expand the fold before declaring them missing.
+- Clipping evidence: measure the secondary `<p>` and a character range after " · ", not DOM text presence; the three-line clamp can render a final ellipsis while computed `text-overflow` is `clip`. Pair with screenshots.
+- Report the clickable heading/metadata button height and the full card (with Save/status) separately — "54 px" is the button.
+- At 375 the detail pane after selection keeps the filters above it; capture the initial state, then one real outer-page wheel for a readable detail screenshot. Playwright `isVisible` ≠ inside the viewport.
