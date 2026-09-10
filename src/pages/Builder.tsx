@@ -7638,7 +7638,7 @@ export default function Builder() {
               Add anything else — Volunteering, Publications, Awards, Languages… One entry
               per line, shown as bullets.
             </p>
-            {resume.customSections.map((s) => (
+            {resume.customSections.map((s, idx) => (
               <div
                 key={s.id}
                 data-entry-id={s.id}
@@ -7646,27 +7646,35 @@ export default function Builder() {
                   flashEntryId === s.id ? 'ring-primary/60 ring-2' : ''
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <Input
-                    aria-label="Section title"
-                    placeholder="Section title (e.g. Volunteering)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={s.title}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        customSections: r.customSections.map((x) =>
-                          x.id === s.id ? { ...x, title: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
+                <div className="flex items-end justify-between gap-2">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Label htmlFor={`custom-${s.id}-title`}>Section title</Label>
+                    <Input
+                      id={`custom-${s.id}-title`}
+                      placeholder="e.g. Volunteering"
+                      onKeyDown={markShortcutKeyDown}
+                      value={s.title}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          customSections: r.customSections.map((x) =>
+                            x.id === s.id ? { ...x, title: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     className="text-destructive h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
                     title="Delete section"
+                    aria-label={
+                      s.title.trim()
+                        ? `Delete ${s.title.trim()} section`
+                        : `Delete custom section ${idx + 1}`
+                    }
                     onClick={() =>
                       setResume((r) => ({
                         ...r,
@@ -7678,21 +7686,28 @@ export default function Builder() {
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
-                <Textarea
-                  aria-label="Section entries, one per line"
-                  rows={3}
-                  placeholder={'One entry per line, e.g.\nVolunteer mentor, Code for Austin (2023 – Present)\nSpeaker, ReactATX meetup'}
-                  onKeyDown={markShortcutKeyDown}
-                  value={s.bullets.join('\n')}
-                  onChange={(ev) =>
-                    setResume((r) => ({
-                      ...r,
-                      customSections: r.customSections.map((x) =>
-                        x.id === s.id ? { ...x, bullets: ev.target.value.split('\n') } : x
-                      ),
-                    }))
-                  }
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor={`custom-${s.id}-entries`}>
+                    {s.title.trim()
+                      ? `${s.title.trim()} entries (one per line)`
+                      : 'Entries (one per line)'}
+                  </Label>
+                  <Textarea
+                    id={`custom-${s.id}-entries`}
+                    rows={3}
+                    placeholder={'e.g.\nVolunteer mentor, Code for Austin (2023 – Present)\nSpeaker, ReactATX meetup'}
+                    onKeyDown={markShortcutKeyDown}
+                    value={s.bullets.join('\n')}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        customSections: r.customSections.map((x) =>
+                          x.id === s.id ? { ...x, bullets: ev.target.value.split('\n') } : x
+                        ),
+                      }))
+                    }
+                  />
+                </div>
               </div>
             ))}
             <Button

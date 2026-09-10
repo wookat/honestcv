@@ -197,3 +197,57 @@ describe('R836: reference cards and the education GPA / Minor / Details boxes la
     }
   })
 })
+
+// After R836 the audit's "deferred" list still held the custom-section card: its title
+// Input and entries Textarea were named only by aria-labels that repeat the placeholder,
+// and its Delete button had a bare `title`. With two custom sections on production
+// (R841 bundle) every one of the three names was duplicated and none said which section
+// it belonged to; a filled card read "Volunteering" over an unnamed multi-line box.
+describe('R842: custom-section cards label title / entries visibly and the Delete button names its section', () => {
+  it('title and entries have a visible <Label htmlFor> pointing at a control with that id', () => {
+    expect([...labelledFields('custom')].sort()).toEqual(['entries', 'title'])
+    const ids = controlIds('custom')
+    for (const f of ['title', 'entries']) expect(ids.has(f), `custom-${f} control id`).toBe(true)
+  })
+
+  it('the entries label names the section once the user has typed its title', () => {
+    expect(builderSrc).toMatch(
+      /`\$\{s\.title\.trim\(\)\} entries \(one per line\)`\s*:\s*'Entries \(one per line\)'/,
+    )
+  })
+
+  it('the Delete button names the section it deletes (title, or its position while untitled)', () => {
+    expect(builderSrc).toMatch(
+      /`Delete \$\{s\.title\.trim\(\)\} section`\s*:\s*`Delete custom section \$\{idx \+ 1\}`/,
+    )
+    expect(builderSrc).toMatch(/resume\.customSections\.map\(\(s, idx\) =>/)
+  })
+
+  it('the placeholder-style aria-labels those controls used to carry are gone (label is the name)', () => {
+    for (const name of ['Section title', 'Section entries, one per line']) {
+      expect(builderSrc, name).not.toContain(`aria-label="${name}"`)
+    }
+  })
+
+  it('the title row aligns the Delete button with the input, not the label + input pair', () => {
+    const at = builderSrc.indexOf('<Label htmlFor={`custom-${s.id}-title`}>')
+    expect(at).toBeGreaterThan(-1)
+    const row = builderSrc.lastIndexOf('<div className="flex ', at)
+    expect(builderSrc.slice(row, builderSrc.indexOf('>', row) + 1)).toBe(
+      '<div className="flex items-end justify-between gap-2">',
+    )
+    const wrap = builderSrc.lastIndexOf('<div className=', at)
+    expect(builderSrc.slice(wrap, builderSrc.indexOf('>', wrap) + 1)).toBe(
+      '<div className="min-w-0 flex-1 space-y-1.5">',
+    )
+  })
+
+  it('a caption that interpolates user text can break inside an unbroken word (Label is a flex box)', () => {
+    const labelSrc = readFileSync(
+      path.resolve(import.meta.dirname, '../src/components/ui/label.tsx'),
+      'utf8',
+    )
+    const base = labelSrc.match(/'flex [^']*'/)?.[0] ?? ''
+    expect(base).toContain('wrap-anywhere')
+  })
+})
