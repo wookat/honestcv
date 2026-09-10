@@ -3538,7 +3538,7 @@ export default function Builder() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-10 sm:h-9"
+                className="h-10 min-w-10 sm:h-9 sm:min-w-0"
                 title="Save summary to library — reuse it in other resume copies"
                 aria-label="Save summary to library"
                 disabled={!resume.summary.trim()}
@@ -3607,7 +3607,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved summary ${s.summary.split('\n').map((l) => l.trim()).filter(Boolean)[0] ?? 'Untitled summary'}`}
                         onClick={() => setSummaryLibrary(deleteLibrarySummary(s.id))}
@@ -3691,12 +3691,12 @@ export default function Builder() {
                       label={`Role ${idx + 1}`}
                     />
                   </p>
-                  <div className="ml-auto flex items-center max-sm:basis-full max-sm:flex-wrap max-sm:justify-end sm:shrink-0">
+                  <div className="ml-auto flex items-center max-sm:-mx-1.5 max-sm:basis-[calc(100%+0.75rem)] max-sm:flex-wrap max-sm:justify-end sm:shrink-0">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={idx === 0}
                       id={moveId('experience', idx, 'up')}
                       title="Move up"
@@ -3714,7 +3714,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={idx === resume.experience.length - 1}
                       id={moveId('experience', idx, 'down')}
                       title="Move down"
@@ -3732,7 +3732,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title="Duplicate role — handy for a promotion at the same company"
                       aria-label={`Duplicate role ${idx + 1}`}
                       onClick={() =>
@@ -3755,7 +3755,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title="Save role to library — reuse it in other resume copies"
                       aria-label={`Save role ${idx + 1} to library`}
                       disabled={!e.role.trim() && !e.company.trim() && !e.bullets.some((b) => b.trim())}
@@ -3780,7 +3780,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title={e.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                       aria-pressed={e.hidden === true}
                       aria-label={`${e.hidden ? 'Show' : 'Hide'} role ${idx + 1} ${e.hidden ? 'on' : 'from'} resume`}
@@ -3799,7 +3799,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive h-10 sm:h-7"
+                      className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title="Delete role"
                       aria-label={`Delete role ${idx + 1}`}
                       onClick={() =>
@@ -3815,7 +3815,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title={collapsedEntries.has(e.id) ? 'Expand role' : 'Collapse role'}
                       aria-expanded={!collapsedEntries.has(e.id)}
                       aria-label={`${collapsedEntries.has(e.id) ? 'Expand' : 'Collapse'} role ${idx + 1}`}
@@ -4104,7 +4104,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved role ${[s.data.role, s.data.company].filter((x) => x.trim()).join(' — ') || 'Untitled role'}`}
                         onClick={() => setExpLibrary(deleteLibraryExperience(s.id))}
@@ -4190,7 +4190,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="-my-2 h-10 shrink-0 sm:h-7"
+                    className="-my-2 h-10 min-w-10 shrink-0 sm:h-7 sm:min-w-0"
                     title={e.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={e.hidden === true}
                     aria-label={`${e.hidden ? 'Show' : 'Hide'} education ${idx + 1} ${e.hidden ? 'on' : 'from'} resume`}
@@ -4209,7 +4209,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="-my-2 h-10 shrink-0 sm:h-7"
+                    className="-my-2 h-10 min-w-10 shrink-0 sm:h-7 sm:min-w-0"
                     title={collapsedEntries.has(e.id) ? 'Expand education' : 'Collapse education'}
                     aria-expanded={!collapsedEntries.has(e.id)}
                     aria-label={`${collapsedEntries.has(e.id) ? 'Expand' : 'Collapse'} education ${idx + 1}`}
@@ -4362,7 +4362,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-10 shrink-0 sm:h-9"
+                    className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
                     disabled={idx === 0}
                     id={moveId('education', idx, 'up')}
                     title="Move up"
@@ -4377,7 +4377,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-10 shrink-0 sm:h-9"
+                    className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
                     disabled={idx === resume.education.length - 1}
                     id={moveId('education', idx, 'down')}
                     title="Move down"
@@ -4392,7 +4392,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-10 shrink-0 sm:h-9"
+                    className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
                     title="Duplicate education — handy for a second degree at the same school"
                     aria-label={`Duplicate education ${idx + 1}`}
                     onClick={() =>
@@ -4411,7 +4411,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-10 shrink-0 sm:h-9"
+                    className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
                     title="Save education to library — reuse it in other resume copies"
                     aria-label={`Save education ${idx + 1} to library`}
                     disabled={!e.school.trim() && !e.degree.trim() && !e.details.trim()}
@@ -4436,7 +4436,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive h-10 shrink-0 sm:h-9"
+                    className="text-destructive h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
                     title="Delete education"
                     aria-label={`Delete education ${idx + 1}`}
                     onClick={() =>
@@ -4516,7 +4516,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved education ${[s.data.degree, s.data.school].filter((x) => x.trim()).join(' — ') || 'Untitled education'}`}
                         onClick={() => setEduLibrary(deleteLibraryEducation(s.id))}
@@ -4566,12 +4566,12 @@ export default function Builder() {
                       label={`Project ${pIdx + 1}`}
                     />
                   </p>
-                  <div className="ml-auto flex items-center max-sm:basis-full max-sm:flex-wrap max-sm:justify-end sm:shrink-0">
+                  <div className="ml-auto flex items-center max-sm:-mx-1.5 max-sm:basis-[calc(100%+0.75rem)] max-sm:flex-wrap max-sm:justify-end sm:shrink-0">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={pIdx === 0}
                       id={moveId('projects', pIdx, 'up')}
                       title="Move up"
@@ -4587,7 +4587,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={pIdx === resume.projects.length - 1}
                       id={moveId('projects', pIdx, 'down')}
                       title="Move down"
@@ -4603,7 +4603,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title="Duplicate project"
                       aria-label={`Duplicate project ${pIdx + 1}`}
                       onClick={() =>
@@ -4622,7 +4622,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title="Save project to library — reuse it in other resume copies"
                       aria-label={`Save project ${pIdx + 1} to library`}
                       disabled={!p.name.trim() && !p.link.trim() && !p.description.trim()}
@@ -4650,7 +4650,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title={p.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                       aria-pressed={p.hidden === true}
                       aria-label={`${p.hidden ? 'Show' : 'Hide'} project ${pIdx + 1} ${p.hidden ? 'on' : 'from'} resume`}
@@ -4669,7 +4669,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title={collapsedEntries.has(p.id) ? 'Expand project' : 'Collapse project'}
                       aria-expanded={!collapsedEntries.has(p.id)}
                       aria-label={`${collapsedEntries.has(p.id) ? 'Expand' : 'Collapse'} project ${pIdx + 1}`}
@@ -4782,7 +4782,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive h-10 shrink-0 sm:h-9"
+                    className="text-destructive h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
                     title="Delete project"
                     aria-label="Delete project"
                     onClick={() =>
@@ -4996,7 +4996,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved project ${s.data.name.trim() || 'Untitled project'}`}
                         onClick={() => setProjLibrary(deleteLibraryProject(s.id))}
@@ -5158,7 +5158,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       disabled={invIdx === 0}
                       id={moveId('involvement', invIdx, 'up')}
                       title="Move up"
@@ -5177,7 +5177,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       disabled={invIdx === (resume.involvement ?? []).length - 1}
                       id={moveId('involvement', invIdx, 'down')}
                       title="Move down"
@@ -5196,7 +5196,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       title={inv.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                       aria-pressed={inv.hidden === true}
                       aria-label={`${inv.hidden ? 'Show' : 'Hide'} involvement ${invIdx + 1} ${inv.hidden ? 'on' : 'from'} resume`}
@@ -5215,7 +5215,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       title="Save involvement to library — reuse it in other resume copies"
                       aria-label={`Save involvement ${invIdx + 1} to library`}
                       disabled={
@@ -5245,7 +5245,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       title="Delete involvement"
                       aria-label="Delete involvement"
                       onClick={() =>
@@ -5462,7 +5462,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved involvement ${[s.data.role, s.data.organization].filter((x) => x.trim()).join(' — ') || 'Untitled involvement'}`}
                         onClick={() => setInvLibrary(deleteLibraryInvolvement(s.id))}
@@ -5579,7 +5579,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={cwIdx === 0}
                     id={moveId('coursework', cwIdx, 'up')}
                     title="Move up"
@@ -5598,7 +5598,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={cwIdx === (resume.coursework ?? []).length - 1}
                     id={moveId('coursework', cwIdx, 'down')}
                     title="Move down"
@@ -5617,7 +5617,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title={cw.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={cw.hidden === true}
                     aria-label={`${cw.hidden ? 'Show' : 'Hide'} coursework ${cwIdx + 1} ${cw.hidden ? 'on' : 'from'} resume`}
@@ -5636,7 +5636,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Save coursework to library — reuse it in other resume copies"
                     aria-label={`Save coursework ${cwIdx + 1} to library`}
                     disabled={
@@ -5666,7 +5666,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Delete coursework"
                     aria-label="Delete coursework"
                     onClick={() =>
@@ -5749,7 +5749,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved coursework ${[s.data.name, s.data.institution].filter((x) => x.trim()).join(' — ') || 'Untitled course'}`}
                         onClick={() => setCwLibrary(deleteLibraryCoursework(s.id))}
@@ -5847,7 +5847,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={aIdx === 0}
                     id={moveId('awards', aIdx, 'up')}
                     title="Move up"
@@ -5866,7 +5866,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={aIdx === (resume.awards ?? []).length - 1}
                     id={moveId('awards', aIdx, 'down')}
                     title="Move down"
@@ -5885,7 +5885,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={a.hidden === true}
                     aria-label={`${a.hidden ? 'Show' : 'Hide'} award ${aIdx + 1} ${a.hidden ? 'on' : 'from'} resume`}
@@ -5904,7 +5904,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Save award to library — reuse it in other resume copies"
                     aria-label={`Save award ${aIdx + 1} to library`}
                     disabled={
@@ -5934,7 +5934,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Delete award"
                     aria-label="Delete award"
                     onClick={() =>
@@ -6017,7 +6017,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved award ${[s.data.name, s.data.organization].filter((x) => x.trim()).join(' — ') || 'Untitled award'}`}
                         onClick={() => setAwardLibrary(deleteLibraryAward(s.id))}
@@ -6142,7 +6142,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={pubIdx === 0}
                     id={moveId('publications', pubIdx, 'up')}
                     title="Move up"
@@ -6161,7 +6161,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={pubIdx === (resume.publications ?? []).length - 1}
                     id={moveId('publications', pubIdx, 'down')}
                     title="Move down"
@@ -6180,7 +6180,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title={pub.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={pub.hidden === true}
                     aria-label={`${pub.hidden ? 'Show' : 'Hide'} publication ${pubIdx + 1} ${pub.hidden ? 'on' : 'from'} resume`}
@@ -6199,7 +6199,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Save publication to library — reuse it in other resume copies"
                     aria-label={`Save publication ${pubIdx + 1} to library`}
                     disabled={
@@ -6232,7 +6232,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Delete publication"
                     aria-label="Delete publication"
                     onClick={() =>
@@ -6318,7 +6318,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved publication ${[s.data.title, s.data.venue].filter((x) => x.trim()).join(' — ') || 'Untitled publication'}`}
                         onClick={() => setPubLibrary(deleteLibraryPublication(s.id))}
@@ -6451,7 +6451,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={refIdx === 0}
                     id={moveId('references', refIdx, 'up')}
                     title="Move up"
@@ -6470,7 +6470,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={refIdx === (resume.references ?? []).length - 1}
                     id={moveId('references', refIdx, 'down')}
                     title="Move down"
@@ -6489,7 +6489,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title={ref.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={ref.hidden === true}
                     aria-label={`${ref.hidden ? 'Show' : 'Hide'} reference ${refIdx + 1} ${ref.hidden ? 'on' : 'from'} resume`}
@@ -6508,7 +6508,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Save reference to library — reuse it in other resume copies"
                     aria-label={`Save reference ${refIdx + 1} to library`}
                     disabled={
@@ -6538,7 +6538,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Delete reference"
                     aria-label="Delete reference"
                     onClick={() =>
@@ -6621,7 +6621,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved reference ${[s.data.name, s.data.employer].filter((x) => x.trim()).join(' — ') || 'Untitled reference'}`}
                         onClick={() => setRefLibrary(deleteLibraryReference(s.id))}
@@ -6773,7 +6773,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       disabled={mIdx === 0}
                       id={moveId('military', mIdx, 'up')}
                       title="Move up"
@@ -6792,7 +6792,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       disabled={mIdx === (resume.military ?? []).length - 1}
                       id={moveId('military', mIdx, 'down')}
                       title="Move down"
@@ -6811,7 +6811,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       title={m.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                       aria-pressed={m.hidden === true}
                       aria-label={`${m.hidden ? 'Show' : 'Hide'} military service ${m.hidden ? 'on' : 'from'} resume`}
@@ -6830,7 +6830,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       title="Delete military service"
                       aria-label="Delete military service"
                       onClick={() =>
@@ -6944,7 +6944,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={agIdx === 0}
                     id={moveId('agents', agIdx, 'up')}
                     title="Move up"
@@ -6963,7 +6963,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={agIdx === (resume.agents ?? []).length - 1}
                     id={moveId('agents', agIdx, 'down')}
                     title="Move down"
@@ -6982,7 +6982,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={a.hidden === true}
                     aria-label={`${a.hidden ? 'Show' : 'Hide'} agent ${a.hidden ? 'on' : 'from'} resume`}
@@ -7001,7 +7001,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Delete agent"
                     aria-label="Delete agent"
                     onClick={() =>
@@ -7132,7 +7132,7 @@ export default function Builder() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-10 sm:h-9"
+                  className="h-10 min-w-10 sm:h-9 sm:min-w-0"
                   title="Save skills to library — reuse them in other resume copies"
                   aria-label="Save skills to library"
                   disabled={!resume.skills.trim()}
@@ -7201,7 +7201,7 @@ export default function Builder() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-destructive h-10 sm:h-7"
+                          className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                           title="Remove from library"
                           aria-label={`Remove saved skills ${s.skills.split('\n').map((l) => l.trim()).filter(Boolean)[0] ?? 'Untitled skills'}`}
                           onClick={() => setSkillsLibrary(deleteLibrarySkills(s.id))}
@@ -7348,7 +7348,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       disabled={cIdx === 0}
                       id={moveId('certItems', cIdx, 'up')}
                       title="Move up"
@@ -7367,7 +7367,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       disabled={cIdx === (resume.certItems ?? []).length - 1}
                       id={moveId('certItems', cIdx, 'down')}
                       title="Move down"
@@ -7386,7 +7386,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       title={c.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                       aria-pressed={c.hidden === true}
                       aria-label={`${c.hidden ? 'Show' : 'Hide'} certification ${cIdx + 1} ${c.hidden ? 'on' : 'from'} resume`}
@@ -7405,7 +7405,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       title="Save certification to library — reuse it in other resume copies"
                       aria-label={`Save certification ${cIdx + 1} to library`}
                       disabled={!c.name.trim() && !c.issuer.trim() && !c.description.trim()}
@@ -7433,7 +7433,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                       title="Delete certification"
                       aria-label="Delete certification"
                       onClick={() =>
@@ -7517,7 +7517,7 @@ export default function Builder() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-destructive h-10 sm:h-7"
+                          className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                           title="Remove from library"
                           aria-label={`Remove saved certification ${[s.data.name, s.data.issuer].filter((x) => x.trim()).join(' — ') || 'Untitled certification'}`}
                           onClick={() => setCertLibrary(deleteLibraryCert(s.id))}
@@ -7579,7 +7579,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive h-10 shrink-0 sm:h-9"
+                    className="text-destructive h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
                     title="Delete section"
                     onClick={() =>
                       setResume((r) => ({
@@ -7693,7 +7693,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={idx === 0}
                       id={moveId('sectionOrder', idx, 'up')}
                       title="Move up"
@@ -7711,7 +7711,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={idx === keys.length - 1}
                       id={moveId('sectionOrder', idx, 'down')}
                       title="Move down"
