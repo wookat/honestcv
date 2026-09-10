@@ -46,14 +46,40 @@ export function neighbourFocusId(removedIds: readonly string[], selector: string
 }
 
 /**
+ * What a closing confirm dialog does with focus once its close animation ends:
+ * `keep` it where it already is when something outside the dialog holds it
+ * (the action's Undo toast, or wherever the user has since tabbed), else
+ * `target` the element the action produced when it exists, else `restore` the
+ * opener (the library default, e.g. the Cancel path).
+ */
+export function closeFocusPlan(input: {
+  activeOutsideDialog: boolean
+  targetPresent: boolean
+}): 'keep' | 'target' | 'restore' {
+  if (input.activeOutsideDialog) return 'keep'
+  return input.targetPresent ? 'target' : 'restore'
+}
+
+/**
  * `onCloseAutoFocus` for a confirm dialog whose action removes its opener:
  * once the dialog closes, focus the element with `id` (e.g. the Undo toast
  * the action produced) instead of letting focus fall to `<body>`. Leaves the
- * default restore alone when the element is absent (Cancel path).
+ * default restore alone when the element is absent (Cancel path). The dialog
+ * stays mounted for its close animation, so focus that already sits outside
+ * it by then is left alone.
  */
 export const focusOnClose = (id: string) => (event: Event) => {
   const el = document.getElementById(id)
-  if (!(el instanceof HTMLElement)) return
+  const active = document.activeElement
+  const dialog = event.currentTarget
+  const plan = closeFocusPlan({
+    activeOutsideDialog:
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      !(dialog instanceof Node && dialog.contains(active)),
+    targetPresent: el instanceof HTMLElement,
+  })
+  if (plan === 'restore') return
   event.preventDefault()
-  el.focus()
+  if (plan === 'target' && el instanceof HTMLElement) el.focus()
 }
