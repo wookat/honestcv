@@ -66,8 +66,26 @@ Deploy `aad2b053`; production `index-CJftaHDx.js` / `Jobs-D7wPKD_v.js`, health 2
 one distinct title and one description across all 4 mounted frames; storage restored byte-exact;
 console 0.
 
-## 6. Independent QA
+## 6. Independent QA (testing agent, `aad2b053`)
 
-Pending (testing agent): Jobs single + bulk at 375 / 1280, Dashboard delete / bulk delete / remove
-folder titles during close, R856 rapid Tab → Dismiss and R854/R855 Undo focus unchanged, Cancel
-path, reopen for a different item shows the new item immediately.
+Fresh cache-disabled 375×812 + 1280×800 contexts, 36 navigation gates all on
+`index-CJftaHDx.js` / `Jobs-D7wPKD_v.js`, storage (local / session / cookies / IndexedDB) restored
+byte-exactly, 1 032 GET (38 quota reads) / 0 non-GET / 0 AI generation / 0 checkout / 0 console,
+page or HTTP errors. **144 assertions passed, no product failure.**
+
+- 18 observed closes (Jobs single + bulk × Cancel / no-Tab / rapid Tab, Dashboard single delete /
+  two-copy delete / folder removal, both widths): exactly one title and one description across all
+  mounted samples, first closed sample at opacity 1, detach 196.0–275.8 ms, opacity reaches 0
+  before removal (exit animation intact).
+- Reopen freshness: Jobs A → B and Dashboard Alpha → Beta show the second name on the first mount.
+- Regressions: Cancel → exact opener (Saved chip / `Untrack 2`); no-Tab → Undo keeps focus, Enter
+  restores (375 row / 1280 Saved chip; bulk → first restored row), stable 2 s; rapid trusted Tab at
+  80.6–84.7 ms → Dismiss keeps focus through detach at 227–239 ms, Enter dismisses (R854–R856).
+- Mobile axe on the open dialogs: 0 violations; bulk description `color-contrast` *incomplete*
+  (`elmPartiallyObscuring`) — manual review, not a violation.
+- Not covered: physical devices, screen readers, other shared-dialog consumers (Builder), the
+  historical full suites. Harness: the Dashboard settings footer button is `Save` (first fixture
+  looked for `Save changes` and timed out; corrected, exception kept in diagnostics).
+
+Evidence: `/home/ubuntu/qa/r858-qa/` (two native-resolution target screencasts, closing-frame
+screenshots, `all.json`, `verification-summary.json`, axe JSON, storage profiles); PR #1079 comment.
