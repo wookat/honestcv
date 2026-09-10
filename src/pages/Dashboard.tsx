@@ -33,7 +33,7 @@ import {
 
 import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
-import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
+import { neighbourFocusId, useConfirmClose, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import {
   FreeDownloadDialog,
   UpgradeDialog,
@@ -689,6 +689,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   >(null)
 
   const [undoDeleteFocused, setUndoDeleteFocused] = useState(false)
+  const deleteDocClose = useConfirmClose('undo-delete')
+  const deleteCopyClose = useConfirmClose('undo-delete')
+  const bulkDeleteClose = useConfirmClose('undo-delete')
   useEffect(() => {
     if (!undoDelete || undoDeleteFocused) return
     const t = setTimeout(() => setUndoDelete(null), 10000)
@@ -3033,7 +3036,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         open={confirmDeleteDoc !== null}
         onOpenChange={(o) => !o && setConfirmDeleteDoc(null)}
       >
-        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-delete')}>
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={deleteDocClose.onCloseAutoFocus}>
           <DialogHeader>
             <DialogTitle>Delete "{confirmDeleteDoc?.title}"?</DialogTitle>
             <DialogDescription>
@@ -3060,6 +3063,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   if (applyDocs(next) && next) {
                     if (docKind !== 'all' && !next.some((d) => d.kind === docKind)) setDocKind('all')
                     setUndoDeleteFocused(false)
+                    deleteDocClose.confirm()
                     setUndoDelete({
                       kind: 'doc',
                       doc: confirmDeleteDoc,
@@ -3078,7 +3082,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       </Dialog>
 
       <Dialog open={confirmDelete !== null} onOpenChange={(o) => !o && setConfirmDelete(null)}>
-        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-delete')}>
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={deleteCopyClose.onCloseAutoFocus}>
           <DialogHeader>
             <DialogTitle>Delete "{confirmDelete?.name}"?</DialogTitle>
             <DialogDescription>
@@ -3111,6 +3115,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   }
                   revokeShareLinksFor([confirmDelete.id])
                   setUndoDeleteFocused(false)
+                  deleteCopyClose.confirm()
                   setUndoDelete({
                     kind: 'copy',
                     version: confirmDelete,
@@ -3128,7 +3133,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
       </Dialog>
 
       <Dialog open={confirmBulkDelete} onOpenChange={(o) => !o && setConfirmBulkDelete(false)}>
-        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-delete')}>
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={bulkDeleteClose.onCloseAutoFocus}>
           <DialogHeader>
             <DialogTitle>
               Delete {bulkSelected.length} {bulkSelected.length === 1 ? 'copy' : 'copies'}?
@@ -3173,6 +3178,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   }
                   revokeShareLinksFor(entries.map((e) => e.version.id))
                   setUndoDeleteFocused(false)
+                  bulkDeleteClose.confirm()
                   setUndoDelete({ kind: 'copies', entries, dismissFocusId })
                 }
                 setBulkIds(new Set())
