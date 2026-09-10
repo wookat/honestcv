@@ -6,7 +6,7 @@
   `r834-rows.cjs` (R815 all-sections fixture, real Chrome, CDP): every icon-only toolbar button on a
   structured entry — Move up / down, Duplicate, Save to / Remove from library, Hide / Show, Delete,
   Collapse / Expand, plus the section-level `Delete section` / library `Remove` — measures
-  **38 × 40 px at 375** (Experience / Education 7-button header rows, Involvement 5, Military 4,
+  **38 × 40 px at 375** (Experience / Projects 7-button header rows, Education 2 + 5, Involvement 5, Military 4,
   Coursework / Awards / Publications / Certifications / References 5, custom sections). R815 asserted
   the mobile *height* only (`h-10` / `min-h-10`); the width is the shared `Button size="sm"` box —
   `px-3` (24 px) + a 14 px `size-3.5` icon = 38 px. Desktop is 38 × 28 (`sm:h-7`) or 38 × 36
@@ -16,7 +16,7 @@
   library Pencil / Copy `w-10`) already has it — so this is the last 2 px of an internal
   inconsistency, not a new standard.
 - Row budget at 375 (usable card width 268 with a native scrollbar, 283 without): the two
-  seven-button header toolbars (Experience, Education) are `7 × 38 + 6 × 4 = 290 − 24 = 266` px wide
+  seven-button header toolbars (Experience, Projects) are `7 × 38 + 6 × 4 = 290 − 24 = 266` px wide
   and fit on one line with 2 px to spare; at 40 px they need `280` px → wrap to two rows and add
   40 px to each card. Simulated on production before touching source (`r834-headers.cjs` A / B
   variants): letting the toolbar row use the card's 6 px inner gutter on each side (`-mx-1.5`,
