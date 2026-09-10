@@ -1923,3 +1923,11 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Clipping evidence: measure the secondary `<p>` and a character range after " · ", not DOM text presence; the three-line clamp can render a final ellipsis while computed `text-overflow` is `clip`. Pair with screenshots.
 - Report the clickable heading/metadata button height and the full card (with Save/status) separately — "54 px" is the button.
 - At 375 the detail pane after selection keeps the filters above it; capture the initial state, then one real outer-page wheel for a readable detail screenshot. Playwright `isVisible` ≠ inside the viewport.
+
+## R850 QA notes (/jobs single-pane detail reveal)
+- Measure the first frame that shows the selected heading and the settled frame; do not `scrollIntoView` / locator-click off-screen detail controls before the first screenshot — that masks a broken reveal. Select with raw pointer coordinates or CDP touch.
+- Record page `scrollY` and the list pane's own `scrollTop` separately; a deep row depends on both. Expect pane top ≈63 / Back ≈80 / h2 ≈128 under the 57 px header (html `scroll-padding-top`).
+- Tap-selection and a cold `?job=` landing are separate checks: at 768 the filters row grows after the jobs load, so the cold landing sits lower (357) than a tap (63).
+- Playwright `page.keyboard` Alt+Left reaches the page but does not drive Chrome history — use native OS Alt+Left on the focused window (or the toolbar Back) and keep the failed attempt in the evidence.
+- Record `document.activeElement` after opening and after Back to list (currently `body` after closing); one Tab after opening reaches Back. Do not infer focus restoration from restored geometry.
+- Run axe at the exact open-detail scroll position: the detail pane's skill chips (20 px tall) and header-obscured location chips produce `target-size` findings — record the exact targets; only call them pre-existing with an old-bundle or source comparison.
