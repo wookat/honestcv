@@ -1895,3 +1895,21 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
   steps as failures because the starting Y moved. At short heights the menu fills the viewport, so
   there is no outside hit area to test.
 - After changing the Playwright viewport, re-maximize the visible window before recording.
+
+### Section-nav active-chip (observer) QA — R848 lessons
+
+- Gate every measurement on the *loaded* bundle names (`performance.getEntriesByType('resource')`,
+  index + lazy Builder chunk), not on the HTML you curl'd: the edge served the previous HTML once right
+  after a deploy and the probe "reproduced" a defect that was already fixed.
+- The geometry oracle covers section-chip keys only — `[data-section-anchor="target"]` is the Target
+  job card, not a chip.
+- Pick a wheel step below the shortest activation interval (a short Projects header after a tall
+  Education card can be active for < 100 px; 120 px steps skip it without any stale state). Keep the
+  coarse result and rerun at 40 px before calling a skipped sample a defect.
+- Sample `scrollY` and `aria-current` on animation frames to bound the delay from the first settled
+  Y=0 frame to the expected chip; exercise large wheel, small wheel ticks, Ctrl+Home, smooth `scrollTo`
+  and a real scrollbar-thumb drag separately. For the drag, screenshot an intermediate position and the
+  top *while the button is still held*, then release — a final screenshot alone cannot prove a drag.
+- Mobile pane checks: hidden Edit anchors have zero height and the previous highlight must be kept;
+  verify Edit Y restoration, and also scroll inside Preview before returning to Edit at the top.
+- `GET /api/ai/quota` is expected read-only traffic, not AI generation.
