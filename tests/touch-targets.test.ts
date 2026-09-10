@@ -180,3 +180,32 @@ describe('R834: entry toolbar buttons are 40px wide on touch widths', () => {
     }
   })
 })
+
+describe('R839: /samples card title button keeps its 40px hit area at every width', () => {
+  const dashboardSrc = readFileSync(
+    path.resolve(import.meta.dirname, '../src/pages/Dashboard.tsx'),
+    'utf8',
+  )
+  const titleButton = () => {
+    const m = dashboardSrc.match(
+      /<button\s+type="button"\s+onClick=\{\(\) => setPreviewExample\(e\)\}\s+className="([^"]*\btruncate\b[^"]*)"\s*>\s*\{e\.role\}/,
+    )
+    if (!m) throw new Error('sample card title button not found')
+    return m[1]
+  }
+
+  it('pads the 20px text line to 40px and cancels it with a negative margin (card geometry unchanged)', () => {
+    const cls = titleButton()
+    expect(cls).toMatch(/\bpy-2\.5\b/)
+    expect(cls).toMatch(/(^|\s)-my-2\.5\b/)
+  })
+
+  it('does not reset the hit area to the bare text line at any breakpoint', () => {
+    const cls = titleButton()
+    expect(cls).not.toMatch(/\b(sm|md|lg|xl):(my-0|py-0)\b/)
+  })
+
+  it('is positioned so the padded area wins hit-testing over the sector line it overlaps', () => {
+    expect(titleButton()).toMatch(/\brelative\b/)
+  })
+})
