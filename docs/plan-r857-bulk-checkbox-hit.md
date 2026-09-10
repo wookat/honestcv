@@ -88,7 +88,20 @@ classes / `aria-label`, and the 16 px row gap.
   checkbox centre to the card edge): every x inside the label (41 → 57) toggles; x 59 is the
   row gap (toggles via the label at radius 1, opens the card at radius 12); x ≥ 61 opens the
   card (card left 65). Console 0, storage restored.
-- Independent QA on the second deploy: see `docs/handoff-context.md` (R857) once complete.
+- Independent QA on the second deploy (`f0912044`, testing agent, fresh cache-disabled 375×812 +
+  1280×800, storage restored byte-exactly, 297 GET / 0 non-GET / 0 AI / 0 checkout / 0 errors):
+  every product assertion passed at both widths — labels 36 × 44, clearance 8, row / card
+  heights unchanged; 54 in-label mouse clicks and 48 strict-interior touch samples per viewport
+  (three rows, radius 1 / 12) all toggle with zero card activations; keyboard Space, bulk
+  Applied → Saved, Untrack 1 → Undo focus, R856 rapid Tab → Dismiss (82 / 94 ms before detach
+  at 223 / 218 ms), exact Done-selecting restoration, desktop split pane, mobile Back focus,
+  axe 0 violations. Boundary, reported separately: exactly at `label.right` (exclusive DOMRect
+  edge, `elementFromPoint` = row `DIV`) 1280 radius 1 opened the card 3/3 — the same x 59 gap
+  sample as the native sweep, not an in-label miss. Evidence `/home/ubuntu/qa/r857-v2-qa/`;
+  PR #1078 comment.
+- Incidental QA observation (not this round, attribution unverified): the bulk Stop-tracking
+  dialog title reads “Stop tracking 0 jobs?” for the ~200 ms close animation because the
+  selection is cleared on confirm while the dialog is still mounted → R858 candidate.
 - Limitations: CDP `Input.dispatchTouchEvent` in headless Chromium stands in for a finger — no
   physical device; the adjustment radius it models may differ from a real phone. No screen
   reader.
