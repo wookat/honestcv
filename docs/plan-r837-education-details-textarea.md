@@ -21,9 +21,11 @@ corpus `/home/ubuntu/qa/r776-text-replay.json`).
   graduation), i.e. prose, not a name.
 - The rest of the Builder already treats such prose as a `rows=2` textarea (Involvement /
   Coursework / Awards / Publications / Certifications / Military descriptions). Side finding,
-  not this round: in the shared `ENTRY_TEXT_ROW` those textareas are only **146 px** usable at
-  1024 (textarea = input width minus the 15 px scrollbar gutter) and 274 px at 1280 — a
-  candidate for the same container-query treatment as R826 / R829 (queued).
+  not this round: in the shared `ENTRY_TEXT_ROW` those textareas are only **161 px** usable at
+  1024 (Military 207 px, its toolbar has one button fewer; 146 px once a native scrollbar
+  appears) and 289 / 335 px at 1280 — measured on the deployed R837 bundle with
+  `r837-evidence.cjs`; a candidate for the same container-query treatment as R826 / R829
+  (queued).
 - Storage / preview / exports / ATS were never affected: `EducationItem.details: string` is
   rendered whole by `educationDetailLine()` and every exporter. This is an editor-only defect.
 
@@ -141,6 +143,6 @@ usable width by 15 px — report which variant was measured.
 
 - Values ≥ ~130 characters still scroll vertically inside the two-row box at desktop; at 375
   anything over ~60 characters does. Deliberate: matches every other description box.
-- Side finding for the queue: the six shared-row description textareas are 146 px usable at
-  1024 (`ENTRY_TEXT_ROW` + 15 px scrollbar gutter) — same container-query treatment as R826 /
-  R829 would give them the full row below 32 rem.
+- Side finding for the queue: the six shared-row description textareas are 161 px (Military
+  207 px) usable at 1024 in `ENTRY_TEXT_ROW`, 146 px once a native scrollbar appears — the
+  same container-query treatment as R826 / R829 would give them the full row below 32 rem.
