@@ -739,6 +739,140 @@ describe('LinkedIn export detector (R776)', () => {
       )
     ).toBe(true)
   })
+
+  it('R845: an export whose headings are not the English ones falls back to the generic parser instead of an empty profile', () => {
+    // LinkedIn's "Save to PDF" printed in another UI language: the profile URL and
+    // the "<user> (LinkedIn)" row still mark it as an export, every heading differs.
+    const foreign = `Jane Doe
+Senior Engineer at Acme
+Berlin, Germany
+Zusammenfassung
+Builds payment systems.
+Berufserfahrung
+Acme GmbH
+Senior Engineer
+Januar 2020 - Heute (4 Jahre)
+Berlin, Germany
+• Led the payments platform rebuild.
+• Cut checkout latency by 40%.
+Ausbildung
+TU Berlin
+MSc Computer Science · (2014 - 2016)
+Seite 1 von 1
+Kontakt
+jane@example.com
+www.linkedin.com/in/
+janedoe (LinkedIn)
+Top-Kenntnisse
+Go
+Kubernetes
+`
+    expect(looksLikeLinkedInExport(foreign)).toBe(true)
+    const r = parseResumeText(foreign)
+    expect(r.contact.fullName).toBe('Jane Doe')
+    expect(r.contact.email).toBe('jane@example.com')
+    expect(r.contact.linkedin).toBe('linkedin.com/in/janedoe')
+    // the body is kept somewhere the reader can see it — not dropped
+    const kept = [r.summary, ...r.experience.flatMap((e) => [e.company, e.role, ...e.bullets]), ...r.customSections.flatMap((c) => c.bullets)].join('\n')
+    expect(kept).toContain('Led the payments platform rebuild.')
+    expect(kept).toContain('Cut checkout latency by 40%.')
+    expect(kept).toContain('Acme GmbH')
+    expect([...r.education.map((e) => `${e.school} ${e.degree} ${e.details}`), kept].join('\n')).toContain('TU Berlin')
+    // the paragraph under the unknown "Zusammenfassung" label is the summary
+    expect(r.summary).toBe('Builds payment systems.')
+    expect(r.contact.title).toBe('Senior Engineer at Acme')
+  })
+
+  it('R845: the fallback keeps the profile paragraph under the unknown label, a wrapped e-mail and a region location', () => {
+    // A headline with a binder ("Role | Company") is a contact-shaped row, so the
+    // title slot is still empty when the label arrives; the paragraph's first
+    // line wraps at 55 characters before its sentence ends; the narrow contact
+    // column breaks the e-mail before its TLD; the place is a LinkedIn region.
+    const foreign = `Kenneth Adams
+Engineering Manager | Agile Coach
+Las Vegas Metropolitan Area
+Zusammenfassung
+Platform-focused engineering leader with a strong software
+development background. I coach teams through Agile adoption
+and lead them through SAFe / Scrum transformations or Program/
+Project Management, at companies like Apple, IBM and Adobe.
+Berufserfahrung
+Apple
+Engineering Manager
+Januar 2020 - Heute (4 Jahre)
+• Led a 40-person platform group.
+Seite 1 von 1
+Kontakt
+kenslinkedin2@kennethadams.
+com
+www.linkedin.com/in/
+kennethadams (LinkedIn)
+Top-Kenntnisse
+Agile
+`
+    expect(looksLikeLinkedInExport(foreign)).toBe(true)
+    const r = parseResumeText(foreign)
+    expect(r.summary).toBe(
+      'Platform-focused engineering leader with a strong software development background. I coach teams through Agile adoption and lead them through SAFe / Scrum transformations or Program/ Project Management, at companies like Apple, IBM and Adobe.'
+    )
+    expect(r.contact.title).not.toBe('Zusammenfassung')
+    expect(r.contact.title).not.toMatch(/^Platform-focused/)
+    expect(r.contact.location).toBe('Las Vegas Metropolitan Area')
+    expect(r.contact.email).toBe('kenslinkedin2@kennethadams.com')
+    expect(r.contact.linkedin).toBe('linkedin.com/in/kennethadams')
+    expect(r.experience.flatMap((e) => e.bullets)).toContain('Led a 40-person platform group.')
+  })
+
+  it('R845: an unheaded summary keeps a wrapped sentence whose next line opens with a capital', () => {
+    // No LinkedIn markers: a plain paste whose narrow column broke "Program/" +
+    // "Project Manager. …" — the second line is 60 characters, starts with a
+    // capital and does not end its sentence, but the line after continues it.
+    const r = parseResumeText(`Kenneth Adams
+Engineering Manager
+Coach / Scrum Coach / Agile Transformation Leader or Program/
+Project Manager. I have experience in many types of business
+environments including startup, small, regional, national and
+planet scale.
+`)
+    expect(r.contact.title).toBe('Engineering Manager')
+    expect(r.summary).toBe(
+      'Coach / Scrum Coach / Agile Transformation Leader or Program/ Project Manager. I have experience in many types of business environments including startup, small, regional, national and planet scale.'
+    )
+  })
+
+  it('R845: the English export still takes the LinkedIn parser (Summary / Experience / Education found)', () => {
+    const en = `Jane Doe
+Senior Engineer at Acme
+Berlin, Germany
+Summary
+Builds payment systems.
+Experience
+Acme GmbH
+Senior Engineer
+January 2020 - Present (4 years)
+Berlin, Germany
+• Led the payments platform rebuild.
+Education
+TU Berlin
+MSc Computer Science · (2014 - 2016)
+Page 1 of 1
+Contact
+jane@example.com
+www.linkedin.com/in/
+janedoe (LinkedIn)
+Top Skills
+Go
+Kubernetes
+`
+    const r = parseResumeText(en)
+    expect(r.summary).toBe('Builds payment systems.')
+    expect(r.experience).toHaveLength(1)
+    expect(r.experience[0]).toMatchObject({ company: 'Acme GmbH', role: 'Senior Engineer', startDate: 'January 2020', endDate: 'Present', location: 'Berlin, Germany' })
+    expect(r.experience[0].bullets).toEqual(['Led the payments platform rebuild.'])
+    expect(r.education[0]).toMatchObject({ school: 'TU Berlin', degree: 'MSc Computer Science', startDate: '2014', endDate: '2016' })
+    expect(r.skills).toBe('Go, Kubernetes')
+    expect(r.contact.linkedin).toBe('linkedin.com/in/janedoe')
+  })
 })
 
 describe('our own TXT / Markdown exports re-imported (R783)', () => {

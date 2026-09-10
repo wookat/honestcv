@@ -168,7 +168,7 @@ const looksLikeDotHeader = (line: string) =>
 // practices, and" + "TypeScript — raising standards"). A line that opens with
 // a year is a date, not a continuation.
 const OPEN_PHRASE_END_RE =
-  /(?:,|\b(?:and|or|but|with|for|to|of|in|on|by|at|as|from|into|via|using|across|through|including|the|a|an))$/i
+  /(?:,|\/|\b(?:and|or|but|with|for|to|of|in|on|by|at|as|from|into|via|using|across|through|including|the|a|an))$/i
 const continuesPrevious = (prev: string | undefined, line: string) =>
   !!prev &&
   !/[.!?:;]$/.test(prev) &&
@@ -687,6 +687,17 @@ const splitDegreeLine = (text: string) => {
   const [degree, ...more] = head.split(/;\s*/)
   return { degree: degree.trim(), school: school.trim(), location, details: more.join('; ').trim() }
 }
+// A one- or two-word label the heading vocabulary does not know
+// ("Zusammenfassung", "Über mich") sitting over a prose line: a heading in a
+// language the product does not print, not a title or a sentence.
+const isUnknownSectionLabel = (line: string, next: string) =>
+  /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ-]*(?:\s[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ-]*)?$/.test(line) &&
+  line.length <= 30 &&
+  !matchHeading(line) &&
+  (next.length >= 40 || looksLikeBodyLine(next)) &&
+  !isBullet(next) &&
+  /^[A-Za-zÀ-ÿ"'“]/.test(next)
+
 const prevNonEmpty = (lines: string[], i: number) => {
   for (let p = i - 1; p >= 0; p--) if (lines[p]) return lines[p]
   return ''
@@ -840,7 +851,15 @@ export function parseResumeText(input: string, options: ParseOptions = {}): Resu
 }
 
 function parseResumeTextInner(input: string): Resume {
-  if (looksLikeLinkedInExport(input)) return parseLinkedInText(input)
+  // A LinkedIn export whose headings are in a language the LinkedIn parser
+  // does not read: the header still ends at a section label, never at a
+  // one-word headline, so the generic parser must not take that label as
+  // the title.
+  const linkedInLayout = looksLikeLinkedInExport(input)
+  if (linkedInLayout) {
+    const linkedIn = parseLinkedInText(input)
+    if (linkedIn) return linkedIn
+  }
   const raw = plainResumeText(input)
   const resume = emptyResume()
   resume.experience = []
@@ -850,10 +869,21 @@ function parseResumeTextInner(input: string): Resume {
   const nonEmpty = lines.filter(Boolean)
   const text = raw
 
-  const email = text.match(EMAIL_RE)?.[0] ?? ''
+  // A narrow column wraps "kenslinkedin2@kennethadams." over "com"
+  const email =
+    text.match(EMAIL_RE)?.[0] ??
+    text.match(/([^\s@|,;]+@[^\s@|,;]+\.)[ \t]*\r?\n\s*([a-z]{2,6})(?=\s|$)/i)?.slice(1).join('') ??
+    ''
   // "ronstr8 (LinkedIn)" — a profile named by its handle (JSON Resume themes)
   const handle = text.match(/^([A-Za-z0-9][A-Za-z0-9._-]{2,})\s+\(LinkedIn\)$/im)?.[1]
-  const linkedin = text.match(LINKEDIN_RE)?.[0] ?? (handle ? `linkedin.com/in/${handle}` : '')
+  const linkedinUrl = text.match(LINKEDIN_RE)?.[0] ?? ''
+  // A narrow column wraps "www.linkedin.com/in/" over "handle (LinkedIn)"
+  const linkedin =
+    linkedinUrl && !/linkedin\.com\/in\/?$/i.test(linkedinUrl)
+      ? linkedinUrl
+      : handle
+        ? `linkedin.com/in/${handle}`
+        : linkedinUrl
   const phone = findPhone(text)
   resume.contact.email = email
   resume.contact.phone = phone
@@ -884,7 +914,7 @@ function parseResumeTextInner(input: string): Resume {
   // vocabulary: "Engineer" / "Springfield" are left to the title rule.
   const headerPlace = (line: string): string => {
     const body = (line.match(HEADER_PLACE_LABEL_RE)?.[1] ?? line).trim()
-    if (isExpPlaceLine(body)) return body
+    if (isExpPlaceLine(body) || REGION_LINE_RE.test(body)) return body
     if (/^remote$/i.test(body)) return 'Remote'
     if (!PLACE_RE.test(body) || body.includes(',')) return ''
     if (isKnownPlace(body)) return body
@@ -1013,6 +1043,8 @@ function parseResumeTextInner(input: string): Resume {
   const skillLines: string[] = []
   const certLines: string[] = []
   let headerProse = false
+  // an unknown section label has opened the profile paragraph
+  let underLabel = false
   let expHeaderRaw = ''
   // Each custom section's lines as the document had them (bullet marks kept),
   // so a section we printed ourselves can be read back into its fields.
@@ -1497,7 +1529,14 @@ function parseResumeTextInner(input: string): Resume {
           // the header, so prose below it is the summary; after the summary it
           // starts the contact block.
           headerProse = summaryLines.length === 0
-        } else if (!resume.contact.title && summaryLines.length === 0 && line.length <= 60 && !contactish) {
+        } else if (
+          !resume.contact.title &&
+          summaryLines.length === 0 &&
+          line.length <= 60 &&
+          !contactish &&
+          !underLabel &&
+          !(linkedInLayout && isUnknownSectionLabel(line, lines[nextNonEmptyIndex(lines, i)] ?? ''))
+        ) {
           // the title sits above the summary, never inside it
           resume.contact.title = line
           headerProse = true
@@ -1527,10 +1566,25 @@ function parseResumeTextInner(input: string): Resume {
           headerProse &&
           !contactish &&
           (looksLikeBodyLine(line) ||
-            (summaryLines.length > 0 && continuesPrevious(summaryLines[summaryLines.length - 1], line)))
+            (summaryLines.length > 0 && continuesPrevious(summaryLines[summaryLines.length - 1], line)) ||
+            (!isBullet(line) &&
+              line.length >= 40 &&
+              !bindsEntryHeader(line) &&
+              continuesPrevious(line, lines[nextNonEmptyIndex(lines, i)] ?? '')))
         ) {
-          // the paragraph directly under the title, with no heading, is the summary
+          // the paragraph directly under the title, with no heading, is the
+          // summary; a narrow column wraps a sentence before it can end, so a
+          // long line the next line continues belongs to it too
           summaryLines.push(line)
+        } else if (
+          headerProse &&
+          summaryLines.length === 0 &&
+          isUnknownSectionLabel(line, lines[nextNonEmptyIndex(lines, i)] ?? '')
+        ) {
+          // "Zusammenfassung" / "Über mich": a heading the vocabulary does not
+          // know, sitting over the profile paragraph — the paragraph is still
+          // the summary
+          underLabel = true
         } else {
           headerProse = false
         }
@@ -1864,8 +1918,13 @@ const looksLikeExpHeader = (line: string) =>
  * fixed: main column with name / headline / location / Summary / Experience
  * (company line first, then role, then a date line with a tenure note) /
  * Education, and a sidebar with Contact, Top Skills, Languages, etc.
+ *
+ * Returns null when none of the main-column headings is found — an export
+ * LinkedIn printed in another UI language still carries the profile URL and
+ * the `<user> (LinkedIn)` row, but this parser would file every line under
+ * the header and drop the whole profile; the generic parser keeps the text.
  */
-function parseLinkedInText(raw: string): Resume {
+function parseLinkedInText(raw: string): Resume | null {
   const resume = emptyResume()
   resume.experience = []
   resume.education = []
@@ -1912,6 +1971,7 @@ function parseLinkedInText(raw: string): Resume {
   }
   let parked: Parked | null = null
   let afterPageMark = false
+  let sawMainSection = false
   const contactLines: string[] = []
 
   const flushEdu = () => {
@@ -2020,6 +2080,7 @@ function parseLinkedInText(raw: string): Resume {
       if (section === 'experience') flushExp()
       if (section === 'education') flushEdu()
       section = heading[1]
+      if (LI_MAIN_SECTIONS.has(section)) sawMainSection = true
       currentCustom = null
       currentEdu = null
       eduSchool = ''
@@ -2260,6 +2321,7 @@ function parseLinkedInText(raw: string): Resume {
     afterPageMark = false
   }
   if (parked) leaveSidebar()
+  if (!sawMainSection) return null
   if (section === 'experience') flushExp()
   flushEdu()
 
