@@ -70,7 +70,7 @@ describe('R833: involvement / military cards label every field visibly, like exp
     for (const prefix of ['inv', 'mil']) {
       const at = builderSrc.indexOf(`<Label htmlFor={\`${prefix}-\${${prefix === 'inv' ? 'inv' : 'm'}.id}-description\`}>`)
       expect(at, prefix).toBeGreaterThan(-1)
-      const rowAt = builderSrc.indexOf('<div className={ENTRY_TEXT_ROW}>', at)
+      const rowAt = builderSrc.indexOf('<div className={ENTRY_TEXT_STACK}>', at)
       const nextLabel = builderSrc.indexOf('<Label ', at + 1)
       expect(rowAt).toBeGreaterThan(at)
       expect(nextLabel === -1 || nextLabel > rowAt).toBe(true)
@@ -139,7 +139,7 @@ describe('R835: coursework / award / publication / certification cards label eve
     for (const [prefix, { item }] of Object.entries(ONE_LINE)) {
       const at = builderSrc.indexOf(`<Label htmlFor={\`${prefix}-\${${item}.id}-description\`}>`)
       expect(at, prefix).toBeGreaterThan(-1)
-      const rowAt = builderSrc.indexOf('<div className={ENTRY_TEXT_ROW}>', at)
+      const rowAt = builderSrc.indexOf('<div className={ENTRY_TEXT_STACK}>', at)
       const nextLabel = builderSrc.indexOf('<Label ', at + 1)
       expect(rowAt).toBeGreaterThan(at)
       expect(nextLabel === -1 || nextLabel > rowAt).toBe(true)
