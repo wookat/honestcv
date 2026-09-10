@@ -588,8 +588,8 @@ function useUndo(
   return { undo, canUndo, redo, canRedo }
 }
 
-// Entry text box + its control buttons: one row on desktop, the box takes a
-// full line on small screens so it is not squeezed by the buttons.
+// Entry text box + a single control button: one row on desktop, the box takes a
+// full line on small screens so it is not squeezed by the button.
 const ENTRY_TEXT_ROW =
   'flex flex-wrap items-start gap-2 sm:flex-nowrap [&>:first-child]:basis-full sm:[&>:first-child]:flex-1 sm:[&>:first-child]:basis-0 [&>:nth-child(2)]:ml-auto'
 
@@ -5160,7 +5160,7 @@ export default function Builder() {
                       ? `What did you do at ${inv.organization.trim()}?`
                       : 'What did you do there?'}
                   </Label>
-                  <div className={ENTRY_TEXT_ROW}>
+                  <div className={ENTRY_TEXT_STACK}>
                     <LintedTextarea
                       id={`inv-${inv.id}-description`}
                       rows={2}
@@ -5596,7 +5596,7 @@ export default function Builder() {
                 )}
                 <div className="space-y-1.5">
                   <Label htmlFor={`cw-${cw.id}-description`}>How did you apply it?</Label>
-                  <div className={ENTRY_TEXT_ROW}>
+                  <div className={ENTRY_TEXT_STACK}>
                     <Textarea
                       id={`cw-${cw.id}-description`}
                       rows={2}
@@ -5875,7 +5875,7 @@ export default function Builder() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor={`award-${a.id}-description`}>Why is it relevant?</Label>
-                  <div className={ENTRY_TEXT_ROW}>
+                  <div className={ENTRY_TEXT_STACK}>
                     <Textarea
                       id={`award-${a.id}-description`}
                       rows={2}
@@ -6185,7 +6185,7 @@ export default function Builder() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor={`pub-${pub.id}-description`}>Additional information (optional)</Label>
-                  <div className={ENTRY_TEXT_ROW}>
+                  <div className={ENTRY_TEXT_STACK}>
                     <Textarea
                       id={`pub-${pub.id}-description`}
                       rows={2}
@@ -6833,7 +6833,7 @@ export default function Builder() {
                   <Label htmlFor={`mil-${m.id}-description`}>
                     What were your responsibilities and accomplishments?
                   </Label>
-                  <div className={ENTRY_TEXT_ROW}>
+                  <div className={ENTRY_TEXT_STACK}>
                     <Textarea
                       id={`mil-${m.id}-description`}
                       rows={2}
@@ -7004,7 +7004,7 @@ export default function Builder() {
                     }))
                   }
                 />
-                <div className={ENTRY_TEXT_ROW}>
+                <div className={ENTRY_TEXT_STACK}>
                   <Textarea
                     aria-label="How building the agent was relevant"
                     rows={2}
@@ -7418,7 +7418,7 @@ export default function Builder() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor={`cert-${c.id}-description`}>How is it relevant? (optional)</Label>
-                    <div className={ENTRY_TEXT_ROW}>
+                    <div className={ENTRY_TEXT_STACK}>
                       <Textarea
                         id={`cert-${c.id}-description`}
                         rows={2}
