@@ -22,7 +22,14 @@ React 19 + Vite + Tailwind + Radix / Hono on Cloudflare Workers（assets run_wor
 
 ## 当前数据概况
 - KV 存 license/免费额度/邮件 leads；无关系型数据库
+- 第一方统计（唯一 PV 事实源）：`hit:<day>:<ts>` 页面浏览、`ev:<day>:<event>` 漏斗日计数（零标识符，无访客去重）；导出 `CLOUDFLARE_API_TOKEN=… node scripts/analytics.mjs 30`，口径见 docs/analytics-export.md
 - 已消费简历中心 ResumeProfile v1（/share/ 链接导入，PR #199/#200；注意 CSP connect-src 需包含简历中心 API 域）
+
+## 内部/QA 流量约定（所有验收官、QA、走查、截图会话必须遵守）
+- 浏览器走查：进入任何页面**之前**先设 `localStorage['honestcv.qa']='1'`（Playwright 用 `addInitScript`，CDP 用 `Page.addScriptToEvaluateOnNewDocument`），t.js 据此不发 beacon。
+- 脚本/curl/抓取：请求头加 `x-qa: 1`；服务端 `isQaRequest` 对 `x-qa:1`、空 UA、headless/bot/curl/python 等 UA 一律不落库。
+- 404 壳页（未知路由、失效分享链接）不带 beacon；`/qa-*` 路径不计。
+- 忘打标的后果：当日 PV 会被 `scripts/analytics.mjs` 标为 `⚠ pulse`（≥ max(50, 5×中位日)），不删历史数据，但会污染「真实流量」口径——CEO 流量核查（2026-09-08）已确认 08-30/31、09-08 峰值均为未打标的验收轮。
 
 ## Rezi 对标循环（2026-08-29 起，R1–R20 已完成，R16 为调研文档轮）
 - 一手审计：docs/audit-2026-08-29-rezi-r1.md（R8 复审计截图 ~/audit-r1/shots-r8/）；各轮方案 docs/plan-r1..r11-*.md

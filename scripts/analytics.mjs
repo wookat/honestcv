@@ -91,9 +91,24 @@ const kvToken = process.env.CLOUDFLARE_WORKERS_API_TOKEN ?? token
     cur = kv.result_info?.cursor ?? ''
   } while (cur)
   if (!failed) {
-    console.log('\nfirst-party hits (adblock-proof beacon):')
-    for (const [day, n] of [...byDayFP].sort()) console.log(`  ${day}  ${n}`)
+    // Pulse days: a single day far above the window's typical day is almost
+    // always an internal walkthrough that forgot the QA flag, not organic
+    // traffic. Flag (never delete) so the export reads honestly.
+    const counts = [...byDayFP.values()].sort((a, b) => a - b)
+    const median = counts.length ? counts[Math.floor(counts.length / 2)] : 0
+    const pulseMin = Math.max(50, median * 5)
+    const isPulse = (n) => n >= pulseMin
+    let pulseTotal = 0
+    console.log(`\nfirst-party hits (adblock-proof beacon; ⚠ = pulse day ≥ ${pulseMin}, likely unflagged internal QA):`)
+    for (const [day, n] of [...byDayFP].sort()) {
+      if (isPulse(n)) pulseTotal += n
+      console.log(`  ${day}  ${n}${isPulse(n) ? '  ⚠ pulse' : ''}`)
+    }
     if (byDayFP.size === 0) console.log('  none yet')
+    else {
+      const total = counts.reduce((a, b) => a + b, 0)
+      console.log(`  total ${total}, of which ${pulseTotal} on pulse days → ${total - pulseTotal} on ordinary days`)
+    }
     // Per-path breakdown needs the values; cap reads to keep the report fast.
     const sample = inRange.slice(-2000)
     const byPath = new Map()
