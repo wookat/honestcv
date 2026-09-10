@@ -316,3 +316,28 @@ describe('R857: Tracked-tab bulk checkboxes get a hit box the size of the other 
     expect(jobsSrc).toMatch(/tab === 'tracked' && bulkMode \? 'flex items-start gap-4' : ''/)
   })
 })
+
+describe('R859: the bulk action controls are reserved for the whole Select… session, so the first tick does not move the rows', () => {
+  const bar = () => {
+    const at = jobsSrc.indexOf('aria-label="Bulk actions on tracked jobs"')
+    expect(at).toBeGreaterThan(-1)
+    const end = jobsSrc.indexOf('\n        )}\n', at)
+    return jobsSrc.slice(at, end)
+  }
+
+  it('mounts "N selected", Move to…, Untrack and Clear as soon as bulk mode is on, not once something is ticked', () => {
+    const src = bar()
+    expect(src).toMatch(/\{bulkMode && \(\s*<>\s*<span/)
+    expect(src).not.toMatch(/bulkMode && visibleBulkIds\.size > 0/)
+  })
+
+  it('disables the three actions while nothing is selected instead of hiding them', () => {
+    const src = bar()
+    expect(src.match(/disabled=\{visibleBulkIds\.size === 0\}/g)?.length).toBe(3)
+    expect(src).toContain('{bulkUntrackLabel(visibleBulkIds.size)}')
+  })
+
+  it('does not change the checkbox row geometry R857 fixed', () => {
+    expect(jobsSrc).toMatch(/tab === 'tracked' && bulkMode \? 'flex items-start gap-4' : ''/)
+  })
+})

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
+import { bulkUntrackLabel } from '@/lib/bulkUntrackLabel'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { PlanCard, WorkspaceNav } from '@/components/WorkspaceNav'
 import { Button } from '@/components/ui/button'
@@ -1644,13 +1645,14 @@ export default function Jobs() {
             >
               {bulkMode ? 'Done selecting' : 'Select…'}
             </button>
-            {bulkMode && visibleBulkIds.size > 0 && (
+            {bulkMode && (
               <>
                 <span className="text-muted-foreground text-xs font-medium">
                   {visibleBulkIds.size} selected
                 </span>
                 <select
                   value=""
+                  disabled={visibleBulkIds.size === 0}
                   onChange={(e) => {
                     const status = e.target.value as JobStatus
                     if (!status) return
@@ -1658,7 +1660,7 @@ export default function Jobs() {
                     setBulkIds((prev) => new Set([...prev].filter((id) => !visibleBulkIds.has(id))))
                   }}
                   aria-label="Move selected jobs to a status"
-                  className="border-input bg-background min-h-10 rounded-md border px-1.5 text-xs sm:min-h-8"
+                  className="border-input bg-background min-h-10 rounded-md border px-1.5 text-xs disabled:opacity-50 sm:min-h-8"
                 >
                   <option value="" disabled>
                     Move to…
@@ -1673,15 +1675,17 @@ export default function Jobs() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  disabled={visibleBulkIds.size === 0}
                   className="text-destructive min-h-10 sm:min-h-8"
                   onClick={() => setConfirmBulkUntrack(true)}
                 >
-                  Untrack {visibleBulkIds.size}
+                  {bulkUntrackLabel(visibleBulkIds.size)}
                 </Button>
                 <button
                   type="button"
+                  disabled={visibleBulkIds.size === 0}
                   onClick={() => setBulkIds(new Set())}
-                  className="text-muted-foreground hover:text-foreground min-h-10 text-xs underline-offset-2 hover:underline sm:min-h-8"
+                  className="text-muted-foreground hover:text-foreground min-h-10 text-xs underline-offset-2 hover:underline disabled:opacity-50 disabled:hover:no-underline sm:min-h-8"
                 >
                   Clear
                 </button>
