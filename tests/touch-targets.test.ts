@@ -188,7 +188,7 @@ describe('R839: /samples card title button keeps its 40px hit area at every widt
   )
   const titleButton = () => {
     const m = dashboardSrc.match(
-      /<button\s+type="button"\s+onClick=\{\(\) => setPreviewExample\(e\)\}\s+className="([^"]*\btruncate\b[^"]*)"\s*>\s*\{e\.role\}/,
+      /<button\s+type="button"\s+data-sample-title\s+aria-label=\{`Preview \$\{e\.role\} sample`\}\s+onClick=\{\(\) => setPreviewExample\(e\)\}\s+className="([^"]*\btruncate\b[^"]*)"\s*>\s*\{e\.role\}/,
     )
     if (!m) throw new Error('sample card title button not found')
     return m[1]

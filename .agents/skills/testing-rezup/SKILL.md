@@ -1763,11 +1763,33 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - The R838-style scrolled axe audit reports "partially obscured" `target-size` findings for any
   control that happens to sit under the sticky header at a 400 px scroll step; only "insufficient
   size (…px by Npx)" without "obscured" is a real finding.
-- The sample thumbnail's AX name is `Preview <role> sample Resume preview` (sr-only span + the
-  Thumb's own label) — pre-existing, not a regression oracle.
+- Until R840 the sample thumbnail's AX name was `Preview <role> sample Resume preview` (sr-only
+  span + the Thumb's own label); since R841 the thumbnail is `aria-hidden` + `tabindex=-1` and the
+  title button carries `Preview <role> sample` — see the R841 notes.
 - CDP-emulated viewports may drop synthetic pointer hover on screenshot / window activation; if
   `:hover` / `textDecorationLine` reset after capture, move the native OS pointer over the title
   and capture again — never fake hover with forced pseudo-states.
 - "Use this example" consumes its `?example=<slug>` query after loading the Builder: assert the
   navigation event + the loaded sample data, not the query in `page.url()`; restore the resume
   storage byte for byte afterwards.
+
+## R841 QA notes (/samples card = one preview control, contextual names)
+
+- Per card the keyboard order is Star → title (`Preview <role> sample`) → Use link
+  (`Use this example: <role>`) → next card: 27 stops for nine cards. The thumbnail `<button>` is
+  `aria-hidden` + `tabindex=-1`: in a raw `Accessibility.getFullAXTree` dump it survives as an
+  `ignored:true` record with `ariaHiddenElement` — the oracle is zero **exposed** thumbnail
+  controls (map `backendDOMNodeId`s), not literal absence from the dump.
+- State the Tab-count convention: 33 Tab events from an already-focused `Saved (0)` chip to the
+  ninth Use link, 34 when the first Tab enters the chip row from the search box. Record every
+  focused control (and the reverse walk) instead of inferring the count from DOM length.
+- Thumbnail pointer click / trusted touch must still open the right preview **and** Escape / Close
+  must land focus on that card's visible title button (`button[data-sample-title]`), never on the
+  hidden thumbnail; probe several points on the thumbnail and check `document.activeElement`.
+- Run axe with the WCAG 2.2 tags explicitly (`target-size` is not in the default set) and enable
+  `label-content-name-mismatch` for the contextual labels; keep incompletes apart from violations
+  (at 375 / y400 axe asks whether the Star's neighbour is a target — incomplete, not a finding).
+- Wait for the dialog's opening animation to settle (opacity 1, no running animations) before a
+  screenshot; early captures show a translucent dialog while the behaviour is already correct.
+- Enable CSP bypass **before** navigation (then reload) or axe injection is blocked; retain the
+  blocked-injection console error as a harness error, not an application one.
