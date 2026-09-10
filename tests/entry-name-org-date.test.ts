@@ -7,31 +7,58 @@ const builderSrc = readFileSync(
   'utf8',
 )
 
-/** The `<Input …/>` tag carrying `aria-label="<label>"` (first occurrence). */
-const inputTag = (label: string): string => {
-  const at = builderSrc.indexOf(`aria-label="${label}"`)
-  expect(at, label).toBeGreaterThan(-1)
+/** Position of the `<Label htmlFor={`<field>`}>` that names the control `field` (R835). */
+const labelAt = (field: string): number => {
+  const at = builderSrc.indexOf(`<Label htmlFor={\`${field}\`}>`)
+  expect(at, field).toBeGreaterThan(-1)
+  return at
+}
+
+/** The `<Input …/>` tag with `id={`<field>`}`. */
+const inputTag = (field: string): string => {
+  const at = builderSrc.indexOf(`id={\`${field}\`}`, labelAt(field))
+  expect(at, field).toBeGreaterThan(-1)
   const open = builderSrc.lastIndexOf('<Input', at)
   const close = builderSrc.indexOf('/>', at)
   return builderSrc.slice(open, close)
 }
 
-/** The opening tag of the grid that directly wraps the input labelled `label`. */
-const wrappingGridTag = (label: string): string => {
-  const at = builderSrc.indexOf(`aria-label="${label}"`)
+/** The opening tag of the labelled wrapper `<div>` around `field` (label + input). */
+const wrapperTag = (field: string): string => {
+  const at = labelAt(field)
   const open = builderSrc.lastIndexOf('<div className=', at)
   return builderSrc.slice(open, builderSrc.indexOf('>', open) + 1)
 }
 
-const ENTRIES: [name: string, org: string][] = [
-  ['Course name', 'Where (school or platform)'],
-  ['Award name', 'Awarded by'],
-  ['Publication title', 'Journal or conference'],
-  ['Certificate name', 'Issuer'],
+/** The opening tag of the grid that directly holds the wrapper around `field`. */
+const wrappingGridTag = (field: string): string => {
+  const wrapOpen = builderSrc.lastIndexOf('<div className=', labelAt(field))
+  // Walk back over the wrapper's closed siblings until one more <div opens than closes.
+  let depth = 0
+  let pos = wrapOpen
+  for (;;) {
+    const open = builderSrc.lastIndexOf('<div', pos - 1)
+    const close = builderSrc.lastIndexOf('</div>', pos - 1)
+    if (close > open) {
+      depth++
+      pos = close
+    } else {
+      if (depth === 0) return builderSrc.slice(open, builderSrc.indexOf('>', open) + 1)
+      depth--
+      pos = open
+    }
+  }
+}
+
+const ENTRIES: [name: string, org: string, when: string][] = [
+  ['cw-${cw.id}-name', 'cw-${cw.id}-institution', 'cw-${cw.id}-date'],
+  ['award-${a.id}-name', 'award-${a.id}-organization', 'award-${a.id}-date'],
+  ['pub-${pub.id}-title', 'pub-${pub.id}-venue', 'pub-${pub.id}-date'],
+  ['cert-${c.id}-name', 'cert-${c.id}-issuer', 'cert-${c.id}-date'],
 ]
 
 describe('R816: one-line structured entries never clip the organisation field', () => {
-  it('the organisation input is a direct child of the entry grid, not of a nested [1fr_5rem] row', () => {
+  it('the organisation field is a direct child of the entry grid, not of a nested [1fr_5rem] row', () => {
     for (const [name, org] of ENTRIES) {
       const grid = wrappingGridTag(org)
       expect(grid, org).toBe('<div className={ENTRY_NAME_ORG_DATE}>')
@@ -52,14 +79,13 @@ describe('R816: one-line structured entries never clip the organisation field', 
   it('the name takes the full row from `sm` up and the date box is compact at every width', () => {
     expect(builderSrc).toMatch(/const ENTRY_NAME_FIELD = 'sm:col-span-2'/)
     expect(builderSrc).toMatch(/const ENTRY_DATE_FIELD = 'w-32 sm:w-24'/)
-    for (const [name, org] of ENTRIES) {
-      expect(inputTag(name), name).toMatch(/className=\{ENTRY_NAME_FIELD\}/)
+    for (const [name, org, when] of ENTRIES) {
+      expect(wrapperTag(name), name).toBe('<div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>')
+      expect(wrapperTag(org), org).toBe('<div className="space-y-1.5">')
       expect(inputTag(org), org).not.toMatch(/className=/)
-      const whenAt = builderSrc.indexOf('aria-label="When"', builderSrc.indexOf(`aria-label="${org}"`))
-      const when = builderSrc.slice(builderSrc.lastIndexOf('<Input', whenAt), builderSrc.indexOf('/>', whenAt))
-      expect(when, `${org} → When`).toMatch(/className=\{ENTRY_DATE_FIELD\}/)
+      expect(inputTag(when), when).toMatch(/className=\{ENTRY_DATE_FIELD\}/)
     }
     // Publication type sits under the venue row and also spans the row
-    expect(inputTag('Publication type')).toMatch(/className=\{ENTRY_NAME_FIELD\}/)
+    expect(wrapperTag('pub-${pub.id}-kind')).toBe('<div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>')
   })
 })

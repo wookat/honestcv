@@ -600,6 +600,7 @@ const ENTRY_TEXT_ROW =
 const ENTRY_NAME_ORG_DATE = 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]'
 const ENTRY_NAME_FIELD = 'sm:col-span-2'
 const ENTRY_DATE_FIELD = 'w-32 sm:w-24'
+const ENTRY_DATE_WRAP = 'space-y-1.5 sm:self-end'
 
 // Dated entry field grid is a size container: below 32rem (editor beside the
 // preview at 1024–1215px) the place field and the date pair each take a full row.
@@ -5496,188 +5497,204 @@ export default function Builder() {
                   </p>
                 )}
                 <div className={ENTRY_NAME_ORG_DATE}>
+                  <div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>
+                    <Label htmlFor={`cw-${cw.id}-name`}>Course name</Label>
+                    <Input
+                      id={`cw-${cw.id}-name`}
+                      placeholder="Course name (e.g. Intro to Computer Systems)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={cw.name}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, name: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`cw-${cw.id}-institution`}>
+                      Where did you take it? (school or platform)
+                    </Label>
+                    <Input
+                      id={`cw-${cw.id}-institution`}
+                      placeholder="School or platform"
+                      onKeyDown={markShortcutKeyDown}
+                      value={cw.institution}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, institution: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={ENTRY_DATE_WRAP}>
+                    <Label htmlFor={`cw-${cw.id}-date`}>When?</Label>
+                    <Input
+                      id={`cw-${cw.id}-date`}
+                      className={ENTRY_DATE_FIELD}
+                      placeholder="2024"
+                      value={cw.date}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, date: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`cw-${cw.id}-skill`}>Skills you used (optional, up to 3)</Label>
                   <Input
-                    aria-label="Course name"
-                    className={ENTRY_NAME_FIELD}
-                    placeholder="Course name (e.g. Intro to Computer Systems)"
+                    id={`cw-${cw.id}-skill`}
+                    placeholder="e.g. Teamwork, SQL"
                     onKeyDown={markShortcutKeyDown}
-                    value={cw.name}
+                    value={cw.skill}
                     onChange={(ev) =>
                       setResume((r) => ({
                         ...r,
                         coursework: (r.coursework ?? []).map((x) =>
-                          x.id === cw.id ? { ...x, name: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Where (school or platform)"
-                    placeholder="Where (school or platform)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={cw.institution}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        coursework: (r.coursework ?? []).map((x) =>
-                          x.id === cw.id ? { ...x, institution: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="When"
-                    className={ENTRY_DATE_FIELD}
-                    placeholder="When"
-                    value={cw.date}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        coursework: (r.coursework ?? []).map((x) =>
-                          x.id === cw.id ? { ...x, date: ev.target.value } : x
+                          x.id === cw.id ? { ...x, skill: ev.target.value } : x
                         ),
                       }))
                     }
                   />
                 </div>
-                <Input
-                  aria-label="Skills used (optional)"
-                  placeholder="Skills used (optional, up to 3 — e.g. Teamwork, SQL)"
-                  onKeyDown={markShortcutKeyDown}
-                  value={cw.skill}
-                  onChange={(ev) =>
-                    setResume((r) => ({
-                      ...r,
-                      coursework: (r.coursework ?? []).map((x) =>
-                        x.id === cw.id ? { ...x, skill: ev.target.value } : x
-                      ),
-                    }))
-                  }
-                />
                 {cw.skill.split(',').filter((s) => s.trim()).length > 3 && (
                   <p className="text-muted-foreground text-xs">
                     Only the first 3 skills appear on the resume.
                   </p>
                 )}
-                <div className={ENTRY_TEXT_ROW}>
-                  <Textarea
-                    aria-label="How you applied it"
-                    rows={2}
-                    placeholder="How you applied it — one bullet per line"
-                    onKeyDown={markShortcutKeyDown}
-                    value={cw.description}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        coursework: (r.coursework ?? []).map((x) =>
-                          x.id === cw.id ? { ...x, description: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    disabled={cwIdx === 0}
-                    id={moveId('coursework', cwIdx, 'up')}
-                    title="Move up"
-                    aria-label={`Move coursework ${cwIdx + 1} up`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        coursework: moveItem(r.coursework ?? [], cwIdx, -1),
-                      }))
-                      movedEntry('coursework', 'Coursework', cwIdx, -1, (resume.coursework ?? []).length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    disabled={cwIdx === (resume.coursework ?? []).length - 1}
-                    id={moveId('coursework', cwIdx, 'down')}
-                    title="Move down"
-                    aria-label={`Move coursework ${cwIdx + 1} down`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        coursework: moveItem(r.coursework ?? [], cwIdx, 1),
-                      }))
-                      movedEntry('coursework', 'Coursework', cwIdx, 1, (resume.coursework ?? []).length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    title={cw.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                    aria-pressed={cw.hidden === true}
-                    aria-label={`${cw.hidden ? 'Show' : 'Hide'} coursework ${cwIdx + 1} ${cw.hidden ? 'on' : 'from'} resume`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        coursework: (r.coursework ?? []).map((x) =>
-                          x.id === cw.id ? { ...x, hidden: !x.hidden } : x
-                        ),
-                      }))
-                    }
-                  >
-                    {cw.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    title="Save coursework to library — reuse it in other resume copies"
-                    aria-label={`Save coursework ${cwIdx + 1} to library`}
-                    disabled={
-                      !cw.name.trim() && !cw.institution.trim() && !cw.description.trim()
-                    }
-                    onClick={() => {
-                      const next = saveCourseworkToLibrary(cw)
-                      if (next === null) {
-                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                        return
+                <div className="space-y-1.5">
+                  <Label htmlFor={`cw-${cw.id}-description`}>How did you apply it?</Label>
+                  <div className={ENTRY_TEXT_ROW}>
+                    <Textarea
+                      id={`cw-${cw.id}-description`}
+                      rows={2}
+                      placeholder="How you applied it — one bullet per line"
+                      onKeyDown={markShortcutKeyDown}
+                      value={cw.description}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
                       }
-                      setCwLibrary(next)
-                      setCwLibrarySavedId(cw.id)
-                      window.setTimeout(
-                        () => setCwLibrarySavedId((v) => (v === cw.id ? null : v)),
-                        1600
-                      )
-                    }}
-                  >
-                    {cwLibrarySavedId === cw.id ? (
-                      <Check className="size-3.5 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" />
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    title="Delete coursework"
-                    aria-label="Delete coursework"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        coursework: (r.coursework ?? []).filter((x) => x.id !== cw.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={cwIdx === 0}
+                      id={moveId('coursework', cwIdx, 'up')}
+                      title="Move up"
+                      aria-label={`Move coursework ${cwIdx + 1} up`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          coursework: moveItem(r.coursework ?? [], cwIdx, -1),
+                        }))
+                        movedEntry('coursework', 'Coursework', cwIdx, -1, (resume.coursework ?? []).length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={cwIdx === (resume.coursework ?? []).length - 1}
+                      id={moveId('coursework', cwIdx, 'down')}
+                      title="Move down"
+                      aria-label={`Move coursework ${cwIdx + 1} down`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          coursework: moveItem(r.coursework ?? [], cwIdx, 1),
+                        }))
+                        movedEntry('coursework', 'Coursework', cwIdx, 1, (resume.coursework ?? []).length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title={cw.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={cw.hidden === true}
+                      aria-label={`${cw.hidden ? 'Show' : 'Hide'} coursework ${cwIdx + 1} ${cw.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {cw.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Save coursework to library — reuse it in other resume copies"
+                      aria-label={`Save coursework ${cwIdx + 1} to library`}
+                      disabled={
+                        !cw.name.trim() && !cw.institution.trim() && !cw.description.trim()
+                      }
+                      onClick={() => {
+                        const next = saveCourseworkToLibrary(cw)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setCwLibrary(next)
+                        setCwLibrarySavedId(cw.id)
+                        window.setTimeout(
+                          () => setCwLibrarySavedId((v) => (v === cw.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {cwLibrarySavedId === cw.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Delete coursework"
+                      aria-label="Delete coursework"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).filter((x) => x.id !== cw.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -5783,169 +5800,180 @@ export default function Builder() {
                   </p>
                 )}
                 <div className={ENTRY_NAME_ORG_DATE}>
-                  <Input
-                    aria-label="Award name"
-                    className={ENTRY_NAME_FIELD}
-                    placeholder="Award name (e.g. Dean's List)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={a.name}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        awards: (r.awards ?? []).map((x) =>
-                          x.id === a.id ? { ...x, name: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Awarded by"
-                    placeholder="Awarded by (organization)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={a.organization}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        awards: (r.awards ?? []).map((x) =>
-                          x.id === a.id ? { ...x, organization: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="When"
-                    className={ENTRY_DATE_FIELD}
-                    placeholder="When"
-                    value={a.date}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        awards: (r.awards ?? []).map((x) =>
-                          x.id === a.id ? { ...x, date: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                </div>
-                <div className={ENTRY_TEXT_ROW}>
-                  <Textarea
-                    aria-label="Why it's relevant"
-                    rows={2}
-                    placeholder="Why it's relevant — one bullet per line"
-                    onKeyDown={markShortcutKeyDown}
-                    value={a.description}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        awards: (r.awards ?? []).map((x) =>
-                          x.id === a.id ? { ...x, description: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    disabled={aIdx === 0}
-                    id={moveId('awards', aIdx, 'up')}
-                    title="Move up"
-                    aria-label={`Move award ${aIdx + 1} up`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        awards: moveItem(r.awards ?? [], aIdx, -1),
-                      }))
-                      movedEntry('awards', 'Award', aIdx, -1, (resume.awards ?? []).length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    disabled={aIdx === (resume.awards ?? []).length - 1}
-                    id={moveId('awards', aIdx, 'down')}
-                    title="Move down"
-                    aria-label={`Move award ${aIdx + 1} down`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        awards: moveItem(r.awards ?? [], aIdx, 1),
-                      }))
-                      movedEntry('awards', 'Award', aIdx, 1, (resume.awards ?? []).length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                    aria-pressed={a.hidden === true}
-                    aria-label={`${a.hidden ? 'Show' : 'Hide'} award ${aIdx + 1} ${a.hidden ? 'on' : 'from'} resume`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        awards: (r.awards ?? []).map((x) =>
-                          x.id === a.id ? { ...x, hidden: !x.hidden } : x
-                        ),
-                      }))
-                    }
-                  >
-                    {a.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    title="Save award to library — reuse it in other resume copies"
-                    aria-label={`Save award ${aIdx + 1} to library`}
-                    disabled={
-                      !a.name.trim() && !a.organization.trim() && !a.description.trim()
-                    }
-                    onClick={() => {
-                      const next = saveAwardToLibrary(a)
-                      if (next === null) {
-                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                        return
+                  <div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>
+                    <Label htmlFor={`award-${a.id}-name`}>Award name</Label>
+                    <Input
+                      id={`award-${a.id}-name`}
+                      placeholder="Award name (e.g. Dean's List)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={a.name}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, name: ev.target.value } : x
+                          ),
+                        }))
                       }
-                      setAwardLibrary(next)
-                      setAwardLibrarySavedId(a.id)
-                      window.setTimeout(
-                        () => setAwardLibrarySavedId((v) => (v === a.id ? null : v)),
-                        1600
-                      )
-                    }}
-                  >
-                    {awardLibrarySavedId === a.id ? (
-                      <Check className="size-3.5 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" />
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    title="Delete award"
-                    aria-label="Delete award"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        awards: (r.awards ?? []).filter((x) => x.id !== a.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`award-${a.id}-organization`}>Who awarded it?</Label>
+                    <Input
+                      id={`award-${a.id}-organization`}
+                      placeholder="Organization"
+                      onKeyDown={markShortcutKeyDown}
+                      value={a.organization}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, organization: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={ENTRY_DATE_WRAP}>
+                    <Label htmlFor={`award-${a.id}-date`}>When?</Label>
+                    <Input
+                      id={`award-${a.id}-date`}
+                      className={ENTRY_DATE_FIELD}
+                      placeholder="2024"
+                      value={a.date}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, date: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`award-${a.id}-description`}>Why is it relevant?</Label>
+                  <div className={ENTRY_TEXT_ROW}>
+                    <Textarea
+                      id={`award-${a.id}-description`}
+                      rows={2}
+                      placeholder="Why it's relevant — one bullet per line"
+                      onKeyDown={markShortcutKeyDown}
+                      value={a.description}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={aIdx === 0}
+                      id={moveId('awards', aIdx, 'up')}
+                      title="Move up"
+                      aria-label={`Move award ${aIdx + 1} up`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          awards: moveItem(r.awards ?? [], aIdx, -1),
+                        }))
+                        movedEntry('awards', 'Award', aIdx, -1, (resume.awards ?? []).length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={aIdx === (resume.awards ?? []).length - 1}
+                      id={moveId('awards', aIdx, 'down')}
+                      title="Move down"
+                      aria-label={`Move award ${aIdx + 1} down`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          awards: moveItem(r.awards ?? [], aIdx, 1),
+                        }))
+                        movedEntry('awards', 'Award', aIdx, 1, (resume.awards ?? []).length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={a.hidden === true}
+                      aria-label={`${a.hidden ? 'Show' : 'Hide'} award ${aIdx + 1} ${a.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {a.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Save award to library — reuse it in other resume copies"
+                      aria-label={`Save award ${aIdx + 1} to library`}
+                      disabled={
+                        !a.name.trim() && !a.organization.trim() && !a.description.trim()
+                      }
+                      onClick={() => {
+                        const next = saveAwardToLibrary(a)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setAwardLibrary(next)
+                        setAwardLibrarySavedId(a.id)
+                        window.setTimeout(
+                          () => setAwardLibrarySavedId((v) => (v === a.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {awardLibrarySavedId === a.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Delete award"
+                      aria-label="Delete award"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).filter((x) => x.id !== a.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -6062,188 +6090,203 @@ export default function Builder() {
                   </p>
                 )}
                 <div className={ENTRY_NAME_ORG_DATE}>
-                  <Input
-                    aria-label="Publication title"
-                    className={ENTRY_NAME_FIELD}
-                    placeholder="Publication title"
-                    onKeyDown={markShortcutKeyDown}
-                    value={pub.title}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).map((x) =>
-                          x.id === pub.id ? { ...x, title: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Journal or conference"
-                    placeholder="Journal / conference"
-                    onKeyDown={markShortcutKeyDown}
-                    value={pub.venue}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).map((x) =>
-                          x.id === pub.id ? { ...x, venue: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="When"
-                    className={ENTRY_DATE_FIELD}
-                    placeholder="When"
-                    value={pub.date}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).map((x) =>
-                          x.id === pub.id ? { ...x, date: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Publication type"
-                    className={ENTRY_NAME_FIELD}
-                    placeholder="Type — e.g. Journal Article"
-                    onKeyDown={markShortcutKeyDown}
-                    list="publication-kinds"
-                    value={pub.kind ?? ''}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).map((x) =>
-                          x.id === pub.id ? { ...x, kind: ev.target.value || undefined } : x
-                        ),
-                      }))
-                    }
-                  />
-                </div>
-                <div className={ENTRY_TEXT_ROW}>
-                  <Textarea
-                    aria-label="Additional information"
-                    rows={2}
-                    placeholder="Additional information — one bullet per line"
-                    onKeyDown={markShortcutKeyDown}
-                    value={pub.description}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).map((x) =>
-                          x.id === pub.id ? { ...x, description: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    disabled={pubIdx === 0}
-                    id={moveId('publications', pubIdx, 'up')}
-                    title="Move up"
-                    aria-label={`Move publication ${pubIdx + 1} up`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        publications: moveItem(r.publications ?? [], pubIdx, -1),
-                      }))
-                      movedEntry('publications', 'Publication', pubIdx, -1, (resume.publications ?? []).length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    disabled={pubIdx === (resume.publications ?? []).length - 1}
-                    id={moveId('publications', pubIdx, 'down')}
-                    title="Move down"
-                    aria-label={`Move publication ${pubIdx + 1} down`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        publications: moveItem(r.publications ?? [], pubIdx, 1),
-                      }))
-                      movedEntry('publications', 'Publication', pubIdx, 1, (resume.publications ?? []).length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    title={pub.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                    aria-pressed={pub.hidden === true}
-                    aria-label={`${pub.hidden ? 'Show' : 'Hide'} publication ${pubIdx + 1} ${pub.hidden ? 'on' : 'from'} resume`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).map((x) =>
-                          x.id === pub.id ? { ...x, hidden: !x.hidden } : x
-                        ),
-                      }))
-                    }
-                  >
-                    {pub.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    title="Save publication to library — reuse it in other resume copies"
-                    aria-label={`Save publication ${pubIdx + 1} to library`}
-                    disabled={
-                      !pub.title.trim() &&
-                      !pub.venue.trim() &&
-                      !(pub.kind ?? '').trim() &&
-                      !pub.description.trim()
-                    }
-                    onClick={() => {
-                      const next = savePublicationToLibrary(pub)
-                      if (next === null) {
-                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                        return
+                  <div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>
+                    <Label htmlFor={`pub-${pub.id}-title`}>Publication title</Label>
+                    <Input
+                      id={`pub-${pub.id}-title`}
+                      placeholder="Publication title"
+                      onKeyDown={markShortcutKeyDown}
+                      value={pub.title}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, title: ev.target.value } : x
+                          ),
+                        }))
                       }
-                      setPubLibrary(next)
-                      setPubLibrarySavedId(pub.id)
-                      window.setTimeout(
-                        () => setPubLibrarySavedId((v) => (v === pub.id ? null : v)),
-                        1600
-                      )
-                    }}
-                  >
-                    {pubLibrarySavedId === pub.id ? (
-                      <Check className="size-3.5 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" />
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                    title="Delete publication"
-                    aria-label="Delete publication"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).filter((x) => x.id !== pub.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`pub-${pub.id}-venue`}>
+                      Where was it published? (journal or conference)
+                    </Label>
+                    <Input
+                      id={`pub-${pub.id}-venue`}
+                      placeholder="Journal / conference"
+                      onKeyDown={markShortcutKeyDown}
+                      value={pub.venue}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, venue: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={ENTRY_DATE_WRAP}>
+                    <Label htmlFor={`pub-${pub.id}-date`}>When?</Label>
+                    <Input
+                      id={`pub-${pub.id}-date`}
+                      className={ENTRY_DATE_FIELD}
+                      placeholder="2024"
+                      value={pub.date}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, date: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>
+                    <Label htmlFor={`pub-${pub.id}-kind`}>Publication type (optional)</Label>
+                    <Input
+                      id={`pub-${pub.id}-kind`}
+                      placeholder="e.g. Journal Article"
+                      onKeyDown={markShortcutKeyDown}
+                      list="publication-kinds"
+                      value={pub.kind ?? ''}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, kind: ev.target.value || undefined } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`pub-${pub.id}-description`}>Additional information (optional)</Label>
+                  <div className={ENTRY_TEXT_ROW}>
+                    <Textarea
+                      id={`pub-${pub.id}-description`}
+                      rows={2}
+                      placeholder="Additional information — one bullet per line"
+                      onKeyDown={markShortcutKeyDown}
+                      value={pub.description}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={pubIdx === 0}
+                      id={moveId('publications', pubIdx, 'up')}
+                      title="Move up"
+                      aria-label={`Move publication ${pubIdx + 1} up`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          publications: moveItem(r.publications ?? [], pubIdx, -1),
+                        }))
+                        movedEntry('publications', 'Publication', pubIdx, -1, (resume.publications ?? []).length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={pubIdx === (resume.publications ?? []).length - 1}
+                      id={moveId('publications', pubIdx, 'down')}
+                      title="Move down"
+                      aria-label={`Move publication ${pubIdx + 1} down`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          publications: moveItem(r.publications ?? [], pubIdx, 1),
+                        }))
+                        movedEntry('publications', 'Publication', pubIdx, 1, (resume.publications ?? []).length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title={pub.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={pub.hidden === true}
+                      aria-label={`${pub.hidden ? 'Show' : 'Hide'} publication ${pubIdx + 1} ${pub.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {pub.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Save publication to library — reuse it in other resume copies"
+                      aria-label={`Save publication ${pubIdx + 1} to library`}
+                      disabled={
+                        !pub.title.trim() &&
+                        !pub.venue.trim() &&
+                        !(pub.kind ?? '').trim() &&
+                        !pub.description.trim()
+                      }
+                      onClick={() => {
+                        const next = savePublicationToLibrary(pub)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setPubLibrary(next)
+                        setPubLibrarySavedId(pub.id)
+                        window.setTimeout(
+                          () => setPubLibrarySavedId((v) => (v === pub.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {pubLibrarySavedId === pub.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Delete publication"
+                      aria-label="Delete publication"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).filter((x) => x.id !== pub.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -7284,167 +7327,178 @@ export default function Builder() {
                     </p>
                   )}
                   <div className={ENTRY_NAME_ORG_DATE}>
-                    <Input
-                      aria-label="Certificate name"
-                      className={ENTRY_NAME_FIELD}
-                      placeholder="Certificate name (AWS Solutions Architect)"
-                      onKeyDown={markShortcutKeyDown}
-                      value={c.name}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          certItems: (r.certItems ?? []).map((x) =>
-                            x.id === c.id ? { ...x, name: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <Input
-                      aria-label="Issuer"
-                      placeholder="Issuer (Amazon Web Services)"
-                      onKeyDown={markShortcutKeyDown}
-                      value={c.issuer}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          certItems: (r.certItems ?? []).map((x) =>
-                            x.id === c.id ? { ...x, issuer: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <Input
-                      aria-label="When"
-                      className={ENTRY_DATE_FIELD}
-                      placeholder="2024"
-                      value={c.date}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          certItems: (r.certItems ?? []).map((x) =>
-                            x.id === c.id ? { ...x, date: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={ENTRY_TEXT_ROW}>
-                    <Textarea
-                      aria-label="How it's relevant (optional)"
-                      rows={2}
-                      placeholder="How it's relevant (optional)"
-                      onKeyDown={markShortcutKeyDown}
-                      value={c.description}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          certItems: (r.certItems ?? []).map((x) =>
-                            x.id === c.id ? { ...x, description: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                      disabled={cIdx === 0}
-                      id={moveId('certItems', cIdx, 'up')}
-                      title="Move up"
-                      aria-label={`Move certification ${cIdx + 1} up`}
-                      onClick={() => {
-                        setResume((r) => ({
-                          ...r,
-                          certItems: moveItem(r.certItems ?? [], cIdx, -1),
-                        }))
-                        movedEntry('certItems', 'Certification', cIdx, -1, (resume.certItems ?? []).length)
-                      }}
-                    >
-                      <ArrowUp className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                      disabled={cIdx === (resume.certItems ?? []).length - 1}
-                      id={moveId('certItems', cIdx, 'down')}
-                      title="Move down"
-                      aria-label={`Move certification ${cIdx + 1} down`}
-                      onClick={() => {
-                        setResume((r) => ({
-                          ...r,
-                          certItems: moveItem(r.certItems ?? [], cIdx, 1),
-                        }))
-                        movedEntry('certItems', 'Certification', cIdx, 1, (resume.certItems ?? []).length)
-                      }}
-                    >
-                      <ArrowDown className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                      title={c.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                      aria-pressed={c.hidden === true}
-                      aria-label={`${c.hidden ? 'Show' : 'Hide'} certification ${cIdx + 1} ${c.hidden ? 'on' : 'from'} resume`}
-                      onClick={() =>
-                        setResume((r) => ({
-                          ...r,
-                          certItems: (r.certItems ?? []).map((x) =>
-                            x.id === c.id ? { ...x, hidden: !x.hidden } : x
-                          ),
-                        }))
-                      }
-                    >
-                      {c.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                      title="Save certification to library — reuse it in other resume copies"
-                      aria-label={`Save certification ${cIdx + 1} to library`}
-                      disabled={!c.name.trim() && !c.issuer.trim() && !c.description.trim()}
-                      onClick={() => {
-                        const next = saveCertToLibrary(c)
-                        if (next === null) {
-                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                          return
+                    <div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>
+                      <Label htmlFor={`cert-${c.id}-name`}>Certificate name</Label>
+                      <Input
+                        id={`cert-${c.id}-name`}
+                        placeholder="Certificate name (AWS Solutions Architect)"
+                        onKeyDown={markShortcutKeyDown}
+                        value={c.name}
+                        onChange={(ev) =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, name: ev.target.value } : x
+                            ),
+                          }))
                         }
-                        setCertLibrary(next)
-                        setCertLibrarySavedId(c.id)
-                        window.setTimeout(
-                          () => setCertLibrarySavedId((v) => (v === c.id ? null : v)),
-                          1600
-                        )
-                      }}
-                    >
-                      {certLibrarySavedId === c.id ? (
-                        <Check className="size-3.5 text-green-600" />
-                      ) : (
-                        <BookmarkPlus className="size-3.5" />
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
-                      title="Delete certification"
-                      aria-label="Delete certification"
-                      onClick={() =>
-                        setResume((r) => ({
-                          ...r,
-                          certItems: (r.certItems ?? []).filter((x) => x.id !== c.id),
-                        }))
-                      }
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`cert-${c.id}-issuer`}>Who issued it?</Label>
+                      <Input
+                        id={`cert-${c.id}-issuer`}
+                        placeholder="Issuer (Amazon Web Services)"
+                        onKeyDown={markShortcutKeyDown}
+                        value={c.issuer}
+                        onChange={(ev) =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, issuer: ev.target.value } : x
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className={ENTRY_DATE_WRAP}>
+                      <Label htmlFor={`cert-${c.id}-date`}>When?</Label>
+                      <Input
+                        id={`cert-${c.id}-date`}
+                        className={ENTRY_DATE_FIELD}
+                        placeholder="2024"
+                        value={c.date}
+                        onChange={(ev) =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, date: ev.target.value } : x
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`cert-${c.id}-description`}>How is it relevant? (optional)</Label>
+                    <div className={ENTRY_TEXT_ROW}>
+                      <Textarea
+                        id={`cert-${c.id}-description`}
+                        rows={2}
+                        placeholder="How it's relevant (optional)"
+                        onKeyDown={markShortcutKeyDown}
+                        value={c.description}
+                        onChange={(ev) =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, description: ev.target.value } : x
+                            ),
+                          }))
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                        disabled={cIdx === 0}
+                        id={moveId('certItems', cIdx, 'up')}
+                        title="Move up"
+                        aria-label={`Move certification ${cIdx + 1} up`}
+                        onClick={() => {
+                          setResume((r) => ({
+                            ...r,
+                            certItems: moveItem(r.certItems ?? [], cIdx, -1),
+                          }))
+                          movedEntry('certItems', 'Certification', cIdx, -1, (resume.certItems ?? []).length)
+                        }}
+                      >
+                        <ArrowUp className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                        disabled={cIdx === (resume.certItems ?? []).length - 1}
+                        id={moveId('certItems', cIdx, 'down')}
+                        title="Move down"
+                        aria-label={`Move certification ${cIdx + 1} down`}
+                        onClick={() => {
+                          setResume((r) => ({
+                            ...r,
+                            certItems: moveItem(r.certItems ?? [], cIdx, 1),
+                          }))
+                          movedEntry('certItems', 'Certification', cIdx, 1, (resume.certItems ?? []).length)
+                        }}
+                      >
+                        <ArrowDown className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                        title={c.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                        aria-pressed={c.hidden === true}
+                        aria-label={`${c.hidden ? 'Show' : 'Hide'} certification ${cIdx + 1} ${c.hidden ? 'on' : 'from'} resume`}
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, hidden: !x.hidden } : x
+                            ),
+                          }))
+                        }
+                      >
+                        {c.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                        title="Save certification to library — reuse it in other resume copies"
+                        aria-label={`Save certification ${cIdx + 1} to library`}
+                        disabled={!c.name.trim() && !c.issuer.trim() && !c.description.trim()}
+                        onClick={() => {
+                          const next = saveCertToLibrary(c)
+                          if (next === null) {
+                            setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                            return
+                          }
+                          setCertLibrary(next)
+                          setCertLibrarySavedId(c.id)
+                          window.setTimeout(
+                            () => setCertLibrarySavedId((v) => (v === c.id ? null : v)),
+                            1600
+                          )
+                        }}
+                      >
+                        {certLibrarySavedId === c.id ? (
+                          <Check className="size-3.5 text-green-600" />
+                        ) : (
+                          <BookmarkPlus className="size-3.5" />
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                        title="Delete certification"
+                        aria-label="Delete certification"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).filter((x) => x.id !== c.id),
+                          }))
+                        }
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
