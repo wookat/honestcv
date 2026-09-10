@@ -15,10 +15,11 @@
   below `sm`, and every neighbouring control (contact eyes `size-10`, calendar trigger `w-10`,
   library Pencil / Copy `w-10`) already has it — so this is the last 2 px of an internal
   inconsistency, not a new standard.
-- Row budget at 375 (usable card width 268 with a native scrollbar, 283 without): the two
-  seven-button header toolbars (Experience, Projects) are `7 × 38 + 6 × 4 = 290 − 24 = 266` px wide
-  and fit on one line with 2 px to spare; at 40 px they need `280` px → wrap to two rows and add
-  40 px to each card. Simulated on production before touching source (`r834-headers.cjs` A / B
+- Row budget at 375 (usable card width 268 with a native scrollbar, 283 without): the Experience
+  seven-button header toolbar is `7 × 38 + 6 × 4 = 290 − 24 = 266` px wide and fits on one line with
+  2 px to spare; at 40 px it needs `280` px → wraps to two rows and adds 40 px to each card. (The
+  Projects header row has six controls — its Delete sits in the body — 228 → 240 px, and fits either
+  way; it shares the header-row treatment for consistency.) Simulated on production before touching source (`r834-headers.cjs` A / B
   variants): letting the toolbar row use the card's 6 px inner gutter on each side (`-mx-1.5`,
   `basis calc(100% + 0.75rem)`) gives 280 px and keeps the single row at 375; at 360 the row was
   already two lines before and stays two lines (no extra height). `scrollWidth === clientWidth` at
@@ -31,10 +32,10 @@
   sm:h-9`, `-my-2 h-10 shrink-0 sm:h-7`, `min-h-10 shrink-0 sm:min-h-9`, each with and without
   `text-destructive`). Mobile box 40 × 40; above `sm` the min width resets so desktop stays 38 px
   wide and the icon geometry / spacing is byte-identical.
-- The two seven-button header rows (`ml-auto flex items-center max-sm:basis-full …`) gain
-  `max-sm:-mx-1.5 max-sm:basis-[calc(100%+0.75rem)]` — mobile-only, the row bleeds into the card's
-  6 px padding on both sides so seven 40 px buttons + six 4 px gaps (280 px) still fit the 268 px
-  content box on one line at 375. Nothing changes at ≥ sm.
+- The two card-header toolbar rows (Experience 7 controls, Projects 6; `ml-auto flex items-center
+  max-sm:basis-full …`) gain `max-sm:-mx-1.5 max-sm:basis-[calc(100%+0.75rem)]` — mobile-only, the
+  row bleeds into the card's 6 px padding on both sides so seven 40 px buttons + six 4 px gaps
+  (280 px) still fit the 268 px content box on one line at 375. Nothing changes at ≥ sm.
 - Rejected: changing `Button size="sm"` (`px-3`) globally — it would widen every compact text and
   icon button in dialogs, navigation, history, calendar and Skills chips; a per-button
   `w-10` (breaks the desktop 38 px reset and the `sm:h-7` rows' `px-3` text buttons share the
@@ -60,7 +61,7 @@
 
 | viewport | 7-button header row | entry toolbars | desktop |
 | -------- | ------------------- | -------------- | ------- |
-| 375      | 7 × **40 × 40**, 280 px, **1 line**, card 294 wide | all **40 × 40**, 1 line | — |
+| 375      | Experience 7 × **40 × 40**, 280 px, **1 line**; Projects 6 × 40 × 40, 240 px | all **40 × 40**, 1 line | — |
 | 360      | 7 × 40 × 40, 2 lines (was 2 lines) | all 40 × 40 | — |
 | 1024     | — | — | 38 × 28 / 38 × 36, rows 266 px, unchanged |
 | 1280     | — | — | 38 × 28 / 38 × 36, unchanged |
@@ -69,4 +70,23 @@
 
 ## Deploy + verification
 
-- See the R834 entry in `docs/handoff-context.md` (version, production asset SHAs, independent QA).
+- New account version `e3f06802`; production `index-aBydIJQo.js` / `Builder-X62q2_jb.js` /
+  `style-UoV0hIEW.css` SHA-identical to dist. Native re-measure on the deployed bundle
+  (`r834-headers.cjs` / `r834-rows.cjs`, no DOM surgery): 375 Experience row 7 × 40 × 40 on one line
+  (280 px), Education 2 + 5 rows 40 × 40 one line each, Involvement / Military / Coursework / Awards /
+  Publications / References toolbars 40 × 40; 1280 38 × 28 / 38 × 36, rows 266 px, unchanged;
+  `scrollWidth = clientWidth`; console 0.
+- Independent production QA (testing agent, `/home/ubuntu/qa/r834-qa/`): see the R834 entry in
+  `docs/handoff-context.md` and the PR.
+
+## Boundaries / found during QA
+
+- The R834 plan and the first QA brief said "two seven-button rows (Experience, Education)": the
+  second bleeding row is **Projects** and it has six header controls (Delete is in the body).
+  Corrected here and in the testing skill; the runtime and the source agree, nothing clipped.
+- Below `sm` the header-row wrapper starts 6 px left of the field column; the right-aligned buttons
+  end 6 px right of it (x 55–335 vs fields 46–329 on a scrollbar-free 375). Deliberate — it is the
+  card gutter being used, not overflow (`scrollWidth = clientWidth`).
+- At 360 the Experience row is two lines, as it was before R834.
+- Certification cards are `.rounded-md.border` (not `.rounded-lg.border`) — measurement scripts that
+  select by card class must include both.
