@@ -67,3 +67,116 @@ describe('R815: MonthYearField picker trigger', () => {
     expect(input).toMatch(/\bsm:pr-8\b/)
   })
 })
+
+/**
+ * Every `<Button …>…</Button>` in the Builder, read with a brace-aware scanner so tags whose
+ * handlers contain `=>` are not cut short (the R815 helper stops at the first `>`).
+ */
+const buttonElements = (): { tag: string; body: string; line: number }[] => {
+  const out: { tag: string; body: string; line: number }[] = []
+  let i = 0
+  while ((i = builderSrc.indexOf('<Button', i)) !== -1) {
+    if (!/[\s>]/.test(builderSrc[i + 7])) {
+      i += 7
+      continue
+    }
+    let j = i + 7
+    let depth = 0
+    let quote: string | null = null
+    for (; j < builderSrc.length; j++) {
+      const c = builderSrc[j]
+      if (quote) {
+        if (c === quote) quote = null
+        continue
+      }
+      if (c === '"' || c === "'" || c === '`') quote = c
+      else if (c === '{') depth++
+      else if (c === '}') depth--
+      else if (c === '>' && depth === 0) break
+    }
+    const selfClosing = builderSrc[j - 1] === '/'
+    const end = selfClosing ? j + 1 : builderSrc.indexOf('</Button>', j)
+    out.push({
+      tag: builderSrc.slice(i, j + 1),
+      body: selfClosing ? '' : builderSrc.slice(j + 1, end),
+      line: builderSrc.slice(0, i).split('\n').length,
+    })
+    i = end
+  }
+  return out
+}
+/** Children are one or more lucide icons (possibly behind a ternary) and no text at all. */
+const iconOnly = (body: string) => {
+  const b = body.trim()
+  if (!/<[A-Z]\w*\b/.test(b)) return false
+  const rest = b.replace(/<[A-Z]\w*\b[^>]*\/>/g, '')
+  if (/['"]/.test(rest)) return false
+  return /^[\s?:(){}]*$/.test(rest.replace(/\{[^{}?'"]*\?/g, '{'))
+}
+const className = (tag: string) => tag.match(/className="([^"]*)"/)?.[1] ?? ''
+/**
+ * The entry / section toolbars: icon-only `size="sm"` buttons that R815 gave a 40px mobile
+ * height and a 28px (`sm:h-7`) or 36px (`sm:h-9` / `sm:min-h-9`) desktop height. Header
+ * history buttons (`sm:min-h-8`), contact eyes (`size-10`) and the library Pencil / Copy
+ * (`w-10`) are sized elsewhere and are not part of this contract.
+ */
+const entryToolbarButtons = () =>
+  buttonElements().filter(
+    (b) =>
+      /size="sm"/.test(b.tag) &&
+      iconOnly(b.body) &&
+      /\b(min-)?h-10\b/.test(className(b.tag)) &&
+      /\bsm:(min-)?h-[79]\b/.test(className(b.tag)) &&
+      !/(^| )w-10( |$)/.test(className(b.tag)),
+  )
+
+describe('R834: entry toolbar buttons are 40px wide on touch widths', () => {
+  const toolbar = entryToolbarButtons()
+
+  it('finds the entry toolbars (move / duplicate / library / hide / delete / collapse)', () => {
+    expect(toolbar.length).toBeGreaterThanOrEqual(70)
+    const kinds = new Set(
+      toolbar.flatMap(
+        (b) =>
+          b.body.match(/<(ArrowUp|ArrowDown|Copy|Trash2|Eye|EyeOff|BookmarkPlus|ChevronDown)\b/g) ?? [],
+      ),
+    )
+    expect([...kinds].sort()).toEqual([
+      '<ArrowDown',
+      '<ArrowUp',
+      '<BookmarkPlus',
+      '<ChevronDown',
+      '<Copy',
+      '<Eye',
+      '<EyeOff',
+      '<Trash2',
+    ])
+  })
+
+  it('every toolbar button declares the 40px mobile width and resets it above sm', () => {
+    const offenders = toolbar
+      .filter((b) => !/\bmin-w-10\b/.test(className(b.tag)) || !/\bsm:min-w-0\b/.test(className(b.tag)))
+      .map((b) => `${b.line}: ${className(b.tag)}`)
+    expect(offenders).toEqual([])
+  })
+
+  it('does not widen the shared Button size="sm" (px-3, no min width)', () => {
+    const buttonSrc = readFileSync(
+      path.resolve(import.meta.dirname, '../src/components/ui/button.tsx'),
+      'utf8',
+    )
+    expect(buttonSrc).toMatch(/sm: 'h-8 rounded-md px-3 text-xs'/)
+    expect(buttonSrc).not.toMatch(/min-w-10/)
+  })
+
+  it('seven-button card headers widen their toolbar row by the 6px card gutter below sm', () => {
+    const rows = builderSrc.match(/className="ml-auto flex items-center max-sm:[^"]*"/g) ?? []
+    expect(rows.length).toBe(2)
+    for (const row of rows) {
+      expect(row).toContain('max-sm:-mx-1.5')
+      expect(row).toContain('max-sm:basis-[calc(100%+0.75rem)]')
+      expect(row).toContain('max-sm:flex-wrap')
+      expect(row).toContain('sm:shrink-0')
+    }
+  })
+})
