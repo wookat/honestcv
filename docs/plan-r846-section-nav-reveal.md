@@ -57,9 +57,13 @@
 - `src/lib/revealScroll.ts` → `revealScrollLeft(box, item, margin = 8)`: pure; returns the current
   `scrollLeft` when the item already shows, otherwise the position that brings it inside with an 8 px
   margin on the side it was hidden behind, clamped to `[0, scrollWidth − clientWidth]`.
-- `SectionNav`: `ref` on the overflow box; `useEffect([active])` measures the `aria-current` chip
-  against the box and calls `box.scrollTo({ left, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })`
-  only when the value changes. No DOM, class, height or observer change; `scrollIntoView` deliberately
+- `SectionNav`: `ref` on the overflow box; `revealChip(el)` measures a chip against the box and calls
+  `box.scrollTo({ left, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })` only when the value
+  changes; `useEffect([active])` reveals the `aria-current` chip, and (second pass, from the first QA
+  round) the box's `onFocus` reveals a chip `<button>` that takes keyboard focus — Chrome's own focus
+  scroll is partial, so Shift+Tab from the health-score button onto Custom at 1280 left it **30.25 px**
+  clipped behind the strip edge (`/home/ubuntu/qa/r846-qa/1280-keyboard-clipped-custom.png`), and
+  Contact at 375 mostly clipped. No DOM, class, height or observer change; `scrollIntoView` deliberately
   not used (it may scroll ancestors / the page).
 - Tests `tests/section-nav-reveal.test.ts` (+3 → **408**): production geometries through the helper
   (reveal right, reveal left, clamp at the strip end, no-overflow strip), source-level integration
@@ -70,7 +74,15 @@
 - Gates: vitest 408, `tsc -b`, eslint 0 errors / 11 pre-existing warnings, build, verify-dist 123.
 - Deployed **`bfdf80d3`** (new-account creds): production `index-Boo3IMxE.js` `a962f2e1…` /
   `Builder-CQHWRSXu.js` `8afc9b9d…` SHA-identical to dist, `/builder` preload names the new chunk,
-  health 200.
+  health 200. Second pass (focus reveal) deployed **`39d76a09`**: `index-BhMFYSjl.js` `a656ced4…` /
+  `Builder-CkUtg-3x.js` `6fc7628b…` SHA-identical to dist, compiled `onFocus` present in the served
+  chunk, health 200.
+- Independent QA round 1 (`bfdf80d3`, 375 / 1024 / 1280): active-chip containment passes at every page
+  position both directions (375 `scrollLeft` 0 → 51 → 119 → 171 → 228 and back to 0, nav 50 px, page
+  360 / 360); sub-pixel qualifications recorded as rounding, not defects — Custom misses exact full-rect
+  containment by 0.78 px at 1024 and 0.22 px at 1280, the upward Experience margin is 7.58 px not 8
+  (integer `scrollLeft` against fractional chip rects); axe 375 top 0, Skills 1 `target-size` node
+  pair marked `partiallyObscured` by the sticky nav (scroll-offset artefact, R843 class), 1280 0.
 - Native re-measure (`r846-verify.cjs`, 375 / 1024 / 1280): the current chip is fully inside the box at
   every page position (375: scrollLeft 0 → 51 → 171 → 228, back to Experience 135 with the chip at
   8–92; 1024: 0 → 101 → 158; 1280: Custom 30), page `scrollWidth` 360 / 1009 / 1265 unchanged, nav

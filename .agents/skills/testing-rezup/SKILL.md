@@ -1856,3 +1856,22 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - The German-heading LinkedIn fixtures under `/home/ubuntu/qa/r845-foreign/` are synthetic
   translated-heading proxies of real English exports — evidence for text retention through the
   generic fallback, not for real non-English LinkedIn exports.
+
+## R846 QA notes (sticky section nav reveals the active / focused chip)
+
+- Measure focused-chip rectangles independently from the `aria-current` rectangle — focus and the
+  current section legitimately differ. Reach the strip with trusted Tab / Shift+Tab (from the
+  health-report button's Escape return path) and settle ~1 s before calling a smooth reveal a miss.
+- Strip overflow depends on the health verdict's width: a high-score fixture can fit every chip at
+  desktop while a lower score overflows. Assert actual `scrollWidth > clientWidth` before a reveal test.
+- Native keyboard focus can scroll the *page* even though the nav is sticky (Chrome scrolls to the
+  element's static position). Record `window.scrollY` before the key, around the strip's `scrollTo`
+  and after settlement; the horizontal reveal itself preserves Y — attribute vertical motion to the
+  browser, not the reveal. Re-run a forward sweep after native focus has settled.
+- Keep fractional rectangles and integer `scrollLeft` values in the evidence; Chrome rounds
+  `scrollLeft`, so full containment can miss by < 1 px and the 8 px margin read 7.58 — use an agreed
+  ±1 px tolerance and check the screenshot for real text clipping.
+- Do not overload one assertion key (`focus` as text in one object, anchor id in another); use a
+  distinct `focusAnchor` from the focused element's closest section anchor.
+- Full-Builder axe at the top *and* at a sticky scroll position (Skills); record `partiallyObscured`
+  `target-size` findings with their node names separately — a top-only zero is not zero everywhere.
