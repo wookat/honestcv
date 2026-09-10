@@ -146,3 +146,57 @@ describe('R835: coursework / award / publication / certification cards label eve
     }
   })
 })
+
+// After R835 the production label audit still listed eight text controls with no
+// visible caption: the five reference fields and the education GPA / Minor / Details
+// boxes. A filled reference read "Priya Natarajan · Engineering Manager · Northstar
+// Digital · priya.natarajan@… · (555) …" with nothing saying which box is which.
+describe('R836: reference cards and the education GPA / Minor / Details boxes label every field visibly', () => {
+  it('each reference field has a visible <Label htmlFor> pointing at a control with that id', () => {
+    const fields = ['name', 'title', 'employer', 'email', 'phone']
+    expect([...labelledFields('ref')].sort()).toEqual([...fields].sort())
+    const ids = controlIds('ref')
+    for (const f of fields) expect(ids.has(f), `ref-${f} control id`).toBe(true)
+  })
+
+  it('the job-title / employer labels name the person once the user has typed the name', () => {
+    expect(builderSrc).toMatch(/`\$\{ref\.name\.trim\(\)\}'s job title` : 'Their job title'/)
+    expect(builderSrc).toMatch(/`Where does \$\{ref\.name\.trim\(\)\} work\?` : 'Where do they work\?'/)
+  })
+
+  it('education GPA / Minor / Details have visible labels with matching ids', () => {
+    const labels = labelledFields('edu')
+    const ids = controlIds('edu')
+    for (const f of ['gpa', 'minor', 'details']) {
+      expect(labels.has(f), `edu-${f} label`).toBe(true)
+      expect(ids.has(f), `edu-${f} control id`).toBe(true)
+    }
+  })
+
+  it('the details label sits above the whole input + toolbar row, not inside the flex row', () => {
+    const at = builderSrc.indexOf('<Label htmlFor={`edu-${e.id}-details`}>')
+    expect(at).toBeGreaterThan(-1)
+    const rowAt = builderSrc.indexOf(
+      '<div className="flex flex-wrap items-center justify-between gap-2">',
+      at,
+    )
+    const nextLabel = builderSrc.indexOf('<Label ', at + 1)
+    expect(rowAt).toBeGreaterThan(at)
+    expect(nextLabel === -1 || nextLabel > rowAt).toBe(true)
+  })
+
+  it('the placeholder-only aria-labels those controls used to carry are gone (label is the name)', () => {
+    for (const name of [
+      'Reference full name',
+      'Reference job title',
+      'Reference employer',
+      'Reference email',
+      'Reference phone',
+      'GPA (optional)',
+      'Minor (optional)',
+      'Education details (optional)',
+    ]) {
+      expect(builderSrc, name).not.toContain(`aria-label="${name}"`)
+    }
+  })
+})

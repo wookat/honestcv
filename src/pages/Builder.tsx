@@ -4316,139 +4316,150 @@ export default function Builder() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    aria-label="GPA (optional)"
-                    placeholder="GPA (3.8/4.0 — optional)"
-                    value={e.gpa ?? ''}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        education: r.education.map((x) =>
-                          x.id === e.id ? { ...x, gpa: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Minor (optional)"
-                    placeholder="Minor (Mathematics — optional)"
-                    value={e.minor ?? ''}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        education: r.education.map((x) =>
-                          x.id === e.id ? { ...x, minor: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Input
-                    aria-label="Education details (optional)"
-                    placeholder="Details (honors, thesis — optional)"
-                    className="min-w-0 flex-1 basis-full sm:basis-0"
-                    onKeyDown={markShortcutKeyDown}
-                    value={e.details}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        education: r.education.map((x) =>
-                          x.id === e.id ? { ...x, details: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
-                    disabled={idx === 0}
-                    id={moveId('education', idx, 'up')}
-                    title="Move up"
-                    onClick={() => {
-                      setResume((r) => ({ ...r, education: moveItem(r.education, idx, -1) }))
-                      movedEntry('education', 'Education', idx, -1, resume.education.length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
-                    disabled={idx === resume.education.length - 1}
-                    id={moveId('education', idx, 'down')}
-                    title="Move down"
-                    onClick={() => {
-                      setResume((r) => ({ ...r, education: moveItem(r.education, idx, 1) }))
-                      movedEntry('education', 'Education', idx, 1, resume.education.length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
-                    title="Duplicate education — handy for a second degree at the same school"
-                    aria-label={`Duplicate education ${idx + 1}`}
-                    onClick={() =>
-                      setResume((r) => {
-                        const i = r.education.findIndex((x) => x.id === e.id)
-                        const copy = { ...r.education[i], id: newId() }
-                        const education = [...r.education]
-                        education.splice(i + 1, 0, copy)
-                        return { ...r, education }
-                      })
-                    }
-                  >
-                    <Copy className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
-                    title="Save education to library — reuse it in other resume copies"
-                    aria-label={`Save education ${idx + 1} to library`}
-                    disabled={!e.school.trim() && !e.degree.trim() && !e.details.trim()}
-                    onClick={() => {
-                      const next = saveEducationToLibrary(e)
-                      if (next === null) {
-                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                        return
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-gpa`}>GPA (optional)</Label>
+                    <Input
+                      id={`edu-${e.id}-gpa`}
+                      placeholder="3.8/4.0"
+                      value={e.gpa ?? ''}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.map((x) =>
+                            x.id === e.id ? { ...x, gpa: ev.target.value } : x
+                          ),
+                        }))
                       }
-                      setEduLibrary(next)
-                      setEduLibrarySavedId(e.id)
-                      window.setTimeout(() => setEduLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
-                    }}
-                  >
-                    {eduLibrarySavedId === e.id ? (
-                      <Check className="size-3.5 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" />
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
-                    title="Delete education"
-                    aria-label={`Delete education ${idx + 1}`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        education: r.education.filter((x) => x.id !== e.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-minor`}>Minor (optional)</Label>
+                    <Input
+                      id={`edu-${e.id}-minor`}
+                      placeholder="Mathematics"
+                      value={e.minor ?? ''}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.map((x) =>
+                            x.id === e.id ? { ...x, minor: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`edu-${e.id}-details`}>
+                    Honors, thesis or other details (optional)
+                  </Label>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Input
+                      id={`edu-${e.id}-details`}
+                      placeholder="Dean's List, thesis title…"
+                      className="min-w-0 flex-1 basis-full sm:basis-0"
+                      onKeyDown={markShortcutKeyDown}
+                      value={e.details}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.map((x) =>
+                            x.id === e.id ? { ...x, details: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
+                      disabled={idx === 0}
+                      id={moveId('education', idx, 'up')}
+                      title="Move up"
+                      onClick={() => {
+                        setResume((r) => ({ ...r, education: moveItem(r.education, idx, -1) }))
+                        movedEntry('education', 'Education', idx, -1, resume.education.length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
+                      disabled={idx === resume.education.length - 1}
+                      id={moveId('education', idx, 'down')}
+                      title="Move down"
+                      onClick={() => {
+                        setResume((r) => ({ ...r, education: moveItem(r.education, idx, 1) }))
+                        movedEntry('education', 'Education', idx, 1, resume.education.length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
+                      title="Duplicate education — handy for a second degree at the same school"
+                      aria-label={`Duplicate education ${idx + 1}`}
+                      onClick={() =>
+                        setResume((r) => {
+                          const i = r.education.findIndex((x) => x.id === e.id)
+                          const copy = { ...r.education[i], id: newId() }
+                          const education = [...r.education]
+                          education.splice(i + 1, 0, copy)
+                          return { ...r, education }
+                        })
+                      }
+                    >
+                      <Copy className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
+                      title="Save education to library — reuse it in other resume copies"
+                      aria-label={`Save education ${idx + 1} to library`}
+                      disabled={!e.school.trim() && !e.degree.trim() && !e.details.trim()}
+                      onClick={() => {
+                        const next = saveEducationToLibrary(e)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setEduLibrary(next)
+                        setEduLibrarySavedId(e.id)
+                        window.setTimeout(() => setEduLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
+                      }}
+                    >
+                      {eduLibrarySavedId === e.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
+                      title="Delete education"
+                      aria-label={`Delete education ${idx + 1}`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.filter((x) => x.id !== e.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
                   </>
                 )}
@@ -6395,80 +6406,96 @@ export default function Builder() {
                   </p>
                 )}
                 <div className={ENTRY_FIELDS_GRID}>
-                  <Input
-                    className="col-span-full"
-                    aria-label="Reference full name"
-                    placeholder="Full name"
-                    onKeyDown={markShortcutKeyDown}
-                    value={ref.name}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        references: (r.references ?? []).map((x) =>
-                          x.id === ref.id ? { ...x, name: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    className={ENTRY_WIDE_FIELD}
-                    aria-label="Reference job title"
-                    placeholder="Job title"
-                    onKeyDown={markShortcutKeyDown}
-                    value={ref.title}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        references: (r.references ?? []).map((x) =>
-                          x.id === ref.id ? { ...x, title: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    className={ENTRY_WIDE_FIELD}
-                    aria-label="Reference employer"
-                    placeholder="Employer"
-                    onKeyDown={markShortcutKeyDown}
-                    value={ref.employer}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        references: (r.references ?? []).map((x) =>
-                          x.id === ref.id ? { ...x, employer: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
+                  <div className="col-span-full space-y-1.5">
+                    <Label htmlFor={`ref-${ref.id}-name`}>Full name</Label>
+                    <Input
+                      id={`ref-${ref.id}-name`}
+                      placeholder="Full name"
+                      onKeyDown={markShortcutKeyDown}
+                      value={ref.name}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          references: (r.references ?? []).map((x) =>
+                            x.id === ref.id ? { ...x, name: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`ref-${ref.id}-title`}>
+                      {ref.name.trim() ? `${ref.name.trim()}'s job title` : 'Their job title'}
+                    </Label>
+                    <Input
+                      id={`ref-${ref.id}-title`}
+                      placeholder="Job title"
+                      onKeyDown={markShortcutKeyDown}
+                      value={ref.title}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          references: (r.references ?? []).map((x) =>
+                            x.id === ref.id ? { ...x, title: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`ref-${ref.id}-employer`}>
+                      {ref.name.trim() ? `Where does ${ref.name.trim()} work?` : 'Where do they work?'}
+                    </Label>
+                    <Input
+                      id={`ref-${ref.id}-employer`}
+                      placeholder="Employer"
+                      onKeyDown={markShortcutKeyDown}
+                      value={ref.employer}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          references: (r.references ?? []).map((x) =>
+                            x.id === ref.id ? { ...x, employer: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
                 </div>
                 <div className={REFERENCE_CONTACT_ROW}>
-                  <Input
-                    aria-label="Reference email"
-                    type="email"
-                    placeholder="Email"
-                    value={ref.email}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        references: (r.references ?? []).map((x) =>
-                          x.id === ref.id ? { ...x, email: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Reference phone"
-                    placeholder="Phone"
-                    value={ref.phone}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        references: (r.references ?? []).map((x) =>
-                          x.id === ref.id ? { ...x, phone: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`ref-${ref.id}-email`}>Email</Label>
+                    <Input
+                      id={`ref-${ref.id}-email`}
+                      type="email"
+                      placeholder="Email"
+                      value={ref.email}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          references: (r.references ?? []).map((x) =>
+                            x.id === ref.id ? { ...x, email: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`ref-${ref.id}-phone`}>Phone</Label>
+                    <Input
+                      id={`ref-${ref.id}-phone`}
+                      placeholder="Phone"
+                      value={ref.phone}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          references: (r.references ?? []).map((x) =>
+                            x.id === ref.id ? { ...x, phone: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <select
