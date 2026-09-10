@@ -83,7 +83,7 @@ import {
   type CareerDocKind,
 } from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
-import { INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
+import { INLINE_ACTION, INLINE_LABEL, INLINE_LINK } from '@/lib/utils'
 import {
   type Resume,
   type ResumeVersion,
@@ -792,7 +792,7 @@ export default function Jobs() {
               to={`/documents?doc=${encodeURIComponent(doc.id)}`}
               className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
             >
-              Open
+              <span className={INLINE_LABEL}>Open</span>
             </Link>
           </Fragment>
         ))}{' '}
@@ -835,7 +835,7 @@ export default function Jobs() {
           aria-label={`Open ${noun.toLowerCase()} ${doc.title}`}
           onClick={() => void navigate(`/documents?doc=${doc.id}`)}
         >
-          Open
+          <span className={INLINE_LABEL}>Open</span>
         </button>
         <button
           type="button"
@@ -846,7 +846,9 @@ export default function Jobs() {
             applyPipeline(relink(entry.job.id, doc.id))
           }}
         >
-          {hasLinked ? 'Use this one instead' : 'Use for this job'}
+          <span className={INLINE_LABEL}>
+            {hasLinked ? 'Use this one instead' : 'Use for this job'}
+          </span>
         </button>
       </p>
     ))
@@ -1767,7 +1769,7 @@ export default function Jobs() {
                     key={b.query}
                     type="button"
                     onClick={() => searchBroader(b.query)}
-                    className={`${INLINE_ACTION} bg-background rounded-full border px-2.5 py-0.5 font-medium hover:underline`}
+                    className="bg-background inline-flex min-h-8 items-center rounded-full border px-2.5 py-0.5 font-medium hover:underline sm:min-h-6"
                   >
                     &ldquo;{b.query}&rdquo;
                     <span className="text-muted-foreground font-normal">
@@ -1935,7 +1937,7 @@ export default function Jobs() {
                               onClick={hideTextOnly}
                               className={`${INLINE_ACTION} shrink-0 font-medium hover:underline`}
                             >
-                              Hide
+                              <span className={INLINE_LABEL}>Hide</span>
                             </button>
                           )}
                         </div>
@@ -2179,7 +2181,7 @@ export default function Jobs() {
                       to="/builder"
                       className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                     >
-                      Add your resume
+                      <span className={INLINE_LABEL}>Add your resume</span>
                     </Link>{' '}
                     to see how it matches this job&apos;s keywords.
                   </p>
@@ -2194,7 +2196,9 @@ export default function Jobs() {
                       }
                       className={`${INLINE_ACTION} text-primary text-xs font-medium underline-offset-2 hover:underline`}
                     >
-                      {reportOpenId === selected.id ? 'Hide tailoring report' : 'Tailoring report'}
+                      <span className={INLINE_LABEL}>
+                        {reportOpenId === selected.id ? 'Hide tailoring report' : 'Tailoring report'}
+                      </span>
                     </button>
                     {reportOpenId === selected.id && (
                       <div className="bg-muted/40 mt-2 rounded-md border p-2.5 text-xs">
@@ -2445,7 +2449,7 @@ export default function Jobs() {
                                     setConfirmTarget({ job: entry.job, intent: 'target' })
                                   }
                                 >
-                                  Open
+                                  <span className={INLINE_LABEL}>Open</span>
                                 </button>
                               </p>
                             )}
@@ -2467,7 +2471,9 @@ export default function Jobs() {
                                     applyPipeline(setPipelineVersion(entry.job.id, v.id))
                                   }}
                                 >
-                                  {copy ? 'Use this one instead' : 'Use for this job'}
+                                  <span className={INLINE_LABEL}>
+                                    {copy ? 'Use this one instead' : 'Use for this job'}
+                                  </span>
                                 </button>
                               </p>
                             ))}
@@ -2496,7 +2502,7 @@ export default function Jobs() {
                                 aria-label={`Open cover letter ${coverDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
                               >
-                                Open
+                                <span className={INLINE_LABEL}>Open</span>
                               </button>
                             </p>
                             {earlierDocRows(entry, 'cover', true)}
@@ -2525,7 +2531,7 @@ export default function Jobs() {
                                 aria-label={`Open resignation letter ${resignationDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${resignationDoc.id}`)}
                               >
-                                Open
+                                <span className={INLINE_LABEL}>Open</span>
                               </button>
                             </p>
                             {earlierDocRows(entry, 'resignation', true)}
@@ -2549,7 +2555,7 @@ export default function Jobs() {
                                 aria-label={`Open interview prep ${prepDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${prepDoc.id}`)}
                               >
-                                Open
+                                <span className={INLINE_LABEL}>Open</span>
                               </button>
                             </p>
                             {earlierDocRows(entry, 'interview', true)}
