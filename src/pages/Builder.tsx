@@ -593,6 +593,11 @@ function useUndo(
 const ENTRY_TEXT_ROW =
   'flex flex-wrap items-start gap-2 sm:flex-nowrap [&>:first-child]:basis-full sm:[&>:first-child]:flex-1 sm:[&>:first-child]:basis-0 [&>:nth-child(2)]:ml-auto'
 
+// Prose text box that takes the full card width at every size, with the entry
+// control buttons on their own right-aligned line below it.
+const ENTRY_TEXT_STACK =
+  'flex flex-wrap items-start gap-2 [&>:first-child]:basis-full [&>:nth-child(2)]:ml-auto'
+
 // Name / organisation / date row of a one-line structured entry (coursework,
 // award, publication, certification): the name takes a full line, the
 // organisation shares the next line with a compact date box from `sm` up, and
@@ -4353,18 +4358,23 @@ export default function Builder() {
                   <Label htmlFor={`edu-${e.id}-details`}>
                     Honors, thesis or other details (optional)
                   </Label>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Input
+                  <div className={ENTRY_TEXT_STACK}>
+                    <Textarea
                       id={`edu-${e.id}-details`}
+                      rows={2}
                       placeholder="Dean's List, thesis title…"
-                      className="min-w-0 flex-1 basis-full sm:basis-0"
-                      onKeyDown={markShortcutKeyDown}
+                      onKeyDown={(ev) => {
+                        if (ev.key === 'Enter') ev.preventDefault()
+                        markShortcutKeyDown(ev)
+                      }}
                       value={e.details}
                       onChange={(ev) =>
                         setResume((r) => ({
                           ...r,
                           education: r.education.map((x) =>
-                            x.id === e.id ? { ...x, details: ev.target.value } : x
+                            x.id === e.id
+                              ? { ...x, details: ev.target.value.replace(/\r?\n/g, ' ') }
+                              : x
                           ),
                         }))
                       }

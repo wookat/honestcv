@@ -1701,3 +1701,11 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 ### Devin Secrets Needed
 
 - None for public production fixture QA. Paid license or authenticated flows require their separately authorized credentials; do not reuse or infer them from public tests.
+
+## R837 QA notes (Education details textarea)
+- Since R837 `edu-<id>-details` is a `textarea[rows="2"]` (64 px tall) on its own full-width line; the five body actions (Move up / Move down / Duplicate / Save to library / Delete) sit 8 px below it, right-aligned. Hide / Show stays in the card header. The R836 "details clips" note is historical.
+- Oracle for wrapped values: `scrollWidth === clientWidth` (no horizontal clipping); vertical overflow is by design. Line count for an overflowing value = `(scrollHeight − 16) / 20` (16 px vertical padding, 20 px line-height); a value shorter than the box cannot be told from a two-liner by scrollHeight alone — corroborate with canvas word-wrap or the screenshot. Desktop native scrollbars take 15 px of usable width once the value overflows (391 → 376 at 1024, 519 → 504 at 1280); overlay-scrollbar mobile does not.
+- Enter must leave the value unchanged; a real LF / CRLF clipboard paste must be stored with spaces. Compare the whole Education preview suffix `details · Minor in … · GPA: …` when all three are populated.
+- For a one-edit byte-for-byte Undo use the app's Undo (desktop toolbar Undo, or focus the mobile Edit-pane button before Ctrl+Z). Native Ctrl+Z inside a textarea undoes browser keystroke history and is a different oracle.
+- Move at a list boundary intentionally hands focus to the opposite enabled arrow — assert entry order and the `role=status` text, not that the now-disabled clicked arrow keeps focus. The library removal button's accessible name is `Remove saved education <degree> — <school>` (title `Remove from library`); check whether the library is already open before toggling it.
+- Overlay-vs-native 375: an existing mobile CDP context keeps overlay scrollbars even after changing metrics; to measure native gutters create a fresh context with `isMobile: false` at 375 and confirm `document.documentElement.clientWidth === 360` (details usable 242 → 227 with a long value, card 554; overlay variant 257 / card 540). Report which variant you measured; never edit application CSS to force widths.

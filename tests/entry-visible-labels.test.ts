@@ -173,13 +173,10 @@ describe('R836: reference cards and the education GPA / Minor / Details boxes la
     }
   })
 
-  it('the details label sits above the whole input + toolbar row, not inside the flex row', () => {
+  it('the details label sits above the whole text box + toolbar row, not inside the flex row', () => {
     const at = builderSrc.indexOf('<Label htmlFor={`edu-${e.id}-details`}>')
     expect(at).toBeGreaterThan(-1)
-    const rowAt = builderSrc.indexOf(
-      '<div className="flex flex-wrap items-center justify-between gap-2">',
-      at,
-    )
+    const rowAt = builderSrc.indexOf('<div className={ENTRY_TEXT_STACK}>', at)
     const nextLabel = builderSrc.indexOf('<Label ', at + 1)
     expect(rowAt).toBeGreaterThan(at)
     expect(nextLabel === -1 || nextLabel > rowAt).toBe(true)
