@@ -1701,8 +1701,8 @@ export default function Jobs() {
                       onClick={() => toggleSkillTerm(tag)}
                       className={
                         active
-                          ? 'bg-primary text-primary-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'
-                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'
+                          ? 'bg-primary text-primary-foreground inline-flex min-h-8 items-center gap-1 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground inline-flex min-h-8 items-center gap-1 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
                       }
                     >
                       {tag} ×{count}
@@ -2312,8 +2312,8 @@ export default function Jobs() {
                           onClick={() => toggleSkillTerm(tag)}
                           className={
                             active
-                              ? 'bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs'
-                              : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground rounded-full px-2 py-0.5 text-xs'
+                              ? 'bg-primary text-primary-foreground min-h-8 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
+                              : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground min-h-8 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
                           }
                         >
                           {tag}
@@ -2324,7 +2324,7 @@ export default function Jobs() {
                       <button
                         type="button"
                         onClick={() => setTagsExpandedId(selected.id)}
-                        className="text-primary text-xs underline-offset-2 hover:underline"
+                        className="text-primary min-h-8 text-xs underline-offset-2 hover:underline sm:min-h-6"
                       >
                         +{(selected.tags?.length ?? 0) - 10} more
                       </button>

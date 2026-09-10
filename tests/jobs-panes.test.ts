@@ -133,3 +133,32 @@ describe('R850: opening the single-pane job detail brings the pane itself into v
     expect(jobsSrc.slice(at, at + 200)).toContain('window.scrollTo(0, listScrollRef.current)')
   })
 })
+
+describe('R851: /jobs skill chips keep a 32 px (< sm) / 24 px (sm+) hit area', () => {
+  // Production 375 / 768 / 1280: every skill chip in the detail pane's Skills row (and the list
+  // header's "Repeated skills" row) was its 20 px text pill with 6 px gaps — the only controls in
+  // the pane under 24 px (every other pane control is 40 / 32) and the target-size violation axe
+  // reported on the R850 open-detail scan. The `+N more` link that extends the row is a target too.
+  const chipClassStrings = () => {
+    const out: string[] = []
+    const re = /'[^']*rounded-full px-2 py-0\.5 text-xs[^']*'/g
+    for (const m of jobsSrc.matchAll(re)) out.push(m[0])
+    return out
+  }
+
+  it('both states of both skill chip sets declare min-h-8 sm:min-h-6', () => {
+    const chips = chipClassStrings()
+    expect(chips).toHaveLength(4)
+    for (const c of chips) {
+      expect(c).toContain('min-h-8')
+      expect(c).toContain('sm:min-h-6')
+    }
+  })
+
+  it('the "+N more" skills expander shares the hit area', () => {
+    const at = jobsSrc.indexOf('setTagsExpandedId(selected.id)}')
+    expect(at).toBeGreaterThan(-1)
+    const tag = jobsSrc.slice(at, jobsSrc.indexOf('>', at))
+    expect(tag).toMatch(/min-h-8 .*sm:min-h-6/)
+  })
+})
