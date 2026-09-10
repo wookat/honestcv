@@ -1689,3 +1689,15 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Native datalist popups may ignore CDP ArrowDown/Enter and are excluded from page screenshots. Use OS keyboard events in the foreground Chrome window if needed, poll the committed input/storage value after each native action, and capture a desktop/root screenshot for the popup itself. Escape dismisses suggestions; it does not undo preceding text edits.
 - Scope preview assertions to the changed entry, or use exact standalone date text: broad `2023` matching can find an Experience date range. Coursework comma-separated skills intentionally render as `Skills: C · SQL`; compare semantic tokens rather than literal punctuation.
 - At mobile widths the editor pane is hidden while Preview & score is selected. Assert the rendered preview there, return to Edit before checking toolbar focus / pressed state, and focus the pane-switch button before a global Ctrl+Z. For full mobile-card screenshots respect the existing scroll-margin offsets and the fixed bottom pane switcher — desktop wheel offsets push the last toolbar out of view.
+
+## R836 — Reference and Education captions
+
+- Reference text controls now use `ref-<id>-name|title|employer|email|phone` with visible labels, not the old `Reference full name` etc. aria-labels. Contextual title/employer captions use the trimmed current name and blank fallbacks `Their job title` / `Where do they work?`. The select retains `aria-label="Reference type"`; preview renders `Professional reference` / `Personal reference`.
+- Education GPA, Minor and Details use `edu-<id>-gpa|minor|details`. Preview adds `GPA: ` and `Minor in ` prefixes in the Education suffix; match those text spans rather than requiring the full suffix to equal one edited field.
+- Scope entry toolbar census by actual action names/classes, not every button in a card: Education's tiny audit/best-practice chip is not an entry toolbar target. Adding a second blank Reference increases the usual R815 fixture toolbar census from 65 to 70.
+- The green `99 · Strong` chip is resume health, not ATS. Read the score ring in `#preview [role=img][aria-label^="Score "]` or the mobile pane-switch ATS badge.
+- Record measured Reference heights rather than copying release prose: with two Reference cards, R836 measured 322 px at 1024 and 258 px at 1280, with unchanged usable input widths 391 / 519, 242, 242. Scrollbar-free 375 measured 434 px with 257 px fields; Education 512 px with 112 px GPA/Minor and 257 px Details. Native gutter variants can differ in wrap/height. Long single-line Education Details can clip; retain the canvas/usable measurement separately from labels and confirm the complete input/storage/preview/PDF value.
+
+### Devin Secrets Needed
+
+- None for public production fixture QA. Paid license or authenticated flows require their separately authorized credentials; do not reuse or infer them from public tests.
