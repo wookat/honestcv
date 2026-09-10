@@ -103,3 +103,33 @@ describe('R849: job-card company · location wraps instead of losing the locatio
     expect(col).not.toContain('</span>')
   })
 })
+
+describe('R850: opening the single-pane job detail brings the pane itself into view', () => {
+  // Production 375×812 / 375×500 / 768×800: R532's `window.scrollTo(0, 0)` left the detail pane
+  // 721 / 721 / 529 px down the page (91 / 0 / 271 px of it visible) because the search form above
+  // the panes has grown since R532; the tapped job appeared to vanish. Scrolling the pane's own top
+  // into view (html scroll-padding keeps it under the sticky header) puts it at 63 px at every size.
+  const openEffect = () => {
+    const at = jobsSrc.indexOf('listScrollRef.current = window.scrollY')
+    expect(at).toBeGreaterThan(-1)
+    return jobsSrc.slice(at, jobsSrc.indexOf('} else if (mobileDetailWasOpen.current)', at))
+  }
+
+  it('scrolls the detail pane to the top of the viewport instead of the page to 0', () => {
+    const open = openEffect()
+    expect(open).toMatch(/detailPaneRef\.current\.scrollIntoView\(\{ block: 'start' \}\)/)
+    expect(open).not.toMatch(/^\s*window\.scrollTo\(0, 0\)/m)
+  })
+
+  it('the ref is on the detail pane container that hides below lg', () => {
+    const at = jobsSrc.indexOf('ref={detailPaneRef}')
+    expect(at).toBeGreaterThan(-1)
+    const tag = jobsSrc.slice(at, jobsSrc.indexOf('>', at))
+    expect(tag).toMatch(/mobileDetail \? '' : 'hidden lg:block'/)
+  })
+
+  it('still restores the list scroll offset when the pane closes (R532)', () => {
+    const at = jobsSrc.indexOf('} else if (mobileDetailWasOpen.current)')
+    expect(jobsSrc.slice(at, at + 200)).toContain('window.scrollTo(0, listScrollRef.current)')
+  })
+})

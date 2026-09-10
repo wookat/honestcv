@@ -399,17 +399,21 @@ export default function Jobs() {
     }
   }, [mobileDetail])
 
-  // The mobile detail pane shares the page scroll with the list, so opening a
-  // job deep in the list would land mid-description: show the detail from the
-  // top and restore the list's scroll offset when the pane closes.
+  // The mobile detail pane shares the page scroll with the list (and sits below
+  // the search form), so opening a job deep in the list would land
+  // mid-description: bring the pane's top under the sticky header (the html
+  // scroll-padding keeps it clear) and restore the list's scroll offset when
+  // the pane closes.
   const listScrollRef = useRef(0)
   const mobileDetailWasOpen = useRef(false)
+  const detailPaneRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!window.matchMedia(SINGLE_PANE_MQ).matches) return
     if (mobileDetail) {
       mobileDetailWasOpen.current = true
       listScrollRef.current = window.scrollY
-      window.scrollTo(0, 0)
+      if (detailPaneRef.current) detailPaneRef.current.scrollIntoView({ block: 'start' })
+      else window.scrollTo(0, 0)
     } else if (mobileDetailWasOpen.current) {
       mobileDetailWasOpen.current = false
       window.scrollTo(0, listScrollRef.current)
@@ -2111,6 +2115,7 @@ export default function Jobs() {
           </div>
 
           <div
+            ref={detailPaneRef}
             className={`bg-card max-h-[70vh] overflow-y-auto rounded-md border p-4 ${
               mobileDetail ? '' : 'hidden lg:block'
             }`}
