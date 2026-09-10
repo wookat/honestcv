@@ -1990,7 +1990,7 @@ export default function Jobs() {
                               <p className="line-clamp-2 text-sm font-medium break-words">
                                 {j.title}
                               </p>
-                              <p className="text-muted-foreground truncate text-xs">
+                              <p className="text-muted-foreground line-clamp-3 text-xs break-words">
                                 {j.company} · {j.location}
                               </p>
                             </span>
