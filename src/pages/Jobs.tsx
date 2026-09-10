@@ -412,6 +412,15 @@ export default function Jobs() {
   useEffect(() => {
     selectedIdRef.current = selectedId
   }, [selectedId])
+  // A pane opened by a ?job= deep link is revealed before the first fetch has laid
+  // out the filter rows above it, so reveal it again once that fetch settles.
+  const revealAfterFetch = useRef(seedParams.get('job') !== null)
+  useEffect(() => {
+    if (loading || !revealAfterFetch.current) return
+    revealAfterFetch.current = false
+    if (!window.matchMedia(SINGLE_PANE_MQ).matches) return
+    detailPaneRef.current?.scrollIntoView({ block: 'start' })
+  }, [loading])
   useEffect(() => {
     if (!window.matchMedia(SINGLE_PANE_MQ).matches) return
     if (mobileDetail) {
@@ -3174,6 +3183,7 @@ export default function Jobs() {
                     `track-chip-${restored.entry.status}`,
                     `job-card-${restored.entry.job.id}`,
                   )
+                else focusAfterRender(`job-card-${undoUntrack[0].entry.job.id}`, 'main')
                 setUndoUntrack(null)
               }}
             >
