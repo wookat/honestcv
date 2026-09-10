@@ -280,3 +280,35 @@ describe('R855: a ?job= deep link on a single pane reveals the pane once the fir
     expect(effect).toMatch(/detailPaneRef\.current\?\.scrollIntoView\(\{ block: 'start' \}\)/)
   })
 })
+
+describe('R857: Tracked-tab bulk checkboxes get a hit box the size of the other row controls', () => {
+  // Production 375×812 / 1280×800 (R856 bundle): every control in the Select… row is 40 px (< sm) /
+  // 32 px, but each row's checkbox was its bare 16 × 16 box with no <label>; trusted taps 14 px off
+  // its centre hit the row's padding and did nothing, and the job-card button starts 10 px to its
+  // right. The wrapping label pads the box out to the row's own padding (36 × 44 measured in a DOM
+  // simulation) with negative margins, so neither the card nor the row height moves, and stops 2 px
+  // short of the card button (R852: a hit box never covers a neighbouring control).
+  const checkbox = () => {
+    const at = jobsSrc.indexOf("aria-label={`Select ${j.title} at ${j.company}`}")
+    expect(at).toBeGreaterThan(-1)
+    const start = jobsSrc.lastIndexOf('<label', at)
+    return jobsSrc.slice(start, jobsSrc.indexOf('</label>', at))
+  }
+
+  it('wraps the checkbox in a label whose padding is cancelled by negative margins on three sides', () => {
+    const tag = checkbox()
+    const classes = /<label className="([^"]*)"/.exec(tag)?.[1].split(/\s+/) ?? []
+    for (const c of ['-my-3', '-ml-3', '-mr-2', 'py-3', 'pr-2', 'pl-3', 'flex', 'shrink-0']) expect(classes).toContain(c)
+    expect(tag).toContain('type="checkbox"')
+  })
+
+  it('keeps the visible box, its accent and its accessible name unchanged', () => {
+    const tag = checkbox()
+    expect(tag).toMatch(/className="accent-primary mt-1 size-4 shrink-0"/)
+    expect(tag).toContain('aria-label={`Select ${j.title} at ${j.company}`}')
+  })
+
+  it('leaves the row gap alone, so the padded box stops short of the job-card button', () => {
+    expect(jobsSrc).toMatch(/tab === 'tracked' && bulkMode \? 'flex items-start gap-2\.5' : ''/)
+  })
+})

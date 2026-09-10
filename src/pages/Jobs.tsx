@@ -1974,20 +1974,22 @@ export default function Jobs() {
                         } ${tab === 'tracked' && bulkMode ? 'flex items-start gap-2.5' : ''}`}
                       >
                         {tab === 'tracked' && bulkMode && (
-                          <input
-                            type="checkbox"
-                            checked={bulkIds.has(j.id)}
-                            onChange={() =>
-                              setBulkIds((prev) => {
-                                const next = new Set(prev)
-                                if (next.has(j.id)) next.delete(j.id)
-                                else next.add(j.id)
-                                return next
-                              })
-                            }
-                            aria-label={`Select ${j.title} at ${j.company}`}
-                            className="accent-primary mt-1 size-4 shrink-0"
-                          />
+                          <label className="-my-3 -ml-3 -mr-2 flex shrink-0 cursor-pointer py-3 pr-2 pl-3">
+                            <input
+                              type="checkbox"
+                              checked={bulkIds.has(j.id)}
+                              onChange={() =>
+                                setBulkIds((prev) => {
+                                  const next = new Set(prev)
+                                  if (next.has(j.id)) next.delete(j.id)
+                                  else next.add(j.id)
+                                  return next
+                                })
+                              }
+                              aria-label={`Select ${j.title} at ${j.company}`}
+                              className="accent-primary mt-1 size-4 shrink-0"
+                            />
+                          </label>
                         )}
                         <div className="min-w-0 flex-1">
                         <button
