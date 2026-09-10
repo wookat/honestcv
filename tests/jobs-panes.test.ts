@@ -286,8 +286,12 @@ describe('R857: Tracked-tab bulk checkboxes get a hit box the size of the other 
   // 32 px, but each row's checkbox was its bare 16 × 16 box with no <label>; trusted taps 14 px off
   // its centre hit the row's padding and did nothing, and the job-card button starts 10 px to its
   // right. The wrapping label pads the box out to the row's own padding (36 × 44 measured in a DOM
-  // simulation) with negative margins, so neither the card nor the row height moves, and stops 2 px
-  // short of the card button (R852: a hit box never covers a neighbouring control).
+  // simulation) with negative margins, so the row height does not move, and stops short of the card
+  // button (R852: a hit box never covers a neighbouring control). Touch is a second oracle: Chrome's
+  // touch adjustment hands a tap to a clickable neighbour up to ~8 px away even when the tap lands
+  // inside the label, so with a 2 px clearance the label's right 4 px opened the job card (production
+  // CDP touch sweep, identical before and after the label). A 16 px row gap keeps the card 8 px clear
+  // of the label's right edge; the sweep then toggles at every label x.
   const checkbox = () => {
     const at = jobsSrc.indexOf("aria-label={`Select ${j.title} at ${j.company}`}")
     expect(at).toBeGreaterThan(-1)
@@ -308,7 +312,7 @@ describe('R857: Tracked-tab bulk checkboxes get a hit box the size of the other 
     expect(tag).toContain('aria-label={`Select ${j.title} at ${j.company}`}')
   })
 
-  it('leaves the row gap alone, so the padded box stops short of the job-card button', () => {
-    expect(jobsSrc).toMatch(/tab === 'tracked' && bulkMode \? 'flex items-start gap-2\.5' : ''/)
+  it('keeps the job-card button 8 px clear of the padded box (16 px row gap, 8 px of it inside the label)', () => {
+    expect(jobsSrc).toMatch(/tab === 'tracked' && bulkMode \? 'flex items-start gap-4' : ''/)
   })
 })

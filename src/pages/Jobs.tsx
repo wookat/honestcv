@@ -1971,7 +1971,7 @@ export default function Jobs() {
                       <div
                         className={`hover:bg-accent relative px-4 py-3 ${
                           selected?.id === j.id ? 'bg-accent border-primary border-l-2' : ''
-                        } ${tab === 'tracked' && bulkMode ? 'flex items-start gap-2.5' : ''}`}
+                        } ${tab === 'tracked' && bulkMode ? 'flex items-start gap-4' : ''}`}
                       >
                         {tab === 'tracked' && bulkMode && (
                           <label className="-my-3 -ml-3 -mr-2 flex shrink-0 cursor-pointer py-3 pr-2 pl-3">
