@@ -1717,3 +1717,24 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 - Deploying from this box: the ambient `CLOUDFLARE_API_TOKEN` belongs to the old account. Use `CLOUDFLARE_API_KEY=$CLOUDFLARE_NEW_GLOBAL_API_KEY CLOUDFLARE_EMAIL=$CLOUDFLARE_NEW_ACCOUNT_EMAIL` with `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` unset; a token deploy warns "account_id … does not match any of your authenticated accounts" and uploads nothing.
 - Fixture notes: the R815 all-sections fixture has no Agent entry (add one through the UI) and its Experience section is two `rows=4` textareas with three bullets each — not six textareas. With a second Reference and one Agent the mobile 40×40 icon-action census is 74 (R836 counted 70). Add a second entry through the UI to enable Move up / down, then restore the baseline.
 - Undo transactions: one `fill()` = one app Undo back to the baseline; `fill()` followed by keyboard Enter + typing is two transactions. Report `fill()` coverage and character-by-character keyboard coverage separately.
+
+## R839 QA notes (touch hit areas built from negative margins)
+
+- A hit area made of `py-*` + `-my-*` (sample card title, R655/R839) is only real where the
+  button wins hit-testing. Oracle: `document.elementFromPoint(x, rect.y + dy)` for dy at 2, 20,
+  30 and 38 must return the button (then a trusted click there must open the preview). A later
+  in-flow sibling (the sector `<p>`) painted over the lower 10 px until the button got
+  `relative`; `getBoundingClientRect().height === 40` alone passed while 25 % of the band was
+  dead. Apply the same probe to every negative-margin hit area (R651 inline links, R652 dialog
+  Close ×, R656 `<summary>` rows).
+- The R838-style scrolled axe audit reports "partially obscured" `target-size` findings for any
+  control that happens to sit under the sticky header at a 400 px scroll step; only "insufficient
+  size (…px by Npx)" without "obscured" is a real finding.
+- The sample thumbnail's AX name is `Preview <role> sample Resume preview` (sr-only span + the
+  Thumb's own label) — pre-existing, not a regression oracle.
+- CDP-emulated viewports may drop synthetic pointer hover on screenshot / window activation; if
+  `:hover` / `textDecorationLine` reset after capture, move the native OS pointer over the title
+  and capture again — never fake hover with forced pseudo-states.
+- "Use this example" consumes its `?example=<slug>` query after loading the Builder: assert the
+  navigation event + the loaded sample data, not the query in `page.url()`; restore the resume
+  storage byte for byte afterwards.
