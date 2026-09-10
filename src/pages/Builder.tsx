@@ -75,7 +75,7 @@ import { MonthYearField } from '@/components/MonthYearField'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
-import { markShortcutKeyDown } from '@/lib/markShortcuts'
+import { markShortcutKeyDown, proseInput, proseKeyDown } from '@/lib/markShortcuts'
 import {
   briefAssertions,
   briefGrounding,
@@ -3518,8 +3518,8 @@ export default function Builder() {
               aria-label="Professional summary"
               placeholder="2-3 sentences: who you are, years of experience, biggest strengths and wins."
               value={resume.summary}
-              onChange={(e) => set('summary', e.target.value)}
-              onKeyDown={(ev) => markShortcutKeyDown(ev)}
+              onChange={(e) => set('summary', proseInput(e.target.value))}
+              onKeyDown={proseKeyDown}
             />
             <div className="flex flex-wrap items-center gap-2">
               {resume.summary.trim()
@@ -4363,18 +4363,13 @@ export default function Builder() {
                       id={`edu-${e.id}-details`}
                       rows={2}
                       placeholder="Dean's List, thesis title…"
-                      onKeyDown={(ev) => {
-                        if (ev.key === 'Enter') ev.preventDefault()
-                        markShortcutKeyDown(ev)
-                      }}
+                      onKeyDown={proseKeyDown}
                       value={e.details}
                       onChange={(ev) =>
                         setResume((r) => ({
                           ...r,
                           education: r.education.map((x) =>
-                            x.id === e.id
-                              ? { ...x, details: ev.target.value.replace(/\r?\n/g, ' ') }
-                              : x
+                            x.id === e.id ? { ...x, details: proseInput(ev.target.value) } : x
                           ),
                         }))
                       }
@@ -7423,13 +7418,13 @@ export default function Builder() {
                         id={`cert-${c.id}-description`}
                         rows={2}
                         placeholder="How it's relevant (optional)"
-                        onKeyDown={markShortcutKeyDown}
+                        onKeyDown={proseKeyDown}
                         value={c.description}
                         onChange={(ev) =>
                           setResume((r) => ({
                             ...r,
                             certItems: (r.certItems ?? []).map((x) =>
-                              x.id === c.id ? { ...x, description: ev.target.value } : x
+                              x.id === c.id ? { ...x, description: proseInput(ev.target.value) } : x
                             ),
                           }))
                         }

@@ -56,6 +56,7 @@ import {
   resumeLanguageOf,
   familyOf,
   textInkOf,
+  proseText,
   type FontFamilyKind,
 } from '@/lib/resume'
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
@@ -925,7 +926,7 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
   for (const key of orderedSectionKeys(resume)) {
     if (key === 'summary' && resume.summary.trim()) {
       w.heading(sectionHeading(resume, 'summary'))
-      bodyText(resume.summary.trim())
+      bodyText(proseText(resume.summary))
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
       w.heading(sectionHeading(resume, 'experience'))
       let gi = 0
@@ -1032,16 +1033,16 @@ async function composeResumePdf(resume: Resume): Promise<{ doc: PDFDocument; w: 
       for (const c of certEntries(resume)) {
         entryHeader(cti++, 2, certHeadingLine(c), c.date.trim(), {
           size: 10,
-          body: c.description.trim() || undefined,
+          body: proseText(c.description) || undefined,
         })
         if (c.description.trim()) {
           w.gap(1)
-          bodyText(c.description.trim())
+          bodyText(proseText(c.description))
         }
       }
       if (resume.certifications.trim()) {
         w.gap(2)
-        bodyText(resume.certifications.trim())
+        bodyText(proseText(resume.certifications))
       }
     } else if (key === 'awards' && awardEntries(resume).length > 0) {
       w.heading(sectionHeading(resume, 'awards'))

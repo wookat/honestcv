@@ -64,6 +64,7 @@ import {
   familyOf,
   TEXT_INKS,
   textInkOf,
+  proseText,
 } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
@@ -273,7 +274,7 @@ export async function buildResumeDocx(resume: Resume): Promise<Blob> {
 
   for (const key of orderedSectionKeys(resume)) {
     if (key === 'summary' && resume.summary.trim()) {
-      children.push(heading(sectionHeading(resume, 'summary')), body(resume.summary.trim(), { after: 100 }))
+      children.push(heading(sectionHeading(resume, 'summary')), body(proseText(resume.summary), { after: 100 }))
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
       children.push(heading(sectionHeading(resume, 'experience')))
       let gi = 0
@@ -481,10 +482,10 @@ export async function buildResumeDocx(resume: Resume): Promise<Blob> {
             border: entryBorder(cti++),
           })
         )
-        if (c.description.trim()) children.push(body(c.description.trim(), { after: 80 }))
+        if (c.description.trim()) children.push(body(proseText(c.description), { after: 80 }))
       }
       if (resume.certifications.trim())
-        children.push(body(resume.certifications.trim(), { after: 100 }))
+        children.push(body(proseText(resume.certifications), { after: 100 }))
     } else if (key === 'awards' && awardEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'awards')))
       let awi = 0

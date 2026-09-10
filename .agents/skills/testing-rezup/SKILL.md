@@ -1713,10 +1713,43 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
 ## R838 QA notes (structured-entry description boxes)
 - Since R838 the Involvement / Coursework / Awards / Publications / Military / Certification description textareas and the agent card's "How building the agent was relevant" box are `rows=2` on their own full-width line (`ENTRY_TEXT_STACK`), toolbar 8 px beneath and right-aligned, at every width — usable 391 / 519 / 242 (native 375) px. Only the Project description still shares its row with a single button (`ENTRY_TEXT_ROW`). Do not expect a container-query difference between 1024 and 1280.
 - These seven toolbars have no Duplicate button; Military and the agent card have no library button. Report such actions as not applicable — never as covered.
-- Multi-line semantics differ by field: the six "one bullet per line" boxes store `\n` and preview / export one bullet per line; the **Certification** description is prose ("How it's relevant (optional)") — storage keeps typed `\n` but preview renders one `<p>` (newlines collapse) and PDF / DOCX one paragraph. That is pre-existing (R67) and queued as a semantics item; the oracle for Certification is "stored value unchanged, single paragraph in renderers", not "distinct lines".
+- Multi-line semantics differ by field: the six "one bullet per line" boxes store `\n` and preview / export one bullet per line; **Summary, Certification description, free-text Certifications and Education details are prose** (R840): Enter inserts nothing, a pasted `\n` / `\r\n` is stored as a space, and every renderer prints one paragraph. See the R840 notes below for the oracle.
 - Deploying from this box: the ambient `CLOUDFLARE_API_TOKEN` belongs to the old account. Use `CLOUDFLARE_API_KEY=$CLOUDFLARE_NEW_GLOBAL_API_KEY CLOUDFLARE_EMAIL=$CLOUDFLARE_NEW_ACCOUNT_EMAIL` with `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` unset; a token deploy warns "account_id … does not match any of your authenticated accounts" and uploads nothing.
 - Fixture notes: the R815 all-sections fixture has no Agent entry (add one through the UI) and its Experience section is two `rows=4` textareas with three bullets each — not six textareas. With a second Reference and one Agent the mobile 40×40 icon-action census is 74 (R836 counted 70). Add a second entry through the UI to enable Move up / down, then restore the baseline.
 - Undo transactions: one `fill()` = one app Undo back to the baseline; `fill()` followed by keyboard Enter + typing is two transactions. Report `fill()` coverage and character-by-character keyboard coverage separately.
+
+## R840 QA notes (prose fields = one paragraph on every surface)
+
+- Prose fields: Summary (`aria-label="Professional summary"`), Certification description
+  (`#cert-<id>-description`), Education details (`#edu-<id>-details`), legacy free-text
+  Certifications (`#certs`, an `<input>`). Editor oracle: press Enter (plain, Shift, Ctrl, Cmd) →
+  value, caret and app Undo stack unchanged; paste `a\nb` and `a\r\nb` (real clipboard or
+  `insertText`) → stored `a b`; Ctrl/Cmd+B/I/U/K still wrap the selection. Do not test Enter with
+  `fill()` — it never sends a key event.
+- Pre-R840 values: seed the stored resume with `\n` inside `summary` / `certItems[].description`
+  (write storage, reload) and check every surface: preview `<p>` text node contains no `\n`;
+  inline-editing the summary in the preview and committing stores no `\n`; PDF via `pdftotext`
+  (or `pdfTextOf()`) has the sentences in one run; DOCX `word/document.xml` (unzip, read `<w:t>`
+  runs) has the value in one `<w:p>` with no `<w:br`; TXT and Markdown have it on one line;
+  `/ats-checker` on the TXT sees one line. Renderers normalise — storage is *not* rewritten until
+  the user edits, so "stored value still has `\n` after a reload" is expected, not a defect.
+- Control group: the one-item-per-line boxes (experience / project bullets, Involvement,
+  Coursework, Awards, Publications, Military, agent descriptions, Skills) must still store `\n` on
+  Enter and print one line per item in TXT / MD / DOCX (`<w:br` or separate paragraphs).
+- Each export format may raise its own Final-check dialog; confirm per format and read the real
+  downloaded bytes, not the button state.
+- Lessons from the R840 run: seed Education details too (`education[].details`) — the first deploy
+  normalised only the editor and the QA caught the renderer gap; check every prose field
+  independently on every surface. Assert each fixture prose field is non-empty (≥ 6 chars) before
+  mark-selection tests — all-sections fixtures may leave Certification descriptions empty. Inline
+  editors optimise away no-op commits: to test normalisation on commit make a real visible edit
+  (append `!`), not add-then-delete; reseed the raw legacy fixture before the export pass. In
+  DOCX, one `<w:p>` and no `<w:br` is not enough — a `<w:t>` can itself hold a literal LF; assert
+  the run text equals the one-paragraph string. Do not mix CDP `Browser.setDownloadBehavior allow`
+  with Playwright `saveAs` (native writes suggested filenames, Playwright expects GUID artifacts);
+  use a fresh per-export directory to avoid `(1)` suffixes. A controller disconnect auto-disposes
+  its isolated contexts — inspect `Target.getBrowserContexts` before recovery and report a missing
+  final storage snapshot honestly rather than mistaking the default-profile tab for the lost one.
 
 ## R839 QA notes (touch hit areas built from negative margins)
 
