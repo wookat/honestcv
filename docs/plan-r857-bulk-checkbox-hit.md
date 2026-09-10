@@ -44,11 +44,28 @@ the SOP-10 scans — the finding comes from the pointer probe, not from axe.
 ```
 
 `py-3 pl-3` mirror the row's `px-4 py-3` minus the 4 px the row keeps on the left; `pr-2` uses
-8 of the 10 px gap; the three negative margins give the padding back so nothing moves. The
+8 px of the row gap; the three negative margins give the padding back so nothing moves. The
 accessible name, native checkbox semantics and the visible box are unchanged.
 
+### 3b. Second deploy — the gap (measured on the first deploy, touch)
+
+The first deploy kept the row gap at `gap-2.5` (label right edge 2 px short of the card). Mouse
+passed everywhere, but the independent QA run's CDP touch sweep found taps inside the label's
+right 4 px (x 55–57 with checkbox centre 41, label 21..57, card 59) delivered a trusted click to
+the card-title `<p>` at x 64–65: the job opened, the URL gained `job=…`, the checkbox did not
+toggle — the same on all three rows and at touch radius 1 and 12. My A/B probe
+(`/home/ubuntu/qa/r857-touch-ab*.cjs`) showed the identical boundary with the label removed from
+the DOM, so this is Chrome's touch adjustment (a tap snaps to a clickable element within a few px
+of the touch point; the card button is clickable, the label's padding is not a target of its
+own), not the label geometry — the label just made the region a user is invited to tap larger
+without moving the card away. DOM simulation: a 16 px gap (card 8 px clear of the label) makes
+every in-label tap toggle at both radii. Change: bulk-mode row `gap-2.5` → `gap-4`; the label
+is unchanged, the card moves 6 px right in bulk mode only, row height unchanged. Rejected:
+shrinking `pr-2` (gives back hit area), `pointer-events` tricks on the card (changes a real
+control), `touch-action` (does not affect adjustment).
+
 Tests: `tests/jobs-panes.test.ts` +3 (440 → 443) lock the wrapper classes, the untouched input
-classes / `aria-label`, and the row gap.
+classes / `aria-label`, and the 16 px row gap.
 
 ## 4. Verification
 
@@ -62,6 +79,19 @@ classes / `aria-label`, and the row gap.
 - Observation (pre-existing, not changed): at 375 the first tick makes the Move-to-status /
   `Untrack N` controls appear on a second line, so the rows move down 48 px once; the checkbox
   under the pointer is then 48 px lower (`/home/ubuntu/qa/r857-shift.cjs`).
+- Independent QA on the first deploy (375 + partial 1280): geometry, mouse, keyboard Space,
+  Move-to-status, Untrack 1 → Undo focus, rapid Tab → Dismiss (80.4 / 80.9 / 205.7 ms), Done
+  selecting restores exact rects, axe 375 bulk list 0 violations — pass; **touch in-label taps
+  at +14 px opened the card** (8 misses at 375, 6 at 1280) → §3b.
+- Second deploy `f0912044`; production `index-DGGMRCUQ.js` / `Jobs-Cn_nszOk.js`. Native touch
+  sweep (`/home/ubuntu/qa/r857-touch-native.cjs`, 375×812, radius 1 and 12, step 2 from the
+  checkbox centre to the card edge): every x inside the label (41 → 57) toggles; x 59 is the
+  row gap (toggles via the label at radius 1, opens the card at radius 12); x ≥ 61 opens the
+  card (card left 65). Console 0, storage restored.
+- Independent QA on the second deploy: see `docs/handoff-context.md` (R857) once complete.
+- Limitations: CDP `Input.dispatchTouchEvent` in headless Chromium stands in for a finger — no
+  physical device; the adjustment radius it models may differ from a real phone. No screen
+  reader.
 
 ## 5. Not covered / still open from the R857 candidate list
 
