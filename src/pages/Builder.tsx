@@ -832,9 +832,8 @@ function SectionNav({
   const keys = useMemo(() => keyList.split('|'), [keyList])
   const [active, setActive] = useState(keys[0])
   const scroller = useRef<HTMLDivElement>(null)
-  useEffect(() => {
+  const revealChip = (chip: HTMLElement | null | undefined) => {
     const box = scroller.current
-    const chip = box?.querySelector<HTMLElement>('[aria-current="true"]')
     if (!box || !chip) return
     const boxLeft = box.getBoundingClientRect().left
     const r = chip.getBoundingClientRect()
@@ -844,6 +843,9 @@ function SectionNav({
     })
     if (left !== box.scrollLeft)
       box.scrollTo({ left, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  }
+  useEffect(() => {
+    revealChip(scroller.current?.querySelector<HTMLElement>('[aria-current="true"]'))
   }, [active])
   useEffect(() => {
     const visible = new Set<string>()
@@ -872,7 +874,11 @@ function SectionNav({
       data-sticky-subnav
       className="bg-background/85 sticky top-14 z-10 flex items-center gap-1 rounded-lg border px-1 py-1 backdrop-blur"
     >
-      <div ref={scroller} className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
+      <div
+        ref={scroller}
+        className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"
+        onFocus={(e) => revealChip(e.target instanceof HTMLButtonElement ? e.target : null)}
+      >
         <div className="flex w-max gap-0.5">
           {sections.map((s) => (
             <button

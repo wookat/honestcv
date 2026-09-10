@@ -41,15 +41,15 @@ describe('R846: the sticky section nav scrolls its highlighted chip into view', 
     expect(revealScrollLeft({ scrollLeft: 0, clientWidth: 600, scrollWidth: 490 }, CHIP.Custom)).toBe(0)
   })
 
-  it('SectionNav re-measures the aria-current chip whenever the active section changes and scrolls the strip, not the page', () => {
+  it('SectionNav reveals the aria-current chip whenever the active section changes, and a chip that takes keyboard focus, by scrolling the strip, not the page', () => {
     expect(builderSrc).toContain("import { revealScrollLeft } from '@/lib/revealScroll'")
     const nav = builderSrc.slice(builderSrc.indexOf('function SectionNav('), builderSrc.indexOf('const scoreVerdict ='))
     expect(nav).toContain('const scroller = useRef<HTMLDivElement>(null)')
-    expect(nav).toMatch(/querySelector<HTMLElement>\('\[aria-current="true"\]'\)/)
+    expect(nav).toMatch(/revealChip\(scroller\.current\?\.querySelector<HTMLElement>\('\[aria-current="true"\]'\)\)\s*\}, \[active\]\)/)
     expect(nav).toMatch(/revealScrollLeft\(box, \{\s*left: r\.left - boxLeft \+ box\.scrollLeft,\s*right: r\.right - boxLeft \+ box\.scrollLeft,\s*\}\)/)
     expect(nav).toMatch(/box\.scrollTo\(\{ left, behavior: prefersReducedMotion\(\) \? 'auto' : 'smooth' \}\)/)
-    expect(nav).toMatch(/\}, \[active\]\)/)
     expect(nav).not.toMatch(/scrollIntoView/)
-    expect(nav).toContain('ref={scroller} className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"')
+    // Shift+Tab onto a chip at the strip end left it 30 px clipped at 1280 (browser focus scroll is partial)
+    expect(nav).toMatch(/ref=\{scroller\}\s*className="min-w-0 flex-1 overflow-x-auto \[scrollbar-width:none\]"\s*onFocus=\{\(e\) => revealChip\(e\.target instanceof HTMLButtonElement \? e\.target : null\)\}/)
   })
 })
