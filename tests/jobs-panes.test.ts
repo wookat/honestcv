@@ -201,3 +201,32 @@ describe('R853: closing the single-pane job detail hands keyboard focus back to 
     expect(closeEffect()).not.toContain('selectedId)')
   })
 })
+
+describe('R854: Undo after stopping tracking hands keyboard focus to the restored job', () => {
+  // Production 375×812 / 768×800 / 1280×800 (R853 bundle): on the Tracked tab with a search that
+  // hides the job everywhere else, stopping tracking removes the only source of the open row —
+  // the pane empties / single-pane returns to the list (R650) and the Undo toast takes focus (R646).
+  // Undo restored the row, but `selected` was already `null` (the job was in no list), so the
+  // `find(... === selected?.id)` matched nothing, no target was queued, the toast unmounted and
+  // focus fell to `<body>`: the next Tab went to "Skip to content" at the top of the document.
+  // Dismiss (neighbour row) was unaffected.
+  const undoHandler = () => {
+    const at = jobsSrc.indexOf('restorePipelineEntries(undoUntrack)')
+    expect(at).toBeGreaterThan(-1)
+    return jobsSrc.slice(at, jobsSrc.indexOf('setUndoUntrack(null)', at))
+  }
+
+  it('matches the restored entry by selectedId, which outlives a row that vanished from every list', () => {
+    const undo = undoHandler()
+    expect(undo).toContain('const restoredId = selectedId ?? selected?.id')
+    expect(undo).toMatch(/undoUntrack\.find\(\(r\) => r\.entry\.job\.id === restoredId\)/)
+  })
+
+  it('prefers the pane\u2019s status chip, then the list row (the chip is display:none on a single pane)', () => {
+    // useFocusAfterRender takes the first id that actually receives focus; a `hidden lg:block` pane
+    // rejects focus below lg, so the row wins there and the chip wins on the desktop split pane.
+    const undo = undoHandler()
+    expect(undo).toMatch(/focusAfterRender\(\s*`track-chip-\$\{restored\.entry\.status\}`,\s*`job-card-\$\{restored\.entry\.job\.id\}`,?\s*\)/)
+    expect(jobsSrc).toMatch(/mobileDetail \? '' : 'hidden lg:block'/)
+  })
+})

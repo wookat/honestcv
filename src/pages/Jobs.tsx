@@ -3167,8 +3167,13 @@ export default function Jobs() {
               variant="outline"
               onClick={() => {
                 if (!applyPipeline(restorePipelineEntries(undoUntrack))) return
-                const restored = undoUntrack.find((r) => r.entry.job.id === selected?.id)
-                if (restored) focusAfterRender(`track-chip-${restored.entry.status}`)
+                const restoredId = selectedId ?? selected?.id
+                const restored = undoUntrack.find((r) => r.entry.job.id === restoredId)
+                if (restored)
+                  focusAfterRender(
+                    `track-chip-${restored.entry.status}`,
+                    `job-card-${restored.entry.job.id}`,
+                  )
                 setUndoUntrack(null)
               }}
             >
