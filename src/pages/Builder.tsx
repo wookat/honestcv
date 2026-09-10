@@ -96,6 +96,7 @@ import { evidenceText, recordAppliedAnyway } from '@/lib/appliedAnyway'
 import { prefersReducedMotion } from '@/lib/motion'
 import { revealScrollLeft } from '@/lib/revealScroll'
 import { keepPageStillOnFocus } from '@/lib/stickyFocus'
+import { activeSection } from '@/lib/activeSection'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { type AuditFinding } from '@/lib/auditChip'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
@@ -817,6 +818,9 @@ function Section({
   )
 }
 
+/** Top of the band (below header + sticky nav) a section must reach to count as "in view" */
+const SECTION_ZONE_TOP = 110
+
 /** Sticky chip bar listing the visible editor sections; the section in view is highlighted */
 function SectionNav({
   sections,
@@ -852,6 +856,7 @@ function SectionNav({
   }, [active])
   useEffect(() => {
     const visible = new Set<string>()
+    const anchors = new Map<string, HTMLElement>()
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
@@ -860,14 +865,22 @@ function SectionNav({
           if (e.isIntersecting) visible.add(key)
           else visible.delete(key)
         }
-        const first = keys.find((k) => visible.has(k))
-        if (first) setActive(first)
+        const tops = new Map<string, number>()
+        for (const [k, el] of anchors) {
+          const r = el.getBoundingClientRect()
+          if (r.height > 0) tops.set(k, r.top)
+        }
+        const next = activeSection(keys, visible, tops, SECTION_ZONE_TOP)
+        if (next) setActive(next)
       },
-      { rootMargin: '-110px 0px -55% 0px' }
+      { rootMargin: `-${SECTION_ZONE_TOP}px 0px -55% 0px` }
     )
     for (const k of keys) {
-      const el = document.querySelector(`[data-section-anchor="${k}"]`)
-      if (el) io.observe(el)
+      const el = document.querySelector<HTMLElement>(`[data-section-anchor="${k}"]`)
+      if (el) {
+        anchors.set(k, el)
+        io.observe(el)
+      }
     }
     return () => io.disconnect()
   }, [keys])
