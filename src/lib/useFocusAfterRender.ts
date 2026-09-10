@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 /**
  * Keyboard focus for actions whose button unmounts as a result of the action
@@ -49,26 +49,28 @@ export function neighbourFocusId(removedIds: readonly string[], selector: string
  * What a closing confirm dialog does with focus once its close animation ends:
  * `keep` it where it already is when something outside the dialog holds it
  * (the action's Undo toast, or wherever the user has since tabbed), else
- * `target` the element the action produced when it exists, else `restore` the
- * opener (the library default, e.g. the Cancel path).
+ * `target` the element this dialog's confirmed action produced when it exists,
+ * else `restore` the opener (the library default: Cancel / Escape, including
+ * while an earlier action's Undo toast is still showing).
  */
 export function closeFocusPlan(input: {
   activeOutsideDialog: boolean
   targetPresent: boolean
+  confirmed: boolean
 }): 'keep' | 'target' | 'restore' {
   if (input.activeOutsideDialog) return 'keep'
-  return input.targetPresent ? 'target' : 'restore'
+  return input.confirmed && input.targetPresent ? 'target' : 'restore'
 }
 
 /**
  * `onCloseAutoFocus` for a confirm dialog whose action removes its opener:
- * once the dialog closes, focus the element with `id` (e.g. the Undo toast
- * the action produced) instead of letting focus fall to `<body>`. Leaves the
- * default restore alone when the element is absent (Cancel path). The dialog
- * stays mounted for its close animation, so focus that already sits outside
- * it by then is left alone.
+ * once the dialog closes after a `confirmed` action, focus the element with
+ * `id` (e.g. the Undo toast the action produced) instead of letting focus fall
+ * to `<body>`. Leaves the default restore alone otherwise (Cancel path, or the
+ * element is absent). The dialog stays mounted for its close animation, so
+ * focus that already sits outside it by then is left alone.
  */
-export const focusOnClose = (id: string) => (event: Event) => {
+export const focusOnClose = (id: string, confirmed: boolean) => (event: Event) => {
   const el = document.getElementById(id)
   const active = document.activeElement
   const dialog = event.currentTarget
@@ -78,8 +80,35 @@ export const focusOnClose = (id: string) => (event: Event) => {
       active !== document.body &&
       !(dialog instanceof Node && dialog.contains(active)),
     targetPresent: el instanceof HTMLElement,
+    confirmed,
   })
   if (plan === 'restore') return
   event.preventDefault()
   if (plan === 'target' && el instanceof HTMLElement) el.focus()
+}
+
+/**
+ * `focusOnClose` for one confirm dialog: spread `onCloseAutoFocus` onto its
+ * `DialogContent` and call `confirm()` where the action produces the `id`
+ * element. A close without `confirm()` (Cancel, Escape, overlay) restores the
+ * opener even while an earlier action's `id` element is still on the page.
+ */
+export function useConfirmClose(id: string): {
+  confirm: () => void
+  onCloseAutoFocus: (event: Event) => void
+} {
+  const confirmed = useRef(false)
+  return useMemo(
+    () => ({
+      confirm: () => {
+        confirmed.current = true
+      },
+      onCloseAutoFocus: (event: Event) => {
+        const did = confirmed.current
+        confirmed.current = false
+        focusOnClose(id, did)(event)
+      },
+    }),
+    [id]
+  )
 }

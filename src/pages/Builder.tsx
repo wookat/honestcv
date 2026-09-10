@@ -97,7 +97,7 @@ import { prefersReducedMotion } from '@/lib/motion'
 import { revealScrollLeft } from '@/lib/revealScroll'
 import { keepPageStillOnFocus } from '@/lib/stickyFocus'
 import { activeSection } from '@/lib/activeSection'
-import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
+import { neighbourFocusId, useConfirmClose, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { type AuditFinding } from '@/lib/auditChip'
 import { cn, INLINE_ACTION, INLINE_LABEL, INLINE_LINK } from '@/lib/utils'
 import { AtsScoreValue } from '@/components/AtsScoreValue'
@@ -1509,6 +1509,7 @@ export default function Builder() {
     dismissFocusId: string
   } | null>(null)
   const [undoDeleteCopyFocused, setUndoDeleteCopyFocused] = useState(false)
+  const deleteCopyClose = useConfirmClose('undo-copy')
   useEffect(() => {
     if (!undoDeleteCopy || undoDeleteCopyFocused) return
     const t = setTimeout(() => setUndoDeleteCopy(null), 10000)
@@ -10213,7 +10214,7 @@ export default function Builder() {
         open={confirmDeleteCopy !== null}
         onOpenChange={(o) => !o && setConfirmDeleteCopy(null)}
       >
-        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-copy')}>
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={deleteCopyClose.onCloseAutoFocus}>
           <DialogHeader>
             <DialogTitle>Delete "{confirmDeleteCopy?.name}"?</DialogTitle>
             <DialogDescription>
@@ -10256,6 +10257,7 @@ export default function Builder() {
                 const wasActive = v.id === activeVersionId
                 if (wasActive) linkVersion(null)
                 setUndoDeleteCopyFocused(false)
+                deleteCopyClose.confirm()
                 setUndoDeleteCopy({
                   version: v,
                   index: Math.max(index, 0),

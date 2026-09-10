@@ -23,7 +23,7 @@ import {
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import { bulkUntrackLabel } from '@/lib/bulkUntrackLabel'
-import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
+import { neighbourFocusId, useConfirmClose, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { PlanCard, WorkspaceNav } from '@/components/WorkspaceNav'
 import { Button } from '@/components/ui/button'
 import {
@@ -729,6 +729,8 @@ export default function Jobs() {
 
   const [undoUntrack, setUndoUntrack] = useState<RemovedPipelineEntry[] | null>(null)
   const [undoUntrackFocused, setUndoUntrackFocused] = useState(false)
+  const untrackClose = useConfirmClose('undo-untrack')
+  const bulkUntrackClose = useConfirmClose('undo-untrack')
   /** Where "Dismiss" on the undo toast sends focus: the selected job's status chip if its panel is
    *  still shown, else the neighbouring list card, else `main`. */
   const undoUntrackDismissFocus = useRef<string[]>(['main'])
@@ -2953,7 +2955,7 @@ export default function Jobs() {
       </Dialog>
 
       <Dialog open={confirmUntrack !== null} onOpenChange={(o) => !o && setConfirmUntrack(null)}>
-        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-untrack')}>
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={untrackClose.onCloseAutoFocus}>
           <DialogHeader>
             <DialogTitle>{`Stop tracking "${confirmUntrack?.title ?? ''}"?`}</DialogTitle>
             <DialogDescription>
@@ -2998,6 +3000,7 @@ export default function Jobs() {
               className="min-h-10"
               onClick={() => {
                 if (confirmUntrack && !untrack([confirmUntrack.id])) return
+                untrackClose.confirm()
                 setConfirmUntrack(null)
               }}
             >
@@ -3099,7 +3102,7 @@ export default function Jobs() {
       </Dialog>
 
       <Dialog open={confirmBulkUntrack} onOpenChange={(o) => !o && setConfirmBulkUntrack(false)}>
-        <DialogContent className="sm:max-w-md" onCloseAutoFocus={focusOnClose('undo-untrack')}>
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={bulkUntrackClose.onCloseAutoFocus}>
           <DialogHeader>
             <DialogTitle>{`Stop tracking ${visibleBulkIds.size} job${visibleBulkIds.size === 1 ? '' : 's'}?`}</DialogTitle>
             <DialogDescription>
@@ -3146,6 +3149,7 @@ export default function Jobs() {
               className="min-h-10"
               onClick={() => {
                 if (!untrack([...visibleBulkIds])) return
+                bulkUntrackClose.confirm()
                 setBulkIds((prev) => new Set([...prev].filter((id) => !visibleBulkIds.has(id))))
                 setConfirmBulkUntrack(false)
               }}
