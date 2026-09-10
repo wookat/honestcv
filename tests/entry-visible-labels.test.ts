@@ -77,3 +77,72 @@ describe('R833: involvement / military cards label every field visibly, like exp
     }
   })
 })
+
+// The four one-line entry cards (coursework / award / publication / certification)
+// were the remaining structured cards whose only naming was the placeholder that
+// vanishes once the user types — a filled card read "Dean's List · University of
+// Texas at Austin · 2019" with nothing saying which box is which.
+const ONE_LINE: Record<string, { item: string; fields: string[] }> = {
+  cw: { item: 'cw', fields: ['name', 'institution', 'date', 'skill', 'description'] },
+  award: { item: 'a', fields: ['name', 'organization', 'date', 'description'] },
+  pub: { item: 'pub', fields: ['title', 'venue', 'date', 'kind', 'description'] },
+  cert: { item: 'c', fields: ['name', 'issuer', 'date', 'description'] },
+}
+
+describe('R835: coursework / award / publication / certification cards label every field visibly', () => {
+  it('each field has a visible <Label htmlFor> pointing at a control with that id', () => {
+    for (const [prefix, { fields }] of Object.entries(ONE_LINE)) {
+      const labels = labelledFields(prefix)
+      const ids = controlIds(prefix)
+      expect([...labels].sort(), `${prefix} labels`).toEqual([...fields].sort())
+      for (const f of fields) expect(ids.has(f), `${prefix}-${f} control id`).toBe(true)
+    }
+  })
+
+  it('the placeholder-only aria-labels those controls used to carry are gone (label is the name)', () => {
+    for (const name of [
+      'Course name',
+      'Where (school or platform)',
+      'When',
+      'Skills used (optional)',
+      'How you applied it',
+      'Award name',
+      'Awarded by',
+      "Why it's relevant",
+      'Publication title',
+      'Journal or conference',
+      'Publication type',
+      'Additional information',
+      'Certificate name',
+      'Issuer',
+      "How it's relevant (optional)",
+    ]) {
+      expect(builderSrc, name).not.toContain(`aria-label="${name}"`)
+    }
+  })
+
+  it('the compact date box keeps its width and its label sits on the organisation baseline from sm up', () => {
+    expect(builderSrc).toMatch(/const ENTRY_DATE_WRAP = 'space-y-1\.5 sm:self-end'/)
+    for (const [prefix, { item }] of Object.entries(ONE_LINE)) {
+      const at = builderSrc.indexOf(`<Label htmlFor={\`${prefix}-\${${item}.id}-date\`}>When?</Label>`)
+      expect(at, prefix).toBeGreaterThan(-1)
+      const wrapOpen = builderSrc.lastIndexOf('<div className=', at)
+      expect(builderSrc.slice(wrapOpen, builderSrc.indexOf('>', wrapOpen) + 1)).toBe(
+        '<div className={ENTRY_DATE_WRAP}>',
+      )
+      const input = builderSrc.slice(at, builderSrc.indexOf('/>', at))
+      expect(input, `${prefix} date input`).toMatch(/className=\{ENTRY_DATE_FIELD\}/)
+    }
+  })
+
+  it('the description label sits above the whole textarea + toolbar row, not inside the flex row', () => {
+    for (const [prefix, { item }] of Object.entries(ONE_LINE)) {
+      const at = builderSrc.indexOf(`<Label htmlFor={\`${prefix}-\${${item}.id}-description\`}>`)
+      expect(at, prefix).toBeGreaterThan(-1)
+      const rowAt = builderSrc.indexOf('<div className={ENTRY_TEXT_ROW}>', at)
+      const nextLabel = builderSrc.indexOf('<Label ', at + 1)
+      expect(rowAt).toBeGreaterThan(at)
+      expect(nextLabel === -1 || nextLabel > rowAt).toBe(true)
+    }
+  })
+})
