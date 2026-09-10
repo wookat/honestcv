@@ -1875,3 +1875,23 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
   distinct `focusAnchor` from the focused element's closest section anchor.
 - Full-Builder axe at the top *and* at a sticky scroll position (Skills); record `partiallyObscured`
   `target-size` findings with their node names separately — a top-only zero is not zero everywhere.
+
+## R847 QA notes (focus inside a stuck sticky bar keeps the page still)
+
+- Native focus scroll happens *before* `focusin` fires — read `scrollY` before `.focus()` and again
+  synchronously after, then after two frames; the product guard (`src/lib/stickyFocus.ts`) restores the
+  last settled position, so before → immediate → settled must all be equal for a stuck bar.
+- Measure a sticky bar's outer rect against its computed CSS `top` (Builder nav outer top 56, chips 61);
+  the guard only acts while the bar is stuck. Include two negative controls: a chip focused while the nav
+  is still below the fold (375×500 at y = 0 — the browser *should* scroll and the chip must stay
+  visible) and an ordinary off-screen field (must still scroll into view with header clearance).
+- Set the initial focus with `preventScroll`, then use real Tab / Shift+Tab; for pointer tests use raw
+  trusted mouse coordinates — locator click helpers auto-scroll first and fake a Y change.
+- Derive header tab order from visible, enabled, non-negative-tabindex controls; desktop and mobile navs
+  share `aria-label="Main"`, so pick the visible one before counting mobile links.
+- Opening the mobile Menu expands the in-flow sticky header (57 → 730 px at 375×812) and scroll
+  anchoring moves `scrollY` by exactly that difference, back again on close — layout, not focus; record
+  header height and Y on open, per link, and on Escape / outside-close, and do not count downstream
+  steps as failures because the starting Y moved. At short heights the menu fills the viewport, so
+  there is no outside hit area to test.
+- After changing the Playwright viewport, re-maximize the visible window before recording.

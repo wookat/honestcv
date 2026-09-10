@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ChevronDown, Menu, Monitor, Moon, Sun, WifiOff, X } from 'lucide-react'
 import { LogoMark } from '@/components/Logo'
 import { attentionCount } from '@/lib/jobs'
+import { keepPageStillOnFocus } from '@/lib/stickyFocus'
 import { type ThemePref, loadThemePref, saveThemePref, subscribeThemePref } from '@/lib/theme'
 
 /** Sets the document title, meta description and og:title/og:description for the current route. */
@@ -170,6 +171,7 @@ export function SiteHeader({ action, wideAction = false }: { action?: React.Reac
   const headerRef = useRef<HTMLElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const mobileNavRef = useRef<HTMLElement>(null)
+  useEffect(() => (headerRef.current ? keepPageStillOnFocus(headerRef.current) : undefined), [])
   useEffect(() => {
     if (!menuOpen) return
     const onDown = (e: PointerEvent) => {

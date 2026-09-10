@@ -95,6 +95,7 @@ import {
 import { evidenceText, recordAppliedAnyway } from '@/lib/appliedAnyway'
 import { prefersReducedMotion } from '@/lib/motion'
 import { revealScrollLeft } from '@/lib/revealScroll'
+import { keepPageStillOnFocus } from '@/lib/stickyFocus'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { type AuditFinding } from '@/lib/auditChip'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
@@ -832,6 +833,8 @@ function SectionNav({
   const keys = useMemo(() => keyList.split('|'), [keyList])
   const [active, setActive] = useState(keys[0])
   const scroller = useRef<HTMLDivElement>(null)
+  const bar = useRef<HTMLElement>(null)
+  useEffect(() => (bar.current ? keepPageStillOnFocus(bar.current) : undefined), [])
   const revealChip = (chip: HTMLElement | null | undefined) => {
     const box = scroller.current
     if (!box || !chip) return
@@ -870,6 +873,7 @@ function SectionNav({
   }, [keys])
   return (
     <nav
+      ref={bar}
       aria-label="Resume sections"
       data-sticky-subnav
       className="bg-background/85 sticky top-14 z-10 flex items-center gap-1 rounded-lg border px-1 py-1 backdrop-blur"
