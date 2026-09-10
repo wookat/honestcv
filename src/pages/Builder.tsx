@@ -94,6 +94,7 @@ import {
 } from '@/components/DraftFlagList'
 import { evidenceText, recordAppliedAnyway } from '@/lib/appliedAnyway'
 import { prefersReducedMotion } from '@/lib/motion'
+import { revealScrollLeft } from '@/lib/revealScroll'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { type AuditFinding } from '@/lib/auditChip'
 import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
@@ -830,6 +831,20 @@ function SectionNav({
   const keyList = sections.map((s) => s.key).join('|')
   const keys = useMemo(() => keyList.split('|'), [keyList])
   const [active, setActive] = useState(keys[0])
+  const scroller = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const box = scroller.current
+    const chip = box?.querySelector<HTMLElement>('[aria-current="true"]')
+    if (!box || !chip) return
+    const boxLeft = box.getBoundingClientRect().left
+    const r = chip.getBoundingClientRect()
+    const left = revealScrollLeft(box, {
+      left: r.left - boxLeft + box.scrollLeft,
+      right: r.right - boxLeft + box.scrollLeft,
+    })
+    if (left !== box.scrollLeft)
+      box.scrollTo({ left, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  }, [active])
   useEffect(() => {
     const visible = new Set<string>()
     const io = new IntersectionObserver(
@@ -857,7 +872,7 @@ function SectionNav({
       data-sticky-subnav
       className="bg-background/85 sticky top-14 z-10 flex items-center gap-1 rounded-lg border px-1 py-1 backdrop-blur"
     >
-      <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
+      <div ref={scroller} className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
         <div className="flex w-max gap-0.5">
           {sections.map((s) => (
             <button
