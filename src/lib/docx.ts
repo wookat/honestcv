@@ -33,6 +33,7 @@ import {
   courseworkBullets,
   courseworkEntries,
   involvementBullets,
+  projectBullets,
   involvementDates,
   involvementEntries,
   militaryBullets,
@@ -41,8 +42,13 @@ import {
   agentBullets,
   agentEntries,
   dividerOf,
+  educationDates,
   educationDetailLine,
+  educationEntries,
+  educationHeadingParts,
+  entryHeading,
   experienceGroups,
+  experienceHeadingParts,
   fontScaleOf,
   pageMarginOf,
   lineSpacingOf,
@@ -54,9 +60,11 @@ import {
   skillLines,
   bulletIndentOf,
   experienceDateRange,
+  resumeLanguageOf,
   familyOf,
   TEXT_INKS,
   textInkOf,
+  proseText,
 } from '@/lib/resume'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
@@ -75,6 +83,10 @@ const PAGE_TWIPS = {
 } as const
 
 export async function downloadResumeDocx(resume: Resume, filename: string) {
+  downloadBlob(await buildResumeDocx(resume), filename)
+}
+
+export async function buildResumeDocx(resume: Resume): Promise<Blob> {
   const tpl = resolveTemplate(resume.templateId, resume.accentColor)
   const font = FONT_BY_KIND[familyOf(resume, tpl.serif)]
   const pageSize = PAGE_TWIPS[resume.pageSize === 'a4' ? 'a4' : 'letter']
@@ -262,7 +274,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
 
   for (const key of orderedSectionKeys(resume)) {
     if (key === 'summary' && resume.summary.trim()) {
-      children.push(heading(sectionHeading(resume, 'summary')), body(resume.summary.trim(), { after: 100 }))
+      children.push(heading(sectionHeading(resume, 'summary')), body(proseText(resume.summary), { after: 100 }))
     } else if (key === 'experience' && resume.experience.some((e) => e.company || e.role)) {
       children.push(heading(sectionHeading(resume, 'experience')))
       let gi = 0
@@ -280,7 +292,8 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         }
         let ei = 0
         for (const e of g.entries) {
-          const dates = experienceDateRange(e.startDate, e.endDate)
+          const dates = experienceDateRange(e.startDate, e.endDate, resumeLanguageOf(resume))
+          const { head, tail } = experienceHeadingParts(e, g.grouped)
           children.push(
             new Paragraph({
               spacing: { before: g.grouped ? 40 : 100, after: 20 },
@@ -288,18 +301,8 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
               border: entryBorder(g.grouped ? ei++ : groupIdx),
               tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
               children: [
-                ...headRuns(e.role || 'Role', 22),
-                ...(g.grouped
-                  ? e.location
-                    ? [new TextRun({ text: `  ·  ${e.location}`, size: sz(21), font })]
-                    : []
-                  : [
-                      new TextRun({
-                        text: `  ·  ${e.company}${e.location ? `, ${e.location}` : ''}`,
-                        size: sz(21),
-                        font,
-                      }),
-                    ]),
+                ...headRuns(head, 22),
+                ...(tail ? [new TextRun({ text: tail, size: sz(21), font })] : []),
                 ...(dates
                   ? [
                       new TextRun({
@@ -352,13 +355,19 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(pi++),
           })
         )
-        if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
+        const bullets = projectBullets(p)
+        if (bullets.length > 1) for (const b of bullets) children.push(body(b, { bullet: true }))
+        else if (p.description.trim()) children.push(body(p.description.trim(), { after: 80 }))
       }
     } else if (key === 'involvement' && involvementEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'involvement')))
       let ii = 0
       for (const i of involvementEntries(resume)) {
         const dates = involvementDates(i)
+        const { head, tail } = entryHeading(
+          i.role,
+          [i.organization, i.location].filter((s) => s.trim()).join(', ')
+        )
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
@@ -366,16 +375,8 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(ii++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              ...headRuns(i.role.trim() || 'Role', 22),
-              ...(i.organization.trim()
-                ? [
-                    new TextRun({
-                      text: `  ·  ${i.organization.trim()}${i.location.trim() ? `, ${i.location.trim()}` : ''}`,
-                      size: sz(21),
-                      font,
-                    }),
-                  ]
-                : []),
+              ...headRuns(head, 22),
+              ...(tail ? [new TextRun({ text: tail, size: sz(21), font })] : []),
               ...(dates
                 ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
                 : []),
@@ -384,39 +385,40 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
         )
         for (const b of involvementBullets(i)) children.push(body(b, { bullet: true }))
       }
-    } else if (key === 'education' && resume.education.some((e) => e.school)) {
+    } else if (key === 'education' && educationEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'education')))
       let edi = 0
-      for (const e of resume.education) {
-        if (!e.school) continue
-        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ')
-        children.push(
-          new Paragraph({
-            spacing: { before: 60, after: 20 },
-            keepNext: true,
-            border: entryBorder(edi++),
-            tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
-            children: [
-              ...headRuns(e.degree || 'Degree', 21),
-              new TextRun({
-                text: `  ·  ${e.school}${e.location ? `, ${e.location}` : ''}`,
-                size: sz(21),
-                font,
-              }),
-              ...(dates
-                ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
-                : []),
-            ],
-          })
-        )
+      for (const e of educationEntries(resume)) {
+        const dates = educationDates(e)
+        const { head, tail } = educationHeadingParts(e)
         const detail = educationDetailLine(e)
-        if (detail) children.push(body(detail))
+        if (head + tail || dates) {
+          children.push(
+            new Paragraph({
+              spacing: { before: 60, after: 20 },
+              keepNext: true,
+              border: entryBorder(edi++),
+              tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+              children: [
+                ...headRuns(head, 21),
+                ...(tail ? [new TextRun({ text: tail, size: sz(21), font })] : []),
+                ...(dates
+                  ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
+                  : []),
+              ],
+            })
+          )
+          if (detail) children.push(body(detail))
+        } else if (detail) {
+          children.push(body(detail, { border: entryBorder(edi++) }))
+        }
       }
     } else if (key === 'coursework' && courseworkEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'coursework')))
       let cwi = 0
       for (const cw of courseworkEntries(resume)) {
         const date = cw.date.trim()
+        const { head, tail } = entryHeading(cw.name, cw.institution)
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
@@ -424,16 +426,8 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(cwi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              ...headRuns(cw.name.trim() || 'Course', 22),
-              ...(cw.institution.trim()
-                ? [
-                    new TextRun({
-                      text: `  ·  ${cw.institution.trim()}`,
-                      size: sz(21),
-                      font,
-                    }),
-                  ]
-                : []),
+              ...headRuns(head, 22),
+              ...(tail ? [new TextRun({ text: tail, size: sz(21), font })] : []),
               ...(date
                 ? [new TextRun({ children: [new Tab(), date], italics: true, size: sz(19), font })]
                 : []),
@@ -488,15 +482,16 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(cti++),
           })
         )
-        if (c.description.trim()) children.push(body(c.description.trim(), { after: 80 }))
+        if (c.description.trim()) children.push(body(proseText(c.description), { after: 80 }))
       }
       if (resume.certifications.trim())
-        children.push(body(resume.certifications.trim(), { after: 100 }))
+        children.push(body(proseText(resume.certifications), { after: 100 }))
     } else if (key === 'awards' && awardEntries(resume).length > 0) {
       children.push(heading(sectionHeading(resume, 'awards')))
       let awi = 0
       for (const a of awardEntries(resume)) {
         const date = a.date.trim()
+        const { head, tail } = entryHeading(a.name, a.organization, ' — ')
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
@@ -504,16 +499,8 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(awi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              ...headRuns(a.name.trim() || 'Award', 22),
-              ...(a.organization.trim()
-                ? [
-                    new TextRun({
-                      text: ` — ${a.organization.trim()}`,
-                      size: sz(21),
-                      font,
-                    }),
-                  ]
-                : []),
+              ...headRuns(head, 22),
+              ...(tail ? [new TextRun({ text: tail, size: sz(21), font })] : []),
               ...(date
                 ? [new TextRun({ children: [new Tab(), date], italics: true, size: sz(19), font })]
                 : []),
@@ -527,6 +514,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       let pbi = 0
       for (const p of publicationEntries(resume)) {
         const date = p.date.trim()
+        const { head, tail } = entryHeading(p.title, p.venue, ' — ')
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
@@ -534,10 +522,8 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(pbi++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              ...headRuns(p.title.trim() || 'Publication', 22),
-              ...(p.venue.trim()
-                ? [new TextRun({ text: ` — ${p.venue.trim()}`, size: sz(21), font })]
-                : []),
+              ...headRuns(head, 22),
+              ...(tail ? [new TextRun({ text: tail, size: sz(21), font })] : []),
               ...((p.kind ?? '').trim()
                 ? [new TextRun({ text: ` (${(p.kind ?? '').trim()})`, italics: true, size: sz(21), font })]
                 : []),
@@ -575,6 +561,10 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       let mli = 0
       for (const m of militaryEntries(resume)) {
         const dates = militaryDates(m)
+        const { head, tail } = entryHeading(
+          m.rank,
+          [m.branch, m.location].filter((s) => s.trim()).join(', ')
+        )
         children.push(
           new Paragraph({
             spacing: { before: 100, after: 20 },
@@ -582,16 +572,8 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
             border: entryBorder(mli++),
             tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
             children: [
-              ...headRuns(m.rank.trim() || 'Rank', 22),
-              ...(m.branch.trim()
-                ? [
-                    new TextRun({
-                      text: `  ·  ${m.branch.trim()}${m.location.trim() ? `, ${m.location.trim()}` : ''}`,
-                      size: sz(21),
-                      font,
-                    }),
-                  ]
-                : []),
+              ...headRuns(head, 22),
+              ...(tail ? [new TextRun({ text: tail, size: sz(21), font })] : []),
               ...(dates
                 ? [new TextRun({ children: [new Tab(), dates], italics: true, size: sz(19), font })]
                 : []),
@@ -654,8 +636,7 @@ export async function downloadResumeDocx(resume: Resume, filename: string) {
       },
     ],
   })
-  const blob = await Packer.toBlob(doc)
-  downloadBlob(blob, filename)
+  return Packer.toBlob(doc)
 }
 
 /** Generic text document (cover letter / interview brief) */

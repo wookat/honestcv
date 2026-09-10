@@ -1,5 +1,13 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
+import { stream, streamSSE } from 'hono/streaming'
+import {
+  jobRankingHits,
+  jobTitleRank,
+  matchesJobQuery,
+  parseJobQuery,
+  type JobQuery,
+} from './jobQuery'
 import {
   type BillingEnv,
   type LicenseRecord,
@@ -46,6 +54,8 @@ interface Env extends BillingEnv, LsEnv {
   LLM_RELAY_BASE_URL?: string
   LLM_RELAY_API_KEY?: string
   LLM_MODEL?: string
+  /** GLM `thinking.type` ("disabled" | "enabled"); unset = provider default */
+  LLM_THINKING?: string
   /** Checkout switch: frontend opens checkout only when "true" */
   CHECKOUT_ENABLED?: string
   /** Launch/traffic mode: downloads free, bundle AI tools share the free quota */
@@ -54,6 +64,107 @@ interface Env extends BillingEnv, LsEnv {
 }
 
 const freeMode = (env: Env) => env.FREE_MODE === 'true'
+
+// KV is shared with the account's other Workers, so its free-plan daily read
+// cap can be exhausted by traffic that is not ours ("KV get() limit exceeded
+// for the day"), and the binding then throws on every read for the rest of the
+// UTC day. Every KV call goes through these wrappers so the failure is one
+// typed error: routes that can degrade catch it (quota peek, job cache, share
+// shell) and the rest answer an honest 503 from `app.onError` instead of 500.
+class KvUnavailableError extends Error {
+  constructor(op: 'get' | 'put' | 'delete', key: string, cause: unknown) {
+    super(
+      `KV ${op} ${key.split(':')[0]}:* failed: ${cause instanceof Error ? cause.message : String(cause)}`
+    )
+    this.name = 'KvUnavailableError'
+  }
+}
+
+async function kvGet(env: Env, key: string): Promise<string | null> {
+  try {
+    return await env.KV.get(key)
+  } catch (e) {
+    const err = new KvUnavailableError('get', key, e)
+    console.error(err.message)
+    throw err
+  }
+}
+
+async function kvPut(
+  env: Env,
+  key: string,
+  value: string,
+  options?: KVNamespacePutOptions
+): Promise<void> {
+  try {
+    await env.KV.put(key, value, options)
+  } catch (e) {
+    const err = new KvUnavailableError('put', key, e)
+    console.error(err.message)
+    throw err
+  }
+}
+
+async function kvDelete(env: Env, key: string): Promise<void> {
+  try {
+    await env.KV.delete(key)
+  } catch (e) {
+    const err = new KvUnavailableError('delete', key, e)
+    console.error(err.message)
+    throw err
+  }
+}
+
+const KV_UNAVAILABLE_MESSAGE =
+  'This is temporarily unavailable on our side — please retry in a few minutes.'
+const AI_UNAVAILABLE_MESSAGE =
+  'Free AI is paused for a few minutes — usage tracking is offline on our side. None of your free uses were spent; please retry shortly.'
+const SHARE_UNAVAILABLE_MESSAGE =
+  'Loading shared resumes is temporarily unavailable on our side — please retry in a few minutes. This is not a revoked link.'
+
+// Cache API shadow for the job-search caches (feed snapshots, assembled
+// payloads): free and uncapped, but per data centre, so KV stays the primary
+// global cache and the shadow only answers when KV reads fail — each colo then
+// asks the upstream boards once per query per TTL instead of on every request.
+const shadowRequest = (key: string) =>
+  new Request(`https://kv-shadow.cv.zalize.com/${encodeURIComponent(key)}`, { method: 'GET' })
+
+const shadowStore = () => (typeof caches === 'undefined' ? null : caches.default)
+
+async function readShadowedCache(c: Context<{ Bindings: Env }>, key: string): Promise<string | null> {
+  try {
+    return await kvGet(c.env, key)
+  } catch (e) {
+    if (!(e instanceof KvUnavailableError)) throw e
+    const hit = await shadowStore()?.match(shadowRequest(key))
+    return hit ? hit.text() : null
+  }
+}
+
+function writeShadowedCache(
+  c: Context<{ Bindings: Env }>,
+  key: string,
+  value: string,
+  ttlSeconds: number
+): void {
+  const shadow = shadowStore()
+  c.executionCtx.waitUntil(
+    Promise.allSettled([
+      kvPut(c.env, key, value, { expirationTtl: ttlSeconds }),
+      shadow
+        ? shadow.put(
+            shadowRequest(key),
+            new Response(value, {
+              headers: {
+                'content-type': 'application/json',
+                'Cache-Control': `public, s-maxage=${ttlSeconds}`,
+              },
+            })
+          )
+        : Promise.resolve(),
+    ])
+  )
+}
 
 /** Unified QA-traffic marker: scripted probes send `x-qa: 1`, and headless
  * browsers are never real visitors. Marked requests are accepted but not
@@ -98,12 +209,185 @@ async function entitlementFromRequest(c: {
   return verifyToken(secret, token)
 }
 
+/** Set once the relay rejects the `thinking` parameter, so later calls in this
+ * isolate skip it instead of paying a 400 round trip each time. */
+let thinkingParamRejected = false
+
+/** A failed attempt that already ran this long is not retried: a second full
+ * generation would double a wait the user has mostly given up on. */
+const LLM_RETRY_BUDGET_MS = 30_000
+
+/** The relay could not be reached at all (fetch threw, or a gateway status came
+ * back): recorded in KV so the client can say so before the next click.
+ * `status` is the upstream status, or 0 when the fetch itself failed. */
+interface LlmOutage {
+  since: number
+  last: number
+  status: number
+}
+const LLM_DOWN_KEY = 'llm:down'
+const LLM_DOWN_TTL_S = 15 * 60
+const LLM_DOWN_WRITE_GAP_MS = 30_000
+let llmDownWrittenAt = 0
+let llmDownSeen = false
+
+const isUnreachableStatus = (status: number) =>
+  status === 502 || status === 503 || status === 504 || (status >= 520 && status <= 530)
+
+async function readLlmOutage(env: Env): Promise<LlmOutage | null> {
+  try {
+    const raw = await kvGet(env, LLM_DOWN_KEY)
+    if (!raw) return null
+    const rec = JSON.parse(raw) as Partial<LlmOutage>
+    if (typeof rec.since !== 'number' || typeof rec.last !== 'number') return null
+    return { since: rec.since, last: rec.last, status: typeof rec.status === 'number' ? rec.status : 0 }
+  } catch {
+    return null
+  }
+}
+
+/** Record an unreachable relay. KV trouble is swallowed: the reply the user is
+ * waiting for must not depend on the bookkeeping (R822). */
+async function markLlmOutage(env: Env, status: number): Promise<LlmOutage> {
+  const now = Date.now()
+  llmDownSeen = true
+  const prev = await readLlmOutage(env)
+  const rec: LlmOutage = { since: prev?.since ?? now, last: now, status }
+  if (now - llmDownWrittenAt >= LLM_DOWN_WRITE_GAP_MS) {
+    llmDownWrittenAt = now
+    try {
+      await kvPut(env, LLM_DOWN_KEY, JSON.stringify(rec), { expirationTtl: LLM_DOWN_TTL_S })
+    } catch {
+      llmDownWrittenAt = 0
+    }
+  }
+  return rec
+}
+
+/** A usable reply ends the outage: the record is removed whichever isolate wrote it. */
+async function clearLlmOutage(env: Env): Promise<void> {
+  llmDownWrittenAt = 0
+  if (!llmDownSeen && !(await readLlmOutage(env))) return
+  llmDownSeen = false
+  try {
+    await kvDelete(env, LLM_DOWN_KEY)
+  } catch {
+    llmDownSeen = true
+  }
+}
+
+interface LlmUsage {
+  prompt_tokens?: number
+  completion_tokens?: number
+  completion_tokens_details?: { reasoning_tokens?: number }
+}
+
+interface LlmReply {
+  model?: string
+  finish?: string
+  content: string
+  reasoningChars: number
+  usage?: LlmUsage
+  /** Stream ended without `[DONE]` / a finish reason */
+  interrupted?: boolean
+}
+
+interface LlmStreamChunk {
+  model?: string
+  choices?: {
+    delta?: { content?: string; reasoning_content?: string }
+    finish_reason?: string | null
+  }[]
+  usage?: LlmUsage | null
+  error?: { message?: string }
+}
+
+/** Assemble an OpenAI-style SSE completion stream into one reply. */
+async function readLlmStream(
+  body: ReadableStream<Uint8Array>,
+  onDelta?: (text: string) => void
+): Promise<LlmReply> {
+  const reply: LlmReply = { content: '', reasoningChars: 0, interrupted: true }
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  const handle = (line: string) => {
+    if (!line.startsWith('data:')) return
+    const data = line.slice(5).trim()
+    if (!data) return
+    if (data === '[DONE]') {
+      reply.interrupted = false
+      return
+    }
+    let chunk: LlmStreamChunk
+    try {
+      chunk = JSON.parse(data) as LlmStreamChunk
+    } catch {
+      return
+    }
+    if (chunk.error?.message) throw new Error(chunk.error.message)
+    if (chunk.model) reply.model = chunk.model
+    if (chunk.usage) reply.usage = chunk.usage
+    const choice = chunk.choices?.[0]
+    if (!choice) return
+    if (choice.delta?.content) {
+      reply.content += choice.delta.content
+      onDelta?.(choice.delta.content)
+    }
+    if (choice.delta?.reasoning_content) reply.reasoningChars += choice.delta.reasoning_content.length
+    if (choice.finish_reason) {
+      reply.finish = choice.finish_reason
+      reply.interrupted = false
+    }
+  }
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split(/\r?\n/)
+    buffer = lines.pop() ?? ''
+    for (const line of lines) handle(line)
+  }
+  buffer += decoder.decode()
+  if (buffer) handle(buffer)
+  return reply
+}
+
+async function readLlmJson(upstream: Response): Promise<LlmReply> {
+  const body = (await upstream.json().catch(() => null)) as {
+    model?: string
+    choices?: { message?: { content?: string; reasoning_content?: string }; finish_reason?: string }[]
+    usage?: LlmUsage
+  } | null
+  const choice = body?.choices?.[0]
+  return {
+    model: body?.model,
+    finish: choice?.finish_reason,
+    content: choice?.message?.content ?? '',
+    reasoningChars: choice?.message?.reasoning_content?.length ?? 0,
+    usage: body?.usage,
+  }
+}
+
+/** Live hooks for callers that forward the reply to the browser as it arrives.
+ * `reset` fires when a retry starts after an earlier attempt already emitted text;
+ * `signal` aborts the upstream generation when the browser has gone away. */
+interface LlmLiveHooks {
+  delta?: (text: string) => void
+  reset?: () => void
+  signal?: AbortSignal
+}
+
+const LLM_CANCELLED = { error: 'Cancelled.', status: 499 }
+
+
 async function callLlm(
   env: Env,
   messages: { role: string; content: string }[],
   temperature = 0.5,
-  maxTokens = 1200
-): Promise<{ text?: string; error?: string; status?: number }> {
+  maxTokens = 1200,
+  live?: LlmLiveHooks
+): Promise<{ text?: string; error?: string; status?: number; aiUnavailable?: LlmOutage }> {
   let baseUrl = env.LLM_RELAY_BASE_URL?.replace(/\/+$/, '')
   if (baseUrl && !/\/v\d+$/.test(baseUrl)) baseUrl = `${baseUrl}/v1`
   const apiKey = env.LLM_RELAY_API_KEY
@@ -111,10 +395,35 @@ async function callLlm(
   if (!baseUrl || !apiKey) {
     return { error: 'The AI service is not configured yet. Please try again later.', status: 503 }
   }
-  // One automatic retry on transient upstream failures (429/5xx/network)
-  let upstream: Response | null = null
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt > 0) await new Promise((r) => setTimeout(r, 1000))
+  // One automatic retry on transient upstream failures (429/5xx/network/cut
+  // stream) that fail fast. The reply is requested as a stream so response
+  // headers arrive with the first token instead of after the whole
+  // generation — a 100 s header timeout on the path cannot end a long
+  // completion.
+  const startedAt = Date.now()
+  const thinkingType = env.LLM_THINKING?.trim()
+  let withThinking = Boolean(thinkingType) && !thinkingParamRejected
+  let attempts = 2
+  let backoff = false
+  let emitted = false
+  let failure = {
+    error: 'Could not reach the AI service — please retry in a minute. None of your free AI uses were spent.',
+    status: 502,
+  }
+  /** Upstream status of the last unreachable attempt (0 = fetch threw); -1 when the last failure was something else. */
+  let unreachable = 0
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (live?.signal?.aborted) return LLM_CANCELLED
+    if (backoff) await new Promise((r) => setTimeout(r, 1000))
+    backoff = true
+    if (live?.signal?.aborted) return LLM_CANCELLED
+    const attemptStartedAt = Date.now()
+    if (emitted) {
+      live?.reset?.()
+      emitted = false
+    }
+    const elapsed = () => Date.now() - attemptStartedAt
+    let upstream: Response
     try {
       upstream = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
@@ -122,41 +431,151 @@ async function callLlm(
           'content-type': 'application/json',
           authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+          stream: true,
+          ...(withThinking ? { thinking: { type: thinkingType } } : {}),
+        }),
+        signal: live?.signal,
       })
     } catch {
-      upstream = null
+      if (live?.signal?.aborted) return LLM_CANCELLED
+      unreachable = 0
+      if (elapsed() >= LLM_RETRY_BUDGET_MS) break
       continue
     }
-    if (upstream.ok || (upstream.status !== 429 && upstream.status < 500)) break
-    console.error('LLM upstream retryable error', upstream.status)
+    const firstByteMs = elapsed()
+    if (withThinking && upstream.status === 400) {
+      // Relay does not know the GLM `thinking` parameter — fall back to the default mode.
+      thinkingParamRejected = true
+      withThinking = false
+      attempts++
+      backoff = false
+      console.error('LLM upstream rejected thinking param', (await upstream.text().catch(() => '')).slice(0, 300))
+      continue
+    }
+    if (!upstream.ok) {
+      const detail = await upstream.text().catch(() => '')
+      console.error('LLM upstream error', upstream.status, `${elapsed()}ms`, detail.slice(0, 500))
+      unreachable = isUnreachableStatus(upstream.status) ? upstream.status : -1
+      failure = {
+        error:
+          unreachable >= 0
+            ? `The AI service can't be reached right now (${upstream.status}). None of your free AI uses were spent.`
+            : `The AI service is temporarily unavailable (${upstream.status}) — please retry in a minute. None of your free AI uses were spent.`,
+        status: 502,
+      }
+      const retryable = upstream.status === 429 || upstream.status >= 500
+      if (!retryable || elapsed() >= LLM_RETRY_BUDGET_MS) break
+      continue
+    }
+    const streamed =
+      (upstream.headers.get('content-type') ?? '').includes('text/event-stream') && upstream.body !== null
+    let reply: LlmReply
+    try {
+      reply = streamed
+        ? await readLlmStream(upstream.body as ReadableStream<Uint8Array>, (text) => {
+            emitted = true
+            live?.delta?.(text)
+          })
+        : await readLlmJson(upstream)
+    } catch (err) {
+      reply = {
+        content: '',
+        reasoningChars: 0,
+        interrupted: true,
+        finish: live?.signal?.aborted
+          ? 'cancelled'
+          : err instanceof Error
+            ? err.message.slice(0, 120)
+            : String(err),
+      }
+    }
+    // Upstream timing + token usage, so `wrangler tail` can attribute latency
+    // (queue wait vs generation vs hidden reasoning tokens) per endpoint.
+    console.log(
+      'LLM upstream',
+      JSON.stringify({
+        ms: Date.now() - startedAt,
+        attemptMs: elapsed(),
+        firstByteMs,
+        stream: streamed,
+        model: reply.model ?? model,
+        finish: reply.finish,
+        prompt: reply.usage?.prompt_tokens,
+        completion: reply.usage?.completion_tokens,
+        reasoningTokens: reply.usage?.completion_tokens_details?.reasoning_tokens,
+        reasoningChars: reply.reasoningChars || undefined,
+        interrupted: reply.interrupted || undefined,
+        thinking: withThinking ? thinkingType : 'default',
+        maxTokens,
+      })
+    )
+    if (live?.signal?.aborted) return LLM_CANCELLED
+    if (reply.interrupted) {
+      unreachable = -1
+      failure = {
+        error: 'The AI service was interrupted — please retry in a minute. None of your free AI uses were spent.',
+        status: 502,
+      }
+      if (elapsed() >= LLM_RETRY_BUDGET_MS) break
+      continue
+    }
+    const text = reply.content.trim()
+    if (!text) return { error: 'Empty response from the AI service. Please retry.', status: 502 }
+    await clearLlmOutage(env)
+    return { text }
   }
-  if (!upstream) {
-    return {
-      error:
-        'Could not reach the AI service — please retry in a minute. None of your free AI uses were spent.',
-      status: 502,
+  if (unreachable >= 0) return { ...failure, aiUnavailable: await markLlmOutage(env, unreachable) }
+  return failure
+}
+
+/** Top-level `{…}` objects in a reply that was emitted as JSON Lines or
+ * concatenated objects instead of an array. String-aware brace matching, so
+ * braces inside text are ignored; an unterminated final object is dropped. */
+function scanTopLevelObjects(raw: string): unknown[] {
+  const out: unknown[] = []
+  let depth = 0
+  let start = -1
+  let inString = false
+  let escaped = false
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (ch === '\\') escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') {
+      if (depth > 0) inString = true
+      continue
+    }
+    if (ch === '{') {
+      if (depth === 0) start = i
+      depth++
+    } else if (ch === '}' && depth > 0) {
+      depth--
+      if (depth === 0 && start >= 0) {
+        try {
+          out.push(JSON.parse(raw.slice(start, i + 1)) as unknown)
+        } catch {
+          /* skip malformed object */
+        }
+        start = -1
+      }
     }
   }
-  if (!upstream.ok) {
-    const detail = await upstream.text().catch(() => '')
-    console.error('LLM upstream error', upstream.status, detail.slice(0, 500))
-    return {
-      error: `The AI service is temporarily unavailable (${upstream.status}) — please retry in a minute. None of your free AI uses were spent.`,
-      status: 502,
-    }
-  }
-  const body = (await upstream.json().catch(() => null)) as {
-    choices?: { message?: { content?: string } }[]
-  } | null
-  const text = body?.choices?.[0]?.message?.content?.trim()
-  if (!text) return { error: 'Empty response from the AI service. Please retry.', status: 502 }
-  return { text }
+  return out
 }
 
 /** Parse a model reply that is supposed to be a JSON array. Tolerates code
- * fences, prose around the array, and a reply truncated by max_tokens (the
- * complete leading elements are kept). Returns null when nothing usable. */
+ * fences, prose around the array, JSON Lines / concatenated objects instead
+ * of an array, and a reply truncated by max_tokens (the complete leading
+ * elements are kept). Returns null when nothing usable. */
 export function parseJsonArrayLenient(text: string): unknown[] | null {
   const raw = text.replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
   const tryParse = (s: string): unknown[] | null => {
@@ -169,8 +588,18 @@ export function parseJsonArrayLenient(text: string): unknown[] | null {
   }
   const direct = tryParse(raw)
   if (direct) return direct
+  const objectsOrNull = (): unknown[] | null => {
+    const objects = scanTopLevelObjects(raw)
+    if (objects.length === 1) {
+      // A single wrapper object such as {"suggestions": [...]}: unwrap.
+      const values = Object.values(objects[0] as Record<string, unknown>)
+      const inner = values.find(Array.isArray)
+      if (inner && values.length === 1) return inner as unknown[]
+    }
+    return objects.length > 0 ? objects : null
+  }
   const start = raw.indexOf('[')
-  if (start < 0) return null
+  if (start < 0) return objectsOrNull()
   const end = raw.lastIndexOf(']')
   if (end > start) {
     const inner = tryParse(raw.slice(start, end + 1))
@@ -186,7 +615,7 @@ export function parseJsonArrayLenient(text: string): unknown[] | null {
       cut = body.lastIndexOf(closer, cut - 1)
     }
   }
-  return null
+  return objectsOrNull()
 }
 
 const AI_TROUBLE_ERROR =
@@ -199,10 +628,11 @@ async function callLlmJsonArray(
   env: Env,
   messages: { role: string; content: string }[],
   temperature: number,
-  maxTokens: number
-): Promise<{ items?: unknown[]; error?: string; status?: number }> {
-  const first = await callLlm(env, messages, temperature, maxTokens)
-  if (first.error) return { error: first.error, status: first.status }
+  maxTokens: number,
+  live?: LlmLiveHooks
+): Promise<{ items?: unknown[]; error?: string; status?: number; aiUnavailable?: LlmOutage }> {
+  const first = await callLlm(env, messages, temperature, maxTokens, live)
+  if (first.error) return { error: first.error, status: first.status, aiUnavailable: first.aiUnavailable }
   const items = parseJsonArrayLenient(first.text ?? '')
   if (items && items.length > 0) return { items }
   console.error('LLM non-JSON output, re-asking', (first.text ?? '').slice(0, 200))
@@ -218,28 +648,126 @@ async function callLlmJsonArray(
       },
     ],
     Math.min(temperature, 0.2),
-    maxTokens
+    maxTokens,
+    live
   )
-  if (second.error) return { error: second.error, status: second.status }
+  if (second.error) return { error: second.error, status: second.status, aiUnavailable: second.aiUnavailable }
   const retried = parseJsonArrayLenient(second.text ?? '')
   if (retried && retried.length > 0) return { items: retried }
   console.error('LLM non-JSON output after re-ask', (second.text ?? '').slice(0, 200))
   return { error: AI_TROUBLE_ERROR, status: 502 }
 }
 
-/** Consume one free-AI-quota unit; returns remaining, or -1 when exhausted */
+const wantsLiveReply = (c: { req: { header: (name: string) => string | undefined } }) =>
+  (c.req.header('accept') ?? '').includes('text/event-stream')
+
+/** Forward the model reply to the browser as SSE while it is generated.
+ * `delta` events carry text as it arrives; `reset` means a retry started and
+ * the text shown so far must be discarded; `done` carries the authoritative
+ * full text plus quota; `error` the message the JSON path would have returned.
+ * Quota is consumed only once a usable reply exists, exactly like the JSON path.
+ * When the browser disconnects first (dialog closed, Stop pressed) the upstream
+ * generation is aborted and nothing is charged. */
+function liveAiReply(
+  c: Context<{ Bindings: Env }>,
+  freeRemaining: number | null,
+  run: (live: LlmLiveHooks) => Promise<{ text?: string; error?: string; status?: number; aiUnavailable?: LlmOutage }>
+) {
+  return streamSSE(c, async (stream) => {
+    const gone = new AbortController()
+    const startedAt = Date.now()
+    const abandon = () => {
+      if (gone.signal.aborted) return
+      gone.abort()
+      console.log('LLM live reply abandoned by client', JSON.stringify({ ms: Date.now() - startedAt }))
+    }
+    stream.onAbort(abandon)
+    c.req.raw.signal.addEventListener('abort', abandon)
+    const send = (event: string, data: unknown) =>
+      stream.writeSSE({ event, data: JSON.stringify(data) }).catch(() => {})
+    const result = await run({
+      delta: (text) => void send('delta', text),
+      reset: () => void send('reset', null),
+      signal: gone.signal,
+    })
+    if (gone.signal.aborted) return
+    if (result.error) {
+      await send('error', {
+        error: result.error,
+        status: result.status ?? 502,
+        ...(result.aiUnavailable ? { aiUnavailable: result.aiUnavailable } : {}),
+      })
+      return
+    }
+    const remaining = freeRemaining !== null ? await consumeFreeQuota(c) : null
+    await send('done', { text: result.text, freeRemaining: remaining })
+  })
+}
+
+type AiReplyBody = Record<string, unknown> | { error: string; status: number }
+
+const aiFailure = (r: { error?: string; status?: number; aiUnavailable?: LlmOutage }) => ({
+  error: r.error ?? AI_TROUBLE_ERROR,
+  status: r.status ?? 502,
+  ...(r.aiUnavailable ? { aiUnavailable: r.aiUnavailable } : {}),
+})
+
+/** Buffered (JSON) AI reply whose headers leave at once and whose body is one
+ * JSON document preceded by keep-alive spaces (one per second while the model
+ * works). Starting the response early is what lets the runtime notice a browser
+ * that has disconnected: over HTTP/3 `Request.signal` does not fire before the
+ * first response byte, so an abandoned request would otherwise run to the end
+ * and be charged. Failures decided after the headers travel in the body as
+ * `{ error, status }`; validation and quota errors keep their real status
+ * because routes decide them before entering here. */
+function bufferedAiReply(
+  c: Context<{ Bindings: Env }>,
+  run: (live: LlmLiveHooks) => Promise<AiReplyBody>
+) {
+  c.header('content-type', 'application/json; charset=utf-8')
+  c.header('cache-control', 'no-store')
+  return stream(c, async (s) => {
+    const gone = new AbortController()
+    const startedAt = Date.now()
+    const abandon = () => {
+      if (gone.signal.aborted) return
+      gone.abort()
+      console.log('LLM buffered reply abandoned by client', JSON.stringify({ ms: Date.now() - startedAt }))
+    }
+    s.onAbort(abandon)
+    c.req.raw.signal.addEventListener('abort', abandon)
+    const keepAlive = setInterval(() => void s.write(' '), 1000)
+    let body: AiReplyBody
+    try {
+      body = await run({ signal: gone.signal })
+    } finally {
+      clearInterval(keepAlive)
+    }
+    if (gone.signal.aborted) return
+    await s.write(JSON.stringify(body))
+  })
+}
+
+/** Consume one free-AI-quota unit after a successful call; returns the uses
+ * left (0 when exhausted), or null when KV could not record it — the reply the
+ * user waited for is still delivered, and the client shows no count. */
 async function consumeFreeQuota(c: {
   req: { header: (name: string) => string | undefined }
   env: Env
-}): Promise<number> {
+}): Promise<number | null> {
   const fp = c.req.header('x-client-id')?.trim()
-  if (!fp || fp.length < 8 || fp.length > 128) return -1
+  if (!fp || fp.length < 8 || fp.length > 128) return 0
   const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
   const kvKey = quotaKvKey(fp, 'ai')
-  const used = Number((await c.env.KV.get(kvKey)) ?? '0')
-  if (used >= limit) return -1
-  await c.env.KV.put(kvKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 30 })
-  return limit - used - 1
+  try {
+    const used = Number((await kvGet(c.env, kvKey)) ?? '0')
+    if (used >= limit) return 0
+    await kvPut(c.env, kvKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 30 })
+    return limit - used - 1
+  } catch (e) {
+    if (e instanceof KvUnavailableError) return null
+    throw e
+  }
 }
 
 /** Peek at the remaining free-AI quota without consuming; -1 when exhausted/invalid */
@@ -250,7 +778,7 @@ async function peekFreeQuota(c: {
   const fp = c.req.header('x-client-id')?.trim()
   if (!fp || fp.length < 8 || fp.length > 128) return -1
   const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
-  const used = Number((await c.env.KV.get(quotaKvKey(fp, 'ai'))) ?? '0')
+  const used = Number((await kvGet(c.env, quotaKvKey(fp, 'ai'))) ?? '0')
   if (used >= limit) return -1
   return limit - used
 }
@@ -345,6 +873,12 @@ app.use(
   })
 )
 
+const aiUnavailable = (c: Context<{ Bindings: Env }>) => {
+  c.header('Retry-After', '300')
+  c.header('Cache-Control', 'no-store')
+  return c.json({ error: AI_UNAVAILABLE_MESSAGE, code: 'unavailable' }, 503)
+}
+
 // Abuse gate for all AI endpoints: request-size cap plus a per-IP daily
 // request cap. Licensed users are exempt; the per-client free quota is
 // still checked per endpoint (x-client-id stays a UX dimension only).
@@ -358,7 +892,15 @@ app.use('/api/ai/*', async (c, next) => {
   if (ip && !(await entitlementFromRequest(c))) {
     const day = new Date().toISOString().slice(0, 10)
     const key = `rl:ai:${day}:${ip}`
-    const used = Number((await c.env.KV.get(key)) ?? '0')
+    // Fail closed: with the counters unreadable the free tier is paused (a
+    // licensed request never touches KV here), and the reply says so.
+    let used: number
+    try {
+      used = Number((await kvGet(c.env, key)) ?? '0')
+    } catch (e) {
+      if (!(e instanceof KvUnavailableError)) throw e
+      return aiUnavailable(c)
+    }
     if (used >= AI_IP_DAILY_LIMIT) {
       return c.json(
         {
@@ -370,7 +912,13 @@ app.use('/api/ai/*', async (c, next) => {
       )
     }
     const globalKey = `rl:ai-global:${day}`
-    const globalUsed = Number((await c.env.KV.get(globalKey)) ?? '0')
+    let globalUsed: number
+    try {
+      globalUsed = Number((await kvGet(c.env, globalKey)) ?? '0')
+    } catch (e) {
+      if (!(e instanceof KvUnavailableError)) throw e
+      return aiUnavailable(c)
+    }
     if (globalUsed >= AI_GLOBAL_DAILY_LIMIT) {
       return c.json(
         {
@@ -381,30 +929,63 @@ app.use('/api/ai/*', async (c, next) => {
         429
       )
     }
-    await c.env.KV.put(key, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
-    await c.env.KV.put(globalKey, String(globalUsed + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+    try {
+      await kvPut(c.env, key, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+      await kvPut(c.env, globalKey, String(globalUsed + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+    } catch (e) {
+      if (!(e instanceof KvUnavailableError)) throw e
+      return aiUnavailable(c)
+    }
   }
   return next()
 })
 
-// Remaining free-AI quota for this client (read-only, no consumption)
+// Remaining free-AI quota for this client (read-only, no consumption).
+// `null` means "unknown" to the client (no count shown), so a KV outage
+// degrades to the same answer an anonymous request gets.
 app.get('/api/ai/quota', async (c) => {
   const fp = c.req.header('x-client-id')?.trim()
   if (!fp || fp.length < 8 || fp.length > 128) return c.json({ freeRemaining: null })
   const limit = freeMode(c.env) ? FREE_MODE_AI_CALLS : FREE_AI_REWRITES
-  const used = Number((await c.env.KV.get(quotaKvKey(fp, 'ai'))) ?? '0')
-  return c.json({ freeRemaining: Math.max(limit - used, 0) })
+  try {
+    const [usedRaw, outage] = await Promise.all([kvGet(c.env, quotaKvKey(fp, 'ai')), readLlmOutage(c.env)])
+    const used = Number(usedRaw ?? '0')
+    if (outage) c.header('Cache-Control', 'no-store')
+    return c.json({
+      freeRemaining: Math.max(limit - used, 0),
+      ...(outage ? { aiUnavailable: outage } : {}),
+    })
+  } catch (e) {
+    if (!(e instanceof KvUnavailableError)) throw e
+    c.header('Cache-Control', 'no-store')
+    return c.json({ freeRemaining: null })
+  }
 })
 
-// Job search: aggregate the keyless public feeds (Remotive, Jobicy, Arbeitnow)
-// behind a KV cache so each upstream sees at most one request per query per
-// hour. Descriptions are flattened to plain text so the client can feed them
+// Job search: aggregate the keyless public feeds (Remotive, Jobicy, Arbeitnow,
+// plus The Muse's on-site postings once the user names a place) behind a KV
+// cache so each upstream sees at most one request per query per hour.
+// Descriptions are flattened to plain text so the client can feed them
 // straight into the JD tailoring flow (and the CSP never has to allow
 // third-party origins).
 const JOBS_CACHE_TTL = 60 * 60
+/** A response missing a feed (upstream timeout / 5xx) is kept only briefly, so the feed is retried soon rather than hidden for an hour. */
+const JOBS_DEGRADED_CACHE_TTL = 5 * 60
 const JOBS_MAX_QUERY = 80
+const JOBS_MAX_LOCATION = 60
 const JOBS_MAX_DESCRIPTION = 8_000
 const JOBS_MAX_RESULTS = 150
+/** Fewer complete title matches than this and the response also offers broader queries (with their own counts). */
+const JOBS_BROADEN_BELOW = 3
+const JOBS_BROADEN_MAX = 2
+/** A broader query is only offered when at least this share of its rows are complete title matches. */
+const JOBS_BROADEN_MIN_TITLED_SHARE = 0.05
+/** Feeds that ignore the query (Arbeitnow; The Muse per place) are fetched once per this window and shared by every query. */
+const JOBS_FEED_FRESH_MS = 15 * 60 * 1000
+/** Remotive's public feed is one fixed page (17 rows, `search` / `category` / `limit` ignored) and its terms ask for at most ~4 requests a day. */
+const JOBS_REMOTIVE_FRESH_MS = 6 * 60 * 60 * 1000
+/** …and the last good copy is kept this long so an upstream 429 / timeout serves it instead of dropping the feed. */
+const JOBS_FEED_KEEP_TTL = 24 * 60 * 60
 
 // Cut over-limit descriptions at the last whitespace inside the cap so the
 // visible text never ends mid-word; the flag lets the client disclose the cut.
@@ -418,18 +999,41 @@ const truncateDescription = (text: string): { description: string; descriptionTr
   }
 }
 
-const htmlToText = (html: string) =>
-  html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<li[^>]*>/gi, '\n• ')
-    .replace(/<br\s*\/?>|<\/p>|<\/div>|<\/h[1-6]>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
+const NAMED_ENTITIES: Record<string, string> = {
+  mdash: '—', ndash: '–', hellip: '…', bull: '•', middot: '·',
+  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', euro: '€', pound: '£', trade: '™', copy: '©', reg: '®',
+}
+const decodeHtmlEntities = (s: string) =>
+  s
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&(#39|apos|#x27);/g, "'")
     .replace(/&quot;/g, '"')
+    .replace(/&#(x[0-9a-f]{1,6}|\d{1,7});/gi, (m, code: string) => {
+      const cp = code[0].toLowerCase() === 'x' ? parseInt(code.slice(1), 16) : parseInt(code, 10)
+      return cp >= 0x20 && cp <= 0x10ffff && !(cp >= 0xd800 && cp <= 0xdfff) ? String.fromCodePoint(cp) : m
+    })
+    .replace(/&([a-z]+);/gi, (m, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? m)
+    .replace(/&amp;/g, '&')
+
+// Some feeds (Arbeitnow for ATS-fed postings) ship the body entity-encoded
+// (`&lt;div class=&quot;…`) with only a real-markup footer after it; when the
+// encoded tags outnumber the real ones the markup is decoded first so the tag
+// strip sees it, and the final passes decode the text's own entities (twice:
+// Jobicy ships `PKI &amp;amp; SSL`).
+const isEntityEncodedMarkup = (s: string) =>
+  (s.match(/&lt;\/?[a-z]/gi)?.length ?? 0) > (s.match(/<\/?[a-z]/g)?.length ?? 0)
+const htmlToText = (html: string) =>
+  decodeHtmlEntities(
+    decodeHtmlEntities(
+      (isEntityEncodedMarkup(html) ? decodeHtmlEntities(html) : html)
+        .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+        .replace(/<li[^>]*>/gi, '\n• ')
+        .replace(/<br\s*\/?>|<\/p>|<\/div>|<\/h[1-6]>/gi, '\n')
+        .replace(/<[^>]+>/g, ' ')
+    )
+  )
     .replace(/[ \t]+/g, ' ')
     .replace(/ ?\n ?/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -459,13 +1063,8 @@ const JOBS_KNOWN_LABELS = new Set(
   Object.values(JOBS_CATEGORIES).flat()
 )
 
-// Like the category label match above, the query is enforced here because the
-// upstream `search` parameter is not always honored: every whitespace token of
-// the query must appear somewhere in the job's searchable text.
-function matchesQuery(tokens: string[], haystack: string): boolean {
-  return tokens.every((t) => haystack.includes(t))
-}
-
+// Like the query match (worker/jobQuery.ts), the category label match is
+// enforced here because the upstream parameter is not always honored.
 function matchesCategory(slug: string, label: string): boolean {
   const l = label.trim().toLowerCase()
   if (slug === 'all-others') return !JOBS_KNOWN_LABELS.has(l)
@@ -512,6 +1111,8 @@ interface NormalizedJob {
   tags: string[]
   description: string
   descriptionTruncated: boolean
+  /** Feed the row came from (`remotive` | `jobicy` | `arbeitnow` | `themuse`); stamped at assembly */
+  source?: string
 }
 
 const JOBS_UPSTREAM_TIMEOUT_MS = 8_000
@@ -522,9 +1123,13 @@ async function fetchJson<T>(url: URL | string, init?: RequestInit): Promise<T | 
       headers: { accept: 'application/json', ...(init?.headers ?? {}) },
       signal: AbortSignal.timeout(JOBS_UPSTREAM_TIMEOUT_MS),
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.warn(`jobs feed ${new URL(String(url)).host} -> ${res.status}`)
+      return null
+    }
     return (await res.json()) as T
-  } catch {
+  } catch (e) {
+    console.warn(`jobs feed ${new URL(String(url)).host} -> ${e instanceof Error ? e.name : 'error'}`)
     return null
   }
 }
@@ -559,12 +1164,8 @@ function normalizeTags(tags: string[] | undefined): string[] {
   return out
 }
 
-async function fetchRemotive(q: string, category: string): Promise<NormalizedJob[] | null> {
-  const url = new URL('https://remotive.com/api/remote-jobs')
-  if (q) url.searchParams.set('search', q)
-  if (category) url.searchParams.set('category', category)
-  url.searchParams.set('limit', '50')
-  const data = await fetchJson<{ jobs?: RemotiveJob[] }>(url)
+async function fetchRemotive(): Promise<NormalizedJob[] | null> {
+  const data = await fetchJson<{ jobs?: RemotiveJob[] }>(new URL('https://remotive.com/api/remote-jobs'))
   if (!data) return null
   return (data.jobs ?? [])
     .filter((j) => j.id && j.title && j.url)
@@ -674,22 +1275,27 @@ const NON_ENGLISH_STOPWORDS_RE =
 const isNonEnglishText = (text: string) =>
   (text.slice(0, 800).match(NON_ENGLISH_STOPWORDS_RE)?.length ?? 0) >= 6
 
+// Every Arbeitnow body ends with the board's own paragraph — `Find <a>Jobs in
+// Germany</a> on Arbeitnow` or `Find more <a>English Speaking Jobs in France</a>
+// on Arbeitnow` (258 of 500 postings use the second shape).
+const ARBEITNOW_FOOTER_RE = /\n*Find (?:[a-z]+ ){0,3}Jobs in [^\n]{1,60} on Arbeitnow\s*$/i
+
 // Arbeitnow (Europe, on-site + remote). Its `search` parameter is ignored
 // upstream, so the newest pages are fetched and filtered locally.
-async function fetchArbeitnow(): Promise<NormalizedJob[] | null> {
+async function fetchArbeitnow(allowPartial: boolean): Promise<NormalizedJob[] | null> {
   const pages = await Promise.all(
     [1, 2].map((p) =>
       fetchJson<{ data?: ArbeitnowJob[] }>(`https://www.arbeitnow.com/api/job-board-api?page=${p}`)
     )
   )
-  if (pages.every((p) => !p)) return null
+  if (allowPartial ? pages.every((p) => !p) : pages.some((p) => !p)) return null
   return pages
     .flatMap((p) => p?.data ?? [])
     .filter((j) => j.slug && j.title && j.url)
     .map((j) => {
       const tags = normalizeTags(j.tags)
       const location = (j.location ?? '').trim()
-      const description = htmlToText(j.description ?? '')
+      const description = htmlToText(j.description ?? '').replace(ARBEITNOW_FOOTER_RE, '')
       return {
         id: `arbeitnow-${j.slug}`,
         title: (j.title ?? '').trim(),
@@ -708,50 +1314,327 @@ async function fetchArbeitnow(): Promise<NormalizedJob[] | null> {
     .filter((j) => !isNonEnglishText(`${j.title} ${j.description}`))
 }
 
-// Relevance tiers for a query: every token in the title beats some tokens in
-// the title, which beats a match found only in the body text.
-function queryRank(tokens: string[], job: NormalizedJob): number {
-  if (tokens.length === 0) return 0
-  const title = job.title.toLowerCase()
-  const hits = tokens.filter((t) => title.includes(t)).length
-  return hits === tokens.length ? 2 : hits > 0 ? 1 : 0
+// The Muse (themuse.com/api/public/jobs, keyless, 500 req/h): the only feed
+// here with on-site postings, so it is consulted once the user names a place.
+// Its `location` filter only understands its own exact labels ("New York, NY",
+// "London, United Kingdom") and silently answers anything else with the
+// remote-only set, so typed places are mapped onto verified labels and only
+// postings that carry the label are kept.
+const MUSE_PAGES = 5
+const MUSE_MAX_AGE_DAYS = 120
+// The Muse lists one employer's postings back to back, so a page of results can
+// be a single company; cap each so the location tier stays a mix.
+const MUSE_MAX_PER_COMPANY = 8
+
+const MUSE_US: [string, string][] = [
+  ['new york', 'New York, NY'],
+  ['nyc', 'New York, NY'],
+  ['san francisco', 'San Francisco, CA'],
+  ['los angeles', 'Los Angeles, CA'],
+  ['chicago', 'Chicago, IL'],
+  ['boston', 'Boston, MA'],
+  ['seattle', 'Seattle, WA'],
+  ['austin', 'Austin, TX'],
+  ['denver', 'Denver, CO'],
+  ['atlanta', 'Atlanta, GA'],
+  ['dallas', 'Dallas, TX'],
+  ['houston', 'Houston, TX'],
+  ['miami', 'Miami, FL'],
+  ['washington', 'Washington, DC'],
+  ['washington dc', 'Washington, DC'],
+  ['dc', 'Washington, DC'],
+  ['philadelphia', 'Philadelphia, PA'],
+  ['phoenix', 'Phoenix, AZ'],
+  ['san diego', 'San Diego, CA'],
+  ['minneapolis', 'Minneapolis, MN'],
+  ['portland', 'Portland, OR'],
+  ['charlotte', 'Charlotte, NC'],
+  ['nashville', 'Nashville, TN'],
+  ['detroit', 'Detroit, MI'],
+  ['salt lake city', 'Salt Lake City, UT'],
+  ['pittsburgh', 'Pittsburgh, PA'],
+  ['raleigh', 'Raleigh, NC'],
+  ['san jose', 'San Jose, CA'],
+  ['columbus', 'Columbus, OH'],
+  ['indianapolis', 'Indianapolis, IN'],
+  ['kansas city', 'Kansas City, MO'],
+  ['st. louis', 'St. Louis, MO'],
+  ['st louis', 'St. Louis, MO'],
+  ['tampa', 'Tampa, FL'],
+  ['orlando', 'Orlando, FL'],
+  ['las vegas', 'Las Vegas, NV'],
+  ['baltimore', 'Baltimore, MD'],
+  ['sacramento', 'Sacramento, CA'],
+  ['cincinnati', 'Cincinnati, OH'],
+  ['cleveland', 'Cleveland, OH'],
+  ['milwaukee', 'Milwaukee, WI'],
+  ['san antonio', 'San Antonio, TX'],
+]
+const MUSE_WORLD: [string, string][] = [
+  ['london', 'London, United Kingdom'],
+  ['manchester', 'Manchester, United Kingdom'],
+  ['edinburgh', 'Edinburgh, United Kingdom'],
+  ['birmingham', 'Birmingham, United Kingdom'],
+  ['bristol', 'Bristol, United Kingdom'],
+  ['cambridge', 'Cambridge, United Kingdom'],
+  ['leeds', 'Leeds, United Kingdom'],
+  ['glasgow', 'Glasgow, United Kingdom'],
+  ['paris', 'Paris, France'],
+  ['lyon', 'Lyon, France'],
+  ['berlin', 'Berlin, Germany'],
+  ['munich', 'Munich, Germany'],
+  ['münchen', 'Munich, Germany'],
+  ['hamburg', 'Hamburg, Germany'],
+  ['frankfurt', 'Frankfurt, Germany'],
+  ['madrid', 'Madrid, Spain'],
+  ['barcelona', 'Barcelona, Spain'],
+  ['amsterdam', 'Amsterdam, Netherlands'],
+  ['zurich', 'Zurich, Switzerland'],
+  ['zürich', 'Zurich, Switzerland'],
+  ['geneva', 'Geneva, Switzerland'],
+  ['dublin', 'Dublin, Ireland'],
+  ['milan', 'Milan, Italy'],
+  ['rome', 'Rome, Italy'],
+  ['warsaw', 'Warsaw, Poland'],
+  ['lisbon', 'Lisbon, Portugal'],
+  ['stockholm', 'Stockholm, Sweden'],
+  ['vienna', 'Vienna, Austria'],
+  ['prague', 'Prague, Czech Republic'],
+  ['budapest', 'Budapest, Hungary'],
+  ['tel aviv', 'Tel Aviv, Israel'],
+  ['dubai', 'Dubai, United Arab Emirates'],
+  ['toronto', 'Toronto, Canada'],
+  ['vancouver', 'Vancouver, Canada'],
+  ['montreal', 'Montreal, Canada'],
+  ['mexico city', 'Mexico City, Mexico'],
+  ['são paulo', 'São Paulo, Brazil'],
+  ['sao paulo', 'São Paulo, Brazil'],
+  ['buenos aires', 'Buenos Aires, Argentina'],
+  ['sydney', 'Sydney, Australia'],
+  ['melbourne', 'Melbourne, Australia'],
+  ['tokyo', 'Tokyo, Japan'],
+  ['bangalore', 'Bangalore, India'],
+  ['bengaluru', 'Bangalore, India'],
+  ['mumbai', 'Mumbai, India'],
+  ['singapore', 'Singapore'],
+  ['hong kong', 'Hong Kong'],
+]
+const MUSE_LOCATIONS = new Map<string, string>([...MUSE_US, ...MUSE_WORLD])
+for (const label of [...MUSE_LOCATIONS.values()]) MUSE_LOCATIONS.set(label.toLowerCase(), label)
+
+/** The Muse label for a typed place ("london", "NYC", "Austin, TX"), or null when it has none. */
+function museLocation(raw: string): string | null {
+  const key = raw.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\s*,\s*/g, ', ')
+  return MUSE_LOCATIONS.get(key) ?? null
 }
 
-app.get('/api/jobs/search', async (c) => {
-  const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
-  const rawCategory = (c.req.query('category') ?? '').trim()
-  const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
-  const cacheKey = `jobs:v9:${q.toLowerCase()}|${category}`
-  const cached = await c.env.KV.get(cacheKey)
-  if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
-  const [remotive, jobicy, arbeitnow] = await Promise.all([
-    fetchRemotive(q, category),
-    fetchJobicy(q),
-    fetchArbeitnow(),
-  ])
-  const feeds: [string, NormalizedJob[] | null][] = [
-    ['remotive', remotive],
-    ['jobicy', jobicy],
-    ['arbeitnow', arbeitnow],
-  ]
-  const sources = feeds.filter(([, jobs]) => jobs).map(([name]) => name)
-  if (sources.length === 0) {
-    return c.json({ error: 'Job search is unavailable right now — please retry shortly.' }, 502)
+// The Muse has no free-text search, only its fixed categories; a category
+// filter narrows the sample it hands back so the local token match has
+// something to bite on. Verified category names only (unknown ones return 0).
+const MUSE_CATEGORIES: Record<string, string[]> = {
+  'software-dev': ['Software Engineering', 'Computer and IT'],
+  'customer-support': ['Customer Service', 'Account Management'],
+  design: ['Design and UX'],
+  marketing: ['Advertising and Marketing'],
+  'sales-business': ['Sales', 'Business Operations'],
+  product: ['Product Management'],
+  'project-management': ['Project Management'],
+  data: ['Data and Analytics'],
+  devops: ['Computer and IT', 'Software Engineering'],
+  'finance-legal': ['Accounting and Finance', 'Legal Services'],
+  hr: ['Human Resources and Recruitment'],
+  qa: ['Software Engineering'],
+  writing: ['Writing and Editing', 'Media, PR, and Communications'],
+  'all-others': [
+    'Healthcare',
+    'Retail',
+    'Education',
+    'Food and Hospitality Services',
+    'Administration and Office',
+    'Science and Engineering',
+    'Transportation and Logistics',
+    'Manufacturing and Warehouse',
+  ],
+}
+// Without a category filter, the query itself picks the Muse categories to
+// sample ("registered nurse" → Healthcare). Order matters: first hit wins.
+const MUSE_QUERY_HINTS: [RegExp, string[]][] = [
+  [/nurs|\brn\b|health|medic|clinic|pharma|physician|therap|dental|caregiver|hospital/, ['Healthcare']],
+  [/retail|store|cashier|merchandis|barista|shop/, ['Retail', 'Food and Hospitality Services']],
+  [/teach|tutor|school|educat|instructor|professor/, ['Education']],
+  [/chef|cook|hotel|hospitality|restaurant|server|kitchen/, ['Food and Hospitality Services']],
+  [/warehouse|driver|logistic|forklift|delivery|supply chain/, ['Transportation and Logistics', 'Manufacturing and Warehouse']],
+  [/receptionist|office manager|administrative|clerk/, ['Administration and Office']],
+  [/data|analy/, ['Data and Analytics']],
+  [/scien|research|laborator|chemist|biolog|mechanical|electrical|civil/, ['Science and Engineering']],
+  [/engineer|developer|software|programm|frontend|backend|devops|\bsre\b|cloud|\bit\b/, ['Software Engineering', 'Computer and IT']],
+  [/design|\bux\b|\bui\b/, ['Design and UX']],
+  [/market|\bseo\b|growth|brand/, ['Advertising and Marketing']],
+  [/sales|account exec|business develop/, ['Sales']],
+  [/product/, ['Product Management']],
+  [/project|program manag|scrum/, ['Project Management']],
+  [/financ|account|legal|lawyer|paralegal|compliance/, ['Accounting and Finance', 'Legal Services']],
+  [/\bhr\b|recruit|talent|people/, ['Human Resources and Recruitment']],
+  [/writ|content|editor|journal|communications|\bpr\b/, ['Writing and Editing', 'Media, PR, and Communications']],
+  [/customer|support/, ['Customer Service']],
+]
+function museCategories(slug: string, q: string): string[] {
+  if (slug) return MUSE_CATEGORIES[slug] ?? []
+  const lower = q.toLowerCase()
+  for (const [re, cats] of MUSE_QUERY_HINTS) if (re.test(lower)) return cats
+  return []
+}
+
+interface MuseJob {
+  id?: number | string
+  name?: string
+  contents?: string
+  publication_date?: string
+  locations?: { name?: string }[]
+  categories?: { name?: string }[]
+  levels?: { name?: string }[]
+  refs?: { landing_page?: string }
+  company?: { name?: string }
+}
+interface MusePage {
+  page_count?: number
+  results?: MuseJob[]
+}
+
+async function fetchMuse(
+  label: string,
+  categories: string[],
+  allowPartial: boolean
+): Promise<NormalizedJob[] | null> {
+  const pageUrl = (p: number) => {
+    const url = new URL('https://www.themuse.com/api/public/jobs')
+    url.searchParams.set('page', String(p))
+    url.searchParams.set('location', label)
+    for (const cat of categories) url.searchParams.append('category', cat)
+    return url
   }
-  const qTokens = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const first = await fetchJson<MusePage>(pageUrl(1))
+  if (!first) return null
+  const lastPage = Math.min(first.page_count ?? 1, MUSE_PAGES)
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(lastPage - 1, 0) }, (_, i) => fetchJson<MusePage>(pageUrl(i + 2)))
+  )
+  if (!allowPartial && rest.some((p) => !p)) return null
+  const cutoff = Date.now() - MUSE_MAX_AGE_DAYS * 86_400_000
+  const perCompany = new Map<string, number>()
+  return [first, ...rest]
+    .flatMap((p) => p?.results ?? [])
+    .filter(
+      (j) =>
+        j.id &&
+        j.name &&
+        j.refs?.landing_page &&
+        (j.locations ?? []).some((l) => l.name === label) &&
+        Date.parse(j.publication_date ?? '') >= cutoff
+    )
+    .filter((j) => {
+      const key = (j.company?.name ?? '').trim().toLowerCase()
+      const n = (perCompany.get(key) ?? 0) + 1
+      perCompany.set(key, n)
+      return n <= MUSE_MAX_PER_COMPANY
+    })
+    .map((j) => {
+      const cats = (j.categories ?? []).map((c) => c.name ?? '').filter(Boolean)
+      // canonicalCategory falls back to its first label, which here would be the title
+      const category = canonicalCategory(...cats, j.name ?? '')
+      const title = (j.name ?? '').trim()
+      const levels = (j.levels ?? []).map((l) => l.name ?? '').filter(Boolean)
+      const locations = (j.locations ?? [])
+        .map((l) => (l.name === 'Flexible / Remote' ? 'Remote' : (l.name ?? '')))
+        .filter(Boolean)
+      return {
+        id: `muse-${j.id}`,
+        title,
+        company: (j.company?.name ?? '').trim(),
+        logo: '',
+        category: category === title ? (cats[0] ?? '') : category,
+        type: '',
+        location: locations.join(', '),
+        postedAt: toIso(j.publication_date),
+        salary: '',
+        url: j.refs?.landing_page ?? '',
+        tags: normalizeTags([...cats, ...levels]),
+        ...truncateDescription(htmlToText(j.contents ?? '')),
+      }
+    })
+}
+
+type JobFeeds = [string, NormalizedJob[] | null][]
+
+interface FeedSnapshot {
+  at: number
+  jobs: NormalizedJob[]
+}
+
+// Arbeitnow and Remotive ignore their `search` parameter and The Muse is asked
+// per place, so every uncached query used to re-download the same pages — a burst of 12 new
+// queries got Arbeitnow's 429 on four of them and the feed silently vanished
+// from `sources`. One snapshot per feed (per place) is shared by all queries;
+// when the upstream fails, the last good snapshot is served rather than nothing.
+// A refresh with a missing page only replaces the snapshot when there is none
+// to fall back on (`allowPartial`), so a half feed never overwrites a whole one.
+async function sharedFeed(
+  c: Context<{ Bindings: Env }>,
+  key: string,
+  load: (allowPartial: boolean) => Promise<NormalizedJob[] | null>,
+  freshMs = JOBS_FEED_FRESH_MS
+): Promise<NormalizedJob[] | null> {
+  const raw = await readShadowedCache(c, key)
+  const snap = raw ? (JSON.parse(raw) as FeedSnapshot) : null
+  const age = snap ? Date.now() - snap.at : Infinity
+  if (snap && age < freshMs) return snap.jobs
+  const fresh = await load(snap === null)
+  if (fresh) {
+    const next: FeedSnapshot = { at: Date.now(), jobs: fresh }
+    writeShadowedCache(c, key, JSON.stringify(next), JOBS_FEED_KEEP_TTL)
+    return fresh
+  }
+  if (snap) {
+    console.warn(`jobs feed ${key} -> serving ${Math.round(age / 60_000)} min old snapshot after upstream failure`)
+    return snap.jobs
+  }
+  return null
+}
+
+interface JobSearchPayload {
+  jobs: NormalizedJob[]
+  source: string
+  sources: string[]
+  query: { terms: string[]; ranking: string[] }
+  /** Complete title matches (every role word in the title). */
+  titled: number
+  /** Broader queries that have more complete title matches than this one, with their real counts. */
+  broaden?: { query: string; jobs: number; titled: number }[]
+}
+
+const jobsCacheKey = (query: JobQuery, category: string, museLabel: string | null) =>
+  `jobs:v18:${query.upstream}|${query.ranking.join(' ')}|${category}|${museLabel ?? ''}`
+
+// Relevance tiers for a query: every token in the title beats some tokens in
+// the title, which beats a match found only in the body text.
+function assembleJobs(
+  query: JobQuery,
+  category: string,
+  feeds: JobFeeds
+): Omit<JobSearchPayload, 'broaden'> {
+  const sources = feeds.filter(([, jobs]) => jobs).map(([name]) => name)
   const seen = new Set<string>()
-  const byFeed = feeds.map(([, list]) =>
+  const byFeed = feeds.map(([name, list]) =>
     (list ?? [])
+      .map((j) => ({ ...j, source: name }))
       .filter((j) => !category || matchesCategory(category, j.category))
-      .filter(
-        (j) =>
-          qTokens.length === 0 ||
-          matchesQuery(
-            qTokens,
-            [j.title, j.company, j.category, j.location, ...j.tags, j.description]
-              .join('\n')
-              .toLowerCase()
-          )
+      .filter((j) =>
+        matchesJobQuery(
+          query,
+          [j.title, j.company, j.category, j.location, ...j.tags, j.description]
+            .join('\n')
+            .toLowerCase()
+        )
       )
       .filter((j) => {
         // The same posting syndicated to several boards: keep the first copy
@@ -764,27 +1647,166 @@ app.get('/api/jobs/search', async (c) => {
   )
   // Arbeitnow alone publishes a couple of hundred postings a day, so a plain
   // newest-first sort would bury the remote-first feeds: within each relevance
-  // tier take the newest posting from each feed in turn.
+  // tier take the newest posting from each feed in turn; titles carrying more
+  // of the ranking words ("senior", "react") form their own band ahead of the
+  // rest of the tier across every feed, so one feed's unranked titles cannot
+  // interleave above another feed's "Head of …" rows.
   const jobs: NormalizedJob[] = []
   for (const tier of [2, 1, 0]) {
-    const queues = byFeed.map((list) => list.filter((j) => queryRank(qTokens, j) === tier))
-    while (queues.some((qu) => qu.length > 0) && jobs.length < JOBS_MAX_RESULTS) {
-      for (const qu of queues) {
-        const next = qu.shift()
-        if (next && jobs.length < JOBS_MAX_RESULTS) jobs.push(next)
+    for (let hits = query.ranking.length; hits >= 0; hits--) {
+      const queues = byFeed.map((list) =>
+        list.filter(
+          (j) => jobTitleRank(query, j.title) === tier && jobRankingHits(query, j.title) === hits
+        )
+      )
+      while (queues.some((qu) => qu.length > 0) && jobs.length < JOBS_MAX_RESULTS) {
+        for (const qu of queues) {
+          const next = qu.shift()
+          if (next && jobs.length < JOBS_MAX_RESULTS) jobs.push(next)
+        }
       }
     }
   }
-  const payload = { jobs, source: sources.join('+'), sources }
-  c.executionCtx.waitUntil(
-    c.env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: JOBS_CACHE_TTL })
+  return {
+    jobs,
+    source: sources.join('+'),
+    sources,
+    query: { terms: query.required.map((g) => g[0]), ranking: query.ranking },
+    titled: jobs.filter((j) => jobTitleRank(query, j.title) === 2).length,
+  }
+}
+
+async function fetchJobFeeds(
+  c: Context<{ Bindings: Env }>,
+  query: JobQuery,
+  category: string,
+  museLabel: string | null,
+  shared?: { remotive: NormalizedJob[] | null; arbeitnow: NormalizedJob[] | null; muse: NormalizedJob[] | null }
+): Promise<JobFeeds> {
+  const museCats = museLabel ? museCategories(category, query.upstream) : []
+  const [remotive, jobicy, arbeitnow, muse] = await Promise.all([
+    shared
+      ? shared.remotive
+      : sharedFeed(c, 'jobs:feed:v3:remotive', fetchRemotive, JOBS_REMOTIVE_FRESH_MS),
+    fetchJobicy(query.upstream),
+    shared ? shared.arbeitnow : sharedFeed(c, 'jobs:feed:v3:arbeitnow', fetchArbeitnow),
+    shared
+      ? shared.muse
+      : museLabel
+        ? sharedFeed(c, `jobs:feed:v3:muse:${museLabel}|${[...museCats].sort().join(',')}`, (partial) =>
+            fetchMuse(museLabel, museCats, partial)
+          )
+        : Promise.resolve(null),
+  ])
+  return [
+    ['remotive', remotive],
+    ['jobicy', jobicy],
+    ['arbeitnow', arbeitnow],
+    ...(museLabel ? ([['themuse', muse]] as JobFeeds) : []),
+  ]
+}
+
+const cacheJobs = (c: Context<{ Bindings: Env }>, key: string, payload: JobSearchPayload, feedCount: number) =>
+  writeShadowedCache(
+    c,
+    key,
+    JSON.stringify(payload),
+    payload.sources.length < feedCount ? JOBS_DEGRADED_CACHE_TTL : JOBS_CACHE_TTL
   )
+
+// "Registered Nurse - ICU" is one indirect match on the remote feeds while
+// "nurse" is 25; the user cannot know which word to drop, so the response
+// names the broader queries that do have complete title matches, each with its
+// real counts, and the client offers them — the typed query is never widened
+// on its own. Each broader query is a full search (Jobicy re-asked with the
+// shorter term; the Remotive / Arbeitnow / Muse pages are shared) and its result
+// is cached under its own key, so accepting a suggestion is instant.
+async function broaderQueries(
+  c: Context<{ Bindings: Env }>,
+  query: JobQuery,
+  category: string,
+  museLabel: string | null,
+  feeds: JobFeeds,
+  titled: number
+): Promise<JobSearchPayload['broaden']> {
+  const groups = query.required
+  if (titled >= JOBS_BROADEN_BELOW || groups.length < 2 || groups.length > 4) return undefined
+  const shared = {
+    remotive: feeds.find(([name]) => name === 'remotive')?.[1] ?? null,
+    arbeitnow: feeds.find(([name]) => name === 'arbeitnow')?.[1] ?? null,
+    muse: feeds.find(([name]) => name === 'themuse')?.[1] ?? null,
+  }
+  const tried = new Set<string>([query.upstream])
+  const run = async (keep: string[][]) => {
+    const label = keep.map((g) => g[0]).join(' ')
+    const cq = parseJobQuery(label)
+    if (cq.required.length === 0 || tried.has(cq.upstream)) return null
+    tried.add(cq.upstream)
+    const cacheKey = jobsCacheKey(cq, category, museLabel)
+    const cached = await readShadowedCache(c, cacheKey)
+    const payload: JobSearchPayload = cached
+      ? (JSON.parse(cached) as JobSearchPayload)
+      : assembleJobs(cq, category, await fetchJobFeeds(c, cq, category, museLabel, shared))
+    if (payload.sources.length === 0) return null
+    if (!cached) cacheJobs(c, cacheKey, payload, feeds.length)
+    return {
+      query: label,
+      jobs: payload.jobs.length,
+      titled: payload.titled,
+      // English job titles are head-final ("Technical Writer" is a writer), so
+      // a query that keeps the last role word is offered before one that drops it.
+      head: keep[keep.length - 1] === groups[groups.length - 1],
+    }
+  }
+  // Worth offering only when it clearly beats the typed query and its own
+  // complete title matches are not a rounding error: "icu" alone is 118 rows
+  // ("difficult", "curriculum") with 1 titled.
+  const better = (xs: ({ query: string; jobs: number; titled: number; head: boolean } | null)[]) =>
+    xs
+      .filter(
+        (x): x is NonNullable<typeof x> =>
+          x !== null &&
+          x.titled > titled &&
+          x.titled >= JOBS_BROADEN_BELOW &&
+          x.titled >= x.jobs * JOBS_BROADEN_MIN_TITLED_SHARE
+      )
+      .sort((a, b) => Number(b.head) - Number(a.head) || b.titled - a.titled || b.jobs - a.jobs)
+      .map(({ query, jobs, titled }) => ({ query, jobs, titled }))
+  // Drop one role word first; only when no such query qualifies ("registered
+  // nurse", "nurse icu", "registered icu" all have 0) fall back to single words.
+  let found = better(await Promise.all(groups.map((_, i) => run(groups.filter((__, j) => j !== i)))))
+  if (groups.length > 2 && found.length === 0) {
+    found = better(await Promise.all(groups.map((g) => run([g]))))
+  }
+  return found.length > 0 ? found.slice(0, JOBS_BROADEN_MAX) : undefined
+}
+
+app.get('/api/jobs/search', async (c) => {
+  const q = (c.req.query('q') ?? '').trim().slice(0, JOBS_MAX_QUERY)
+  const rawCategory = (c.req.query('category') ?? '').trim()
+  const category = rawCategory in JOBS_CATEGORIES ? rawCategory : ''
+  const museLabel = museLocation((c.req.query('location') ?? '').slice(0, JOBS_MAX_LOCATION))
+  // "Senior Frontend Engineer (React)" must find frontend-engineer jobs: the
+  // role words gate, the grade / bracketed words only rank (worker/jobQuery.ts).
+  const query = parseJobQuery(q)
+  const cacheKey = jobsCacheKey(query, category, museLabel)
+  const cached = await readShadowedCache(c, cacheKey)
+  if (cached) return c.json(JSON.parse(cached) as Record<string, unknown>)
+  const feeds = await fetchJobFeeds(c, query, category, museLabel)
+  const assembled = assembleJobs(query, category, feeds)
+  if (assembled.sources.length === 0) {
+    return c.json({ error: 'Job search is unavailable right now — please retry shortly.' }, 502)
+  }
+  const broaden = await broaderQueries(c, query, category, museLabel, feeds, assembled.titled)
+  const payload: JobSearchPayload = broaden ? { ...assembled, broaden } : assembled
+  cacheJobs(c, cacheKey, payload, feeds.length)
   return c.json(payload)
 })
 
-app.get('/api/health', (c) => {
+app.get('/api/health', async (c) => {
   const configured = Boolean(c.env.LLM_RELAY_BASE_URL && c.env.LLM_RELAY_API_KEY)
-  return c.json({ ok: true, llmConfigured: configured })
+  const outage = await readLlmOutage(c.env)
+  return c.json({ ok: true, llmConfigured: configured, llmUnreachableSince: outage?.since ?? null })
 })
 
 // AI rewrite: polish a summary / bullets / skills, optionally tailored to a JD.
@@ -844,34 +1866,37 @@ app.post('/api/ai/rewrite', async (c) => {
   const emphasis =
     body.emphasis === 'key-numbers' && kind === 'bullets' ? ('key-numbers' as const) : undefined
   const avoid = sanitizeAvoid(body.avoid)
-  const result = await callLlm(
-    c.env,
-    withOutputLanguage(
-      buildRewriteMessages(
-        kind,
-        text,
-        { role: body.role, jobDescription: body.jobDescription },
-        wantVariants,
-        emphasis,
-        avoid
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      withOutputLanguage(
+        buildRewriteMessages(
+          kind,
+          text,
+          { role: body.role, jobDescription: body.jobDescription },
+          wantVariants,
+          emphasis,
+          avoid
+        ),
+        body.language
       ),
-      body.language
-    ),
-    0.5,
-    wantVariants ? 2000 : 1200
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  let texts: string[] | undefined
-  if (wantVariants && result.text) {
-    texts = result.text
-      .split(/^\s*===+\s*$/m)
-      .map((t) => t.trim())
-      .filter(Boolean)
-    if (texts.length < 2) texts = undefined
-  }
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: texts?.[0] ?? result.text, texts, freeRemaining })
+      0.5,
+      wantVariants ? 2000 : 1200,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    let texts: string[] | undefined
+    if (wantVariants && result.text) {
+      texts = result.text
+        .split(/^\s*===+\s*$/m)
+        .map((t) => t.trim())
+        .filter(Boolean)
+      if (texts.length < 2) texts = undefined
+    }
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { text: texts?.[0] ?? result.text, texts, freeRemaining }
+  })
 })
 
 // Summary draft: write candidate summaries from the resume alone, grounded
@@ -918,30 +1943,33 @@ app.post('/api/ai/summary-draft', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlmJsonArray(
-    c.env,
-    withOutputLanguage(
-      buildSummaryDraftMessages(
-        resumeText,
-        body.role ?? '',
-        highlights,
-        typeof body.jobDescription === 'string' ? body.jobDescription : '',
-        sanitizeAvoid(body.avoid)
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlmJsonArray(
+      c.env,
+      withOutputLanguage(
+        buildSummaryDraftMessages(
+          resumeText,
+          body.role ?? '',
+          highlights,
+          typeof body.jobDescription === 'string' ? body.jobDescription : '',
+          sanitizeAvoid(body.avoid)
+        ),
+        body.language
       ),
-      body.language
-    ),
-    0.5,
-    900
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const texts = (result.items ?? [])
-    .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
-    .map((t) => t.trim())
-    .slice(0, 3)
-  if (texts.length === 0) return c.json({ error: AI_TROUBLE_ERROR }, 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: texts[0], texts, freeRemaining })
+      0.5,
+      900,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const texts = (result.items ?? [])
+      .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+      .map((t) => t.trim())
+      .slice(0, 3)
+    if (texts.length === 0) return { error: AI_TROUBLE_ERROR, status: 502 }
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { text: texts[0], texts, freeRemaining }
+  })
 })
 
 // Skill suggestions: discovery chips related to the user's existing skills /
@@ -985,22 +2013,25 @@ app.post('/api/ai/skill-suggest', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlmJsonArray(
-    c.env,
-    buildSkillSuggestMessages(skills, role, body.jobDescription ?? '', context, category),
-    0.5,
-    400
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const suggested = (result.items ?? [])
-    .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
-    .map((t) => t.trim())
-    .filter((t) => t.length <= 40)
-    .slice(0, 12)
-  if (suggested.length === 0) return c.json({ error: AI_TROUBLE_ERROR }, 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ skills: suggested, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlmJsonArray(
+      c.env,
+      buildSkillSuggestMessages(skills, role, body.jobDescription ?? '', context, category),
+      0.5,
+      400,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const suggested = (result.items ?? [])
+      .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+      .map((t) => t.trim())
+      .filter((t) => t.length <= 40)
+      .slice(0, 12)
+    if (suggested.length === 0) return { error: AI_TROUBLE_ERROR, status: 502 }
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { skills: suggested, freeRemaining }
+  })
 })
 
 // Keyword bullet: draft one bullet working a missing JD keyword into the
@@ -1036,17 +2067,20 @@ app.post('/api/ai/keyword-bullet', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlm(
-    c.env,
-    withOutputLanguage(buildKeywordBulletMessages(keyword, resumeText, jd, body.role ?? ''), body.language),
-    0.5,
-    400
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      withOutputLanguage(buildKeywordBulletMessages(keyword, resumeText, jd, body.role ?? ''), body.language),
+      0.5,
+      400,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { text, freeRemaining }
+  })
 })
 
 // Suggest one new bullet for a specific experience, project or involvement
@@ -1102,20 +2136,23 @@ app.post('/api/ai/suggest-bullet', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlm(
-    c.env,
-    withOutputLanguage(
-      buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo, section, targetRole, jobDescription, draft),
-      body.language
-    ),
-    0.6,
-    400
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      withOutputLanguage(
+        buildSuggestBulletMessages(role, company, bullets, resumeText, variant, companyInfo, section, targetRole, jobDescription, draft),
+        body.language
+      ),
+      0.6,
+      400,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const text = (result.text ?? '').trim().replace(/^[-•]\s*/, '')
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { text, freeRemaining }
+  })
 })
 
 // Tailor pass: rewrite summary + bullets toward one JD in a single call,
@@ -1152,26 +2189,29 @@ app.post('/api/ai/tailor', async (c) => {
     freeRemaining = remaining
   }
 
-  const result = await callLlmJsonArray(
-    c.env,
-    withOutputLanguage(buildTailorMessages(items, jd, body.role ?? ''), body.language),
-    0.4,
-    3000
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const known = new Set(items.map((i) => i.id))
-  const suggestions = (result.items ?? []).filter(
-    (s): s is { id: string; text: string } =>
-      Boolean(
-        s &&
-          typeof (s as { id?: unknown }).id === 'string' &&
-          typeof (s as { text?: unknown }).text === 'string' &&
-          known.has((s as { id: string }).id)
-      )
-  )
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ suggestions, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlmJsonArray(
+      c.env,
+      withOutputLanguage(buildTailorMessages(items, jd, body.role ?? ''), body.language),
+      0.4,
+      3000,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const known = new Set(items.map((i) => i.id))
+    const suggestions = (result.items ?? []).filter(
+      (s): s is { id: string; text: string } =>
+        Boolean(
+          s &&
+            typeof (s as { id?: unknown }).id === 'string' &&
+            typeof (s as { text?: unknown }).text === 'string' &&
+            known.has((s as { id: string }).id)
+        )
+    )
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { suggestions, freeRemaining }
+  })
 })
 
 // Cover letter — Career Bundle (free mode: shares the free AI quota)
@@ -1208,26 +2248,28 @@ app.post('/api/ai/cover-letter', async (c) => {
   const jd = body.jobDescription?.trim()
   if (!resumeText) return c.json({ error: 'Add resume content first.' }, 400)
   if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
-  const result = await callLlm(
-    c.env,
-    withOutputLanguage(
-      buildCoverLetterMessages(
-        resumeText,
-        jd,
-        body.company ?? '',
-        body.role ?? '',
-        body.addressee?.trim() ?? '',
-        body.highlights?.trim() ?? '',
-        body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
-      ),
-      body.language
+  const messages = withOutputLanguage(
+    buildCoverLetterMessages(
+      resumeText,
+      jd,
+      body.company ?? '',
+      body.role ?? '',
+      body.addressee?.trim() ?? '',
+      body.highlights?.trim() ?? '',
+      body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
     ),
-    0.6
+    body.language
   )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: result.text, freeRemaining })
+  if (wantsLiveReply(c)) {
+    return liveAiReply(c, freeRemaining, (live) => callLlm(c.env, messages, 0.6, 1200, live))
+  }
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(c.env, messages, 0.6, 1200, live)
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { text: result.text, freeRemaining }
+  })
 })
 
 // Resignation letter — Career Bundle (free mode: shares the free AI quota)
@@ -1264,25 +2306,29 @@ app.post('/api/ai/resignation-letter', async (c) => {
   const role = body.role?.trim()
   if (!company) return c.json({ error: 'Add your company name first.' }, 400)
   if (!role) return c.json({ error: 'Add your current role first.' }, 400)
-  const result = await callLlm(
-    c.env,
-    withOutputLanguage(
-      buildResignationLetterMessages(
-        company,
-        role,
-        body.lastDay?.trim() ?? '',
-        body.reason ?? '',
-        body.name?.trim() ?? '',
-        body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      withOutputLanguage(
+        buildResignationLetterMessages(
+          company,
+          role,
+          body.lastDay?.trim() ?? '',
+          body.reason ?? '',
+          body.name?.trim() ?? '',
+          body.tone === 'formal' || body.tone === 'friendly' ? body.tone : undefined
+        ),
+        body.language
       ),
-      body.language
-    ),
-    0.6
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: result.text, freeRemaining })
+      0.6,
+      1200,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { text: result.text, freeRemaining }
+  })
 })
 
 // Interview brief — Career Bundle (free mode: shares the free AI quota)
@@ -1319,15 +2365,17 @@ app.post('/api/ai/interview-brief', async (c) => {
   const jd = body.jobDescription?.trim()
   if (!resumeText) return c.json({ error: 'Add resume content first.' }, 400)
   if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
-  const result = await callLlm(
-    c.env,
-    buildInterviewBriefMessages(resumeText, jd, body.role ?? ''),
-    0.5
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: result.text, freeRemaining })
+  const messages = buildInterviewBriefMessages(resumeText, jd, body.role ?? '')
+  if (wantsLiveReply(c)) {
+    return liveAiReply(c, freeRemaining, (live) => callLlm(c.env, messages, 0.5, 1200, live))
+  }
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(c.env, messages, 0.5, 1200, live)
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { text: result.text, freeRemaining }
+  })
 })
 
 // Interview practice questions — Career Bundle (free mode: shares the free AI quota)
@@ -1364,21 +2412,24 @@ app.post('/api/ai/interview-questions', async (c) => {
   const jd = body.jobDescription?.trim()
   if (!resumeText) return c.json({ error: 'Add resume content first.' }, 400)
   if (!jd) return c.json({ error: 'Paste the job description first.' }, 400)
-  const result = await callLlmJsonArray(
-    c.env,
-    buildInterviewQuestionsMessages(resumeText, jd, body.role ?? ''),
-    0.6,
-    600
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  const questions = (result.items ?? [])
-    .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
-    .map((q) => q.trim().slice(0, 200))
-    .slice(0, 5)
-  if (questions.length === 0) return c.json({ error: AI_TROUBLE_ERROR }, 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ questions, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlmJsonArray(
+      c.env,
+      buildInterviewQuestionsMessages(resumeText, jd, body.role ?? ''),
+      0.6,
+      600,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    const questions = (result.items ?? [])
+      .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
+      .map((q) => q.trim().slice(0, 200))
+      .slice(0, 5)
+    if (questions.length === 0) return { error: AI_TROUBLE_ERROR, status: 502 }
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { questions, freeRemaining }
+  })
 })
 
 // Interview answer feedback — Career Bundle (free mode: shares the free AI quota)
@@ -1423,21 +2474,25 @@ app.post('/api/ai/interview-feedback', async (c) => {
   if (!answer || answer.length < 20) {
     return c.json({ error: 'Write your answer first — a couple of sentences at least.' }, 400)
   }
-  const result = await callLlm(
-    c.env,
-    buildInterviewFeedbackMessages(
-      question,
-      answer,
-      body.resumeText ?? '',
-      body.jobDescription ?? '',
-      body.role ?? ''
-    ),
-    0.5
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  return c.json({ text: result.text, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      buildInterviewFeedbackMessages(
+        question,
+        answer,
+        body.resumeText ?? '',
+        body.jobDescription ?? '',
+        body.role ?? ''
+      ),
+      0.5,
+      1200,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    return { text: result.text, freeRemaining }
+  })
 })
 
 // Resume assistant chat — Career Bundle (free mode: shares the free AI quota)
@@ -1486,23 +2541,26 @@ app.post('/api/ai/assistant', async (c) => {
   if (turns.length === 0 || turns[turns.length - 1].role !== 'user') {
     return c.json({ error: 'Type a message first.' }, 400)
   }
-  const result = await callLlm(
-    c.env,
-    buildAssistantMessages(
-      turns,
-      body.resumeText ?? '',
-      body.jobDescription ?? '',
-      body.role ?? '',
-      typeof body.scoreSummary === 'string' ? body.scoreSummary : ''
-    ),
-    0.5,
-    1200
-  )
-  // Quota is consumed only after a successful call, so failures cost nothing
-  if (result.error) return c.json({ error: result.error }, (result.status ?? 502) as 502)
-  if (freeRemaining !== null) freeRemaining = Math.max(await consumeFreeQuota(c), 0)
-  const { text, action } = parseAssistantAction(result.text ?? '')
-  return c.json({ text, action, freeRemaining })
+  return bufferedAiReply(c, async (live) => {
+    const result = await callLlm(
+      c.env,
+      buildAssistantMessages(
+        turns,
+        body.resumeText ?? '',
+        body.jobDescription ?? '',
+        body.role ?? '',
+        typeof body.scoreSummary === 'string' ? body.scoreSummary : ''
+      ),
+      0.5,
+      1200,
+      live
+    )
+    // Quota is consumed only after a successful call, so failures cost nothing
+    if (result.error) return aiFailure(result)
+    if (freeRemaining !== null) freeRemaining = await consumeFreeQuota(c)
+    const { text, action } = parseAssistantAction(result.text ?? '')
+    return { text, action, freeRemaining }
+  })
 })
 
 // Checkout availability: frontend checks before opening checkout; when
@@ -1561,8 +2619,8 @@ app.post('/api/billing/ls-webhook', async (c) => {
   const webhookId = event.meta?.webhook_id
   if (webhookId) {
     const seenKey = lsEventKvKey(webhookId)
-    if (await c.env.KV.get(seenKey)) return c.json({ ok: true, duplicate: true })
-    await c.env.KV.put(seenKey, '1', { expirationTtl: 60 * 60 * 24 * 7 })
+    if (await kvGet(c.env, seenKey)) return c.json({ ok: true, duplicate: true })
+    await kvPut(c.env, seenKey, '1', { expirationTtl: 60 * 60 * 24 * 7 })
   }
 
   if (event.meta?.event_name === 'order_created' && event.data?.id) {
@@ -1573,10 +2631,10 @@ app.post('/api/billing/ls-webhook', async (c) => {
     const plan = planFromVariantId(c.env, attrs?.first_order_item?.variant_id)
     if (paid && plan) {
       const kvKey = lsOrderKvKey(event.data.id)
-      const existing = await c.env.KV.get(kvKey)
+      const existing = await kvGet(c.env, kvKey)
       if (!existing) {
         const record: OrderRecord = { transactionId: event.data.id, plan }
-        await c.env.KV.put(kvKey, JSON.stringify(record))
+        await kvPut(c.env, kvKey, JSON.stringify(record))
       }
     }
   }
@@ -1608,7 +2666,7 @@ app.post('/api/hit', async (c) => {
   if (path.startsWith('/qa-') || isQaRequest(c.req.raw)) return c.json({ ok: true })
   if (!/^https?:\/\/[^\s<>"']{1,100}$/.test(ref)) ref = ''
   const day = new Date().toISOString().slice(0, 10)
-  await c.env.KV.put(
+  await kvPut(c.env, 
     `hit:${day}:${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
     JSON.stringify(ref ? { p: path, r: ref } : { p: path }),
     { expirationTtl: 60 * 60 * 24 * 90 }
@@ -1627,8 +2685,8 @@ app.post('/api/ev', async (c) => {
   }
   const day = new Date().toISOString().slice(0, 10)
   const key = `ev:${day}:${e}`
-  const current = Number((await c.env.KV.get(key)) ?? '0')
-  await c.env.KV.put(key, String(current + 1), { expirationTtl: 60 * 60 * 24 * 400 })
+  const current = Number((await kvGet(c.env, key)) ?? '0')
+  await kvPut(c.env, key, String(current + 1), { expirationTtl: 60 * 60 * 24 * 400 })
   return c.json({ ok: true })
 })
 
@@ -1658,7 +2716,7 @@ app.post('/api/leads', async (c) => {
     const ipLimit = clientId ? LEADS_IP_DAILY_LIMIT : LEADS_CLIENT_DAILY_LIMIT
     gates.push({ key: `rl:leads:${day}:${ip}`, limit: ipLimit })
   }
-  const counts = await Promise.all(gates.map((g) => c.env.KV.get(g.key)))
+  const counts = await Promise.all(gates.map((g) => kvGet(c.env, g.key)))
   for (let i = 0; i < gates.length; i++) {
     if (Number(counts[i] ?? '0') >= gates[i].limit) {
       return c.json(
@@ -1668,14 +2726,14 @@ app.post('/api/leads', async (c) => {
     }
   }
   await Promise.all(
-    gates.map((g, i) => c.env.KV.put(g.key, String(Number(counts[i] ?? '0') + 1), ttl))
+    gates.map((g, i) => kvPut(c.env, g.key, String(Number(counts[i] ?? '0') + 1), ttl))
   )
   const record = {
     email: addr,
     plan: typeof plan === 'string' ? plan.slice(0, 32) : '',
     createdAt: new Date().toISOString(),
   }
-  await c.env.KV.put(`lead:${Date.now()}`, JSON.stringify(record))
+  await kvPut(c.env, `lead:${Date.now()}`, JSON.stringify(record))
   return c.json({ ok: true })
 })
 
@@ -1727,7 +2785,7 @@ app.post('/api/share', async (c) => {
   }
   const day = new Date().toISOString().slice(0, 10)
   const rlKey = `rl:share:${day}:${fp}`
-  const used = Number((await c.env.KV.get(rlKey)) ?? '0')
+  const used = Number((await kvGet(c.env, rlKey)) ?? '0')
   if (used >= SHARE_CLIENT_DAILY_LIMIT) {
     return c.json({ error: 'Daily share limit reached — please try again tomorrow.' }, 429)
   }
@@ -1756,7 +2814,7 @@ app.post('/api/share', async (c) => {
     typeof body?.token === 'string' &&
     validShareId(body.id)
   ) {
-    const existing = await c.env.KV.get(`share:${body.id}`)
+    const existing = await kvGet(c.env, `share:${body.id}`)
     if (existing) {
       const rec = parseShareRecord(existing)
       if (rec && rec.tokenHash === (await sha256Hex(body.token))) {
@@ -1773,7 +2831,7 @@ app.post('/api/share', async (c) => {
         400
       )
     }
-    const existing = await c.env.KV.get(`share:${slug}`)
+    const existing = await kvGet(c.env, `share:${slug}`)
     if (existing) {
       return c.json({ error: 'That custom link is already taken — try another.' }, 409)
     }
@@ -1784,19 +2842,29 @@ app.post('/api/share', async (c) => {
     id = randomB64url(16)
     token = randomB64url(16)
   }
-  await c.env.KV.put(
+  await kvPut(c.env, 
     `share:${id}`,
     JSON.stringify({ resume, tokenHash: await sha256Hex(token), createdAt: Date.now() }),
     { expirationTtl: SHARE_TTL_SECONDS }
   )
-  await c.env.KV.put(rlKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
+  await kvPut(c.env, rlKey, String(used + 1), { expirationTtl: 60 * 60 * 24 * 2 })
   return c.json({ id, token, url: `https://cv.zalize.com/s/${id}` })
 })
 
 app.get('/api/share/:id', async (c) => {
   const id = c.req.param('id')
   if (!validShareId(id)) return c.json({ error: 'Not Found' }, 404)
-  const raw = await c.env.KV.get(`share:${id}`)
+  // A 404 here is what tells the client the link is revoked, so a KV outage
+  // must answer 503, never 404 (the recipient would be told the link is gone).
+  let raw: string | null
+  try {
+    raw = await kvGet(c.env, `share:${id}`)
+  } catch (e) {
+    if (!(e instanceof KvUnavailableError)) throw e
+    c.header('Retry-After', '300')
+    c.header('Cache-Control', 'no-store')
+    return c.json({ error: SHARE_UNAVAILABLE_MESSAGE, code: 'unavailable' }, 503)
+  }
   if (!raw) return c.json({ error: 'Not Found' }, 404)
   const rec = parseShareRecord(raw)
   if (!rec) return c.json({ error: 'Not Found' }, 404)
@@ -1808,18 +2876,18 @@ app.delete('/api/share/:id', async (c) => {
   const id = c.req.param('id')
   const token = c.req.header('x-share-token')?.trim() ?? ''
   if (!validShareId(id) || !token) return c.json({ error: 'Not Found' }, 404)
-  const raw = await c.env.KV.get(`share:${id}`)
+  const raw = await kvGet(c.env, `share:${id}`)
   if (!raw) return c.json({ ok: true })
   const rec = parseShareRecord(raw)
   if (!rec) {
     // Corrupt record: unreadable by GET anyway, so allow cleanup.
-    await c.env.KV.delete(`share:${id}`)
+    await kvDelete(c.env, `share:${id}`)
     return c.json({ ok: true })
   }
   if (rec.tokenHash !== (await sha256Hex(token))) {
     return c.json({ error: 'Not authorized.' }, 403)
   }
-  await c.env.KV.delete(`share:${id}`)
+  await kvDelete(c.env, `share:${id}`)
   return c.json({ ok: true })
 })
 
@@ -1845,7 +2913,7 @@ app.post('/api/license/claim', async (c) => {
 
   const txKvKey = lsOrderKvKey(txId)
   let txRecord: OrderRecord | null = null
-  const storedTx = await c.env.KV.get(txKvKey)
+  const storedTx = await kvGet(c.env, txKvKey)
   if (storedTx) {
     try {
       txRecord = JSON.parse(storedTx) as OrderRecord
@@ -1856,7 +2924,7 @@ app.post('/api/license/claim', async (c) => {
 
   // Already claimed: return the same license (idempotent, no re-issue)
   if (txRecord?.licenseKey) {
-    const stored = await c.env.KV.get(licenseKvKey(txRecord.licenseKey))
+    const stored = await kvGet(c.env, licenseKvKey(txRecord.licenseKey))
     if (stored) {
       const record = JSON.parse(stored) as LicenseRecord
       if (record.expiresAt < Date.now()) {
@@ -1904,14 +2972,14 @@ app.post('/api/license/claim', async (c) => {
     orderId: txId,
     activatedAt: Date.now(),
   })
-  await c.env.KV.put(licenseKvKey(licenseKey), JSON.stringify(record))
+  await kvPut(c.env, licenseKvKey(licenseKey), JSON.stringify(record))
   const claimed: OrderRecord = {
     transactionId: txId,
     licenseKey,
     plan,
     claimedAt: Date.now(),
   }
-  await c.env.KV.put(txKvKey, JSON.stringify(claimed))
+  await kvPut(c.env, txKvKey, JSON.stringify(claimed))
 
   const token = await signToken(secret, {
     key: record.key,
@@ -1938,7 +3006,7 @@ app.post('/api/license/activate', async (c) => {
     return c.json({ error: 'Please enter a valid license key.' }, 400)
   }
 
-  const stored = await c.env.KV.get(licenseKvKey(key))
+  const stored = await kvGet(c.env, licenseKvKey(key))
   let record: LicenseRecord | null = null
   if (stored) {
     try {
@@ -1958,7 +3026,7 @@ app.post('/api/license/activate', async (c) => {
   }
   if (!record.activatedAt) {
     record.activatedAt = Date.now()
-    await c.env.KV.put(licenseKvKey(key), JSON.stringify(record))
+    await kvPut(c.env, licenseKvKey(key), JSON.stringify(record))
   }
 
   const token = await signToken(secret, {
@@ -2156,7 +3224,19 @@ app.notFound(async (c) => {
   const isShare = path.startsWith('/s/') && validShareId(path.slice(3))
   // Revoked/expired/unknown share links get an honest 404 status; the SPA
   // shell still renders the branded "no longer available" card either way.
-  const shareRaw = isShare ? await c.env.KV.get(`share:${path.slice(3)}`) : null
+  // When KV cannot be read the link's state is unknown: serve the shell with
+  // 200 and the generic share meta, and let the client's /api/share call
+  // (which answers 503 then) show the retry card instead of "gone".
+  let shareRaw: string | null = null
+  let shareUnknown = false
+  if (isShare) {
+    try {
+      shareRaw = await kvGet(c.env, `share:${path.slice(3)}`)
+    } catch (e) {
+      if (!(e instanceof KvUnavailableError)) throw e
+      shareUnknown = true
+    }
+  }
   const shareLive = shareRaw !== null
   const headers: Record<string, string> = { 'content-type': 'text/html; charset=utf-8' }
   if (path.startsWith('/s/')) {
@@ -2229,11 +3309,29 @@ app.notFound(async (c) => {
       .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${meta.title}"`)
       .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${meta.description}"`)
   }
-  const status = SPA_ROUTES.has(path) || shareLive ? 200 : 404
+  const status = SPA_ROUTES.has(path) || shareLive || shareUnknown ? 200 : 404
   // 404 shells never report a pageview: probes for non-existent URLs are
   // not visits, and the beacon has no route knowledge of its own.
   if (status === 404 && typeof body === 'string') body = body.replace(FP_BEACON_TAG, '')
   return new Response(body, { status, headers })
+})
+
+// Last resort for anything a route did not degrade itself: a KV outage is an
+// honest 503 with a retry hint (Lemon Squeezy retries its webhook on 5xx), and
+// every other unhandled error stays a 500 but is JSON on the API so the
+// clients' `data.error` paths show a sentence instead of "(500)".
+app.onError((err, c) => {
+  c.header('Cache-Control', 'no-store')
+  if (err instanceof KvUnavailableError) {
+    c.header('Retry-After', '300')
+    console.error('KV unavailable ->', c.req.method, c.req.path)
+    return c.json({ error: KV_UNAVAILABLE_MESSAGE, code: 'unavailable' }, 503)
+  }
+  console.error('unhandled', c.req.method, c.req.path, err instanceof Error ? err.stack ?? err.message : String(err))
+  if (c.req.path.startsWith('/api/')) {
+    return c.json({ error: 'Something went wrong on our side — please retry.' }, 500)
+  }
+  return c.text('Internal Server Error', 500)
 })
 
 // Weekly IndexNow full push (same pattern as Shelfmark's runIndexNow cron):

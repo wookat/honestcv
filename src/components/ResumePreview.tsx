@@ -21,6 +21,7 @@ import {
   editDescriptionLine,
   experienceGroups,
   involvementBullets,
+  projectBullets,
   involvementDates,
   involvementEntries,
   militaryBullets,
@@ -31,8 +32,10 @@ import {
   fontScaleOf,
   pageMarginOf,
   lineSpacingOf,
+  educationDates,
   educationDetailLine,
   educationDetailSuffix,
+  educationEntries,
   orderedSectionKeys,
   projectDates,
   sectionHeading,
@@ -45,9 +48,11 @@ import {
   familyOf,
   textInkOf,
   resumeLanguageOf,
+  proseText,
 } from '@/lib/resume'
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { domToMarks, hasInlineMarks, parseInlineMarks } from '@/lib/marks'
+import { lineBoxesOf, pageCuts } from '@/lib/pageCuts'
 import { accentTint, resolveTemplate } from '@/lib/templates'
 
 /** Inline bold/italic/underline/link marks rendered as styled runs. */
@@ -99,21 +104,53 @@ function restoreMarkedDom(el: HTMLElement, text: string) {
     .join('')
 }
 
+/**
+ * Plain-weight tail of an entry heading (company / school / organisation). A read-only
+ * preview prints the separator only between two non-blank parts: a blank head lets the
+ * tail stand alone in the head's weight, a blank tail leaves the head alone, so the shared
+ * page and thumbnails never print the editor's placeholder or a dangling separator.
+ */
+function Tail({
+  head,
+  tail,
+  sep = '  ·  ',
+  editable,
+  children,
+}: {
+  head: string
+  tail: string
+  sep?: string
+  editable: boolean
+  children: React.ReactNode
+}) {
+  const shown = editable || (head.trim() && tail.trim())
+  return (
+    <span className={shown ? 'font-normal' : undefined}>
+      {shown ? sep : ''}
+      {children}
+    </span>
+  )
+}
+
 /** Click-to-type text in the preview: commits on blur/Enter, reverts on Escape. */
 function InlineText({
   value,
   fallback = '',
+  placeholder = '',
   onCommit,
   onEnterNext,
 }: {
   value: string
+  /** Shown in place of an empty value in every mode (a real default, e.g. the section label) */
   fallback?: string
+  /** Shown in place of an empty value only while editable (click-to-type affordance) */
+  placeholder?: string
   /** When set, the span is contentEditable and commits plain text edits */
   onCommit?: (next: string) => void
   /** Called after an Enter-commit, e.g. to open a draft bullet below */
   onEnterNext?: () => void
 }) {
-  const shown = value || fallback
+  const shown = value || fallback || (onCommit ? placeholder : '')
   if (!onCommit) return <MarkedText text={shown} />
   return (
     <span
@@ -146,7 +183,7 @@ function InlineText({
       }}
       onBlur={(e) => {
         const next = domToMarks(e.currentTarget)
-        if (next === shown || next === value || (next === fallback && !value)) {
+        if (next === shown || next === value || (next === (fallback || placeholder) && !value)) {
           restoreMarkedDom(e.currentTarget, shown)
           return
         }
@@ -328,8 +365,9 @@ export function ResumePreview({
 
   const aspectRatio = resume.pageSize === 'a4' ? '210 / 297' : '8.5 / 11'
   const contentStyle: React.CSSProperties = {
-    // Mirror the export's text-size and line-spacing settings
-    zoom: fontScaleOf(resume),
+    // Mirror the export's text-size and line-spacing settings. The template's px sizes
+    // stand for the export's pt sizes, so inside a 96dpi page frame they zoom by 96/72.
+    zoom: fontScaleOf(resume) * (paginated ? PX_PER_PT : 1),
     lineHeight: lineSpacingOf(resume) + 0.1,
   }
   const jumpProps = (key: string, label: string) =>
@@ -441,6 +479,13 @@ export function ResumePreview({
   )
 }
 
+/** CSS px per PDF point on the 96dpi page frames. */
+const PX_PER_PT = 96 / 72
+/** Page-cut slack in column px: one device pixel of per-frame text snapping plus half a px. */
+const cutSlack = (scale: number) => 1 / scale + 0.5
+/** State updater that keeps the previous page-start array when the cuts have not moved. */
+const keepIfEqual = (next: number[]) => (prev: number[]) =>
+  prev.length === next.length && prev.every((v, i) => Math.abs(v - next[i]) < 0.01) ? prev : next
 // 32px at 96dpi corresponds to the default 0.75\u2033 margin band's scaled look
 const PAGE_PAD = 32
 const pagePadOf = (r: Resume) => Math.round((PAGE_PAD * pageMarginOf(r)) / 54)
@@ -469,16 +514,18 @@ function PaginatedPages({
   const windowH = baseH - pagePad * 2
   const frameRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
-  const [pages, setPages] = useState(1)
+  const [starts, setStarts] = useState<number[]>([0])
   const [scale, setScale] = useState(0)
+  const pages = starts.length
 
   useEffect(() => {
     const frame = frameRef.current
     const content = contentRef.current
     if (!frame || !content) return
     const measure = () => {
-      setScale(frame.clientWidth / baseW)
-      setPages(Math.max(1, Math.ceil((content.scrollHeight - 1) / windowH)))
+      const s = frame.clientWidth / baseW
+      setScale(s)
+      setStarts(keepIfEqual(pageCuts(lineBoxesOf(content, s), content.scrollHeight, windowH, cutSlack(s))))
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -489,7 +536,7 @@ function PaginatedPages({
 
   return (
     <div className="space-y-4">
-      {Array.from({ length: pages }, (_, i) => (
+      {starts.map((start, i) => (
         <div
           key={i}
           ref={i === 0 ? frameRef : undefined}
@@ -520,10 +567,15 @@ function PaginatedPages({
               transformOrigin: 'top left',
             }}
           >
-            <div style={{ height: windowH, overflow: 'hidden' }}>
+            <div
+              style={{
+                height: i + 1 < pages ? Math.min(windowH, starts[i + 1] - start) : windowH,
+                overflow: 'hidden',
+              }}
+            >
               <div
                 ref={i === 0 ? contentRef : undefined}
-                style={{ transform: i > 0 ? `translateY(-${i * windowH}px)` : undefined }}
+                style={{ transform: start > 0 ? `translateY(-${start}px)` : undefined }}
               >
                 <div style={contentStyle}>{children}</div>
               </div>
@@ -565,6 +617,7 @@ function FlowPage({
   const frameRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [contentH, setContentH] = useState(windowH)
+  const [starts, setStarts] = useState<number[]>([0])
   const [scale, setScale] = useState(0)
 
   useEffect(() => {
@@ -572,8 +625,10 @@ function FlowPage({
     const content = contentRef.current
     if (!frame || !content) return
     const measure = () => {
-      setScale(frame.clientWidth / baseW)
+      const s = frame.clientWidth / baseW
+      setScale(s)
       setContentH(Math.max(windowH, content.scrollHeight))
+      setStarts(keepIfEqual(pageCuts(lineBoxesOf(content, s), content.scrollHeight, windowH, cutSlack(s))))
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -582,7 +637,6 @@ function FlowPage({
     return () => ro.disconnect()
   }, [baseW, windowH])
 
-  const breaks = Math.max(0, Math.ceil((contentH - 1) / windowH) - 1)
   return (
     <div
       ref={frameRef}
@@ -613,12 +667,12 @@ function FlowPage({
         <div ref={contentRef}>
           <div style={contentStyle}>{children}</div>
         </div>
-        {Array.from({ length: breaks }, (_, i) => (
+        {starts.slice(1).map((start, i) => (
           <div
             key={i}
             aria-hidden
             className="pointer-events-none absolute right-0 left-0 border-t border-dashed border-neutral-300"
-            style={{ top: pagePad + (i + 1) * windowH }}
+            style={{ top: pagePad + start }}
           >
             <span className="absolute right-1 -top-2 bg-white px-1 text-[9px] text-neutral-400">
               Page break
@@ -652,8 +706,8 @@ function SectionBlock({
         {heading(sectionHeading(resume, 'summary'), 'summary')}
         <p className="text-[11px]">
           <InlineText
-            value={resume.summary.trim()}
-            onCommit={onEdit && ((v) => onEdit({ ...resume, summary: v }))}
+            value={proseText(resume.summary)}
+            onCommit={onEdit && ((v) => onEdit({ ...resume, summary: proseText(v) }))}
           />
         </p>
       </>
@@ -687,7 +741,7 @@ function SectionBlock({
                   <p className="text-[11.5px] font-bold">
                     <InlineText
                       value={e.role}
-                      fallback="Role"
+                      placeholder="Role"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -700,12 +754,16 @@ function SectionBlock({
                       }
                     />
                     {g.grouped ? (
-                      e.location && <span className="font-normal">{'  ·  '}{e.location}</span>
+                      e.location && (
+                        <Tail head={e.role} tail={e.location} editable={!!onEdit}>
+                          {e.location}
+                        </Tail>
+                      )
                     ) : (
-                      <span className="font-normal">
-                        {'  ·  '}
+                      <Tail head={e.role} tail={e.company + e.location} editable={!!onEdit}>
                         <InlineText
                           value={e.company}
+                          placeholder="Company"
                           onCommit={
                             onEdit &&
                             ((v) =>
@@ -717,13 +775,13 @@ function SectionBlock({
                               }))
                           }
                         />
-                        {e.location ? `, ${e.location}` : ''}
-                      </span>
+                        {e.location ? `${e.company.trim() || onEdit ? ', ' : ''}${e.location}` : ''}
+                      </Tail>
                     )}
                   </p>
                   {(e.startDate || e.endDate) && (
                     <p className="text-[10px] text-neutral-500 italic">
-                      {experienceDateRange(e.startDate, e.endDate)}
+                      {experienceDateRange(e.startDate, e.endDate, resumeLanguageOf(resume))}
                     </p>
                   )}
                 </div>
@@ -864,7 +922,32 @@ function SectionBlock({
                     <p className="text-[10px] text-neutral-500 italic">{projectDates(p)}</p>
                   )}
                 </div>
-                {p.description.trim() && (
+                {projectBullets(p).length > 1 ? (
+                  <ul className="mt-0.5 space-y-0.5" style={ulIndent}>
+                    {projectBullets(p).map((b, i) => (
+                      <li key={i} className="flex gap-1.5 text-[11px]">
+                        <span style={{ color: tpl.accent }}>•</span>
+                        <span>
+                          <InlineText
+                            value={b}
+                            onCommit={
+                              onEdit &&
+                              ((v) =>
+                                onEdit({
+                                  ...resume,
+                                  projects: resume.projects.map((x) =>
+                                    x.id === p.id
+                                      ? { ...x, description: editDescriptionLine(x.description, i, v) }
+                                      : x
+                                  ),
+                                }))
+                            }
+                          />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : p.description.trim() ? (
                   <p className="text-[11px]">
                     <InlineText
                       value={p.description.trim()}
@@ -880,7 +963,7 @@ function SectionBlock({
                       }
                     />
                   </p>
-                )}
+                ) : null}
               </div>
           ))}
       </>
@@ -896,7 +979,7 @@ function SectionBlock({
               <p className="text-[11.5px] font-bold">
                 <InlineText
                   value={inv.role.trim()}
-                  fallback="Role"
+                  placeholder="Role"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -908,11 +991,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {inv.organization.trim() && (
-                  <span className="font-normal">
-                    {'  ·  '}
+                {(inv.organization.trim() || onEdit) && (
+                  <Tail head={inv.role} tail={inv.organization + inv.location} editable={!!onEdit}>
                     <InlineText
                       value={inv.organization.trim()}
+                      placeholder="Organization"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -925,7 +1008,7 @@ function SectionBlock({
                       }
                     />
                     {inv.location.trim() ? `, ${inv.location.trim()}` : ''}
-                  </span>
+                  </Tail>
                 )}
               </p>
               {involvementDates(inv) && (
@@ -962,16 +1045,21 @@ function SectionBlock({
     ) : null
   }
   if (sectionKey === 'education')
-    return resume.education.some((e) => e.school) ? (
+    return educationEntries(resume).length > 0 ? (
       <>
         {heading(sectionHeading(resume, 'education'), 'education')}
-          {resume.education.filter((e) => e.school).map((e, ei) => (
+          {educationEntries(resume).map((e, ei) => (
               <div key={e.id} className="mb-1.5" style={entrySep(ei)}>
+                {(onEdit ||
+                  e.degree.trim() ||
+                  e.school.trim() ||
+                  e.location.trim() ||
+                  educationDates(e)) && (
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <p className="text-[11px] font-bold">
                     <InlineText
                       value={e.degree}
-                      fallback="Degree"
+                      placeholder="Degree"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -983,10 +1071,10 @@ function SectionBlock({
                           }))
                       }
                     />
-                    <span className="font-normal">
-                      {'  ·  '}
+                    <Tail head={e.degree} tail={e.school + e.location} editable={!!onEdit}>
                       <InlineText
                         value={e.school}
+                        placeholder="School"
                         onCommit={
                           onEdit &&
                           ((v) =>
@@ -998,28 +1086,27 @@ function SectionBlock({
                             }))
                         }
                       />
-                      {e.location ? `, ${e.location}` : ''}
-                    </span>
+                      {e.location ? `${e.school.trim() || onEdit ? ', ' : ''}${e.location}` : ''}
+                    </Tail>
                   </p>
-                  {(e.startDate || e.endDate) && (
-                    <p className="text-[10px] text-neutral-500 italic">
-                      {[e.startDate, e.endDate].filter(Boolean).join(' – ')}
-                    </p>
+                  {educationDates(e) && (
+                    <p className="text-[10px] text-neutral-500 italic">{educationDates(e)}</p>
                   )}
                 </div>
+                )}
                 {educationDetailLine(e) && (
                   <p className="text-[11px]">
                     {e.details.trim() ? (
                       <>
                         <InlineText
-                          value={e.details.trim()}
+                          value={proseText(e.details)}
                           onCommit={
                             onEdit &&
                             ((v) =>
                               onEdit({
                                 ...resume,
                                 education: resume.education.map((x) =>
-                                  x.id === e.id ? { ...x, details: v } : x
+                                  x.id === e.id ? { ...x, details: proseText(v) } : x
                                 ),
                               }))
                           }
@@ -1046,7 +1133,7 @@ function SectionBlock({
               <p className="text-[11.5px] font-bold">
                 <InlineText
                   value={cw.name.trim()}
-                  fallback="Course"
+                  placeholder="Course"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -1058,11 +1145,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {cw.institution.trim() && (
-                  <span className="font-normal">
-                    {'  ·  '}
+                {(cw.institution.trim() || onEdit) && (
+                  <Tail head={cw.name} tail={cw.institution} editable={!!onEdit}>
                     <InlineText
                       value={cw.institution.trim()}
+                      placeholder="Institution"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -1074,7 +1161,7 @@ function SectionBlock({
                           }))
                       }
                     />
-                  </span>
+                  </Tail>
                 )}
               </p>
               {cw.date.trim() && (
@@ -1176,7 +1263,7 @@ function SectionBlock({
               <p className="text-[11px] font-bold">
                 <InlineText
                   value={c.name.trim()}
-                  fallback="Certificate"
+                  placeholder="Certificate"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -1188,11 +1275,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {c.issuer.trim() && (
-                  <span className="font-normal">
-                    {' — '}
+                {(c.issuer.trim() || onEdit) && (
+                  <Tail head={c.name} tail={c.issuer} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={c.issuer.trim()}
+                      placeholder="Issuer"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -1204,7 +1291,7 @@ function SectionBlock({
                           }))
                       }
                     />
-                  </span>
+                  </Tail>
                 )}
               </p>
               {c.date.trim() && (
@@ -1212,12 +1299,12 @@ function SectionBlock({
               )}
             </div>
             {c.description.trim() && (
-              <p className="text-[11px]">{c.description.trim()}</p>
+              <p className="text-[11px]">{proseText(c.description)}</p>
             )}
           </div>
         ))}
         {resume.certifications.trim() && (
-          <p className="text-[11px]">{resume.certifications.trim()}</p>
+          <p className="text-[11px]">{proseText(resume.certifications)}</p>
         )}
       </>
     ) : null
@@ -1233,7 +1320,7 @@ function SectionBlock({
               <p className="text-[11.5px] font-bold">
                 <InlineText
                   value={a.name.trim()}
-                  fallback="Award"
+                  placeholder="Award"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -1245,11 +1332,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {a.organization.trim() && (
-                  <span className="font-normal">
-                    {' — '}
+                {(a.organization.trim() || onEdit) && (
+                  <Tail head={a.name} tail={a.organization} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={a.organization.trim()}
+                      placeholder="Organization"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -1261,7 +1348,7 @@ function SectionBlock({
                           }))
                       }
                     />
-                  </span>
+                  </Tail>
                 )}
               </p>
               {a.date.trim() && (
@@ -1308,7 +1395,7 @@ function SectionBlock({
               <p className="text-[11.5px] font-bold">
                 <InlineText
                   value={p.title.trim()}
-                  fallback="Publication"
+                  placeholder="Publication"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -1320,11 +1407,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {p.venue.trim() && (
-                  <span className="font-normal">
-                    {' — '}
+                {(p.venue.trim() || onEdit) && (
+                  <Tail head={p.title} tail={p.venue} sep=" — " editable={!!onEdit}>
                     <InlineText
                       value={p.venue.trim()}
+                      placeholder="Venue"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -1336,7 +1423,7 @@ function SectionBlock({
                           }))
                       }
                     />
-                  </span>
+                  </Tail>
                 )}
                 {(p.kind ?? '').trim() && (
                   <span className="font-normal italic"> ({(p.kind ?? '').trim()})</span>
@@ -1422,7 +1509,7 @@ function SectionBlock({
               <p className="text-[11.5px] font-bold">
                 <InlineText
                   value={m.rank.trim()}
-                  fallback="Rank"
+                  placeholder="Rank"
                   onCommit={
                     onEdit &&
                     ((v) =>
@@ -1434,11 +1521,11 @@ function SectionBlock({
                       }))
                   }
                 />
-                {m.branch.trim() && (
-                  <span className="font-normal">
-                    {'  ·  '}
+                {(m.branch.trim() || onEdit) && (
+                  <Tail head={m.rank} tail={m.branch + m.location} editable={!!onEdit}>
                     <InlineText
                       value={m.branch.trim()}
+                      placeholder="Branch"
                       onCommit={
                         onEdit &&
                         ((v) =>
@@ -1451,7 +1538,7 @@ function SectionBlock({
                       }
                     />
                     {m.location.trim() ? `, ${m.location.trim()}` : ''}
-                  </span>
+                  </Tail>
                 )}
               </p>
               {militaryDates(m) && (

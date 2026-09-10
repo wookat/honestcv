@@ -58,7 +58,7 @@ export function buildRewriteMessages(
   if (kind === 'summary') {
     task = `Rewrite the following professional summary in 2-3 punchy sentences (max 60 words). No first person ("I", "my").`
   } else if (kind === 'skills') {
-    task = `Clean up the following skills list: deduplicate, group related skills, use canonical industry names, order by relevance. Output a single comma-separated list.`
+    task = `Clean up the following skills list: remove duplicates, use canonical industry names, order by relevance. Keep every skill the input lists and add none — this is a cleanup, not a suggestion. If the input has labelled lines ("Label: a, b, c"), output one line per label in the same order and clean up within each line; otherwise output a single comma-separated list.`
   } else {
     task = `Rewrite the following work-experience bullet points. Return the same number of bullets (or merge only redundant ones), one per line, each starting with "- ".`
   }
@@ -72,7 +72,9 @@ export function buildRewriteMessages(
   if (target) parts.push(`Target role: ${target}`)
   if (jd)
     parts.push(
-      `Tailor wording toward this job description (mirror its keywords where truthful):\n"""\n${jd.slice(0, 4000)}\n"""`
+      kind === 'skills'
+        ? `Order the skills by relevance to this job description and prefer the names it uses for skills the input already has; do not add skills from it:\n"""\n${jd.slice(0, 4000)}\n"""`
+        : `Tailor wording toward this job description (mirror its keywords where truthful):\n"""\n${jd.slice(0, 4000)}\n"""`
     )
   if (avoid.length) parts.push(avoidPart(avoid))
   parts.push(`Input:\n"""\n${text.slice(0, 4000)}\n"""`)
@@ -167,20 +169,20 @@ export function buildTailorMessages(
   jobDescription: string,
   role: string
 ): ChatMessage[] {
-  const list = items
+  const list = `[\n${items
     .map((i) => JSON.stringify({ id: i.id, kind: i.kind, text: i.text.slice(0, 500) }))
-    .join('\n')
+    .join(',\n')}\n]`
   return [
     {
       role: 'system',
       content: `${SYSTEM_WRITER}
 You are tailoring an existing resume to one specific job description.
 For each input item, decide whether rewording it toward the JD makes it stronger. Mirror the JD's exact keywords and phrasing ONLY where the underlying fact is already in the item's text — never add tools, metrics, scope, or responsibilities the item does not contain.
-Output STRICT JSON only: an array of objects {"id": string, "text": string} for the items you changed. Omit items that are already well-tailored. No markdown fences, no commentary.`,
+Output STRICT JSON only: one array of objects {"id": string, "text": string} for the items you changed, e.g. [{"id":"b0","text":"…"},{"id":"b2","text":"…"}]. Omit items that are already well-tailored. Not one object per line — a single array. No markdown fences, no commentary.`,
     },
     {
       role: 'user',
-      content: `Target role: ${role || 'not specified'}\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nResume items (JSON, one per line):\n${list}`,
+      content: `Target role: ${role || 'not specified'}\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nResume items (JSON array):\n${list}`,
     },
   ]
 }
@@ -200,13 +202,14 @@ export function buildKeywordBulletMessages(
     {
       role: 'system',
       content: `${SYSTEM_WRITER}
-The user says they genuinely have experience with a keyword the job description asks for, but it is missing from their resume. Draft exactly ONE work-experience bullet that uses the keyword naturally.
-Ground the bullet only in what the resume already shows; where a specific project, metric or scope is unknown, use bracketed placeholders such as [project name] or [add %] for the user to fill in — never invent specifics.
+The user says they genuinely have experience with a keyword the job description asks for, but it is missing from their resume. Draft exactly ONE candidate work-experience bullet that uses the keyword naturally — a bullet the user will confirm or reject, not a record of what they did.
+Attach the keyword to work the resume already shows (a project, product, system or outcome that is on the resume). Where the resume shows nothing the keyword can attach to, or a project, metric, audience or scope is unknown, use bracketed placeholders such as [project where you used ${keyword}], [team or audience] or [add %] for the user to fill in — never invent specifics.
+The job description is there for the keyword's meaning and vocabulary only. Its duties, product and customers are the employer's, not the user's history: do not describe the employer's product or responsibilities as something the user built or did, and do not upgrade the resume's verbs (built → owned, contributed → led) or borrow phrases from the ad that the resume never uses.
 Output the single bullet as one line of plain text. No leading dash, no quotes, no commentary.`,
     },
     {
       role: 'user',
-      content: `Keyword to work in: ${keyword}\nTarget role: ${role || 'not specified'}\n\nJob description:\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
+      content: `Keyword to work in: ${keyword}\nTarget role: ${role || 'not specified'}\n\nJob description (for the keyword's meaning and vocabulary only — its duties are not the user's history):\n"""\n${jobDescription.slice(0, 4000)}\n"""\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
     },
   ]
 }
@@ -240,17 +243,20 @@ export function buildSuggestBulletMessages(
         : "Complete the user's partially written work-experience bullet into exactly ONE finished bullet. Keep the user's words, facts and intent — extend and polish the fragment, never replace it with a different achievement."
   const suggestLine =
     section === 'project'
-      ? 'Draft exactly ONE project bullet for the project described by the user, describing a typical, checkable outcome for that kind of project (what was built, improved, or delivered).'
+      ? 'Draft exactly ONE candidate project bullet for the project described by the user — an outcome (what was built, improved, or delivered) the user will confirm or reject.'
       : section === 'involvement'
-        ? 'Draft exactly ONE involvement bullet for the volunteer, club or extracurricular role described by the user, describing a typical, checkable contribution for that kind of role.'
-        : 'Draft exactly ONE work-experience bullet for the role described by the user, describing a typical, checkable achievement for that kind of role.'
+        ? 'Draft exactly ONE candidate involvement bullet for the volunteer, club or extracurricular role described by the user — a contribution the user will confirm or reject.'
+        : 'Draft exactly ONE candidate work-experience bullet for the role described by the user — an achievement the user will confirm or reject.'
+  const groundingLine = draft.trim()
+    ? 'Ground the completion only in the fragment and what the resume already shows; where a specific project, metric or scope is unknown, use bracketed placeholders such as [project name] or [add %] for the user to fill in — never invent specifics.'
+    : 'The bullet is a candidate, not a record: the user has not told you this happened, so it must be one they can check against their own memory. Prefer work the resume already evidences for this entry or nearby entries. Anything the resume does not show — a deliverable, an audience, a scope, a metric — goes in a bracketed placeholder such as [project name], [team or audience] or [add %] instead of being asserted. Do not present a duty from the job description as something the user did; at most offer it as a placeholder-marked candidate.'
   const draftLine = draft.trim() ? completeLine : suggestLine
   return [
     {
       role: 'system',
       content: `${SYSTEM_WRITER}
 ${draftLine}
-Ground the bullet only in what the resume already shows; where a specific project, metric or scope is unknown, use bracketed placeholders such as [project name] or [add %] for the user to fill in — never invent specifics.
+${groundingLine}
 Do not repeat or lightly rephrase any of the existing bullets; cover a different responsibility or outcome.
 Start with a strong action verb. Output the single bullet as one line of plain text ending with a period. No leading dash, no quotes, no commentary.${
         variant === 'key-numbers'
@@ -276,7 +282,7 @@ Start with a strong action verb. Output the single bullet as one line of plain t
         targetRole.trim() ? `\n\nTarget role: ${targetRole.trim()}` : ''
       }${
         jobDescription.trim()
-          ? `\n\nTailor wording toward this job description (mirror its keywords only where the resume truthfully supports them):\n"""\n${jobDescription.slice(0, 4000)}\n"""`
+          ? `\n\nTailor wording toward this job description (mirror its keywords only where the resume truthfully supports them; its duties are not the user's history):\n"""\n${jobDescription.slice(0, 4000)}\n"""`
           : ''
       }\n\nCandidate resume:\n"""\n${resumeText.slice(0, 6000)}\n"""`,
     },
@@ -361,6 +367,7 @@ export function groundingRules(resumeText: string, today = new Date()): string {
       : ''
   }
 - Every statement about the candidate must be traceable to the resume text. Do not attribute tools, technologies, methods, employers, team sizes, remote or hybrid work, metrics, certifications or duties the resume does not state, even when the job description asks for them. When the job description needs something the resume does not show, name it as a gap to prepare an honest answer for — never as experience the candidate has.
+- The resume records what the candidate did, not what they have never done and not how they feel: never tell them what they have or have not experienced beyond the resume ("you've operated at the execution end"), and never attribute preferences, comfort, opinions or working style ("comfortable working with product managers", "cares deeply about") the resume does not state. Interest in this role and company is fine.
 - Where a specific is unknown, write a bracketed placeholder such as [metric] or [project] instead of a guess.`
 }
 
@@ -382,7 +389,7 @@ export function buildCoverLetterMessages(
   return [
     {
       role: 'system',
-      content: `You are an expert cover-letter writer.${toneLine} Write a concise, specific, one-page cover letter (250-350 words). Structure: hook tied to the company/role, 2 short paragraphs mapping the candidate's real experience to the job's needs, warm closing. Never fabricate experience: every skill, tool, employer, metric or duty you mention must appear in the candidate's resume or in the "details to highlight" — a job-description requirement the resume does not show is not the candidate's experience. Plain text, no markdown. Start with "Dear Hiring Manager," unless an "Addressed to" name is given — then address that person directly ("Dear <name>,"). If the candidate lists details to highlight, weave them naturally into the body paragraphs (do not present them as a list). Do not include addresses or dates.`,
+      content: `You are an expert cover-letter writer.${toneLine} Write a concise, specific, one-page cover letter (250-350 words). Structure: hook tied to the company/role, 2 short paragraphs mapping the candidate's real experience to the job's needs, warm closing. Never fabricate experience: every skill, tool, employer, metric or duty you mention must appear in the candidate's resume or in the "details to highlight" — a job-description requirement the resume does not show is not the candidate's experience. Do not claim preferences, comfort levels, opinions or working style the resume does not state ("I'm comfortable working with product managers to refine quarterly goals", "I care deeply about …"); interest in this company and role is welcome, feelings about job-description duties are not. Plain text, no markdown. Start with "Dear Hiring Manager," unless an "Addressed to" name is given — then address that person directly ("Dear <name>,"). If the candidate lists details to highlight, weave them naturally into the body paragraphs (do not present them as a list). Do not include addresses or dates.`,
     },
     {
       role: 'user',
@@ -474,10 +481,10 @@ export function buildInterviewBriefMessages(
     {
       role: 'system',
       content: `You are an interview coach. Produce a practical interview prep brief with exactly these sections, in plain text with these headings:
-LIKELY QUESTIONS — 8 questions this specific role/JD will ask, each followed by a one-line answer angle drawn from the candidate's real resume (cite the employer or bullet it comes from; if the resume has nothing on the topic, say "no direct evidence — position it as a gap").
-YOUR STORIES — 3 STAR stories the candidate should prepare, each built from one actual experience bullet quoted from the resume; use bracketed placeholders for any detail the bullet does not give.
+LIKELY QUESTIONS — 8 questions this specific role/JD will ask, each followed by a one-line answer angle drawn from the candidate's real resume (cite the employer or bullet it comes from; if the resume has nothing on the topic, write "not on your resume — if you have done this, say so and add it; otherwise the closest analogue is …" and name the closest real bullet).
+YOUR STORIES — 3 STAR stories the candidate should prepare, each built from one actual experience bullet quoted from the resume; the Situation and Task come from that bullet or are bracketed placeholders — never a plausible backstory the resume does not state.
 QUESTIONS TO ASK — 4 sharp questions for the interviewer.
-GAPS TO PREPARE FOR — 2-3 likely weak spots vs the JD and how to address them honestly.
+GAPS TO PREPARE FOR — 2-3 JD requirements the resume does not show. Phrase each as what the resume does not show (not as what the candidate has never done), then two lines: "If you have done this: …" (add it to the resume and how to say it) and "If not: …" (the closest real experience and an honest framing).
 Never fabricate experience. No markdown syntax beyond the plain headings above.
 ${groundingRules(resumeText, today)}`,
     },
@@ -526,6 +533,7 @@ export function buildAssistantMessages(
 Rules:
 - When the user asks about their ATS score or how to improve it, ground the answer in the live ATS score report: cite the actual score, name the actual failing checks and missing keywords, and recommend the highest-impact fixes from that report. Never invent your own score or checks the report does not show.
 - Ground every statement in the resume context. Never invent employers, titles, dates, metrics, or skills the resume does not show; where a detail is unknown, say so or use a bracketed placeholder like [metric].
+- The job description is context for what the employer wants, not a record of the user's history. When you propose a summary or bullet, keep to what the resume shows: do not describe the employer's product, platform or responsibilities as work the user did, do not upgrade the resume's verbs (built → owned, contributed → led), and do not borrow phrases from the ad that the resume never uses — the user can only accept what is true of them.
 - Be concise: plain text, short paragraphs or "- " bullet lists, no markdown headings or bold, under 250 words per reply.
 - You cannot edit the resume directly. When an in-editor tool fits the request, point the user to it by name: "Tailor to job" (rewrites summary/bullets toward the JD), "Resume health" (checks), "Draft from my resume" (summary drafting), "AI suggest related skills" (skills), the Cover Letter / Interview Prep / Resignation Letter tools, and Auto-fit (layout).
 - Exception: when the user explicitly asks you to write or rewrite their summary, to suggest skills to add, or to write/rewrite/strengthen a bullet point for one of their experience entries, you MUST propose one concrete edit for them to approve — answering such a request with prose alone and no tail is an error. End your reply with a single line in exactly this form (no markdown, nothing after it):

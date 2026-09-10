@@ -3,6 +3,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { closingChildren } from '@/lib/closingChildren'
 
 // Last element that held focus, for dialogs opened while focus sits on <body>
 // (the opener button was disabled/blurred before the dialog opened).
@@ -18,8 +19,18 @@ if (typeof document !== 'undefined') {
   )
 }
 
-function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+// `open` of the nearest <Dialog>; undefined for uncontrolled dialogs.
+const DialogOpenContext = React.createContext<boolean | undefined>(undefined)
+
+function Dialog({
+  open,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  return (
+    <DialogOpenContext.Provider value={open}>
+      <DialogPrimitive.Root data-slot="dialog" open={open} {...props} />
+    </DialogOpenContext.Provider>
+  )
 }
 
 function DialogTrigger(
@@ -67,6 +78,15 @@ function DialogContent({
   // (e.g. a busy AI button hitting a 402), focus has already fallen to
   // <body>; fall back to the last element that held focus.
   const openerRef = React.useRef<HTMLElement | null>(null)
+  // A confirm handler usually clears the state the dialog reads (the item, the
+  // selection) in the same click that closes it, while Radix keeps the content
+  // mounted for the ~200 ms close animation — so the closing frames would show
+  // the dialog against empty state ("Stop tracking 0 jobs?", 'Delete ""?').
+  // While closing, keep what was on screen when the dialog was last open.
+  const open = React.useContext(DialogOpenContext)
+  const [lastOpen, setLastOpen] = React.useState<React.ReactNode>(children)
+  if (open !== false && lastOpen !== children) setLastOpen(children)
+  const shown = closingChildren(open, children, lastOpen)
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -90,12 +110,12 @@ function DialogContent({
           opener.focus()
         }}
         className={cn(
-          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
+          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
           className
         )}
         {...props}
       >
-        {children}
+        {shown}
         <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 -m-3 rounded-xs p-3 opacity-70 sm:m-0 sm:p-0 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
@@ -120,7 +140,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="dialog-footer"
       className={cn(
-        'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end',
+        'flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end',
         className
       )}
       {...props}

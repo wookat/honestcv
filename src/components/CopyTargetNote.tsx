@@ -7,7 +7,7 @@ import {
   type PipelineEntry,
 } from '@/lib/jobs'
 import type { ResumeVersion } from '@/lib/resume'
-import { INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
+import { INLINE_ACTION, INLINE_LABEL, INLINE_LINK } from '@/lib/utils'
 
 /**
  * Trailing " · …" note for a saved copy's meta line: which tracked job it is the
@@ -38,7 +38,9 @@ export function CopyTargetNote({
           to={`/jobs?job=${encodeURIComponent(entry.job.id)}`}
           className={`${INLINE_LINK} underline underline-offset-2`}
         >
-          {entry.job.title} at {entry.job.company}
+          <span className={INLINE_LABEL}>
+            {entry.job.title} at {entry.job.company}
+          </span>
         </Link>
         {role !== '' && !copyTargetsJob(v.data, entry.job) && (
           <>
@@ -65,9 +67,11 @@ export function CopyTargetNote({
             to={`/jobs?job=${encodeURIComponent(tracked.job.id)}`}
             className={`${INLINE_LINK} underline underline-offset-2`}
           >
-            {jobLinksLiveCopy(tracked, versions)
-              ? 'tracked job uses another copy'
-              : 'tracked job has no copy linked'}
+            <span className={INLINE_LABEL}>
+              {jobLinksLiveCopy(tracked, versions)
+                ? 'tracked job uses another copy'
+                : 'tracked job has no copy linked'}
+            </span>
           </Link>
           {' — '}
           <button
@@ -75,7 +79,9 @@ export function CopyTargetNote({
             className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
             onClick={() => onLinkToJob(tracked.job.id)}
           >
-            {jobLinksLiveCopy(tracked, versions) ? 'use this one instead' : 'reconnect it'}
+            <span className={INLINE_LABEL}>
+              {jobLinksLiveCopy(tracked, versions) ? 'use this one instead' : 'reconnect it'}
+            </span>
           </button>
         </>
       ) : (
@@ -89,7 +95,7 @@ export function CopyTargetNote({
                   to={`/jobs?q=${encodeURIComponent(origin.title)}&job=${encodeURIComponent(origin.id)}`}
                   className={`${INLINE_LINK} underline underline-offset-2`}
                 >
-                  open it to save it again
+                  <span className={INLINE_LABEL}>open it to save it again</span>
                 </Link>
               </>
             ) : (
@@ -99,7 +105,7 @@ export function CopyTargetNote({
                   to={`/jobs?q=${encodeURIComponent(role)}`}
                   className={`${INLINE_LINK} underline underline-offset-2`}
                 >
-                  find it on the jobs board
+                  <span className={INLINE_LABEL}>find it on the jobs board</span>
                 </Link>
               </>
             )}

@@ -1,0 +1,26 @@
+Alex Morgan
+Software Engineer
+alex.morgan@example.com | +44 7700 900123 | London, UK | github.com/alexmorgan-example |
+linkedin.com/in/alexmorgan-example
+SUMMARY
+Software engineer with six years of experience building customer-facing web applications. Focused on React,
+TypeScript, accessible interfaces and frontend performance. Collaborates with designers and product managers
+to turn customer needs into reliable software.
+EXPERIENCE
+Senior Software Engineer · Northstar Digital, London, UK
+Jan 2022 – Present
+• Led a React and TypeScript checkout redesign that reduced median page load time from 3.2 seconds to 1.8 seconds.
+• Built 24 reusable UI components with Storybook and documented keyboard interactions for the product design system.
+• Added 65 Playwright end-to-end tests to the release pipeline and reduced escaped frontend defects by 30%.
+Software Engineer · Harbor Analytics, London, UK
+Jul 2020 – Dec 2021
+• Developed customer reporting dashboards in React, integrating REST APIs and presenting daily usage trends for 120 business accounts.
+• Improved dashboard rendering performance by 35% through profiling, memoization and virtualized tables.
+• Partnered with two designers and three backend engineers to deliver monthly releases, reviewing code and documenting production incidents.
+EDUCATION
+BSc Computer Science · University of Bristol, Bristol, UK
+Sep 2017 – Jun 2020
+First Class Honours. Final project: an accessible public transport journey planner.
+SKILLS
+Languages: TypeScript, JavaScript, HTML, CSS, Frontend: React, Redux, Storybook, responsive design,
+accessibility, Testing and tools: Playwright, Jest, Git, GitHub Actions, REST APIs

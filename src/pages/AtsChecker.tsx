@@ -26,7 +26,7 @@ import {
 } from '@/lib/ats'
 import { IMPORT_ACCEPT, extractResumeFile, type FileCheck } from '@/lib/extractFile'
 import { priorityFixes, resumeHealth } from '@/lib/guidance'
-import { parseResumeText } from '@/lib/importText'
+import { keepDesignOnImport, parseResumeText } from '@/lib/importText'
 import { loadResume, saveResume, setActiveVersionId } from '@/lib/resume'
 import { useFocusAfterRender } from '@/lib/useFocusAfterRender'
 
@@ -165,10 +165,11 @@ export default function AtsChecker() {
     void navigate(anchor ? `/builder?jump=${anchor}` : '/builder')
   }
   const replaceAndOpen = (anchor?: string) => {
-    const parsed = parseResumeText(resumeText)
+    const existing = loadResume()
+    const parsed = parseResumeText(resumeText, { sectionHeadings: existing?.sectionHeadings })
     parsed.jobDescription = jd
     setActiveVersionId(null)
-    saveResume(parsed)
+    saveResume(existing ? keepDesignOnImport(existing, parsed) : parsed)
     goToBuilder(anchor)
   }
   const keepSavedAndOpen = (anchor?: string) => {
@@ -203,9 +204,12 @@ export default function AtsChecker() {
 
   // The report is frozen at the inputs of the last explicit check, so typing
   // never rescores (or hides) it. Edits surface an honest stale notice instead.
+  // The saved resume's own heading names (Builder renames), so its export is read
+  // like the structured resume — by the scorer and by the health analysis alike.
+  const savedHeadings = useMemo(() => (scan ? loadResume()?.sectionHeadings : undefined), [scan])
   const result = useMemo(
-    () => (scan ? scoreResumeText(scan.resumeText, scan.jd) : null),
-    [scan]
+    () => (scan ? scoreResumeText(scan.resumeText, scan.jd, { sectionHeadings: savedHeadings }) : null),
+    [scan, savedHeadings]
   )
   const stale = scan !== null && (resumeText !== scan.resumeText || jd !== scan.jd)
   const isExample = scan?.resumeText === EXAMPLE_RESUME && scan?.jd === EXAMPLE_JD
@@ -237,11 +241,11 @@ export default function AtsChecker() {
 
   const analysis = useMemo(() => {
     if (!result || !scan) return null
-    const parsed = parseResumeText(scan.resumeText)
+    const parsed = parseResumeText(scan.resumeText, { sectionHeadings: savedHeadings })
     parsed.jobDescription = scan.jd
     const health = resumeHealth(parsed)
     return { health, fixes: priorityFixes(result, health) }
-  }, [result, scan])
+  }, [result, scan, savedHeadings])
 
   return (
     <div className="bg-muted/30 flex min-h-screen flex-col">
@@ -578,11 +582,20 @@ export default function AtsChecker() {
                       Matched keywords ({result.matched.length})
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {result.matched.map((k) => (
-                        <Badge key={k} variant="secondary">
-                          {k}
-                        </Badge>
-                      ))}
+                      {result.matched.map((k) => {
+                        const found = result.variants.find((v) => v.keyword === k)?.found
+                        return (
+                          <Badge key={k} variant="secondary">
+                            {k}
+                            {found && (
+                              <span className="text-muted-foreground font-normal">
+                                {' '}
+                                as “{found}”
+                              </span>
+                            )}
+                          </Badge>
+                        )
+                      })}
                       {result.matched.length === 0 && (
                         <p className="text-muted-foreground text-sm">None yet.</p>
                       )}

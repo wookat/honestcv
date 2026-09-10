@@ -1,0 +1,38 @@
+Daniel Okafor
+Product Designer
+SUMMARY
+Product designer with 7 years of experience shipping accessible design systems
+for fintech and healthcare products used by millions of people.
+EXPERIENCE
+Senior Product Designer · Northbank
+Toronto, ON | Jan 2021 – Present
+• Led the redesign of the onboarding flow, lifting completion from 61% to 78%.
+• Built and maintained a 120-component design system adopted by 9 squads.
+• Ran 40+ usability sessions and turned findings into quarterly roadmap items.
+Product Designer · CareLoop
+Toronto, ON | Aug 2017 – Dec 2020
+• Designed the clinician scheduling app rated 4.7 on the App Store.
+• Introduced WCAG 2.1 AA audits into every release.
+EDUCATION
+BDes Interaction Design · OCAD University
+2013 – 2017
+CONTACT
+Toronto, ON
+555-222-1111
+daniel.okafor@example.com
+linkedin.com/in/dokafor
+SKILLS
+• Figma and prototyping tools
+• Design systems and tokens
+• User research and interviews
+• Accessibility (WCAG 2.2)
+• HTML, CSS, basic React
+• Usability testing and analytics
+LANGUAGES
+English (native)
+French (professional working)
+CERTIFICATIONS
+Google UX Design Certificate
+IAAP CPACC (2023)
+INTERESTS
+Typography, cycling, community design workshops for youth groups in Toronto

@@ -10,5 +10,5 @@
     "verbatimModuleSyntax": true,
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["./**/*.ts"]
+  "include": ["./**/*.ts", "../tests/worker-*.test.ts"]
 }

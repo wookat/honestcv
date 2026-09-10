@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
+import { bulkUntrackLabel } from '@/lib/bulkUntrackLabel'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { PlanCard, WorkspaceNav } from '@/components/WorkspaceNav'
 import { Button } from '@/components/ui/button'
@@ -38,6 +39,7 @@ import {
   JOB_CATEGORIES,
   JOB_STATUSES,
   JOB_STATUS_LABELS,
+  type JobBroaden,
   type JobListing,
   type JobStatus,
   type PipelineEntry,
@@ -46,7 +48,11 @@ import {
   copyKeepsProvenance,
   copyTargetsJob,
   followUpEmail,
-  isLocationAgnostic,
+  isKnownPlace,
+  locationTier,
+  queryTitleRank,
+  describeJobQuery,
+  widerAreasOf,
   listPipeline,
   locationFacets,
   markFollowedUp,
@@ -54,6 +60,7 @@ import {
   removeManyFromPipeline,
   restorePipelineEntries,
   searchJobs,
+  searchJobsWithMeta,
   reminderDue,
   setPipelineCoverDoc,
   setPipelineInterviewDoc,
@@ -61,6 +68,7 @@ import {
   setPipelineReminder,
   setPipelineResignationDoc,
   setPipelineVersion,
+  jobSourceLabel,
   staleDays,
   stashUnreadablePipeline,
   structureJobDescription,
@@ -76,7 +84,7 @@ import {
   type CareerDocKind,
 } from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
-import { INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
+import { INLINE_ACTION, INLINE_LABEL, INLINE_LINK } from '@/lib/utils'
 import {
   type Resume,
   type ResumeVersion,
@@ -157,6 +165,13 @@ const agoFromMs = (ms: number) => {
   return days === 1 ? '1 day ago' : `${days} days ago`
 }
 
+// Searches are numbered so a slower earlier response cannot overwrite the
+// list a later search already produced.
+let jobsFetchSeq = 0
+
+/** Widths where list and detail share one pane (below Tailwind `lg`). */
+const SINGLE_PANE_MQ = '(max-width: 1023px)'
+
 export default function Jobs() {
   usePageMeta(
     'Job search — RezUp',
@@ -188,6 +203,18 @@ export default function Jobs() {
   })
   const [excluded, setExcluded] = useState<ReadonlySet<JobStatus>>(new Set())
   const [jobs, setJobs] = useState<JobListing[]>([])
+  // The query `jobs` were fetched for (the search box may have been edited since).
+  const [fetchedQuery, setFetchedQuery] = useState(
+    () => seedQuery ?? loadResume()?.targetRole ?? ''
+  )
+  // Rows where the query appears only in the body / tags stay folded behind a
+  // count until asked for; remembering which query was expanded means a new
+  // query starts folded again.
+  const [textOnlyExpandedFor, setTextOnlyExpandedFor] = useState<string | null>(null)
+  // Broader queries the API found more complete title matches for (only sent
+  // when the fetched query has few); the typed query is never widened on its own.
+  const [broaden, setBroaden] = useState<JobBroaden[]>([])
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pipelineUnreadable, setPipelineUnreadable] = useState(() => stashUnreadablePipeline())
@@ -239,10 +266,14 @@ export default function Jobs() {
   } | null>(null)
   const [followUpCopied, setFollowUpCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
 
-  const fetchJobs = (q: string, cat = '') =>
-    searchJobs(q, cat)
-      .then(async (list) => {
+  const fetchJobs = (q: string, cat = '', loc = locationFilter) => {
+    const seq = ++jobsFetchSeq
+    return searchJobsWithMeta(q, cat, loc)
+      .then(async ({ jobs: list, broaden: wider }) => {
+        if (seq !== jobsFetchSeq) return
         setJobs(list)
+        setBroaden(wider)
+        setFetchedQuery(q)
         let seedResolved: JobListing | null = null
         if (pendingSeedJob) {
           setPendingSeedJob(null)
@@ -266,12 +297,21 @@ export default function Jobs() {
             }
           }
         }
+        // The panel should open on a row the list will actually show — one in
+        // the typed place, and a title match while any exists (body-only
+        // matches start folded) — or on nothing, never on a hidden row.
+        const inPlace = (j: JobListing) => !loc.trim() || locationTier(j.location, loc) !== null
+        const titled = (j: JobListing) => queryTitleRank(q, j.title) > 0
+        const anyTitled = list.some((j) => inPlace(j) && titled(j))
+        const visible = (j: JobListing) => inPlace(j) && (!anyTitled || titled(j))
         setSelectedId((cur) => {
+          const current = list.find((j) => j.id === cur)
           if (
             cur &&
-            (list.some((j) => j.id === cur) ||
+            (current ||
               listPipeline().some((e) => e.job.id === cur) ||
-              seedResolved?.id === cur)
+              seedResolved?.id === cur) &&
+            (explicitSelection.current || !current || visible(current))
           ) {
             return cur
           }
@@ -281,11 +321,16 @@ export default function Jobs() {
             const first = listPipeline().find((e) => staleDays(e) !== null || reminderDue(e))
             if (first) return first.job.id
           }
-          return list[0]?.id ?? null
+          return list.find(visible)?.id ?? null
         })
       })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false))
+      .catch((e: Error) => {
+        if (seq === jobsFetchSeq) setError(e.message)
+      })
+      .finally(() => {
+        if (seq === jobsFetchSeq) setLoading(false)
+      })
+  }
 
   const runSearch = (q: string, cat = category) => {
     setLoading(true)
@@ -297,6 +342,32 @@ export default function Jobs() {
     void fetchJobs(seedQuery ?? loadResume()?.targetRole ?? '', seedParams.get('cat') ?? '')
     // seedQuery/seedParams are set once from the URL and never change
   }, [seedQuery, seedParams])
+
+  // The remote feeds are filtered locally, but on-site postings for the typed
+  // place come from the API, so a settled location re-runs the search in the
+  // background (the list stays put until the new one arrives).
+  const lastFetchedLoc = useRef(locationFilter.trim().toLowerCase())
+  // The search the list currently shows, read when the debounce fires: the
+  // refetch must re-run that search for the new place, not whatever the search
+  // box held when the place changed.
+  const shownSearch = useRef({ query: fetchedQuery, category })
+  useEffect(() => {
+    shownSearch.current = { query: fetchedQuery, category }
+  }, [fetchedQuery, category])
+  useEffect(() => {
+    const loc = locationFilter.trim().toLowerCase()
+    if (loc === lastFetchedLoc.current) return
+    const seqAtChange = jobsFetchSeq
+    const t = window.setTimeout(() => {
+      lastFetchedLoc.current = loc
+      // A search submitted meanwhile already carried this place.
+      if (jobsFetchSeq !== seqAtChange) return
+      const { query: q, category: cat } = shownSearch.current
+      void fetchJobs(q, cat, locationFilter)
+    }, 700)
+    return () => window.clearTimeout(t)
+    // only a location change should schedule a refetch
+  }, [locationFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const params = new URLSearchParams()
@@ -313,12 +384,12 @@ export default function Jobs() {
     window.history.replaceState(window.history.state, '', window.location.pathname + (qs ? `?${qs}` : ''))
   }, [query, tab, followUpOnly, category, locationFilter, typeFilter, skillsFilter, sort, selectedId])
 
-  // On the mobile layout the detail pane covers the list, so browser Back
+  // Below `lg` the detail pane covers the list, so browser Back
   // should close it and return to the list instead of leaving /jobs: push a
   // sentinel history entry while the pane is open and pop it on close.
   useEffect(() => {
     if (!mobileDetail) return
-    if (!window.matchMedia('(max-width: 767px)').matches) return
+    if (!window.matchMedia(SINGLE_PANE_MQ).matches) return
     window.history.pushState({ 'hcv-mobile-detail': true }, '')
     const onPop = () => setMobileDetail(false)
     window.addEventListener('popstate', onPop)
@@ -329,20 +400,45 @@ export default function Jobs() {
     }
   }, [mobileDetail])
 
-  // The mobile detail pane shares the page scroll with the list, so opening a
-  // job deep in the list would land mid-description: show the detail from the
-  // top and restore the list's scroll offset when the pane closes.
+  // The mobile detail pane shares the page scroll with the list (and sits below
+  // the search form), so opening a job deep in the list would land
+  // mid-description: bring the pane's top under the sticky header (the html
+  // scroll-padding keeps it clear) and restore the list's scroll offset when
+  // the pane closes. Closing also hides the pane's Back button that had focus,
+  // so hand keyboard focus to the row the pane was showing.
   const listScrollRef = useRef(0)
   const mobileDetailWasOpen = useRef(false)
+  const detailPaneRef = useRef<HTMLDivElement>(null)
+  const selectedIdRef = useRef(selectedId)
   useEffect(() => {
-    if (!window.matchMedia('(max-width: 767px)').matches) return
+    selectedIdRef.current = selectedId
+  }, [selectedId])
+  // A pane opened by a ?job= deep link is revealed before the first fetch has laid
+  // out the filter rows above it, so reveal it again once that fetch settles.
+  const revealAfterFetch = useRef(seedParams.get('job') !== null)
+  useEffect(() => {
+    if (loading || !revealAfterFetch.current) return
+    revealAfterFetch.current = false
+    if (!window.matchMedia(SINGLE_PANE_MQ).matches) return
+    detailPaneRef.current?.scrollIntoView({ block: 'start' })
+  }, [loading])
+  useEffect(() => {
+    if (!window.matchMedia(SINGLE_PANE_MQ).matches) return
     if (mobileDetail) {
       mobileDetailWasOpen.current = true
       listScrollRef.current = window.scrollY
-      window.scrollTo(0, 0)
+      if (detailPaneRef.current) detailPaneRef.current.scrollIntoView({ block: 'start' })
+      else window.scrollTo(0, 0)
     } else if (mobileDetailWasOpen.current) {
       mobileDetailWasOpen.current = false
       window.scrollTo(0, listScrollRef.current)
+      // The pane's Back button is still `document.activeElement` here — the browser only
+      // drops focus from a now-hidden control after this commit — so treat focus inside
+      // the pane as lost, but leave focus that something else (a dialog, a toast) took.
+      const active = document.activeElement
+      const lost = !active || active === document.body || detailPaneRef.current?.contains(active) === true
+      const row = selectedIdRef.current ? document.getElementById(`job-card-${selectedIdRef.current}`) : null
+      if (lost && row instanceof HTMLElement) row.focus({ preventScroll: true })
     }
   }, [mobileDetail])
 
@@ -377,7 +473,7 @@ export default function Jobs() {
     if (!resumeText.trim()) return map
     for (const j of [...jobs, ...pipeline.map((e) => e.job)]) {
       if (map.has(j.id)) continue
-      const m = matchScore(resumeText, j.description)
+      const m = matchScore(resumeText, j.description, j.company)
       if (m !== null) map.set(j.id, m)
     }
     return map
@@ -391,7 +487,7 @@ export default function Jobs() {
       if (!e.resumeVersionId) continue
       const v = versions.find((x) => x.id === e.resumeVersionId)
       if (!v) continue
-      const m = matchScore(resumeToPlainText(visibleResume(v.data)), e.job.description)
+      const m = matchScore(resumeToPlainText(visibleResume(v.data)), e.job.description, e.job.company)
       if (m !== null) map.set(e.job.id, m)
     }
     return map
@@ -493,18 +589,25 @@ export default function Jobs() {
           return skillTerms.every((term) => termRegex(term).test(haystack))
         })
       : afterType
-  /** Candidate locations in the current results (pre-location-filter) with counts. */
-  const locFacets = tab === 'all' ? locationFacets(afterSkills.map((j) => j.location)) : []
-  const directMatches =
-    tab === 'all' && loc
-      ? afterSkills.filter((j) => j.location.toLowerCase().includes(loc))
+  /** Rows whose title carries (part of) the query; the rest only mention it in the body. */
+  const titleHits =
+    tab === 'all'
+      ? afterSkills.filter((j) => queryTitleRank(fetchedQuery, j.title) > 0)
       : afterSkills
-  const anywhereMatches =
-    tab === 'all' && loc
-      ? afterSkills.filter(
-          (j) => !j.location.toLowerCase().includes(loc) && isLocationAgnostic(j.location)
-        )
+  const textOnly =
+    tab === 'all' ? afterSkills.filter((j) => queryTitleRank(fetchedQuery, j.title) === 0) : []
+  /** Candidate locations in the current results (pre-location-filter) with counts. */
+  const locFacets =
+    tab === 'all'
+      ? locationFacets((titleHits.length > 0 ? titleHits : afterSkills).map((j) => j.location))
       : []
+  const tierOf = (j: JobListing) => (tab === 'all' && loc ? locationTier(j.location, loc) : 'direct')
+  const directMatches = titleHits.filter((j) => tierOf(j) === 'direct')
+  /** Postings open to the filter's country / region ("UK", "Europe" for a London filter). */
+  const widerMatches = titleHits.filter((j) => tierOf(j) === 'wider')
+  const widerAreas = tab === 'all' && loc ? widerAreasOf(loc) : []
+  const anywhereMatches = titleHits.filter((j) => tierOf(j) === 'anywhere')
+  const textOnlyInPlace = textOnly.filter((j) => tierOf(j) !== null)
   const applySort = (list: JobListing[]) =>
     tab === 'all' && sort === 'newest'
       ? [...list].sort(
@@ -517,10 +620,52 @@ export default function Jobs() {
               new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
           )
         : list
+  const sortedWider = applySort(widerMatches)
   const sortedAnywhere = applySort(anywhereMatches)
-  const shown = [...applySort(directMatches), ...sortedAnywhere]
+  const titleShownCount = directMatches.length + sortedWider.length + sortedAnywhere.length
+  /** Body-only matches are listed when asked for, when they are all there is, or when one is open (deep link). */
+  const fetchedQueryKey = fetchedQuery.trim().toLowerCase()
+  const textOnlyExpanded =
+    textOnlyExpandedFor === fetchedQueryKey ||
+    titleShownCount === 0 ||
+    textOnlyInPlace.some((j) => j.id === selectedId)
+  const sortedTextOnly = textOnlyExpanded ? applySort(textOnlyInPlace) : []
+  const shown = [
+    ...applySort(directMatches),
+    ...sortedWider,
+    ...sortedAnywhere,
+    ...sortedTextOnly,
+  ]
+  /** Index of the first country/region-wide result when the location input splits the list. */
+  const widerStart = sortedWider.length > 0 ? directMatches.length : -1
   /** Index of the first location-agnostic result when the location input splits the list. */
-  const anywhereStart = sortedAnywhere.length > 0 ? shown.length - sortedAnywhere.length : -1
+  const anywhereStart =
+    sortedAnywhere.length > 0 ? directMatches.length + sortedWider.length : -1
+  /** Index of the first row that only mentions the query in its body. */
+  const textOnlyStart = sortedTextOnly.length > 0 ? titleShownCount : -1
+  /** How the API read the query when grade words / brackets / connectors were set aside. */
+  const queryNote = describeJobQuery(fetchedQuery)
+  const fetchedQueryLabel = queryNote?.searched ?? fetchedQuery.trim()
+  /** Rows whose title carries every role word (the API's `titled` count, before local filters). */
+  const fullTitleCount =
+    tab === 'all' ? afterSkills.filter((j) => queryTitleRank(fetchedQuery, j.title) === 2).length : 0
+  // Accepting a broader query is a search of its own: the box shows the new
+  // text, the API answers from the cache it filled while suggesting it, and
+  // focus moves to the box because the suggestion row itself goes away.
+  const searchBroader = (next: string) => {
+    setQuery(next)
+    setSelectedId(null)
+    setTextOnlyExpandedFor(null)
+    searchInputRef.current?.focus()
+    runSearch(next)
+  }
+  const hideTextOnly = () => {
+    setTextOnlyExpandedFor(null)
+    if (selectedId !== null && sortedTextOnly.some((j) => j.id === selectedId)) {
+      explicitSelection.current = false
+      setSelectedId(shown.find((j) => queryTitleRank(fetchedQuery, j.title) > 0)?.id ?? null)
+    }
+  }
   /** Rows actually listed per status group, so headers stay honest under filters. */
   const shownCounts = (() => {
     const c: Record<JobStatus, number> = { saved: 0, applied: 0, interviewing: 0, offer: 0, rejected: 0 }
@@ -553,7 +698,7 @@ export default function Jobs() {
       : undefined
     const text = version ? resumeToPlainText(visibleResume(version.data)) : resumeText
     if (!text.trim()) return null
-    const report = matchReport(text, selected.description)
+    const report = matchReport(text, selected.description, '', selected.company)
     return report ? { ...report, source: version ? ('copy' as const) : ('draft' as const) } : null
   })()
 
@@ -669,7 +814,7 @@ export default function Jobs() {
               to={`/documents?doc=${encodeURIComponent(doc.id)}`}
               className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
             >
-              Open
+              <span className={INLINE_LABEL}>Open</span>
             </Link>
           </Fragment>
         ))}{' '}
@@ -712,7 +857,7 @@ export default function Jobs() {
           aria-label={`Open ${noun.toLowerCase()} ${doc.title}`}
           onClick={() => void navigate(`/documents?doc=${doc.id}`)}
         >
-          Open
+          <span className={INLINE_LABEL}>Open</span>
         </button>
         <button
           type="button"
@@ -723,7 +868,9 @@ export default function Jobs() {
             applyPipeline(relink(entry.job.id, doc.id))
           }}
         >
-          {hasLinked ? 'Use this one instead' : 'Use for this job'}
+          <span className={INLINE_LABEL}>
+            {hasLinked ? 'Use this one instead' : 'Use for this job'}
+          </span>
         </button>
       </p>
     ))
@@ -1185,6 +1332,10 @@ export default function Jobs() {
           <a href="https://www.arbeitnow.com" target="_blank" rel="noopener noreferrer" className="underline">
             Arbeitnow
           </a>
+          ; add a location to include on-site jobs there via{' '}
+          <a href="https://www.themuse.com" target="_blank" rel="noopener noreferrer" className="underline">
+            The Muse
+          </a>
           . Your application pipeline is stored in this browser only.
         </p>
 
@@ -1292,12 +1443,13 @@ export default function Jobs() {
             }}
           >
             <Input
+              ref={searchInputRef}
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by job title, e.g. frontend developer"
               aria-label="Search jobs by title"
-              className="h-10 w-full max-w-md sm:w-auto sm:flex-1"
+              className="h-10 w-full max-w-md sm:w-auto sm:min-w-72 sm:flex-1"
             />
             <Button type="submit" className="min-h-10 gap-1.5">
               <Search className="size-4" /> Search
@@ -1348,7 +1500,7 @@ export default function Jobs() {
               type="search"
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              placeholder="Location, e.g. Europe"
+              placeholder="Location, e.g. London"
               aria-label="Filter by location"
               className="h-10 w-36"
               list="job-location-options"
@@ -1493,13 +1645,14 @@ export default function Jobs() {
             >
               {bulkMode ? 'Done selecting' : 'Select…'}
             </button>
-            {bulkMode && visibleBulkIds.size > 0 && (
+            {bulkMode && (
               <>
                 <span className="text-muted-foreground text-xs font-medium">
                   {visibleBulkIds.size} selected
                 </span>
                 <select
                   value=""
+                  disabled={visibleBulkIds.size === 0}
                   onChange={(e) => {
                     const status = e.target.value as JobStatus
                     if (!status) return
@@ -1507,7 +1660,7 @@ export default function Jobs() {
                     setBulkIds((prev) => new Set([...prev].filter((id) => !visibleBulkIds.has(id))))
                   }}
                   aria-label="Move selected jobs to a status"
-                  className="border-input bg-background min-h-10 rounded-md border px-1.5 text-xs sm:min-h-8"
+                  className="border-input bg-background min-h-10 rounded-md border px-1.5 text-xs disabled:opacity-50 sm:min-h-8"
                 >
                   <option value="" disabled>
                     Move to…
@@ -1522,15 +1675,17 @@ export default function Jobs() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  disabled={visibleBulkIds.size === 0}
                   className="text-destructive min-h-10 sm:min-h-8"
                   onClick={() => setConfirmBulkUntrack(true)}
                 >
-                  Untrack {visibleBulkIds.size}
+                  {bulkUntrackLabel(visibleBulkIds.size)}
                 </Button>
                 <button
                   type="button"
+                  disabled={visibleBulkIds.size === 0}
                   onClick={() => setBulkIds(new Set())}
-                  className="text-muted-foreground hover:text-foreground min-h-10 text-xs underline-offset-2 hover:underline sm:min-h-8"
+                  className="text-muted-foreground hover:text-foreground min-h-10 text-xs underline-offset-2 hover:underline disabled:opacity-50 disabled:hover:no-underline sm:min-h-8"
                 >
                   Clear
                 </button>
@@ -1539,10 +1694,10 @@ export default function Jobs() {
           </div>
         )}
 
-        <div className="mt-6 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           <div
             className={`bg-card max-h-[70vh] overflow-y-auto rounded-md border ${
-              mobileDetail ? 'hidden md:block' : ''
+              mobileDetail ? 'hidden lg:block' : ''
             }`}
           >
             {tab === 'tracked' && repeatedSkills.length > 0 && (
@@ -1573,8 +1728,8 @@ export default function Jobs() {
                       onClick={() => toggleSkillTerm(tag)}
                       className={
                         active
-                          ? 'bg-primary text-primary-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'
-                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'
+                          ? 'bg-primary text-primary-foreground inline-flex min-h-8 items-center gap-1 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground inline-flex min-h-8 items-center gap-1 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
                       }
                     >
                       {tag} ×{count}
@@ -1596,8 +1751,60 @@ export default function Jobs() {
               >
                 {loading
                   ? 'Loading jobs…'
-                  : `${shown.length} ${shown.length === 1 ? 'job' : 'jobs'} found`}
+                  : `${shown.length} ${shown.length === 1 ? 'job' : 'jobs'} found${
+                      !textOnlyExpanded && textOnlyInPlace.length > 0
+                        ? ` · ${textOnlyInPlace.length} more only mention it in the description`
+                        : ''
+                    }`}
               </p>
+            )}
+            {tab === 'all' && !error && !loading && queryNote && (
+              <p className="text-muted-foreground border-b px-4 py-1.5 text-xs">
+                Matching &ldquo;{queryNote.searched}&rdquo;
+                {queryNote.ranking.length > 0 && (
+                  <>
+                    {' '}
+                    &middot; {queryNote.ranking.map((w) => `“${w}”`).join(', ')} only{' '}
+                    {queryNote.ranking.length === 1 ? 'ranks' : 'rank'} titles higher
+                  </>
+                )}
+                {queryNote.dropped.length > 0 && (
+                  <>
+                    {' '}
+                    &middot; {queryNote.dropped.map((w) => `“${w}”`).join(', ')} ignored
+                  </>
+                )}
+              </p>
+            )}
+            {tab === 'all' && !error && !loading && broaden.length > 0 && (
+              <div className="bg-muted/40 flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-4 py-2 text-xs">
+                <p className="text-muted-foreground">
+                  {fullTitleCount === 0 ? (
+                    <>No job title has all of &ldquo;{fetchedQueryLabel}&rdquo;</>
+                  ) : (
+                    <>
+                      Only {fullTitleCount} job {fullTitleCount === 1 ? 'title has' : 'titles have'}{' '}
+                      all of &ldquo;{fetchedQueryLabel}&rdquo;
+                    </>
+                  )}{' '}
+                  &mdash; broader:
+                </p>
+                {broaden.map((b) => (
+                  <button
+                    key={b.query}
+                    type="button"
+                    onClick={() => searchBroader(b.query)}
+                    className="bg-background inline-flex min-h-8 items-center rounded-full border px-2.5 py-0.5 font-medium hover:underline sm:min-h-6"
+                  >
+                    &ldquo;{b.query}&rdquo;
+                    <span className="text-muted-foreground font-normal">
+                      {' '}
+                      &middot; {b.titled} {b.titled === 1 ? 'title matches' : 'titles match'} &middot;{' '}
+                    {b.jobs} {b.jobs === 1 ? 'job' : 'jobs'}
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
             {loading ? (
               <div aria-busy="true" className="animate-pulse">
@@ -1631,9 +1838,40 @@ export default function Jobs() {
               tab === 'all' &&
               (query.trim() || category || locationFilter || typeFilter || skillsFilter) ? (
                 <div className="p-4 text-sm">
-                  <p className="text-muted-foreground">
-                    No jobs found — try another search term.
-                  </p>
+                  {loc && afterSkills.length > 0 ? (
+                    <>
+                      <p className="text-muted-foreground">
+                        None of the {afterSkills.length}{' '}
+                        {afterSkills.length === 1 ? 'job' : 'jobs'}{' '}
+                        {query.trim() ? <>for &ldquo;{query.trim()}&rdquo; </> : null}
+                        {isKnownPlace(locationFilter) ? (
+                          <>
+                            is in {locationFilter.trim()}
+                            {widerAreas.length > 0 ? <> or open to {widerAreas.join(' / ')}</> : null}.
+                          </>
+                        ) : (
+                          <>
+                            names {locationFilter.trim()}, and we don&rsquo;t know which country it
+                            is in — postings open to a whole country or region can&rsquo;t be matched
+                            to it. Try its country instead (for example &ldquo;UK&rdquo;).
+                          </>
+                        )}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 mr-2"
+                        onClick={() => setLocationFilter('')}
+                      >
+                        Clear location
+                      </Button>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      No jobs found — try another search term.
+                    </p>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -1684,10 +1922,50 @@ export default function Jobs() {
                   const updated = statusChangedAtOf.get(j.id)
                   return (
                     <li key={j.id} className="border-b last:border-b-0">
+                      {i === widerStart && (
+                        <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
+                          {i === 0 ? <>Nothing names {locationFilter.trim()} itself — open to</> : 'Open to'}{' '}
+                          {widerAreas.join(' / ')} ({sortedWider.length})
+                        </p>
+                      )}
                       {i === anywhereStart && (
                         <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
-                          Open to any location ({sortedAnywhere.length})
+                          {i === 0 ? <>Nothing names {locationFilter.trim()} itself — open to</> : 'Open to'}{' '}
+                          any location ({sortedAnywhere.length})
                         </p>
+                      )}
+                      {i === textOnlyStart && (
+                        <div className="bg-muted/60 text-muted-foreground flex items-center justify-between gap-2 border-b px-4 py-1.5 text-xs font-medium">
+                          <p>
+                            {i === 0 ? (
+                              <>
+                                {titleHits.length > 0 ? (
+                                  <>
+                                    No job titled &ldquo;{fetchedQueryLabel}&rdquo; is in{' '}
+                                    {locationFilter.trim()}
+                                  </>
+                                ) : (
+                                  <>No job title matches &ldquo;{fetchedQueryLabel}&rdquo;</>
+                                )}{' '}
+                                — these {sortedTextOnly.length} only mention it in the description
+                              </>
+                            ) : (
+                              <>
+                                Only mention &ldquo;{fetchedQueryLabel}&rdquo; in the description (
+                                {sortedTextOnly.length})
+                              </>
+                            )}
+                          </p>
+                          {i > 0 && (
+                            <button
+                              type="button"
+                              onClick={hideTextOnly}
+                              className={`${INLINE_ACTION} shrink-0 font-medium hover:underline`}
+                            >
+                              <span className={INLINE_LABEL}>Hide</span>
+                            </button>
+                          )}
+                        </div>
                       )}
                       {tab === 'tracked' && status && status !== statusOf.get(shown[i - 1]?.id ?? '') && (
                         <p className="bg-muted/60 text-muted-foreground border-b px-4 py-1.5 text-xs font-medium">
@@ -1697,23 +1975,25 @@ export default function Jobs() {
                       <div
                         className={`hover:bg-accent relative px-4 py-3 ${
                           selected?.id === j.id ? 'bg-accent border-primary border-l-2' : ''
-                        } ${tab === 'tracked' && bulkMode ? 'flex items-start gap-2.5' : ''}`}
+                        } ${tab === 'tracked' && bulkMode ? 'flex items-start gap-4' : ''}`}
                       >
                         {tab === 'tracked' && bulkMode && (
-                          <input
-                            type="checkbox"
-                            checked={bulkIds.has(j.id)}
-                            onChange={() =>
-                              setBulkIds((prev) => {
-                                const next = new Set(prev)
-                                if (next.has(j.id)) next.delete(j.id)
-                                else next.add(j.id)
-                                return next
-                              })
-                            }
-                            aria-label={`Select ${j.title} at ${j.company}`}
-                            className="accent-primary mt-1 size-4 shrink-0"
-                          />
+                          <label className="-my-3 -ml-3 -mr-2 flex shrink-0 cursor-pointer py-3 pr-2 pl-3">
+                            <input
+                              type="checkbox"
+                              checked={bulkIds.has(j.id)}
+                              onChange={() =>
+                                setBulkIds((prev) => {
+                                  const next = new Set(prev)
+                                  if (next.has(j.id)) next.delete(j.id)
+                                  else next.add(j.id)
+                                  return next
+                                })
+                              }
+                              aria-label={`Select ${j.title} at ${j.company}`}
+                              className="accent-primary mt-1 size-4 shrink-0"
+                            />
+                          </label>
                         )}
                         <div className="min-w-0 flex-1">
                         <button
@@ -1740,8 +2020,10 @@ export default function Jobs() {
                               />
                             )}
                             <span className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium">{j.title}</p>
-                              <p className="text-muted-foreground truncate text-xs">
+                              <p className="line-clamp-2 text-sm font-medium break-words">
+                                {j.title}
+                              </p>
+                              <p className="text-muted-foreground line-clamp-3 text-xs break-words">
                                 {j.company} · {j.location}
                               </p>
                             </span>
@@ -1845,11 +2127,26 @@ export default function Jobs() {
                 })}
               </ul>
             )}
+            {!loading && !error && !textOnlyExpanded && textOnlyInPlace.length > 0 && (
+              <div className="border-t p-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto w-full py-2 whitespace-normal"
+                  onClick={() => setTextOnlyExpandedFor(fetchedQueryKey)}
+                >
+                  Show {textOnlyInPlace.length} more that only mention &ldquo;{fetchedQueryLabel}
+                  &rdquo; in the description
+                </Button>
+              </div>
+            )}
           </div>
 
           <div
+            ref={detailPaneRef}
             className={`bg-card max-h-[70vh] overflow-y-auto rounded-md border p-4 ${
-              mobileDetail ? '' : 'hidden md:block'
+              mobileDetail ? '' : 'hidden lg:block'
             }`}
           >
             {selected ? (
@@ -1857,7 +2154,7 @@ export default function Jobs() {
                 <button
                   type="button"
                   onClick={() => setMobileDetail(false)}
-                  className="text-muted-foreground hover:text-foreground mb-2 inline-flex min-h-10 items-center gap-1 text-sm md:hidden"
+                  className="text-muted-foreground hover:text-foreground mb-2 inline-flex min-h-10 items-center gap-1 text-sm lg:hidden"
                 >
                   <ArrowLeft className="size-4" /> Back to list
                 </button>
@@ -1878,6 +2175,13 @@ export default function Jobs() {
                   {selected.company} · {selected.location}
                   {selected.type && ` · ${selected.type}`}
                   {selected.salary && ` · ${selected.salary}`}
+                  {(postedAgo(selected.postedAt) || jobSourceLabel(selected)) &&
+                    ` · ${[
+                      postedAgo(selected.postedAt) && `posted ${postedAgo(selected.postedAt)}`,
+                      jobSourceLabel(selected) && `via ${jobSourceLabel(selected)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}`}
                   {tailoredMatchOf.has(selected.id) ? (
                     <span
                       className={
@@ -1904,7 +2208,7 @@ export default function Jobs() {
                       to="/builder"
                       className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                     >
-                      Add your resume
+                      <span className={INLINE_LABEL}>Add your resume</span>
                     </Link>{' '}
                     to see how it matches this job&apos;s keywords.
                   </p>
@@ -1919,7 +2223,9 @@ export default function Jobs() {
                       }
                       className={`${INLINE_ACTION} text-primary text-xs font-medium underline-offset-2 hover:underline`}
                     >
-                      {reportOpenId === selected.id ? 'Hide tailoring report' : 'Tailoring report'}
+                      <span className={INLINE_LABEL}>
+                        {reportOpenId === selected.id ? 'Hide tailoring report' : 'Tailoring report'}
+                      </span>
                     </button>
                     {reportOpenId === selected.id && (
                       <div className="bg-muted/40 mt-2 rounded-md border p-2.5 text-xs">
@@ -2037,8 +2343,8 @@ export default function Jobs() {
                           onClick={() => toggleSkillTerm(tag)}
                           className={
                             active
-                              ? 'bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs'
-                              : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground rounded-full px-2 py-0.5 text-xs'
+                              ? 'bg-primary text-primary-foreground min-h-8 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
+                              : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground min-h-8 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
                           }
                         >
                           {tag}
@@ -2049,7 +2355,7 @@ export default function Jobs() {
                       <button
                         type="button"
                         onClick={() => setTagsExpandedId(selected.id)}
-                        className="text-primary text-xs underline-offset-2 hover:underline"
+                        className="text-primary min-h-8 text-xs underline-offset-2 hover:underline sm:min-h-6"
                       >
                         +{(selected.tags?.length ?? 0) - 10} more
                       </button>
@@ -2170,7 +2476,7 @@ export default function Jobs() {
                                     setConfirmTarget({ job: entry.job, intent: 'target' })
                                   }
                                 >
-                                  Open
+                                  <span className={INLINE_LABEL}>Open</span>
                                 </button>
                               </p>
                             )}
@@ -2192,7 +2498,9 @@ export default function Jobs() {
                                     applyPipeline(setPipelineVersion(entry.job.id, v.id))
                                   }}
                                 >
-                                  {copy ? 'Use this one instead' : 'Use for this job'}
+                                  <span className={INLINE_LABEL}>
+                                    {copy ? 'Use this one instead' : 'Use for this job'}
+                                  </span>
                                 </button>
                               </p>
                             ))}
@@ -2221,7 +2529,7 @@ export default function Jobs() {
                                 aria-label={`Open cover letter ${coverDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
                               >
-                                Open
+                                <span className={INLINE_LABEL}>Open</span>
                               </button>
                             </p>
                             {earlierDocRows(entry, 'cover', true)}
@@ -2250,7 +2558,7 @@ export default function Jobs() {
                                 aria-label={`Open resignation letter ${resignationDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${resignationDoc.id}`)}
                               >
-                                Open
+                                <span className={INLINE_LABEL}>Open</span>
                               </button>
                             </p>
                             {earlierDocRows(entry, 'resignation', true)}
@@ -2274,7 +2582,7 @@ export default function Jobs() {
                                 aria-label={`Open interview prep ${prepDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${prepDoc.id}`)}
                               >
-                                Open
+                                <span className={INLINE_LABEL}>Open</span>
                               </button>
                             </p>
                             {earlierDocRows(entry, 'interview', true)}
@@ -2874,8 +3182,14 @@ export default function Jobs() {
               variant="outline"
               onClick={() => {
                 if (!applyPipeline(restorePipelineEntries(undoUntrack))) return
-                const restored = undoUntrack.find((r) => r.entry.job.id === selected?.id)
-                if (restored) focusAfterRender(`track-chip-${restored.entry.status}`)
+                const restoredId = selectedId ?? selected?.id
+                const restored = undoUntrack.find((r) => r.entry.job.id === restoredId)
+                if (restored)
+                  focusAfterRender(
+                    `track-chip-${restored.entry.status}`,
+                    `job-card-${restored.entry.job.id}`,
+                  )
+                else focusAfterRender(`job-card-${undoUntrack[0].entry.job.id}`, 'main')
                 setUndoUntrack(null)
               }}
             >

@@ -54,11 +54,11 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { scoreResume } from '@/lib/ats'
+import { AtsScoreValue } from '@/components/AtsScoreValue'
 import { downloadText, loadExporter, professionalFileName } from '@/lib/download'
 import { IMPORT_ACCEPT, extractTextFromFile } from '@/lib/extractFile'
 import { exportWorkspace, parseWorkspaceBackup, restoreWorkspace } from '@/lib/workspace'
-import { looksLikeLinkedInExport, parseResumeText } from '@/lib/importText'
+import { keepDesignOnImport, looksLikeLinkedInExport, parseResumeText } from '@/lib/importText'
 import {
   type CareerDoc,
   type CareerDocKind,
@@ -115,7 +115,7 @@ import {
 import { hasShareLink, revokeShareLinksFor } from '@/lib/share'
 import { useHistoryGuard } from '@/lib/useHistoryGuard'
 import { resolveTemplate } from '@/lib/templates'
-import { INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
+import { INLINE_ACTION, INLINE_LABEL, INLINE_LINK } from '@/lib/utils'
 
 interface ExampleEntry {
   slug: string
@@ -330,7 +330,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
             to={`/jobs?job=${encodeURIComponent(linked.job.id)}`}
             className={`${INLINE_LINK} underline underline-offset-2`}
           >
-            {linked.job.title} at {linked.job.company}
+            <span className={INLINE_LABEL}>
+              {linked.job.title} at {linked.job.company}
+            </span>
           </Link>
         </>
       )
@@ -352,9 +354,11 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               to={`/jobs?job=${encodeURIComponent(d.forJob.id)}`}
               className={`${INLINE_LINK} underline underline-offset-2`}
             >
-              {jobLinksLiveDoc(tracked, d.kind)
-                ? `job uses another ${noun}`
-                : `job has no ${noun} linked`}
+              <span className={INLINE_LABEL}>
+                {jobLinksLiveDoc(tracked, d.kind)
+                  ? `job uses another ${noun}`
+                  : `job has no ${noun} linked`}
+              </span>
             </Link>
             {' — '}
             <button
@@ -362,7 +366,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
               onClick={() => linkDocToJob(d, tracked.job.id, !sentence)}
             >
-              {jobLinksLiveDoc(tracked, d.kind) ? 'use this one instead' : 'use this one'}
+              <span className={INLINE_LABEL}>
+                {jobLinksLiveDoc(tracked, d.kind) ? 'use this one instead' : 'use this one'}
+              </span>
             </button>
           </>
         ) : (
@@ -372,7 +378,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               to={`/jobs?q=${encodeURIComponent(d.forJob.title)}&job=${encodeURIComponent(d.forJob.id)}`}
               className={`${INLINE_LINK} underline underline-offset-2`}
             >
-              open it to save it again
+              <span className={INLINE_LABEL}>open it to save it again</span>
             </Link>
           </>
         )}
@@ -1027,8 +1033,9 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
   }
 
   const openImported = (r: Resume) => {
+    const existing = loadResume()
     setActiveVersionId(null)
-    saveResume(r)
+    saveResume(existing ? keepDesignOnImport(existing, r) : r)
     void navigate('/builder')
   }
 
@@ -1125,8 +1132,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{v.name}</p>
             <p className="text-muted-foreground text-xs">
-              {editedAgo(v.updatedAt)} · ATS{' '}
-              {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+              {editedAgo(v.updatedAt)} · ATS <AtsScoreValue resume={v.data} />
               {v.folder ? ` · ${v.folder}` : ''}
               {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
               <CopyTargetNote
@@ -1153,8 +1159,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{v.name}</p>
           <p className="text-muted-foreground text-xs">
-            {editedAgo(v.updatedAt)} · ATS{' '}
-            {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+            {editedAgo(v.updatedAt)} · ATS <AtsScoreValue resume={v.data} />
             {v.folder ? ` · ${v.folder}` : ''}
             {v.id === activeCopy?.id ? ' · Open in the editor' : ''}
             <CopyTargetNote
@@ -1214,7 +1219,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
           setImportBusy(false)
           return
         }
-        const parsed = parseResumeText(text)
+        const parsed = parseResumeText(text, { sectionHeadings: draft?.sectionHeadings })
         if (draft) {
           setImportedLinkedIn(looksLikeLinkedInExport(text))
           setConfirmImport(parsed)
@@ -1555,7 +1560,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                     {draft.targetRole || draft.contact.fullName || 'Current draft'}
                   </p>
                   <p className="text-muted-foreground text-xs">
-                    Current draft · ATS {scoreResume(visibleResume(draft), draft.jobDescription).score}/100
+                    Current draft · ATS <AtsScoreValue resume={draft} />
                   </p>
                 </div>
                 <div className="mt-auto flex flex-wrap gap-1.5">
@@ -1583,7 +1588,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 </div>
               </div>
             </div>
-          ) : (
+          ) : versions.length === 0 ? (
             <div className="bg-card flex min-h-64 flex-col items-center justify-center gap-3 rounded-md border border-dashed p-6 text-center">
               <FilePlus2 className="text-muted-foreground size-8" />
               <p className="text-muted-foreground text-sm">
@@ -1593,7 +1598,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                 <Link to="/builder">Create my resume</Link>
               </Button>
             </div>
-          )}
+          ) : null}
 
           <button
             type="button"
@@ -2132,10 +2137,16 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   >
                     <button
                       type="button"
-                      onClick={() => setPreviewExample(e)}
-                      className="focus-visible:ring-ring cursor-pointer rounded-t-md text-left focus-visible:ring-2 focus-visible:outline-hidden"
+                      tabIndex={-1}
+                      aria-hidden
+                      onClick={(ev) => {
+                        ev.currentTarget.parentElement
+                          ?.querySelector<HTMLButtonElement>('button[data-sample-title]')
+                          ?.focus()
+                        setPreviewExample(e)
+                      }}
+                      className="cursor-pointer rounded-t-md text-left"
                     >
-                      <span className="sr-only">Preview {e.role} sample</span>
                       <Thumb resume={exampleToResume(e.person)} />
                     </button>
                     <button
@@ -2163,8 +2174,10 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                       <div className="min-w-0">
                         <button
                           type="button"
+                          data-sample-title
+                          aria-label={`Preview ${e.role} sample`}
                           onClick={() => setPreviewExample(e)}
-                          className="-my-2.5 block w-full cursor-pointer truncate py-2.5 text-left text-sm font-medium hover:underline sm:my-0 sm:py-0"
+                          className="relative -my-2.5 block w-full cursor-pointer truncate py-2.5 text-left text-sm font-medium hover:underline"
                         >
                           {e.role}
                         </button>
@@ -2172,7 +2185,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                       </div>
                       <div className="mt-auto">
                         <Button asChild size="sm" className="min-h-10 w-full sm:min-h-8">
-                          <Link to={`/builder?example=${e.slug}`}>Use this example</Link>
+                          <Link
+                            to={`/builder?example=${e.slug}`}
+                            aria-label={`Use this example: ${e.role}`}
+                          >
+                            Use this example
+                          </Link>
                         </Button>
                       </div>
                     </div>
@@ -2234,7 +2252,12 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
                   Close
                 </Button>
                 <Button asChild className="min-h-10 sm:min-h-9">
-                  <Link to={`/builder?example=${previewExample.slug}`}>Use this example</Link>
+                  <Link
+                    to={`/builder?example=${previewExample.slug}`}
+                    aria-label={`Use this example: ${previewExample.role}`}
+                  >
+                    Use this example
+                  </Link>
                 </Button>
               </DialogFooter>
             </>
@@ -2508,7 +2531,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               <Button
                 type="button"
                 variant="outline"
-                className="min-h-10"
+                className="h-auto min-h-10 whitespace-normal"
                 onClick={() => saveEditingAsNewCopy(editingMatchesTrackedJob?.job.id)}
               >
                 {!editingMatchesTrackedJob
@@ -2522,7 +2545,7 @@ export default function Dashboard({ section }: { section?: 'documents' | 'sample
               <Button
                 type="button"
                 variant="outline"
-                className="min-h-10"
+                className="h-auto min-h-10 whitespace-normal"
                 onClick={() => saveEditing(editingMatchesTrackedJob.job.id)}
               >
                 {editingMatchesTrackedJob.hasCopy

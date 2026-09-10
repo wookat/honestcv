@@ -1,0 +1,30 @@
+Maria Lopez
+Austin, TX | 555-987-6543 | maria.lopez@example.com
+PROFESSIONAL SUMMARY
+Software engineer with 6 years of experience building web applications and data pipelines for retail.
+TECHNICAL SKILLS
+Languages
+Python, TypeScript, SQL
+Frontend
+React, Next.js, Tailwind
+Backend
+Node.js, FastAPI, GraphQL
+Cloud
+AWS Lambda, S3, ECS
+Data
+Airflow, dbt, Snowflake
+Practices
+CI/CD, Code Reviews, Agile
+PROFESSIONAL EXPERIENCE
+Senior Software Engineer · Retailco
+Austin, TX | Mar 2021 – Present
+• Built a Next.js storefront serving 2M monthly visitors with 99.95% uptime.
+• Designed an Airflow pipeline that cut nightly reporting from 4 hours to 35 minutes.
+• Led code reviews for a team of 5 engineers and introduced trunk-based CI/CD.
+Software Engineer · Datalytics
+Dallas, TX | Jun 2018 – Feb 2021
+• Developed FastAPI services and GraphQL gateways for three analytics products.
+• Migrated 40 dbt models to Snowflake, reducing warehouse cost by 22%.
+EDUCATION
+BSc Computer Science · University of Texas at Dallas
+2014 – 2018

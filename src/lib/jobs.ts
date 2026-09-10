@@ -5,6 +5,14 @@
  */
 
 import { latestDocsFor } from '@/lib/documents'
+import { jobTitleRank, parseJobQuery } from '../../worker/jobQuery'
+import {
+  COUNTRY_ALIASES,
+  REGION_ALIASES,
+  cityCountry,
+  countryOf,
+  norm,
+} from '@/lib/places'
 import {
   rememberVersionJobs,
   setVersionJob,
@@ -29,7 +37,20 @@ export interface JobListing {
   descriptionTruncated?: boolean
   /** Upstream skill tags (may be missing on entries saved before it existed) */
   tags?: string[]
+  /** Feed the posting came from (`remotive` | `jobicy` | `arbeitnow` | `themuse`; missing on entries saved before it existed) */
+  source?: string
 }
+
+export const JOB_SOURCE_LABELS: Record<string, string> = {
+  remotive: 'Remotive',
+  jobicy: 'Jobicy',
+  arbeitnow: 'Arbeitnow',
+  themuse: 'The Muse',
+}
+
+/** Human name of the feed a posting came from, or '' when unknown. */
+export const jobSourceLabel = (job: Pick<JobListing, 'source'>) =>
+  job.source ? (JOB_SOURCE_LABELS[job.source] ?? job.source) : ''
 
 export type JobStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'rejected'
 
@@ -184,6 +205,116 @@ export function isLocationAgnostic(location: string): boolean {
   return l === '' || l === 'remote' || /\b(worldwide|anywhere|global)\b/.test(l)
 }
 
+const EUROPE = [
+  'UK', 'France', 'Germany', 'Spain', 'Netherlands', 'Switzerland', 'Ireland', 'Italy', 'Poland',
+  'Portugal', 'Sweden', 'Norway', 'Austria', 'Czechia', 'Hungary', 'Romania', 'Bulgaria', 'Croatia',
+  'Ukraine',
+]
+const REGIONS_OF_COUNTRY: Record<string, string[]> = Object.fromEntries([
+  ...EUROPE.map((c) => [c, ['Europe', 'EMEA']]),
+  ['Israel', ['EMEA']],
+  ['UAE', ['EMEA']],
+  ['USA', ['Americas']],
+  ['Canada', ['Americas']],
+  ...['Mexico', 'Brazil', 'Argentina', 'Costa Rica'].map((c) => [c, ['LATAM', 'Americas']]),
+  ...[
+    'Australia', 'New Zealand', 'Singapore', 'Japan', 'South Korea', 'China', 'Hong Kong',
+    'Philippines', 'Thailand', 'Vietnam', 'India',
+  ].map((c) => [c, ['APAC']]),
+])
+
+/** Other spellings of a city the feeds use (Remotive publishes French city labels). */
+const CITY_SYNONYMS: string[][] = [
+  ['london', 'londres'],
+  ['new york', 'nyc'],
+  ['san francisco', 'sf'],
+  ['washington', 'washington dc', 'dc'],
+  ['munich', 'münchen'],
+  ['cologne', 'köln'],
+  ['zurich', 'zürich'],
+  ['vienna', 'wien'],
+  ['prague', 'praha'],
+  ['lisbon', 'lisboa'],
+  ['milan', 'milano'],
+  ['rome', 'roma'],
+  ['geneva', 'genève'],
+]
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** Word match, so `uk` / `eu` / `usa` never hit inside another word ("Ukraine"). */
+const mentions = (haystack: string, term: string) =>
+  new RegExp(`(^|[^a-z])${escapeRe(term)}(?![a-z])`).test(haystack)
+/** What the user typed: a whole word, except that a longer prefix may still be mid-typing ("Lond"). */
+const typedMatch = (haystack: string, term: string) =>
+  term.length <= 3 ? mentions(haystack, term) : new RegExp(`(^|[^a-z])${escapeRe(term)}`).test(haystack)
+
+export { isKnownPlace } from '@/lib/places'
+
+/**
+ * Wider areas a posting may be open to that still include `place`: the
+ * country when `place` is a city, then the regions containing that country
+ * ("London" → ["UK", "Europe", "EMEA"]; "UK" → ["Europe", "EMEA"]; "Europe" → []).
+ */
+export function widerAreasOf(place: string): string[] {
+  const country = countryOf(place)
+  if (!country) return []
+  const isCity = cityCountry(norm(place)) !== null
+  return [...(isCity ? [country] : []), ...(REGIONS_OF_COUNTRY[country] ?? [])]
+}
+
+/**
+ * The API's relevance tier, recomputed client-side with the same parser the
+ * Worker uses: 2 = every role word is in the title, 1 = some are, 0 = the query
+ * only appears in the body, tags, company or location ("free barista coffee"
+ * for a barista search). Grade words and bracketed qualifiers never count.
+ */
+export function queryTitleRank(query: string, title: string): 0 | 1 | 2 {
+  return jobTitleRank(parseJobQuery(query), title)
+}
+
+/**
+ * What the search actually matched on, when that differs from what was typed:
+ * `searched` is the role words, `ranking` the words that only order results
+ * ("senior", "(react)"), `dropped` the connector / arrangement words.
+ */
+export function describeJobQuery(
+  query: string
+): { searched: string; ranking: string[]; dropped: string[] } | null {
+  const parsed = parseJobQuery(query)
+  if (parsed.ranking.length === 0 && parsed.dropped.length === 0) return null
+  return { searched: parsed.upstream, ranking: parsed.ranking, dropped: parsed.dropped }
+}
+
+export type LocationTier = 'direct' | 'wider' | 'anywhere'
+
+/**
+ * How a posting's location relates to the user's location filter:
+ * `direct` — names the place (or the same country under another name),
+ * `wider` — names the place's country or a region containing it,
+ * `anywhere` — open to any location, `null` — somewhere else.
+ */
+export function locationTier(location: string, filter: string): LocationTier | null {
+  const l = norm(location)
+  const f = norm(filter)
+  if (!f) return 'direct'
+  if (typedMatch(l, f)) return 'direct'
+  const sameCity = CITY_SYNONYMS.find((names) => names.includes(f)) ?? []
+  if (sameCity.some((name) => name !== f && mentions(l, name))) return 'direct'
+  const country = countryOf(f)
+  if (country && !cityCountry(f)) {
+    if (COUNTRY_ALIASES[country].some((a) => mentions(l, a))) return 'direct'
+  }
+  for (const aliases of Object.values(REGION_ALIASES)) {
+    if (aliases.includes(f) && aliases.some((a) => mentions(l, a))) return 'direct'
+  }
+  for (const area of widerAreasOf(f)) {
+    const aliases = COUNTRY_ALIASES[area] ?? REGION_ALIASES[area] ?? [area.toLowerCase()]
+    if (aliases.some((a) => mentions(l, a))) return 'wider'
+  }
+  if (isLocationAgnostic(location)) return 'anywhere'
+  return null
+}
+
 /**
  * Distinct candidate regions across listings with posting counts, most
  * common first (ties alphabetical). Compound locations ("LATAM, Europe, USA")
@@ -255,9 +386,28 @@ export const JOB_CATEGORIES: [slug: string, label: string][] = [
   ['all-others', 'All others'],
 ]
 
-export async function searchJobs(q: string, category = ''): Promise<JobListing[]> {
+/** A broader query the API found more complete title matches for, with its real counts. */
+export interface JobBroaden {
+  query: string
+  jobs: number
+  titled: number
+}
+
+export interface JobSearchResult {
+  jobs: JobListing[]
+  /** Present only when the typed query has few complete title matches. */
+  broaden: JobBroaden[]
+}
+
+/** `location` lets the API add on-site postings for that place (The Muse) to the remote feeds. */
+export async function searchJobsWithMeta(
+  q: string,
+  category = '',
+  location = ''
+): Promise<JobSearchResult> {
   const params = new URLSearchParams({ q })
   if (category) params.set('category', category)
+  if (location.trim()) params.set('location', location.trim())
   let res: Response
   try {
     res = await fetch(`/api/jobs/search?${params}`)
@@ -266,15 +416,23 @@ export async function searchJobs(q: string, category = ''): Promise<JobListing[]
   }
   const data = (await res.json().catch(() => ({}))) as {
     jobs?: JobListing[]
+    broaden?: JobBroaden[]
     error?: string
   }
   if (!res.ok) throw new Error(data.error || `Job search failed (${res.status})`)
-  // Upstream company/title strings can carry stray whitespace (e.g. Remotive)
-  return (data.jobs ?? []).map((j) => ({
-    ...j,
-    title: (j.title ?? '').trim(),
-    company: (j.company ?? '').trim(),
-  }))
+  return {
+    // Upstream company/title strings can carry stray whitespace (e.g. Remotive)
+    jobs: (data.jobs ?? []).map((j) => ({
+      ...j,
+      title: (j.title ?? '').trim(),
+      company: (j.company ?? '').trim(),
+    })),
+    broaden: Array.isArray(data.broaden) ? data.broaden : [],
+  }
+}
+
+export async function searchJobs(q: string, category = '', location = ''): Promise<JobListing[]> {
+  return (await searchJobsWithMeta(q, category, location)).jobs
 }
 
 /** One section of a structured job description; `heading: null` for the preamble. */

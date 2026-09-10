@@ -75,11 +75,34 @@ import { MonthYearField } from '@/components/MonthYearField'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { LintedTextarea } from '@/components/LintedTextarea'
-import { markShortcutKeyDown } from '@/lib/markShortcuts'
+import { markShortcutKeyDown, proseInput, proseKeyDown } from '@/lib/markShortcuts'
+import {
+  briefAssertions,
+  briefGrounding,
+  draftClaims,
+  preferenceClaims,
+  letterBorrowing,
+  skillListChanges,
+  tailorClaims,
+  unsupportedClaims,
+} from '@/lib/grounding'
+import {
+  DraftFlagList,
+  draftFlagGroups,
+  skillFlagGroups,
+  type DraftFlagGroup,
+} from '@/components/DraftFlagList'
+import { evidenceText, recordAppliedAnyway } from '@/lib/appliedAnyway'
 import { prefersReducedMotion } from '@/lib/motion'
+import { revealScrollLeft } from '@/lib/revealScroll'
+import { keepPageStillOnFocus } from '@/lib/stickyFocus'
+import { activeSection } from '@/lib/activeSection'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
-import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
+import { type AuditFinding } from '@/lib/auditChip'
+import { cn, INLINE_ACTION, INLINE_LABEL, INLINE_LINK } from '@/lib/utils'
+import { AtsScoreValue } from '@/components/AtsScoreValue'
 import { CopyTargetNote } from '@/components/CopyTargetNote'
+import { EntryAuditChip } from '@/components/EntryAuditChip'
 import { SiteFooter, SiteHeader, usePageMeta } from '@/components/Layout'
 import {
   FreeDownloadDialog,
@@ -113,6 +136,9 @@ import {
   aiSummaryDraft,
   aiTailor,
   fetchAiQuota,
+  isAbortError,
+  subscribeAiOutage,
+  type AiOutage,
 } from '@/lib/api'
 import {
   type AtsResult,
@@ -149,7 +175,7 @@ import {
   resumeStrength,
   unfinishedBulletLine,
 } from '@/lib/guidance'
-import { keepTargetOnImport, parseResumeText } from '@/lib/importText'
+import { keepDesignOnImport, keepTargetOnImport, parseResumeText } from '@/lib/importText'
 import {
   parseShareId,
   fetchResumeProfile,
@@ -191,6 +217,7 @@ import {
   stashUnreadableShareLinks,
 } from '@/lib/share'
 import { useHistoryGuard } from '@/lib/useHistoryGuard'
+import { usePdfLength } from '@/lib/usePdfLength'
 
 import {
   type ExperienceItem,
@@ -397,40 +424,43 @@ function useDebouncedSave(resume: Resume): 'saving' | 'saved' | 'error' {
   return state
 }
 
-let pdfMeasureIdle: Promise<void> | null = null
-/** Resolves once the page has loaded and the main thread is idle, so the
- * heavy PDF engine never competes with Builder startup. */
-function whenIdleForPdfMeasure(): Promise<void> {
-  pdfMeasureIdle ??= new Promise((resolve) => {
-    const idle = () => {
-      if (typeof window.requestIdleCallback === 'function')
-        window.requestIdleCallback(() => resolve(), { timeout: 4000 })
-      else window.setTimeout(resolve, 1500)
-    }
-    if (document.readyState === 'complete') idle()
-    else window.addEventListener('load', idle, { once: true })
-  })
-  return pdfMeasureIdle
+/** Stands in for a score digit while the exported PDF's page count is still being measured. */
+function PendingScoreMark() {
+  return (
+    <span title="Measuring the exported PDF's page count">
+      <span aria-hidden="true">…</span>
+      <span className="sr-only">measuring</span>
+    </span>
+  )
 }
 
-/** Debounced fractional length of the exported PDF, shown next to the preview. */
-function usePdfLength(resume: Resume): import('@/lib/pdf').ResumeLength | null {
-  const [len, setLen] = useState<import('@/lib/pdf').ResumeLength | null>(null)
-  const seq = useRef(0)
-  useEffect(() => {
-    const id = ++seq.current
-    const t = window.setTimeout(() => {
-      void whenIdleForPdfMeasure()
-        .then(() => import('@/lib/pdf'))
-        .then((m) => m.measureResumePdf(resume))
-        .then((n) => {
-          if (seq.current === id) setLen(n)
-        })
-        .catch(() => undefined)
-    }, 800)
-    return () => window.clearTimeout(t)
-  }, [resume])
-  return len
+/** Undrawn ScoreRing shown until the first PDF measurement makes the score final. */
+function PendingScoreRing({ size }: { size: number }) {
+  const stroke = 7
+  const r = (size - stroke) / 2
+  return (
+    <span
+      className="relative inline-flex items-center justify-center"
+      role="img"
+      aria-label="ATS match score: measuring the exported PDF's page count"
+      title="Measuring the exported PDF's page count"
+    >
+      <svg width={size} height={size} aria-hidden>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          className="text-muted forced-colors:stroke-[CanvasText]"
+          strokeWidth={stroke}
+        />
+      </svg>
+      <span className="text-muted-foreground absolute text-xl font-bold" aria-hidden="true">
+        …
+      </span>
+    </span>
+  )
 }
 
 /** Whether the viewport is at the lg breakpoint, where both panes show side by side. */
@@ -561,7 +591,45 @@ function useUndo(
   return { undo, canUndo, redo, canRedo }
 }
 
+// Entry text box + a single control button: one row on desktop, the box takes a
+// full line on small screens so it is not squeezed by the button.
+const ENTRY_TEXT_ROW =
+  'flex flex-wrap items-start gap-2 sm:flex-nowrap [&>:first-child]:basis-full sm:[&>:first-child]:flex-1 sm:[&>:first-child]:basis-0 [&>:nth-child(2)]:ml-auto'
+
+// Prose text box that takes the full card width at every size, with the entry
+// control buttons on their own right-aligned line below it.
+const ENTRY_TEXT_STACK =
+  'flex flex-wrap items-start gap-2 [&>:first-child]:basis-full [&>:nth-child(2)]:ml-auto'
+
+// Name / organisation / date row of a one-line structured entry (coursework,
+// award, publication, certification): the name takes a full line, the
+// organisation shares the next line with a compact date box from `sm` up, and
+// every field stacks below `sm` so a school or issuer name is never clipped.
+const ENTRY_NAME_ORG_DATE = 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]'
+const ENTRY_NAME_FIELD = 'sm:col-span-2'
+const ENTRY_DATE_FIELD = 'w-32 sm:w-24'
+const ENTRY_DATE_WRAP = 'space-y-1.5 sm:self-end'
+
+// Dated entry field grid is a size container: below 32rem (editor beside the
+// preview at 1024–1215px) the place field and the date pair each take a full row.
+const ENTRY_FIELDS_GRID = '@container grid gap-2 sm:grid-cols-2'
+const ENTRY_WIDE_FIELD = '@max-[32rem]:col-span-full'
+// Reference e-mail / phone row: an address is wider than a phone number (even
+// one with an extension), so the pair splits 4:3 instead of in half.
+const REFERENCE_CONTACT_ROW = 'grid gap-2 sm:grid-cols-[minmax(0,4fr)_minmax(0,3fr)]'
+
 const moveId = (list: string, index: number, dir: 'up' | 'down') => `move-${list}-${index}-${dir}`
+
+/** A short window of `text` around the first occurrence of `around` (whole text when it is short). */
+const excerptAround = (text: string, around: string, span = 110): string => {
+  if (text.length <= span) return text
+  const at = text.toLowerCase().indexOf(around.toLowerCase())
+  let start = Math.max(0, Math.min(at < 0 ? 0 : at - Math.floor(span / 2), text.length - span))
+  if (start > 0) start = text.indexOf(' ', start) + 1 || start
+  let end = Math.min(text.length, start + span)
+  if (end < text.length) end = text.lastIndexOf(' ', end) > start ? text.lastIndexOf(' ', end) : end
+  return `${start > 0 ? '…' : ''}${text.slice(start, end).trim()}${end < text.length ? '…' : ''}`
+}
 
 function moveItem<T>(arr: T[], index: number, delta: number): T[] {
   const next = index + delta
@@ -750,6 +818,9 @@ function Section({
   )
 }
 
+/** Top of the band (below header + sticky nav) a section must reach to count as "in view" */
+const SECTION_ZONE_TOP = 110
+
 /** Sticky chip bar listing the visible editor sections; the section in view is highlighted */
 function SectionNav({
   sections,
@@ -765,8 +836,27 @@ function SectionNav({
   const keyList = sections.map((s) => s.key).join('|')
   const keys = useMemo(() => keyList.split('|'), [keyList])
   const [active, setActive] = useState(keys[0])
+  const scroller = useRef<HTMLDivElement>(null)
+  const bar = useRef<HTMLElement>(null)
+  useEffect(() => (bar.current ? keepPageStillOnFocus(bar.current) : undefined), [])
+  const revealChip = (chip: HTMLElement | null | undefined) => {
+    const box = scroller.current
+    if (!box || !chip) return
+    const boxLeft = box.getBoundingClientRect().left
+    const r = chip.getBoundingClientRect()
+    const left = revealScrollLeft(box, {
+      left: r.left - boxLeft + box.scrollLeft,
+      right: r.right - boxLeft + box.scrollLeft,
+    })
+    if (left !== box.scrollLeft)
+      box.scrollTo({ left, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  }
+  useEffect(() => {
+    revealChip(scroller.current?.querySelector<HTMLElement>('[aria-current="true"]'))
+  }, [active])
   useEffect(() => {
     const visible = new Set<string>()
+    const anchors = new Map<string, HTMLElement>()
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
@@ -775,24 +865,37 @@ function SectionNav({
           if (e.isIntersecting) visible.add(key)
           else visible.delete(key)
         }
-        const first = keys.find((k) => visible.has(k))
-        if (first) setActive(first)
+        const tops = new Map<string, number>()
+        for (const [k, el] of anchors) {
+          const r = el.getBoundingClientRect()
+          if (r.height > 0) tops.set(k, r.top)
+        }
+        const next = activeSection(keys, visible, tops, SECTION_ZONE_TOP)
+        if (next) setActive(next)
       },
-      { rootMargin: '-110px 0px -55% 0px' }
+      { rootMargin: `-${SECTION_ZONE_TOP}px 0px -55% 0px` }
     )
     for (const k of keys) {
-      const el = document.querySelector(`[data-section-anchor="${k}"]`)
-      if (el) io.observe(el)
+      const el = document.querySelector<HTMLElement>(`[data-section-anchor="${k}"]`)
+      if (el) {
+        anchors.set(k, el)
+        io.observe(el)
+      }
     }
     return () => io.disconnect()
   }, [keys])
   return (
     <nav
+      ref={bar}
       aria-label="Resume sections"
       data-sticky-subnav
       className="bg-background/85 sticky top-14 z-10 flex items-center gap-1 rounded-lg border px-1 py-1 backdrop-blur"
     >
-      <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
+      <div
+        ref={scroller}
+        className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"
+        onFocus={(e) => revealChip(e.target instanceof HTMLButtonElement ? e.target : null)}
+      >
         <div className="flex w-max gap-0.5">
           {sections.map((s) => (
             <button
@@ -890,6 +993,35 @@ function AiWaitHint() {
     <p role="status" className="text-muted-foreground text-xs">
       Rewriting… usually takes 15–40 seconds ({seconds}s)
     </p>
+  )
+}
+
+const aiErrorId = (tag: string) => `ai-error-${tag.replace(/[^\w-]/g, '_')}`
+
+const clockTime = (ms: number) =>
+  new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+
+/** Shown while the Worker reports that the model relay cannot be reached: the
+ * AI controls stay usable (the record may be stale), the notice says what will
+ * happen and what is unaffected. */
+function AiOutageNotice({ outage }: { outage: AiOutage }) {
+  const sameMinute = clockTime(outage.since) === clockTime(outage.last)
+  return (
+    <div
+      role="status"
+      data-testid="ai-outage-notice"
+      className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900"
+    >
+      <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      <p>
+        <span className="font-medium">AI tools can&apos;t be reached right now</span> — the AI
+        service has been offline since {clockTime(outage.since)}
+        {sameMinute ? '' : ` (last failed ${clockTime(outage.last)})`}
+        {outage.status ? ` (error ${outage.status})` : ''}. Suggestions, rewrites and tailoring
+        will fail until it is back; none of your free AI uses are spent. Your resume, ATS score,
+        preview and downloads are unaffected.
+      </p>
+    </div>
   )
 }
 
@@ -1063,10 +1195,15 @@ export default function Builder() {
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [upgradeReason, setUpgradeReason] = useState('')
   const [aiBusy, setAiBusy] = useState<string | null>(null)
+  /** In-flight inline AI requests (rewrite / suggest / summary / skills); aborted when the builder unmounts. */
+  const [inlineAi] = useState(() => new Set<AbortController>())
+  useEffect(() => () => inlineAi.forEach((req) => req.abort()), [inlineAi])
   const [hlLine, setHlLine] = useState<{ key: string; line: number } | null>(null)
   const [aiError, setAiError] = useState('')
   const [aiErrorTag, setAiErrorTag] = useState<string | null>(null)
   const [freeLeft, setFreeLeft] = useState<number | null>(null)
+  const [aiOutage, setAiOutage] = useState<AiOutage | null>(null)
+  useEffect(() => subscribeAiOutage(setAiOutage), [])
   const [downloading, setDownloading] = useState<string | null>(null)
   const [dlError, setDlError] = useState<string | null>(null)
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false)
@@ -1166,6 +1303,8 @@ export default function Builder() {
     regenerate?: (avoid?: string[]) => void
     /** Reopen the generator's setup dialog (e.g. summary role & skills) */
     adjust?: () => void
+    /** What the candidates are; a skills cleanup is checked item by item, prose word by word */
+    kind?: 'summary' | 'bullets' | 'skills'
   } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(() => {
@@ -1454,7 +1593,12 @@ export default function Builder() {
   const { license, refresh } = useLicense()
   const saveState = useDebouncedSave(resume)
   const shown = useMemo(() => visibleResume(resume), [resume])
-  const pdfLength = usePdfLength(shown)
+  const pdfMeasure = usePdfLength(shown)
+  /** Length meter input — `null` while the first measurement is pending as well as when it failed. */
+  const pdfLength = pdfMeasure ?? null
+  /** The score is not shown until the first PDF measurement lands, so the page-count-blind
+   * number never flashes before the measured one. */
+  const atsPending = pdfMeasure === undefined
   const [fitBusy, setFitBusy] = useState(false)
   const [fitMsg, setFitMsg] = useState('')
   const autoFit = useCallback(async () => {
@@ -1807,16 +1951,24 @@ export default function Builder() {
     () => scoreResume(shown, shown.jobDescription, pdfLength?.pages ?? null),
     [shown, pdfLength]
   )
+  const variantWording = useMemo(
+    () => new Map(ats.variants.map((v) => [v.keyword, v.found])),
+    [ats.variants]
+  )
   useEffect(() => {
     if (!highlightKw || !shown.jobDescription.trim() || ats.matched.length === 0) {
       clearKeywordHighlight()
       return
     }
     const t = window.setTimeout(() => {
-      if (previewWrapRef.current) applyKeywordHighlight(previewWrapRef.current, ats.matched)
+      if (previewWrapRef.current)
+        applyKeywordHighlight(
+          previewWrapRef.current,
+          ats.matched.map((kw) => variantWording.get(kw) ?? kw)
+        )
     }, 150)
     return () => window.clearTimeout(t)
-  }, [highlightKw, shown, ats.matched, previewView, renderPreviewPane])
+  }, [highlightKw, shown, ats.matched, variantWording, previewView, renderPreviewPane])
   useEffect(() => clearKeywordHighlight, [])
   const prevPassRef = useRef<Map<string, boolean> | null>(null)
   const [fixedChecks, setFixedChecks] = useState<Set<string>>(() => new Set())
@@ -1896,6 +2048,8 @@ export default function Builder() {
     setAiBusy(tag)
     setAiError('')
     setAiErrorTag(tag)
+    const req = new AbortController()
+    inlineAi.add(req)
     try {
       const wantVariants = kind !== 'skills'
       const { text: out, texts, freeRemaining } = await aiRewrite(
@@ -1908,26 +2062,37 @@ export default function Builder() {
         },
         wantVariants,
         emphasis,
-        avoid
+        avoid,
+        req.signal
       )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
-      if (texts && texts.length > 1) {
-        setVariantPick({
-          title: kind === 'summary' ? 'Pick a summary' : 'Pick a rewrite',
-          candidates: texts,
-          original: text,
-          apply,
-          tag,
-          regenerate: (nextAvoid) => void runRewrite(tag, kind, text, apply, emphasis, nextAvoid),
-        })
-      } else {
-        apply(out)
-      }
+      const candidates = texts && texts.length > 1 ? texts : [out]
+      if (candidates.every((c) => !c.trim())) throw new Error('The AI returned nothing usable. Try again.')
+      setVariantPick({
+        title:
+          kind === 'skills'
+            ? 'Review the cleaned-up skills'
+            : candidates.length > 1
+              ? kind === 'summary'
+                ? 'Pick a summary'
+                : 'Pick a rewrite'
+              : kind === 'summary'
+                ? 'Review the polished summary'
+                : 'Review the rewrite',
+        candidates,
+        original: text,
+        apply,
+        tag,
+        kind,
+        regenerate: (nextAvoid) => void runRewrite(tag, kind, text, apply, emphasis, nextAvoid),
+      })
     } catch (e) {
+      if (isAbortError(e)) return
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
     } finally {
-      setAiBusy(null)
+      inlineAi.delete(req)
+      setAiBusy((busy) => (busy === tag ? null : busy))
     }
   }
 
@@ -2079,22 +2244,27 @@ export default function Builder() {
     setAiBusy(tag)
     setAiError('')
     setAiErrorTag(tag)
+    const req = new AbortController()
+    inlineAi.add(req)
     try {
-      const { text, freeRemaining } = await aiSuggestBullet({
-        role: target.role,
-        company: target.company,
-        companyInfo: target.companyInfo,
-        bullets: complete
-          ? target.bullets.filter((_, i) => i !== complete.lineIndex)
-          : target.bullets,
-        resumeText: resumeToPlainText(shown),
-        variant,
-        language: resume.language,
-        section: target.section,
-        targetRole: resume.targetRole.trim() || undefined,
-        jobDescription: resume.jobDescription.trim() || undefined,
-        draft: complete?.draft,
-      })
+      const { text, freeRemaining } = await aiSuggestBullet(
+        {
+          role: target.role,
+          company: target.company,
+          companyInfo: target.companyInfo,
+          bullets: complete
+            ? target.bullets.filter((_, i) => i !== complete.lineIndex)
+            : target.bullets,
+          resumeText: resumeToPlainText(shown),
+          variant,
+          language: resume.language,
+          section: target.section,
+          targetRole: resume.targetRole.trim() || undefined,
+          jobDescription: resume.jobDescription.trim() || undefined,
+          draft: complete?.draft,
+        },
+        req.signal
+      )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       const line = (text.split('\n')[0] ?? '').replace(/^[-•]\s*/, '').trim()
       if (line)
@@ -2107,16 +2277,40 @@ export default function Builder() {
           lineIndex: complete?.lineIndex,
         })
     } catch (err) {
+      if (isAbortError(err)) return
       if (err instanceof PaymentRequiredError && !freeMode) requireUnlock(err.message)
       else setAiError((err as Error).message)
     } finally {
-      setAiBusy(null)
+      inlineAi.delete(req)
+      setAiBusy((busy) => (busy === tag ? null : busy))
     }
   }
 
   const bulletSuggestTarget = bulletSuggest
     ? suggestTargetFor(bulletSuggest.kind, bulletSuggest.entryId)
     : undefined
+  /** What the open AI draft(s) say that the resume does not — per candidate */
+  const draftFlags = useMemo(() => {
+    const out = new Map<string, DraftFlagGroup[]>()
+    if (!bulletSuggest && !variantPick) return out
+    const resumeText = evidenceText(resumeToPlainText(shown))
+    const jd = resume.jobDescription
+    if (bulletSuggest?.text.trim()) {
+      const groups = draftFlagGroups(
+        draftClaims(bulletSuggest.text, resumeText, jd, bulletSuggest.draft ? [bulletSuggest.draft] : [])
+      )
+      if (groups.length > 0) out.set('suggest', groups)
+    }
+    variantPick?.candidates.forEach((cand, i) => {
+      const original = evidenceText(variantPick.original ?? '')
+      const groups =
+        variantPick.kind === 'skills'
+          ? skillFlagGroups(skillListChanges(variantPick.original ?? '', cand))
+          : draftFlagGroups(draftClaims(cand, resumeText, jd, original.trim() ? [original] : []))
+      if (groups.length > 0) out.set(`variant-${i}`, groups)
+    })
+    return out
+  }, [bulletSuggest, variantPick, shown, resume.jobDescription])
   const bulletSuggestBusy =
     bulletSuggest !== null &&
     (aiBusy === `${bulletSuggest.kind}-${bulletSuggest.entryId}-suggest` ||
@@ -2176,15 +2370,20 @@ export default function Builder() {
     setAiBusy(tag)
     setAiError('')
     setAiErrorTag(tag)
+    const req = new AbortController()
+    inlineAi.add(req)
     try {
-      const { texts, freeRemaining } = await aiSummaryDraft({
-        resumeText: resumeToPlainText({ ...shown, summary: '' }),
-        role: position.trim() || aiTargetRole(resume),
-        highlights: highlights.length ? highlights : undefined,
-        jobDescription: resume.jobDescription.trim() || undefined,
-        ...(avoid?.length ? { avoid } : {}),
-        language: resume.language,
-      })
+      const { texts, freeRemaining } = await aiSummaryDraft(
+        {
+          resumeText: resumeToPlainText({ ...shown, summary: '' }),
+          role: position.trim() || aiTargetRole(resume),
+          highlights: highlights.length ? highlights : undefined,
+          jobDescription: resume.jobDescription.trim() || undefined,
+          ...(avoid?.length ? { avoid } : {}),
+          language: resume.language,
+        },
+        req.signal
+      )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setVariantPick({
         title: 'Pick a summary',
@@ -2203,10 +2402,12 @@ export default function Builder() {
         },
       })
     } catch (e) {
+      if (isAbortError(e)) return
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
     } finally {
-      setAiBusy(null)
+      inlineAi.delete(req)
+      setAiBusy((busy) => (busy === tag ? null : busy))
     }
   }
 
@@ -2229,21 +2430,28 @@ export default function Builder() {
     setAiBusy(tag)
     setAiError('')
     setAiErrorTag(tag)
+    const req = new AbortController()
+    inlineAi.add(req)
     try {
-      const { skills, freeRemaining } = await aiSkillSuggest({
-        skills: resume.skills,
-        role: aiTargetRole(resume),
-        jobDescription: resume.jobDescription,
-        context: context.trim() ? context.trim().slice(0, 200) : undefined,
-        category: category.trim() ? category.trim() : undefined,
-      })
+      const { skills, freeRemaining } = await aiSkillSuggest(
+        {
+          skills: resume.skills,
+          role: aiTargetRole(resume),
+          jobDescription: resume.jobDescription,
+          context: context.trim() ? context.trim().slice(0, 200) : undefined,
+          category: category.trim() ? category.trim() : undefined,
+        },
+        req.signal
+      )
       if (freeRemaining !== null) setFreeLeft(freeRemaining)
       setAiSkillChips(skills)
     } catch (e) {
+      if (isAbortError(e)) return
       if (e instanceof PaymentRequiredError && !freeMode) requireUnlock(e.message)
       else setAiError((e as Error).message)
     } finally {
-      setAiBusy(null)
+      inlineAi.delete(req)
+      setAiBusy((busy) => (busy === tag ? null : busy))
     }
   }
 
@@ -2373,6 +2581,7 @@ export default function Builder() {
         onClick={onClick}
         disabled={Boolean(aiBusy) || Boolean(notReady)}
         className="h-10 gap-1 text-xs sm:h-7"
+        aria-describedby={!notReady && aiError && aiErrorTag === tag ? aiErrorId(tag) : undefined}
         title={
           (typeof notReady === 'string' && notReady ? notReady : undefined) ??
           (!unlocked && freeLeft !== null
@@ -2392,7 +2601,9 @@ export default function Builder() {
         <p className="text-muted-foreground w-full text-xs">{notReady}</p>
       )}
       {!notReady && aiError && aiErrorTag === tag && (
-        <p className="text-destructive text-xs">{aiError}</p>
+        <p id={aiErrorId(tag)} role="alert" className="text-destructive text-xs">
+          {aiError}
+        </p>
       )}
     </>
   )
@@ -2956,6 +3167,8 @@ export default function Builder() {
             }}
           />
 
+          {aiOutage && <AiOutageNotice outage={aiOutage} />}
+
           <Section
             title="Target job (powers AI + ATS score)"
             icon={<Target className="size-4" />}
@@ -2976,7 +3189,7 @@ export default function Builder() {
                   to={`/jobs?job=${encodeURIComponent(linkedJob.id)}`}
                   className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
-                  View it on the jobs board &rarr;
+                  <span className={INLINE_LABEL}>View it on the jobs board &rarr;</span>
                 </Link>
               </p>
             )}
@@ -2990,16 +3203,18 @@ export default function Builder() {
                   className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
                   onClick={() => saveDraftAsCopyFor(retargetedTrackedJob.job)}
                 >
-                  {retargetedTrackedJob.hasCopy
-                    ? 'Save as new copy and use it for that job instead'
-                    : 'Save as new copy for it'}
+                  <span className={INLINE_LABEL}>
+                    {retargetedTrackedJob.hasCopy
+                      ? 'Save as new copy and use it for that job instead'
+                      : 'Save as new copy for it'}
+                  </span>
                 </button>
                 {' · '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(retargetedTrackedJob.job.id)}`}
                   className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
-                  View it on the jobs board &rarr;
+                  <span className={INLINE_LABEL}>View it on the jobs board &rarr;</span>
                 </Link>
               </p>
             )}
@@ -3016,16 +3231,18 @@ export default function Builder() {
                   className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
                   onClick={linkCopyToTargetedJob}
                 >
-                  {jobLinksLiveCopy(targetedTrackedEntry, versions)
-                    ? 'Use this copy instead'
-                    : 'Link this copy to it'}
+                  <span className={INLINE_LABEL}>
+                    {jobLinksLiveCopy(targetedTrackedEntry, versions)
+                      ? 'Use this copy instead'
+                      : 'Link this copy to it'}
+                  </span>
                 </button>
                 {' · '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(targetedTrackedJob.id)}`}
                   className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
-                  View it on the jobs board &rarr;
+                  <span className={INLINE_LABEL}>View it on the jobs board &rarr;</span>
                 </Link>
               </p>
             )}
@@ -3039,14 +3256,14 @@ export default function Builder() {
                     to={`/jobs?q=${encodeURIComponent(copyOrigin.title)}&job=${encodeURIComponent(copyOrigin.id)}`}
                     className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                   >
-                    Open it to save it again &rarr;
+                    <span className={INLINE_LABEL}>Open it to save it again &rarr;</span>
                   </Link>
                 ) : (
                   <Link
                     to={`/jobs?q=${encodeURIComponent(resume.targetRole.trim())}`}
                     className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                   >
-                    Find it again &rarr;
+                    <span className={INLINE_LABEL}>Find it again &rarr;</span>
                   </Link>
                 )}
               </p>
@@ -3197,7 +3414,10 @@ export default function Builder() {
                 const fieldHidden =
                   hideable && (resume.hiddenContact ?? []).includes(key as HideableContactField)
                 return (
-                  <div key={key} className={`space-y-1.5 ${fieldHidden ? 'opacity-60' : ''}`}>
+                  <div
+                    key={key}
+                    className={`space-y-1.5 ${key === 'linkedin' ? 'col-span-full' : ''} ${fieldHidden ? 'opacity-60' : ''}`}
+                  >
                     <div className="flex items-center justify-between gap-1">
                       <Label htmlFor={`c-${key}`}>
                         {label}
@@ -3212,7 +3432,7 @@ export default function Builder() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 shrink-0 p-0"
+                          className="size-10 -my-2 -mr-2 shrink-0 p-0 sm:m-0 sm:size-6"
                           title={
                             fieldHidden
                               ? 'Show on resume'
@@ -3340,8 +3560,8 @@ export default function Builder() {
               aria-label="Professional summary"
               placeholder="2-3 sentences: who you are, years of experience, biggest strengths and wins."
               value={resume.summary}
-              onChange={(e) => set('summary', e.target.value)}
-              onKeyDown={(ev) => markShortcutKeyDown(ev)}
+              onChange={(e) => set('summary', proseInput(e.target.value))}
+              onKeyDown={proseKeyDown}
             />
             <div className="flex flex-wrap items-center gap-2">
               {resume.summary.trim()
@@ -3366,7 +3586,7 @@ export default function Builder() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-9"
+                className="h-10 min-w-10 sm:h-9 sm:min-w-0"
                 title="Save summary to library — reuse it in other resume copies"
                 aria-label="Save summary to library"
                 disabled={!resume.summary.trim()}
@@ -3392,6 +3612,7 @@ export default function Builder() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="min-h-10 sm:min-h-8"
                   title="Insert a summary you saved from any resume copy"
                   onClick={() => setSummaryLibraryOpen((v) => !v)}
                 >
@@ -3434,7 +3655,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved summary ${s.summary.split('\n').map((l) => l.trim()).filter(Boolean)[0] ?? 'Untitled summary'}`}
                         onClick={() => setSummaryLibrary(deleteLibrarySummary(s.id))}
@@ -3518,12 +3739,12 @@ export default function Builder() {
                       label={`Role ${idx + 1}`}
                     />
                   </p>
-                  <div className="ml-auto flex items-center max-sm:basis-full max-sm:flex-wrap max-sm:justify-end sm:shrink-0">
+                  <div className="ml-auto flex items-center max-sm:-mx-1.5 max-sm:basis-[calc(100%+0.75rem)] max-sm:flex-wrap max-sm:justify-end sm:shrink-0">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={idx === 0}
                       id={moveId('experience', idx, 'up')}
                       title="Move up"
@@ -3541,7 +3762,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={idx === resume.experience.length - 1}
                       id={moveId('experience', idx, 'down')}
                       title="Move down"
@@ -3559,7 +3780,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title="Duplicate role — handy for a promotion at the same company"
                       aria-label={`Duplicate role ${idx + 1}`}
                       onClick={() =>
@@ -3582,7 +3803,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title="Save role to library — reuse it in other resume copies"
                       aria-label={`Save role ${idx + 1} to library`}
                       disabled={!e.role.trim() && !e.company.trim() && !e.bullets.some((b) => b.trim())}
@@ -3607,7 +3828,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title={e.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                       aria-pressed={e.hidden === true}
                       aria-label={`${e.hidden ? 'Show' : 'Hide'} role ${idx + 1} ${e.hidden ? 'on' : 'from'} resume`}
@@ -3626,7 +3847,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive h-10 sm:h-7"
+                      className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title="Delete role"
                       aria-label={`Delete role ${idx + 1}`}
                       onClick={() =>
@@ -3642,7 +3863,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title={collapsedEntries.has(e.id) ? 'Expand role' : 'Collapse role'}
                       aria-expanded={!collapsedEntries.has(e.id)}
                       aria-label={`${collapsedEntries.has(e.id) ? 'Expand' : 'Collapse'} role ${idx + 1}`}
@@ -3658,8 +3879,8 @@ export default function Builder() {
                 </div>
                 {!collapsedEntries.has(e.id) && (
                   <>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="space-y-1.5">
+                <div className={ENTRY_FIELDS_GRID}>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`exp-${e.id}-role`}>
                       {e.company.trim() ? `Your role at ${e.company.trim()}` : 'Your role'}
                     </Label>
@@ -3671,7 +3892,7 @@ export default function Builder() {
                       onChange={(ev) => setExp(e.id, { role: ev.target.value })}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`exp-${e.id}-company`}>Which company was this?</Label>
                     <Input
                       id={`exp-${e.id}-company`}
@@ -3681,7 +3902,7 @@ export default function Builder() {
                       onChange={(ev) => setExp(e.id, { company: ev.target.value })}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`exp-${e.id}-location`}>
                       {e.company.trim()
                         ? `Where was ${e.company.trim()} based?`
@@ -3694,7 +3915,7 @@ export default function Builder() {
                       onChange={(ev) => setExp(e.id, { location: ev.target.value })}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`exp-${e.id}-start`}>
                       {e.company.trim()
                         ? `When were you at ${e.company.trim()}?`
@@ -3702,12 +3923,14 @@ export default function Builder() {
                     </Label>
                     <div className="grid grid-cols-2 gap-2">
                       <MonthYearField
+                        language={resumeLanguageOf(resume)}
                         id={`exp-${e.id}-start`}
                         placeholder="Start (Jun 2023)"
                         value={e.startDate}
                         onChange={(v) => setExp(e.id, { startDate: v })}
                       />
                       <MonthYearField
+                        language={resumeLanguageOf(resume)}
                         allowPresent
                         ariaLabel="End date"
                         placeholder="End (Present)"
@@ -3868,6 +4091,7 @@ export default function Builder() {
                 type="button"
                 variant="outline"
                 size="sm"
+                className="min-h-10 sm:min-h-8"
                 onClick={() =>
                   setResume((r) => ({ ...r, experience: [...r.experience, emptyExperience()] }))
                 }
@@ -3879,6 +4103,7 @@ export default function Builder() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="min-h-10 sm:min-h-8"
                   title="Insert a role you saved from any resume copy"
                   onClick={() => setExpLibraryOpen((v) => !v)}
                 >
@@ -3927,7 +4152,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved role ${[s.data.role, s.data.company].filter((x) => x.trim()).join(' — ') || 'Untitled role'}`}
                         onClick={() => setExpLibrary(deleteLibraryExperience(s.id))}
@@ -4013,7 +4238,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="-my-2 h-10 shrink-0 sm:h-7"
+                    className="-my-2 h-10 min-w-10 shrink-0 sm:h-7 sm:min-w-0"
                     title={e.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={e.hidden === true}
                     aria-label={`${e.hidden ? 'Show' : 'Hide'} education ${idx + 1} ${e.hidden ? 'on' : 'from'} resume`}
@@ -4032,7 +4257,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="-my-2 h-10 shrink-0 sm:h-7"
+                    className="-my-2 h-10 min-w-10 shrink-0 sm:h-7 sm:min-w-0"
                     title={collapsedEntries.has(e.id) ? 'Expand education' : 'Collapse education'}
                     aria-expanded={!collapsedEntries.has(e.id)}
                     aria-label={`${collapsedEntries.has(e.id) ? 'Expand' : 'Collapse'} education ${idx + 1}`}
@@ -4047,8 +4272,8 @@ export default function Builder() {
                 </p>
                 {!collapsedEntries.has(e.id) && (
                   <>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="space-y-1.5">
+                <div className={ENTRY_FIELDS_GRID}>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`edu-${e.id}-degree`}>Degree and major</Label>
                     <Input
                       id={`edu-${e.id}-degree`}
@@ -4065,7 +4290,7 @@ export default function Builder() {
                     }
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`edu-${e.id}-school`}>Where did you study?</Label>
                     <Input
                       id={`edu-${e.id}-school`}
@@ -4082,7 +4307,7 @@ export default function Builder() {
                     }
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`edu-${e.id}-location`}>
                       {e.school.trim()
                         ? `Where is ${e.school.trim()} located?`
@@ -4102,10 +4327,11 @@ export default function Builder() {
                       }
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
                     <Label htmlFor={`edu-${e.id}-start`}>When did you study?</Label>
                     <div className="grid grid-cols-2 gap-2">
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       id={`edu-${e.id}-start`}
                       placeholder="Start (2017)"
                       value={e.startDate}
@@ -4119,6 +4345,7 @@ export default function Builder() {
                       }
                     />
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       allowPresent
                       ariaLabel="End date"
                       placeholder="End (2021)"
@@ -4136,138 +4363,150 @@ export default function Builder() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    aria-label="GPA (optional)"
-                    placeholder="GPA (3.8/4.0 — optional)"
-                    value={e.gpa ?? ''}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        education: r.education.map((x) =>
-                          x.id === e.id ? { ...x, gpa: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Minor (optional)"
-                    placeholder="Minor (Mathematics — optional)"
-                    value={e.minor ?? ''}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        education: r.education.map((x) =>
-                          x.id === e.id ? { ...x, minor: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <Input
-                    aria-label="Education details (optional)"
-                    placeholder="Details (honors, thesis — optional)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={e.details}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        education: r.education.map((x) =>
-                          x.id === e.id ? { ...x, details: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 shrink-0"
-                    disabled={idx === 0}
-                    id={moveId('education', idx, 'up')}
-                    title="Move up"
-                    onClick={() => {
-                      setResume((r) => ({ ...r, education: moveItem(r.education, idx, -1) }))
-                      movedEntry('education', 'Education', idx, -1, resume.education.length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 shrink-0"
-                    disabled={idx === resume.education.length - 1}
-                    id={moveId('education', idx, 'down')}
-                    title="Move down"
-                    onClick={() => {
-                      setResume((r) => ({ ...r, education: moveItem(r.education, idx, 1) }))
-                      movedEntry('education', 'Education', idx, 1, resume.education.length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 shrink-0"
-                    title="Duplicate education — handy for a second degree at the same school"
-                    aria-label={`Duplicate education ${idx + 1}`}
-                    onClick={() =>
-                      setResume((r) => {
-                        const i = r.education.findIndex((x) => x.id === e.id)
-                        const copy = { ...r.education[i], id: newId() }
-                        const education = [...r.education]
-                        education.splice(i + 1, 0, copy)
-                        return { ...r, education }
-                      })
-                    }
-                  >
-                    <Copy className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 shrink-0"
-                    title="Save education to library — reuse it in other resume copies"
-                    aria-label={`Save education ${idx + 1} to library`}
-                    disabled={!e.school.trim() && !e.degree.trim() && !e.details.trim()}
-                    onClick={() => {
-                      const next = saveEducationToLibrary(e)
-                      if (next === null) {
-                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                        return
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-gpa`}>GPA (optional)</Label>
+                    <Input
+                      id={`edu-${e.id}-gpa`}
+                      placeholder="3.8/4.0"
+                      value={e.gpa ?? ''}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.map((x) =>
+                            x.id === e.id ? { ...x, gpa: ev.target.value } : x
+                          ),
+                        }))
                       }
-                      setEduLibrary(next)
-                      setEduLibrarySavedId(e.id)
-                      window.setTimeout(() => setEduLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
-                    }}
-                  >
-                    {eduLibrarySavedId === e.id ? (
-                      <Check className="size-3.5 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" />
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive h-9 shrink-0"
-                    title="Delete education"
-                    aria-label={`Delete education ${idx + 1}`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        education: r.education.filter((x) => x.id !== e.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edu-${e.id}-minor`}>Minor (optional)</Label>
+                    <Input
+                      id={`edu-${e.id}-minor`}
+                      placeholder="Mathematics"
+                      value={e.minor ?? ''}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.map((x) =>
+                            x.id === e.id ? { ...x, minor: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`edu-${e.id}-details`}>
+                    Honors, thesis or other details (optional)
+                  </Label>
+                  <div className={ENTRY_TEXT_STACK}>
+                    <Textarea
+                      id={`edu-${e.id}-details`}
+                      rows={2}
+                      placeholder="Dean's List, thesis title…"
+                      onKeyDown={proseKeyDown}
+                      value={e.details}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.map((x) =>
+                            x.id === e.id ? { ...x, details: proseInput(ev.target.value) } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
+                      disabled={idx === 0}
+                      id={moveId('education', idx, 'up')}
+                      title="Move up"
+                      onClick={() => {
+                        setResume((r) => ({ ...r, education: moveItem(r.education, idx, -1) }))
+                        movedEntry('education', 'Education', idx, -1, resume.education.length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
+                      disabled={idx === resume.education.length - 1}
+                      id={moveId('education', idx, 'down')}
+                      title="Move down"
+                      onClick={() => {
+                        setResume((r) => ({ ...r, education: moveItem(r.education, idx, 1) }))
+                        movedEntry('education', 'Education', idx, 1, resume.education.length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
+                      title="Duplicate education — handy for a second degree at the same school"
+                      aria-label={`Duplicate education ${idx + 1}`}
+                      onClick={() =>
+                        setResume((r) => {
+                          const i = r.education.findIndex((x) => x.id === e.id)
+                          const copy = { ...r.education[i], id: newId() }
+                          const education = [...r.education]
+                          education.splice(i + 1, 0, copy)
+                          return { ...r, education }
+                        })
+                      }
+                    >
+                      <Copy className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
+                      title="Save education to library — reuse it in other resume copies"
+                      aria-label={`Save education ${idx + 1} to library`}
+                      disabled={!e.school.trim() && !e.degree.trim() && !e.details.trim()}
+                      onClick={() => {
+                        const next = saveEducationToLibrary(e)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setEduLibrary(next)
+                        setEduLibrarySavedId(e.id)
+                        window.setTimeout(() => setEduLibrarySavedId((v) => (v === e.id ? null : v)), 1600)
+                      }}
+                    >
+                      {eduLibrarySavedId === e.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
+                      title="Delete education"
+                      aria-label={`Delete education ${idx + 1}`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          education: r.education.filter((x) => x.id !== e.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
                   </>
                 )}
@@ -4278,6 +4517,7 @@ export default function Builder() {
                 type="button"
                 variant="outline"
                 size="sm"
+                className="min-h-10 sm:min-h-8"
                 onClick={() =>
                   setResume((r) => ({ ...r, education: [...r.education, emptyEducation()] }))
                 }
@@ -4289,6 +4529,7 @@ export default function Builder() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="min-h-10 sm:min-h-8"
                   title="Insert an education entry you saved from any resume copy"
                   onClick={() => setEduLibraryOpen((v) => !v)}
                 >
@@ -4334,7 +4575,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved education ${[s.data.degree, s.data.school].filter((x) => x.trim()).join(' — ') || 'Untitled education'}`}
                         onClick={() => setEduLibrary(deleteLibraryEducation(s.id))}
@@ -4362,8 +4603,8 @@ export default function Builder() {
                   flashEntryId === p.id ? 'ring-primary/60 ring-2' : ''
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs font-medium">
+                <div className="flex min-w-0 flex-wrap items-center justify-between sm:flex-nowrap">
+                  <p className="text-muted-foreground flex min-w-0 basis-full items-center gap-1 text-xs font-medium sm:basis-auto">
                     <span className="shrink-0">Project {pIdx + 1}</span>
                     {p.name.trim() && (
                       <span className="text-foreground min-w-0 truncate font-normal">
@@ -4384,12 +4625,12 @@ export default function Builder() {
                       label={`Project ${pIdx + 1}`}
                     />
                   </p>
-                  <div className="flex items-center">
+                  <div className="ml-auto flex items-center max-sm:-mx-1.5 max-sm:basis-[calc(100%+0.75rem)] max-sm:flex-wrap max-sm:justify-end sm:shrink-0">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={pIdx === 0}
                       id={moveId('projects', pIdx, 'up')}
                       title="Move up"
@@ -4405,7 +4646,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={pIdx === resume.projects.length - 1}
                       id={moveId('projects', pIdx, 'down')}
                       title="Move down"
@@ -4421,7 +4662,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title="Duplicate project"
                       aria-label={`Duplicate project ${pIdx + 1}`}
                       onClick={() =>
@@ -4440,7 +4681,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title="Save project to library — reuse it in other resume copies"
                       aria-label={`Save project ${pIdx + 1} to library`}
                       disabled={!p.name.trim() && !p.link.trim() && !p.description.trim()}
@@ -4468,7 +4709,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title={p.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                       aria-pressed={p.hidden === true}
                       aria-label={`${p.hidden ? 'Show' : 'Hide'} project ${pIdx + 1} ${p.hidden ? 'on' : 'from'} resume`}
@@ -4487,7 +4728,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       title={collapsedEntries.has(p.id) ? 'Expand project' : 'Collapse project'}
                       aria-expanded={!collapsedEntries.has(p.id)}
                       aria-label={`${collapsedEntries.has(p.id) ? 'Expand' : 'Collapse'} project ${pIdx + 1}`}
@@ -4532,8 +4773,9 @@ export default function Builder() {
                     }
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className={ENTRY_FIELDS_GRID}>
                   <Input
+                    className={ENTRY_WIDE_FIELD}
                     aria-label="Organization (optional)"
                     placeholder="Organization (optional)"
                     onKeyDown={markShortcutKeyDown}
@@ -4547,8 +4789,9 @@ export default function Builder() {
                       }))
                     }
                   />
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className={`grid grid-cols-2 gap-2 ${ENTRY_WIDE_FIELD}`}>
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       ariaLabel="Start date"
                       placeholder="Start (2024)"
                       value={p.startDate ?? ''}
@@ -4562,6 +4805,7 @@ export default function Builder() {
                       }
                     />
                     <MonthYearField
+                      language={resumeLanguageOf(resume)}
                       allowPresent
                       ariaLabel="End date"
                       placeholder="End"
@@ -4577,7 +4821,7 @@ export default function Builder() {
                     />
                   </div>
                 </div>
-                <div className="flex items-start justify-between gap-2">
+                <div className={ENTRY_TEXT_ROW}>
                   <LintedTextarea
                     aria-label="Project description"
                     rows={2}
@@ -4597,7 +4841,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive h-9 shrink-0"
+                    className="text-destructive h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
                     title="Delete project"
                     aria-label="Delete project"
                     onClick={() =>
@@ -4752,6 +4996,7 @@ export default function Builder() {
                 type="button"
                 variant="outline"
                 size="sm"
+                className="min-h-10 sm:min-h-8"
                 onClick={() =>
                   setResume((r) => ({ ...r, projects: [...r.projects, emptyProject()] }))
                 }
@@ -4763,6 +5008,7 @@ export default function Builder() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="min-h-10 sm:min-h-8"
                   title="Insert a project you saved from any resume copy"
                   onClick={() => setProjLibraryOpen((v) => !v)}
                 >
@@ -4809,7 +5055,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved project ${s.data.name.trim() || 'Untitled project'}`}
                         onClick={() => setProjLibrary(deleteLibraryProject(s.id))}
@@ -4845,199 +5091,232 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    aria-label="Role"
-                    placeholder="Role (e.g. Selected Member)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={inv.role}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).map((x) =>
-                          x.id === inv.id ? { ...x, role: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Organization"
-                    placeholder="Organization"
-                    onKeyDown={markShortcutKeyDown}
-                    value={inv.organization}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).map((x) =>
-                          x.id === inv.id ? { ...x, organization: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    aria-label="College or city (optional)"
-                    placeholder="College or city (optional)"
-                    value={inv.location}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).map((x) =>
-                          x.id === inv.id ? { ...x, location: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <MonthYearField
-                      ariaLabel="Start date"
-                      placeholder="Start (2024)"
-                      value={inv.startDate}
-                      onChange={(v) =>
+                <div className={ENTRY_FIELDS_GRID}>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`inv-${inv.id}-role`}>
+                      {inv.organization.trim()
+                        ? `Your role at ${inv.organization.trim()}`
+                        : 'Your role'}
+                    </Label>
+                    <Input
+                      id={`inv-${inv.id}-role`}
+                      placeholder="Role (e.g. Selected Member)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={inv.role}
+                      onChange={(ev) =>
                         setResume((r) => ({
                           ...r,
                           involvement: (r.involvement ?? []).map((x) =>
-                            x.id === inv.id ? { ...x, startDate: v } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <MonthYearField
-                      allowPresent
-                      ariaLabel="End date"
-                      placeholder="End"
-                      value={inv.endDate}
-                      onChange={(v) =>
-                        setResume((r) => ({
-                          ...r,
-                          involvement: (r.involvement ?? []).map((x) =>
-                            x.id === inv.id ? { ...x, endDate: v } : x
+                            x.id === inv.id ? { ...x, role: ev.target.value } : x
                           ),
                         }))
                       }
                     />
                   </div>
-                </div>
-                <div className="flex items-start justify-between gap-2">
-                  <LintedTextarea
-                    aria-label="Involvement description"
-                    rows={2}
-                    placeholder="What you did there — one bullet per line"
-                    value={inv.description}
-                    highlightLine={hlLine?.key === `inv-${inv.id}` ? hlLine.line : null}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).map((x) =>
-                          x.id === inv.id ? { ...x, description: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={invIdx === 0}
-                    id={moveId('involvement', invIdx, 'up')}
-                    title="Move up"
-                    aria-label={`Move involvement ${invIdx + 1} up`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        involvement: moveItem(r.involvement ?? [], invIdx, -1),
-                      }))
-                      movedEntry('involvement', 'Involvement', invIdx, -1, (resume.involvement ?? []).length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={invIdx === (resume.involvement ?? []).length - 1}
-                    id={moveId('involvement', invIdx, 'down')}
-                    title="Move down"
-                    aria-label={`Move involvement ${invIdx + 1} down`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        involvement: moveItem(r.involvement ?? [], invIdx, 1),
-                      }))
-                      movedEntry('involvement', 'Involvement', invIdx, 1, (resume.involvement ?? []).length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title={inv.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                    aria-pressed={inv.hidden === true}
-                    aria-label={`${inv.hidden ? 'Show' : 'Hide'} involvement ${invIdx + 1} ${inv.hidden ? 'on' : 'from'} resume`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).map((x) =>
-                          x.id === inv.id ? { ...x, hidden: !x.hidden } : x
-                        ),
-                      }))
-                    }
-                  >
-                    {inv.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title="Save involvement to library — reuse it in other resume copies"
-                    aria-label={`Save involvement ${invIdx + 1} to library`}
-                    disabled={
-                      !inv.role.trim() && !inv.organization.trim() && !inv.description.trim()
-                    }
-                    onClick={() => {
-                      const next = saveInvolvementToLibrary(inv)
-                      if (next === null) {
-                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                        return
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`inv-${inv.id}-organization`}>
+                      Which organization was this?
+                    </Label>
+                    <Input
+                      id={`inv-${inv.id}-organization`}
+                      placeholder="Organization"
+                      onKeyDown={markShortcutKeyDown}
+                      value={inv.organization}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, organization: ev.target.value } : x
+                          ),
+                        }))
                       }
-                      setInvLibrary(next)
-                      setInvLibrarySavedId(inv.id)
-                      window.setTimeout(
-                        () => setInvLibrarySavedId((v) => (v === inv.id ? null : v)),
-                        1600
-                      )
-                    }}
-                  >
-                    {invLibrarySavedId === inv.id ? (
-                      <Check className="size-3.5 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" />
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
-                    title="Delete involvement"
-                    aria-label="Delete involvement"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        involvement: (r.involvement ?? []).filter((x) => x.id !== inv.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`inv-${inv.id}-location`}>
+                      {inv.organization.trim()
+                        ? `Where was ${inv.organization.trim()} based? (optional)`
+                        : 'Where was this? (optional)'}
+                    </Label>
+                    <Input
+                      id={`inv-${inv.id}-location`}
+                      placeholder="College or city"
+                      value={inv.location}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, location: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`inv-${inv.id}-start`}>
+                      {inv.organization.trim()
+                        ? `When were you involved with ${inv.organization.trim()}?`
+                        : 'When was this?'}
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <MonthYearField
+                        language={resumeLanguageOf(resume)}
+                        id={`inv-${inv.id}-start`}
+                        placeholder="Start (2024)"
+                        value={inv.startDate}
+                        onChange={(v) =>
+                          setResume((r) => ({
+                            ...r,
+                            involvement: (r.involvement ?? []).map((x) =>
+                              x.id === inv.id ? { ...x, startDate: v } : x
+                            ),
+                          }))
+                        }
+                      />
+                      <MonthYearField
+                        language={resumeLanguageOf(resume)}
+                        allowPresent
+                        ariaLabel="End date"
+                        placeholder="End"
+                        value={inv.endDate}
+                        onChange={(v) =>
+                          setResume((r) => ({
+                            ...r,
+                            involvement: (r.involvement ?? []).map((x) =>
+                              x.id === inv.id ? { ...x, endDate: v } : x
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`inv-${inv.id}-description`}>
+                    {inv.organization.trim()
+                      ? `What did you do at ${inv.organization.trim()}?`
+                      : 'What did you do there?'}
+                  </Label>
+                  <div className={ENTRY_TEXT_STACK}>
+                    <LintedTextarea
+                      id={`inv-${inv.id}-description`}
+                      rows={2}
+                      placeholder="What you did there — one bullet per line"
+                      value={inv.description}
+                      highlightLine={hlLine?.key === `inv-${inv.id}` ? hlLine.line : null}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={invIdx === 0}
+                      id={moveId('involvement', invIdx, 'up')}
+                      title="Move up"
+                      aria-label={`Move involvement ${invIdx + 1} up`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          involvement: moveItem(r.involvement ?? [], invIdx, -1),
+                        }))
+                        movedEntry('involvement', 'Involvement', invIdx, -1, (resume.involvement ?? []).length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={invIdx === (resume.involvement ?? []).length - 1}
+                      id={moveId('involvement', invIdx, 'down')}
+                      title="Move down"
+                      aria-label={`Move involvement ${invIdx + 1} down`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          involvement: moveItem(r.involvement ?? [], invIdx, 1),
+                        }))
+                        movedEntry('involvement', 'Involvement', invIdx, 1, (resume.involvement ?? []).length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title={inv.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={inv.hidden === true}
+                      aria-label={`${inv.hidden ? 'Show' : 'Hide'} involvement ${invIdx + 1} ${inv.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).map((x) =>
+                            x.id === inv.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {inv.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Save involvement to library — reuse it in other resume copies"
+                      aria-label={`Save involvement ${invIdx + 1} to library`}
+                      disabled={
+                        !inv.role.trim() && !inv.organization.trim() && !inv.description.trim()
+                      }
+                      onClick={() => {
+                        const next = saveInvolvementToLibrary(inv)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setInvLibrary(next)
+                        setInvLibrarySavedId(inv.id)
+                        window.setTimeout(
+                          () => setInvLibrarySavedId((v) => (v === inv.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {invLibrarySavedId === inv.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Delete involvement"
+                      aria-label="Delete involvement"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          involvement: (r.involvement ?? []).filter((x) => x.id !== inv.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
                 <BulletGuidance
                   bullets={inv.description.split('\n')}
@@ -5242,7 +5521,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved involvement ${[s.data.role, s.data.organization].filter((x) => x.trim()).join(' — ') || 'Untitled involvement'}`}
                         onClick={() => setInvLibrary(deleteLibraryInvolvement(s.id))}
@@ -5275,25 +5554,31 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    aria-label="Course name"
-                    placeholder="Course name (e.g. Intro to Computer Systems)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={cw.name}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        coursework: (r.coursework ?? []).map((x) =>
-                          x.id === cw.id ? { ...x, name: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <div className="grid grid-cols-[1fr_5rem] gap-2">
+                <div className={ENTRY_NAME_ORG_DATE}>
+                  <div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>
+                    <Label htmlFor={`cw-${cw.id}-name`}>Course name</Label>
                     <Input
-                      aria-label="Where (school or platform)"
-                      placeholder="Where (school or platform)"
+                      id={`cw-${cw.id}-name`}
+                      placeholder="Course name (e.g. Intro to Computer Systems)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={cw.name}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, name: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`cw-${cw.id}-institution`}>
+                      Where did you take it? (school or platform)
+                    </Label>
+                    <Input
+                      id={`cw-${cw.id}-institution`}
+                      placeholder="School or platform"
                       onKeyDown={markShortcutKeyDown}
                       value={cw.institution}
                       onChange={(ev) =>
@@ -5305,9 +5590,13 @@ export default function Builder() {
                         }))
                       }
                     />
+                  </div>
+                  <div className={ENTRY_DATE_WRAP}>
+                    <Label htmlFor={`cw-${cw.id}-date`}>When?</Label>
                     <Input
-                      aria-label="When"
-                      placeholder="When"
+                      id={`cw-${cw.id}-date`}
+                      className={ENTRY_DATE_FIELD}
+                      placeholder="2024"
                       value={cw.date}
                       onChange={(ev) =>
                         setResume((r) => ({
@@ -5320,144 +5609,150 @@ export default function Builder() {
                     />
                   </div>
                 </div>
-                <Input
-                  aria-label="Skills used (optional)"
-                  placeholder="Skills used (optional, up to 3 — e.g. Teamwork, SQL)"
-                  onKeyDown={markShortcutKeyDown}
-                  value={cw.skill}
-                  onChange={(ev) =>
-                    setResume((r) => ({
-                      ...r,
-                      coursework: (r.coursework ?? []).map((x) =>
-                        x.id === cw.id ? { ...x, skill: ev.target.value } : x
-                      ),
-                    }))
-                  }
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor={`cw-${cw.id}-skill`}>Skills you used (optional, up to 3)</Label>
+                  <Input
+                    id={`cw-${cw.id}-skill`}
+                    placeholder="e.g. Teamwork, SQL"
+                    onKeyDown={markShortcutKeyDown}
+                    value={cw.skill}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        coursework: (r.coursework ?? []).map((x) =>
+                          x.id === cw.id ? { ...x, skill: ev.target.value } : x
+                        ),
+                      }))
+                    }
+                  />
+                </div>
                 {cw.skill.split(',').filter((s) => s.trim()).length > 3 && (
                   <p className="text-muted-foreground text-xs">
                     Only the first 3 skills appear on the resume.
                   </p>
                 )}
-                <div className="flex items-start justify-between gap-2">
-                  <Textarea
-                    aria-label="How you applied it"
-                    rows={2}
-                    placeholder="How you applied it — one bullet per line"
-                    onKeyDown={markShortcutKeyDown}
-                    value={cw.description}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        coursework: (r.coursework ?? []).map((x) =>
-                          x.id === cw.id ? { ...x, description: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={cwIdx === 0}
-                    id={moveId('coursework', cwIdx, 'up')}
-                    title="Move up"
-                    aria-label={`Move coursework ${cwIdx + 1} up`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        coursework: moveItem(r.coursework ?? [], cwIdx, -1),
-                      }))
-                      movedEntry('coursework', 'Coursework', cwIdx, -1, (resume.coursework ?? []).length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={cwIdx === (resume.coursework ?? []).length - 1}
-                    id={moveId('coursework', cwIdx, 'down')}
-                    title="Move down"
-                    aria-label={`Move coursework ${cwIdx + 1} down`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        coursework: moveItem(r.coursework ?? [], cwIdx, 1),
-                      }))
-                      movedEntry('coursework', 'Coursework', cwIdx, 1, (resume.coursework ?? []).length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title={cw.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                    aria-pressed={cw.hidden === true}
-                    aria-label={`${cw.hidden ? 'Show' : 'Hide'} coursework ${cwIdx + 1} ${cw.hidden ? 'on' : 'from'} resume`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        coursework: (r.coursework ?? []).map((x) =>
-                          x.id === cw.id ? { ...x, hidden: !x.hidden } : x
-                        ),
-                      }))
-                    }
-                  >
-                    {cw.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title="Save coursework to library — reuse it in other resume copies"
-                    aria-label={`Save coursework ${cwIdx + 1} to library`}
-                    disabled={
-                      !cw.name.trim() && !cw.institution.trim() && !cw.description.trim()
-                    }
-                    onClick={() => {
-                      const next = saveCourseworkToLibrary(cw)
-                      if (next === null) {
-                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                        return
+                <div className="space-y-1.5">
+                  <Label htmlFor={`cw-${cw.id}-description`}>How did you apply it?</Label>
+                  <div className={ENTRY_TEXT_STACK}>
+                    <Textarea
+                      id={`cw-${cw.id}-description`}
+                      rows={2}
+                      placeholder="How you applied it — one bullet per line"
+                      onKeyDown={markShortcutKeyDown}
+                      value={cw.description}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
                       }
-                      setCwLibrary(next)
-                      setCwLibrarySavedId(cw.id)
-                      window.setTimeout(
-                        () => setCwLibrarySavedId((v) => (v === cw.id ? null : v)),
-                        1600
-                      )
-                    }}
-                  >
-                    {cwLibrarySavedId === cw.id ? (
-                      <Check className="size-3.5 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" />
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
-                    title="Delete coursework"
-                    aria-label="Delete coursework"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        coursework: (r.coursework ?? []).filter((x) => x.id !== cw.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={cwIdx === 0}
+                      id={moveId('coursework', cwIdx, 'up')}
+                      title="Move up"
+                      aria-label={`Move coursework ${cwIdx + 1} up`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          coursework: moveItem(r.coursework ?? [], cwIdx, -1),
+                        }))
+                        movedEntry('coursework', 'Coursework', cwIdx, -1, (resume.coursework ?? []).length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={cwIdx === (resume.coursework ?? []).length - 1}
+                      id={moveId('coursework', cwIdx, 'down')}
+                      title="Move down"
+                      aria-label={`Move coursework ${cwIdx + 1} down`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          coursework: moveItem(r.coursework ?? [], cwIdx, 1),
+                        }))
+                        movedEntry('coursework', 'Coursework', cwIdx, 1, (resume.coursework ?? []).length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title={cw.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={cw.hidden === true}
+                      aria-label={`${cw.hidden ? 'Show' : 'Hide'} coursework ${cwIdx + 1} ${cw.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).map((x) =>
+                            x.id === cw.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {cw.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Save coursework to library — reuse it in other resume copies"
+                      aria-label={`Save coursework ${cwIdx + 1} to library`}
+                      disabled={
+                        !cw.name.trim() && !cw.institution.trim() && !cw.description.trim()
+                      }
+                      onClick={() => {
+                        const next = saveCourseworkToLibrary(cw)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setCwLibrary(next)
+                        setCwLibrarySavedId(cw.id)
+                        window.setTimeout(
+                          () => setCwLibrarySavedId((v) => (v === cw.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {cwLibrarySavedId === cw.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Delete coursework"
+                      aria-label="Delete coursework"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          coursework: (r.coursework ?? []).filter((x) => x.id !== cw.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -5529,7 +5824,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved coursework ${[s.data.name, s.data.institution].filter((x) => x.trim()).join(' — ') || 'Untitled course'}`}
                         onClick={() => setCwLibrary(deleteLibraryCoursework(s.id))}
@@ -5562,25 +5857,29 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    aria-label="Award name"
-                    placeholder="Award name (e.g. Dean's List)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={a.name}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        awards: (r.awards ?? []).map((x) =>
-                          x.id === a.id ? { ...x, name: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <div className="grid grid-cols-[1fr_5rem] gap-2">
+                <div className={ENTRY_NAME_ORG_DATE}>
+                  <div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>
+                    <Label htmlFor={`award-${a.id}-name`}>Award name</Label>
                     <Input
-                      aria-label="Awarded by"
-                      placeholder="Awarded by (organization)"
+                      id={`award-${a.id}-name`}
+                      placeholder="Award name (e.g. Dean's List)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={a.name}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, name: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`award-${a.id}-organization`}>Who awarded it?</Label>
+                    <Input
+                      id={`award-${a.id}-organization`}
+                      placeholder="Organization"
                       onKeyDown={markShortcutKeyDown}
                       value={a.organization}
                       onChange={(ev) =>
@@ -5592,9 +5891,13 @@ export default function Builder() {
                         }))
                       }
                     />
+                  </div>
+                  <div className={ENTRY_DATE_WRAP}>
+                    <Label htmlFor={`award-${a.id}-date`}>When?</Label>
                     <Input
-                      aria-label="When"
-                      placeholder="When"
+                      id={`award-${a.id}-date`}
+                      className={ENTRY_DATE_FIELD}
+                      placeholder="2024"
                       value={a.date}
                       onChange={(ev) =>
                         setResume((r) => ({
@@ -5607,125 +5910,128 @@ export default function Builder() {
                     />
                   </div>
                 </div>
-                <div className="flex items-start justify-between gap-2">
-                  <Textarea
-                    aria-label="Why it's relevant"
-                    rows={2}
-                    placeholder="Why it's relevant — one bullet per line"
-                    onKeyDown={markShortcutKeyDown}
-                    value={a.description}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        awards: (r.awards ?? []).map((x) =>
-                          x.id === a.id ? { ...x, description: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={aIdx === 0}
-                    id={moveId('awards', aIdx, 'up')}
-                    title="Move up"
-                    aria-label={`Move award ${aIdx + 1} up`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        awards: moveItem(r.awards ?? [], aIdx, -1),
-                      }))
-                      movedEntry('awards', 'Award', aIdx, -1, (resume.awards ?? []).length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={aIdx === (resume.awards ?? []).length - 1}
-                    id={moveId('awards', aIdx, 'down')}
-                    title="Move down"
-                    aria-label={`Move award ${aIdx + 1} down`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        awards: moveItem(r.awards ?? [], aIdx, 1),
-                      }))
-                      movedEntry('awards', 'Award', aIdx, 1, (resume.awards ?? []).length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                    aria-pressed={a.hidden === true}
-                    aria-label={`${a.hidden ? 'Show' : 'Hide'} award ${aIdx + 1} ${a.hidden ? 'on' : 'from'} resume`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        awards: (r.awards ?? []).map((x) =>
-                          x.id === a.id ? { ...x, hidden: !x.hidden } : x
-                        ),
-                      }))
-                    }
-                  >
-                    {a.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title="Save award to library — reuse it in other resume copies"
-                    aria-label={`Save award ${aIdx + 1} to library`}
-                    disabled={
-                      !a.name.trim() && !a.organization.trim() && !a.description.trim()
-                    }
-                    onClick={() => {
-                      const next = saveAwardToLibrary(a)
-                      if (next === null) {
-                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                        return
+                <div className="space-y-1.5">
+                  <Label htmlFor={`award-${a.id}-description`}>Why is it relevant?</Label>
+                  <div className={ENTRY_TEXT_STACK}>
+                    <Textarea
+                      id={`award-${a.id}-description`}
+                      rows={2}
+                      placeholder="Why it's relevant — one bullet per line"
+                      onKeyDown={markShortcutKeyDown}
+                      value={a.description}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
                       }
-                      setAwardLibrary(next)
-                      setAwardLibrarySavedId(a.id)
-                      window.setTimeout(
-                        () => setAwardLibrarySavedId((v) => (v === a.id ? null : v)),
-                        1600
-                      )
-                    }}
-                  >
-                    {awardLibrarySavedId === a.id ? (
-                      <Check className="size-3.5 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" />
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
-                    title="Delete award"
-                    aria-label="Delete award"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        awards: (r.awards ?? []).filter((x) => x.id !== a.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={aIdx === 0}
+                      id={moveId('awards', aIdx, 'up')}
+                      title="Move up"
+                      aria-label={`Move award ${aIdx + 1} up`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          awards: moveItem(r.awards ?? [], aIdx, -1),
+                        }))
+                        movedEntry('awards', 'Award', aIdx, -1, (resume.awards ?? []).length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={aIdx === (resume.awards ?? []).length - 1}
+                      id={moveId('awards', aIdx, 'down')}
+                      title="Move down"
+                      aria-label={`Move award ${aIdx + 1} down`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          awards: moveItem(r.awards ?? [], aIdx, 1),
+                        }))
+                        movedEntry('awards', 'Award', aIdx, 1, (resume.awards ?? []).length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={a.hidden === true}
+                      aria-label={`${a.hidden ? 'Show' : 'Hide'} award ${aIdx + 1} ${a.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).map((x) =>
+                            x.id === a.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {a.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Save award to library — reuse it in other resume copies"
+                      aria-label={`Save award ${aIdx + 1} to library`}
+                      disabled={
+                        !a.name.trim() && !a.organization.trim() && !a.description.trim()
+                      }
+                      onClick={() => {
+                        const next = saveAwardToLibrary(a)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setAwardLibrary(next)
+                        setAwardLibrarySavedId(a.id)
+                        window.setTimeout(
+                          () => setAwardLibrarySavedId((v) => (v === a.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {awardLibrarySavedId === a.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Delete award"
+                      aria-label="Delete award"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          awards: (r.awards ?? []).filter((x) => x.id !== a.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -5797,7 +6103,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved award ${[s.data.name, s.data.organization].filter((x) => x.trim()).join(' — ') || 'Untitled award'}`}
                         onClick={() => setAwardLibrary(deleteLibraryAward(s.id))}
@@ -5841,24 +6147,30 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    aria-label="Publication title"
-                    placeholder="Publication title"
-                    onKeyDown={markShortcutKeyDown}
-                    value={pub.title}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).map((x) =>
-                          x.id === pub.id ? { ...x, title: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <div className="grid grid-cols-[1fr_5rem] gap-2">
+                <div className={ENTRY_NAME_ORG_DATE}>
+                  <div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>
+                    <Label htmlFor={`pub-${pub.id}-title`}>Publication title</Label>
                     <Input
-                      aria-label="Journal or conference"
+                      id={`pub-${pub.id}-title`}
+                      placeholder="Publication title"
+                      onKeyDown={markShortcutKeyDown}
+                      value={pub.title}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, title: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`pub-${pub.id}-venue`}>
+                      Where was it published? (journal or conference)
+                    </Label>
+                    <Input
+                      id={`pub-${pub.id}-venue`}
                       placeholder="Journal / conference"
                       onKeyDown={markShortcutKeyDown}
                       value={pub.venue}
@@ -5871,9 +6183,13 @@ export default function Builder() {
                         }))
                       }
                     />
+                  </div>
+                  <div className={ENTRY_DATE_WRAP}>
+                    <Label htmlFor={`pub-${pub.id}-date`}>When?</Label>
                     <Input
-                      aria-label="When"
-                      placeholder="When"
+                      id={`pub-${pub.id}-date`}
+                      className={ENTRY_DATE_FIELD}
+                      placeholder="2024"
                       value={pub.date}
                       onChange={(ev) =>
                         setResume((r) => ({
@@ -5885,144 +6201,150 @@ export default function Builder() {
                       }
                     />
                   </div>
-                  <Input
-                    aria-label="Publication type"
-                    placeholder="Type — e.g. Journal Article"
-                    onKeyDown={markShortcutKeyDown}
-                    list="publication-kinds"
-                    value={pub.kind ?? ''}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).map((x) =>
-                          x.id === pub.id ? { ...x, kind: ev.target.value || undefined } : x
-                        ),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="flex items-start justify-between gap-2">
-                  <Textarea
-                    aria-label="Additional information"
-                    rows={2}
-                    placeholder="Additional information — one bullet per line"
-                    onKeyDown={markShortcutKeyDown}
-                    value={pub.description}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).map((x) =>
-                          x.id === pub.id ? { ...x, description: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={pubIdx === 0}
-                    id={moveId('publications', pubIdx, 'up')}
-                    title="Move up"
-                    aria-label={`Move publication ${pubIdx + 1} up`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        publications: moveItem(r.publications ?? [], pubIdx, -1),
-                      }))
-                      movedEntry('publications', 'Publication', pubIdx, -1, (resume.publications ?? []).length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={pubIdx === (resume.publications ?? []).length - 1}
-                    id={moveId('publications', pubIdx, 'down')}
-                    title="Move down"
-                    aria-label={`Move publication ${pubIdx + 1} down`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        publications: moveItem(r.publications ?? [], pubIdx, 1),
-                      }))
-                      movedEntry('publications', 'Publication', pubIdx, 1, (resume.publications ?? []).length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title={pub.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                    aria-pressed={pub.hidden === true}
-                    aria-label={`${pub.hidden ? 'Show' : 'Hide'} publication ${pubIdx + 1} ${pub.hidden ? 'on' : 'from'} resume`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).map((x) =>
-                          x.id === pub.id ? { ...x, hidden: !x.hidden } : x
-                        ),
-                      }))
-                    }
-                  >
-                    {pub.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title="Save publication to library — reuse it in other resume copies"
-                    aria-label={`Save publication ${pubIdx + 1} to library`}
-                    disabled={
-                      !pub.title.trim() &&
-                      !pub.venue.trim() &&
-                      !(pub.kind ?? '').trim() &&
-                      !pub.description.trim()
-                    }
-                    onClick={() => {
-                      const next = savePublicationToLibrary(pub)
-                      if (next === null) {
-                        setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                        return
+                  <div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>
+                    <Label htmlFor={`pub-${pub.id}-kind`}>Publication type (optional)</Label>
+                    <Input
+                      id={`pub-${pub.id}-kind`}
+                      placeholder="e.g. Journal Article"
+                      onKeyDown={markShortcutKeyDown}
+                      list="publication-kinds"
+                      value={pub.kind ?? ''}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, kind: ev.target.value || undefined } : x
+                          ),
+                        }))
                       }
-                      setPubLibrary(next)
-                      setPubLibrarySavedId(pub.id)
-                      window.setTimeout(
-                        () => setPubLibrarySavedId((v) => (v === pub.id ? null : v)),
-                        1600
-                      )
-                    }}
-                  >
-                    {pubLibrarySavedId === pub.id ? (
-                      <Check className="size-3.5 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" />
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
-                    title="Delete publication"
-                    aria-label="Delete publication"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        publications: (r.publications ?? []).filter((x) => x.id !== pub.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`pub-${pub.id}-description`}>Additional information (optional)</Label>
+                  <div className={ENTRY_TEXT_STACK}>
+                    <Textarea
+                      id={`pub-${pub.id}-description`}
+                      rows={2}
+                      placeholder="Additional information — one bullet per line"
+                      onKeyDown={markShortcutKeyDown}
+                      value={pub.description}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={pubIdx === 0}
+                      id={moveId('publications', pubIdx, 'up')}
+                      title="Move up"
+                      aria-label={`Move publication ${pubIdx + 1} up`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          publications: moveItem(r.publications ?? [], pubIdx, -1),
+                        }))
+                        movedEntry('publications', 'Publication', pubIdx, -1, (resume.publications ?? []).length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={pubIdx === (resume.publications ?? []).length - 1}
+                      id={moveId('publications', pubIdx, 'down')}
+                      title="Move down"
+                      aria-label={`Move publication ${pubIdx + 1} down`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          publications: moveItem(r.publications ?? [], pubIdx, 1),
+                        }))
+                        movedEntry('publications', 'Publication', pubIdx, 1, (resume.publications ?? []).length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title={pub.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={pub.hidden === true}
+                      aria-label={`${pub.hidden ? 'Show' : 'Hide'} publication ${pubIdx + 1} ${pub.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).map((x) =>
+                            x.id === pub.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {pub.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Save publication to library — reuse it in other resume copies"
+                      aria-label={`Save publication ${pubIdx + 1} to library`}
+                      disabled={
+                        !pub.title.trim() &&
+                        !pub.venue.trim() &&
+                        !(pub.kind ?? '').trim() &&
+                        !pub.description.trim()
+                      }
+                      onClick={() => {
+                        const next = savePublicationToLibrary(pub)
+                        if (next === null) {
+                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                          return
+                        }
+                        setPubLibrary(next)
+                        setPubLibrarySavedId(pub.id)
+                        window.setTimeout(
+                          () => setPubLibrarySavedId((v) => (v === pub.id ? null : v)),
+                          1600
+                        )
+                      }}
+                    >
+                      {pubLibrarySavedId === pub.id ? (
+                        <Check className="size-3.5 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Delete publication"
+                      aria-label="Delete publication"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          publications: (r.publications ?? []).filter((x) => x.id !== pub.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -6097,7 +6419,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved publication ${[s.data.title, s.data.venue].filter((x) => x.trim()).join(' — ') || 'Untitled publication'}`}
                         onClick={() => setPubLibrary(deleteLibraryPublication(s.id))}
@@ -6130,24 +6452,30 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    aria-label="Reference full name"
-                    placeholder="Full name"
-                    onKeyDown={markShortcutKeyDown}
-                    value={ref.name}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        references: (r.references ?? []).map((x) =>
-                          x.id === ref.id ? { ...x, name: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <div className="grid grid-cols-2 gap-2">
+                <div className={ENTRY_FIELDS_GRID}>
+                  <div className="col-span-full space-y-1.5">
+                    <Label htmlFor={`ref-${ref.id}-name`}>Full name</Label>
                     <Input
-                      aria-label="Reference job title"
+                      id={`ref-${ref.id}-name`}
+                      placeholder="Full name"
+                      onKeyDown={markShortcutKeyDown}
+                      value={ref.name}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          references: (r.references ?? []).map((x) =>
+                            x.id === ref.id ? { ...x, name: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`ref-${ref.id}-title`}>
+                      {ref.name.trim() ? `${ref.name.trim()}'s job title` : 'Their job title'}
+                    </Label>
+                    <Input
+                      id={`ref-${ref.id}-title`}
                       placeholder="Job title"
                       onKeyDown={markShortcutKeyDown}
                       value={ref.title}
@@ -6160,8 +6488,13 @@ export default function Builder() {
                         }))
                       }
                     />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`ref-${ref.id}-employer`}>
+                      {ref.name.trim() ? `Where does ${ref.name.trim()} work?` : 'Where do they work?'}
+                    </Label>
                     <Input
-                      aria-label="Reference employer"
+                      id={`ref-${ref.id}-employer`}
                       placeholder="Employer"
                       onKeyDown={markShortcutKeyDown}
                       value={ref.employer}
@@ -6176,39 +6509,45 @@ export default function Builder() {
                     />
                   </div>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    aria-label="Reference email"
-                    type="email"
-                    placeholder="Email"
-                    value={ref.email}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        references: (r.references ?? []).map((x) =>
-                          x.id === ref.id ? { ...x, email: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Reference phone"
-                    placeholder="Phone"
-                    value={ref.phone}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        references: (r.references ?? []).map((x) =>
-                          x.id === ref.id ? { ...x, phone: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
+                <div className={REFERENCE_CONTACT_ROW}>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`ref-${ref.id}-email`}>Email</Label>
+                    <Input
+                      id={`ref-${ref.id}-email`}
+                      type="email"
+                      placeholder="Email"
+                      value={ref.email}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          references: (r.references ?? []).map((x) =>
+                            x.id === ref.id ? { ...x, email: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`ref-${ref.id}-phone`}>Phone</Label>
+                    <Input
+                      id={`ref-${ref.id}-phone`}
+                      placeholder="Phone"
+                      value={ref.phone}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          references: (r.references ?? []).map((x) =>
+                            x.id === ref.id ? { ...x, phone: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <select
                     aria-label="Reference type"
-                    className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+                    className="border-input bg-background h-10 min-w-0 flex-1 basis-full rounded-md border px-3 text-sm sm:basis-0"
                     value={ref.kind}
                     onChange={(ev) =>
                       setResume((r) => ({
@@ -6229,7 +6568,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={refIdx === 0}
                     id={moveId('references', refIdx, 'up')}
                     title="Move up"
@@ -6248,7 +6587,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={refIdx === (resume.references ?? []).length - 1}
                     id={moveId('references', refIdx, 'down')}
                     title="Move down"
@@ -6267,7 +6606,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title={ref.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={ref.hidden === true}
                     aria-label={`${ref.hidden ? 'Show' : 'Hide'} reference ${refIdx + 1} ${ref.hidden ? 'on' : 'from'} resume`}
@@ -6286,7 +6625,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Save reference to library — reuse it in other resume copies"
                     aria-label={`Save reference ${refIdx + 1} to library`}
                     disabled={
@@ -6316,7 +6655,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Delete reference"
                     aria-label="Delete reference"
                     onClick={() =>
@@ -6399,7 +6738,7 @@ export default function Builder() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive h-10 sm:h-7"
+                        className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                         title="Remove from library"
                         aria-label={`Remove saved reference ${[s.data.name, s.data.employer].filter((x) => x.trim()).join(' — ') || 'Untitled reference'}`}
                         onClick={() => setRefLibrary(deleteLibraryReference(s.id))}
@@ -6432,170 +6771,195 @@ export default function Builder() {
                     Hidden — left out of the resume
                   </p>
                 )}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    aria-label="Rank or position"
-                    placeholder="Rank or position (e.g. Sergeant)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={m.rank}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).map((x) =>
-                          x.id === m.id ? { ...x, rank: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Input
-                    aria-label="Branch"
-                    placeholder="Branch (e.g. Army)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={m.branch}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).map((x) =>
-                          x.id === m.id ? { ...x, branch: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    aria-label="Stationed at"
-                    placeholder="Stationed at (e.g. Fort Bragg, NC)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={m.location}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).map((x) =>
-                          x.id === m.id ? { ...x, location: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <MonthYearField
-                      ariaLabel="Start date"
-                      placeholder="Start (2020)"
-                      value={m.startDate}
-                      onChange={(v) =>
+                <div className={ENTRY_FIELDS_GRID}>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`mil-${m.id}-rank`}>
+                      {m.branch.trim()
+                        ? `Your rank or position in the ${m.branch.trim()}`
+                        : 'Your rank or position'}
+                    </Label>
+                    <Input
+                      id={`mil-${m.id}-rank`}
+                      placeholder="Rank or position (e.g. Sergeant)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={m.rank}
+                      onChange={(ev) =>
                         setResume((r) => ({
                           ...r,
                           military: (r.military ?? []).map((x) =>
-                            x.id === m.id ? { ...x, startDate: v } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <MonthYearField
-                      allowPresent
-                      ariaLabel="End date"
-                      placeholder="End"
-                      value={m.endDate}
-                      onChange={(v) =>
-                        setResume((r) => ({
-                          ...r,
-                          military: (r.military ?? []).map((x) =>
-                            x.id === m.id ? { ...x, endDate: v } : x
+                            x.id === m.id ? { ...x, rank: ev.target.value } : x
                           ),
                         }))
                       }
                     />
                   </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`mil-${m.id}-branch`}>Which branch did you serve in?</Label>
+                    <Input
+                      id={`mil-${m.id}-branch`}
+                      placeholder="Branch (e.g. Army)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={m.branch}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).map((x) =>
+                            x.id === m.id ? { ...x, branch: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`mil-${m.id}-location`}>Where were you stationed?</Label>
+                    <Input
+                      id={`mil-${m.id}-location`}
+                      placeholder="Stationed at (e.g. Fort Bragg, NC)"
+                      onKeyDown={markShortcutKeyDown}
+                      value={m.location}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).map((x) =>
+                            x.id === m.id ? { ...x, location: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className={`space-y-1.5 ${ENTRY_WIDE_FIELD}`}>
+                    <Label htmlFor={`mil-${m.id}-start`}>
+                      {m.branch.trim()
+                        ? `When did you serve in the ${m.branch.trim()}?`
+                        : 'When did you serve?'}
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <MonthYearField
+                        language={resumeLanguageOf(resume)}
+                        id={`mil-${m.id}-start`}
+                        placeholder="Start (2020)"
+                        value={m.startDate}
+                        onChange={(v) =>
+                          setResume((r) => ({
+                            ...r,
+                            military: (r.military ?? []).map((x) =>
+                              x.id === m.id ? { ...x, startDate: v } : x
+                            ),
+                          }))
+                        }
+                      />
+                      <MonthYearField
+                        language={resumeLanguageOf(resume)}
+                        allowPresent
+                        ariaLabel="End date"
+                        placeholder="End"
+                        value={m.endDate}
+                        onChange={(v) =>
+                          setResume((r) => ({
+                            ...r,
+                            military: (r.military ?? []).map((x) =>
+                              x.id === m.id ? { ...x, endDate: v } : x
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-start justify-between gap-2">
-                  <Textarea
-                    aria-label="Responsibilities and accomplishments"
-                    rows={2}
-                    placeholder="Responsibilities and accomplishments — one bullet per line"
-                    onKeyDown={markShortcutKeyDown}
-                    value={m.description}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).map((x) =>
-                          x.id === m.id ? { ...x, description: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={mIdx === 0}
-                    id={moveId('military', mIdx, 'up')}
-                    title="Move up"
-                    aria-label={`Move military service ${mIdx + 1} up`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        military: moveItem(r.military ?? [], mIdx, -1),
-                      }))
-                      movedEntry('military', 'Military service', mIdx, -1, (resume.military ?? []).length)
-                    }}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    disabled={mIdx === (resume.military ?? []).length - 1}
-                    id={moveId('military', mIdx, 'down')}
-                    title="Move down"
-                    aria-label={`Move military service ${mIdx + 1} down`}
-                    onClick={() => {
-                      setResume((r) => ({
-                        ...r,
-                        military: moveItem(r.military ?? [], mIdx, 1),
-                      }))
-                      movedEntry('military', 'Military service', mIdx, 1, (resume.military ?? []).length)
-                    }}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
-                    title={m.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                    aria-pressed={m.hidden === true}
-                    aria-label={`${m.hidden ? 'Show' : 'Hide'} military service ${m.hidden ? 'on' : 'from'} resume`}
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).map((x) =>
-                          x.id === m.id ? { ...x, hidden: !x.hidden } : x
-                        ),
-                      }))
-                    }
-                  >
-                    {m.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
-                    title="Delete military service"
-                    aria-label="Delete military service"
-                    onClick={() =>
-                      setResume((r) => ({
-                        ...r,
-                        military: (r.military ?? []).filter((x) => x.id !== m.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`mil-${m.id}-description`}>
+                    What were your responsibilities and accomplishments?
+                  </Label>
+                  <div className={ENTRY_TEXT_STACK}>
+                    <Textarea
+                      id={`mil-${m.id}-description`}
+                      rows={2}
+                      placeholder="Responsibilities and accomplishments — one bullet per line"
+                      onKeyDown={markShortcutKeyDown}
+                      value={m.description}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).map((x) =>
+                            x.id === m.id ? { ...x, description: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={mIdx === 0}
+                      id={moveId('military', mIdx, 'up')}
+                      title="Move up"
+                      aria-label={`Move military service ${mIdx + 1} up`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          military: moveItem(r.military ?? [], mIdx, -1),
+                        }))
+                        movedEntry('military', 'Military service', mIdx, -1, (resume.military ?? []).length)
+                      }}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      disabled={mIdx === (resume.military ?? []).length - 1}
+                      id={moveId('military', mIdx, 'down')}
+                      title="Move down"
+                      aria-label={`Move military service ${mIdx + 1} down`}
+                      onClick={() => {
+                        setResume((r) => ({
+                          ...r,
+                          military: moveItem(r.military ?? [], mIdx, 1),
+                        }))
+                        movedEntry('military', 'Military service', mIdx, 1, (resume.military ?? []).length)
+                      }}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title={m.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                      aria-pressed={m.hidden === true}
+                      aria-label={`${m.hidden ? 'Show' : 'Hide'} military service ${m.hidden ? 'on' : 'from'} resume`}
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).map((x) =>
+                            x.id === m.id ? { ...x, hidden: !x.hidden } : x
+                          ),
+                        }))
+                      }
+                    >
+                      {m.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                      title="Delete military service"
+                      aria-label="Delete military service"
+                      onClick={() =>
+                        setResume((r) => ({
+                          ...r,
+                          military: (r.military ?? []).filter((x) => x.id !== m.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -6677,7 +7041,7 @@ export default function Builder() {
                     }))
                   }
                 />
-                <div className="flex items-start justify-between gap-2">
+                <div className={ENTRY_TEXT_STACK}>
                   <Textarea
                     aria-label="How building the agent was relevant"
                     rows={2}
@@ -6697,7 +7061,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={agIdx === 0}
                     id={moveId('agents', agIdx, 'up')}
                     title="Move up"
@@ -6716,7 +7080,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     disabled={agIdx === (resume.agents ?? []).length - 1}
                     id={moveId('agents', agIdx, 'down')}
                     title="Move down"
@@ -6735,7 +7099,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-10 shrink-0 sm:min-h-9"
+                    className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title={a.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
                     aria-pressed={a.hidden === true}
                     aria-label={`${a.hidden ? 'Show' : 'Hide'} agent ${a.hidden ? 'on' : 'from'} resume`}
@@ -6754,7 +7118,7 @@ export default function Builder() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive min-h-10 shrink-0 sm:min-h-9"
+                    className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
                     title="Delete agent"
                     aria-label="Delete agent"
                     onClick={() =>
@@ -6885,7 +7249,7 @@ export default function Builder() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-9"
+                  className="h-10 min-w-10 sm:h-9 sm:min-w-0"
                   title="Save skills to library — reuse them in other resume copies"
                   aria-label="Save skills to library"
                   disabled={!resume.skills.trim()}
@@ -6911,6 +7275,7 @@ export default function Builder() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="min-h-10 sm:min-h-8"
                     title="Insert a skills set you saved from any resume copy"
                     onClick={() => setSkillsLibraryOpen((v) => !v)}
                   >
@@ -6953,7 +7318,7 @@ export default function Builder() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-destructive h-10 sm:h-7"
+                          className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                           title="Remove from library"
                           aria-label={`Remove saved skills ${s.skills.split('\n').map((l) => l.trim()).filter(Boolean)[0] ?? 'Untitled skills'}`}
                           onClick={() => setSkillsLibrary(deleteLibrarySkills(s.id))}
@@ -7035,24 +7400,28 @@ export default function Builder() {
                       Hidden — left out of the resume
                     </p>
                   )}
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <Input
-                      aria-label="Certificate name"
-                      placeholder="Certificate name (AWS Solutions Architect)"
-                      onKeyDown={markShortcutKeyDown}
-                      value={c.name}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          certItems: (r.certItems ?? []).map((x) =>
-                            x.id === c.id ? { ...x, name: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                  <div className={ENTRY_NAME_ORG_DATE}>
+                    <div className={`space-y-1.5 ${ENTRY_NAME_FIELD}`}>
+                      <Label htmlFor={`cert-${c.id}-name`}>Certificate name</Label>
                       <Input
-                        aria-label="Issuer"
+                        id={`cert-${c.id}-name`}
+                        placeholder="Certificate name (AWS Solutions Architect)"
+                        onKeyDown={markShortcutKeyDown}
+                        value={c.name}
+                        onChange={(ev) =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, name: ev.target.value } : x
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`cert-${c.id}-issuer`}>Who issued it?</Label>
+                      <Input
+                        id={`cert-${c.id}-issuer`}
                         placeholder="Issuer (Amazon Web Services)"
                         onKeyDown={markShortcutKeyDown}
                         value={c.issuer}
@@ -7065,9 +7434,12 @@ export default function Builder() {
                           }))
                         }
                       />
+                    </div>
+                    <div className={ENTRY_DATE_WRAP}>
+                      <Label htmlFor={`cert-${c.id}-date`}>When?</Label>
                       <Input
-                        aria-label="When"
-                        className="w-24"
+                        id={`cert-${c.id}-date`}
+                        className={ENTRY_DATE_FIELD}
                         placeholder="2024"
                         value={c.date}
                         onChange={(ev) =>
@@ -7081,123 +7453,126 @@ export default function Builder() {
                       />
                     </div>
                   </div>
-                  <div className="flex items-start justify-between gap-2">
-                    <Textarea
-                      aria-label="How it's relevant (optional)"
-                      rows={2}
-                      placeholder="How it's relevant (optional)"
-                      onKeyDown={markShortcutKeyDown}
-                      value={c.description}
-                      onChange={(ev) =>
-                        setResume((r) => ({
-                          ...r,
-                          certItems: (r.certItems ?? []).map((x) =>
-                            x.id === c.id ? { ...x, description: ev.target.value } : x
-                          ),
-                        }))
-                      }
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
-                      disabled={cIdx === 0}
-                      id={moveId('certItems', cIdx, 'up')}
-                      title="Move up"
-                      aria-label={`Move certification ${cIdx + 1} up`}
-                      onClick={() => {
-                        setResume((r) => ({
-                          ...r,
-                          certItems: moveItem(r.certItems ?? [], cIdx, -1),
-                        }))
-                        movedEntry('certItems', 'Certification', cIdx, -1, (resume.certItems ?? []).length)
-                      }}
-                    >
-                      <ArrowUp className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
-                      disabled={cIdx === (resume.certItems ?? []).length - 1}
-                      id={moveId('certItems', cIdx, 'down')}
-                      title="Move down"
-                      aria-label={`Move certification ${cIdx + 1} down`}
-                      onClick={() => {
-                        setResume((r) => ({
-                          ...r,
-                          certItems: moveItem(r.certItems ?? [], cIdx, 1),
-                        }))
-                        movedEntry('certItems', 'Certification', cIdx, 1, (resume.certItems ?? []).length)
-                      }}
-                    >
-                      <ArrowDown className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
-                      title={c.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
-                      aria-pressed={c.hidden === true}
-                      aria-label={`${c.hidden ? 'Show' : 'Hide'} certification ${cIdx + 1} ${c.hidden ? 'on' : 'from'} resume`}
-                      onClick={() =>
-                        setResume((r) => ({
-                          ...r,
-                          certItems: (r.certItems ?? []).map((x) =>
-                            x.id === c.id ? { ...x, hidden: !x.hidden } : x
-                          ),
-                        }))
-                      }
-                    >
-                      {c.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-10 shrink-0 sm:min-h-9"
-                      title="Save certification to library — reuse it in other resume copies"
-                      aria-label={`Save certification ${cIdx + 1} to library`}
-                      disabled={!c.name.trim() && !c.issuer.trim() && !c.description.trim()}
-                      onClick={() => {
-                        const next = saveCertToLibrary(c)
-                        if (next === null) {
-                          setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
-                          return
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`cert-${c.id}-description`}>How is it relevant? (optional)</Label>
+                    <div className={ENTRY_TEXT_STACK}>
+                      <Textarea
+                        id={`cert-${c.id}-description`}
+                        rows={2}
+                        placeholder="How it's relevant (optional)"
+                        onKeyDown={proseKeyDown}
+                        value={c.description}
+                        onChange={(ev) =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, description: proseInput(ev.target.value) } : x
+                            ),
+                          }))
                         }
-                        setCertLibrary(next)
-                        setCertLibrarySavedId(c.id)
-                        window.setTimeout(
-                          () => setCertLibrarySavedId((v) => (v === c.id ? null : v)),
-                          1600
-                        )
-                      }}
-                    >
-                      {certLibrarySavedId === c.id ? (
-                        <Check className="size-3.5 text-green-600" />
-                      ) : (
-                        <BookmarkPlus className="size-3.5" />
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive min-h-10 shrink-0 sm:min-h-9"
-                      title="Delete certification"
-                      aria-label="Delete certification"
-                      onClick={() =>
-                        setResume((r) => ({
-                          ...r,
-                          certItems: (r.certItems ?? []).filter((x) => x.id !== c.id),
-                        }))
-                      }
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                        disabled={cIdx === 0}
+                        id={moveId('certItems', cIdx, 'up')}
+                        title="Move up"
+                        aria-label={`Move certification ${cIdx + 1} up`}
+                        onClick={() => {
+                          setResume((r) => ({
+                            ...r,
+                            certItems: moveItem(r.certItems ?? [], cIdx, -1),
+                          }))
+                          movedEntry('certItems', 'Certification', cIdx, -1, (resume.certItems ?? []).length)
+                        }}
+                      >
+                        <ArrowUp className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                        disabled={cIdx === (resume.certItems ?? []).length - 1}
+                        id={moveId('certItems', cIdx, 'down')}
+                        title="Move down"
+                        aria-label={`Move certification ${cIdx + 1} down`}
+                        onClick={() => {
+                          setResume((r) => ({
+                            ...r,
+                            certItems: moveItem(r.certItems ?? [], cIdx, 1),
+                          }))
+                          movedEntry('certItems', 'Certification', cIdx, 1, (resume.certItems ?? []).length)
+                        }}
+                      >
+                        <ArrowDown className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                        title={c.hidden ? 'Show on resume' : 'Hide from resume — kept here, left out of the resume'}
+                        aria-pressed={c.hidden === true}
+                        aria-label={`${c.hidden ? 'Show' : 'Hide'} certification ${cIdx + 1} ${c.hidden ? 'on' : 'from'} resume`}
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).map((x) =>
+                              x.id === c.id ? { ...x, hidden: !x.hidden } : x
+                            ),
+                          }))
+                        }
+                      >
+                        {c.hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                        title="Save certification to library — reuse it in other resume copies"
+                        aria-label={`Save certification ${cIdx + 1} to library`}
+                        disabled={!c.name.trim() && !c.issuer.trim() && !c.description.trim()}
+                        onClick={() => {
+                          const next = saveCertToLibrary(c)
+                          if (next === null) {
+                            setStorageAlert(LIBRARY_STORAGE_FULL_MSG)
+                            return
+                          }
+                          setCertLibrary(next)
+                          setCertLibrarySavedId(c.id)
+                          window.setTimeout(
+                            () => setCertLibrarySavedId((v) => (v === c.id ? null : v)),
+                            1600
+                          )
+                        }}
+                      >
+                        {certLibrarySavedId === c.id ? (
+                          <Check className="size-3.5 text-green-600" />
+                        ) : (
+                          <BookmarkPlus className="size-3.5" />
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive min-h-10 min-w-10 shrink-0 sm:min-h-9 sm:min-w-0"
+                        title="Delete certification"
+                        aria-label="Delete certification"
+                        onClick={() =>
+                          setResume((r) => ({
+                            ...r,
+                            certItems: (r.certItems ?? []).filter((x) => x.id !== c.id),
+                          }))
+                        }
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -7270,7 +7645,7 @@ export default function Builder() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-destructive h-10 sm:h-7"
+                          className="text-destructive h-10 min-w-10 sm:h-7 sm:min-w-0"
                           title="Remove from library"
                           aria-label={`Remove saved certification ${[s.data.name, s.data.issuer].filter((x) => x.trim()).join(' — ') || 'Untitled certification'}`}
                           onClick={() => setCertLibrary(deleteLibraryCert(s.id))}
@@ -7305,7 +7680,7 @@ export default function Builder() {
               Add anything else — Volunteering, Publications, Awards, Languages… One entry
               per line, shown as bullets.
             </p>
-            {resume.customSections.map((s) => (
+            {resume.customSections.map((s, idx) => (
               <div
                 key={s.id}
                 data-entry-id={s.id}
@@ -7313,27 +7688,35 @@ export default function Builder() {
                   flashEntryId === s.id ? 'ring-primary/60 ring-2' : ''
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <Input
-                    aria-label="Section title"
-                    placeholder="Section title (e.g. Volunteering)"
-                    onKeyDown={markShortcutKeyDown}
-                    value={s.title}
-                    onChange={(ev) =>
-                      setResume((r) => ({
-                        ...r,
-                        customSections: r.customSections.map((x) =>
-                          x.id === s.id ? { ...x, title: ev.target.value } : x
-                        ),
-                      }))
-                    }
-                  />
+                <div className="flex items-end justify-between gap-2">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Label htmlFor={`custom-${s.id}-title`}>Section title</Label>
+                    <Input
+                      id={`custom-${s.id}-title`}
+                      placeholder="e.g. Volunteering"
+                      onKeyDown={markShortcutKeyDown}
+                      value={s.title}
+                      onChange={(ev) =>
+                        setResume((r) => ({
+                          ...r,
+                          customSections: r.customSections.map((x) =>
+                            x.id === s.id ? { ...x, title: ev.target.value } : x
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive h-9 shrink-0"
+                    className="text-destructive h-10 min-w-10 shrink-0 sm:h-9 sm:min-w-0"
                     title="Delete section"
+                    aria-label={
+                      s.title.trim()
+                        ? `Delete ${s.title.trim()} section`
+                        : `Delete custom section ${idx + 1}`
+                    }
                     onClick={() =>
                       setResume((r) => ({
                         ...r,
@@ -7345,27 +7728,35 @@ export default function Builder() {
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
-                <Textarea
-                  aria-label="Section entries, one per line"
-                  rows={3}
-                  placeholder={'One entry per line, e.g.\nVolunteer mentor, Code for Austin (2023 – Present)\nSpeaker, ReactATX meetup'}
-                  onKeyDown={markShortcutKeyDown}
-                  value={s.bullets.join('\n')}
-                  onChange={(ev) =>
-                    setResume((r) => ({
-                      ...r,
-                      customSections: r.customSections.map((x) =>
-                        x.id === s.id ? { ...x, bullets: ev.target.value.split('\n') } : x
-                      ),
-                    }))
-                  }
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor={`custom-${s.id}-entries`}>
+                    {s.title.trim()
+                      ? `${s.title.trim()} entries (one per line)`
+                      : 'Entries (one per line)'}
+                  </Label>
+                  <Textarea
+                    id={`custom-${s.id}-entries`}
+                    rows={3}
+                    placeholder={'e.g.\nVolunteer mentor, Code for Austin (2023 – Present)\nSpeaker, ReactATX meetup'}
+                    onKeyDown={markShortcutKeyDown}
+                    value={s.bullets.join('\n')}
+                    onChange={(ev) =>
+                      setResume((r) => ({
+                        ...r,
+                        customSections: r.customSections.map((x) =>
+                          x.id === s.id ? { ...x, bullets: ev.target.value.split('\n') } : x
+                        ),
+                      }))
+                    }
+                  />
+                </div>
               </div>
             ))}
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="min-h-10 sm:min-h-8"
               onClick={() =>
                 setResume((r) => {
                   const s = emptyCustomSection()
@@ -7445,7 +7836,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={idx === 0}
                       id={moveId('sectionOrder', idx, 'up')}
                       title="Move up"
@@ -7463,7 +7854,7 @@ export default function Builder() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 sm:h-7"
+                      className="h-10 min-w-10 sm:h-7 sm:min-w-0"
                       disabled={idx === keys.length - 1}
                       id={moveId('sectionOrder', idx, 'down')}
                       title="Move down"
@@ -7506,7 +7897,9 @@ export default function Builder() {
                 role="img"
                 aria-label={
                   pdfLength === null
-                    ? 'Resume length is being measured'
+                    ? atsPending
+                      ? 'Resume length is being measured'
+                      : 'Resume length is unavailable'
                     : `Resume fills ${Math.round(Math.min(pdfLength.length, 1) * 100)}% of the first page`
                 }
                 className="bg-muted inline-block h-1.5 w-16 overflow-hidden rounded-full forced-colors:border forced-colors:border-[CanvasText]"
@@ -7532,7 +7925,11 @@ export default function Builder() {
                 }`}
               >
                 {pdfLength === null ? (
-                  'Resume length: measuring — the meter and page guidance will update once the preview settles…'
+                  atsPending ? (
+                    'Resume length: measuring — the meter and page guidance will update once the preview settles…'
+                  ) : (
+                    'Resume length: unavailable — the PDF preview could not be prepared, so page guidance is off until it loads'
+                  )
                 ) : (
                   <>
                     Resume length: {pdfLength.length.toFixed(2)} page
@@ -8155,7 +8552,11 @@ export default function Builder() {
                     — free, computed in your browser
                   </span>
                 </p>
-                <ScoreRing score={ats.score} size={72} />
+                {atsPending ? (
+                  <PendingScoreRing size={72} />
+                ) : (
+                  <ScoreRing score={ats.score} size={72} />
+                )}
               </div>
               <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                 {ats.keywordScore !== null && (
@@ -8165,7 +8566,10 @@ export default function Builder() {
                   </span>
                 )}
                 <span>
-                  Structure <span className="text-foreground font-medium">{ats.structureScore}</span>
+                  Structure{' '}
+                  <span className="text-foreground font-medium">
+                    {atsPending ? <PendingScoreMark /> : ats.structureScore}
+                  </span>
                   {ats.keywordScore !== null && (
                     <span> ×30%</span>
                   )}
@@ -8189,7 +8593,7 @@ export default function Builder() {
                 <div className="text-muted-foreground mt-1.5 space-y-1.5 rounded-md border p-2.5">
                   <p>
                     {ats.keywordScore !== null
-                      ? `Score = keyword coverage ×70% + structure checks ×30%. Keyword coverage is the share of the job posting\u2019s top keywords (extracted by frequency, stop-words removed) that appear in your resume${ats.ignored.length > 0 ? ` — ${ats.ignored.length} keyword${ats.ignored.length === 1 ? '' : 's'} you marked not relevant ${ats.ignored.length === 1 ? 'is' : 'are'} excluded` : ''}. Structure is the ${ats.checks.length}-point checklist below — each check has equal weight.`
+                      ? `Score = keyword coverage ×70% + structure checks ×30%. Keyword coverage is the share of the job posting\u2019s top keywords (named skills and tools plus the most frequent terms, stop-words removed) that appear in your resume${ats.ignored.length > 0 ? ` — ${ats.ignored.length} keyword${ats.ignored.length === 1 ? '' : 's'} you marked not relevant ${ats.ignored.length === 1 ? 'is' : 'are'} excluded` : ''}. Structure is the ${ats.checks.length}-point checklist below — each check has equal weight.`
                       : `Without a job description the score is the ${ats.checks.length}-point structure checklist below — each check has equal weight (${ats.checks.filter((c) => c.pass).length} of ${ats.checks.length} passing). Paste a job description above to add the stricter keyword-coverage half.`}
                   </p>
                   <p>
@@ -8226,6 +8630,12 @@ export default function Builder() {
                             className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-green-800"
                           >
                             <span aria-hidden className="text-green-600">✓</span> {kw}
+                            {variantWording.has(kw) && (
+                              <span className="text-green-700/80">
+                                {' '}
+                                as “{variantWording.get(kw)}”
+                              </span>
+                            )}
                           </span>
                         ))}
                       </span>
@@ -8401,22 +8811,28 @@ export default function Builder() {
               <div className="mt-3 space-y-3">
                 <div
                   className={`rounded-md px-2.5 py-1.5 text-xs ${
-                    readiness.tier === 'ready'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : readiness.tier === 'almost'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-red-100 text-red-800'
+                    atsPending
+                      ? 'bg-muted text-muted-foreground'
+                      : readiness.tier === 'ready'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : readiness.tier === 'almost'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-red-100 text-red-800'
                   }`}
                 >
                   <span className="font-semibold">
                     Application ready:{' '}
-                    {readiness.tier === 'ready'
-                      ? 'Ready to send'
-                      : readiness.tier === 'almost'
-                        ? 'Almost there'
-                        : 'Needs work'}
+                    {atsPending ? (
+                      <PendingScoreMark />
+                    ) : readiness.tier === 'ready' ? (
+                      'Ready to send'
+                    ) : readiness.tier === 'almost' ? (
+                      'Almost there'
+                    ) : (
+                      'Needs work'
+                    )}
                   </span>
-                  {readiness.blockers.length > 0 && (
+                  {!atsPending && readiness.blockers.length > 0 && (
                     <span> — {readiness.blockers.join(' · ')}</span>
                   )}
                 </div>
@@ -8566,16 +8982,22 @@ export default function Builder() {
             {icon} {label}
             {pane === 'preview' && (
               <span
-                aria-label={`ATS match score ${ats.score} out of 100`}
+                aria-label={
+                  atsPending
+                    ? 'ATS match score: measuring the exported PDF'
+                    : `ATS match score ${ats.score} out of 100`
+                }
                 className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
-                  ats.score >= 80
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : ats.score >= 50
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-red-100 text-red-700'
+                  atsPending
+                    ? 'bg-muted text-muted-foreground'
+                    : ats.score >= 80
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : ats.score >= 50
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-red-100 text-red-700'
                 }`}
               >
-                {ats.score}
+                {atsPending ? '…' : ats.score}
               </span>
             )}
           </button>
@@ -8908,6 +9330,10 @@ export default function Builder() {
           onClose={() => setTailorOpen(false)}
           onQuota={setFreeLeft}
           onApply={applyTailorSuggestion}
+          onDraftKeyword={(kw) => {
+            setTailorOpen(false)
+            window.setTimeout(() => setKwBulletFor(kw), 250)
+          }}
         />
       )}
       <HealthDialog
@@ -8915,6 +9341,7 @@ export default function Builder() {
         onClose={() => setHealthOpen(false)}
         health={health}
         ats={ats}
+        atsPending={atsPending}
         onJump={jumpToSection}
         onJumpEntry={jumpToEntry}
       />
@@ -9082,8 +9509,18 @@ export default function Builder() {
           <DialogHeader>
             <DialogTitle>{variantPick?.title}</DialogTitle>
             <DialogDescription>
-              Three honest takes on your text — nothing invented. Bracketed placeholders like
-              [add %] mark where a real number would help.
+              {(() => {
+                const n = variantPick?.candidates.length ?? 0
+                const takes = n === 1 ? 'One take' : n === 2 ? 'Two takes' : 'Three takes'
+                const flagged = variantPick?.candidates.some((_, i) => draftFlags.has(`variant-${i}`))
+                if (variantPick?.kind === 'skills')
+                  return flagged
+                    ? 'Your skills, cleaned up and compared item by item with your list. Anything added, dropped or flattened is marked below — check it before picking; picking applies it as written.'
+                    : 'Your skills, cleaned up and compared item by item with your list — nothing added, dropped or flattened. Picking applies it as written.'
+                return flagged
+                  ? `${takes} on your text. Options marked below use figures, names, job-ad wording or a remit your resume never states, or attach one of your figures to something else — check those before picking one; picking applies it as written. Bracketed placeholders like [add %] mark where a real number would help.`
+                  : `${takes} on your text, checked word by word against your resume — nothing flagged. Bracketed placeholders like [add %] mark where a real number would help.`
+              })()}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -9104,24 +9541,32 @@ export default function Builder() {
             )}
             {variantPick?.candidates.map((cand, i) => {
               const isRejected = variantPick.rejected?.includes(i) ?? false
+              const flagged = draftFlags.get(`variant-${i}`)
               return (
-                <div key={cand.slice(0, 40) + String(i)} className="relative">
+                <div key={cand.slice(0, 40) + String(i)} className="relative space-y-1.5">
                   <button
                     type="button"
                     disabled={isRejected}
+                    aria-describedby={flagged ? `variant-flags-${i}` : undefined}
                     className={`w-full rounded-lg border p-3 text-left text-sm whitespace-pre-wrap transition ${
                       isRejected
                         ? 'cursor-not-allowed opacity-50'
                         : 'hover:border-primary hover:bg-muted/50'
-                    }`}
+                    } ${flagged && !isRejected ? 'border-amber-300' : ''}`}
                     onClick={() => {
+                      if (flagged && variantPick.kind !== 'skills') recordAppliedAnyway(cand)
                       variantPick.apply(cand)
                       setVariantPick(null)
                     }}
                   >
                     <span className="text-muted-foreground mb-1 block pr-24 text-xs font-medium">
-                      {['Concise', 'Impact-focused', 'Keyword-focused'][i] ?? `Option ${i + 1}`}
+                      {variantPick.candidates.length === 1
+                        ? variantPick.kind === 'skills'
+                          ? 'Cleaned up'
+                          : 'Rewritten'
+                        : (['Concise', 'Impact-focused', 'Keyword-focused'][i] ?? `Option ${i + 1}`)}
                       {isRejected && ' · marked not helpful'}
+                      {flagged && !isRejected && ' · check before using'}
                     </span>
                     {variantPick.original?.trim()
                       ? diffNewWords(variantPick.original, cand).map((chunk, j) =>
@@ -9138,6 +9583,7 @@ export default function Builder() {
                         )
                       : cand}
                   </button>
+                  {flagged && <DraftFlagList id={`variant-flags-${i}`} groups={flagged} />}
                   {variantPick.regenerate && (
                     <button
                       type="button"
@@ -9174,7 +9620,9 @@ export default function Builder() {
               )
             })}
             {aiError && variantPick?.tag && aiErrorTag === variantPick.tag && (
-              <p className="text-destructive text-sm">{aiError}</p>
+              <p role="alert" className="text-destructive text-sm">
+                {aiError}
+              </p>
             )}
             {variantPick?.regenerate && (
               <div className="flex flex-wrap items-center gap-2">
@@ -9195,8 +9643,12 @@ export default function Builder() {
                   {aiBusy === variantPick.tag
                     ? 'Writing…'
                     : variantPick.rejected?.length
-                      ? 'Regenerate avoiding marked options'
-                      : 'Regenerate options'}
+                      ? variantPick.candidates.length === 1
+                        ? 'Regenerate avoiding this one'
+                        : 'Regenerate avoiding marked options'
+                      : variantPick.candidates.length === 1
+                        ? 'Regenerate'
+                        : 'Regenerate options'}
                 </Button>
                 {variantPick.adjust && (
                   <Button
@@ -9225,8 +9677,13 @@ export default function Builder() {
             </DialogTitle>
             <DialogDescription>
               {bulletSuggest?.lineIndex != null
-                ? 'Your half-written line, completed — edit it, regenerate a new version, or apply it to replace the line.'
-                : 'Review the draft before it lands on your resume — edit it, regenerate a new version, or apply it as is.'}
+                ? 'Your half-written line, completed. It is a draft, not a record of what you did — edit it, regenerate a new version, or replace the line with it.'
+                : `A candidate bullet drafted from your resume${resume.jobDescription.trim() ? ' and the job ad' : ''}. It is a draft, not a record of what you did — edit it, regenerate a new version, or apply it as is.`}
+              {draftFlags.has('suggest')
+                ? ' Marked below: what it says that your resume never states.'
+                : bulletSuggest
+                  ? ' Checked word by word against your resume — nothing flagged.'
+                  : ''}
             </DialogDescription>
           </DialogHeader>
           {bulletSuggest && (
@@ -9236,13 +9693,19 @@ export default function Builder() {
                 value={bulletSuggest.text}
                 onChange={(e) => setBulletSuggest({ ...bulletSuggest, text: e.target.value })}
                 aria-label="Suggested bullet text"
+                aria-describedby={draftFlags.has('suggest') ? 'suggest-flags' : undefined}
               />
+              {draftFlags.has('suggest') && (
+                <DraftFlagList id="suggest-flags" groups={draftFlags.get('suggest') ?? []} />
+              )}
               {aiError &&
                 (aiErrorTag?.startsWith(
                   `${bulletSuggest.kind}-${bulletSuggest.entryId}-suggest`
                 ) ||
                   aiErrorTag === `${bulletSuggest.kind}-${bulletSuggest.entryId}-complete`) && (
-                  <p className="text-destructive text-sm">{aiError}</p>
+                  <p role="alert" className="text-destructive text-sm">
+                    {aiError}
+                  </p>
                 )}
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -9254,13 +9717,20 @@ export default function Builder() {
                     if (!cur) return
                     const line = bulletSuggest.text.split('\n')[0]?.trim() ?? ''
                     if (!line) return
+                    if (draftFlags.has('suggest')) recordAppliedAnyway(line)
                     if (bulletSuggest.lineIndex != null)
                       cur.replaceLine(bulletSuggest.lineIndex, line)
                     else cur.apply(line)
                     setBulletSuggest(null)
                   }}
                 >
-                  {bulletSuggest.lineIndex != null ? 'Replace line' : 'Apply to entry'}
+                  {bulletSuggest.lineIndex != null
+                    ? draftFlags.has('suggest')
+                      ? 'Replace line anyway'
+                      : 'Replace line'
+                    : draftFlags.has('suggest')
+                      ? 'Apply anyway'
+                      : 'Apply to entry'}
                 </Button>
                 <Button
                   type="button"
@@ -9602,8 +10072,7 @@ export default function Builder() {
                     )}
                     <p className="text-muted-foreground text-xs">
                       {new Date(v.updatedAt).toLocaleString()}
-                      {v.folder ? ` · ${v.folder}` : ''} · ATS{' '}
-                      {scoreResume(visibleResume(v.data), v.data.jobDescription).score}/100
+                      {v.folder ? ` · ${v.folder}` : ''} · ATS <AtsScoreValue resume={v.data} />
                       <CopyTargetNote
                         version={v}
                         pipeline={copiesPipeline}
@@ -10043,7 +10512,7 @@ export default function Builder() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-auto w-full flex-col items-start gap-0.5 py-2.5"
+                className="h-auto w-full flex-col items-start gap-0.5 py-2.5 text-left whitespace-normal"
                 onClick={() => {
                   localStorage.setItem('honestcv.setupDone', '1')
                   setWizardOpen(false)
@@ -10097,7 +10566,7 @@ export default function Builder() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-auto w-full flex-col items-start gap-0.5 py-2.5"
+                className="h-auto w-full flex-col items-start gap-0.5 py-2.5 text-left whitespace-normal"
                 onClick={() => {
                   localStorage.setItem('honestcv.setupDone', '1')
                   setWizardOpen(false)
@@ -10188,7 +10657,9 @@ export default function Builder() {
                   fetchZalizePrimary()
                     .then((rp) => {
                       linkVersion(null)
-                      setResume(resumeFromProfile(rp))
+                      setResume(
+                        keepDesignOnImport(resume, keepTargetOnImport(resume, resumeFromProfile(rp)))
+                      )
                       setImportOpen(false)
                     })
                     .catch((err: unknown) =>
@@ -10217,7 +10688,9 @@ export default function Builder() {
               fetchResumeProfile(shareId)
                 .then((rp) => {
                   linkVersion(null)
-                  setResume(resumeFromProfile(rp))
+                  setResume(
+                    keepDesignOnImport(resume, keepTargetOnImport(resume, resumeFromProfile(rp)))
+                  )
                   setImportOpen(false)
                   setRcInput('')
                 })
@@ -10264,11 +10737,20 @@ export default function Builder() {
             onClick={() => {
               if (!importText.trim()) return
               linkVersion(null)
-              setResume(keepTargetOnImport(resume, parseResumeText(importText)))
+              setResume(
+                keepDesignOnImport(
+                  resume,
+                  keepTargetOnImport(
+                    resume,
+                    parseResumeText(importText, { sectionHeadings: resume.sectionHeadings })
+                  )
+                )
+              )
               setImportOpen(false)
               setImportText('')
             }}
             disabled={!importText.trim()}
+            className="h-auto min-h-9 whitespace-normal"
           >
             <ClipboardPaste /> Import — replaces current content (Ctrl+Z to undo)
           </Button>
@@ -10357,7 +10839,7 @@ function BulletIdeas({
     <div>
       <button
         type="button"
-        className="text-muted-foreground hover:text-foreground -my-1.5 inline-flex min-h-8 items-center gap-1 py-1.5 text-xs underline underline-offset-2"
+        className="text-muted-foreground hover:text-foreground -my-2.5 inline-flex min-h-10 items-center gap-1 py-2.5 text-xs underline underline-offset-2 sm:-my-1.5 sm:min-h-8 sm:py-1.5"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
@@ -10433,8 +10915,6 @@ function BulletIdeas({
   )
 }
 
-type AuditFinding = { category: string; line?: number }
-
 const AUDIT_CATEGORY: Record<BulletIssue['kind'], string> = {
   'weak-opener': 'Weak bullet points',
   'first-person': 'Personal pronouns',
@@ -10459,19 +10939,6 @@ const BULLET_CATEGORIES = [
   'Bullet length',
 ]
 
-const AUDIT_EXPLANATION: Record<string, string> = {
-  'Weak bullet points': 'Open each bullet with a strong action verb instead of "worked" or "was".',
-  'Quantified bullet points': 'Add a number that shows scale or impact — team size, %, time or money.',
-  'Personal pronouns': 'Drop I / me / my — resume bullets are written without pronouns.',
-  'Filler words': 'Cut empty phrases like "responsible for" or "various" — say what you did.',
-  Buzzwords: 'Swap vague buzzwords for the concrete skill or result behind them.',
-  'Passive voice': 'Rewrite in active voice so you — not the task — are the subject.',
-  'Punctuation & capitalization': 'Start with a capital letter and keep end punctuation consistent.',
-  'Bullet length': 'Keep each bullet roughly one line — long enough to be specific, short enough to scan.',
-  'Number of bullet points': 'Aim for 3–6 bullets per role — enough evidence without padding.',
-  'Dates are missing': 'Recruiters need dates to place this on your timeline and verify experience.',
-}
-
 const DATE_FINDING: AuditFinding = { category: 'Dates are missing' }
 
 const EXPERIENCE_CHECKS = ['Number of bullet points', 'Dates are missing', ...BULLET_CATEGORIES]
@@ -10486,131 +10953,6 @@ function bulletFindings(bullets: string[], entryFilled: boolean): AuditFinding[]
   if (entryFilled && (count < 3 || count > 6))
     findings.unshift({ category: 'Number of bullet points' })
   return findings
-}
-
-function EntryAuditChip({
-  findings,
-  filled,
-  checks,
-  expandable,
-  onExpand,
-  label,
-}: {
-  findings: AuditFinding[]
-  filled: boolean
-  /** Ordered audit category names that apply to this section type. */
-  checks: string[]
-  /** Whether the card is collapsed, so the warning chip can expand it. */
-  expandable: boolean
-  onExpand: () => void
-  label: string
-}) {
-  const groups = new Map<string, number[]>()
-  for (const f of findings) {
-    const lines = groups.get(f.category) ?? []
-    if (f.line !== undefined) lines.push(f.line)
-    groups.set(f.category, lines)
-  }
-  const passedNames = checks.filter((c) => !groups.has(c))
-  const passed = passedNames.length
-  const [shown, setShown] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
-  useEffect(() => {
-    if (!shown || dismissed) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDismissed(true)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [shown, dismissed])
-  const reveal = () => {
-    setShown(true)
-    setDismissed(false)
-  }
-  const wrapProps = {
-    className: 'relative flex shrink-0',
-    onMouseEnter: reveal,
-    onMouseLeave: () => setShown(false),
-    onFocus: reveal,
-    onBlur: () => setShown(false),
-  }
-  const panel = (
-    <div
-      aria-hidden
-      className={cn(
-        'bg-popover text-popover-foreground fixed inset-x-4 bottom-20 z-40 rounded-md border p-2 text-left shadow-md sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:bottom-auto sm:mt-1 sm:w-64',
-        shown && !dismissed ? 'block' : 'hidden',
-      )}
-    >
-      <ul className="space-y-1 text-[11px] leading-snug font-normal">
-        {[...groups.entries()].map(([category, lines]) => (
-          <li key={category} className="text-amber-700">
-            ⚠ {category}
-            {lines.length > 0 && (
-              <span className="text-muted-foreground">
-                {' '}
-                — line{lines.length === 1 ? '' : 's'} {[...new Set(lines)].join(', ')}
-              </span>
-            )}
-            {AUDIT_EXPLANATION[category] && (
-              <span className="text-muted-foreground block">{AUDIT_EXPLANATION[category]}</span>
-            )}
-          </li>
-        ))}
-        {passed > 0 && (
-          <li className="text-emerald-700">
-            ✓ {passed} best practice{passed === 1 ? '' : 's'} applied
-            <span className="text-muted-foreground block">{passedNames.join(', ')}</span>
-          </li>
-        )}
-      </ul>
-    </div>
-  )
-  if (findings.length === 0) {
-    if (!filled) return null
-    return (
-      <span {...wrapProps}>
-        <span
-          tabIndex={0}
-          className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
-          aria-label={`${label}: ${checks.length} best practice${checks.length === 1 ? '' : 's'} applied`}
-        >
-          ✓
-        </span>
-        {panel}
-      </span>
-    )
-  }
-  if (!expandable) {
-    return (
-      <span {...wrapProps}>
-        <span
-          tabIndex={0}
-          className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
-          aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'}`}
-        >
-          ⚠ {findings.length}
-        </span>
-        {panel}
-      </span>
-    )
-  }
-  return (
-    <span {...wrapProps}>
-      <button
-        type="button"
-        className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100"
-        aria-label={`${label}: ${findings.length} suggestion${findings.length === 1 ? '' : 's'} — expand to review`}
-        onPointerDown={onExpand}
-        onClick={(e) => {
-          if (e.detail === 0) onExpand()
-        }}
-      >
-        ⚠ {findings.length}
-      </button>
-      {panel}
-    </span>
-  )
 }
 
 function BulletGuidance({
@@ -10747,12 +11089,79 @@ function BundleToolDialog({
   const [placeholderWarn, setPlaceholderWarn] = useState<'pdf' | 'docx' | 'txt' | null>(null)
   const [autoResult, setAutoResult] = useState('')
   const [overwriteWarn, setOverwriteWarn] = useState<'generate' | 'template' | 'finish' | null>(null)
+  /** Model text received so far while a cover letter / brief is being generated (shown read-only). */
+  const [live, setLive] = useState('')
+  const [stopped, setStopped] = useState(false)
   const resultRef = useRef<HTMLTextAreaElement>(null)
+  const liveRef = useRef<HTMLTextAreaElement>(null)
+  /** Keep the live draft scrolled to its newest line unless the reader scrolled up. */
+  const followLive = useRef(true)
+  /** In-flight generation; aborting it also tells the Worker to stop the model. */
+  const writing = useRef<AbortController | null>(null)
+  const stopWriting = () => writing.current?.abort()
+  /** In-flight interview-practice request (questions / feedback); cancelled with the dialog. */
+  const practicing = useRef<AbortController | null>(null)
+  useEffect(() => {
+    if (kind === null) {
+      writing.current?.abort()
+      practicing.current?.abort()
+    }
+    return () => {
+      writing.current?.abort()
+      practicing.current?.abort()
+    }
+  }, [kind])
+  useEffect(() => {
+    if (!live) followLive.current = true
+    const el = liveRef.current
+    if (el && followLive.current) el.scrollTop = el.scrollHeight
+  }, [live])
 
   const applyResult = (text: string) => {
     setResult(text)
     setAutoResult(text)
   }
+  /** Deterministic check of the generated text against the resume / job ad (updates as the user edits). */
+  const grounding = useMemo(() => {
+    if (!result || kind === 'resignation') return null
+    // The practice-session report is computed locally (scores, keyword labels), not written about the candidate
+    if (kind === 'interview' && /^Practice session — /.test(result)) return null
+    const resumeText = resumeToPlainText(resume)
+    const claims = unsupportedClaims(result, [
+      resumeText,
+      resume.jobDescription,
+      highlights,
+      company,
+      addressee,
+      resume.targetRole,
+    ])
+    const brief =
+      kind === 'interview'
+        ? briefGrounding(result, resumeText, [
+            ...resume.experience.map((e) => e.company),
+            ...resume.education.map((e) => e.school),
+          ])
+        : null
+    const feelings = kind === 'cover' ? preferenceClaims(result, [resumeText, highlights]) : []
+    const borrowed =
+      kind === 'cover' ? letterBorrowing(result, resumeText, resume.jobDescription, [highlights]) : []
+    const asserted = kind === 'interview' ? briefAssertions(result, [resumeText, highlights]) : []
+    return { claims, brief, feelings, borrowed, asserted }
+  }, [result, kind, resume, highlights, company, addressee])
+  // Unsupported names in a brief are usually questions or advice ("tools like Copilot"), so they
+  // only lower the verdict for a letter, where every name is a claim about the candidate.
+  const groundingIssues = grounding
+    ? (grounding.brief ? 0 : grounding.claims.terms.length) +
+      grounding.claims.figures.length +
+      grounding.feelings.length +
+      grounding.borrowed.length +
+      grounding.asserted.length +
+      (grounding.brief?.uncitedQuestions.length ?? 0) +
+      (grounding.brief?.unquotedStories.length ?? 0)
+    : 0
+  const groundingNotes = grounding
+    ? groundingIssues + (grounding.brief ? grounding.claims.terms.length : 0)
+    : 0
 
   const jumpToNextPlaceholder = () => {
     const ta = resultRef.current
@@ -10770,17 +11179,31 @@ function BundleToolDialog({
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
   const [feedback, setFeedback] = useState('')
+  /** The answer the current feedback was written about — the candidate's own words count as evidence */
+  const [feedbackAnswer, setFeedbackAnswer] = useState('')
   const [feedbackBusy, setFeedbackBusy] = useState(false)
+  /** Deterministic check of the STRONGER ANSWER against the resume and the candidate's own answer. */
+  const feedbackGrounding = useMemo(() => {
+    const stronger = feedback.split(/^STRONGER ANSWER:?\s*$/m)[1]?.trim()
+    if (!stronger) return null
+    const resumeText = resumeToPlainText(resume)
+    const own = [resumeText, feedbackAnswer, highlights]
+    const claims = unsupportedClaims(stronger, [...own, resume.jobDescription, company, resume.targetRole])
+    const feelings = preferenceClaims(stronger, own)
+    const borrowed = letterBorrowing(stronger, resumeText, resume.jobDescription, [feedbackAnswer, highlights])
+    const issues = claims.terms.length + claims.figures.length + feelings.length + borrowed.length
+    return { claims, feelings, borrowed, issues }
+  }, [feedback, feedbackAnswer, resume, highlights, company])
   const [feedbackError, setFeedbackError] = useState('')
   const [suggested, setSuggested] = useState<string[]>([])
   const [suggestBusy, setSuggestBusy] = useState(false)
   const [session, setSession] = useState<{
     questions: string[]
     idx: number
-    entries: { q: string; a: string; fb: string }[]
+    entries: { q: string; a: string; fb: string; score: number | null }[]
   } | null>(null)
   const [lastKind, setLastKind] = useState(kind)
-  const [confirmingClose, setConfirmingClose] = useState<false | 'close' | 'jump'>(false)
+  const [confirmingClose, setConfirmingClose] = useState<false | 'close' | 'jump' | 'busy'>(false)
   const [timerStart, setTimerStart] = useState<number | null>(null)
   const [timerNow, setTimerNow] = useState(0)
   const [elapsedSec, setElapsedSec] = useState<number | null>(null)
@@ -10834,10 +11257,29 @@ function BundleToolDialog({
     [kind, analysis, answer]
   )
 
+  /** Running practice score across the session's answered questions (local, no AI). */
+  const runningScore = useMemo(() => {
+    if (kind !== 'interview' || !session) return null
+    const scores = session.entries
+      .map((e) => e.score)
+      .filter((s): s is number => s !== null)
+    if (analysis) scores.push(analysis.score)
+    if (scores.length === 0) return null
+    return {
+      scored: scores.length,
+      average: Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length),
+    }
+  }, [kind, session, analysis])
+
   /** JD keywords demonstrated in this answer that the resume itself still lacks. */
   const resumeGaps = useMemo(() => {
     if (kind !== 'interview' || !analysis?.keywords) return []
-    const report = matchReport(resumeToPlainText(resume), resume.jobDescription ?? '', resume.targetRole)
+    const report = matchReport(
+      resumeToPlainText(resume),
+      resume.jobDescription ?? '',
+      resume.targetRole,
+      resume.targetCompany
+    )
     if (!report) return []
     const missingFromResume = new Set(report.missing)
     return analysis.keywords.covered.filter((k) => missingFromResume.has(k))
@@ -10867,6 +11309,7 @@ function BundleToolDialog({
     setAnswer('')
     setTimerStart(null)
     setElapsedSec(null)
+    setStopped(false)
   }
 
   const docFileName = (ext: string) =>
@@ -10876,17 +11319,23 @@ function BundleToolDialog({
         ? professionalFileName([resume.contact.fullName, company, 'cover-letter'], ext)
         : professionalFileName([resume.contact.fullName, 'resignation-letter'], ext)
 
-  type PracticeSession = { questions: string[]; idx: number; entries: { q: string; a: string; fb: string }[] }
+  type PracticeEntry = { q: string; a: string; fb: string; score: number | null }
+  type PracticeSession = { questions: string[]; idx: number; entries: PracticeEntry[] }
 
   const sessionEntries = (s: PracticeSession) => {
     const entries = [...s.entries]
     if (answer.trim() || feedback) {
-      entries.push({ q: s.questions[s.idx], a: answer.trim(), fb: feedback })
+      entries.push({
+        q: s.questions[s.idx],
+        a: answer.trim(),
+        fb: feedback,
+        score: analysis?.score ?? null,
+      })
     }
     return entries
   }
 
-  const finishSession = (s: PracticeSession, entries: { q: string; a: string; fb: string }[]) => {
+  const finishSession = (s: PracticeSession, entries: PracticeEntry[]) => {
     const role = aiTargetRole(resume) || 'your target job'
     const transcript = entries
       .map(
@@ -10930,17 +11379,23 @@ function BundleToolDialog({
     }
     setSuggestBusy(true)
     setFeedbackError('')
+    const req = new AbortController()
+    practicing.current = req
     try {
-      const { questions, freeRemaining } = await aiInterviewQuestions({
-        resumeText: resumeToPlainText(resume),
-        jobDescription: resume.jobDescription,
-        role: aiTargetRole(resume),
-      })
+      const { questions, freeRemaining } = await aiInterviewQuestions(
+        {
+          resumeText: resumeToPlainText(resume),
+          jobDescription: resume.jobDescription,
+          role: aiTargetRole(resume),
+        },
+        req.signal
+      )
       setSuggested(questions)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
-      setFeedbackError((e as Error).message)
+      if (!req.signal.aborted && !isAbortError(e)) setFeedbackError((e as Error).message)
     } finally {
+      if (practicing.current === req) practicing.current = null
       setSuggestBusy(false)
     }
   }
@@ -10956,19 +11411,26 @@ function BundleToolDialog({
     }
     setFeedbackBusy(true)
     setFeedbackError('')
+    const req = new AbortController()
+    practicing.current = req
     try {
-      const { text, freeRemaining } = await aiInterviewFeedback({
-        question,
-        answer,
-        resumeText: resumeToPlainText(resume),
-        jobDescription: resume.jobDescription,
-        role: aiTargetRole(resume),
-      })
+      const { text, freeRemaining } = await aiInterviewFeedback(
+        {
+          question,
+          answer,
+          resumeText: resumeToPlainText(resume),
+          jobDescription: resume.jobDescription,
+          role: aiTargetRole(resume),
+        },
+        req.signal
+      )
       setFeedback(text)
+      setFeedbackAnswer(answer)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
-      setFeedbackError((e as Error).message)
+      if (!req.signal.aborted && !isAbortError(e)) setFeedbackError((e as Error).message)
     } finally {
+      if (practicing.current === req) practicing.current = null
       setFeedbackBusy(false)
     }
   }
@@ -10976,21 +11438,27 @@ function BundleToolDialog({
   const generate = async () => {
     setBusy(true)
     setError('')
+    setStopped(false)
+    const run = new AbortController()
+    writing.current = run
     try {
       if (kind === 'resignation') {
         if (!company.trim() || !currentRole.trim()) {
           setError('Fill in your company and current role first.')
           return
         }
-        const { text, freeRemaining } = await aiResignationLetter({
-          company,
-          role: currentRole,
-          lastDay,
-          reason,
-          name: resume.contact.fullName,
-          language: resume.language,
-          tone: letterTone || undefined,
-        })
+        const { text, freeRemaining } = await aiResignationLetter(
+          {
+            company,
+            role: currentRole,
+            lastDay,
+            reason,
+            name: resume.contact.fullName,
+            language: resume.language,
+            tone: letterTone || undefined,
+          },
+          run.signal
+        )
         applyResult(text)
         setSavedId(null)
     setSaveDocFailed(false)
@@ -11005,28 +11473,39 @@ function BundleToolDialog({
       }
       const { text, freeRemaining } =
         kind === 'cover'
-          ? await aiCoverLetter({
-              resumeText,
-              jobDescription: jd,
-              company,
-              role: aiTargetRole(resume),
-              addressee: addressee.trim() || undefined,
-              highlights: highlights.trim() || undefined,
-              language: resume.language,
-              tone: letterTone || undefined,
-            })
-          : await aiInterviewBrief({
-              resumeText,
-              jobDescription: jd,
-              role: aiTargetRole(resume),
-            })
+          ? await aiCoverLetter(
+              {
+                resumeText,
+                jobDescription: jd,
+                company,
+                role: aiTargetRole(resume),
+                addressee: addressee.trim() || undefined,
+                highlights: highlights.trim() || undefined,
+                language: resume.language,
+                tone: letterTone || undefined,
+              },
+              setLive,
+              run.signal
+            )
+          : await aiInterviewBrief(
+              {
+                resumeText,
+                jobDescription: jd,
+                role: aiTargetRole(resume),
+              },
+              setLive,
+              run.signal
+            )
       applyResult(text)
       setSavedId(null)
     setSaveDocFailed(false)
       if (freeRemaining !== null) onQuota(freeRemaining)
     } catch (e) {
-      setError((e as Error).message)
+      if (run.signal.aborted || isAbortError(e)) setStopped(true)
+      else setError((e as Error).message)
     } finally {
+      if (writing.current === run) writing.current = null
+      setLive('')
       setBusy(false)
     }
   }
@@ -11140,7 +11619,8 @@ function BundleToolDialog({
     useCallback(() => setConfirmingClose('close'), [])
   )
   const requestClose = () => {
-    if (unsavedWork) setConfirmingClose('close')
+    if (busy) setConfirmingClose('busy')
+    else if (unsavedWork) setConfirmingClose('close')
     else onClose()
   }
   return (
@@ -11149,10 +11629,16 @@ function BundleToolDialog({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {kind === 'interview' ? 'Close interview practice?' : 'Close without saving?'}
+              {confirmingClose === 'busy'
+                ? `Still writing your ${docKindNoun(kind)}`
+                : kind === 'interview'
+                  ? 'Close interview practice?'
+                  : 'Close without saving?'}
             </DialogTitle>
             <DialogDescription>
-              {kind === 'interview'
+              {confirmingClose === 'busy'
+                ? 'Closing now stops the draft — it will not be finished in the background. A free AI use is only spent on a finished draft.'
+                : kind === 'interview'
                 ? resultAtRisk
                   ? 'Your current session, typed answer and unsaved prep brief will be lost.'
                   : session !== null || answer.trim() !== ''
@@ -11167,18 +11653,19 @@ function BundleToolDialog({
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setConfirmingClose(false)}>
-              Keep working
+              {confirmingClose === 'busy' ? 'Keep writing' : 'Keep working'}
             </Button>
             <Button
               variant="destructive"
               onClick={() => {
                 const action = confirmingClose
                 setConfirmingClose(false)
+                if (action === 'busy') stopWriting()
                 if (action === 'jump') onJumpToTarget()
                 else onClose()
               }}
             >
-              Discard and close
+              {confirmingClose === 'busy' ? 'Stop and close' : 'Discard and close'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -11273,7 +11760,7 @@ function BundleToolDialog({
               className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
               onClick={onJumpToTarget}
             >
-              Change the copy&apos;s target &rarr;
+              <span className={INLINE_LABEL}>Change the copy&apos;s target &rarr;</span>
             </button>
           </p>
         )}
@@ -11382,7 +11869,7 @@ function BundleToolDialog({
               to={`/documents?doc=${encodeURIComponent(existingDoc.id)}`}
               className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
             >
-              Open the saved {docKindNoun(kind)}
+              <span className={INLINE_LABEL}>Open the saved {docKindNoun(kind)}</span>
             </Link>{' '}
             &mdash; or write a new one: Save makes it the {docKindNoun(kind)} linked to the job; the
             earlier one stays in My resumes.
@@ -11393,26 +11880,51 @@ function BundleToolDialog({
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {busy ? 'Writing…' : result ? 'Regenerate' : 'Generate'}
           </Button>
-          <Button
-            className="min-h-10 sm:min-h-9"
-            variant="outline"
-            onClick={() => requestOverwrite('template')}
-            disabled={busy}
-          >
-            Start from a template
-          </Button>
+          {busy ? (
+            <Button className="min-h-10 sm:min-h-9" variant="outline" onClick={stopWriting}>
+              Stop
+            </Button>
+          ) : (
+            <Button
+              className="min-h-10 sm:min-h-9"
+              variant="outline"
+              onClick={() => requestOverwrite('template')}
+            >
+              Start from a template
+            </Button>
+          )}
         </div>
-        {busy && (
+        {(busy || stopped) && (
           <p className="text-muted-foreground text-xs" role="status">
-            Usually takes 15–40 seconds — the draft appears here for you to edit.
+            {stopped
+              ? 'Stopped. Nothing was kept from the unfinished draft; a free AI use is only spent on a finished one.'
+              : kind === 'resignation'
+                ? 'Usually takes 15–40 seconds — the draft appears here for you to edit.'
+                : live
+                  ? 'Writing… you can read along; editing unlocks when the draft is complete.'
+                  : 'Starting… the first words usually appear within 10–30 seconds and the draft builds up here.'}
           </p>
+        )}
+        {busy && live && (
+          <Textarea
+            ref={liveRef}
+            aria-label="Draft in progress"
+            rows={14}
+            value={live}
+            readOnly
+            onScroll={(e) => {
+              const el = e.currentTarget
+              followLive.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+            }}
+            className="font-mono text-xs"
+          />
         )}
         {error && (
           <p role="alert" className="text-destructive text-sm">
             {error}
           </p>
         )}
-        {result && (
+        {result && !(busy && live) && (
           <>
             {countLetterPlaceholders(result) > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-300/60 bg-amber-500/10 px-2 py-1.5 dark:border-amber-400/30">
@@ -11430,6 +11942,72 @@ function BundleToolDialog({
                 >
                   Next placeholder
                 </Button>
+              </div>
+            )}
+            {grounding && (grounding.brief || groundingNotes > 0) && (
+              <div
+                role="status"
+                className={cn(
+                  'space-y-1 rounded border px-2 py-1.5 text-xs',
+                  groundingIssues > 0
+                    ? 'border-amber-300/60 bg-amber-500/10 dark:border-amber-400/30'
+                    : 'border-green-200 bg-green-50 text-green-800'
+                )}
+              >
+                <p className="font-medium">
+                  {groundingIssues > 0
+                    ? 'Check against your resume before you rely on this:'
+                    : `Grounded: all ${grounding.brief?.questionCount ?? 0} answer angles cite your resume or name a gap, and all ${grounding.brief?.storyCount ?? 0} stories quote a resume bullet.`}
+                </p>
+                {grounding.brief && grounding.brief.uncitedQuestions.length > 0 && (
+                  <p>
+                    {`Answer angle${grounding.brief.uncitedQuestions.length === 1 ? '' : 's'} ${grounding.brief.uncitedQuestions.join(', ')} cite${
+                      grounding.brief.uncitedQuestions.length === 1 ? 's' : ''
+                    } nothing from your resume and ${
+                      grounding.brief.uncitedQuestions.length === 1 ? "doesn't" : "don't"
+                    } name a gap — rewrite from a real bullet or say it's a gap.`}
+                  </p>
+                )}
+                {grounding.brief && grounding.brief.unquotedStories.length > 0 && (
+                  <p>
+                    {`Stor${grounding.brief.unquotedStories.length === 1 ? 'y' : 'ies'} ${grounding.brief.unquotedStories.join(', ')} ${
+                      grounding.brief.unquotedStories.length === 1 ? "doesn't" : "don't"
+                    } quote a bullet from your resume — the details may be invented.`}
+                  </p>
+                )}
+                {grounding.claims.terms.length > 0 && (
+                  <p>
+                    {`Not in your resume or the job ad: ${grounding.claims.terms.join(', ')} — ${
+                      grounding.brief
+                        ? 'fine as a question or a suggestion, not as your experience.'
+                        : 'a suggestion, not your experience.'
+                    }`}
+                  </p>
+                )}
+                {grounding.claims.figures.length > 0 && (
+                  <p>
+                    {`Figure${grounding.claims.figures.length === 1 ? '' : 's'} not in your resume or the job ad: ${grounding.claims.figures.join(', ')}.`}
+                  </p>
+                )}
+                {grounding.feelings.length > 0 && (
+                  <p>
+                    {`Says how you feel, which your resume doesn't: ${grounding.feelings.map((f) => `“${f}”`).join(', ')} — keep it only if it's true for you.`}
+                  </p>
+                )}
+                {grounding.asserted.length > 0 && (
+                  <p>
+                    {`Tells you to claim something your resume doesn't record: ${grounding.asserted
+                      .map((a) => `“${a}”`)
+                      .join(', ')} — say it only if it's true, and add it to your resume if it is.`}
+                  </p>
+                )}
+                {grounding.borrowed.map((b) => (
+                  <p key={b.sentence}>
+                    {`Describes your past work in the job ad's words, which your resume never uses: ${b.words
+                      .map((w) => `“${w}”`)
+                      .join(', ')} — in “${excerptAround(b.sentence, b.words[0])}”. Say what you actually did, or make it about the role instead.`}
+                  </p>
+                ))}
               </div>
             )}
             <Textarea
@@ -11544,6 +12122,17 @@ function BundleToolDialog({
                 <div className="bg-muted/50 space-y-1 rounded-md border px-3 py-2">
                   <p className="text-muted-foreground text-xs">
                     Question {session.idx + 1} of {session.questions.length}
+                    {runningScore && (
+                      <>
+                        {' · '}
+                        <span className="text-foreground">
+                          Running score{' '}
+                          <span className="tabular-nums">{runningScore.average}</span>/100
+                        </span>{' '}
+                        across {runningScore.scored}{' '}
+                        {runningScore.scored === 1 ? 'answer' : 'answers'}
+                      </>
+                    )}
                   </p>
                   <p className="text-sm">{session.questions[session.idx]}</p>
                 </div>
@@ -11888,6 +12477,45 @@ function BundleToolDialog({
                 {feedbackError}
               </p>
             )}
+            {feedbackGrounding && (
+              <div
+                role="status"
+                className={cn(
+                  'space-y-1 rounded border px-2 py-1.5 text-xs',
+                  feedbackGrounding.issues > 0
+                    ? 'border-amber-300/60 bg-amber-500/10 dark:border-amber-400/30'
+                    : 'border-green-200 bg-green-50 text-green-800'
+                )}
+              >
+                <p className="font-medium">
+                  {feedbackGrounding.issues > 0
+                    ? 'The stronger answer says things your resume and your answer don\'t — check before you use it:'
+                    : 'Grounded: the stronger answer states only what your resume or your own answer says.'}
+                </p>
+                {feedbackGrounding.claims.terms.length > 0 && (
+                  <p>{`Not in your resume, your answer or the job ad: ${feedbackGrounding.claims.terms.join(', ')}.`}</p>
+                )}
+                {feedbackGrounding.claims.figures.length > 0 && (
+                  <p>
+                    {`Figure${feedbackGrounding.claims.figures.length === 1 ? '' : 's'} not in your resume, your answer or the job ad: ${feedbackGrounding.claims.figures.join(', ')}.`}
+                  </p>
+                )}
+                {feedbackGrounding.feelings.length > 0 && (
+                  <p>
+                    {`Says how you feel, which neither your resume nor your answer does: ${feedbackGrounding.feelings
+                      .map((f) => `“${f}”`)
+                      .join(', ')} — say it only if it's true for you.`}
+                  </p>
+                )}
+                {feedbackGrounding.borrowed.map((b) => (
+                  <p key={b.sentence}>
+                    {`Describes your past work in the job ad's words, which your resume never uses: ${b.words
+                      .map((w) => `“${w}”`)
+                      .join(', ')} — in “${excerptAround(b.sentence, b.words[0])}”.`}
+                  </p>
+                ))}
+              </div>
+            )}
             {feedback && (
               <Textarea
                 readOnly
@@ -11950,18 +12578,25 @@ function TailorDialog({
   onClose,
   onQuota,
   onApply,
+  onDraftKeyword,
 }: {
   resume: Resume
   onClose: () => void
   onQuota: (remaining: number) => void
   onApply: (id: string, text: string) => void
+  /** Hand a still-missing keyword to the grounded bullet drafter (closes this dialog) */
+  onDraftKeyword: (keyword: string) => void
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [rows, setRows] = useState<TailorSuggestion[] | null>(null)
   const [snapshot, setSnapshot] = useState<Resume>(resume)
   const [confirmingClose, setConfirmingClose] = useState<'busy' | 'pending' | null>(null)
+  const [draftAfterClose, setDraftAfterClose] = useState<string | null>(null)
   const [slow, setSlow] = useState(false)
+  /** In-flight request; aborting it (Stop and close / unmount) also tells the Worker to stop the model. */
+  const tailoring = useRef<AbortController | null>(null)
+  useEffect(() => () => tailoring.current?.abort(), [])
   useEffect(() => {
     if (!busy) return
     const t = window.setTimeout(() => setSlow(true), 45_000)
@@ -11975,18 +12610,23 @@ function TailorDialog({
     setSnapshot(resume)
     setBusy(true)
     setError('')
+    const req = new AbortController()
+    tailoring.current = req
     try {
       const { items, where } = tailorItemsFrom(resume)
       if (items.length === 0) {
         setError('Add a summary or experience bullets first — tailoring rewords your real content.')
         return
       }
-      const { suggestions, freeRemaining } = await aiTailor({
-        items,
-        jobDescription: resume.jobDescription,
-        role: aiTargetRole(resume),
-        language: resume.language,
-      })
+      const { suggestions, freeRemaining } = await aiTailor(
+        {
+          items,
+          jobDescription: resume.jobDescription,
+          role: aiTargetRole(resume),
+          language: resume.language,
+        },
+        req.signal
+      )
       if (freeRemaining !== null) onQuota(freeRemaining)
       const byId = new Map(items.map((i) => [i.id, i.text]))
       setRows(
@@ -12001,22 +12641,46 @@ function TailorDialog({
           }))
       )
     } catch (e) {
-      setError((e as Error).message)
+      if (!req.signal.aborted && !isAbortError(e)) setError((e as Error).message)
     } finally {
+      if (tailoring.current === req) tailoring.current = null
       setBusy(false)
     }
   }
 
+  const jd = snapshot.jobDescription
+  const flags = useMemo(() => {
+    const out = new Map<string, { label: string; items: string[] }[]>()
+    if (!rows) return out
+    const resumeText = evidenceText(resumeToPlainText(snapshot))
+    for (const r of rows) {
+      const groups = draftFlagGroups(tailorClaims(r.original, r.suggestion, resumeText, jd))
+      if (groups.length > 0) out.set(r.id, groups)
+    }
+    return out
+  }, [rows, snapshot, jd])
   const decide = (id: string, status: 'accepted' | 'skipped') => {
     setRows((rs) => rs?.map((r) => (r.id === id ? { ...r, status } : r)) ?? null)
     if (status === 'accepted') {
       const row = rows?.find((r) => r.id === id)
-      if (row) onApply(row.id, row.suggestion)
+      if (row) {
+        if (flags.has(id)) recordAppliedAnyway(row.suggestion)
+        onApply(row.id, row.suggestion)
+      }
     }
   }
 
   const pending = rows?.filter((r) => r.status === 'pending') ?? []
-  const jd = snapshot.jobDescription
+  const draft = (kw: string) => {
+    if (pending.length > 0) {
+      setDraftAfterClose(kw)
+      setConfirmingClose('pending')
+      return
+    }
+    onDraftKeyword(kw)
+  }
+  const pendingFlagged = pending.filter((r) => flags.has(r.id))
+  const pendingClean = pending.filter((r) => !flags.has(r.id))
   const report = useMemo(() => {
     if (!rows || rows.length === 0 || !jd.trim()) return null
     const before = scoreResume(snapshot, jd)
@@ -12126,19 +12790,35 @@ function TailorDialog({
               </p>
             )}
             {report.after.missing.length > 0 && (
-              <p className="flex flex-wrap items-center gap-1 text-xs">
-                <span className="text-muted-foreground">Still missing:</span>
-                {report.after.missing.slice(0, 6).map((k) => (
-                  <span key={k} className="rounded-full bg-muted px-2 py-0.5">
-                    {k}
-                  </span>
-                ))}
-                {report.after.missing.length > 6 && (
-                  <span className="text-muted-foreground">
-                    +{report.after.missing.length - 6} more
-                  </span>
-                )}
-              </p>
+              <div className="text-xs">
+                <span className="text-muted-foreground">
+                  Still missing — tailoring only rewords what your resume already says, so it
+                  can&apos;t cover these. If you genuinely have one, draft a bullet grounded in
+                  your experience:
+                </span>
+                <RovingChipGroup
+                  label="Keywords still missing after tailoring"
+                  className="mt-1 flex flex-wrap gap-1.5 sm:gap-1"
+                >
+                  {report.after.missing.slice(0, 6).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className="bg-muted hover:bg-primary/10 inline-flex min-h-8 items-center gap-1 rounded-full border px-2 py-0.5 sm:min-h-0"
+                      title={`Draft an experience bullet using "${k}"`}
+                      aria-label={`Draft a bullet using ${k}`}
+                      onClick={() => draft(k)}
+                    >
+                      <Sparkles aria-hidden className="size-3" /> {k}
+                    </button>
+                  ))}
+                  {report.after.missing.length > 6 && (
+                    <span className="text-muted-foreground self-center">
+                      +{report.after.missing.length - 6} more in Missing keywords
+                    </span>
+                  )}
+                </RovingChipGroup>
+              </div>
             )}
           </div>
         )}
@@ -12148,18 +12828,36 @@ function TailorDialog({
               <span className="text-muted-foreground">
                 {rows.filter((r) => r.status === 'accepted').length} accepted ·{' '}
                 {pending.length} to review
+                {pendingFlagged.length > 0 && (
+                  <>
+                    {' · '}
+                    <span className="text-amber-800">
+                      {pendingFlagged.length} need{pendingFlagged.length === 1 ? 's' : ''} a
+                      closer look
+                    </span>
+                  </>
+                )}
               </span>
-              {pending.length > 0 && (
+              {pendingClean.length > 0 && (
                 <Button
                   size="sm"
                   variant="outline"
                   className="h-10 text-xs sm:h-7"
-                  onClick={() => pending.forEach((r) => decide(r.id, 'accepted'))}
+                  onClick={() => pendingClean.forEach((r) => decide(r.id, 'accepted'))}
                 >
-                  Accept all remaining
+                  {pendingFlagged.length > 0
+                    ? `Accept the ${pendingClean.length} unflagged`
+                    : 'Accept all remaining'}
                 </Button>
               )}
             </div>
+            {flags.size > 0 && (
+              <p className="text-muted-foreground text-xs" role="status">
+                Flagged lines add a figure, name or job-ad wording that appears nowhere in your
+                resume — the AI may have stretched the fact to match the ad. Accept only what is
+                true of you; unflagged lines are not guaranteed accurate either.
+              </p>
+            )}
             <div className="space-y-3">
               {rows.map((r) => (
                 <div key={r.id} className="space-y-2 rounded-lg border p-3 text-sm">
@@ -12168,6 +12866,7 @@ function TailorDialog({
                     {r.original}
                   </p>
                   <p className="font-medium text-emerald-800">{r.suggestion}</p>
+                  {flags.has(r.id) && <DraftFlagList groups={flags.get(r.id) ?? []} />}
                   {r.status === 'pending' ? (
                     <div className="flex gap-2">
                       <Button
@@ -12206,7 +12905,14 @@ function TailorDialog({
           </>
         )}
       </DialogContent>
-      <Dialog open={confirmingClose !== null} onOpenChange={(o) => !o && setConfirmingClose(null)}>
+      <Dialog
+        open={confirmingClose !== null}
+        onOpenChange={(o) => {
+          if (o) return
+          setConfirmingClose(null)
+          setDraftAfterClose(null)
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -12214,22 +12920,38 @@ function TailorDialog({
             </DialogTitle>
             <DialogDescription>
               {confirmingClose === 'busy'
-                ? 'A tailoring request is still running — close and discard its results?'
+                ? 'Closing now stops the request — it will not finish in the background. A free AI use is only spent on suggestions you get to review.'
                 : `Discard ${pending.length} tailoring suggestion${pending.length === 1 ? '' : 's'} you haven't reviewed yet? Getting them again will use another AI request.`}
+              {draftAfterClose !== null && confirmingClose === 'pending' && (
+                <> Accept or keep each one first to draft a bullet for “{draftAfterClose}” without losing them.</>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmingClose(null)}>
-              Keep reviewing
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConfirmingClose(null)
+                setDraftAfterClose(null)
+              }}
+            >
+              {confirmingClose === 'busy' ? 'Keep waiting' : 'Keep reviewing'}
             </Button>
             <Button
               variant="destructive"
               onClick={() => {
+                const action = confirmingClose
                 setConfirmingClose(null)
-                onClose()
+                if (action === 'busy') tailoring.current?.abort()
+                if (draftAfterClose !== null) onDraftKeyword(draftAfterClose)
+                else onClose()
               }}
             >
-              Discard and close
+              {draftAfterClose !== null
+                ? 'Discard and draft bullet'
+                : confirmingClose === 'busy'
+                  ? 'Stop and close'
+                  : 'Discard and close'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -12256,6 +12978,7 @@ function HealthDialog({
   onClose,
   health,
   ats,
+  atsPending,
   onJump,
   onJumpEntry,
 }: {
@@ -12263,6 +12986,7 @@ function HealthDialog({
   onClose: () => void
   health: HealthReport
   ats: AtsResult
+  atsPending: boolean
   onJump: (anchor: SectionAnchor | 'target') => void
   onJumpEntry: (id: string, anchor?: SectionAnchor) => void
 }) {
@@ -12310,7 +13034,7 @@ function HealthDialog({
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Score breakdown — ATS {ats.score}/100 · Writing{' '}
+            Score breakdown — ATS {atsPending ? <PendingScoreMark /> : ats.score}/100 · Writing{' '}
             {`${health.score}/100 (${scoreVerdict(health.score)})`}
           </DialogTitle>
           <DialogDescription>
@@ -12719,23 +13443,42 @@ function KeywordBulletDialog({
   )
   const [expId, setExpId] = useState(bestId ?? resume.experience[0]?.id ?? '')
   const [inserted, setInserted] = useState(false)
+  /** In-flight request; closing the dialog aborts it so the Worker stops the model. */
+  const drafting = useRef<AbortController | null>(null)
+  useEffect(() => () => drafting.current?.abort(), [])
+  const flags = useMemo(
+    () =>
+      text?.trim()
+        ? draftFlagGroups(
+            draftClaims(text, evidenceText(resumeToPlainText(resume)), resume.jobDescription, [keyword])
+          )
+        : [],
+    [text, resume, keyword]
+  )
+  const flagged = flags.length > 0
 
   const run = async () => {
     setBusy(true)
     setError('')
+    const req = new AbortController()
+    drafting.current = req
     try {
-      const { text: drafted, freeRemaining } = await aiKeywordBullet({
-        keyword,
-        resumeText: resumeToPlainText(resume),
-        jobDescription: resume.jobDescription,
-        role: aiTargetRole(resume),
-        language: resume.language,
-      })
+      const { text: drafted, freeRemaining } = await aiKeywordBullet(
+        {
+          keyword,
+          resumeText: resumeToPlainText(resume),
+          jobDescription: resume.jobDescription,
+          role: aiTargetRole(resume),
+          language: resume.language,
+        },
+        req.signal
+      )
       if (freeRemaining !== null) onQuota(freeRemaining)
       setText(drafted)
     } catch (e) {
-      setError((e as Error).message)
+      if (!req.signal.aborted && !isAbortError(e)) setError((e as Error).message)
     } finally {
+      if (drafting.current === req) drafting.current = null
       setBusy(false)
     }
   }
@@ -12747,8 +13490,12 @@ function KeywordBulletDialog({
           <DialogTitle>Draft a bullet for “{keyword}”</DialogTitle>
           <DialogDescription>
             The AI drafts one bullet that works this keyword in, grounded in your existing resume —
-            unknowns become [bracketed placeholders] for you to fill in. Only use it if the
-            experience is genuinely yours.
+            unknowns become [bracketed placeholders] for you to fill in. It is a draft, not a record
+            of what you did — only add it if the experience is genuinely yours.
+            {text !== null &&
+              (flagged
+                ? ` Marked below: what it says beyond “${keyword}” that your resume never states.`
+                : ` Checked word by word against your resume — apart from “${keyword}”, nothing flagged.`)}
           </DialogDescription>
         </DialogHeader>
         {resume.experience.length === 0 ? (
@@ -12765,7 +13512,10 @@ function KeywordBulletDialog({
               value={text}
               onChange={(e) => setText(e.target.value)}
               aria-label="Drafted bullet"
+              aria-describedby={flagged ? 'kw-bullet-flags' : undefined}
+              className={flagged ? 'border-amber-400' : undefined}
             />
+            {flagged && <DraftFlagList id="kw-bullet-flags" groups={flags} />}
             <div className="space-y-1.5">
               <Label htmlFor="kwBulletExp">Add to</Label>
               <select
@@ -12795,11 +13545,12 @@ function KeywordBulletDialog({
                   size="sm"
                   disabled={busy || !text.trim() || !expId}
                   onClick={() => {
+                    if (flagged) recordAppliedAnyway(text.trim())
                     onInsert(expId, text.trim())
                     setInserted(true)
                   }}
                 >
-                  <Check className="size-3" /> Add bullet
+                  <Check className="size-3" /> {flagged ? 'Add anyway' : 'Add bullet'}
                 </Button>
                 <Button size="sm" variant="outline" disabled={busy} onClick={() => void run()}>
                   {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}

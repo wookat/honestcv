@@ -663,6 +663,95 @@ const SECTION_LABELS_I18N: Record<Exclude<ResumeLanguage, 'en'>, Record<string, 
   },
 }
 
+/** Every default section heading the product prints, in every language, with its section key. */
+export function defaultSectionLabels(): { key: string; label: string }[] {
+  const out = Object.entries(SECTION_LABELS).map(([key, label]) => ({ key, label }))
+  for (const labels of Object.values(SECTION_LABELS_I18N))
+    for (const [key, label] of Object.entries(labels)) out.push({ key, label })
+  return out
+}
+
+/** Month abbreviations the date picker inserts and the word an ongoing role ends with, per resume language. */
+export const DATE_WORDS: Record<ResumeLanguage, { months: readonly string[]; present: string }> = {
+  en: {
+    months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    present: 'Present',
+  },
+  es: {
+    months: ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sept.', 'oct.', 'nov.', 'dic.'],
+    present: 'Actualidad',
+  },
+  fr: {
+    months: ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
+    present: "Aujourd'hui",
+  },
+  de: {
+    months: ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'],
+    present: 'Heute',
+  },
+  pt: {
+    months: ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'],
+    present: 'Atual',
+  },
+}
+
+const MONTH_NAMES_I18N: Record<ResumeLanguage, readonly string[]> = {
+  en: ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'],
+  es: ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
+  fr: ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'],
+  de: ['januar', 'februar', 'märz', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'dezember'],
+  pt: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'],
+}
+
+/** Other abbreviations browsers print for these languages (Intl `month: 'short'`). */
+const MONTH_VARIANTS: Record<string, number> = { sep: 9, set: 9, setiembre: 9, mär: 3 }
+
+const stripAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+/** Lower-cased month word (no trailing period, with and without accents) → month 1–12, every language. */
+const MONTH_INDEX: Map<string, number> = (() => {
+  const map = new Map<string, number>()
+  const add = (word: string, month: number) => {
+    const w = word.toLowerCase().replace(/\.$/, '')
+    map.set(w, month)
+    map.set(stripAccents(w), month)
+  }
+  for (const lang of Object.keys(DATE_WORDS) as ResumeLanguage[])
+    for (let i = 0; i < 12; i++) {
+      add(DATE_WORDS[lang].months[i], i + 1)
+      add(MONTH_NAMES_I18N[lang][i], i + 1)
+    }
+  for (const [w, m] of Object.entries(MONTH_VARIANTS)) add(w, m)
+  return map
+})()
+
+/** Month 1–12 named by a word such as "Sept", "ene.", "März" or "outubro"; null for anything else. */
+export const monthIndexOf = (word: string): number | null =>
+  MONTH_INDEX.get(word.toLowerCase().replace(/\.$/, '')) ?? null
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Regex alternation (longest first, case-insensitive use) of every month word the product knows. */
+export const MONTH_WORD_ALTERNATION = [...MONTH_INDEX.keys()]
+  .sort((a, b) => b.length - a.length || a.localeCompare(b))
+  .map(escapeRe)
+  .join('|')
+
+/** Words that end an ongoing role's date range, in every resume language. */
+export const ONGOING_WORDS = [
+  'present', 'current', 'now', 'ongoing',
+  'actualidad', 'actual', 'presente', 'hoy',
+  "aujourd'hui", 'aujourd’hui', 'présent', 'actuel', 'actuellement',
+  'heute', 'aktuell', 'derzeit',
+  'atual', 'atualmente',
+] as const
+
+/** Regex alternation of {@link ONGOING_WORDS} (longest first) — for date-range patterns with the `i` flag. */
+export const ONGOING_WORD_ALTERNATION = [...ONGOING_WORDS]
+  .sort((a, b) => b.length - a.length)
+  .map(escapeRe)
+  .join('|')
+
 const CUSTOM_SECTION_FALLBACK: Record<ResumeLanguage, string> = {
   en: 'Custom section',
   es: 'Sección personalizada',
@@ -764,7 +853,7 @@ export function sectionHeading(r: Resume, key: string): string {
 }
 
 const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-export const ONGOING_RE = /\b(present|current|now|ongoing)\b/i
+export const ONGOING_RE = new RegExp(`(?:^|[^\\p{L}])(${ONGOING_WORD_ALTERNATION})(?![\\p{L}])`, 'iu')
 
 /**
  * Ordinal (year*12 + month) for a free-text date like "Jun 2023", "08/2021" or
@@ -775,8 +864,10 @@ export function dateSortValue(text: string): number | null {
   const year = /(?:19|20)\d{2}/.exec(t)
   if (!year) return null
   let month = 6
+  const word = (t.match(/\p{L}+\.?/gu) ?? []).map(monthIndexOf).find((m) => m !== null)
   const named = MONTH_NAMES.findIndex((m) => t.includes(m))
-  if (named >= 0) month = named + 1
+  if (word) month = word
+  else if (named >= 0) month = named + 1
   else {
     const numeric = /\b(0?[1-9]|1[0-2])\s*[/.-]/.exec(t)
     if (numeric) month = Number(numeric[1])
@@ -2330,7 +2421,7 @@ export function deleteLibrarySummary(id: string): SavedSummary[] {
 /** Detail line under an education entry: details · Minor in X · GPA: Y */
 export function educationDetailLine(e: EducationItem): string {
   return [
-    e.details.trim(),
+    proseText(e.details),
     e.minor?.trim() ? `Minor in ${e.minor.trim()}` : '',
     e.gpa?.trim() ? `GPA: ${e.gpa.trim()}` : '',
   ]
@@ -2349,12 +2440,57 @@ export function educationDetailSuffix(e: EducationItem): string {
   return tail ? ` · ${tail}` : ''
 }
 
-/** Date range for an experience entry — a blank end date on an ongoing role reads "start – Present" */
-export function experienceDateRange(startDate: string, endDate: string): string {
+/** Date range for an experience entry — a blank end date on an ongoing role reads "start – Present" (in the resume's language) */
+export function experienceDateRange(startDate: string, endDate: string, language: ResumeLanguage = 'en'): string {
   const start = startDate.trim()
   const end = endDate.trim()
-  if (start && !end) return `${start} – Present`
+  if (start && !end) return `${start} – ${DATE_WORDS[language].present}`
+  if (start === end) return start
   return [start, end].filter(Boolean).join(' – ')
+}
+
+/**
+ * Bold head and plain tail of an entry heading. A blank head promotes the tail into
+ * its place, so a document never prints the editor's placeholder (Degree / Role / …).
+ */
+export function entryHeading(
+  head: string,
+  tail: string,
+  sep = '  ·  '
+): { head: string; tail: string } {
+  const h = head.trim()
+  const t = tail.trim()
+  if (!h) return { head: t, tail: '' }
+  return { head: h, tail: t ? `${sep}${t}` : '' }
+}
+
+/** Experience heading parts: role · company, location (role · location inside a company group) */
+export function experienceHeadingParts(e: ExperienceItem, grouped: boolean) {
+  const place = grouped ? e.location : [e.company, e.location].filter((s) => s.trim()).join(', ')
+  return entryHeading(e.role, place)
+}
+
+/**
+ * Education rows with something to print — a degree, a school, a date or a detail
+ * line (any one alone is an entry; only an all-blank row is skipped)
+ */
+export const educationEntries = (r: Resume): EducationItem[] =>
+  r.education.filter(
+    (e) =>
+      e.degree.trim() ||
+      e.school.trim() ||
+      e.startDate.trim() ||
+      e.endDate.trim() ||
+      educationDetailLine(e)
+  )
+
+/** Date range printed for an education entry */
+export const educationDates = (e: EducationItem): string =>
+  [e.startDate.trim(), e.endDate.trim()].filter(Boolean).join(' – ')
+
+/** Education heading parts: degree · school, location */
+export function educationHeadingParts(e: EducationItem) {
+  return entryHeading(e.degree, [e.school, e.location].filter((s) => s.trim()).join(', '))
 }
 
 /** Heading line for a project entry: name · org — link */
@@ -2670,6 +2806,14 @@ export function publicationHeadingLine(p: PublicationItem): string {
 export const publicationBullets = (p: PublicationItem): string[] =>
   p.description.split('\n').map((l) => l.trim()).filter(Boolean)
 
+/**
+ * A project's description lines. Two or more lines are the bullets the editor
+ * lints line by line and every renderer lists as bullets; a single line is a
+ * paragraph.
+ */
+export const projectBullets = (p: ProjectItem): string[] =>
+  p.description.split('\n').map((l) => l.trim()).filter(Boolean)
+
 /** Reference entries with a name */
 export const referenceEntries = (r: Resume): ReferenceItem[] =>
   (r.references ?? []).filter((x) => x.name.trim())
@@ -2722,6 +2866,13 @@ export const agentBullets = (a: AgentItem): string[] => [
   ...a.description.split('\n').map((l) => l.trim()).filter(Boolean),
 ]
 
+/**
+ * Prose fields (summary, certification descriptions, free-text certifications, education details) are one
+ * paragraph on every surface: line breaks become a single space. Renderers and text
+ * exports apply this so a stored newline reads the same in preview, PDF, DOCX, TXT and MD.
+ */
+export const proseText = (s: string): string => s.replace(/\s*\r?\n\s*/g, ' ').trim()
+
 /** Whether the resume carries any user-entered content, as opposed to a blank draft that only has settings and a target job. */
 export const resumeHasContent = (r: Resume): boolean => resumeToPlainText(r).trim() !== ''
 
@@ -2733,7 +2884,7 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
   lines.push([c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean).join(' | '))
   for (const key of orderedSectionKeys(r)) {
     if (key === 'summary' && r.summary) {
-      lines.push('', sectionHeading(r, 'summary').toUpperCase(), r.summary)
+      lines.push('', sectionHeading(r, 'summary').toUpperCase(), proseText(r.summary))
     } else if (key === 'experience' && r.experience.some((e) => e.company || e.role)) {
       lines.push('', sectionHeading(r, 'experience').toUpperCase())
       for (const g of experienceGroups(r.experience, r.groupByCompany === 'on')) {
@@ -2741,10 +2892,11 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
         for (const e of g.entries) {
           lines.push(
             (g.grouped
-              ? e.role || 'Role'
+              ? e.role.trim()
               : [e.role, e.company].filter(Boolean).join(' at ')) +
+              (e.location?.trim() ? `, ${e.location.trim()}` : '') +
               (e.startDate || e.endDate
-                ? ` (${experienceDateRange(e.startDate, e.endDate)})`
+                ? ` (${experienceDateRange(e.startDate, e.endDate, resumeLanguageOf(r))})`
                 : '')
           )
           if (e.companyInfo?.trim()) lines.push(e.companyInfo.trim())
@@ -2762,7 +2914,9 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
             (p.link ? ` (${p.link})` : '') +
             (dates ? ` (${dates})` : '')
         )
-        if (p.description) lines.push(p.description)
+        const bullets = projectBullets(p)
+        if (bullets.length > 1) for (const b of bullets) lines.push(`- ${b}`)
+        else if (p.description) lines.push(p.description)
       }
     } else if (key === 'involvement' && involvementEntries(r).length > 0) {
       lines.push('', sectionHeading(r, 'involvement').toUpperCase())
@@ -2771,16 +2925,13 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
         lines.push(involvementHeadingLine(i) + (dates ? ` (${dates})` : ''))
         for (const b of involvementBullets(i)) lines.push(`- ${b}`)
       }
-    } else if (key === 'education' && r.education.some((e) => e.school)) {
+    } else if (key === 'education' && educationEntries(r).length > 0) {
       lines.push('', sectionHeading(r, 'education').toUpperCase())
-      for (const e of r.education) {
-        if (!e.school) continue
-        lines.push(
-          [e.degree, e.school].filter(Boolean).join(', ') +
-            (e.startDate || e.endDate
-              ? ` (${[e.startDate, e.endDate].filter(Boolean).join(' – ')})`
-              : '')
-        )
+      for (const e of educationEntries(r)) {
+        const head = [e.degree, e.school, e.location].filter((s) => s.trim()).join(', ')
+        const dates = educationDates(e)
+        if (head) lines.push(head + (dates ? ` (${dates})` : ''))
+        else if (dates) lines.push(dates)
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail)
       }
@@ -2796,9 +2947,9 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
       lines.push('', sectionHeading(r, 'certifications').toUpperCase())
       for (const c of certEntries(r)) {
         lines.push(certHeadingLine(c) + (c.date.trim() ? ` (${c.date.trim()})` : ''))
-        if (c.description.trim()) lines.push(c.description.trim())
+        if (c.description.trim()) lines.push(proseText(c.description))
       }
-      if (r.certifications) lines.push(r.certifications)
+      if (r.certifications) lines.push(proseText(r.certifications))
     } else if (key === 'awards' && awardEntries(r).length > 0) {
       lines.push('', sectionHeading(r, 'awards').toUpperCase())
       for (const a of awardEntries(r)) {
@@ -2853,7 +3004,7 @@ export function resumeToMarkdown(r: Resume): string {
   for (const key of orderedSectionKeys(r)) {
     if (key === 'summary' && r.summary) {
       heading(sectionHeading(r, 'summary'))
-      lines.push(r.summary)
+      lines.push(proseText(r.summary))
     } else if (key === 'experience' && r.experience.some((e) => e.company || e.role)) {
       heading(sectionHeading(r, 'experience'))
       for (const g of experienceGroups(r.experience, r.groupByCompany === 'on')) {
@@ -2861,11 +3012,11 @@ export function resumeToMarkdown(r: Resume): string {
         for (const e of g.entries) {
           const dates =
             e.startDate || e.endDate
-              ? ` *(${experienceDateRange(e.startDate, e.endDate)})*`
+              ? ` *(${experienceDateRange(e.startDate, e.endDate, resumeLanguageOf(r))})*`
               : ''
-          const title = g.grouped
-            ? e.role || 'Role'
-            : [e.role, e.company].filter(Boolean).join(' — ')
+          const title =
+            (g.grouped ? e.role.trim() : [e.role, e.company].filter(Boolean).join(' — ')) +
+            (e.location?.trim() ? `, ${e.location.trim()}` : '')
           lines.push(`${g.grouped ? '####' : '###'} ${title}${dates}`, '')
           if (e.companyInfo?.trim()) lines.push(`*${e.companyInfo.trim()}*`, '')
           for (const b of e.bullets) if (b.trim()) lines.push(`- ${b.trim()}`)
@@ -2882,7 +3033,9 @@ export function resumeToMarkdown(r: Resume): string {
           `### ${p.link ? `[${title}](${p.link})` : title}${dates ? ` *(${dates})*` : ''}`,
           ''
         )
-        if (p.description) lines.push(p.description, '')
+        const bullets = projectBullets(p)
+        if (bullets.length > 1) lines.push(...bullets.map((b) => `- ${b}`), '')
+        else if (p.description) lines.push(p.description, '')
       }
     } else if (key === 'involvement' && involvementEntries(r).length > 0) {
       heading(sectionHeading(r, 'involvement'))
@@ -2892,15 +3045,13 @@ export function resumeToMarkdown(r: Resume): string {
         for (const b of involvementBullets(i)) lines.push(`- ${b}`)
         lines.push('')
       }
-    } else if (key === 'education' && r.education.some((e) => e.school)) {
+    } else if (key === 'education' && educationEntries(r).length > 0) {
       heading(sectionHeading(r, 'education'))
-      for (const e of r.education) {
-        if (!e.school) continue
-        const dates =
-          e.startDate || e.endDate
-            ? ` *(${[e.startDate, e.endDate].filter(Boolean).join(' – ')})*`
-            : ''
-        lines.push(`### ${[e.degree, e.school].filter(Boolean).join(', ')}${dates}`, '')
+      for (const e of educationEntries(r)) {
+        const head = [e.degree, e.school, e.location].filter((s) => s.trim()).join(', ')
+        const dates = educationDates(e)
+        if (head) lines.push(`### ${head}${dates ? ` *(${dates})*` : ''}`, '')
+        else if (dates) lines.push(`### ${dates}`, '')
         const detail = educationDetailLine(e)
         if (detail) lines.push(detail, '')
       }
@@ -2924,9 +3075,9 @@ export function resumeToMarkdown(r: Resume): string {
           `### ${certHeadingLine(c)}${c.date.trim() ? ` *(${c.date.trim()})*` : ''}`,
           ''
         )
-        if (c.description.trim()) lines.push(c.description.trim(), '')
+        if (c.description.trim()) lines.push(proseText(c.description), '')
       }
-      if (r.certifications) lines.push(r.certifications)
+      if (r.certifications) lines.push(proseText(r.certifications))
     } else if (key === 'awards' && awardEntries(r).length > 0) {
       heading(sectionHeading(r, 'awards'))
       for (const a of awardEntries(r)) {

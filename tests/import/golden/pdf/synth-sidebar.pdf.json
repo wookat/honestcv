@@ -1,0 +1,107 @@
+{
+ "multiColumn": true,
+ "contact": {
+  "fullName": "Daniel Okafor",
+  "title": "Product Designer",
+  "email": "daniel.okafor@example.com",
+  "phone": "555-222-1111",
+  "location": "",
+  "website": "",
+  "linkedin": "linkedin.com/in/dokafor"
+ },
+ "summary": "Product designer with 7 years of experience shipping accessible design systems for fintech and healthcare products used by millions of people.",
+ "experience": [
+  {
+   "company": "Northbank",
+   "role": "Senior Product Designer",
+   "location": "Toronto, ON",
+   "startDate": "Jan 2021",
+   "endDate": "Present",
+   "bullets": [
+    "Led the redesign of the onboarding flow, lifting completion from 61% to 78%.",
+    "Built and maintained a 120-component design system adopted by 9 squads.",
+    "Ran 40+ usability sessions and turned findings into quarterly roadmap items."
+   ]
+  },
+  {
+   "company": "CareLoop",
+   "role": "Product Designer",
+   "location": "Toronto, ON",
+   "startDate": "Aug 2017",
+   "endDate": "Dec 2020",
+   "bullets": [
+    "Designed the clinician scheduling app rated 4.7 on the App Store.",
+    "Introduced WCAG 2.1 AA audits into every release."
+   ]
+  }
+ ],
+ "education": [
+  {
+   "school": "OCAD University",
+   "degree": "BDes Interaction Design",
+   "location": "",
+   "startDate": "2013",
+   "endDate": "2017",
+   "details": ""
+  }
+ ],
+ "projects": [],
+ "skills": "Figma and prototyping tools, Design systems and tokens, User research and interviews, Accessibility (WCAG 2.2), HTML, CSS, basic React, Usability testing and analytics",
+ "certifications": "Google UX Design Certificate; IAAP CPACC (2023)",
+ "certItems": [],
+ "involvement": [],
+ "coursework": [],
+ "awards": [],
+ "publications": [],
+ "references": [],
+ "military": [],
+ "agents": [],
+ "customSections": [
+  {
+   "title": "Contact",
+   "bullets": [
+    "Toronto, ON",
+    "555-222-1111",
+    "daniel.okafor@example.com linkedin.com/in/dokafor"
+   ]
+  },
+  {
+   "title": "Languages",
+   "bullets": [
+    "English (native)",
+    "French (professional working)"
+   ]
+  },
+  {
+   "title": "Interests",
+   "bullets": [
+    "Typography, cycling, community design workshops for youth groups in Toronto"
+   ]
+  }
+ ],
+ "sectionOrder": [
+  "summary",
+  "experience",
+  "projects",
+  "involvement",
+  "education",
+  "coursework",
+  "custom:Contact",
+  "skills",
+  "custom:Languages",
+  "certifications",
+  "awards",
+  "publications",
+  "references",
+  "military",
+  "agents",
+  "custom:Interests"
+ ],
+ "templateId": "classic",
+ "accentColor": "",
+ "pageSize": "letter",
+ "fontScale": "m",
+ "lineSpacing": "normal",
+ "targetRole": "",
+ "jobDescription": ""
+}

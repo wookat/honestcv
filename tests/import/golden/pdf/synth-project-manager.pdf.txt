@@ -1,0 +1,14 @@
+Jane Doe
+jane.doe@example.com | 555-123-4567 | Austin, TX
+Technical Skills: Java, SQL, Python, Jira
+W O R K E X P E R I E N C E
+Project Manager · Acme Corp, Austin, TX
+Jan 2020 – Present
+• Delivered 12 client projects on time with a team of 6 engineers.
+• Cut onboarding time from 3 weeks to 8 days.
+Project Coordinator · Beta Inc, Dallas, TX
+Jun 2017 – Dec 2019
+• Tracked budgets for 4 concurrent programmes.
+EDUCATION & TRAINING
+BSc Business Administration · State University
+2013 – 2017

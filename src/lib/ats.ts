@@ -3,6 +3,8 @@
  * measure how many appear in the resume. Free forever — runs entirely in the
  * browser; the JD and resume never leave the device for scoring.
  */
+import { stemmer } from 'stemmer'
+import { plainResumeText } from './markdownText'
 
 const STOPWORDS = new Set(
   `a about above after again all also am an and any are as at be because been
@@ -36,7 +38,19 @@ build builds building built create creates creating created
 deliver delivers delivering delivered ensure ensures ensuring ensured
 improve improves improving improved provide provides providing provided
 maintain maintains maintaining maintained develop develops developing developed
-manage manages managing managed`.split(/\s+/)
+manage manages managing managed
+turn turns turning run runs running write writes writing present presents
+presenting bring brings bringing ship ships shipping reduce reduces reducing
+against comfort comfortable hands-on welcome fundamentals own owns owning owned
+expect expects expected fluency fluent solid grasp expertise
+ideally highly strongly closely actively effectively successfully independently
+proactively especially particularly primarily typically regularly currently
+previously additionally directly record track
+like one come get sure real together please notice believe think keep without
+rather something way ways everyone actually even less see hear stay feel life
+hours time part every world around possible future outside meet e.g i.e u.s
+sponsorship visa
+senior junior principal sr jr seasoned mid-level entry-level`.split(/\s+/)
 )
 
 /** Multi-word tech/business phrases worth matching as units */
@@ -52,6 +66,47 @@ const KNOWN_PHRASES = [
   'account management', 'digital marketing', 'financial analysis',
   'risk management', 'change management', 'human resources', 'product sense',
 ]
+
+/**
+ * Hard skills, tools and methods that matter even when a job ad names them
+ * only once ("GraphQL and Next.js experience is a plus"). Lower-case tokens
+ * as produced by `tokenize`.
+ */
+const KNOWN_SKILLS = new Set(
+  `javascript typescript python java kotlin objective-c golang rust ruby php c++
+c# scala elixir erlang haskell clojure dart lua perl matlab sql nosql plsql
+t-sql graphql html html5 css css3 sass scss tailwind react react.js reactjs
+next.js nextjs vue vue.js nuxt angular svelte sveltekit gatsby astro backbone
+jquery redux mobx zustand rxjs node node.js nodejs deno nestjs fastify koa
+django flask fastapi rails laravel symfony hibernate .net asp.net dotnet
+blazor android ios flutter react-native xamarin ionic electron webpack vite
+rollup esbuild babel eslint prettier storybook jest vitest mocha cypress
+playwright selenium puppeteer testing-library junit pytest rspec xunit nunit
+postman aws azure gcp ec2 s3 rds dynamodb cloudfront route53 iam eks ecs
+kubernetes k8s docker helm terraform pulumi ansible vagrant linux unix bash
+powershell nginx apache jenkins circleci gitlab github bitbucket git svn ci/cd
+devops sre observability prometheus grafana datadog splunk sentry newrelic elk
+kibana logstash opentelemetry kafka rabbitmq sqs redis memcached elasticsearch
+solr postgresql postgres mysql mariadb sqlite mongodb cassandra couchdb neo4j
+oracle mssql snowflake bigquery redshift databricks spark hadoop airflow dbt
+pandas numpy scipy scikit-learn sklearn tensorflow pytorch keras mlops llm
+llms openai langchain huggingface nlp opencv tableau powerbi looker vba sas
+spss stata restful soap grpc websockets oauth oauth2 jwt saml sso openid
+microservices serverless monorepo agile scrum kanban jira confluence trello
+asana figma adobe photoshop illustrator indesign xd invision zeplin wcag
+accessibility a11y i18n l10n localization seo salesforce hubspot marketo
+zendesk servicenow sap netsuite workday analytics ga4 mixpanel optimizely
+shopify magento woocommerce stripe paypal autocad solidworks revit sketchup
+labview cpa cfa pmp csm cissp ccna aws-certified hipaa gdpr soc2 pci iso27001
+profiling caching cdn graphql-federation lightroom after-effects blender`.split(/\s+/)
+)
+
+/** Tokens shaped like a technology name: "next.js", "c++", "c#", "html5", "asp.net". */
+const TECH_SHAPE_RE = /\.(js|ts|net|py|rb)$|^[a-z]+[+#]+$|^[a-z]{2,}\d{1,2}$/
+
+export function looksLikeSkill(tok: string): boolean {
+  return KNOWN_SKILLS.has(tok) || TECH_SHAPE_RE.test(tok)
+}
 
 /** Builder editor section that fixes a failing structural check */
 export type SectionAnchor =
@@ -82,6 +137,8 @@ export interface AtsResult {
   keywordScore: number | null
   /** Structure/best-practices sub-score 0-100 */
   structureScore: number
+  /** Matched keywords the resume words differently from the posting (PostgreSQL → "postgres") */
+  variants: KeywordVariant[]
   /** Structural checks independent of the JD */
   checks: {
     label: string
@@ -108,6 +165,15 @@ export const CHECK_CATEGORIES: { key: CheckCategory; label: string }[] = [
 
 const COMPOUND_SEP_RE = /[/-]/
 
+/** Two-part alphabetic compound ("front-end", "front end") whose closed spelling
+    ("frontend") is the same word to a recruiter. */
+const COMPOUND_WORD_RE = /^([a-z]{3,})[- ]([a-z]{3,})$/
+
+function closedSpelling(word: string): string | null {
+  const m = COMPOUND_WORD_RE.exec(word)
+  return m ? m[1] + m[2] : null
+}
+
 const tokenMatches = (t: string, kw: string): boolean =>
   t === kw || (COMPOUND_SEP_RE.test(t) && t.split(COMPOUND_SEP_RE).includes(kw))
 
@@ -120,6 +186,160 @@ export function matchTokenSet(tokens: Iterable<string>): Set<string> {
     if (COMPOUND_SEP_RE.test(t)) for (const part of t.split(COMPOUND_SEP_RE)) if (part) set.add(part)
   }
   return set
+}
+
+/** UK spellings folded to US before stemming so "analysing" and "analyzed" share a stem. */
+const UK_US_SUFFIXES: [RegExp, string][] = [
+  [/isation$/, 'ization'],
+  [/ising$/, 'izing'],
+  [/ised$/, 'ized'],
+  [/ise$/, 'ize'],
+  [/ysation$/, 'yzation'],
+  [/ysing$/, 'yzing'],
+  [/ysed$/, 'yzed'],
+  [/yse$/, 'yze'],
+  [/(.{3,})our$/, '$1or'],
+  [/(.{3,})mme(s?)$/, '$1m$2'],
+]
+
+/** Porter stem of a plain word; tokens with digits or symbols (c++, k8s, ci/cd) stay as written. */
+function stemToken(t: string): string {
+  if (t.length < 4 || !/^[a-z]+$/.test(t)) return t
+  let w = t
+  for (const [re, rep] of UK_US_SUFFIXES) {
+    if (re.test(w)) {
+      w = w.replace(re, rep)
+      break
+    }
+  }
+  return stemmer(w)
+}
+
+/**
+ * Spellings recruiters and candidates use interchangeably. Only forms that
+ * are unambiguous on a resume are listed — bare "go", "express" or "excel"
+ * are ordinary words and would produce false matches.
+ */
+const ALIAS_GROUPS: string[][] = [
+  ['javascript', 'js'],
+  ['typescript', 'ts'],
+  ['node.js', 'nodejs', 'node'],
+  ['react.js', 'reactjs', 'react'],
+  ['vue.js', 'vuejs', 'vue'],
+  ['next.js', 'nextjs'],
+  ['nuxt.js', 'nuxt'],
+  ['angular.js', 'angularjs', 'angular'],
+  ['express.js', 'expressjs'],
+  ['postgresql', 'postgres'],
+  ['mongodb', 'mongo'],
+  ['kubernetes', 'k8s'],
+  ['gcp', 'google cloud', 'google cloud platform'],
+  ['aws', 'amazon web services'],
+  ['azure', 'microsoft azure'],
+  ['ci/cd', 'ci cd', 'continuous integration', 'continuous delivery', 'continuous deployment'],
+  ['machine learning', 'ml'],
+  ['artificial intelligence', 'ai'],
+  ['natural language processing', 'nlp'],
+  ['large language models', 'large language model', 'llms', 'llm'],
+  ['a/b testing', 'a/b tests', 'a/b test', 'ab testing', 'split testing'],
+  ['user experience', 'ux'],
+  ['user interface', 'ui'],
+  ['quality assurance', 'qa'],
+  ['end-to-end', 'end to end', 'e2e'],
+  ['product manager', 'pm'],
+  ['rest api', 'rest apis', 'restful api', 'restful apis', 'restful'],
+  ['sql server', 'mssql', 'microsoft sql server'],
+  ['c#', 'csharp'],
+  ['c++', 'cpp'],
+  ['.net', 'dotnet'],
+  ['object-oriented', 'object oriented', 'oop'],
+  ['test-driven development', 'test driven development', 'tdd'],
+  ['infrastructure as code', 'iac'],
+  ['search engine optimization', 'search engine optimisation', 'seo'],
+  ['customer relationship management', 'crm'],
+  ['key performance indicators', 'kpis', 'kpi'],
+  ['software as a service', 'saas'],
+  ['business to business', 'b2b'],
+  ['registered nurse', 'rn'],
+  ['intensive care', 'icu', 'critical care'],
+  ['basic life support', 'bls'],
+  ['advanced cardiac life support', 'acls'],
+  ['power bi', 'powerbi'],
+]
+const ALIASES = new Map<string, string[]>()
+for (const group of ALIAS_GROUPS) for (const form of group) ALIASES.set(form, group)
+
+/** Resume text prepared once for keyword lookups: surface tokens, their stems, and the compound-part set. */
+export interface ResumeIndex {
+  text: string
+  tokens: string[]
+  tokenSet: Set<string>
+  stems: string[]
+  /** Closed spelling → the resume's hyphenated / two-word wording ("frontend" → "front-end") */
+  compounds: Map<string, string>
+}
+
+export function indexResumeText(resumeTextRaw: string): ResumeIndex {
+  const text = resumeTextRaw.toLowerCase()
+  const tokens = tokenize(text)
+  const stems = tokens.map(stemToken)
+  const compounds = new Map<string, string>()
+  tokens.forEach((t, i) => {
+    const hyphenated = closedSpelling(t)
+    if (hyphenated && !compounds.has(hyphenated)) compounds.set(hyphenated, t)
+    const pair = i + 1 < tokens.length ? `${t} ${tokens[i + 1]}` : ''
+    const spaced = pair && closedSpelling(pair)
+    if (spaced && !compounds.has(spaced)) compounds.set(spaced, pair)
+  })
+  return { text, tokens, tokenSet: matchTokenSet(tokens), stems, compounds }
+}
+
+/** The resume's spelling of a compound written differently in `needle`, or null. */
+function findCompound(needle: string, idx: ResumeIndex): string | null {
+  const closed = closedSpelling(needle)
+  if (closed) return idx.tokenSet.has(closed) ? closed : (idx.compounds.get(closed) ?? null)
+  return /^[a-z]{6,}$/.test(needle) ? (idx.compounds.get(needle) ?? null) : null
+}
+
+/** Resume wording that matched `needle` exactly ('' when written as-is), or null. */
+function findForm(needle: string, idx: ResumeIndex): string | null {
+  if (needle.includes(' ')) {
+    if (idx.text.includes(needle)) return ''
+    const parts = tokenize(needle).map(stemToken)
+    outer: for (let i = 0; i + parts.length <= idx.stems.length; i++) {
+      for (let j = 0; j < parts.length; j++) if (idx.stems[i + j] !== parts[j]) continue outer
+      return idx.tokens.slice(i, i + parts.length).join(' ')
+    }
+    return findCompound(needle, idx)
+  }
+  if (idx.tokenSet.has(needle)) return ''
+  const at = idx.stems.indexOf(stemToken(needle))
+  return at >= 0 ? idx.tokens[at] : findCompound(needle, idx)
+}
+
+/**
+ * Whether the resume contains `kw` — as written, as an inflection/spelling
+ * variant (dashboards / dashboard, analysing / analyzed) or as a known alias
+ * (Postgres for PostgreSQL). `found` is the resume's wording when it differs.
+ */
+export function keywordHit(
+  kw: string,
+  idx: ResumeIndex
+): { hit: boolean; found: string } {
+  const own = findForm(kw, idx)
+  if (own !== null) return { hit: true, found: own }
+  for (const alias of ALIASES.get(kw) ?? ALIASES.get(stemToken(kw)) ?? []) {
+    if (alias === kw) continue
+    const f = findForm(alias, idx)
+    if (f !== null) return { hit: true, found: f || alias }
+  }
+  return { hit: false, found: '' }
+}
+
+/** JD keywords the resume states in different wording, e.g. PostgreSQL → "postgres". */
+export interface KeywordVariant {
+  keyword: string
+  found: string
 }
 
 function countOccurrences(haystack: string, tokens: string[], kw: string): number {
@@ -137,18 +357,23 @@ function countOccurrences(haystack: string, tokens: string[], kw: string): numbe
 
 function keywordDetailFor(
   keywords: string[],
-  resumeText: string,
-  resumeTokens: string[],
-  jd: string
+  idx: ResumeIndex,
+  jd: string,
+  variants: KeywordVariant[]
 ): KeywordDetail[] {
   const jdLower = jd.toLowerCase()
   const jdTokens = tokenize(jd)
+  const wording = new Map(variants.map((v) => [v.keyword, v.found]))
   return keywords
-    .map((kw) => ({
-      keyword: kw,
-      inResume: countOccurrences(resumeText, resumeTokens, kw),
-      inJobAd: countOccurrences(jdLower, jdTokens, kw),
-    }))
+    .map((kw) => {
+      const found = wording.get(kw)
+      const n = countOccurrences(idx.text, idx.tokens, found ?? kw)
+      return {
+        keyword: kw,
+        inResume: found ? Math.max(1, n) : n,
+        inJobAd: countOccurrences(jdLower, jdTokens, kw),
+      }
+    })
     .sort((a, b) => (a.inResume === 0 ? 0 : 1) - (b.inResume === 0 ? 0 : 1) || b.inJobAd - a.inJobAd)
 }
 
@@ -202,24 +427,92 @@ function reverseChronCheck(
   }
 }
 
-const EXPERIENCE_HEADING_RE = /^\s*(work |professional |employment )?experience\s*:?\s*$/im
-const NEXT_SECTION_RE =
-  /^\s*(education|(technical |core |key )?skills|projects|certifications?|awards|publications|languages|interests|volunteer(ing)?|involvement)\s*:?\s*$/im
-const DATE_RANGE_RE =
-  /((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2})\s*(?:[–—-]|to)\s*((?:19|20)\d{2}|[a-z]{3,9}[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2}|present|current|now|ongoing)/gi
+/** Every default heading the product prints (all languages), lower-cased, → its section key */
+const OWN_HEADING_KEYS = new Map<string, string>()
+for (const { key, label } of defaultSectionLabels()) OWN_HEADING_KEYS.set(label.toLowerCase(), key)
+/** Section a heading-shaped line opens, or 'custom' for a section without a field (Awards, Languages, …), or null */
+function textHeadingSection(line: string): string | null {
+  const t = line.trim().replace(/[:：]$/, '').trim()
+  if (!t) return null
+  const own = OWN_HEADING_KEYS.get(t.toLowerCase())
+  if (own) return own
+  if (/^(?:work |professional |employment )?experience$/i.test(t)) return 'experience'
+  if (/^(?:technical |core |key )?skills$/i.test(t)) return 'skills'
+  if (/^(?:education|projects)$/i.test(t)) return t.toLowerCase()
+  if (/^certifications?$/i.test(t)) return 'certifications'
+  if (/^(?:awards|publications|languages|interests|volunteer(?:ing)?|involvement)$/i.test(t)) return 'custom'
+  const named = sectionNamedByHeading(t)
+  if (named) return named
+  return CUSTOM_HEADING_RE.test(t) && looksLikeHeadingShape(t) ? 'custom' : null
+}
+type HeadingLookup = (line: string) => string | null
+
+/** `textHeadingSection` that also knows the labels a resume's owner gave its sections ("Where I have worked" → experience) */
+export function textHeadingLookup(sectionHeadings?: Partial<Record<string, string>>): HeadingLookup {
+  const custom = new Map<string, string>()
+  for (const [key, label] of Object.entries(sectionHeadings ?? {}))
+    if (label?.trim()) custom.set(label.trim().toLowerCase(), key)
+  if (custom.size === 0) return textHeadingSection
+  return (line) =>
+    custom.get(line.trim().replace(/[:：]$/, '').trim().toLowerCase()) ?? textHeadingSection(line)
+}
+/** First line of `raw` that heads a section accepted by `wanted` (offset of the line, length through its newline) */
+function findTextHeading(
+  raw: string,
+  wanted: (key: string) => boolean,
+  lookup: HeadingLookup = textHeadingSection
+): { index: number; length: number } | null {
+  let index = 0
+  while (index < raw.length) {
+    const nl = raw.indexOf('\n', index)
+    const end = nl === -1 ? raw.length : nl + 1
+    const key = lookup(raw.slice(index, end))
+    if (key !== null && wanted(key)) return { index, length: end - index }
+    index = end
+  }
+  return null
+}
+const isExperience = (k: string) => k === 'experience'
+const isAfterExperience = (k: string) => k !== 'summary' && k !== 'experience'
+const hasTextHeading = (raw: string, key: string, lookup: HeadingLookup = textHeadingSection) =>
+  findTextHeading(raw, (k) => k === key, lookup) !== null
+/** "Skills: Java, SQL" / "Core Competencies: …" — a skills heading that carries its first line */
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const SKILLS_INLINE_RE = new RegExp(
+  `(?:${[...OWN_HEADING_KEYS]
+    .filter(([, k]) => k === 'skills')
+    .map(([l]) => escapeRe(l))
+    .join('|')}):`,
+  'i'
+)
+function hasInlineSkillsHeading(raw: string, lookup: HeadingLookup = textHeadingSection): boolean {
+  if (SKILLS_INLINE_RE.test(raw)) return true
+  for (const line of raw.split('\n')) {
+    const m = /^([^:：]{1,40})[:：]\s+\S/.exec(line)
+    if (m && lookup(m[1]) === 'skills') return true
+  }
+  return false
+}
+const DATE_RANGE_RE = new RegExp(
+  String.raw`((?:19|20)\d{2}|\p{L}{3,10}\.?[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2})\s*(?:[–—-]|to)\s*((?:19|20)\d{2}|\p{L}{3,10}\.?[ ./-]*(?:19|20)\d{2}|\d{1,2}[/.-](?:19|20)\d{2}|${ONGOING_WORD_ALTERNATION})`,
+  'giu'
+)
 
 /** Experience block of pasted text: from the experience heading to the next standard heading */
-function experienceBlock(raw: string): string | null {
-  const heading = EXPERIENCE_HEADING_RE.exec(raw)
+function experienceBlock(raw: string, lookup: HeadingLookup = textHeadingSection): string | null {
+  const heading = findTextHeading(raw, isExperience, lookup)
   if (!heading) return null
-  const after = raw.slice(heading.index + heading[0].length)
-  const next = NEXT_SECTION_RE.exec(after)
+  const after = raw.slice(heading.index + heading.length)
+  const next = findTextHeading(after, isAfterExperience, lookup)
   return next ? after.slice(0, next.index) : after
 }
 
 /** Pasted text split at the experience heading: summary-ish head, experience-onward tail */
-function textPronounSegments(raw: string): { text: string; anchor: SectionAnchor }[] {
-  const heading = EXPERIENCE_HEADING_RE.exec(raw)
+function textPronounSegments(
+  raw: string,
+  lookup: HeadingLookup = textHeadingSection
+): { text: string; anchor: SectionAnchor }[] {
+  const heading = findTextHeading(raw, isExperience, lookup)
   if (!heading) return [{ text: raw, anchor: 'summary' }]
   return [
     { text: raw.slice(0, heading.index), anchor: 'summary' },
@@ -228,8 +521,11 @@ function textPronounSegments(raw: string): { text: string; anchor: SectionAnchor
 }
 
 /** Date ranges ("Jun 2023 – Present", "2019-2021") in the experience block of pasted text */
-function textDateRanges(raw: string): { name: string; start: string; end: string }[] {
-  const block = experienceBlock(raw)
+function textDateRanges(
+  raw: string,
+  lookup: HeadingLookup = textHeadingSection
+): { name: string; start: string; end: string }[] {
+  const block = experienceBlock(raw, lookup)
   if (block === null) return []
   const ranges: { name: string; start: string; end: string }[] = []
   for (const m of block.matchAll(DATE_RANGE_RE)) {
@@ -249,8 +545,11 @@ const countBulletLines = (text: string) =>
  * Empty when there is no experience heading, no date range, or no
  * bullet-marker lines at all (pasting often strips markers).
  */
-function textBulletCounts(raw: string): { name: string; count: number }[] {
-  const block = experienceBlock(raw)
+function textBulletCounts(
+  raw: string,
+  lookup: HeadingLookup = textHeadingSection
+): { name: string; count: number }[] {
+  const block = experienceBlock(raw, lookup)
   if (block === null || countBulletLines(block) === 0) return []
   const matches = [...block.matchAll(DATE_RANGE_RE)]
   return matches.map((m, i) => {
@@ -260,7 +559,7 @@ function textBulletCounts(raw: string): { name: string; count: number }[] {
   })
 }
 
-const MONTH_YEAR_RE = /^[a-z]{3,9}\.?[ ,./-]*(?:19|20)\d{2}$/i
+const MONTH_YEAR_RE = /^\p{L}{3,10}\.?[ ,./-]*(?:19|20)\d{2}$/iu
 const NUMERIC_DATE_RE = /^\d{1,2}[/.-](?:19|20)\d{2}$/
 
 /** Date style: named month + year vs numeric month + year; anything else is skipped */
@@ -684,9 +983,10 @@ const LOCATION_LIKE_RE =
  * text).
  */
 function textEntryLocations(
-  raw: string
+  raw: string,
+  lookup: HeadingLookup = textHeadingSection
 ): { name: string; located: boolean; anchor: SectionAnchor }[] {
-  const block = experienceBlock(raw)
+  const block = experienceBlock(raw, lookup)
   if (block === null) return []
   const matches = [...block.matchAll(DATE_RANGE_RE)]
   const headerStart = (m: RegExpExecArray | RegExpMatchArray, floor: number) => {
@@ -743,32 +1043,324 @@ function tokenize(text: string): string[] {
   return (
     text
       .toLowerCase()
+      .replace(/\b[a-z]+n[’']t\b/g, ' not ')
+      .replace(/[’']([a-z]{1,2})\b/g, '')
       .replace(/[^a-z0-9+#./ -]/g, ' ')
       .match(/[a-z0-9+#][a-z0-9+#./-]*/g) ?? []
   ).map((t) => t.replace(/[./-]+$/, ''))
 }
 
-/** Extract ranked keywords (words + known phrases) from a job description */
-export function extractKeywords(jd: string, limit = 30): string[] {
-  const lower = jd.toLowerCase()
-  const found = new Map<string, number>()
-  for (const phrase of KNOWN_PHRASES) {
-    if (lower.includes(phrase)) found.set(phrase, 5)
+/** Fewest keywords worth scoring against; short ads are topped up to this many. */
+const MIN_KEYWORDS = 15
+
+/** Rank bonus of a curated / tech-shaped skill; a single mention outranks three of a plain word. */
+const SKILL_WEIGHT = 3
+
+/** Rank bonus of a name the requirements block capitalizes; a single mention ranks with two of a plain word. */
+const NAMED_TERM_WEIGHT = 1
+
+const CALENDAR_WORDS = new Set(
+  'monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december'.split(' ')
+)
+
+/** Whether `phrase` contains `word` as a whole word ("node.js" contains "node"; "scss" does not contain "css"). */
+function containsWord(phrase: string, word: string): boolean {
+  const at = phrase.indexOf(word)
+  if (at < 0) return false
+  const before = phrase[at - 1]
+  const after = phrase[at + word.length]
+  return (before === undefined || !/[a-z0-9]/.test(before)) && (after === undefined || !/[a-z0-9]/.test(after))
+}
+
+const EMPLOYER_NAME = String.raw`([A-Z][\w&.'-]*(?: [A-Z][\w&.'-]*){0,2})`
+/** One word, any case — brands such as "iwoca" / "koppla" / "saas.group" write themselves lower-case. */
+const BRAND_WORD = String.raw`([A-Za-z][\w&.'-]*)`
+/** Section titles that name the employer ("About Acme", "What is Acme?", "Acme Corporation Overview"); every one counts. */
+const EMPLOYER_HEADING_RES = [
+  new RegExp(`^\\W*About ${EMPLOYER_NAME}\\W*$`, 'gm'),
+  new RegExp(`^\\W*(?:What|Who) is ${BRAND_WORD}\\?`, 'gm'),
+  new RegExp(`^\\W*About the .{0,80}? (?:role|position|job|opportunity) at ${EMPLOYER_NAME}\\W*$`, 'gm'),
+  new RegExp(`^\\W*${EMPLOYER_NAME} (?:Corporation |Company )?(?:Overview|Description|Introduction)\\W*$`, 'gm'),
+]
+/** Prose that introduces the employer ("At Acme, we…", "Acme is a…", "Acme's mission"); the first acceptable match counts. */
+const EMPLOYER_PROSE_RES = [
+  new RegExp(`\\bAt ${EMPLOYER_NAME},`, 'g'),
+  new RegExp(`\\b[Aa]t ${BRAND_WORD}, (?:we|our|you)\\b`, 'g'),
+  new RegExp(`^${EMPLOYER_NAME} is (?:a|an|the|one|on a mission|building|looking|hiring)\\b`, 'gm'),
+  new RegExp(`(?:^|[.!?] )${EMPLOYER_NAME} is (?:\\w+ing|your|proud)\\b`, 'gm'),
+  new RegExp(`^${EMPLOYER_NAME}(?: \\([^)]{0,60}\\))?,? (?:is|are) (?:seeking|hiring|looking for|recruiting|searching for)\\b`, 'gm'),
+  new RegExp(`\\b(?:Join|Life at|Working at|Why) ${EMPLOYER_NAME}\\b`, 'g'),
+  new RegExp(`\\b(?:[Ww]e (?:built|created|founded|started)|[Ww]elcome to|[Hh]ere at) ${BRAND_WORD}\\b`, 'g'),
+  new RegExp(`\\b${EMPLOYER_NAME}[’']s (?:mission|vision|purpose|culture|values)\\b`, 'g'),
+]
+const NOT_AN_EMPLOYER = new Set(
+  'us this the opportunity role job position team company our you working here profile'.split(' ')
+)
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * The employer tokens a matched name yields — none when the "name" is a
+ * section word ("About the Role", "Join Our Team"); otherwise its words that
+ * are neither a stopword ("Think Academy" → academy) nor a known skill, and
+ * that the ad writes capitalised more often than not — "Think Academy Online"
+ * / "PM Pediatric Care" carry a word the ad otherwise uses in lower case.
+ */
+function employerNameTokens(name: string, jd: string): string[] {
+  const toks = tokenize(name)
+  if (toks.some((t) => NOT_AN_EMPLOYER.has(t))) return []
+  return toks.filter((t) => {
+    if (t.length < 3 || STOPWORDS.has(t) || looksLikeSkill(t)) return false
+    const word = new RegExp(`(?<![\\w&.'-])${escapeRegExp(t)}(?![\\w&.'-])`, 'gi')
+    const all = jd.match(word) ?? []
+    const lower = all.filter((w) => w === t).length
+    return lower === all.length || all.length - lower > lower
+  })
+}
+
+/**
+ * Tokens that name the employer — the company passed in, plus the name the ad
+ * itself introduces ("About Acme", "At Acme, we…", "Acme is a…"). Inferred
+ * names never take a known skill or a common word with them.
+ */
+function employerTokens(jd: string, company: string | undefined): Set<string> {
+  const out = new Set<string>()
+  for (const tok of tokenize(company ?? '')) {
+    for (const part of [tok, ...tok.split(/[./-]/)]) if (part.length >= 3) out.add(part)
   }
+  for (const re of EMPLOYER_HEADING_RES) {
+    for (const m of jd.matchAll(re)) for (const t of employerNameTokens(m[1], jd)) out.add(t)
+  }
+  prose: for (const re of EMPLOYER_PROSE_RES) {
+    for (const m of jd.matchAll(re)) {
+      const toks = employerNameTokens(m[1], jd)
+      if (!toks.length) continue
+      for (const t of toks) out.add(t)
+      break prose
+    }
+  }
+  return out
+}
+
+/** "www.acme.com", "acme.co.uk", "careers.acme.io" — never a skill (".net" / "next.js" are). */
+const URL_TOKEN_RE = /^www\.|\.(?:com|co|io|org|ai|de|uk|us|fr|eu|nl|es|it)$/
+
+const BOILERPLATE_HEADING_RE =
+  /^(?:(?:a bit |more )?about (?!(?:the |this )?(?:role|job|position|opportunity|team)\b|you\b).+|who we are|our (?:story|mission|values|culture|benefits|perks|commitment.*|hiring process|interview process|offer|way of working)|how we work|what we offer|what we give|what.s in it for you|what you.ll get|you.ll get|what (?:you can|to) expect|we offer|in return|rewards?|your benefits|why (?:join|work|you.ll love|us).*|why [a-z][a-z.&-]*|the (?:perks|benefits|package)|(?:perks|benefits)(?: (?:&|and) (?:perks|benefits))?|(?:overview of|employee|pay (?:&|and)) benefits|compensation.*|salary.*|equal (?:employment )?opportunity.*|eeo statement|diversity.*|inclusion.*|accommodations|how to apply|application process|interview process|hiring process|the process|next steps|additional information|.*recruitment scams?.*|.*(?:notice|alert)|visa sponsorship|life at .*|the company|company (?:overview|description)|working at .*|what we do|(?:what|who) is (?!(?:the|this|a|an|it)\b).+|join us|(?:\w+ )?bonus eligibility|(?:referral|sign(?:ing|-on)|retention) bonus)$/i
+
+/**
+ * Words a section title contains when the section is about the employer, the
+ * package or the process rather than the job — the titles above as ads
+ * actually vary them ("Benefits include", "Why you should join SumUp", "What
+ * It's Like to Work at YipitData", "✅ A typical interview process", "Base Pay
+ * Range For US Locations", "Massachusetts Applicants"). A title that also
+ * names requirements ("Skills & Benefits") is not read this way.
+ */
+const BOILERPLATE_HEADING_CUE_RE =
+  /\b(?:benefits?|perks?|salary|diversity|inclusion|belonging|pay(?: range| transparency| grade)?|compensation|(?:total )?rewards|(?:interview|recruitment|hiring|application|selection) (?:process|journey|steps?|tips?|deadline)|how to apply|apply now|privacy|equal opportunit(?:y|ies)|applicants|(?:our |company |team |engineering |the )culture|(?:our |company )values|(?:our |company |\w+.s )mission|get to know|introduction to|why (?:you should |top talent )?(?:join|work|chooses?)|what it.s like|working (?:here|at)|life at|we offer|time off|well-?being|wellness|work-life balance|flexible working|relocation|useful links|in numbers|fair chance)\b/i
+
+/** Whether a section title (trailing punctuation and leading symbols removed) opens employer boilerplate. */
+function isBoilerplateHeading(label: string): boolean {
+  return (
+    BOILERPLATE_HEADING_RE.test(label) ||
+    (BOILERPLATE_HEADING_CUE_RE.test(label) && !REQUIREMENTS_HEADING_RE.test(label))
+  )
+}
+
+/** "✅ A typical interview process" / "🏥 Private Medical Insurance:" → the words. */
+const headingLabel = (line: string) => line.trim().replace(/^[^A-Za-z0-9#$€£]+/, '').replace(/[:!?\s]+$/, '')
+
+/**
+ * A paragraph that is employer boilerplate wherever it sits — equal-opportunity
+ * statements, recruitment-scam warnings, privacy and sponsorship notes often
+ * follow the last section with no heading of their own.
+ */
+const BOILERPLATE_PARAGRAPH_RE =
+  /equal (?:employment )?opportunit|without regard to|discriminat(?:e|ion)|recruit(?:ment|ing) scams?|job scams?|will (?:only|never) (?:email|contact|ask|request)|privacy (?:notice|policy|statement)|visa sponsorship|sponsor(?:ship of)? (?:an? )?(?:employment )?visa|reasonable accommodations?|protected veteran|by (?:clicking|submitting) (?:apply|your application)|401\(k\)|dental (?:insurance|coverage)|paid time off|employment eligibility/i
+
+const LIST_ITEM_LINE_RE = /^\s*(?:[-–—•*▪◦·]|\d+[.)])\s/
+
+/** `Location: Berlin (Hybrid)` / `Job Type: Full-Time (W2)` — the posting's metadata, not its vocabulary. */
+const METADATA_LABEL_RE =
+  /^\s*(?:work )?(?:location|salary|compensation|pay(?: range)?|(?:year \d+ )?ote|on-target earnings|job type|employment type|contract type|schedule|hours|working hours|start date|workplace|relocation assistance(?: provided)?)\s*:/i
+
+/**
+ * A short, non-bullet, non-sentence line with words in it — how sections are
+ * titled in job ads; a question too ("Why Join Us?", "Up for the Challenge?",
+ * "What is PerfectServe?" — 17 of 17 such lines in 96 ads title a section).
+ */
+function isHeadingLine(line: string): boolean {
+  const t = line.trim()
+  return (
+    t.length > 0 &&
+    t.length <= 60 &&
+    /^[^#]*[a-z]/i.test(t) &&
+    !LIST_ITEM_LINE_RE.test(line) &&
+    !/[.,;]$/.test(t) &&
+    t.split(/\s+/).length <= 6
+  )
+}
+
+const wordCount = (line: string) => line.trim().split(/\s+/).length
+
+/** A long non-list line — prose rather than a list item or heading. */
+const isParagraph = (line: string) => !LIST_ITEM_LINE_RE.test(line) && wordCount(line) >= 25
+
+/**
+ * Splits the ad into the text that describes the job and its "About us" /
+ * "Benefits" / "Equal opportunity" / "How to apply" sections, whose repeated
+ * words describe the employer. Nothing is split off when the ad has no such
+ * section or what would be left is too short to score on its own.
+ */
+function splitBoilerplate(jd: string): { job: string; boilerplate: string } {
+  const lines = jd.split(/\n/)
+  const job: string[] = []
+  const boilerplate: string[] = []
+  let inBoiler = false
+  for (const line of lines) {
+    if (isHeadingLine(line)) {
+      inBoiler = isBoilerplateHeading(headingLabel(line))
+      if (inBoiler) continue
+    }
+    // "Here's how to know you're speaking with a real member of our team:"
+    // introduces a list that is boilerplate too.
+    const notice =
+      METADATA_LABEL_RE.test(line) ||
+      (!LIST_ITEM_LINE_RE.test(line) && wordCount(line) >= 8 && BOILERPLATE_PARAGRAPH_RE.test(line))
+    if (notice && /:\s*$/.test(line) && !METADATA_LABEL_RE.test(line)) inBoiler = true
+    ;(inBoiler || notice ? boilerplate : job).push(line)
+  }
+  const text = job.join('\n')
+  if (boilerplate.length === 0 || tokenize(text).length < 40) return { job: jd, boilerplate: '' }
+  return { job: text, boilerplate: boilerplate.join('\n') }
+}
+
+/** Section titles as ads write them, for recognising one glued to the text next to it. */
+const GLUED_HEADING_RE =
+  /^(?:about (?:the )?(?:company|role|us|team|position|job|opportunity)|about (?!(?:the|a|an|our|this|your)\b)[a-z][a-z.&-]*|who we.re looking for|what we.re looking for|what we offer|what we give|what you.ll (?:do|be doing|need|bring|get)|what you bring|who you are|about you|requirements|responsibilities|(?:key|your|main) responsibilities|(?:preferred|minimum|basic|required) qualifications|qualifications|preferred|nice to haves?|benefits|compensation|your (?:profile|role|mission|tasks)|the role|the team|(?:our )?tech stack|why (?:join us|[a-z][a-z.&-]*)|how to apply|next steps|the opportunity|job description|(?:role |position )?(?:overview|summary)|duties|skills(?: (?:&|and) qualifications)?|education|experience|additional information|what (?:you can|to) expect)$/i
+
+const GLUED_MAX_WORDS = 5
+
+/**
+ * A line whose section title is glued to the paragraph after it (`About the
+ * Company One of the fastest…`) or to the list item before it (`…and tooling.
+ * Requirements`) is split so the title is a line of its own. Plain-text feeds
+ * drop the line break after a heading; without it the heading is neither seen
+ * nor does it bound its section.
+ */
+function splitGluedHeading(line: string): string[] {
+  const words = line.trim().split(/\s+/)
+  if (words.length < 8) return [line]
+  const isTitleCase = (w: string) => /^[A-Z]/.test(w)
+  const opensText = (w: string) => isTitleCase(w) || LIST_ITEM_LINE_RE.test(`${w} x`)
+  for (let n = Math.min(GLUED_MAX_WORDS, words.length - 3); n >= 1; n--) {
+    const head = words.slice(0, n).join(' ')
+    // "Compensation: This is a fee-for-service position" is an inline label
+    // whose content is the rest of the line; leave it whole.
+    if (isTitleCase(words[0]) && opensText(words[n]) && !/:$/.test(head) && GLUED_HEADING_RE.test(head)) {
+      return [head, ...splitGluedHeading(words.slice(n).join(' '))]
+    }
+  }
+  for (let n = Math.min(4, words.length - 3); n >= 1; n--) {
+    const tail = words.slice(-n)
+    const before = words[words.length - n - 1]
+    if (tail.every(isTitleCase) && /[a-z.)]$/.test(before) && GLUED_HEADING_RE.test(tail.join(' ').replace(/[:\s]+$/, ''))) {
+      return [words.slice(0, -n).join(' '), tail.join(' ')]
+    }
+  }
+  return [line]
+}
+
+/**
+ * The ad with a bullet marker left alone on its line rejoined to the item it
+ * introduces (`•\nBuild features` → `• Build features`), glued section titles
+ * on their own line, and each verbatim-repeated paragraph kept once. Some
+ * feeds paste the same duty paragraph twice; counting it twice would make
+ * every word in it a "repeated" keyword.
+ */
+export function normalizeAd(jd: string): string {
+  const seen = new Set<string>()
+  return jd
+    .replace(/^([ \t]*(?:[-–—•*▪◦·]|\d+[.)]))[ \t]*\n+[ \t]*(?=\S)/gm, '$1 ')
+    .split(/\n/)
+    .flatMap(splitGluedHeading)
+    .filter((line) => {
+      const key = line.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+      if (key.split(' ').length < 8) return true
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .join('\n')
+}
+
+/**
+ * Extract ranked keywords (words + known phrases) from a job description.
+ * `company` is the employer the ad is for, when known — its name is never a
+ * keyword, however often the ad repeats it.
+ */
+export function extractKeywords(jdRaw: string, limit = 30, company?: string): string[] {
+  const jd = normalizeAd(jdRaw)
+  const found = new Map<string, number>()
+  const { job, boilerplate } = splitBoilerplate(jd)
+  // A phrase in the employer's own sections ("our verified social media
+  // channels" in a recruitment-scam notice) describes the employer, not the job.
+  const jobLower = job.toLowerCase()
+  for (const phrase of KNOWN_PHRASES) {
+    if (jobLower.includes(phrase)) found.set(phrase, 5)
+  }
+  const employer = employerTokens(jd, company)
+  const isEmployer = (tok: string) =>
+    employer.has(tok) || tok.split(/[./-]/).some((part) => part.length >= 3 && employer.has(part))
   const counts = new Map<string, number>()
-  for (const tok of tokenize(jd)) {
-    if (tok.length < 2 || STOPWORDS.has(tok) || /^\d+$/.test(tok)) continue
+  // Ordinary words count only where the ad describes the job; a skill named in
+  // "About us" ("we build Next.js") still counts.
+  for (const tok of [...tokenize(job), ...tokenize(boilerplate).filter(looksLikeSkill)]) {
+    if (tok.length < 2 || STOPWORDS.has(tok) || !/[a-z]/.test(tok)) continue
+    if (isEmployer(tok)) continue
+    if (URL_TOKEN_RE.test(tok) && !KNOWN_SKILLS.has(tok)) continue
     counts.set(tok, (counts.get(tok) ?? 0) + 1)
   }
-  const ranked = [...counts.entries()]
-    .filter(([, n]) => n >= 2 || counts.size < 40)
-    .sort((a, b) => b[1] - a[1])
-  for (const [word, n] of ranked) {
-    if ([...found.keys()].some((p) => p.includes(word))) continue
+  const reqLines = requirementsBlockLines(jd)
+  const reqTokens = new Set(tokenize(reqLines.map((l) => l.text).join('\n')))
+  // A name the requirements block writes with a capital (GAAP, Excel, English,
+  // ERP) is a keyword however rarely the ad says it; a curated skill outranks
+  // it, and both outrank a word the ad merely repeats. At an equal score the
+  // name goes first, so the keyword cap cuts the repeated plain word.
+  const namedTerms = capitalizedRequirementTerms(reqLines)
+  const isSkill = (tok: string) => looksLikeSkill(tok) || namedTerms.has(tok)
+  const score = (tok: string, n: number) =>
+    n +
+    (looksLikeSkill(tok) ? SKILL_WEIGHT : namedTerms.has(tok) ? NAMED_TERM_WEIGHT : 0) +
+    (reqTokens.has(tok) ? 0.5 : 0)
+  const byRank = (a: readonly [string, number], b: readonly [string, number]) =>
+    b[1] - a[1] || Number(namedTerms.has(b[0])) - Number(namedTerms.has(a[0]))
+  const entries = [...counts.entries()]
+  const core = entries
+    .filter(([tok, n]) => n >= 2 || isSkill(tok))
+    .map(([tok, n]) => [tok, score(tok, n)] as const)
+    .sort(byRank)
+  // Short ads rarely repeat anything: top up from single-mention words, the
+  // requirements block first, then the rest in reading order.
+  const header = headerLineTokens(jd)
+  const fill = entries
+    .filter(([tok, n]) => n < 2 && !isSkill(tok) && !header.has(tok))
+    .sort((a, b) => Number(reqTokens.has(b[0])) - Number(reqTokens.has(a[0])))
+    .map(([tok, n]) => [tok, score(tok, n) - 1] as const)
+  const spellings = new Set<string>()
+  const add = ([word, n]: readonly [string, number]) => {
+    if ([...found.keys()].some((p) => containsWord(p, word))) return
+    const spelling = closedSpelling(word) ?? word
+    if (spellings.has(spelling)) return
+    spellings.add(spelling)
     found.set(word, n)
   }
+  core.forEach(add)
+  for (const entry of fill) {
+    if (found.size >= MIN_KEYWORDS) break
+    add(entry)
+  }
   return [...found.entries()]
-    .sort((a, b) => b[1] - a[1])
+    .sort(byRank)
     .slice(0, limit)
     .map(([k]) => k)
 }
@@ -778,62 +1370,300 @@ function roleTokensOf(role: string): Set<string> {
   return new Set(role.toLowerCase().split(/[^a-z0-9+#]+/).filter(Boolean))
 }
 
-/** Drop single-word keywords that are just the target role's title words; phrases always stay. */
+/**
+ * Drop single-word keywords that are just the target role's title words;
+ * phrases and skills named in the title ("Python Developer") always stay.
+ */
 function withoutRoleTokens(keywords: string[], targetRole: string): string[] {
   const roleTokens = roleTokensOf(targetRole.trim())
   if (roleTokens.size === 0) return keywords
-  return keywords.filter((kw) => kw.includes(' ') || !roleTokens.has(kw))
+  return keywords.filter((kw) => kw.includes(' ') || looksLikeSkill(kw) || !roleTokens.has(kw))
 }
 
+/** Section titles under which ads list what the candidate must bring (measured over 84 real ads). */
 const REQUIREMENTS_HEADING_RE =
-  /^.*\b(requirements|qualifications|must[- ]haves?|what you.ll need|what we.re looking for|who you are)\b.*$/im
+  /\b(requirements?|qualifications|criteria|must[- ]haves?|(?:what )?you(?:.ll| will) need|(?:what|who|attributes|skills) we(?:.re| are) look(?:ing)? for|we look for|who you are|about you|what you bring|you.ll bring|you bring|ideal candidate|your profile|your background|what we need|required|experience|skills|expertise|tech stack|our stack|this role is for you if|desired characteristics|(?:makes you )?stand out|license\/certification|nice[- ]to[- ]haves?|preferred|bonus|votre profil)\b/i
+
+/** A requirements section continues through its "Nice to have" / "Preferred" sub-heading. */
+const NICE_TO_HAVE_HEADING_RE = /\b(nice[- ]to[- ]haves?|bonus|preferred|plus|desirable|good to have|great if|optional|valued)\b/i
+
+/** A sentence that opens the candidate profile in ads without a requirements heading. */
+const REQUIREMENTS_SENTENCE_RE =
+  /^\s*(you bring|you.ll bring|what we.re looking for|the ideal candidate|we are looking for|we.re looking for|you have|you are|you(?:.ll| will) (?:thrive|succeed|be great)|you should apply if|we.d love to hear from you if)\b|\byou (?:are|have|are\/have|bring|need)\s*:$/i
 
 /**
- * JD keywords worth prioritizing: known multi-word phrases, keywords repeated
- * ≥3 times, keywords in the requirements/qualifications block, and keywords in
- * the JD's first line (usually the job title).
+ * What makes such a sentence state requirements rather than introduce the role
+ * ("We are looking for a Frontend Engineer in Berlin who loves building").
  */
-export function highPriorityKeywords(jd: string, keywords: string[]): Set<string> {
+const REQUIREMENTS_CUE_RE =
+  /\b(\d\+?\s*years?|experienced?|proficien|degree|fluen|knowledge|background|skills?|certif|licens|qualif)/i
+
+/**
+ * The ad's requirements sections — every one of them, since "Minimum" and
+ * "Preferred qualifications" both count. A section runs from its heading (or an
+ * inline "Requirements: …" label, or a "You bring 4+ years of …" sentence) to
+ * the next heading that is not a nice-to-have sub-heading, or to the first
+ * prose paragraph after its list — the equal-opportunity statement that follows
+ * the last list with no heading of its own. Lower-cased; empty when the ad has
+ * no such section.
+ */
+export function requirementsBlock(jd: string): string {
+  return requirementsBlockLines(jd).map((l) => l.text).join('\n').toLowerCase()
+}
+
+/** The requirements sections line by line, case preserved. */
+export function requirementsBlockLines(jd: string): RequirementLine[] {
+  const out: RequirementLine[] = []
+  let inside = false
+  let sawList = false
+  let bySentence = false
+  for (const raw of jd.split(/\n/)) {
+    const line = raw.trim()
+    if (!line) continue
+    if (isHeadingLine(line)) {
+      const label = headingLabel(line)
+      // "Don't meet every single requirement?" asks; it lists nothing.
+      if (isBoilerplateHeading(label) || /\?$/.test(line)) {
+        inside = false
+      } else if (REQUIREMENTS_HEADING_RE.test(label)) {
+        inside = true
+        sawList = false
+        bySentence = false
+      } else if (!(inside && NICE_TO_HAVE_HEADING_RE.test(label))) {
+        inside = false
+      }
+      continue
+    }
+    // "How we feel about Diversity, Equity, Inclusion and Belonging:" — a
+    // boilerplate title too long to be read as a heading line.
+    if (!LIST_ITEM_LINE_RE.test(raw) && /:$/.test(line) && wordCount(line) <= 12 && isBoilerplateHeading(headingLabel(line))) {
+      inside = false
+      continue
+    }
+    const colon = line.indexOf(':')
+    const label = colon > 1 && colon <= 50 ? headingLabel(line.slice(0, colon)) : ''
+    if (
+      label &&
+      !LIST_ITEM_LINE_RE.test(raw) &&
+      !/\d/.test(label) &&
+      !isBoilerplateHeading(label) &&
+      !METADATA_LABEL_RE.test(line) &&
+      REQUIREMENTS_HEADING_RE.test(label)
+    ) {
+      // An inline label's list is the rest of its line plus the items under it.
+      inside = true
+      sawList = false
+      bySentence = true
+      out.push({ text: line.slice(colon + 1), listed: true })
+      continue
+    }
+    if (
+      !inside &&
+      !LIST_ITEM_LINE_RE.test(raw) &&
+      REQUIREMENTS_SENTENCE_RE.test(line) &&
+      (REQUIREMENTS_CUE_RE.test(line) || /:$/.test(line))
+    ) {
+      inside = true
+      bySentence = true
+      sawList = false
+      out.push({ text: line, listed: false })
+      continue
+    }
+    if (!inside) continue
+    // A block opened by a sentence is that sentence plus the list under it;
+    // the "We are looking for a Frontend Engineer in Berlin" intro is followed
+    // by the employer's own story, not by requirements.
+    if ((sawList || bySentence) && !LIST_ITEM_LINE_RE.test(raw) && (bySentence || isParagraph(line))) {
+      inside = false
+      continue
+    }
+    if (LIST_ITEM_LINE_RE.test(raw)) sawList = true
+    out.push({ text: line, listed: false })
+  }
+  return out
+}
+
+/** `listed`: the rest of an inline "Requirements: a, b, c" line — a list of requirements as such. */
+export type RequirementLine = { text: string; listed: boolean }
+
+/**
+ * "experience with", "knowledge of", "degree in", "experience building" …
+ * followed by the qualifiers ads put before the thing itself ("5+ years of",
+ * "strong", "modern"). The requirement is what comes next.
+ */
+const REQUIREMENT_CUE_RE =
+  /\b(?:experience|expertise|proficien(?:t|cy)|familiar(?:ity)?|knowledge|understanding|foundation|background|degree|fluen(?:t|cy)|skills?|competen(?:t|ce|cy)|certifi(?:ed|cation)|licen[sc]ed?|hands-on|track record|command|mastery|exposure|involvement|interest|ability|working|work|skilled|experienced|versed|comfortable|comfort|passion(?:ate)?)(?:\s+(?:of|in|with|using|on|for|across|as|around|at|to)\b|\s+[a-z]+ing\b|\s*\()(?:\s+(?:a|an|the|our|modern|strong|solid|deep|various|multiple|at least|\d+\+?|years?|of|or more|relevant|related|professional|hands-on|proven|demonstrated|advanced|basic|good|excellent|any|some|either|one|more|large|complex|distributed|enterprise|cloud|open|source|[a-z]+ing))*/gi
+const CUE_WINDOW = 8
+const SHORT_ITEM_TOKENS = 6
+
+/**
+ * Whether a keyword the requirements block mentions is one of its requirements
+ * rather than a word the bullet spends on the way there ("in a fast-paced
+ * environment", "across the full stack"). It is when the ad names it as a
+ * requirement — right after a cue such as "experience with", in an inline
+ * "Requirements: …" list or a short list item of its own, written with a
+ * capital as a product or discipline (not the sentence's own capital), as a
+ * known phrase or skill.
+ */
+function namedAsRequirement(kw: string, lines: RequirementLine[], capitalized: Set<string>): boolean {
+  if (kw.includes(' ') || looksLikeSkill(kw) || capitalized.has(kw)) return true
+  for (const { text: line, listed } of lines) {
+    const tokens = tokenize(line)
+    if (!tokens.includes(kw)) continue
+    if (tokens.length <= SHORT_ITEM_TOKENS) return true
+    if (listed) return true
+    for (const m of line.matchAll(REQUIREMENT_CUE_RE)) {
+      const after = tokenize(line.slice(m.index + m[0].length)).slice(0, CUE_WINDOW)
+      if (after.includes(kw)) return true
+    }
+  }
+  return false
+}
+
+/**
+ * Countries, regions and demonyms an ad names when it says where the candidate
+ * must live; a demonym that is also a language (German, French) stays a term.
+ */
+const PLACE_WORDS = new Set(
+  (
+    'united states usa america american americas canada canadian mexico brazil argentina latam latin ' +
+    'europe european emea union kingdom britain british england ireland germany france spain portugal italy ' +
+    'netherlands switzerland austria poland sweden norway denmark finland india australia asia apac africa ' +
+    'singapore japan pacific asia-pacific nordics benelux dach oceania scandinavia'
+  ).split(' ')
+)
+
+/** "our Berlin office", "the Boston HQ" — the word before names the place, not a skill. */
+const PLACE_BEFORE_OFFICE_RE = /\b([A-Z][A-Za-z.-]+) (?:offices?|HQ|headquarters|hub)\b/g
+
+/**
+ * Sentence ends, after which a capital is the sentence's own ("…with clients.
+ * Finances can be…"). A full stop counts only after a lower-case letter that is
+ * not an abbreviation ("U.S. GAAP", "e.g. Excel" stay one clause); ":" and ";"
+ * open lists ("Frontend: Vue.js", "ERP; NetSuite preferred") and never split.
+ */
+const CLAUSE_BREAK_RE = /(?:(?<=[a-z])(?<!\b(?:e\.g|i\.e|etc|sr|jr|vs|approx|incl|min|max))\.(?=\s|$)|[?!])+/
+
+/**
+ * A colon after which prose starts ("Adaptability: Thrive in a start-up",
+ * "Please Note: Devices such as") — the capital is the sentence's own. A colon
+ * that opens a list of names ("Frontend: Typescript, React") does not split.
+ */
+const COLON_PROSE_RE = /:\s+(?=[A-Z][a-z]+\s+[a-z])/
+
+/** "Proven Commercial Leadership:" — a Title-Case label before the colon names nothing by its capitals. */
+const LABEL_RE = /^([^:]{2,60}):\s/
+
+/**
+ * Words the requirements block writes with a capital that is not the clause's
+ * own ("Ensure compliance with GAAP principles", "Proficiency in … Excel",
+ * "fluent English") — the products, standards, languages and certifications
+ * the ad names, lower-cased as `tokenize` would. A Title-Case line capitalizes
+ * every word and names nothing by it; a two-letter capital (US state codes,
+ * "FE", "MD"), a calendar word and a place name a schedule or a location, not
+ * a skill.
+ */
+function capitalizedRequirementTerms(lines: RequirementLine[]): Set<string> {
+  const out = new Set<string>()
+  const wordsOf = (s: string) =>
+    s.replace(/[^A-Za-z0-9+#./ -]/g, ' ').match(/[A-Za-z0-9+#][A-Za-z0-9+#./-]*/g) ?? []
+  for (const { text } of lines) {
+    let line = text.replace(/\b[A-Za-z]+n[’']t\b/g, ' not ').replace(/[’']([A-Za-z]{1,2})\b/g, '')
+    const titleCase = (ws: string[]) => {
+      const long = ws.filter((w) => /^[A-Za-z]{4,}$/.test(w))
+      return long.length >= 3 && long.every((w) => /^[A-Z]/.test(w))
+    }
+    if (titleCase(wordsOf(line))) continue
+    const places = new Set([...line.matchAll(PLACE_BEFORE_OFFICE_RE)].map((m) => m[1].toLowerCase()))
+    const label = LABEL_RE.exec(line)
+    if (label && titleCase(wordsOf(label[1]))) {
+      // Acronyms in the label ("NPI Number and Individual Malpractice Insurance:") still name something.
+      line = wordsOf(label[1]).filter((w) => /^[A-Z0-9]{2,}$/.test(w)).join(' ') + line.slice(label[0].length - 1)
+    }
+    for (const clause of line.split(CLAUSE_BREAK_RE).flatMap((c) => c.split(COLON_PROSE_RE))) {
+      for (const [i, w] of wordsOf(clause).entries()) {
+        if (!/[A-Z]/.test(i === 0 ? w.slice(1) : w)) continue
+        const tok = w.toLowerCase().replace(/[./-]+$/, '')
+        if (tok.length < 3 || !/^[a-z]/.test(tok)) continue
+        if (STOPWORDS.has(tok) || CALENDAR_WORDS.has(tok) || PLACE_WORDS.has(tok) || places.has(tok)) continue
+        out.add(tok)
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * Tokens of the short line under the title — usually "Company — City, Country"
+ * — which name neither a skill nor a duty.
+ */
+function headerLineTokens(jd: string): Set<string> {
+  const lines = jd.trim().split(/\n/)
+  if (lines.length < 3) return new Set()
+  const toks = tokenize(lines[1] ?? '')
+  return new Set(toks.length <= 12 ? toks : [])
+}
+
+/**
+ * Words that one in ten job ads repeats whatever the role (measured over 85 real
+ * ads from the /jobs feeds — engineering, nursing, teaching, accounting, sales).
+ * Repeating them says nothing about this job; they are still prioritized when
+ * the ad's requirements list or title names them.
+ */
+const COMMON_AD_WORDS = new Set(
+  `support product products systems tools engineering engineers design technical
+teams data growth drive business process complex solutions learning performance
+development platform workflows senior success personal technology analytics lead
+global customers customer revenue content market training enterprise`.split(/\s+/)
+)
+
+/**
+ * JD keywords worth prioritizing: keywords in the ad's requirements sections
+ * or its first line (usually the job title), known multi-word phrases and
+ * skills named where the ad describes the job, and keywords the job
+ * description itself repeats ≥3 times (unless every ad repeats them). Words
+ * repeated only across "About us" / "Benefits" / EEO / scam-notice sections
+ * describe the employer, not the job.
+ */
+export function highPriorityKeywords(jdRaw: string, keywords: string[]): Set<string> {
   const high = new Set<string>()
-  if (!jd.trim() || keywords.length === 0) return high
-  const lower = jd.toLowerCase()
-  const jdTokens = tokenize(jd)
-  const firstLine = (jd.trim().split(/\n/, 1)[0] ?? '').toLowerCase()
+  if (!jdRaw.trim() || keywords.length === 0) return high
+  const jd = normalizeAd(jdRaw)
+  const job = splitBoilerplate(jd).job.toLowerCase()
+  const jobTokens = tokenize(job)
+  // The first line is the job title only when it is short; an ad that opens
+  // with an "At Acme, we're transforming…" paragraph has no title line.
+  const opening = (jd.trim().split(/\n/, 1)[0] ?? '').trim().toLowerCase()
+  const firstLine = opening.length <= 100 && wordCount(opening) <= 12 ? opening : ''
   const firstLineTokens = new Set(tokenize(firstLine))
-  const headingMatch = REQUIREMENTS_HEADING_RE.exec(jd)
-  const reqBlock = headingMatch
-    ? lower.slice(headingMatch.index + headingMatch[0].length)
-    : ''
+  const reqLines = requirementsBlockLines(jd)
+  const reqBlock = reqLines.map((l) => l.text).join('\n').toLowerCase()
   const reqTokens = new Set(tokenize(reqBlock))
+  const capitalized = capitalizedRequirementTerms(reqLines)
   for (const kw of keywords) {
     const phrase = kw.includes(' ')
-    if (phrase && lower.includes(kw)) {
+    if ((phrase ? reqBlock.includes(kw) : reqTokens.has(kw)) && namedAsRequirement(kw, reqLines, capitalized)) {
       high.add(kw)
       continue
     }
-    if (countOccurrences(lower, jdTokens, kw) >= 3) {
+    if (phrase ? firstLine.includes(kw) : firstLineTokens.has(kw)) {
       high.add(kw)
       continue
     }
-    if (phrase ? reqBlock.includes(kw) : reqTokens.has(kw)) {
-      high.add(kw)
-      continue
-    }
-    if (phrase ? firstLine.includes(kw) : firstLineTokens.has(kw)) high.add(kw)
+    const n = countOccurrences(job, jobTokens, kw)
+    if (n === 0) continue
+    if (phrase || looksLikeSkill(kw) || (!COMMON_AD_WORDS.has(kw) && n >= 3)) high.add(kw)
   }
   return high
 }
 
 /** Percentage of a job description's keywords found in the resume text */
-export function matchScore(resumeTextRaw: string, jd: string): number | null {
-  const keywords = jd.trim() ? extractKeywords(jd) : []
+export function matchScore(resumeTextRaw: string, jd: string, company?: string): number | null {
+  const keywords = jd.trim() ? extractKeywords(jd, 30, company) : []
   if (keywords.length === 0) return null
-  const resumeText = resumeTextRaw.toLowerCase()
-  const resumeTokens = matchTokenSet(tokenize(resumeText))
+  const idx = indexResumeText(resumeTextRaw)
   let matched = 0
-  for (const kw of keywords) {
-    if (kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)) matched++
-  }
+  for (const kw of keywords) if (keywordHit(kw, idx).hit) matched++
   return Math.round((matched / keywords.length) * 100)
 }
 
@@ -842,23 +1672,30 @@ export interface MatchReport {
   covered: string[]
   missing: string[]
   highPriorityMissing: string[]
+  /** Covered keywords the resume words differently from the posting */
+  variants: KeywordVariant[]
 }
 
 /** Per-keyword breakdown behind matchScore — same extraction, matching and rounding. */
 export function matchReport(
   resumeTextRaw: string,
   jd: string,
-  targetRole = ''
+  targetRole = '',
+  company?: string
 ): MatchReport | null {
-  const keywords = withoutRoleTokens(jd.trim() ? extractKeywords(jd) : [], targetRole)
+  const keywords = withoutRoleTokens(jd.trim() ? extractKeywords(jd, 30, company) : [], targetRole)
   if (keywords.length === 0) return null
-  const resumeText = resumeTextRaw.toLowerCase()
-  const resumeTokens = matchTokenSet(tokenize(resumeText))
+  const idx = indexResumeText(resumeTextRaw)
   const covered: string[] = []
   const missing: string[] = []
+  const variants: KeywordVariant[] = []
   for (const kw of keywords) {
-    if (kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)) covered.push(kw)
-    else missing.push(kw)
+    const { hit, found } = keywordHit(kw, idx)
+    if (!hit) missing.push(kw)
+    else {
+      covered.push(kw)
+      if (found) variants.push({ keyword: kw, found })
+    }
   }
   const high = highPriorityKeywords(jd, keywords)
   return {
@@ -866,23 +1703,27 @@ export function matchReport(
     covered,
     missing,
     highPriorityMissing: missing.filter((k) => high.has(k)),
+    variants,
   }
 }
 
+export type TextScoreOptions = {
+  /** The reader's own section headings (Builder renames), so its export is read like its structured resume */
+  sectionHeadings?: Partial<Record<string, string>>
+}
+
 /** Score pasted resume text (standalone ATS checker page) */
-export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
-  const resumeText = resumeTextRaw.toLowerCase()
-  const resumeTokenList = tokenize(resumeText)
-  const resumeTokens = matchTokenSet(resumeTokenList)
+export function scoreResumeText(input: string, jd: string, options: TextScoreOptions = {}): AtsResult {
+  const resumeTextRaw = plainResumeText(input)
+  const idx = indexResumeText(resumeTextRaw)
+  const resumeText = idx.text
+  const lookup = textHeadingLookup(options.sectionHeadings)
+  const nonStandard = ['experience', 'education']
+    .map((k) => options.sectionHeadings?.[k]?.trim() ?? '')
+    .filter((label) => label && textHeadingSection(label) === null)
 
   const keywords = jd.trim() ? extractKeywords(jd) : []
-  const matched: string[] = []
-  const missing: string[] = []
-  for (const kw of keywords) {
-    const hit = kw.includes(' ') ? resumeText.includes(kw) : resumeTokens.has(kw)
-    if (hit) matched.push(kw)
-    else missing.push(kw)
-  }
+  const { matched, missing, variants } = splitKeywords(keywords, idx)
 
   const checks: AtsResult['checks'] = [
     {
@@ -901,16 +1742,16 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
     },
     {
       label: 'Standard section headings',
-      pass:
-        /^\s*(work |professional |employment )?experience\s*:?\s*$/m.test(resumeText) &&
-        /^\s*education\s*:?\s*$/m.test(resumeText),
-      hint: 'Use standard headings like "Experience" and "Education" so parsers find them.',
+      pass: hasTextHeading(resumeTextRaw, 'experience') && hasTextHeading(resumeTextRaw, 'education'),
+      hint: nonStandard.length
+        ? `${nonStandard.map((l) => `"${l}"`).join(' / ')} is not a heading ATS parsers look for — use "Experience" / "Education" (or their equivalents in your resume's language) so they find the section.`
+        : 'Use standard headings like "Experience" and "Education" (or their equivalents in your resume\'s language) so parsers find them.',
       anchor: 'experience',
       category: 'format',
     },
     {
       label: 'Skills section present',
-      pass: /^\s*(technical |core |key )?skills\s*:?\s*$/m.test(resumeText) || /skills:/.test(resumeText),
+      pass: hasTextHeading(resumeTextRaw, 'skills', lookup) || hasInlineSkillsHeading(resumeTextRaw, lookup),
       hint: 'A dedicated skills list is the easiest keyword match for ATS.',
       anchor: 'skills',
       category: 'bestPractices',
@@ -937,23 +1778,41 @@ export function scoreResumeText(resumeTextRaw: string, jd: string): AtsResult {
       category: 'content',
     },
     wordCountCheck(resumeTextRaw, 'experience'),
-    reverseChronCheck(textDateRanges(resumeTextRaw)),
-    bulletsPerEntryCheck(textBulletCounts(resumeTextRaw)),
-    dateFormatCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
-    namedMonthDatesCheck(textDateRanges(resumeTextRaw).flatMap((r) => [r.start, r.end])),
-    pronounCheck(textPronounSegments(resumeTextRaw)),
+    reverseChronCheck(textDateRanges(resumeTextRaw, lookup)),
+    bulletsPerEntryCheck(textBulletCounts(resumeTextRaw, lookup)),
+    dateFormatCheck(textDateRanges(resumeTextRaw, lookup).flatMap((r) => [r.start, r.end])),
+    namedMonthDatesCheck(textDateRanges(resumeTextRaw, lookup).flatMap((r) => [r.start, r.end])),
+    pronounCheck(textPronounSegments(resumeTextRaw, lookup)),
     activeVoiceCheck(textBulletSources(resumeTextRaw)),
     weakOpenerCheck(textBulletSources(resumeTextRaw)),
     quantifiedBulletsCheck(textBulletSources(resumeTextRaw)),
     punctuatedBulletsCheck(textBulletSources(resumeTextRaw)),
     bulletLengthCheck(textBulletSources(resumeTextRaw)),
-    buzzwordCheck(textPronounSegments(resumeTextRaw)),
-    fillerWordCheck(textPronounSegments(resumeTextRaw)),
+    buzzwordCheck(textPronounSegments(resumeTextRaw, lookup)),
+    fillerWordCheck(textPronounSegments(resumeTextRaw, lookup)),
     linkedinCheck(/linkedin\.com\//i.test(resumeTextRaw)),
-    entryLocationsCheck(textEntryLocations(resumeTextRaw)),
+    entryLocationsCheck(textEntryLocations(resumeTextRaw, lookup)),
   ]
 
-  return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
+  return finalize(keywords, matched, missing, [], checks, keywordDetailFor(keywords, idx, jd, variants), variants)
+}
+
+function splitKeywords(
+  keywords: string[],
+  idx: ResumeIndex
+): { matched: string[]; missing: string[]; variants: KeywordVariant[] } {
+  const matched: string[] = []
+  const missing: string[] = []
+  const variants: KeywordVariant[] = []
+  for (const kw of keywords) {
+    const { hit, found } = keywordHit(kw, idx)
+    if (!hit) missing.push(kw)
+    else {
+      matched.push(kw)
+      if (found) variants.push({ keyword: kw, found })
+    }
+  }
+  return { matched, missing, variants }
 }
 
 function finalize(
@@ -962,7 +1821,8 @@ function finalize(
   missing: string[],
   ignored: string[],
   checks: AtsResult['checks'],
-  keywordDetail: KeywordDetail[]
+  keywordDetail: KeywordDetail[],
+  variants: KeywordVariant[]
 ): AtsResult {
   const applicable = checks.filter((c) => !c.na)
   const structureRatio = applicable.filter((c) => c.pass).length / applicable.length
@@ -973,7 +1833,7 @@ function finalize(
     keywordScore !== null
       ? Math.round((keywordScore * 70 + structureScore * 30) / 100)
       : structureScore
-  return { score, matched, missing, ignored, keywordDetail, keywordScore, structureScore, checks: applicable }
+  return { score, matched, missing, ignored, keywordDetail, keywordScore, structureScore, checks: applicable, variants }
 }
 
 /**
@@ -1010,31 +1870,36 @@ export function bestExperienceForKeyword(
 }
 
 import type { Resume } from './resume'
-import { ONGOING_RE, dateSortValue, resumeToPlainText, skillLines } from './resume'
+import {
+  ONGOING_RE,
+  ONGOING_WORD_ALTERNATION,
+  dateSortValue,
+  defaultSectionLabels,
+  educationDates,
+  educationDetailLine,
+  educationEntries,
+  resumeToPlainText,
+  skillLines,
+} from './resume'
 import { stripInlineMarks } from './marks'
+import { CUSTOM_HEADING_RE, looksLikeHeadingShape, sectionNamedByHeading } from './sectionWords'
 
 export function scoreResume(
   resume: Resume,
   jd: string,
   pdfPages?: number | null
 ): AtsResult {
-  const resumeText = resumeToPlainText(resume).toLowerCase()
-  const resumeTokenList = tokenize(resumeText)
-  const resumeTokens = matchTokenSet(resumeTokenList)
+  const idx = indexResumeText(resumeToPlainText(resume))
+  const resumeText = idx.text
 
   const ignoredSet = new Set((resume.ignoredKeywords ?? []).map((k) => k.toLowerCase()))
-  const allKeywords = withoutRoleTokens(jd.trim() ? extractKeywords(jd) : [], resume.targetRole)
+  const allKeywords = withoutRoleTokens(
+    jd.trim() ? extractKeywords(jd, 30, resume.targetCompany) : [],
+    resume.targetRole
+  )
   const ignored = allKeywords.filter((kw) => ignoredSet.has(kw))
   const keywords = allKeywords.filter((kw) => !ignoredSet.has(kw))
-  const matched: string[] = []
-  const missing: string[] = []
-  for (const kw of keywords) {
-    const hit = kw.includes(' ')
-      ? resumeText.includes(kw)
-      : resumeTokens.has(kw)
-    if (hit) matched.push(kw)
-    else missing.push(kw)
-  }
+  const { matched, missing, variants } = splitKeywords(keywords, idx)
 
   const bulletCount = resume.experience.reduce(
     (n, e) => n + e.bullets.filter((b) => b.trim()).length,
@@ -1118,7 +1983,7 @@ export function scoreResume(
     },
     {
       label: 'Education listed',
-      pass: resume.education.some((e) => e.school.trim()),
+      pass: educationEntries(resume).length > 0,
       hint: 'Most ATS templates expect an education section.',
       anchor: 'education',
       category: 'format',
@@ -1215,10 +2080,10 @@ export function scoreResume(
           anchor: 'involvement' as const,
           id: i.id,
         })),
-      ...resume.education
-        .filter((e) => !e.hidden && e.school.trim())
+      ...educationEntries(resume)
+        .filter((e) => !e.hidden)
         .map((e) => ({
-          name: e.school.trim(),
+          name: e.school.trim() || e.degree.trim() || educationDetailLine(e) || educationDates(e),
           located: Boolean(e.location.trim()),
           anchor: 'education' as const,
           id: e.id,
@@ -1226,7 +2091,7 @@ export function scoreResume(
     ]),
   ]
 
-  return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, resumeText, resumeTokenList, jd))
+  return finalize(keywords, matched, missing, ignored, checks, keywordDetailFor(keywords, idx, jd, variants), variants)
 }
 
 export type ReadinessTier = 'ready' | 'almost' | 'not-yet'
