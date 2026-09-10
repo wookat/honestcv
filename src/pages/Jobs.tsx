@@ -83,7 +83,7 @@ import {
   type CareerDocKind,
 } from '@/lib/documents'
 import { matchReport, matchScore } from '@/lib/ats'
-import { INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
+import { INLINE_ACTION, INLINE_LABEL, INLINE_LINK } from '@/lib/utils'
 import {
   type Resume,
   type ResumeVersion,
@@ -399,17 +399,21 @@ export default function Jobs() {
     }
   }, [mobileDetail])
 
-  // The mobile detail pane shares the page scroll with the list, so opening a
-  // job deep in the list would land mid-description: show the detail from the
-  // top and restore the list's scroll offset when the pane closes.
+  // The mobile detail pane shares the page scroll with the list (and sits below
+  // the search form), so opening a job deep in the list would land
+  // mid-description: bring the pane's top under the sticky header (the html
+  // scroll-padding keeps it clear) and restore the list's scroll offset when
+  // the pane closes.
   const listScrollRef = useRef(0)
   const mobileDetailWasOpen = useRef(false)
+  const detailPaneRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!window.matchMedia(SINGLE_PANE_MQ).matches) return
     if (mobileDetail) {
       mobileDetailWasOpen.current = true
       listScrollRef.current = window.scrollY
-      window.scrollTo(0, 0)
+      if (detailPaneRef.current) detailPaneRef.current.scrollIntoView({ block: 'start' })
+      else window.scrollTo(0, 0)
     } else if (mobileDetailWasOpen.current) {
       mobileDetailWasOpen.current = false
       window.scrollTo(0, listScrollRef.current)
@@ -788,7 +792,7 @@ export default function Jobs() {
               to={`/documents?doc=${encodeURIComponent(doc.id)}`}
               className={`${INLINE_ACTION} text-primary underline-offset-2 hover:underline`}
             >
-              Open
+              <span className={INLINE_LABEL}>Open</span>
             </Link>
           </Fragment>
         ))}{' '}
@@ -831,7 +835,7 @@ export default function Jobs() {
           aria-label={`Open ${noun.toLowerCase()} ${doc.title}`}
           onClick={() => void navigate(`/documents?doc=${doc.id}`)}
         >
-          Open
+          <span className={INLINE_LABEL}>Open</span>
         </button>
         <button
           type="button"
@@ -842,7 +846,9 @@ export default function Jobs() {
             applyPipeline(relink(entry.job.id, doc.id))
           }}
         >
-          {hasLinked ? 'Use this one instead' : 'Use for this job'}
+          <span className={INLINE_LABEL}>
+            {hasLinked ? 'Use this one instead' : 'Use for this job'}
+          </span>
         </button>
       </p>
     ))
@@ -1697,8 +1703,8 @@ export default function Jobs() {
                       onClick={() => toggleSkillTerm(tag)}
                       className={
                         active
-                          ? 'bg-primary text-primary-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'
-                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs'
+                          ? 'bg-primary text-primary-foreground inline-flex min-h-8 items-center gap-1 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground inline-flex min-h-8 items-center gap-1 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
                       }
                     >
                       {tag} ×{count}
@@ -1763,7 +1769,7 @@ export default function Jobs() {
                     key={b.query}
                     type="button"
                     onClick={() => searchBroader(b.query)}
-                    className={`${INLINE_ACTION} bg-background rounded-full border px-2.5 py-0.5 font-medium hover:underline`}
+                    className="bg-background inline-flex min-h-8 items-center rounded-full border px-2.5 py-0.5 font-medium hover:underline sm:min-h-6"
                   >
                     &ldquo;{b.query}&rdquo;
                     <span className="text-muted-foreground font-normal">
@@ -1931,7 +1937,7 @@ export default function Jobs() {
                               onClick={hideTextOnly}
                               className={`${INLINE_ACTION} shrink-0 font-medium hover:underline`}
                             >
-                              Hide
+                              <span className={INLINE_LABEL}>Hide</span>
                             </button>
                           )}
                         </div>
@@ -1990,7 +1996,7 @@ export default function Jobs() {
                               <p className="line-clamp-2 text-sm font-medium break-words">
                                 {j.title}
                               </p>
-                              <p className="text-muted-foreground truncate text-xs">
+                              <p className="text-muted-foreground line-clamp-3 text-xs break-words">
                                 {j.company} · {j.location}
                               </p>
                             </span>
@@ -2111,6 +2117,7 @@ export default function Jobs() {
           </div>
 
           <div
+            ref={detailPaneRef}
             className={`bg-card max-h-[70vh] overflow-y-auto rounded-md border p-4 ${
               mobileDetail ? '' : 'hidden lg:block'
             }`}
@@ -2174,7 +2181,7 @@ export default function Jobs() {
                       to="/builder"
                       className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                     >
-                      Add your resume
+                      <span className={INLINE_LABEL}>Add your resume</span>
                     </Link>{' '}
                     to see how it matches this job&apos;s keywords.
                   </p>
@@ -2189,7 +2196,9 @@ export default function Jobs() {
                       }
                       className={`${INLINE_ACTION} text-primary text-xs font-medium underline-offset-2 hover:underline`}
                     >
-                      {reportOpenId === selected.id ? 'Hide tailoring report' : 'Tailoring report'}
+                      <span className={INLINE_LABEL}>
+                        {reportOpenId === selected.id ? 'Hide tailoring report' : 'Tailoring report'}
+                      </span>
                     </button>
                     {reportOpenId === selected.id && (
                       <div className="bg-muted/40 mt-2 rounded-md border p-2.5 text-xs">
@@ -2307,8 +2316,8 @@ export default function Jobs() {
                           onClick={() => toggleSkillTerm(tag)}
                           className={
                             active
-                              ? 'bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs'
-                              : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground rounded-full px-2 py-0.5 text-xs'
+                              ? 'bg-primary text-primary-foreground min-h-8 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
+                              : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground min-h-8 rounded-full px-2 py-0.5 text-xs sm:min-h-6'
                           }
                         >
                           {tag}
@@ -2319,7 +2328,7 @@ export default function Jobs() {
                       <button
                         type="button"
                         onClick={() => setTagsExpandedId(selected.id)}
-                        className="text-primary text-xs underline-offset-2 hover:underline"
+                        className="text-primary min-h-8 text-xs underline-offset-2 hover:underline sm:min-h-6"
                       >
                         +{(selected.tags?.length ?? 0) - 10} more
                       </button>
@@ -2440,7 +2449,7 @@ export default function Jobs() {
                                     setConfirmTarget({ job: entry.job, intent: 'target' })
                                   }
                                 >
-                                  Open
+                                  <span className={INLINE_LABEL}>Open</span>
                                 </button>
                               </p>
                             )}
@@ -2462,7 +2471,9 @@ export default function Jobs() {
                                     applyPipeline(setPipelineVersion(entry.job.id, v.id))
                                   }}
                                 >
-                                  {copy ? 'Use this one instead' : 'Use for this job'}
+                                  <span className={INLINE_LABEL}>
+                                    {copy ? 'Use this one instead' : 'Use for this job'}
+                                  </span>
                                 </button>
                               </p>
                             ))}
@@ -2491,7 +2502,7 @@ export default function Jobs() {
                                 aria-label={`Open cover letter ${coverDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${coverDoc.id}`)}
                               >
-                                Open
+                                <span className={INLINE_LABEL}>Open</span>
                               </button>
                             </p>
                             {earlierDocRows(entry, 'cover', true)}
@@ -2520,7 +2531,7 @@ export default function Jobs() {
                                 aria-label={`Open resignation letter ${resignationDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${resignationDoc.id}`)}
                               >
-                                Open
+                                <span className={INLINE_LABEL}>Open</span>
                               </button>
                             </p>
                             {earlierDocRows(entry, 'resignation', true)}
@@ -2544,7 +2555,7 @@ export default function Jobs() {
                                 aria-label={`Open interview prep ${prepDoc.title}`}
                                 onClick={() => void navigate(`/documents?doc=${prepDoc.id}`)}
                               >
-                                Open
+                                <span className={INLINE_LABEL}>Open</span>
                               </button>
                             </p>
                             {earlierDocRows(entry, 'interview', true)}

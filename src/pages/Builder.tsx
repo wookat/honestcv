@@ -94,9 +94,12 @@ import {
 } from '@/components/DraftFlagList'
 import { evidenceText, recordAppliedAnyway } from '@/lib/appliedAnyway'
 import { prefersReducedMotion } from '@/lib/motion'
+import { revealScrollLeft } from '@/lib/revealScroll'
+import { keepPageStillOnFocus } from '@/lib/stickyFocus'
+import { activeSection } from '@/lib/activeSection'
 import { focusOnClose, neighbourFocusId, useFocusAfterRender } from '@/lib/useFocusAfterRender'
 import { type AuditFinding } from '@/lib/auditChip'
-import { cn, INLINE_ACTION, INLINE_LINK } from '@/lib/utils'
+import { cn, INLINE_ACTION, INLINE_LABEL, INLINE_LINK } from '@/lib/utils'
 import { AtsScoreValue } from '@/components/AtsScoreValue'
 import { CopyTargetNote } from '@/components/CopyTargetNote'
 import { EntryAuditChip } from '@/components/EntryAuditChip'
@@ -815,6 +818,9 @@ function Section({
   )
 }
 
+/** Top of the band (below header + sticky nav) a section must reach to count as "in view" */
+const SECTION_ZONE_TOP = 110
+
 /** Sticky chip bar listing the visible editor sections; the section in view is highlighted */
 function SectionNav({
   sections,
@@ -830,8 +836,27 @@ function SectionNav({
   const keyList = sections.map((s) => s.key).join('|')
   const keys = useMemo(() => keyList.split('|'), [keyList])
   const [active, setActive] = useState(keys[0])
+  const scroller = useRef<HTMLDivElement>(null)
+  const bar = useRef<HTMLElement>(null)
+  useEffect(() => (bar.current ? keepPageStillOnFocus(bar.current) : undefined), [])
+  const revealChip = (chip: HTMLElement | null | undefined) => {
+    const box = scroller.current
+    if (!box || !chip) return
+    const boxLeft = box.getBoundingClientRect().left
+    const r = chip.getBoundingClientRect()
+    const left = revealScrollLeft(box, {
+      left: r.left - boxLeft + box.scrollLeft,
+      right: r.right - boxLeft + box.scrollLeft,
+    })
+    if (left !== box.scrollLeft)
+      box.scrollTo({ left, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  }
+  useEffect(() => {
+    revealChip(scroller.current?.querySelector<HTMLElement>('[aria-current="true"]'))
+  }, [active])
   useEffect(() => {
     const visible = new Set<string>()
+    const anchors = new Map<string, HTMLElement>()
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
@@ -840,24 +865,37 @@ function SectionNav({
           if (e.isIntersecting) visible.add(key)
           else visible.delete(key)
         }
-        const first = keys.find((k) => visible.has(k))
-        if (first) setActive(first)
+        const tops = new Map<string, number>()
+        for (const [k, el] of anchors) {
+          const r = el.getBoundingClientRect()
+          if (r.height > 0) tops.set(k, r.top)
+        }
+        const next = activeSection(keys, visible, tops, SECTION_ZONE_TOP)
+        if (next) setActive(next)
       },
-      { rootMargin: '-110px 0px -55% 0px' }
+      { rootMargin: `-${SECTION_ZONE_TOP}px 0px -55% 0px` }
     )
     for (const k of keys) {
-      const el = document.querySelector(`[data-section-anchor="${k}"]`)
-      if (el) io.observe(el)
+      const el = document.querySelector<HTMLElement>(`[data-section-anchor="${k}"]`)
+      if (el) {
+        anchors.set(k, el)
+        io.observe(el)
+      }
     }
     return () => io.disconnect()
   }, [keys])
   return (
     <nav
+      ref={bar}
       aria-label="Resume sections"
       data-sticky-subnav
       className="bg-background/85 sticky top-14 z-10 flex items-center gap-1 rounded-lg border px-1 py-1 backdrop-blur"
     >
-      <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
+      <div
+        ref={scroller}
+        className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"
+        onFocus={(e) => revealChip(e.target instanceof HTMLButtonElement ? e.target : null)}
+      >
         <div className="flex w-max gap-0.5">
           {sections.map((s) => (
             <button
@@ -3151,7 +3189,7 @@ export default function Builder() {
                   to={`/jobs?job=${encodeURIComponent(linkedJob.id)}`}
                   className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
-                  View it on the jobs board &rarr;
+                  <span className={INLINE_LABEL}>View it on the jobs board &rarr;</span>
                 </Link>
               </p>
             )}
@@ -3165,16 +3203,18 @@ export default function Builder() {
                   className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
                   onClick={() => saveDraftAsCopyFor(retargetedTrackedJob.job)}
                 >
-                  {retargetedTrackedJob.hasCopy
-                    ? 'Save as new copy and use it for that job instead'
-                    : 'Save as new copy for it'}
+                  <span className={INLINE_LABEL}>
+                    {retargetedTrackedJob.hasCopy
+                      ? 'Save as new copy and use it for that job instead'
+                      : 'Save as new copy for it'}
+                  </span>
                 </button>
                 {' · '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(retargetedTrackedJob.job.id)}`}
                   className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
-                  View it on the jobs board &rarr;
+                  <span className={INLINE_LABEL}>View it on the jobs board &rarr;</span>
                 </Link>
               </p>
             )}
@@ -3191,16 +3231,18 @@ export default function Builder() {
                   className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
                   onClick={linkCopyToTargetedJob}
                 >
-                  {jobLinksLiveCopy(targetedTrackedEntry, versions)
-                    ? 'Use this copy instead'
-                    : 'Link this copy to it'}
+                  <span className={INLINE_LABEL}>
+                    {jobLinksLiveCopy(targetedTrackedEntry, versions)
+                      ? 'Use this copy instead'
+                      : 'Link this copy to it'}
+                  </span>
                 </button>
                 {' · '}
                 <Link
                   to={`/jobs?job=${encodeURIComponent(targetedTrackedJob.id)}`}
                   className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                 >
-                  View it on the jobs board &rarr;
+                  <span className={INLINE_LABEL}>View it on the jobs board &rarr;</span>
                 </Link>
               </p>
             )}
@@ -3214,14 +3256,14 @@ export default function Builder() {
                     to={`/jobs?q=${encodeURIComponent(copyOrigin.title)}&job=${encodeURIComponent(copyOrigin.id)}`}
                     className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                   >
-                    Open it to save it again &rarr;
+                    <span className={INLINE_LABEL}>Open it to save it again &rarr;</span>
                   </Link>
                 ) : (
                   <Link
                     to={`/jobs?q=${encodeURIComponent(resume.targetRole.trim())}`}
                     className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
                   >
-                    Find it again &rarr;
+                    <span className={INLINE_LABEL}>Find it again &rarr;</span>
                   </Link>
                 )}
               </p>
@@ -11718,7 +11760,7 @@ function BundleToolDialog({
               className={`${INLINE_ACTION} text-primary font-medium underline-offset-2 hover:underline`}
               onClick={onJumpToTarget}
             >
-              Change the copy&apos;s target &rarr;
+              <span className={INLINE_LABEL}>Change the copy&apos;s target &rarr;</span>
             </button>
           </p>
         )}
@@ -11827,7 +11869,7 @@ function BundleToolDialog({
               to={`/documents?doc=${encodeURIComponent(existingDoc.id)}`}
               className={`${INLINE_LINK} text-primary font-medium underline-offset-2 hover:underline`}
             >
-              Open the saved {docKindNoun(kind)}
+              <span className={INLINE_LABEL}>Open the saved {docKindNoun(kind)}</span>
             </Link>{' '}
             &mdash; or write a new one: Save makes it the {docKindNoun(kind)} linked to the job; the
             earlier one stays in My resumes.
