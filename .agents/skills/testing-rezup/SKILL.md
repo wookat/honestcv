@@ -1793,3 +1793,25 @@ Builder a11y-name QA (post-R423): MonthYearField inputs carry aria-label ("Start
   screenshot; early captures show a translucent dialog while the behaviour is already correct.
 - Enable CSP bypass **before** navigation (then reload) or axe injection is blocked; retain the
   blocked-injection console error as a harness error, not an application one.
+
+## R843 QA notes (entry-audit chip 24 px desktop target)
+
+- Prefer fixed-width Playwright contexts for screenshots: a direct CDP device-metrics resize can be
+  reset to the context's configured width by the screenshot capture itself. Record `innerWidth`
+  before and after every capture and look at the pixels; a persistent CDP session alone is not a
+  sufficient width oracle.
+- Exercise the narrow green `✓` "best practices applied" chip as well as the amber warning chips:
+  the green badge (20.4 px) tests the minimum *width*, the warning badges (27.7–29.9 px) mostly the
+  minimum *height*. A short Project title puts the chip near the card's left edge and exercises the
+  desktop right-aligned findings panel's left-edge placement (it clips off-viewport — known, R844).
+- Compare toolbar *dimensions* separately from *positions*: a taller title row legitimately shifts
+  an unchanged wrapped toolbar down (here +2 px). Label any temporary old-CSS re-injection as a
+  reconstructed comparison, never as historical pixels.
+- Keep full-Builder axe results per scroll position: at some offsets the sticky section nav partly
+  covers unrelated targets (e.g. contact Hide toggles, 24 × 16.4 exposed) and axe reports
+  `target-size` on them — scroll-dependent occlusion, not a size defect of the node.
+- Scroll long captions fully above the fixed 375 pane switcher before capturing wrapping evidence;
+  label geometry alone does not prove the wrap is visible. Hit-test the last popover row against the
+  pane switcher.
+- After a deploy, check the loaded `index-*.js` name before trusting a measurement on the shared
+  default profile: it can still serve the previous `index.html` from cache for one load.

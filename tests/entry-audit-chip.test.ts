@@ -77,10 +77,13 @@ describe('R817: entry audit chip opens on a tap and reads as a button', () => {
     expect(chip({ findings: [], filled: false })).toBe('')
   })
 
-  it('the button is a 40px square on touch widths and shrinks to the badge from sm up', () => {
+  it('the button is a 40px square on touch widths and at least 24px square from sm up (R843)', () => {
     const button = chip().match(/<button[^>]*>/)?.[0] ?? ''
     const cls = button.match(/class="([^"]+)"/)?.[1].split(' ') ?? []
-    expect(cls).toEqual(expect.arrayContaining(['min-h-10', 'min-w-10', 'sm:min-h-0', 'sm:min-w-0']))
+    expect(cls).toEqual(expect.arrayContaining(['min-h-10', 'min-w-10', 'sm:min-h-6', 'sm:min-w-6']))
+    // WCAG 2.5.8: the badge alone measured 29.9 × 17.3 on production at ≥ sm (R842 axe)
+    expect(cls).not.toEqual(expect.arrayContaining(['sm:min-h-0']))
+    expect(cls).not.toEqual(expect.arrayContaining(['sm:min-w-0']))
     // the coloured badge keeps its compact size inside the button
     const badge = (html: string) => html.match(/<button[^>]*><span class="([^"]+)"/)?.[1].split(' ') ?? []
     expect(badge(chip())).toEqual(

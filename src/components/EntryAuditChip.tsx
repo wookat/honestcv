@@ -72,7 +72,7 @@ export function EntryAuditChip({
     >
       <button
         type="button"
-        className="flex min-h-10 min-w-10 items-center justify-center rounded sm:min-h-0 sm:min-w-0"
+        className="flex min-h-10 min-w-10 items-center justify-center rounded sm:min-h-6 sm:min-w-6"
         aria-label={name}
         aria-expanded={visible}
         aria-controls={panelId}
