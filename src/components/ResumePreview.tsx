@@ -48,6 +48,7 @@ import {
   familyOf,
   textInkOf,
   resumeLanguageOf,
+  proseText,
 } from '@/lib/resume'
 import { CONTACT_ICON_PATHS, type ContactIconKind } from '@/lib/contactIcons'
 import { domToMarks, hasInlineMarks, parseInlineMarks } from '@/lib/marks'
@@ -705,8 +706,8 @@ function SectionBlock({
         {heading(sectionHeading(resume, 'summary'), 'summary')}
         <p className="text-[11px]">
           <InlineText
-            value={resume.summary.trim()}
-            onCommit={onEdit && ((v) => onEdit({ ...resume, summary: v }))}
+            value={proseText(resume.summary)}
+            onCommit={onEdit && ((v) => onEdit({ ...resume, summary: proseText(v) }))}
           />
         </p>
       </>
@@ -1098,14 +1099,14 @@ function SectionBlock({
                     {e.details.trim() ? (
                       <>
                         <InlineText
-                          value={e.details.trim()}
+                          value={proseText(e.details)}
                           onCommit={
                             onEdit &&
                             ((v) =>
                               onEdit({
                                 ...resume,
                                 education: resume.education.map((x) =>
-                                  x.id === e.id ? { ...x, details: v } : x
+                                  x.id === e.id ? { ...x, details: proseText(v) } : x
                                 ),
                               }))
                           }
@@ -1298,12 +1299,12 @@ function SectionBlock({
               )}
             </div>
             {c.description.trim() && (
-              <p className="text-[11px]">{c.description.trim()}</p>
+              <p className="text-[11px]">{proseText(c.description)}</p>
             )}
           </div>
         ))}
         {resume.certifications.trim() && (
-          <p className="text-[11px]">{resume.certifications.trim()}</p>
+          <p className="text-[11px]">{proseText(resume.certifications)}</p>
         )}
       </>
     ) : null

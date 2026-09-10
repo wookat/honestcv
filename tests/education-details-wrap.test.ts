@@ -37,9 +37,8 @@ describe('R837: education details wraps instead of clipping', () => {
   })
 
   it('stays a one-line value: Enter is swallowed and pasted line breaks become spaces', () => {
-    expect(tag).toMatch(/if \(ev\.key === 'Enter'\) ev\.preventDefault\(\)/)
-    expect(tag).toContain('markShortcutKeyDown(ev)')
-    expect(tag).toContain("details: ev.target.value.replace(/\\r?\\n/g, ' ')")
+    expect(tag).toContain('onKeyDown={proseKeyDown}')
+    expect(tag).toContain('details: proseInput(ev.target.value)')
   })
 
   it('keeps its visible label and placeholder', () => {

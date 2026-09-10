@@ -2421,7 +2421,7 @@ export function deleteLibrarySummary(id: string): SavedSummary[] {
 /** Detail line under an education entry: details · Minor in X · GPA: Y */
 export function educationDetailLine(e: EducationItem): string {
   return [
-    e.details.trim(),
+    proseText(e.details),
     e.minor?.trim() ? `Minor in ${e.minor.trim()}` : '',
     e.gpa?.trim() ? `GPA: ${e.gpa.trim()}` : '',
   ]
@@ -2866,6 +2866,13 @@ export const agentBullets = (a: AgentItem): string[] => [
   ...a.description.split('\n').map((l) => l.trim()).filter(Boolean),
 ]
 
+/**
+ * Prose fields (summary, certification descriptions, free-text certifications, education details) are one
+ * paragraph on every surface: line breaks become a single space. Renderers and text
+ * exports apply this so a stored newline reads the same in preview, PDF, DOCX, TXT and MD.
+ */
+export const proseText = (s: string): string => s.replace(/\s*\r?\n\s*/g, ' ').trim()
+
 /** Whether the resume carries any user-entered content, as opposed to a blank draft that only has settings and a target job. */
 export const resumeHasContent = (r: Resume): boolean => resumeToPlainText(r).trim() !== ''
 
@@ -2877,7 +2884,7 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
   lines.push([c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean).join(' | '))
   for (const key of orderedSectionKeys(r)) {
     if (key === 'summary' && r.summary) {
-      lines.push('', sectionHeading(r, 'summary').toUpperCase(), r.summary)
+      lines.push('', sectionHeading(r, 'summary').toUpperCase(), proseText(r.summary))
     } else if (key === 'experience' && r.experience.some((e) => e.company || e.role)) {
       lines.push('', sectionHeading(r, 'experience').toUpperCase())
       for (const g of experienceGroups(r.experience, r.groupByCompany === 'on')) {
@@ -2940,9 +2947,9 @@ export function resumeToPlainText(r: Resume, opts?: { keepLinkUrls?: boolean }):
       lines.push('', sectionHeading(r, 'certifications').toUpperCase())
       for (const c of certEntries(r)) {
         lines.push(certHeadingLine(c) + (c.date.trim() ? ` (${c.date.trim()})` : ''))
-        if (c.description.trim()) lines.push(c.description.trim())
+        if (c.description.trim()) lines.push(proseText(c.description))
       }
-      if (r.certifications) lines.push(r.certifications)
+      if (r.certifications) lines.push(proseText(r.certifications))
     } else if (key === 'awards' && awardEntries(r).length > 0) {
       lines.push('', sectionHeading(r, 'awards').toUpperCase())
       for (const a of awardEntries(r)) {
@@ -2997,7 +3004,7 @@ export function resumeToMarkdown(r: Resume): string {
   for (const key of orderedSectionKeys(r)) {
     if (key === 'summary' && r.summary) {
       heading(sectionHeading(r, 'summary'))
-      lines.push(r.summary)
+      lines.push(proseText(r.summary))
     } else if (key === 'experience' && r.experience.some((e) => e.company || e.role)) {
       heading(sectionHeading(r, 'experience'))
       for (const g of experienceGroups(r.experience, r.groupByCompany === 'on')) {
@@ -3068,9 +3075,9 @@ export function resumeToMarkdown(r: Resume): string {
           `### ${certHeadingLine(c)}${c.date.trim() ? ` *(${c.date.trim()})*` : ''}`,
           ''
         )
-        if (c.description.trim()) lines.push(c.description.trim(), '')
+        if (c.description.trim()) lines.push(proseText(c.description), '')
       }
-      if (r.certifications) lines.push(r.certifications)
+      if (r.certifications) lines.push(proseText(r.certifications))
     } else if (key === 'awards' && awardEntries(r).length > 0) {
       heading(sectionHeading(r, 'awards'))
       for (const a of awardEntries(r)) {
